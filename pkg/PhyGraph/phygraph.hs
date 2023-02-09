@@ -126,7 +126,7 @@ main = do
 
     -- get set paritions character from Set commands early
     let setCommands = filter ((== Set).fst) thingsToDo
-    (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings 0 [] mempty mempty mempty mempty mempty mempty setCommands
+    (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
     
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
@@ -201,12 +201,17 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
+    -- Set reporting data for qualitative characaters to Naive data (usually but not is huge), empty if packed
+    let reportingData = if reportNaiveData partitionCharOptimalityGlobalSettings then 
+                             naiveData
+                        else emptyProcessedData
+
     -- get mix of static/dynamic characters to adjust dynmaicEpsilon
     -- doing on naive data so no packing etc
     let fractionDynamicData = U.getFractionDynamic naiveData
 
     -- Group Data--all nonadditives to single character, additives with 
-    -- alphbet < 64 recoded to nonadditive binary, additives with same alphabet
+    -- alphabet < 64 recoded to nonadditive binary, additives with same alphabet
     -- combined,
     let naiveDataGrouped = R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
 
@@ -249,7 +254,7 @@ main = do
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData [] [] seedList [] initialSetCommands
+    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData reportingData [] [] seedList [] initialSetCommands
     
     -- Get CPUTime so far ()data input and processing
     dataCPUTime <- getCPUTime
@@ -270,7 +275,7 @@ main = do
     let pairDist = D.getPairwiseDistances optimizedData
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
+    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

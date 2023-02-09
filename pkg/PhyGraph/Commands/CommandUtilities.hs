@@ -466,7 +466,6 @@ getEdgeInfo inEdge =
 -- | getTNTStrings returns as a single String the implied alignments of all sequence characters
 -- softwired use display trees, hardWired transform to softwired then proceed with display trees
 -- key to keep cost matrices and weights
--- does not (for now) inlude qualitative charcters
 getTNTString :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Int -> String
 getTNTString inGS inData inGraph graphNumber = 
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create TNT data for in getTNTString"
@@ -609,11 +608,9 @@ mergeDataBlocks inGraphList curDataList curInfoList =
 
 -- | getTaxonCharString returns the total character string for a taxon
 -- length and zipping for missing data
--- only counts sequence charctaers for tnt file output
 getTaxonCharString ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String
 getTaxonCharString charInfoVV charDataVV =
-    -- let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
-    let lengthBlock = maximum $ V.zipWith U.getSequenceCharacterLengths (V.head charDataVV) (V.head charInfoVV)
+    let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
     in
     concat $ V.zipWith (getBlockString lengthBlock) charInfoVV charDataVV
 
@@ -648,6 +645,7 @@ mergeCharInfoCharLength codeList lengthList charIndex =
         (ccCodeString' ++ weightString' ++ costsString') ++ (mergeCharInfoCharLength (tail codeList) (tail lengthList) (charIndex + charLength))
         
 
+
 -- | getCharacterInfo takes charInfo vect vect and reiurns triples of ccCode, costs, and weight values 
 -- for each character
 getCharacterInfo :: V.Vector (V.Vector CharInfo) -> [(String, String, String)]
@@ -656,7 +654,7 @@ getCharacterInfo inCharInfoVV =
 
 -- | getBlockInfo gets character code info for a block
 getBlockInfo :: V.Vector CharInfo -> [(String, String, String)]
-getBlockInfo inCharInfoV = filter (/= ("", "", "")) $ V.toList $ fmap getCharCodeInfo inCharInfoV
+getBlockInfo inCharInfoV = V.toList $ fmap getCharCodeInfo inCharInfoV
 
 -- | getCharCodeInfo extracts 3-tuple of cc code, costs and weight as strings
 -- from charInfo
@@ -672,10 +670,10 @@ getCharCodeInfo inCharInfo =
                        else makeMatrixString inAlph inMatrix
     in
     let codeTriple = case inCharType of
-                      x | x `elem` [Add              ] ->  ("", "", "") --("+", "", charWeightString)
-                      x | x `elem` [NonAdd           ] ->  ("", "", "") --("-", "", charWeightString)
-                      x | x `elem` packedNonAddTypes   ->  ("", "", "") --("-", "", charWeightString)
-                      x | x `elem` [Matrix           ] ->  ("", "", "") -- ("(", matrixString, charWeightString)
+                      x | x `elem` [Add              ] -> ("+", "", charWeightString)
+                      x | x `elem` [NonAdd           ] -> ("-", "", charWeightString)
+                      x | x `elem` packedNonAddTypes   -> ("-", "", charWeightString)
+                      x | x `elem` [Matrix           ] -> ("(", matrixString, charWeightString)
                       x | x `elem` sequenceCharacterTypes -> if costMatrixType == "nonAdd" then ("-", "", charWeightString) 
                                                              else ("(", matrixString, charWeightString)
                       _                                -> error ("Un-implemented data type " ++ show inCharType)
@@ -717,7 +715,7 @@ makeCostString namePairList costList =
 getBlockLength :: V.Vector CharacterData -> V.Vector CharInfo -> [Int]
 getBlockLength inCharDataV inCharInfoV =
     -- trace ("GBL:" ++ (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
-    V.toList $ V.zipWith U.getSequenceCharacterLengths inCharDataV inCharInfoV
+    V.toList $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV
 
 -- | getBlockNames returns a list of the lengths of all characters in a blocks
 getBlockNames :: V.Vector CharInfo -> [String]
@@ -729,7 +727,6 @@ getBlockNames inCharInfoV =
 -- | getCharacterString returns a string of character states
 -- need to add splace between (large alphabets etc)
 -- local alphabet for charactes where that is input.  MAytrix and additive are integers
--- Skips qualitative characters--only sequence 
 getCharacterString :: CharacterData -> CharInfo -> String
 getCharacterString inCharData inCharInfo = 
     let inCharType = charType inCharInfo
@@ -737,10 +734,10 @@ getCharacterString inCharData inCharInfo =
                         else fmap ST.toString discreteAlphabet
     in
     let charString = case inCharType of
-                      x | x `elem` [NonAdd           ] ->    [] --foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
-                      x | x `elem` packedNonAddTypes   ->    [] --UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
-                      x | x `elem` [Add              ] ->    [] -- foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
-                      x | x `elem` [Matrix           ] ->    [] --foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
+                      x | x `elem` [NonAdd           ] ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
+                      x | x `elem` packedNonAddTypes   -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
+                      x | x `elem` [Add              ] ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
+                      x | x `elem` [Matrix           ] ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
                       x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ slimAlignment inCharData
                       x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ wideAlignment inCharData
                       x | x `elem` [HugeSeq]           ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ hugeAlignment inCharData
