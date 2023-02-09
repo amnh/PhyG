@@ -611,7 +611,16 @@ setCommand argList globalSettings processedData inSeedList =
                     (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
                 else 
                     (globalSettings, processedData, inSeedList)
-        
+
+        else if head commandList == "reportnaivedata"  then
+            let localMethod
+                  | (head optionList == "true") = True
+                  | (head optionList == "false") = False
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. NeportNaive  '" ++ (head optionList) ++ "' is not 'True' or 'False'")
+            in
+            trace ("ReportNaiveData set to " ++ (show localMethod))
+            (globalSettings {reportNaiveData = localMethod}, processedData, inSeedList)
+
         else if head commandList == "rootcost"  then
             let localMethod
                   | (head optionList == "norootcost") = NoRootCost
