@@ -50,6 +50,7 @@ import qualified Data.Map                    as MAP
 import           Data.Maybe
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
+-- import qualified Data.Vector.Storable         as SV
 import qualified Data.Vector.Unboxed         as UV
 import qualified DirectOptimization.PreOrder as DOP
 import           GeneralUtilities
@@ -981,13 +982,13 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalAssignment' = extractMedians $ slimGapped childChar
          in
-         -- trace ("TNFinal-Root: " ++ (show finalAssignment') ++ " " ++ (show $ slimGapped childChar)) (
+         --trace ("TNFinal-Root: " ++ (show finalAssignment') ++ " " ++ (show (SV.length finalAssignment', slimGapped childChar))) (
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = finalAssignment'
                         , slimAlignment = if isTree then slimGapped childChar
                                           else mempty
                         }
-         -- )
+         --)
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAssignment' = extractMedians $ wideGapped childChar
@@ -1034,10 +1035,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         -- trace ("TNFinal-Leaf:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          let finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              -- finalAssignment' = extractMedians finalAlignment
          in
+         --trace ("TNFinal-Leaf:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalAlignment, isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "\n->" ++ (show finalAlignment)) (
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
                         , slimAlignment = if isTree then finalAlignment
@@ -1047,7 +1048,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         , slimIAFinal  =  if isTree then extractMediansGapped $ finalAlignment
                                           else mempty
                         }
-         -- )
+         --)
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
@@ -1121,7 +1122,6 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         -- trace ("TNFinal-Tree:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
@@ -1134,12 +1134,13 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                     -- really could/should be mempty since overwritten by IA later
                                  else extractMedians finalGapped
          in
+         --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { slimFinal = GV.filter (/= 0) finalAssignmentDO
                         , slimAlignment = if isTree then finalGapped
                                           else mempty
                         }
-         -- )
+         --)
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalGapped = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
@@ -1245,26 +1246,6 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         }
         -- )
 
-      {-
-      else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
-         if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
-         else childChar { wideFinal = if isTree then wideFinal parentChar
-                                      else mempty
-                        , wideAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-                       -- , wideIAPrelim = wideIAPrelim parentChar
-                        , wideIAFinal = wideFinal parentChar
-                        }
-
-      else if localCharType == HugeSeq then
-         if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
-         else childChar { hugeFinal = if isTree then hugeFinal parentChar
-                                      else mempty
-                        , hugeAlignment =  DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
-                        -- , hugeIAPrelim = hugeIAPrelim parentChar
-                        , hugeIAFinal = if isTree then hugeFinal parentChar
-                                       else mempty
-                        }
-    -}
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
       -- )
 

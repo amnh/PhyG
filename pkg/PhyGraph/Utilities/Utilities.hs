@@ -714,6 +714,25 @@ getTraversalCosts inGraph =
     in
     traversalRootCosts
 
+-- | getSequenceCharacterLengths returns a the length of block characters
+getSequenceCharacterLengths :: CharacterData -> CharInfo -> Int
+getSequenceCharacterLengths inCharData inCharInfo =
+    let inCharType = charType inCharInfo
+    in
+    -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
+    case inCharType of
+      x | x `elem` [NonAdd           ] -> 0 -- V.length  $ snd3 $ stateBVPrelim inCharData
+      x | x `elem` packedNonAddTypes   -> 0 -- UV.length  $ snd3 $ packedNonAddPrelim inCharData
+      x | x `elem` [Add              ] -> 0 -- V.length  $ snd3 $ rangePrelim inCharData
+      x | x `elem` [Matrix           ] -> 0 -- V.length  $ matrixStatesPrelim inCharData
+      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
+      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
+      x | x `elem` [HugeSeq]           -> V.length  $ snd3 $ hugeAlignment inCharData
+      x | x `elem` [AlignedSlim]       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
+      x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
+      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData
+      _                                -> error ("Un-implemented data type " ++ show inCharType)
+      -- )
 
 -- | getCharacterLengths returns a the length of block characters
 getCharacterLength :: CharacterData -> CharInfo -> Int
