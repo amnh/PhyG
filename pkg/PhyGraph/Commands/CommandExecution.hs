@@ -74,6 +74,8 @@ import qualified Data.Version             as DV
 import qualified System.CPU               as SC
 import qualified System.IO.Unsafe         as SIOU
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import qualified ParallelUtilities            as PU
+import Control.Parallel.Strategies
 
 
 
@@ -652,6 +654,8 @@ setCommand argList globalSettings processedData inSeedList =
 -- | reportCommand takes report options, current data and graphs and returns a
 -- (potentially large) String to print and the channel to print it to
 -- and write mode overwrite/append
+-- if global settings reportNaiveData is True then need to rediagnose graph with processed data since 
+-- naiveData was sent to command and will not match what is in hte optimized graphs 
 reportCommand :: GlobalSettings -> [Argument] -> Int -> String -> ProcessedData -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> [[VertexCost]] -> (String, String, String)
 reportCommand globalSettings argList numInputFiles crossReferenceString processedData curGraphs supportGraphs pairwiseDistanceMatrix =
     let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileArgList) .fst) argList
@@ -688,7 +692,10 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
 
             else if "diagnosis" `elem` commandList then
-                let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis processedData) (zip curGraphs [0.. ((length curGraphs) - 1)])
+                -- need to rediagnose if reportNaiveData
+                let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
+                                 else PU.seqParMap rdeepseq  (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                    dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis processedData) (zip curGraphs' [0.. ((length curGraphs') - 1)])
                 in
                 if null curGraphs then 
                     trace ("No graphs to diagnose")
