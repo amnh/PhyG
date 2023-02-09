@@ -72,7 +72,7 @@ import           Data.Time.Clock
 main :: IO ()
 main = do
     let compileDate = (__DATE__ ++ " " ++ __TIME__)
-    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022 Ward Wheeler and The American Museum of Natural History\n"
+    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "\tunder the 3-Clause BSD License.\nCompiled " ++ compileDate
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
