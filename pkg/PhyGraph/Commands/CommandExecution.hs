@@ -704,7 +704,7 @@ reportCommand globalSettings argList numInputFiles crossReferenceString processe
                 -- need to rediagnose if reportNaiveData
                 let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
                                  else PU.seqParMap rdeepseq  (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
-                    dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis processedData) (zip curGraphs' [0.. ((length curGraphs') - 1)])
+                    dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0.. ((length curGraphs') - 1)])
                 in
                 if null curGraphs then 
                     trace ("No graphs to diagnose")
