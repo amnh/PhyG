@@ -418,8 +418,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
       else
          let -- choose staticApproximation or not
              -- up top here because used by other non-build options
-             -- if happens--need to rtansfomr back before returning
-             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.33), (False, 0.67)]
+             -- if happens--need to transform  back before returning
+             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.50), (False, 0.50)]
              ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
                                                                             (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
                                                                            else ((inGS', inData', inData', inGraphList'), "")
