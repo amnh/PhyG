@@ -410,22 +410,29 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
             staticVertexInfoList =  concatMap (getVertexCharInfo (thd3 staticData) (fst6 staticGraph) (six6 staticGraph)) staticVertexList
 
             vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State"]] 
-            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo (thd3 staticData) (fst6 staticGraph) (six6 staticGraph) (V.fromList staticVertexList)) staticVertexList
 
+            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo (thd3 staticData) (fst6 staticGraph) (six6 staticGraph) (V.fromList staticVertexList)) staticVertexList
+            -}
+            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State"]] 
+
+            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList
+            
             -- putting parent states before current state
-            vertexStateInfoList = fmap (take 9) staticVertexInfoList
-            vertexStateList = fmap (drop 9) staticVertexInfoList
+            --vertexStateInfoList = fmap (take 9) staticVertexInfoList
+            vertexStateInfoList = fmap (take 9) vertexInfoList
+            --vertexStateList = fmap (drop 9) staticVertexInfoList
+            vertexStateList = fmap (drop 9) vertexInfoList
             parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
             vertexChangeList = zipWith (++) vertexStateInfoList parentVertexStatesList
 
             -- filter out those that are the same states
             differenceList = removeNoChangeLines vertexChangeList
-            -}
+            
 
 
         in
-        --trace ("GGD: " ++ (show $ snd6 staticGraph)) 
-        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList -- vertexChangeTitle ++ differenceList
+        -- trace ("GGD: " ++ (show $ snd6 staticGraph)) 
+        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList
 
 -- | removeNoChangeLines takes lines of vertex changes and removes lines where parent and child startes are the same
 -- so missing or ambiguous in one and not the other will be maintained
