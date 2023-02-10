@@ -197,14 +197,15 @@ splitSequence partitionST stList =
         else [firstPart]
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
-bitVectToCharState :: Bits b => Alphabet String -> b -> String
+bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState localAlphabet bitValue = 
   L.intercalate "," $ foldr pollSymbol mempty indices
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
-    localAlphabet' = if length localAlphabet == bitSize bitValue then localAlphabet
-                     else fromSymbolsWOGap $ fmap show [0.. (bitSize bitValue) - 1] 
+    -- this is a hack--the alphabets for non-additive charcaters gets truncated to binary at some point earlier 
+    localAlphabet' = if length localAlphabet == finiteBitSize bitValue then localAlphabet
+                     else fromSymbolsWOGap $ fmap show [0.. (finiteBitSize bitValue) - 1] 
     vec = alphabetSymbols localAlphabet'
     pollSymbol i polled
       | bitValue `testBit` i = (vec V.! i) : polled

@@ -408,7 +408,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 
                 -- max in case of all missing character
                 numStates = max 1 (popCount nonMissingBV)
-
+                
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
                 stateAlphabet = fromSymbolsWOGap  foundSymbols -- fromSymbolsWOGap foundSymbols

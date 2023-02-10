@@ -459,9 +459,9 @@ getVertexAndParentCharInfo blockDataVect inGraph charInfoVectVect allVertVect in
         basicInfoList = [" ", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, " ",
          " ", " ", " ", " "]
         blockCharVectNode = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
-        blockInfoListNode = concat $ V.toList $ V.map getBlockList blockCharVectNode
 
-        blockCharVectParent = if parentNodes == "None" then V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
+        -- for root--gets its own values as parent--filtered out in diff list later
+        blockCharVectParent = if parentNodes == "None" then blockCharVectNode
                               else V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd $ allVertVect V.! (head nodeParents))) charInfoVectVect
         blockInfoListParent = concat $ V.toList $ V.map getBlockList blockCharVectParent
     in
@@ -811,7 +811,7 @@ getCharacterString inCharData inCharInfo =
     else replicate (length charString) '?'
         
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
-bitVectToCharStringTNT ::  Bits b => Alphabet String -> b -> String
+bitVectToCharStringTNT ::  (FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharStringTNT localAlphabet bitValue = 
     let stateString = U.bitVectToCharState localAlphabet bitValue
     in

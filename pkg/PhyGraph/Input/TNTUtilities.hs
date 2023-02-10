@@ -262,7 +262,7 @@ defaultTNTCharInfo = emptyCharInfo { charType = NonAdd
                                 , weight = 1.0
                                 , costMatrix = SM.empty
                                 , name = T.empty
-                                , alphabet = fromSymbolsWOGap $ fmap ST.fromString $ fmap show [0..100] -- [ST.fromString "0"] -- fromSymbols []
+                                , alphabet = fromSymbolsWOGap [ST.fromString "0"] -- fromSymbols []
                                 , prealigned = True
                                 , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
                                 , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
