@@ -387,33 +387,91 @@ getGraphDiagnosis inData (inGraph, graphIndex) =
     else
         let vertexList = LG.labNodes decGraph
             edgeList = LG.labEdges decGraph
-            topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
+
+            -- Vertex final character states for currect node
+            vertexTitle = ["Vertex Character State Information"]
+            -- topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
+            topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Final State"]
             vertexInfoList =  concatMap (getVertexCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
-            edgeHeaderList = [[" "],[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
+
+            -- Edge length information
+            edgeTitle = [[" "],["Edge Weight/Length Information"]]
+            edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
+
+            -- Edge character change information
+            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State"]] 
+            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList
+
+            -- putting parent states before current state
+            vertexStateInfoList = fmap (take 9) vertexInfoList
+            vertexStateList = fmap (drop 9) vertexInfoList
+            parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
+            vertexChangeList = zipWith (++) vertexStateInfoList parentVertexStatesList
+
+            -- filter out those that are the same states
+            differenceList = removeNoChangeLines vertexChangeList
+
+
         in
-        [topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeHeaderList ++ edgeInfoList
+        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList
+
+-- | removeNoChangeLines takes lines of vertex changes and removes lines where parent and child startes are the same
+-- so missing or ambiguous in one and not the other will be maintained
+removeNoChangeLines :: [[String]] -> [[String]]
+removeNoChangeLines inStringList =
+    if null inStringList then []
+    else 
+        let parentState = (head inStringList) !! 9
+            childState  = (head inStringList) !! 10
+        in
+        if parentState == " " then (head inStringList) : removeNoChangeLines (tail inStringList)
+        else if parentState /= childState then (head inStringList) : removeNoChangeLines (tail inStringList)
+        else removeNoChangeLines (tail inStringList)
 
 -- | getVertexCharInfo returns a list of list of Strings of vertex information
 -- one list for each character at the vertex
 getVertexCharInfo :: V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> [[String]]
 getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
-    let leafParents = LG.parents inGraph (fst inVert)
+    let nodeParents = LG.parents inGraph (fst inVert)
         parentNodes
           | nodeType  (snd inVert) == RootNode = "None"
-          | nodeType  (snd inVert) == LeafNode = show leafParents
+          | nodeType  (snd inVert) == LeafNode = show nodeParents
           | otherwise = show $  parents  (snd inVert)
         childNodes = if nodeType  (snd inVert) == LeafNode then "None" else show $  children  (snd inVert)
-        basicInfoList = [" ", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, " ", " ", " ", " ", " ", show $ vertexCost (snd inVert)]
+        basicInfoList = [" ", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, " ", " ", " ", " ", " "]
         blockCharVect = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
         blockInfoList = concat $ V.toList $ V.map getBlockList blockCharVect
     in
     basicInfoList : blockInfoList
 
+
+-- | getVertexAndParentCharInfo returns a list of list of Strings of vertex information
+-- for child and its parent
+getVertexAndParentCharInfo :: V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LNode VertexInfo -> [[String]]
+getVertexAndParentCharInfo blockDataVect inGraph charInfoVectVect allVertVect inVert =
+    let nodeParents = LG.parents inGraph (fst inVert)
+        parentNodes
+          | nodeType  (snd inVert) == RootNode = "None"
+          | nodeType  (snd inVert) == LeafNode = show nodeParents
+          | otherwise = show $  parents  (snd inVert)
+        childNodes = if nodeType  (snd inVert) == LeafNode then "None" else show $  children  (snd inVert)
+        basicInfoList = [" ", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, " ",
+         " ", " ", " ", " "]
+        blockCharVectNode = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
+        blockInfoListNode = concat $ V.toList $ V.map getBlockList blockCharVectNode
+
+        blockCharVectParent = if parentNodes == "None" then V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
+                              else V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd $ allVertVect V.! (head nodeParents))) charInfoVectVect
+        blockInfoListParent = concat $ V.toList $ V.map getBlockList blockCharVectParent
+    in
+    basicInfoList : blockInfoListParent
+    
+
 -- | getBlockList takes a pair of Vector of chardata and vector of charInfo and returns Strings
 getBlockList :: (NameText, V.Vector CharacterData, V.Vector CharInfo) -> [[String]]
 getBlockList (blockName, blockDataVect, charInfoVect) =
-    let firstLine = [" ", " ", " ", " ", " ", " ", T.unpack blockName]
+    let firstLine = [" ", " ", " ", " ", " ", " ", T.unpack blockName," ", " ", " ", " ", " "]
         charlines = V.toList $ V.map makeCharLine (V.zip blockDataVect charInfoVect)
     in
     firstLine : charlines
@@ -433,7 +491,8 @@ makeCharLine (blockDatum, charInfo) =
                         else if localType `elem` exactCharacterTypes then (show localType)
                         else error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
 
-        (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
+        -- (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
+        (_, stringFinal) =            if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
                                       else if localType == NonAdd then (concat $ V.map (U.bitVectToCharState localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
                                       else if localType `elem` packedNonAddTypes then (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ packedNonAddPrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
                                       else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
@@ -453,7 +512,8 @@ makeCharLine (blockDatum, charInfo) =
                                              _                                -> error ("Un-implemented data type " ++ show localType)
                                       else error ("Un-implemented data type " ++ show localType)
         in
-        [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
+        -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
+        [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal]
 
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
