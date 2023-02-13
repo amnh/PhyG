@@ -124,7 +124,7 @@ main = do
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
-    -- get set paritions character from Set commands early
+    -- get set partitions character from Set commands early
     let setCommands = filter ((== Set).fst) thingsToDo
     (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
     
@@ -151,7 +151,7 @@ main = do
     if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++ (concatMap (++ " ") $ fmap Text.unpack terminalsToExclude))
     else hPutStrLn stderr ("")
 
-    -- Uses names from terminal list if non-null, and remove exckuded terminals
+    -- Uses names from terminal list if non-null, and remove excluded terminals
     let dataLeafNames' = if (not $ null terminalsToInclude) then L.sort $ L.nub terminalsToInclude
                         else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
