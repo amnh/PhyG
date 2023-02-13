@@ -217,7 +217,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                doSteepest' = any ((=="steepest").fst) lcArgList
                doAll = any ((=="all").fst) lcArgList
                
-               doSteepest = if (not doSteepest' && not doAll) then False
+               doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
 
                -- readdition options, specified as swap types
