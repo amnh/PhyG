@@ -418,8 +418,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
       else
          let -- choose staticApproximation or not
              -- up top here because used by other non-build options
-             -- if happens--need to rtansfomr back before returning
-             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.33), (False, 0.67)]
+             -- if happens--need to transform  back before returning
+             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.50), (False, 0.50)]
              ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
                                                                             (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
                                                                            else ((inGS', inData', inData', inGraphList'), "")
@@ -538,21 +538,21 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "fuse" then
                                             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                                             let -- fuse arguments
-                                                fuseArgs = [("none",""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("none",""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseSPR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("spr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("spr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseTBR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("tbr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("tbr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)

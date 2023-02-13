@@ -36,6 +36,7 @@ Portability :  portable (I hope)
 
 module Commands.Transform
   ( transform
+  , makeStaticApprox
   ) where
 
 import Types.Types
@@ -61,11 +62,13 @@ import qualified Data.Vector.Generic         as GV
 import           Data.Word
 import           Data.Bits
 import qualified Input.Reorganize            as R
-import qualified Input.DataTransformation    as TRANS
+-- import qualified Input.DataTransformation    as TRANS
 import qualified Input.BitPack               as BP
 import qualified Commands.Verify             as VER
 import qualified Data.Text.Lazy              as TL
 import qualified Data.Char as C
+import qualified Data.Bits as B
+
 
 -- | transform changes aspects of data sande settings during execution
 -- as opposed to Set with all happens at begginign of program execution
@@ -234,7 +237,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
             -- transform to static approx--using first Tree
             else if toStaticApprox then
-               let newData = makeStaticApprox inGS inData (head $ L.sortOn snd6 inGraphList) 
+               let newData = makeStaticApprox inGS False inData (head $ L.sortOn snd6 inGraphList) 
                    newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
 
                in
@@ -404,8 +407,8 @@ reweightCharacterData weightValue charTypeList charNameList charInfo =
 -- if hardWired--convert to softwired and use display trees for SA
 -- since for heuristic searcing--uses additive weight for sequences and simple cost matrices, otherwise
 -- matrix characters
-makeStaticApprox :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> ProcessedData
-makeStaticApprox inGS inData inGraph = 
+makeStaticApprox :: GlobalSettings -> Bool -> ProcessedData -> PhylogeneticGraph -> ProcessedData
+makeStaticApprox inGS leavePrealigned inData inGraph = 
    if LG.isEmpty (fst6 inGraph) then error "Empty graph in makeStaticApprox"
 
    -- tree type
@@ -414,7 +417,7 @@ makeStaticApprox inGS inData inGraph =
           (nameV, nameBVV, blockDataV) = inData
 
           -- do each block in turn pulling and transforming data from inGraph
-          newBlockDataV = PU.seqParMap rdeepseq  (pullGraphBlockDataAndTransform decGraph inData) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
+          newBlockDataV = PU.seqParMap rdeepseq  (pullGraphBlockDataAndTransform leavePrealigned decGraph inData) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
 
           -- convert prealigned to non-additive if all 1's tcm 
 
@@ -425,7 +428,8 @@ makeStaticApprox inGS inData inGraph =
           newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
       in
       -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
-      newProcessedData'
+      if leavePrealigned then (nameV, nameBVV, V.fromList newBlockDataV)
+      else newProcessedData'
 
    else trace ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS) ++ " skipping") inData
 
@@ -433,8 +437,8 @@ makeStaticApprox inGS inData inGraph =
 -- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls 
 -- the character data of the block and transforms the leaf data by using implied alignment
 -- feilds for dynamic characters
-pullGraphBlockDataAndTransform :: DecoratedGraph -> ProcessedData -> Int -> BlockData
-pullGraphBlockDataAndTransform inDecGraph  (_, _, blockCharInfoV) blockIndex =
+pullGraphBlockDataAndTransform :: Bool -> DecoratedGraph -> ProcessedData -> Int -> BlockData
+pullGraphBlockDataAndTransform leavePrealigned inDecGraph  (_, _, blockCharInfoV) blockIndex =
    let (_, leafVerts, _, _) = LG.splitVertexList inDecGraph
        (_, leafLabelList) = unzip leafVerts
        leafBlockData = fmap (V.! blockIndex) (fmap vertData leafLabelList)
@@ -443,28 +447,28 @@ pullGraphBlockDataAndTransform inDecGraph  (_, _, blockCharInfoV) blockIndex =
        -- nedd character legnth for missing values
        charLengthV = V.zipWith U.getMaxCharacterLength (thd3 $ blockCharInfoV V.! blockIndex) (V.fromList $ fmap V.toList leafBlockData)
 
-       (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData 
+       (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData leavePrealigned (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData 
    in
    -- trace ("PGDT: " ++ show charLengthV)
    (fst3 $ blockCharInfoV V.! blockIndex, V.fromList transformedLeafBlockData, head transformedBlockInfo)
 
 
 -- | transformData takes original Character info and character data and transforms to static if dynamic noting chracter type
-transformData :: V.Vector CharInfo -> V.Vector Int -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo) 
-transformData inCharInfoV inCharLengthV inCharDataV  =
+transformData :: Bool -> V.Vector CharInfo -> V.Vector Int -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo) 
+transformData leavePrealigned inCharInfoV inCharLengthV inCharDataV  =
    if V.null inCharInfoV then 
       (V.empty, V.empty)
    else 
-      let (outCharDataV, outCharInfoV) = V.unzip $ V.zipWith3 transformCharacter inCharDataV inCharInfoV inCharLengthV
+      let (outCharDataV, outCharInfoV) = V.unzip $ V.zipWith3 (transformCharacter leavePrealigned) inCharDataV inCharInfoV inCharLengthV
       in
       (outCharDataV, outCharInfoV)
 
--- transformCharacter takes a single characer info and character and returns IA if dynamic as is if not
+-- transformCharacter takes a single character info and character and returns IA if dynamic as is if not
 -- checks if all gaps with the GV.filter.  If all gaps--it means the sequence char was missing and
 -- implied alignment produced all gaps.  The passing of character length is not necessary when changed missing seq to empty
 -- character--but leaving in case change back to [] 
-transformCharacter :: CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
-transformCharacter inCharData inCharInfo charLength =
+transformCharacter :: Bool -> CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
+transformCharacter leavePrealigned inCharData inCharInfo charLength =
    let inCharType = charType inCharInfo
        inCostMatrix = costMatrix inCharInfo
        alphSize = length $ alphabet inCharInfo
@@ -489,7 +493,7 @@ transformCharacter inCharData inCharInfo charLength =
          let gapChar = setBit (0 :: CUInt) gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
                                 else 
-                                  let missingElement = SV.replicate charLength $ TRANS.setMissingBits (0 :: CUInt) 0 alphSize
+                                  let missingElement = SV.replicate charLength $ B.complement (0 :: CUInt) -- TRANS.setMissingBits (0 :: CUInt) 0 alphSize
                                   in 
                                   (missingElement, missingElement, missingElement)
 
@@ -497,8 +501,11 @@ transformCharacter inCharData inCharInfo charLength =
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in 
          -- trace ("TC-Slim:" ++ (show $ GV.length $ snd3 $ slimAlignment inCharData) ++ " " ++ (show $ snd3 $ impliedAlignChar)) (
-                                  
-         if inCostMatrixType == "nonAdd" then
+         
+         if leavePrealigned then 
+            (inCharData {alignedSlimPrelim = impliedAlignChar}, inCharInfo {charType =  AlignedSlim})
+
+         else if inCostMatrixType == "nonAdd" then
             (inCharData {stateBVPrelim = newPrelimBV}, inCharInfo {charType = NonAdd})
 
          else if inCostMatrixType == "nonAddGap" then 
@@ -512,13 +519,16 @@ transformCharacter inCharData inCharInfo charLength =
          let gapChar = setBit (0 :: Word64) gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
                                 else 
-                                  let missingElement = UV.replicate charLength $ TRANS.setMissingBits (0 :: Word64) 0 alphSize
+                                  let missingElement = UV.replicate charLength $ B.complement (0 :: Word64) -- TRANS.setMissingBits (0 :: Word64) 0 alphSize
                                   in (missingElement, missingElement, missingElement)
 
              newPrelimBV = R.convert2BV 64 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in    
-         if inCostMatrixType == "nonAdd" then
+         if leavePrealigned then 
+            (inCharData {alignedWidePrelim = impliedAlignChar}, inCharInfo {charType =  AlignedWide})
+
+         else if inCostMatrixType == "nonAdd" then
             (inCharData {stateBVPrelim = newPrelimBV}, inCharInfo {charType = NonAdd})
 
          else if inCostMatrixType == "nonAddGap" then 
@@ -537,7 +547,10 @@ transformCharacter inCharData inCharInfo charLength =
              newPrelimBV = impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in 
-         if inCostMatrixType == "nonAdd" then
+         if leavePrealigned then 
+            (inCharData {alignedHugePrelim = impliedAlignChar}, inCharInfo {charType =  AlignedHuge})
+
+         else if inCostMatrixType == "nonAdd" then
             (inCharData {stateBVPrelim = newPrelimBV}, inCharInfo {charType = NonAdd})
 
          else if inCostMatrixType == "nonAddGap" then 

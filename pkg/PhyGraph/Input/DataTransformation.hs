@@ -408,7 +408,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 
                 -- max in case of all missing character
                 numStates = max 1 (popCount nonMissingBV)
-
+                
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
                 stateAlphabet = fromSymbolsWOGap  foundSymbols -- fromSymbolsWOGap foundSymbols
@@ -582,11 +582,13 @@ missingAligned inChar charLength =
 setMissingBits :: (Show a, FiniteBits a) => a -> Int -> Int -> a
 setMissingBits inVal curIndex alphSize =
     if curIndex == alphSize then
-        -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
+        --trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
         inVal
     else
         -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal, setBit inVal curIndex)))
         setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
+    
+    
 
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])

@@ -72,7 +72,7 @@ import           Data.Time.Clock
 main :: IO ()
 main = do
     let compileDate = (__DATE__ ++ " " ++ __TIME__)
-    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022 Ward Wheeler and The American Museum of Natural History\n"
+    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "\tunder the 3-Clause BSD License.\nCompiled " ++ compileDate
     hPutStrLn stderr (splash ++ splash2 ++ splash3)
@@ -124,9 +124,9 @@ main = do
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
-    -- get set paritions character from Set commands early
+    -- get set partitions character from Set commands early
     let setCommands = filter ((== Set).fst) thingsToDo
-    (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings 0 [] mempty mempty mempty mempty mempty mempty setCommands
+    (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
     
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
@@ -151,7 +151,7 @@ main = do
     if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++ (concatMap (++ " ") $ fmap Text.unpack terminalsToExclude))
     else hPutStrLn stderr ("")
 
-    -- Uses names from terminal list if non-null, and remove exckuded terminals
+    -- Uses names from terminal list if non-null, and remove excluded terminals
     let dataLeafNames' = if (not $ null terminalsToInclude) then L.sort $ L.nub terminalsToInclude
                         else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
@@ -201,12 +201,17 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
 
+    -- Set reporting data for qualitative characaters to Naive data (usually but not is huge), empty if packed
+    let reportingData = if reportNaiveData partitionCharOptimalityGlobalSettings then 
+                             naiveData
+                        else emptyProcessedData
+
     -- get mix of static/dynamic characters to adjust dynmaicEpsilon
     -- doing on naive data so no packing etc
     let fractionDynamicData = U.getFractionDynamic naiveData
 
     -- Group Data--all nonadditives to single character, additives with 
-    -- alphbet < 64 recoded to nonadditive binary, additives with same alphabet
+    -- alphabet < 64 recoded to nonadditive binary, additives with same alphabet
     -- combined,
     let naiveDataGrouped = R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
 
@@ -249,7 +254,7 @@ main = do
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData [] [] seedList [] initialSetCommands
+    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData reportingData [] [] seedList [] initialSetCommands
     
     -- Get CPUTime so far ()data input and processing
     dataCPUTime <- getCPUTime
@@ -270,7 +275,7 @@ main = do
     let pairDist = D.getPairwiseDistances optimizedData
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
+    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)

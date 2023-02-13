@@ -4,8 +4,16 @@ Progam to perform phylogenetic searches on general graphs with diverse data type
 
 ## Installation
 
-To install an optimized, "batteries-included" version of `phyg`, run the following:
+Precompiled binaries for linux (Intel), OSX (Intel and M1) are in the "bin" directory.
+
+Documentation is in the "doc" directory.
+
+Test files are in the "testData" directory.
+
+## Make from Source
+
+Compilation is verified up to ghc-9.4.4 with cabal v. 3.8.
 
 ```
-cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
+cabal build PhyGraph:phyg --flags=super-optimization
 ```
