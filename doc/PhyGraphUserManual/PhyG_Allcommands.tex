@@ -240,7 +240,7 @@
 	\begin{phygdescription}
 		{Imports file-based information, including data files, tree and graph files. \texttt{read} 
 		commands must contain an input file. Supported data formats include FASTA, FASTC
-		and TNT files, and graph formats include Dot, Enewick, Fenewick, and Newick. 
+		xand TNT files, and graph formats include Dot, Enewick, Fenewick, and Newick. 
 		Filenames must be included in quotes. Filenames must include the appropriate suffix (e.g. .fas, 
 		.ss, .mat). The exclusion of these suffixes will result in an error. The filename must
 		match exactly, including capitalization. \phyg will attempt to recognize the type of input
@@ -613,7 +613,7 @@
 		allows the user to output information concerning the characters and terminals, 
 		diagnosis, export static homology data, implied alignments, trees, graphs, dot files, 
 		as well as other miscellaneous arguments. By default, new information printed to 
-		a file if appended to the file. The option \texttt{overwrite} overrides the default and 
+		a file is appended to the file. The option \texttt{overwrite} overrides the default and 
 		rewrites the file. Many of the report options can be output in csv format,  which can
 		subsequently be imported into spreadsheet programs.}
 	\end{phygdescription}
@@ -803,8 +803,8 @@
 		Build, SPR, Genetic Algorithm) 
 		employs Thompson sampling.
 		\begin{description}
-				\item[mFactor:n] Specifies the memory factor $n$ for Thompson sampling. Parameter
-				for linear and exponential.
+			\item[mFactor:n] Specifies the memory factor $n$ for Thompson sampling. Parameter
+			for linear and exponential.
 		
 			\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, 
 			$m$.  Updating of search type, $\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} 
@@ -849,7 +849,7 @@
 		\begin{description}
 			\item[all] Keeps all graphs.
 		
-			\item[best:n] Selects and keeps the graphs with the  best optimality value.
+			\item[best:n] Selects and keeps the graphs with the best optimality value.
 			
 			\item[atRandom] Keeps graphs chosen at random.
 			
