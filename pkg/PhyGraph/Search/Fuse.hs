@@ -71,13 +71,12 @@ fuseAllGraphs :: GlobalSettings
               -> Bool
               -> Bool
               -> Bool
-              -> Bool
               -> Maybe Int
               -> Bool
               -> Bool
               -> [PhylogeneticGraph]
               -> ([PhylogeneticGraph], Int)
-fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList =
+fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList =
    if null inGraphList then ([], 0)
    else if length inGraphList == 1 then (inGraphList, 0)
    else
@@ -123,7 +122,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
 
          -- ParMap created too large a memory footprint. Pafrallleism at lower levels
          -- newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
-         newGraphList = fusePairRecursive inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist curBest swapType reciprocal [] graphPairList
+         newGraphList = fusePairRecursive inGS inData doSteepest numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist curBest swapType reciprocal [] graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
@@ -141,7 +140,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
          if fuseBest < curBest then
                -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
                trace ("\n")
-               fuseAllGraphs inGS inData (drop 2 rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
+               fuseAllGraphs inGS inData (drop 2 rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
          else (uniqueList, counter + 1)
 
       else -- return best
@@ -160,7 +159,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
             else if fuseBest < curBest then
                -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
                trace ("\n")
-               fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest doAll returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
+               fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
 
             -- equal cost just return--could keep finding equal
             else (allBestList, counter + 1)
@@ -170,6 +169,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
 -- to parMapping at once creating a large memory footprint
 fusePairRecursive :: GlobalSettings
          -> ProcessedData
+         -> Bool
          -> Int
          -> V.Vector (V.Vector CharInfo)
          -> VertexCost
@@ -181,10 +181,10 @@ fusePairRecursive :: GlobalSettings
          -> [PhylogeneticGraph]
          -> [(PhylogeneticGraph, PhylogeneticGraph)]
          -> [PhylogeneticGraph]
-fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal resultList leftRightList =
+fusePairRecursive inGS inData steepest numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal resultList leftRightList =
    if null leftRightList then resultList
    else 
-      let fusePairResult = fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (head leftRightList)
+      let fusePairResult = fusePair inGS inData steepest numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (head leftRightList)
           
           pairScore = if (not . null) fusePairResult then 
                         minimum $ fmap snd6 fusePairResult
@@ -192,7 +192,7 @@ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdg
 
           newCurBestScore = min curBestScore pairScore
       in
-      fusePairResult ++ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist newCurBestScore swapType reciprocal resultList (tail leftRightList)
+      fusePairResult ++ fusePairRecursive inGS inData steepest numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist newCurBestScore swapType reciprocal resultList (tail leftRightList)
 
 -- | fusePair recombines a single pair of graphs
 -- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
@@ -200,6 +200,7 @@ fusePairRecursive inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdg
 -- spr-like and tbr-like readds can be performed as with options
 fusePair :: GlobalSettings
          -> ProcessedData
+         -> Bool
          -> Int
          -> V.Vector (V.Vector CharInfo)
          -> VertexCost
@@ -210,7 +211,7 @@ fusePair :: GlobalSettings
          -> Bool
          -> (PhylogeneticGraph, PhylogeneticGraph)
          -> [PhylogeneticGraph]
-fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (leftGraph, rightGraph) =
+fusePair inGS inData steepest numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist curBestScore swapType reciprocal (leftGraph, rightGraph) =
    if (LG.isEmpty $ fst6 leftGraph) || (LG.isEmpty $ fst6 rightGraph) then error "Empty graph in fusePair"
    else if (fst6 leftGraph) == (fst6 rightGraph) then []
    else
@@ -286,8 +287,8 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist cur
 
 
           -- left and right root indices should be the same
-          leftRightFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist swapType charInfoVV curBetterCost curBestScore leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList' leftRootIndex networkCostFactor leftOriginalEdgeList
-          rightLeftFusedGraphList = recombineComponents inGS inData keepNum maxMoveEdgeDist swapType charInfoVV curBetterCost curBestScore rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList' rightRootIndex networkCostFactor rightOriginalEdgeList
+          leftRightFusedGraphList = recombineComponents inGS inData steepest keepNum maxMoveEdgeDist swapType charInfoVV curBetterCost curBestScore leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList' leftRootIndex networkCostFactor leftOriginalEdgeList
+          rightLeftFusedGraphList = recombineComponents inGS inData steepest keepNum maxMoveEdgeDist swapType charInfoVV curBetterCost curBestScore rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList' rightRootIndex networkCostFactor rightOriginalEdgeList
 
 
           -- get "best" fused graphs from leftRight and rightLeft
@@ -314,6 +315,7 @@ fusePair inGS inData numLeaves charInfoVV netPenalty keepNum maxMoveEdgeDist cur
 -- "curBetterCost" is of pain of inputs to make sure keep all better than their inputs, "overallBestScore" is for progress info
 recombineComponents :: GlobalSettings
                     -> ProcessedData
+                    -> Bool
                     -> Int
                     -> Int
                     -> String
@@ -328,14 +330,14 @@ recombineComponents :: GlobalSettings
                     -> VertexCost
                     -> [LG.LEdge EdgeInfo]
                     -> [PhylogeneticGraph]
-recombineComponents inGS inData numToKeep inMaxMoveEdgeDist swapType charInfoVV curBetterCost overallBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor originalSplitEdgeList =
+recombineComponents inGS inData steepest numToKeep inMaxMoveEdgeDist swapType charInfoVV curBetterCost overallBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor originalSplitEdgeList =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
    if null splitGraphCostPairList then []
    else
       -- top line to cover SPR HarWired bug
       let doIA = False --- since splits not created together, IA won't be consistent between components
-          steepest = False -- should look at all better
+          -- steepest = False -- should look at all better, now option
 
           -- network costs--using an input value that is minimum of inputs
           netPenaltyFactorList = L.replicate (length splitGraphCostPairList) networkCostFactor
@@ -429,7 +431,7 @@ getNetworkPentaltyFactor inGS inData graphCost inGraph =
 
 
 
--- | getBaseGraphEdges gets teh edges in the base graph teh trhe exchanged sub graphs can be rejoined
+-- | getBaseGraphEdges gets the edges in the base graph the the exchanged sub graphs can be rejoined
 -- basically all edges except at root and those in the subgraph
 -- adds original edge connection edges (those with nodes in original edge) at front (for use in "none" swap later), removing if there to 
 -- prevent redundancy if swap not "none" 

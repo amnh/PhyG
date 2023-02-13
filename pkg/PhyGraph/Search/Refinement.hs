@@ -218,6 +218,8 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                doAll = any ((=="all").fst) lcArgList
                
                doSteepest = if (not doSteepest' && not doAll) then True
+                            else if (doSteepest' && doAll) then True
+                            else if doAll then False
                             else doSteepest'
 
                -- readdition options, specified as swap types
@@ -248,7 +250,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                seedList = randomIntList rSeed
            in
            -- perform graph fuse operations
-           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 swapType doSteepest doAll returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
+           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) 0 swapType doSteepest returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
 
            in
            trace ("\tAfter fusing: " ++ (show $ length newGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ (show counterFuse))

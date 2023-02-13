@@ -538,21 +538,21 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "fuse" then
                                             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                                             let -- fuse arguments
-                                                fuseArgs = [("none",""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("none",""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseSPR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("spr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("spr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseTBR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("tbr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                fuseArgs = [("tbr", ""), ("steepest",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
                                             (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
