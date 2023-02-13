@@ -401,8 +401,10 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
             edgeInfoList = fmap getEdgeInfo edgeList
 
             
-            -- Edge character change information-- make static Implied Alignements for differnces
             {-
+            change this to functions that pull from static-alignment field
+            and its extensive vcector as opposed to a single one in naive Add/NonAdd
+            -- Edge character change information-- make static Implied Alignements for differnces
             staticData = DT.makeStaticApprox inGS True inData inGraph
             staticGraph = TRAV.multiTraverseFullyLabelGraph inGS staticData False False Nothing (fst6 inGraph)
             staticVertexList = LG.labNodes $ thd6 staticGraph
