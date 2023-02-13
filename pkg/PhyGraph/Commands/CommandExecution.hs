@@ -182,6 +182,7 @@ executeCommands globalSettings numInputFiles crossReferenceString origProcessedD
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : (searchData globalSettings)   
             
+            hPutStrLn stderr ("Selecting " ++ (fmap C.toLower $ fst $ head firstArgs) ++ " graphs")
             executeCommands (globalSettings {searchData = newSearchData}) numInputFiles crossReferenceString origProcessedData processedData reportingData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
         
         else if firstOption == Set then 
