@@ -779,7 +779,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                         concatSeqs = any (=="concatenate") commandList
                         iaContentList = zipWith (getImpliedAlignmentString globalSettings (includeMissing || concatSeqs) concatSeqs processedData) curGraphs [0.. (length curGraphs - 1)]
                     in
-                    trace ("\tWarning: Prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additve characters and will not appear in implied alignment output.")
+                    trace ("\tWarning: Prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additive characters and will not appear in implied alignment output.")
                     (concat iaContentList, outfileName, writeMode)
 
             else if "pairdist" `elem` commandList then
