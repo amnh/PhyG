@@ -187,8 +187,8 @@ printGraphVizDot graphDotString dotFile =
     else do
         myHandle <- openFile dotFile WriteMode
         if os /= "darwin" then hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".pdf.")
-        else hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".eps.")
-        let outputType = if os == "darwin" then "-Teps"
+        else hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".ps.")
+        let outputType = if os == "darwin" then "-Tps"
                          else "-Tpdf"
         --hPutStrLn myHandle "digraph G {"
         --hPutStrLn myHandle "\trankdir = LR;"
