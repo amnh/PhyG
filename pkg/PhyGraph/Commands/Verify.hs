@@ -121,7 +121,7 @@ searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnete
 
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]
-selectArgList = ["all", "atrandom", "best", "unique"]
+selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]

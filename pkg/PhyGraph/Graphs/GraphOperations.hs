@@ -532,16 +532,30 @@ selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
            if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ show inArgs)
            else if length inArgs > 1 then errorWithoutStackTrace ("Can only have a single select type per command: "  ++ show inArgs)
            else
-                let doBest    = not $ not (any ((=="best").fst) lcArgList)
-                    doAll     = not $ not (any ((=="all").fst) lcArgList)
-                    doRandom  = not $ not (any ((=="atrandom").fst) lcArgList)
-                    doUnique  = not $ not (any ((=="unique").fst) lcArgList)
+                let doBest    = (any ((=="best").fst) lcArgList)
+                    doAll     = (any ((=="all").fst) lcArgList)
+                    doRandom  = (any ((=="atrandom").fst) lcArgList)
+                    doUnique  = (any ((=="unique").fst) lcArgList)
+                    doThreshold  = (any ((=="threshold").fst) lcArgList)
+                    
+                    thresholdList = filter ((=="threshold").fst) lcArgList
+                    threshold 
+                      | length thresholdList >1 = 
+                        errorWithoutStackTrace ("Multiple 'threshold' number specifications in select command--can have only one: " ++ show inArgs)
+                      | null thresholdList = Just 0.1
+                      | otherwise = readMaybe (snd $ head thresholdList) :: Maybe Double
+
+                    nonThresholdList = filter ((/="threshold").fst) lcArgList
                     numberToKeep
-                      | null lcArgList = Just (maxBound :: Int)
-                      | null $ snd $ head lcArgList = Just (maxBound :: Int)
-                      | otherwise = readMaybe (snd $ head lcArgList) :: Maybe Int
+                      | length nonThresholdList >1 = 
+                        errorWithoutStackTrace ("Multiple 'best/unique/atRandom' number specifications in select command--can have only one: " ++ show inArgs)
+                      | null nonThresholdList = Just (maxBound :: Int)
+                      | null (snd $ head nonThresholdList) = Just (maxBound :: Int)
+                      | otherwise = readMaybe (snd $ head nonThresholdList) :: Maybe Int
                 in
-                if doAll then curGraphs
+                if isNothing numberToKeep then errorWithoutStackTrace ("Keep specification not an integer in select: "  ++ (show (snd $ head nonThresholdList)) ++ (show lcArgList))
+                else if isNothing threshold then errorWithoutStackTrace ("Threshold specification not a float in select: "  ++ show (snd $ head thresholdList))
+                else if doAll then curGraphs
                 else if isNothing numberToKeep then errorWithoutStackTrace ("Number to keep specification not an integer: "  ++ show (snd $ head lcArgList))
                 else
                     let -- minimum graph cost
@@ -557,8 +571,16 @@ selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
                         bestCostGraphs = filter ((== minGraphCost).snd6) curGraphs
                         uniqueBestGraphs = getUniqueGraphs'' (zip bestCostGraphs (fmap U.collapseGraph bestCostGraphs))
 
-                      in
+                    in
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
+
+                    else if doThreshold then
+                      let thresholdValue = (1.0 + (fromJust threshold)) * (snd6 $ head uniqueGraphList)
+                          thresholdGraphList = filter ((<= thresholdValue) . snd6) uniqueGraphList
+                      in
+                      -- trace ("SG:" ++ (show (thresholdValue, fromJust threshold)))
+                      thresholdGraphList
+
                     else if doBest then
                      -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
                       take (fromJust numberToKeep) uniqueBestGraphs

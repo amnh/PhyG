@@ -721,7 +721,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     renameFirstList = fmap (: []) $ fmap T.unpack $ fmap fst $ snd excludeRename
                     renameSecondList = fmap (: []) $ fmap T.unpack $ fmap snd $ snd excludeRename
                     renamePairList = if (not . null . snd) excludeRename then fmap (" " :) $ zipWith (++)  renameFirstList renameSecondList
-                                     else [["None"]]
+                                     else [["None", "None"]]
                     renameField = [["Renamed taxa:", "New Name", "Original Name"]] ++ renamePairList
                     charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet", "TCM"]
                 in
