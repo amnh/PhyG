@@ -670,7 +670,7 @@ setCommand argList globalSettings processedData inSeedList =
 -- (potentially large) String to print and the channel to print it to
 -- and write mode overwrite/append
 -- if global settings reportNaiveData is True then need to rediagnose graph with processed data since 
--- naiveData was sent to command and will not match what is in hte optimized graphs 
+-- naiveData was sent to command and will not match what is in the optimized graphs 
 reportCommand :: GlobalSettings 
               -> [Argument] 
               -> ([NameText], [(NameText,NameText)]) 
@@ -830,7 +830,9 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     trace ("No graphs to create implied alignments for TNT output")
                     ("No impliedAlgnments for TNT to report", outfileName, writeMode)
                 else
-                    let tntContentList = zipWith (getTNTString globalSettings processedData) curGraphs [0.. (length curGraphs - 1)]
+                    let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
+                                     else PU.seqParMap rdeepseq  (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                        tntContentList = zipWith (getTNTString globalSettings processedData) curGraphs' [0.. (length curGraphs' - 1)]
                     in
                     (concat tntContentList, outfileName, writeMode)
            
