@@ -357,7 +357,7 @@ getCharInfoStrings inChar =
         prealignedString = if (prealigned inChar) then "prealigned"
                          else "unaligned"
     in
-    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] <> (fmap ST.toString . toList $ alphabet inChar) <> [show $ costMatrix inChar]
+    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ [(init $ concat $ fmap (++ ",") $ fmap ST.toString . toList $ alphabet inChar)] ++ [show $ costMatrix inChar]
 
 -- | executeRenameReblockCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted

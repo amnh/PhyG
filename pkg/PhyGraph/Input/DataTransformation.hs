@@ -319,6 +319,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
             let thisBlockName     = name $ head firstCharInfo
+                --thisBlockName   = T.append (T.pack "block-")  (name $ head firstCharInfo)
                 thisBlockCharInfo = V.fromList firstCharInfo
                 maxCharacterLength = maximum $ fmap length $ (fmap snd firstData)
                 recodedCharacters = recodeRawData (fmap fst firstData) (fmap snd firstData) firstCharInfo maxCharacterLength []

@@ -58,6 +58,8 @@ import           Debug.Trace
 import           System.Random
 import qualified Data.Vector                  as V
 
+-- Add non reroot thing liike IA for faster
+
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
 treeBanditList :: [String]
 treeBanditList = [

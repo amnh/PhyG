@@ -126,7 +126,7 @@ main = do
 
     -- get set partitions character from Set commands early
     let setCommands = filter ((== Set).fst) thingsToDo
-    (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
+    (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
     
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
@@ -254,7 +254,7 @@ main = do
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings numInputFiles crossReferenceString optimizedData optimizedData reportingData [] [] seedList [] initialSetCommands
+    (_, initialGlobalSettings, seedList', _) <- CE.executeCommands defaultGlobalSettings (terminalsToExclude, renameFilePairs) numInputFiles crossReferenceString optimizedData optimizedData reportingData [] [] seedList [] initialSetCommands
     
     -- Get CPUTime so far ()data input and processing
     dataCPUTime <- getCPUTime
@@ -275,7 +275,7 @@ main = do
     let pairDist = D.getPairwiseDistances optimizedData
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
+    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) (terminalsToExclude, renameFilePairs) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)
