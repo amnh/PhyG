@@ -227,8 +227,8 @@ bitVectToCharState' :: (Show b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState' localAlphabet bitValue = 
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
-  in  
-  if length stringVal' == 1 then L.intercalate "," $ stringVal'
+  in 
+  if length stringVal == 1 then L.intercalate "," $ stringVal'
   else 
     -- AA IUPAC
     if stringVal == "DN" then "B"
@@ -267,6 +267,7 @@ bitVectToCharState' localAlphabet bitValue =
     else if stringVal == "-ACG" then "v"
 
     else error ("No characvter sytring found for " ++ (show bitValue) ++ " in alphabet " ++ (show localAlphabet))
+    
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
