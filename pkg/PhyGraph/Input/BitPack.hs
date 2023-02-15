@@ -1637,7 +1637,7 @@ binStateNumber :: [(Int, [BV.BitVector])]
 binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
     if null inPairList then
         --dont' really need to reverse here but seems hygenic
-        trace ("Recoding NonAdditive Characters : " ++ (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
+        -- trace ("Recoding NonAdditive Characters : " ++ (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
         (L.reverse cur2, L.reverse cur4, L.reverse cur5, L.reverse cur8, L.reverse cur64,  L.reverse cur128)
     else
         let (stateNum, stateData) = head inPairList
