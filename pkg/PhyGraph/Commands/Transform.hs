@@ -311,7 +311,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                       newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph (inGS  {multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                   in
                   if newMethod /=  multiTraverseCharacters inGS then
-                     trace ("Changing multiTraverse to " ++ (show newMethod))
+                     trace ("Changing multiTraverse to " ++ (show newMethod) ++ ":" ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                      (inGS {multiTraverseCharacters = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {multiTraverseCharacters = newMethod}, origData, inData, inGraphList)
 

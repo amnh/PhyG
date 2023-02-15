@@ -421,10 +421,25 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
          let -- choose staticApproximation or not
              -- up top here because used by other non-build options
              -- if happens--need to transform  back before returning
-             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.50), (False, 0.50)]
-             ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
+             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.25), (False, 0.75)]
+
+             -- choose to togle multitraverse (n-speed up compared to default multi-traverse)
+             -- if already False--don't change
+             transformMultiTraverse = if transformToStaticApproximation then False
+                                      else if not (multiTraverseCharacters inGS') then False
+                                      else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.50), (False, 0.50)]
+             
+             -- Can't do both static approx and multitraverse:False
+             ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation then
                                                                             (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
-                                                                           else ((inGS', inData', inData', inGraphList'), "")
+                                                                        else if transformMultiTraverse then 
+                                                                            (TRANS.transform [("multitraverse","false")] inGS' inData' inData' 0 inGraphList', ",MultiTraverse:False")
+                                                                        else 
+                                                                            ((inGS', inData', inData', inGraphList'), "")
+
+           
+
+
          in
          -- bandit list with search arguments set
          -- primes (') for build to start with untransformed data
@@ -613,8 +628,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
       
              -- process
              uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-             (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+             (uniqueGraphs, transString) = if (not transformToStaticApproximation && not transformMultiTraverse) then (uniqueGraphs', "")
+                                           else if transformToStaticApproximation then 
+                                                (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+                                           else 
+                                                (fth4 $ TRANS.transform [("multiTraverse","true")] inGS origData inData 0 uniqueGraphs', ",MultiTraverse:True")
 
              -- string of delta and cost of graphs
              deltaString = if null inGraphList' then "10.0,"
@@ -623,7 +641,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              currentBestString = show $ minimum $ fmap snd6 uniqueGraphs
 
              -- create string for search stats
-             searchString = "," ++ searchBandit ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg searchArgs) ++ staticApproxString ++ transString
+             searchString = "," ++ searchBandit ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg searchArgs) ++ transformString ++ transString
                             
          in
          (uniqueGraphs, [searchString ++ thompsonString])
