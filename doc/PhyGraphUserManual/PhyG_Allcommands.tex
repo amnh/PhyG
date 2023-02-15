@@ -837,6 +837,9 @@
 			
 			\item[atRandom] Keeps graphs chosen at random.
 			
+			\item[threshold:f] Keeps unique graphs up to fraction \texttt{f} longer than shortest graph.  
+			\texttt{f} is a floating point number (e.g. 0.1) and should be greater than 0.
+			
 			\item[unique:n] Keeps up to \texttt{n} unique graphs, which may not necessarily be the 
 			best graphs.
 		\end{description}
@@ -868,17 +871,21 @@
 			
 	\subsubsection{Arguments}
 		\begin{description}
-			\item[compressResolutions:True|False] %\hl{change to BOOL} 
-			Determines whether soft-wired graph 
-			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
-			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
-			This option can significantly reduce the time to evaluate softwired graphs, but can
-			increase the optimality score of the graph.  Can be used in combination with
-			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
-			at a later stage to improve graph score.
+%			\item[compressResolutions:True|False] %\hl{change to BOOL} 
+%			Determines whether soft-wired graph 
+%			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
+%			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
+%			This option can significantly reduce the time to evaluate softwired graphs, but can
+%			increase the optimality score of the graph.  Can be used in combination with
+%			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
+%			at a later stage to improve graph score.
 			
-			\item[criterion:parsimony|pmdl] Sets the optimality criterion for graph search to be 
-			method. Currently, parsimony and PMDL \citep{WheelerandVaron2022} are supported.
+%			\item[criterion:parsimony|mapa|pmdl] 
+			\item[criterion:parsimony|mapa] 
+			Sets the optimality criterion for graph search to be 
+			method. Currently, parsimony and MAPA \citep{Wheeler2014} 
+%			and PMDL \citep{WheelerandVaron2022} 
+			are supported.
 			
 			\item[finalAssignment:DirectOptimization|DO|ImpliedAlignment|IA] Sets the method 
 			of determining the ``final'' sequence states. DirectOptimization (DO) uses soft-wire the DO 
@@ -886,8 +893,13 @@
 			DO has an additional factor of potentially $O(n^2)$ in sequence length compared 
 			to the constant factor for IA due to additional graph traversals.
 			
-			\item[graphFactor:nopenalty|W15|W23|PMDL] Sets the network penalty for a soft-wired network\\ 
-			(\texttt{W15}),  (\texttt{W23}), or \texttt{PMDL} (for criterion = PMDL). W15 employs the
+%			\item[graphFactor:nopenalty|W15|W23|PMDL] Sets the network penalty for a soft-wired network\\ 
+%			(\texttt{W15}),  (\texttt{W23}), or \texttt{PMDL} (for criterion = PMDL). W15 employs the
+%			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
+%			W15, but with the penalty applied to all blocks (more severe).
+			
+			\item[graphFactor:nopenalty|W15|W23] Sets the network penalty for a soft-wired network\\ 
+			\texttt{NoPenalty}, (\texttt{W15}),  or (\texttt{W23}). W15 employs the
 			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
 			W15, but with the penalty applied to all blocks (more severe).
 			
@@ -911,7 +923,9 @@
 			
 			\item[partitioncharacter:CHAR] Sets the character that is used to partition data. %\hl{The separator can be something else}
 			
-			\item[rootCost:noRootCost|W15|PMDL] Sets the root cost for a graph. W15 sets a 
+%			\item[rootCost:noRootCost|W15|PMDL] 
+			\item[rootCost:noRootCost|W15] 
+			Sets the root cost for a graph. W15 sets a 
 			cost at $\frac{1}{2}$ the cost of `inserting' the root character assignments. 
 			The W15 root cost is based on the same rationale as the parsimony network penalty of
 			 \cite{Wheeler2015}.
@@ -928,17 +942,20 @@
 	\subsubsection{Defaults} 
 		The default outgroup is the taxon whose name is 
 		lexically first after renaming and taxon inclusion/exclusion. For this reason, it is best to specify 
-		an outgroup explicitly. The default optimality criterion is \texttt{parsimony}, \texttt{CompressResolutions} 
-		is set to \texttt{True}, \texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default 
+		an outgroup explicitly. The default optimality criterion is \texttt{parsimony}, 
+%		\texttt{CompressResolutions} 
+%		is set to \texttt{True}, 
+		\texttt{FinalAssignment} is set to \texttt{DirectOptimization}, and the default 
 		graph type is \texttt{tree}. The default graphFactor is \texttt{W15} if parsimony is the optimality 
-		criterion and \texttt{PMDL} if PMDL is set as the optimality criterion. The default rootCost
-		is \texttt{noRootCost} if parsimony is the optimality criterion and \texttt{PMDL} if PMDL is set 
-		as the optimality criterion.
+		criterion.
+%		and \texttt{PMDL} if PMDL is set as the optimality criterion. The default rootCost
+%		is \texttt{noRootCost} if parsimony is the optimality criterion and \texttt{PMDL} if PMDL is set 
+%		as the optimality criterion.
 		
 	\begin{example}
 		\item{\texttt{set(optimality:parsimony)}\\Sets the graph search optimality criterion to parsimony.}
 						
-		\item{\texttt{set(compressResolutions:False)}\\Turns off soft-wired graph resolution compression.}
+%		\item{\texttt{set(compressResolutions:False)}\\Turns off soft-wired graph resolution compression.}
 	\end{example}
 
 %---------------------------------------------
@@ -1097,14 +1114,14 @@
 			\item[atRandom] In concert with \texttt{displayTrees:n} specifies that displays trees are chosen 
 			uniformly at random for each input graph.
 			
-			\item[compressResolutions:True|False] %\hl{change to BOOL} 
-			Determines whether soft-wired graph 
-			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
-			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
-			This option can significantly reduce the time to evaluate softwired graphs, but can
-			increase the optimality score of the graph.  Can be used in combination with
-			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
-			at a later stage to improve graph score.
+%			\item[compressResolutions:True|False] %\hl{change to BOOL} 
+%			Determines whether soft-wired graph 
+%			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
+%			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
+%			This option can significantly reduce the time to evaluate softwired graphs, but can
+%			increase the optimality score of the graph.  Can be used in combination with
+%			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
+%			at a later stage to improve graph score.
 			
 			\item[displayTrees:[n]] When this option is specified, returns $n$ display trees for each graph 
 			determined by the optional argument If the number of display trees is not 
