@@ -109,6 +109,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
          else if isNothing replicates' then errorWithoutStackTrace ("Resampling replicates specification not a string (e.g. replicates:100) in support: " ++ show (snd $ head replicateList))
          --else if isNothing goodBremMethod then errorWithoutStackTrace ("Goodman-Bremer method specification not a string (e.g. goodmanBremer:SPR) in support: " ++ (show (snd $ head goodBremList)) ++ (show lcArgList))
          else if isNothing goodBremSample then errorWithoutStackTrace ("Goodman-Bremer sample specification not an integer (e.g. gbsample:1000) in support: " ++ show (snd $ head goodBremSampleList))
+         
          else
             let thisMethod = if doBootStrap && (not . null) jackList && (null goodBremList) then trace ("Bootstrap and Jackknife specified--defaulting to Jackknife") "jackknife"
                          else if (doBootStrap || (not . null) jackList) && (not . null) goodBremList then trace ("Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer") "goodBrem"
@@ -199,7 +200,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
 
 -- | resampleData perfoms a single randomized data resampling
 -- based on either with replacement (bootstrp) or without (jackknife)
--- jackknife moves through processed data and cretes a new data set
+-- jackknife moves through processed data and creates a new data set
 --    based on simple prob
 -- bootStrap draws chars from input directly copying--currently disabled
 -- if a block of data end up with zero resampled characters it is deleted
@@ -322,7 +323,7 @@ makeSampledVect boolList accumList inVect  =
       else makeSampledVect (tail boolList) accumList (GV.tail inVect)
       -- )
 
--- | makeSampledVect takes a liust of Bool and avector and returns those values
+-- | makeSampledVect takes a list of Bool and avector and returns those values
 -- with True as a vector (reversed--but shouldn't matter for resampling purposes)
 -- does not check if equal in length
 makeSampledPairVect :: [Bool] -> [Bool] -> [CharacterData] -> [CharInfo] -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
@@ -383,7 +384,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 
 -- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
 resampleBlockJackknife :: Double -> Int -> BlockData -> BlockData
-resampleBlockJackknife sampleFreq rSeed (nameText, charDataVV, charInfoV) =
+resampleBlockJackknife sampleFreq rSeed inData@(nameText, charDataVV, charInfoV) =
       let randomIntegerList1 = randomIntList rSeed
           randomIntegerList2 = randomIntList (head randomIntegerList1)
           acceptanceList = fmap (randAccept sampleFreq) randomIntegerList1
@@ -394,8 +395,10 @@ resampleBlockJackknife sampleFreq rSeed (nameText, charDataVV, charInfoV) =
 
 
       in
-      trace ("RB length " ++ (show $ V.length charInfoV) ++ " -> " ++ (show $ V.length $ V.head newCharInfoV) )
-      (nameText, newCharDataVV, V.head newCharInfoV)
+      -- trace ("RB length " ++ (show $ V.length charInfoV) ++ " -> " ++ (show $ V.length $ V.head newCharInfoV) ) (
+      if (V.length $ V.head newCharInfoV) > 0 then (nameText, newCharDataVV, V.head newCharInfoV)
+      else resampleBlockJackknife sampleFreq (head randomIntegerList1) inData
+      -- )
 
    where randAccept b a = let (_, randVal) = divMod (abs a) 1000
                               critVal = floor (1000 * b)
