@@ -121,7 +121,7 @@ searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnete
 
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]
-selectArgList = ["all", "atrandom", "best", "unique"]
+selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
@@ -129,7 +129,7 @@ setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions
 
 -- | refinement arguments
 supportArgList :: [String]
-supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] -- "bootstrap", 
+supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] 
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]

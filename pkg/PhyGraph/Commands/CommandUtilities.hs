@@ -66,7 +66,7 @@ import           Data.Alphabet
 import Data.Bits
 import qualified Input.Reorganize            as IR
 import qualified Data.List.Split             as LS
-import qualified Commands.Transform          as DT
+-- import qualified Commands.Transform          as DT
 
 
 -- | processSearchFields takes a [String] and reformats the String associated with the
@@ -187,8 +187,8 @@ printGraphVizDot graphDotString dotFile =
     else do
         myHandle <- openFile dotFile WriteMode
         if os /= "darwin" then hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".pdf.")
-        else hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".eps.")
-        let outputType = if os == "darwin" then "-Teps"
+        else hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".ps.")
+        let outputType = if os == "darwin" then "-Tps"
                          else "-Tpdf"
         --hPutStrLn myHandle "digraph G {"
         --hPutStrLn myHandle "\trankdir = LR;"
@@ -357,7 +357,7 @@ getCharInfoStrings inChar =
         prealignedString = if (prealigned inChar) then "prealigned"
                          else "unaligned"
     in
-    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] <> (fmap ST.toString . toList $ alphabet inChar) <> [show $ costMatrix inChar]
+    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ [(init $ concat $ fmap (++ ",") $ fmap ST.toString . toList $ alphabet inChar)] ++ [show $ costMatrix inChar]
 
 -- | executeRenameReblockCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted
@@ -381,60 +381,72 @@ executeRenameReblockCommands thisInStruction curPairs commandList  =
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices
 getGraphDiagnosis :: GlobalSettings -> ProcessedData -> (PhylogeneticGraph, Int) -> [[String]]
-getGraphDiagnosis inGS inData (inGraph, graphIndex) =
+getGraphDiagnosis _ inData (inGraph, graphIndex) =
     let decGraph = thd6 inGraph
     in
     if LG.isEmpty decGraph then []
     else
-        let vertexList = LG.labNodes decGraph
+        let useIA = True
+            useDO = False
+            vertexList = LG.labNodes decGraph
             edgeList = LG.labEdges decGraph
 
             -- Vertex final character states for currect node
             vertexTitle = ["Vertex Character State Information"]
             -- topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
             topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Final State"]
-            vertexInfoList =  concatMap (getVertexCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
+            vertexInfoList =  concatMap (getVertexCharInfo useDO (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
+
+            -- this using IA fields to hget changes
+            vertexInfoListChanges =  concatMap (getVertexCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
 
             -- Edge length information
             edgeTitle = [[" "],["Edge Weight/Length Information"]]
             edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
-
             
-            {-
-            change this to functions that pull from static-alignment field
-            and its extensive vcector as opposed to a single one in naive Add/NonAdd
-            -- Edge character change information-- make static Implied Alignements for differnces
-            staticData = DT.makeStaticApprox inGS True inData inGraph
-            staticGraph = TRAV.multiTraverseFullyLabelGraph inGS staticData False False Nothing (fst6 inGraph)
-            staticVertexList = LG.labNodes $ thd6 staticGraph
-             
-            staticVertexInfoList =  concatMap (getVertexCharInfo (thd3 staticData) (fst6 staticGraph) (six6 staticGraph)) staticVertexList
+            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State", "Sequence Changes (position, parent final state, node final state)"]] 
 
-            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State"]] 
-
-            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo (thd3 staticData) (fst6 staticGraph) (six6 staticGraph) (V.fromList staticVertexList)) staticVertexList
-            -}
-            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State"]] 
-
-            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList
+            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList
             
+            -- process to change to lines of individual changes--basically a transpose
+            vertexChangeListByPosition = fmap (getAlignmentBasedChanges 0) (zip vertexParentStateList vertexStateList)
+
             -- putting parent states before current state
-            --vertexStateInfoList = fmap (take 9) staticVertexInfoList
-            vertexStateInfoList = fmap (take 9) vertexInfoList
-            --vertexStateList = fmap (drop 9) staticVertexInfoList
-            vertexStateList = fmap (drop 9) vertexInfoList
-            parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
-            vertexChangeList = zipWith (++) vertexStateInfoList parentVertexStatesList
+            vertexStateInfoList = fmap (take 9) vertexInfoListChanges
+            vertexStateList = fmap (drop 9) vertexInfoListChanges
+            -- parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
+            vertexChangeList = L.zipWith4 concat4 vertexStateInfoList vertexParentStateList vertexStateList vertexChangeListByPosition
 
             -- filter out those that are the same states
             differenceList = removeNoChangeLines vertexChangeList
-            
-
-
         in
         -- trace ("GGD: " ++ (show $ snd6 staticGraph)) 
-        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList
+        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList 
+        where concat4 a b c d = a ++ b ++ c ++ d
+ 
+-- | getAlignmentBasedChanges takes two equal length implied Alignments and outputs list of element changes between the two
+getAlignmentBasedChanges :: Int -> ([String], [String]) -> [String]
+getAlignmentBasedChanges index (a, b) =
+    if null a then []
+    else 
+        let string1 = filter (/= ' ') $ head a
+            string2 = filter (/= ' ') $ head b
+        in
+        if null string1 then []
+        -- this so retuens empty for non--sequence characters
+        else if (length string1 < 2) || (length string2 < 2) then []
+        else if length string1 /= length string2 then []
+        else 
+            -- index stuff in case gets out of sync in list (missing data, no changes etc)
+            if (take 1 string1) == (take 1 string2) then 
+                -- if index < 0 then "" : getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
+                -- else 
+                getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
+            else 
+                -- if index < 0 then ["", ((show index) ++ ":" ++ (take 1 string1) ++ "," ++ (take 1 string2))] ++ getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
+                -- else 
+                ((show index) ++ ":" ++ (take 1 string1) ++ "," ++ (take 1 string2)) : getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
 
 -- | removeNoChangeLines takes lines of vertex changes and removes lines where parent and child startes are the same
 -- so missing or ambiguous in one and not the other will be maintained
@@ -451,8 +463,8 @@ removeNoChangeLines inStringList =
 
 -- | getVertexCharInfo returns a list of list of Strings of vertex information
 -- one list for each character at the vertex
-getVertexCharInfo :: V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> [[String]]
-getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
+getVertexCharInfo :: Bool -> V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> LG.LNode VertexInfo -> [[String]]
+getVertexCharInfo useIA blockDataVect inGraph charInfoVectVect inVert =
     let nodeParents = LG.parents inGraph (fst inVert)
         parentNodes
           | nodeType  (snd inVert) == RootNode = "None"
@@ -461,15 +473,15 @@ getVertexCharInfo blockDataVect inGraph charInfoVectVect inVert =
         childNodes = if nodeType  (snd inVert) == LeafNode then "None" else show $  children  (snd inVert)
         basicInfoList = [" ", show $ fst inVert, T.unpack $ vertName (snd inVert), show $ nodeType  (snd inVert), childNodes, parentNodes, " ", " ", " ", " ", " "]
         blockCharVect = V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd inVert)) charInfoVectVect
-        blockInfoList = concat $ V.toList $ V.map getBlockList blockCharVect
+        blockInfoList = concat $ V.toList $ V.map (getBlockList useIA) blockCharVect
     in
     basicInfoList : blockInfoList
 
 
 -- | getVertexAndParentCharInfo returns a list of list of Strings of vertex information
 -- for child and its parent
-getVertexAndParentCharInfo :: V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LNode VertexInfo -> [[String]]
-getVertexAndParentCharInfo blockDataVect inGraph charInfoVectVect allVertVect inVert =
+getVertexAndParentCharInfo :: Bool -> V.Vector BlockData -> SimpleGraph -> V.Vector (V.Vector CharInfo) -> V.Vector (LG.LNode VertexInfo) -> LG.LNode VertexInfo -> [[String]]
+getVertexAndParentCharInfo useIA blockDataVect inGraph charInfoVectVect allVertVect inVert =
     let nodeParents = LG.parents inGraph (fst inVert)
         parentNodes
           | nodeType  (snd inVert) == RootNode = "None"
@@ -483,16 +495,16 @@ getVertexAndParentCharInfo blockDataVect inGraph charInfoVectVect allVertVect in
         -- for root--gets its own values as parent--filtered out in diff list later
         blockCharVectParent = if parentNodes == "None" then blockCharVectNode
                               else V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd $ allVertVect V.! (head nodeParents))) charInfoVectVect
-        blockInfoListParent = concat $ V.toList $ V.map getBlockList blockCharVectParent
+        blockInfoListParent = concat $ V.toList $ V.map (getBlockList useIA) blockCharVectParent
     in
     basicInfoList : blockInfoListParent
     
 
 -- | getBlockList takes a pair of Vector of chardata and vector of charInfo and returns Strings
-getBlockList :: (NameText, V.Vector CharacterData, V.Vector CharInfo) -> [[String]]
-getBlockList (blockName, blockDataVect, charInfoVect) =
+getBlockList :: Bool -> (NameText, V.Vector CharacterData, V.Vector CharInfo) -> [[String]]
+getBlockList useIA (blockName, blockDataVect, charInfoVect) =
     let firstLine = [" ", " ", " ", " ", " ", " ", T.unpack blockName," ", " ", " ", " ", " "]
-        charlines = V.toList $ V.map makeCharLine (V.zip blockDataVect charInfoVect)
+        charlines = V.toList $ V.map (makeCharLine useIA)(V.zip blockDataVect charInfoVect)
     in
     firstLine : charlines
 
@@ -501,8 +513,9 @@ getBlockList (blockName, blockDataVect, charInfoVect) =
 -- based on "naive" data for human legible output
 -- need to add back-converting to observed states using alphabet in charInfo
 -- nothing here for packed since not "entered"
-makeCharLine :: (CharacterData, CharInfo) -> [String]
-makeCharLine (blockDatum, charInfo) =
+-- useIA for using alignment fields for changes in diagnosis
+makeCharLine :: Bool -> (CharacterData, CharInfo) -> [String]
+makeCharLine useIA (blockDatum, charInfo) =
     let localType = charType charInfo
         localAlphabet = fmap ST.toString $ alphabet charInfo
         isPrealigned = if prealigned charInfo == True then "Prealigned "
@@ -511,27 +524,33 @@ makeCharLine (blockDatum, charInfo) =
                         else if localType `elem` exactCharacterTypes then (show localType)
                         else error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
 
+        -- set where get string from, IA for change lists 
+        (slimField, wideField, hugeField) = if useIA then (snd3 $ slimAlignment blockDatum, snd3 $ wideAlignment blockDatum, snd3 $ hugeAlignment blockDatum)
+                                            else (slimFinal blockDatum, wideFinal blockDatum, hugeFinal blockDatum)
+
+
         -- (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
-        (_, stringFinal) =            if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
-                                      else if localType == NonAdd then (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
-                                      else if localType `elem` packedNonAddTypes then (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ packedNonAddPrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
-                                      else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
-                                      else if localType `elem` sequenceCharacterTypes
-                                      then case localType of
-                                             -- x | x `elem` [SlimSeq, NucSeq  ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ slimFinal blockDatum)
-                                             x | x `elem` [NucSeq  ] -> (SV.foldMap (U.bitVectToCharState' localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ slimFinal blockDatum)
-                                             x | x `elem` [SlimSeq ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ slimFinal blockDatum)
-                                             -- x | x `elem` [WideSeq, AminoSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ wideFinal blockDatum)
-                                             x | x `elem` [WideSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ wideFinal blockDatum)
-                                             x | x `elem` [AminoSeq] -> (UV.foldMap (U.bitVectToCharState' localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ wideFinal blockDatum)
-                                             x | x `elem` [HugeSeq]           -> (   foldMap (U.bitVectToCharState' localAlphabet) $ hugePrelim blockDatum,    foldMap (U.bitVectToCharState localAlphabet) $ hugeFinal blockDatum)
-                                             x | x `elem` [AlignedSlim]       -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ alignedSlimFinal blockDatum)
-                                             x | x `elem` [AlignedWide]       -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ alignedWideFinal blockDatum)
-                                             x | x `elem` [AlignedHuge]       -> (   foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum,    foldMap (U.bitVectToCharState localAlphabet) $ alignedHugeFinal blockDatum)
+        (_, stringFinal) =  if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
+                            else if localType == NonAdd then (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal blockDatum)
+                            else if localType `elem` packedNonAddTypes then (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ packedNonAddPrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
+                            else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
+                            else if localType `elem` sequenceCharacterTypes
+                                then case localType of
+                                    x | x `elem` [NucSeq  ] -> (SV.foldMap (U.bitVectToCharState' localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState' localAlphabet) slimField)
+                                    x | x `elem` [SlimSeq ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) slimField)
+                                    x | x `elem` [WideSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) wideField)
+                                    x | x `elem` [AminoSeq] -> (UV.foldMap (U.bitVectToCharState' localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState' localAlphabet) wideField)
+                                    x | x `elem` [HugeSeq]           -> (   foldMap (U.bitVectToCharState localAlphabet) $ hugePrelim blockDatum, foldMap (U.bitVectToCharState localAlphabet) hugeField)
+                                    x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet charInfo) || (isAlphabetRna $ alphabet charInfo) then (SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum, SV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedSlimFinal blockDatum)
+                                                                        else (SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ alignedSlimFinal blockDatum)
+                                    x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet charInfo) then (UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedWidePrelim blockDatum, UV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedWideFinal blockDatum)
+                                                                        else (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ alignedWideFinal blockDatum)
+                                    x | x `elem` [AlignedHuge]       -> (   foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum, foldMap (U.bitVectToCharState localAlphabet) $ alignedHugeFinal blockDatum)
                                              
-                                             _                                -> error ("Un-implemented data type " ++ show localType)
-                                      else error ("Un-implemented data type " ++ show localType)
+                                    _ -> error ("Un-implemented data type " ++ show localType)
+                            else error ("Un-implemented data type " ++ show localType)
         in
+        -- trace ("MCL:" ++ (show $ isAlphabetDna $ alphabet charInfo) ++ " " ++ stringFinal)
         -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
         [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal]
 
@@ -986,6 +1005,7 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
         let (firstName, blockDatum) = head nameDataPairList
             inCharType = charType inCharInfo
             localAlphabet = fmap ST.toString $ alphabet inCharInfo
+
             sequenceString = case inCharType of
                                -- x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
                                x | x `elem` [SlimSeq] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
@@ -994,8 +1014,10 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
                                x | x `elem` [WideSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
                                x | x `elem` [AminoSeq] -> UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ wideAlignment blockDatum
                                x | x `elem` [HugeSeq]           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment blockDatum
-                               x | x `elem` [AlignedSlim]       -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
-                               x | x `elem` [AlignedWide]       -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
+                               x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet inCharInfo) || (isAlphabetRna $ alphabet inCharInfo) then SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
+                                                                   else SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
+                               x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet inCharInfo) then UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
+                                                                   else UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
                                x | x `elem` [AlignedHuge]       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum 
                                _                                -> error ("Un-implemented data type " ++ show inCharType)
 

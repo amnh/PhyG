@@ -8,6 +8,8 @@ Precompiled binaries for linux (Intel), OSX (Intel and M1) are in the "bin" dire
 
 Documentation is in the "doc" directory.
 
+Short tutorials are in the "tutorial" directory with subdirectories for the docs and data.
+
 Test files are in the "testData" directory.
 
 ## Make from Source
