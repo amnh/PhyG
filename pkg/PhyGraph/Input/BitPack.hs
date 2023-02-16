@@ -56,7 +56,7 @@ import qualified Data.Vector                 as V
 import qualified Data.Vector.Unboxed         as UV
 import qualified Data.Vector.Generic         as GV
 import           Data.Word
-import           Debug.Trace
+-- import           Debug.Trace
 import           GeneralUtilities
 import qualified ParallelUtilities           as PU
 import           Types.Types

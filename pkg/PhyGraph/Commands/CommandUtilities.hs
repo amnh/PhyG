@@ -66,7 +66,7 @@ import           Data.Alphabet
 import Data.Bits
 import qualified Input.Reorganize            as IR
 import qualified Data.List.Split             as LS
-import qualified Commands.Transform          as DT
+-- import qualified Commands.Transform          as DT
 
 
 -- | processSearchFields takes a [String] and reformats the String associated with the
@@ -381,7 +381,7 @@ executeRenameReblockCommands thisInStruction curPairs commandList  =
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices
 getGraphDiagnosis :: GlobalSettings -> ProcessedData -> (PhylogeneticGraph, Int) -> [[String]]
-getGraphDiagnosis inGS inData (inGraph, graphIndex) =
+getGraphDiagnosis _ inData (inGraph, graphIndex) =
     let decGraph = thd6 inGraph
     in
     if LG.isEmpty decGraph then []
@@ -405,37 +405,48 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
             edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
             
-            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State"]] 
+            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State", "Sequence Changes (position, parent final state, node final state)"]] 
 
             vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList
             
+            -- process to change to lines of individual changes--basically a transpose
+            vertexChangeListByPosition = fmap (getAlignmentBasedChanges 0) (zip vertexParentStateList vertexStateList)
+
             -- putting parent states before current state
             vertexStateInfoList = fmap (take 9) vertexInfoListChanges
             vertexStateList = fmap (drop 9) vertexInfoListChanges
-            parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
-            vertexChangeList = zipWith (++) vertexStateInfoList parentVertexStatesList
-
-            -- process to change to lines of individual changes--basically a transpose
-            vertexChangeListByPosition = fmap getAlignmentBasedChanges (zip vertexParentStateList vertexStateList)
+            -- parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
+            vertexChangeList = L.zipWith4 concat4 vertexStateInfoList vertexParentStateList vertexStateList vertexChangeListByPosition
 
             -- filter out those that are the same states
             differenceList = removeNoChangeLines vertexChangeList
-
         in
         -- trace ("GGD: " ++ (show $ snd6 staticGraph)) 
-        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList ++ vertexChangeListByPosition
-
+        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList 
+        where concat4 a b c d = a ++ b ++ c ++ d
+ 
 -- | getAlignmentBasedChanges takes two equal length implied Alignments and outputs list of element changes between the two
-getAlignmentBasedChanges :: ([String], [String]) -> [String]
-getAlignmentBasedChanges inStringPair =
-    let string1 = filter (/= ' ') $ head $ fst inStringPair
-        string2 = filter (/= ' ') $ head $ snd inStringPair
-    in
-    if length string1 /= length string2 then error ("Input strings not equal in getAlignmentBasedChanges: " ++ string1 ++ " " ++ string2)
-    else if null string1 then []
+getAlignmentBasedChanges :: Int -> ([String], [String]) -> [String]
+getAlignmentBasedChanges index (a, b) =
+    if null a then []
     else 
-        trace ("GABC: " ++ (show [take 1 string1, take 1 string2]))
-        [take 1 string1, take 1 string2]
+        let string1 = filter (/= ' ') $ head a
+            string2 = filter (/= ' ') $ head b
+        in
+        if null string1 then []
+        -- this so retuens empty for non--sequence characters
+        else if (length string1 < 2) || (length string2 < 2) then []
+        else if length string1 /= length string2 then []
+        else 
+            -- index stuff in case gets out of sync in list (missing data, no changes etc)
+            if (take 1 string1) == (take 1 string2) then 
+                -- if index < 0 then "" : getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
+                -- else 
+                getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
+            else 
+                -- if index < 0 then ["", ((show index) ++ ":" ++ (take 1 string1) ++ "," ++ (take 1 string2))] ++ getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
+                -- else 
+                ((show index) ++ ":" ++ (take 1 string1) ++ "," ++ (take 1 string2)) : getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
 
 -- | removeNoChangeLines takes lines of vertex changes and removes lines where parent and child startes are the same
 -- so missing or ambiguous in one and not the other will be maintained
@@ -520,7 +531,7 @@ makeCharLine useIA (blockDatum, charInfo) =
 
         -- (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
         (_, stringFinal) =  if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
-                            else if localType == NonAdd then (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharState localAlphabet) $ stateBVFinal blockDatum)
+                            else if localType == NonAdd then (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal blockDatum)
                             else if localType `elem` packedNonAddTypes then (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ packedNonAddPrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
                             else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
                             else if localType `elem` sequenceCharacterTypes

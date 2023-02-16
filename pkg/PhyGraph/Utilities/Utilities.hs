@@ -197,7 +197,7 @@ splitSequence partitionST stList =
         else [firstPart]
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
-bitVectToCharStateQual :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
+bitVectToCharStateQual :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharStateQual localAlphabet bitValue = 
   L.intercalate "," $ foldr pollSymbol mempty indices
   where
