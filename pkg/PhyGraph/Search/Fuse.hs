@@ -152,16 +152,13 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType doS
             let allBestList = take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraphList ++ newGraphList)
             in
 
-            -- found worse
-            if fuseBest > curBest then (allBestList, counter + 1)
-
             -- found better
-            else if fuseBest < curBest then
+            if fuseBest < curBest then
                -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
                trace ("\n")
                fuseAllGraphs inGS inData (drop 2  rSeedList) keepNum maxMoveEdgeDist (counter + 1) swapType doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
 
-            -- equal cost just return--could keep finding equal
+            -- equal or worse cost just return--could keep finding equal
             else (allBestList, counter + 1)
       )
 
