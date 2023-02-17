@@ -57,6 +57,8 @@ import           Types.Types
 import           Debug.Trace
 import           System.Random
 import qualified Data.Vector                  as V
+import           System.IO
+
 
 -- Add non reroot thing liike IA for faster
 
@@ -156,7 +158,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    let thetaString = L.intercalate "," $ fmap (show . snd) updatedThetaList
 
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
-   putStrLn $ unlines [ "Thread   \t" <> show refIndex
+   hPutStrLn stderr $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
                       , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
