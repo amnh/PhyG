@@ -176,19 +176,20 @@ changePreamble' findString newString accumList inLineList =
         -- )
 
 --printGraph graphviz simple dot file of graph
---execute with "dot -Tps test.dot -o test.ps"
+--execute with "dot -Teps test.dot -o test.eps"
 --need to add output to argument filename and call 
 --graphviz via System.Process.runprocess
 --also, reorder GenForest so smalles (num leaves) is either first or
 --last so can print small to large all the way so easier to read
+-- eps on OSX because ps gets cutt off for some reason and no pdf onOSX
 printGraphVizDot :: String -> String -> IO ()
 printGraphVizDot graphDotString dotFile =
     if null graphDotString then error "No graph to report"
     else do
         myHandle <- openFile dotFile WriteMode
         if os /= "darwin" then hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".pdf.")
-        else hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".ps.")
-        let outputType = if os == "darwin" then "-Tps"
+        else hPutStrLn  stderr ("\tOutputting graphviz to " ++ dotFile ++ ".eps.")
+        let outputType = if os == "darwin" then "-Teps"
                          else "-Tpdf"
         --hPutStrLn myHandle "digraph G {"
         --hPutStrLn myHandle "\trankdir = LR;"
