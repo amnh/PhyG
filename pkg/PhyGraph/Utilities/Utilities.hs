@@ -59,6 +59,7 @@ import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Data.InfList                as IL
+import qualified Data.Set                    as SET
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
@@ -214,7 +215,14 @@ bitVectToCharStateQual localAlphabet bitValue =
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState localAlphabet bitValue = 
-  L.intercalate "," $ foldr pollSymbol mempty indices
+  -- check for symbol length > 1 then add space (since sorted last element longest)
+  let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet) 
+  in
+  -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) ( 
+  if maxSymbolLength ==  1 then L.intercalate "," $ foldr pollSymbol mempty indices
+  else (L.intercalate "," $ foldr pollSymbol mempty indices) ++ " "
+  -- )
+  
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
@@ -225,49 +233,59 @@ bitVectToCharState localAlphabet bitValue =
 
 bitVectToCharState' :: (Show b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState' localAlphabet bitValue = 
+  -- trace ("BVCA': " ++ (show $ isAlphabetAminoAcid localAlphabet) ++ " " ++ (show $ isAlphabetDna localAlphabet) ++ " " ++ (show localAlphabet)) (
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
   in 
   if length stringVal == 1 then L.intercalate "," $ stringVal'
-  else 
+  else
     -- AA IUPAC
-    if stringVal == "DN" then "B"
-    else if stringVal == "EQ" then "Z"
-    else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X"
-    else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?"
+    -- if isAlphabetAminoAcid localAlphabet then
+    if SET.size (alphabetSymbols localAlphabet) > 5 then
+    
+        if stringVal == "DN" then "B"
+        else if stringVal == "EQ" then "Z"
+        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X"
+        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?"
+         -- amino acid polymorphisms without ambiguity codes
+        else "[" ++ stringVal ++ "]"
 
     -- Nucl IUPAC
-    else if stringVal == "AG" then "R"
-    else if stringVal == "CT" then "Y"
-    else if stringVal == "CG" then "S"
-    else if stringVal == "AT" then "W"
-    else if stringVal == "GT" then "K"
-    else if stringVal == "AC" then "M"
-    else if stringVal == "CGT" then "B"
-    else if stringVal == "AGT" then "D"
-    else if stringVal == "ACT" then "H"
-    else if stringVal == "ACG" then "V"
-    else if stringVal == "ACGT" then "N"
-    else if stringVal == "-ACGT" then "?"
+    else if ((isAlphabetDna localAlphabet) || (isAlphabetRna localAlphabet)) && (SET.size (alphabetSymbols localAlphabet) == 5) then
 
-    -- ours for gap chars and nuc
-    else if stringVal == "-A" then "a"
-    else if stringVal == "-C" then "c"
-    else if stringVal == "-G" then "g"
-    else if stringVal == "-T" then "t"
-    else if stringVal == "-AG" then "r"
-    else if stringVal == "-CT" then "y"
-    else if stringVal == "-CG" then "s"
-    else if stringVal == "-AT" then "w"
-    else if stringVal == "-GT" then "k"
-    else if stringVal == "-AC" then "m"
-    else if stringVal == "-CGT" then "b"
-    else if stringVal == "-AGT" then "d"
-    else if stringVal == "-ACT" then "h"
-    else if stringVal == "-ACG" then "v"
+        if stringVal == "AG" then "R"
+        else if stringVal == "CT" then "Y"
+        else if stringVal == "CG" then "S"
+        else if stringVal == "AT" then "W"
+        else if stringVal == "GT" then "K"
+        else if stringVal == "AC" then "M"
+        else if stringVal == "CGT" then "B"
+        else if stringVal == "AGT" then "D"
+        else if stringVal == "ACT" then "H"
+        else if stringVal == "ACG" then "V"
+        else if stringVal == "ACGT" then "N"
+        else if stringVal == "-ACGT" then "?"
 
-    else error ("No characvter sytring found for " ++ (show bitValue) ++ " in alphabet " ++ (show localAlphabet))
-    
+        -- ours for gap chars and nuc
+        else if stringVal == "-A" then "a"
+        else if stringVal == "-C" then "c"
+        else if stringVal == "-G" then "g"
+        else if stringVal == "-T" then "t"
+        else if stringVal == "-AG" then "r"
+        else if stringVal == "-CT" then "y"
+        else if stringVal == "-CG" then "s"
+        else if stringVal == "-AT" then "w"
+        else if stringVal == "-GT" then "k"
+        else if stringVal == "-AC" then "m"
+        else if stringVal == "-CGT" then "b"
+        else if stringVal == "-AGT" then "d"
+        else if stringVal == "-ACT" then "h"
+        else if stringVal == "-ACG" then "v"
+
+        else ("Unrecognized nucleic acid ambiguity code : " ++ (L.intercalate "," $ stringVal'))  
+
+    else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ (show localAlphabet))  
+  --  )
   where
     indices = [ 0 .. len - 1 ]
     len = length vec

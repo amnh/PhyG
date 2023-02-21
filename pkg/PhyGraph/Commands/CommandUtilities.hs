@@ -398,7 +398,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
             topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Final State"]
             vertexInfoList =  concatMap (getVertexCharInfo useDO (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
 
-            -- this using IA fields to hget changes
+            -- this using IA fields to get changes
             vertexInfoListChanges =  concatMap (getVertexCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
 
             -- Edge length information
@@ -409,13 +409,14 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
             vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State", "Sequence Changes (position, parent final state, node final state)"]] 
 
             vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList
+            vertexStateList = fmap (drop 9) vertexInfoListChanges
             
             -- process to change to lines of individual changes--basically a transpose
             vertexChangeListByPosition = fmap (getAlignmentBasedChanges 0) (zip vertexParentStateList vertexStateList)
 
             -- putting parent states before current state
             vertexStateInfoList = fmap (take 9) vertexInfoListChanges
-            vertexStateList = fmap (drop 9) vertexInfoListChanges
+            
             -- parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
             vertexChangeList = L.zipWith4 concat4 vertexStateInfoList vertexParentStateList vertexStateList vertexChangeListByPosition
 
@@ -427,15 +428,19 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
         where concat4 a b c d = a ++ b ++ c ++ d
  
 -- | getAlignmentBasedChanges takes two equal length implied Alignments and outputs list of element changes between the two
+-- only working for nucleotide prealigned or not
 getAlignmentBasedChanges :: Int -> ([String], [String]) -> [String]
 getAlignmentBasedChanges index (a, b) =
     if null a then []
     else 
-        let string1 = filter (/= ' ') $ head a
-            string2 = filter (/= ' ') $ head b
+        -- empty spaces sometimes
+        let string1 = if (head $ head a) == ' ' then tail $ head a
+                      else head a
+            string2 = if (head $ head b) == ' ' then tail $ head b
+                      else head b
         in
         if null string1 then []
-        -- this so retuens empty for non--sequence characters
+        -- this so returns empty for non--sequence characters
         else if (length string1 < 2) || (length string2 < 2) then []
         else if length string1 /= length string2 then []
         else 
@@ -551,7 +556,7 @@ makeCharLine useIA (blockDatum, charInfo) =
                                     _ -> error ("Un-implemented data type " ++ show localType)
                             else error ("Un-implemented data type " ++ show localType)
         in
-        -- trace ("MCL:" ++ (show $ isAlphabetDna $ alphabet charInfo) ++ " " ++ stringFinal)
+        -- trace ("MCL:" ++ (show localType) ++ " " ++ stringFinal)
         -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
         [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal]
 
