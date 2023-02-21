@@ -200,7 +200,10 @@ splitSequence partitionST stList =
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharStateQual :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharStateQual localAlphabet bitValue = 
-  L.intercalate "," $ foldr pollSymbol mempty indices
+  let charString = L.intercalate "," $ foldr pollSymbol mempty indices
+  in
+  if popCount bitValue > 1 then "[" ++ charString ++ "]"
+  else charString
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
@@ -217,10 +220,13 @@ bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState localAlphabet bitValue = 
   -- check for symbol length > 1 then add space (since sorted last element longest)
   let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet) 
+      charString = foldr pollSymbol mempty indices
+      charString' = L.intercalate "," charString
   in
   -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) ( 
-  if maxSymbolLength ==  1 then L.intercalate "," $ foldr pollSymbol mempty indices
-  else (L.intercalate "," $ foldr pollSymbol mempty indices) ++ " "
+  if popCount bitValue > 1 then "[" ++ charString' ++ "]"  ++ " "
+  else if maxSymbolLength ==  1 then charString'  ++ " "
+  else charString' ++ " "
   -- )
   
   where
@@ -243,12 +249,12 @@ bitVectToCharState' localAlphabet bitValue =
     -- if isAlphabetAminoAcid localAlphabet then
     if SET.size (alphabetSymbols localAlphabet) > 5 then
     
-        if stringVal == "DN" then "B"
-        else if stringVal == "EQ" then "Z"
-        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X"
-        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?"
+        if stringVal == "DN" then "B" ++ " "
+        else if stringVal == "EQ" then "Z" ++ " "
+        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X" ++ " "
+        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?" ++ " "
          -- amino acid polymorphisms without ambiguity codes
-        else "[" ++ stringVal ++ "]"
+        else "[" ++ stringVal ++ "]" ++ " "
 
     -- Nucl IUPAC
     else if ((isAlphabetDna localAlphabet) || (isAlphabetRna localAlphabet)) && (SET.size (alphabetSymbols localAlphabet) == 5) then
