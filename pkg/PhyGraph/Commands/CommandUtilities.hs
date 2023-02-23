@@ -67,6 +67,7 @@ import Data.Bits
 import qualified Input.Reorganize            as IR
 import qualified Data.List.Split             as LS
 -- import qualified Commands.Transform          as DT
+import qualified Data.Set                    as SET
 
 
 -- | processSearchFields takes a [String] and reformats the String associated with the
@@ -412,12 +413,11 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
             vertexStateList = fmap (drop 9) vertexInfoListChanges
             
             -- process to change to lines of individual changes--basically a transpose
-            vertexChangeListByPosition = fmap (getAlignmentBasedChanges 0) (zip vertexParentStateList vertexStateList)
+            vertexChangeListByPosition = fmap (getAlignmentBasedChanges' 0) (zip vertexParentStateList vertexStateList)
 
             -- putting parent states before current state
             vertexStateInfoList = fmap (take 9) vertexInfoListChanges
             
-            -- parentVertexStatesList = zipWith (++) vertexParentStateList vertexStateList 
             vertexChangeList = L.zipWith4 concat4 vertexStateInfoList vertexParentStateList vertexStateList vertexChangeListByPosition
 
             -- filter out those that are the same states
@@ -426,6 +426,36 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
         -- trace ("GGD: " ++ (show $ snd6 staticGraph)) 
         [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList 
         where concat4 a b c d = a ++ b ++ c ++ d
+
+-- | getAlignmentBasedChanges' takes two equal length implied Alignments and outputs list of element changes between the two
+-- assumes single String in each list
+getAlignmentBasedChanges' :: Int -> ([String], [String]) -> [String]
+getAlignmentBasedChanges' index (a, b) =
+    if length a > 1 || length b < 1 then error ("Should only have length 1 lists here: " ++ (show (length a, length b)))
+    else if null a then []
+    else 
+        -- empty spaces sometimes
+        let stringList1 = filter (not . null) $ LS.splitOn (" ") (head a)          
+            stringList2 = filter (not . null) $ LS.splitOn (" ") (head b)
+        in
+
+        -- this so returns empty for non--sequence characters
+        if null stringList1 then []
+        
+        else if length stringList1 /= length stringList2 then error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges'")
+        else getAlignmentBasedChangesGuts index stringList1 stringList2
+    
+
+-- | getAlignmentBasedChangesGuts takes processed element lists and cretes string of changes
+getAlignmentBasedChangesGuts :: Int -> [String] -> [String] -> [String]
+getAlignmentBasedChangesGuts index a b =
+    if null a then []
+    else 
+        if (head a) == (head b) then 
+            getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
+        else 
+            ((show index) ++ ":" ++ (head a) ++ "," ++ (head b)) : getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
+
  
 -- | getAlignmentBasedChanges takes two equal length implied Alignments and outputs list of element changes between the two
 -- only working for nucleotide prealigned or not
@@ -520,6 +550,8 @@ getBlockList useIA (blockName, blockDataVect, charInfoVect) =
 -- need to add back-converting to observed states using alphabet in charInfo
 -- nothing here for packed since not "entered"
 -- useIA for using alignment fields for changes in diagnosis
+-- is useIA == False then just printing final seqeunce and removes spaces
+-- for single character sequences (e.g. DNA/Protein)
 makeCharLine :: Bool -> (CharacterData, CharInfo) -> [String]
 makeCharLine useIA (blockDatum, charInfo) =
     let localType = charType charInfo
@@ -555,10 +587,21 @@ makeCharLine useIA (blockDatum, charInfo) =
                                              
                                     _ -> error ("Un-implemented data type " ++ show localType)
                             else error ("Un-implemented data type " ++ show localType)
+
+        -- this removes ' ' between elements if sequence elements are a single character (e.g. DNA)
+        stringFinal' = if useIA then stringFinal
+                       else if localType `elem` [NucSeq,  AminoSeq] then filter (/= ' ') stringFinal
+                       else 
+                            let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
+                            in
+                            if maxSymbolLength > 1 then stringFinal
+                            else filter (/= ' ') stringFinal
+
         in
+        
         -- trace ("MCL:" ++ (show localType) ++ " " ++ stringFinal)
         -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
-        [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal]
+        [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal']
 
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
