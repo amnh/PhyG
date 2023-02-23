@@ -58,6 +58,7 @@ import           Debug.Trace
 import           System.Random
 import qualified Data.Vector                  as V
 import           System.IO
+import qualified Utilities.Utilities         as U
 
 
 -- Add non reroot thing liike IA for faster
@@ -423,7 +424,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
          let -- choose staticApproximation or not
              -- up top here because used by other non-build options
              -- if happens--need to transform  back before returning
-             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.25), (False, 0.75)]
+             -- checks if there are non-exact characters to transform
+             transformToStaticApproximation = if U.getNumberNonExactCharacters (thd3 inData') == 0 then False
+                                              else chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.25), (False, 0.75)]
 
              -- choose to togle multitraverse (n-speed up compared to default multi-traverse)
              -- if already False--don't change

@@ -75,8 +75,8 @@ epsilon = 0.0001
 infinity :: Double
 infinity = (read "Infinity") :: Double
 
--- | maxAddStatesToRecode maximum size of addditive charcater to recode into
---non-additive charcaters 65 can fit in 4 Word64 since nstates - 1 binaries
+-- | maxAddStatesToRecode maximum size of addditive character to recode into
+--non-additive characters 65 can fit in 4 Word64 since nstates - 1 binaries
 -- prob could be bigger based on cost of optimizing additive versus but this 
 -- seems a reasonale number (prob should be timed to verify)
 maxAddStatesToRecode :: Int
@@ -159,7 +159,7 @@ data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot
 data SoftWiredAlgorithm = Naive | ResolutionCache
     deriving stock (Show, Eq)
 
--- | Method for makeing final seqeujnce charcatert states assignment
+-- | Method for makeing final seqeujnce charactert states assignment
 -- do an DO-based method--more exact but higher time complexity--single preorder
 -- pass but worst cae O(n^2) in seqeunce length
 -- or assign based on Implied alignment --requires additional post/pre order
@@ -209,7 +209,7 @@ data  GlobalSettings
     , bc8                 :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
     , bc64                :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
     , bcgt64              :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
-    , fractionDynamic     :: Double -- estimated gfraction of charcater length that are dynamic (actually seqeunce) for setting dynamicEpsilon
+    , fractionDynamic     :: Double -- estimated fraction of character length that are dynamic (actually seqeunce) for setting dynamicEpsilon
     , dynamicEpsilon      :: Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
     , graphsSteepest      :: Int -- he maximum number of graphs that are evaluated
                                  -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase 
@@ -217,7 +217,7 @@ data  GlobalSettings
     , softWiredMethod     :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
     , multiTraverseCharacters :: Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
     , reportNaiveData      :: Bool -- reports using Naive data so preserves character order and codings.  This comes at a cost in memory footprint.  If False, 
-                                   -- packed charcaters are reported--and are somewhat inscrutable. But perhaps 3% of data footprint--useful for large
+                                   -- packed characters are reported--and are somewhat inscrutable. But perhaps 3% of data footprint--useful for large
                                    -- add/non add dat asets liker SNP genomic data
     } deriving stock (Show, Eq)
 
@@ -567,7 +567,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
 emptyPhylogeneticGraph :: PhylogeneticGraph
 emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empty)
 
--- | emptyCharcater useful for intialization and missing data
+-- | emptycharacter useful for intialization and missing data
 emptyCharacter :: CharacterData
 emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
                                  , stateBVFinal       = mempty

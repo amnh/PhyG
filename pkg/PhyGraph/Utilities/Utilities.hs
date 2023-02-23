@@ -243,7 +243,7 @@ bitVectToCharState' localAlphabet bitValue =
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
   in 
-  if length stringVal == 1 then L.intercalate "," $ stringVal'
+  if length stringVal == 1 then (L.intercalate "," $ stringVal') ++ " "
   else
     -- AA IUPAC
     -- if isAlphabetAminoAcid localAlphabet then
@@ -259,34 +259,34 @@ bitVectToCharState' localAlphabet bitValue =
     -- Nucl IUPAC
     else if ((isAlphabetDna localAlphabet) || (isAlphabetRna localAlphabet)) && (SET.size (alphabetSymbols localAlphabet) == 5) then
 
-        if stringVal == "AG" then "R"
-        else if stringVal == "CT" then "Y"
-        else if stringVal == "CG" then "S"
-        else if stringVal == "AT" then "W"
-        else if stringVal == "GT" then "K"
-        else if stringVal == "AC" then "M"
-        else if stringVal == "CGT" then "B"
-        else if stringVal == "AGT" then "D"
-        else if stringVal == "ACT" then "H"
-        else if stringVal == "ACG" then "V"
-        else if stringVal == "ACGT" then "N"
-        else if stringVal == "-ACGT" then "?"
+        if stringVal == "AG" then "R" ++ " "
+        else if stringVal == "CT" then "Y" ++ " "
+        else if stringVal == "CG" then "S" ++ " "
+        else if stringVal == "AT" then "W" ++ " "
+        else if stringVal == "GT" then "K" ++ " "
+        else if stringVal == "AC" then "M" ++ " "
+        else if stringVal == "CGT" then "B" ++ " "
+        else if stringVal == "AGT" then "D" ++ " "
+        else if stringVal == "ACT" then "H" ++ " "
+        else if stringVal == "ACG" then "V" ++ " "
+        else if stringVal == "ACGT" then "N" ++ " "
+        else if stringVal == "-ACGT" then "?" ++ " "
 
         -- ours for gap chars and nuc
-        else if stringVal == "-A" then "a"
-        else if stringVal == "-C" then "c"
-        else if stringVal == "-G" then "g"
-        else if stringVal == "-T" then "t"
-        else if stringVal == "-AG" then "r"
-        else if stringVal == "-CT" then "y"
-        else if stringVal == "-CG" then "s"
-        else if stringVal == "-AT" then "w"
-        else if stringVal == "-GT" then "k"
-        else if stringVal == "-AC" then "m"
-        else if stringVal == "-CGT" then "b"
-        else if stringVal == "-AGT" then "d"
-        else if stringVal == "-ACT" then "h"
-        else if stringVal == "-ACG" then "v"
+        else if stringVal == "-A" then "a" ++ " "
+        else if stringVal == "-C" then "c" ++ " "
+        else if stringVal == "-G" then "g" ++ " "
+        else if stringVal == "-T" then "t" ++ " "
+        else if stringVal == "-AG" then "r" ++ " "
+        else if stringVal == "-CT" then "y" ++ " "
+        else if stringVal == "-CG" then "s" ++ " "
+        else if stringVal == "-AT" then "w" ++ " "
+        else if stringVal == "-GT" then "k" ++ " "
+        else if stringVal == "-AC" then "m" ++ " "
+        else if stringVal == "-CGT" then "b" ++ " "
+        else if stringVal == "-AGT" then "d" ++ " "
+        else if stringVal == "-ACT" then "h" ++ " "
+        else if stringVal == "-ACG" then "v" ++ " "
 
         else ("Unrecognized nucleic acid ambiguity code : " ++ (L.intercalate "," $ stringVal'))  
 
@@ -399,8 +399,20 @@ getNumberPrealignedCharacters blockDataVect =
         in
         sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
 
+-- | getNumberNonExactCharacters takes processed data and returns the number of non-exact (unaligned seqeunce) characters
+-- used to special case procedures with unaligned sequences
+getNumberNonExactCharacters :: V.Vector BlockData -> Int
+getNumberNonExactCharacters blockDataVect =
+    if V.null blockDataVect then 0
+    else
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            sequenceChars = length $ V.filter (== True) $ V.map (`elem` nonExactCharacterTypes) characterTypes
+        in
+        sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
+
 -- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequence) characters
--- utilised to special case datasets with limited non-exact characters
+-- utilized to special case datasets with limited non-exact characters
 getNumberSequenceCharacters :: V.Vector BlockData -> Int
 getNumberSequenceCharacters blockDataVect =
     if V.null blockDataVect then 0
