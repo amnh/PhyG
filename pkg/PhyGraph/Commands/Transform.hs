@@ -105,6 +105,8 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeGraphFactor = any ((=="graphfactor").fst) lcArgList
             changeCompressionResolutions = any ((=="compressresolutions").fst) lcArgList
             changeMultiTraverse = any ((=="multitraverse").fst) lcArgList
+            changeUnionThreshold = any ((=="unionthreshold").fst) lcArgList
+            
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
@@ -170,6 +172,13 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head reRootBlock) = Just $ outGroupName inGS  
                | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
 
+            changeUnionBlock = filter ((=="unionthreshold").fst) lcArgList
+            unionValue
+               | length changeUnionBlock > 1 =
+                  errorWithoutStackTrace ("Multiple unionThreshold specifications in transform--can have only one: " ++ show inArgs)
+               | null changeUnionBlock = Just $ unionThreshold inGS 
+               | null (snd $ head changeUnionBlock) = Just $ unionThreshold inGS 
+               | otherwise = readMaybe (snd $ head changeUnionBlock) :: Maybe Double
 
             nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
             charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
@@ -347,6 +356,15 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   else 
                      trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
                      (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, newPhylogeneticGraphList)
+
+            -- changes unionThreshold error check factor
+            else if changeUnionThreshold then
+               if isNothing unionValue then errorWithoutStackTrace ("UninThreshold value is not specified correcty. Must be a double (e.g. 1.17): " ++ (show (snd $ head changeUnionBlock)))
+               else 
+                  trace ("Changing uninoTHreshold factor to " ++ (show $ fromJust unionValue))
+                  (inGS {dynamicEpsilon = (fromJust unionValue)}, origData, inData, inGraphList)
+
+            
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
 

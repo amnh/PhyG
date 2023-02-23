@@ -123,9 +123,10 @@ searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnete
 selectArgList :: [String]
 selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 
--- | setArgLIst contains valid 'set' arguments
+-- | setArgList contains valid 'set' arguments
+    -- unionThreshold and dynamicEpsilon are not intended for users--but could be of course
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod", "unionthreshold"]
 
 -- | refinement arguments
 supportArgList :: [String]

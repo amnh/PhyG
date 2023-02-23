@@ -264,7 +264,8 @@ setCommand argList globalSettings processedData inSeedList =
     else if length commandList > 1 || length optionList > 1 then errorWithoutStackTrace ("Set option error: can only have one set argument for each command: " ++ (show (commandList,optionList))) 
 
     -- early extraction of partition character and bc2-gt64 follows from null inputs
-    -- this due to not having all info required for all global settings, so optoin resitrcted and repeated
+    -- this due to not having all info required for all global settings, so options restricted and repeated
+    -- needs to be fixed to be more clear and clean
     else if (null inSeedList) then 
         if head commandList == "partitioncharacter"  then
             let localPartitionChar = head optionList
@@ -525,7 +526,7 @@ setCommand argList globalSettings processedData inSeedList =
             let localValue = readMaybe (head optionList) :: Maybe Double
             in
             if localValue == Nothing then error ("Set option 'dynamicEpsilon' must be set to an double value >= 0.0 (e.g. dynamicepsilon:0.02): " ++ (head optionList))
-            else if (fromJust localValue) < 0.0 then errorWithoutStackTrace ("Set option 'dynamicEpsilon' must be set to an double value >= 0.0 (e.g. dynamicepsilon:0.02): " ++ (head optionList))
+            else if (fromJust localValue) < 0.0 then errorWithoutStackTrace ("Set option 'dynamicEpsilon' must be set to a double value >= 0.0 (e.g. dynamicepsilon:0.02): " ++ (head optionList))
             else 
                 trace ("Dynamic Epsilon factor set to " ++ head optionList)
                 (globalSettings {dynamicEpsilon = 1.0 + ((fromJust localValue) * (fractionDynamic globalSettings))}, processedData, inSeedList)
@@ -650,7 +651,7 @@ setCommand argList globalSettings processedData inSeedList =
                 trace ("Random Seed set to " ++ head optionList)
                 (globalSettings {seed = (fromJust localValue)}, processedData, randomIntList (fromJust localValue))
 
-         else if head commandList == "softwiredmethod"  then
+        else if head commandList == "softwiredmethod"  then
             let localMethod
                   | (head optionList == "naive") = Naive
                   | (head optionList == "exhaustive") = Naive
@@ -659,6 +660,17 @@ setCommand argList globalSettings processedData inSeedList =
             in
             trace ("SoftwiredMethod " ++ (show localMethod))
             (globalSettings {softWiredMethod = localMethod}, processedData, inSeedList)
+
+        -- this not intended for users
+        else if head commandList == "unionthreshold"  then
+            let localValue = readMaybe (head optionList) :: Maybe Double
+            in
+            if localValue == Nothing then error ("Set option 'unionThreshold' must be set to an double value >= 1.0 (e.g. unionThreshold:1.17): " ++ (head optionList))
+            else if (fromJust localValue) < 1.0 then errorWithoutStackTrace ("Set option 'unionThreshold' must be set to a double value >= 1.0 (e.g. unionThreshold:1.17): " ++ (head optionList))
+            else 
+                trace ("UnionThreshold set to " ++ head optionList)
+                (globalSettings {unionThreshold = (fromJust localValue)}, processedData, inSeedList)
+
 
         
 

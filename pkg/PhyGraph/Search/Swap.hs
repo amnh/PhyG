@@ -508,10 +508,14 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
           rejoinEdges' = if maxMoveEdgeDist >= ((maxBound :: Int) `div` 3) then edgesInBaseGraph
                         else take maxMoveEdgeDist $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot]) 
 
+          -- insert here union calcuations based on Varon adn Wheeler 2012
+          -- basically--rebuild edge to rejoin list based on critical value, totalCost - splitCost, and 
+          -- edge union distance
+
           -- randomize edges list order for anneal and drift
           rejoinEdges = if isJust inSimAnnealParams then 
                            permuteList ((randomIntegerList $ fromJust inSimAnnealParams) !! 1) rejoinEdges' 
-                          else rejoinEdges' 
+                        else rejoinEdges' 
 
           -- rejoin graph to all possible edges in base graph
           (newGraphList, newSAParams) = 
@@ -826,10 +830,6 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
              (tbrResult, _) = tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
          in
          if (not . null) sprResult then (sprResult, inSimAnnealParams)
-
-         -- unions implementation here
-         -- 1.17 from Varon and Wheeler 2013
-         else if sprReJoinCost > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealParams)
 
          -- else if ((snd6 rediagnosedSPRGraph) - curBestCost) > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealParams)
          

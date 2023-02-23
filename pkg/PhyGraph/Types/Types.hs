@@ -219,6 +219,8 @@ data  GlobalSettings
     , reportNaiveData      :: Bool -- reports using Naive data so preserves character order and codings.  This comes at a cost in memory footprint.  If False, 
                                    -- packed characters are reported--and are somewhat inscrutable. But perhaps 3% of data footprint--useful for large
                                    -- add/non add dat asets liker SNP genomic data
+    , unionThreshold      :: Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhps) character Wagner build
+                                    -- as described by Varon and Wheeler (2013) and set to 1.17 experimentally
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -290,16 +292,24 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 --  per "charctaer" this is so the multi-traversal can take place independently for each
 --  sequence character, creating a properly "rooted" tree/graph for each non-exact seqeunce character
 -- prelim is created from gapped, final from (via 3-way minimization) parent final and child alignment (2nd and 3rd fields).
--- th ea'alignment' fields hold the im plied alignment data
-data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
-                                     -- for Non-additive ans Sankoff/Matrix approximate state
+-- the 'alignment' fields hold the implied alignment data
+-- the 'union' fields hold post-order unions of subgraph charcaters (ia for sequence) fir use in uinion threshold 
+-- during branch addintion/readdition (e.g swapping)
+data CharacterData = CharacterData { -- for Non-additive  
+                                       stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
                                      , stateBVFinal       :: V.Vector BV.BitVector
+                                     , stateBVUnion       :: V.Vector BV.BitVector
+                                     
                                      -- for Additive
                                      , rangePrelim        :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int))
                                      , rangeFinal         :: V.Vector (Int, Int)
+                                     , rangeUnion         :: V.Vector (Int, Int)
+
                                      -- for multiple Sankoff/Matrix with slim tcm
                                      , matrixStatesPrelim :: V.Vector (V.Vector MatrixTriple)
                                      , matrixStatesFinal  :: V.Vector (V.Vector MatrixTriple)
+                                     , matrixStatesUnion  :: V.Vector (V.Vector MatrixTriple)
+
                                      -- preliminary for m,ultiple seqeunce chars with same TCM
                                      , slimPrelim         :: SV.Vector CUInt
                                      -- gapped medians of left, right, and preliminary used in preorder pass
@@ -308,6 +318,8 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , slimFinal          :: SV.Vector CUInt
                                      , slimIAPrelim       :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , slimIAFinal        :: SV.Vector CUInt
+                                     , slimIAUnion        :: SV.Vector CUInt
+
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , widePrelim         :: UV.Vector Word64
                                      -- gapped median of left, right, and preliminary used in preorder pass
@@ -316,6 +328,8 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , wideFinal          :: UV.Vector Word64
                                      , wideIAPrelim       :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , wideIAFinal        :: UV.Vector Word64
+                                     , wideIAUnion        :: UV.Vector Word64
+                                     
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped medians of left, right, and preliminary used in preorder pass
@@ -324,18 +338,25 @@ data CharacterData = CharacterData {   stateBVPrelim      :: (V.Vector BV.BitVec
                                      , hugeFinal          :: V.Vector BV.BitVector
                                      , hugeIAPrelim       :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , hugeIAFinal        :: V.Vector BV.BitVector
+                                     , hugeIAUnion        :: V.Vector BV.BitVector
 
                                      -- vectors for pre-aligned sequences also used in static approx
                                      , alignedSlimPrelim  :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
                                      , alignedSlimFinal   :: SV.Vector CUInt
+                                     , alignedSlimUnion   :: SV.Vector CUInt
+
                                      , alignedWidePrelim  :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , alignedWideFinal   :: UV.Vector Word64
+                                     , alignedWideUnion   :: UV.Vector Word64
+
                                      , alignedHugePrelim  :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
                                      , alignedHugeFinal   :: V.Vector BV.BitVector
+                                     , alignedHugeUnion   :: V.Vector BV.BitVector
 
                                      -- coiuld be made Storable later is using C or GPU/Accelerate
                                      , packedNonAddPrelim :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , packedNonAddFinal  :: UV.Vector Word64
+                                     , packedNonAddUnion  :: UV.Vector Word64
 
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , localCostVect      :: V.Vector StateCost
@@ -560,6 +581,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , softWiredMethod = ResolutionCache
                                      , multiTraverseCharacters = True
                                      , reportNaiveData = True
+                                     , unionThreshold = 1.17
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
@@ -569,14 +591,21 @@ emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empt
 
 -- | emptycharacter useful for intialization and missing data
 emptyCharacter :: CharacterData
-emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
+emptyCharacter = CharacterData   { -- for non-additive 
+                                   stateBVPrelim      = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
                                  , stateBVFinal       = mempty
+                                 , stateBVUnion       = mempty
+
                                  -- for Additive
                                  , rangePrelim        = (mempty, mempty, mempty)
                                  , rangeFinal         = mempty
+                                 , rangeUnion         = mempty
+
                                  -- for multiple Sankoff/Matrix with sme tcm
                                  , matrixStatesPrelim = mempty
                                  , matrixStatesFinal  = mempty
+                                 , matrixStatesUnion  = mempty
+
                                  -- preliminary for m,ultiple seqeunce cahrs with same TCM
                                  , slimPrelim         = mempty
                                  -- gapped medians of left, right, and preliminary used in preorder pass
@@ -585,6 +614,8 @@ emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)
                                  , slimFinal          = mempty
                                  , slimIAPrelim       = (mempty, mempty, mempty)
                                  , slimIAFinal        = mempty
+                                 , slimIAUnion        = mempty
+                                 
                                  -- gapped median of left, right, and preliminary used in preorder pass
                                  , widePrelim         = mempty
                                  -- gapped median of left, right, and preliminary used in preorder pass
@@ -593,6 +624,8 @@ emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)
                                  , wideFinal          = mempty
                                  , wideIAPrelim       = (mempty, mempty, mempty)
                                  , wideIAFinal        = mempty
+                                 , wideIAUnion        = mempty
+
                                  -- vector of individual character costs (Can be used in reweighting-ratchet)
                                  , hugePrelim         = mempty
                                  -- gapped mediasn of left, right, and preliminary used in preorder pass
@@ -601,16 +634,24 @@ emptyCharacter = CharacterData   { stateBVPrelim      = (mempty, mempty, mempty)
                                  , hugeFinal          = mempty
                                  , hugeIAPrelim       = (mempty, mempty, mempty)
                                  , hugeIAFinal        = mempty
+                                 , hugeIAUnion        = mempty
+                                 
                                  -- vectors for pre-aligned sequences also used in static approx
                                  , alignedSlimPrelim  = (mempty, mempty, mempty)
                                  , alignedSlimFinal   = mempty
+                                 , alignedSlimUnion   = mempty
+
                                  , alignedWidePrelim  = (mempty, mempty, mempty)
                                  , alignedWideFinal   = mempty
+                                 , alignedWideUnion   = mempty
+
                                  , alignedHugePrelim  = (mempty, mempty, mempty)
                                  , alignedHugeFinal   = mempty
+                                 , alignedHugeUnion   = mempty
 
                                  , packedNonAddPrelim = (mempty, mempty, mempty)
                                  , packedNonAddFinal  = mempty
+                                 , packedNonAddUnion  = mempty
 
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                  , localCostVect      = V.singleton 0
