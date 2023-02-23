@@ -324,6 +324,15 @@
 			 \item{Functions with ``== NonAdd'' etc will need extra cases for any new character type}
 	\end{itemize}
 
+	\section{Simulated Annealing/Drift}
+	The \texttt{swap()} and \texttt{net/add/delete/move/adddelete} commands contain options for Simulated Annealing
+	and ``Drifting'' (basically simulated annealing with a single temperature).  The options are set in SwapMaster.hs,
+	Refine.hs, and NetworkAddDelete.hs.  For Simulated Annealing, only the number of temperature steps and
+	number of annealing rounds (specified with \texttt{annealing:N}) are specified.  For Drifting, additional parameters
+	such as the maximum number of changes to graph topology, and probabilities of accepting equal and worse solutions.
+	
+	The acceptance functions are in Utilities.hs.
+
 	\section{Adding New Commands}
 	In addition to their locations (functions) of operation, commands and their options are specified in Verify.hs, CommandExecution.hs,
 	CommandUtilities.hs, and ProcessCommands.hs.  The command options are entered in lists in Verify.hs so that command scripts 

@@ -47,6 +47,7 @@ module Data.Alphabet.Internal
 import           Control.Arrow
 import           Control.DeepSeq                     (NFData)
 import           Control.Monad.State.Strict
+import           Control.Monad
 import           Data.Bifunctor                      (bimap)
 import           Data.Binary                         (Binary)
 import           Data.Bits

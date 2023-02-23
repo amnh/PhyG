@@ -59,6 +59,7 @@ import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Data.InfList                as IL
+import qualified Data.Set                    as SET
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
@@ -197,8 +198,100 @@ splitSequence partitionST stList =
         else [firstPart]
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
-bitVectToCharState :: Bits b => Alphabet String -> b -> String
-bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol mempty indices
+bitVectToCharStateQual :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b -> String
+bitVectToCharStateQual localAlphabet bitValue = 
+  let charString = L.intercalate "," $ foldr pollSymbol mempty indices
+  in
+  if popCount bitValue > 1 then "[" ++ charString ++ "]"
+  else charString
+  where
+    indices = [ 0 .. len - 1 ]
+    len = length vec
+    -- this is a hack--the alphabets for non-additive charcaters gets truncated to binary at some point earlier 
+    localAlphabet' = if length localAlphabet == finiteBitSize bitValue then localAlphabet
+                     else fromSymbolsWOGap $ fmap show [0.. (finiteBitSize bitValue) - 1] 
+    vec = alphabetSymbols localAlphabet'
+    pollSymbol i polled
+      | bitValue `testBit` i = (vec V.! i) : polled
+      | otherwise         = polled
+
+-- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
+bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
+bitVectToCharState localAlphabet bitValue = 
+  -- check for symbol length > 1 then add space (since sorted last element longest)
+  let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet) 
+      charString = foldr pollSymbol mempty indices
+      charString' = L.intercalate "," charString
+  in
+  -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) ( 
+  if popCount bitValue > 1 then "[" ++ charString' ++ "]"  ++ " "
+  else if maxSymbolLength ==  1 then charString'  ++ " "
+  else charString' ++ " "
+  -- )
+  
+  where
+    indices = [ 0 .. len - 1 ]
+    len = length vec
+    vec = alphabetSymbols localAlphabet
+    pollSymbol i polled
+      | bitValue `testBit` i = (vec V.! i) : polled
+      | otherwise         = polled
+
+bitVectToCharState' :: (Show b, Bits b) => Alphabet String -> b -> String
+bitVectToCharState' localAlphabet bitValue = 
+  -- trace ("BVCA': " ++ (show $ isAlphabetAminoAcid localAlphabet) ++ " " ++ (show $ isAlphabetDna localAlphabet) ++ " " ++ (show localAlphabet)) (
+  let stringVal' = foldr pollSymbol mempty indices
+      stringVal = concat stringVal'
+  in 
+  if length stringVal == 1 then L.intercalate "," $ stringVal'
+  else
+    -- AA IUPAC
+    -- if isAlphabetAminoAcid localAlphabet then
+    if SET.size (alphabetSymbols localAlphabet) > 5 then
+    
+        if stringVal == "DN" then "B" ++ " "
+        else if stringVal == "EQ" then "Z" ++ " "
+        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X" ++ " "
+        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?" ++ " "
+         -- amino acid polymorphisms without ambiguity codes
+        else "[" ++ stringVal ++ "]" ++ " "
+
+    -- Nucl IUPAC
+    else if ((isAlphabetDna localAlphabet) || (isAlphabetRna localAlphabet)) && (SET.size (alphabetSymbols localAlphabet) == 5) then
+
+        if stringVal == "AG" then "R"
+        else if stringVal == "CT" then "Y"
+        else if stringVal == "CG" then "S"
+        else if stringVal == "AT" then "W"
+        else if stringVal == "GT" then "K"
+        else if stringVal == "AC" then "M"
+        else if stringVal == "CGT" then "B"
+        else if stringVal == "AGT" then "D"
+        else if stringVal == "ACT" then "H"
+        else if stringVal == "ACG" then "V"
+        else if stringVal == "ACGT" then "N"
+        else if stringVal == "-ACGT" then "?"
+
+        -- ours for gap chars and nuc
+        else if stringVal == "-A" then "a"
+        else if stringVal == "-C" then "c"
+        else if stringVal == "-G" then "g"
+        else if stringVal == "-T" then "t"
+        else if stringVal == "-AG" then "r"
+        else if stringVal == "-CT" then "y"
+        else if stringVal == "-CG" then "s"
+        else if stringVal == "-AT" then "w"
+        else if stringVal == "-GT" then "k"
+        else if stringVal == "-AC" then "m"
+        else if stringVal == "-CGT" then "b"
+        else if stringVal == "-AGT" then "d"
+        else if stringVal == "-ACT" then "h"
+        else if stringVal == "-ACG" then "v"
+
+        else ("Unrecognized nucleic acid ambiguity code : " ++ (L.intercalate "," $ stringVal'))  
+
+    else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ (show localAlphabet))  
+  --  )
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
@@ -208,9 +301,9 @@ bitVectToCharState localAlphabet bitValue = L.intercalate "," $ foldr pollSymbol
       | otherwise         = polled
 
 
--- bitVectToCharState  takes a bit vector representation and returns a list states as integers
-bitVectToCharState' :: (Bits b) => [String] -> b -> String
-bitVectToCharState' localAlphabet bitValue
+-- bitVectToCharState''  takes a bit vector representation and returns a list states as integers
+bitVectToCharState'' :: (Bits b) => [String] -> b -> String
+bitVectToCharState'' localAlphabet bitValue
   | isAlphabetDna       hereAlphabet = fold $ iupacToDna       BM.!> observedSymbols
   | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
   | otherwise = L.intercalate "," $ toList observedSymbols
@@ -662,6 +755,25 @@ getTraversalCosts inGraph =
     in
     traversalRootCosts
 
+-- | getSequenceCharacterLengths returns a the length of block characters
+getSequenceCharacterLengths :: CharacterData -> CharInfo -> Int
+getSequenceCharacterLengths inCharData inCharInfo =
+    let inCharType = charType inCharInfo
+    in
+    -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
+    case inCharType of
+      x | x `elem` [NonAdd           ] -> 0 -- V.length  $ snd3 $ stateBVPrelim inCharData
+      x | x `elem` packedNonAddTypes   -> 0 -- UV.length  $ snd3 $ packedNonAddPrelim inCharData
+      x | x `elem` [Add              ] -> 0 -- V.length  $ snd3 $ rangePrelim inCharData
+      x | x `elem` [Matrix           ] -> 0 -- V.length  $ matrixStatesPrelim inCharData
+      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
+      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
+      x | x `elem` [HugeSeq]           -> V.length  $ snd3 $ hugeAlignment inCharData
+      x | x `elem` [AlignedSlim]       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
+      x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
+      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData
+      _                                -> error ("Un-implemented data type " ++ show inCharType)
+      -- )
 
 -- | getCharacterLengths returns a the length of block characters
 getCharacterLength :: CharacterData -> CharInfo -> Int

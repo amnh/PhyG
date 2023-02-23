@@ -319,6 +319,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
             let thisBlockName     = name $ head firstCharInfo
+                --thisBlockName   = T.append (T.pack "block-")  (name $ head firstCharInfo)
                 thisBlockCharInfo = V.fromList firstCharInfo
                 maxCharacterLength = maximum $ fmap length $ (fmap snd firstData)
                 recodedCharacters = recodeRawData (fmap fst firstData) (fmap snd firstData) firstCharInfo maxCharacterLength []
@@ -408,7 +409,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 
                 -- max in case of all missing character
                 numStates = max 1 (popCount nonMissingBV)
-
+                
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
                 stateAlphabet = fromSymbolsWOGap  foundSymbols -- fromSymbolsWOGap foundSymbols
@@ -582,11 +583,13 @@ missingAligned inChar charLength =
 setMissingBits :: (Show a, FiniteBits a) => a -> Int -> Int -> a
 setMissingBits inVal curIndex alphSize =
     if curIndex == alphSize then
-        -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
+        --trace ("SMB:" ++ (show (curIndex, alphSize, inVal)))
         inVal
     else
         -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal, setBit inVal curIndex)))
         setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
+    
+    
 
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])

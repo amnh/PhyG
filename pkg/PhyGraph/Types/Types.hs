@@ -216,6 +216,9 @@ data  GlobalSettings
                                  -- run time of these procedurs by delaying finding "better" solutins to move to.
     , softWiredMethod     :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
     , multiTraverseCharacters :: Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
+    , reportNaiveData      :: Bool -- reports using Naive data so preserves character order and codings.  This comes at a cost in memory footprint.  If False, 
+                                   -- packed charcaters are reported--and are somewhat inscrutable. But perhaps 3% of data footprint--useful for large
+                                   -- add/non add dat asets liker SNP genomic data
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -508,6 +511,11 @@ instance NFData SAParams where rnf x = seq x ()
 
 -- | empty structures for convenient use
 
+
+-- | emptyProcessedData empty processsed data dfor memory saving with large qualitative data sets(e.g. SNPS)
+emptyProcessedData :: ProcessedData
+emptyProcessedData = (V.empty, V.empty, V.empty)
+
 -- | emptySearchData for use in getting basic procesin input data
 emptySearchData :: SearchData
 emptySearchData  = SearchData
@@ -551,6 +559,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , graphsSteepest = 10
                                      , softWiredMethod = ResolutionCache
                                      , multiTraverseCharacters = True
+                                     , reportNaiveData = True
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

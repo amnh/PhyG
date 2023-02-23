@@ -57,6 +57,10 @@ import           Types.Types
 import           Debug.Trace
 import           System.Random
 import qualified Data.Vector                  as V
+import           System.IO
+
+
+-- Add non reroot thing liike IA for faster
 
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
 treeBanditList :: [String]
@@ -154,7 +158,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    let thetaString = L.intercalate "," $ fmap (show . snd) updatedThetaList
 
    let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
-   putStrLn $ unlines [ "Thread   \t" <> show refIndex
+   hPutStrLn stderr $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
                       , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
@@ -194,7 +198,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                          else if toSeconds elapsedSeconds == 0 then 0.1
                          else (fromIntegral $ toSeconds elapsedSeconds) / totalTime
             
-            durationTime = if toSeconds elapsedSeconds == 0 then 1
+            durationTime = if toSeconds elapsedSeconds <= 1 then 1
                            else toSeconds elapsedSeconds
 
             -- get bandit index and orignial theta value from pair list
@@ -218,6 +222,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             -- all thetas (second field) sum to one.
             -- if didn't do anything but increment everyone else with 1/(num bandits - 1), then renormalize
             -- dowenweights unsiucessful bandit
+            -- need to add more downweight if search long
             let previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
             
                 benefit = if searchDelta <= 0.0 then 0.0
@@ -245,25 +250,27 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             (zip (fmap fst inPairList) newThetaList, newStopCount)
             -- )
 
-        -- more complex options
-        -- need to bag out for incorrect ["linear","exponential"]
-        -- testng for now
+        -- more complex 'recency' options
         else if mFunction `elem` ["linear","exponential"] then
-            let -- weight factors for previous theta (wN-1)
-                mFactor' = fromIntegral mFactor :: Double
+            let -- weight factors for previous theta (wN-1)* \theta
+                -- maxed ot counter so averaging not wierd for early iterations
+                mFactor' = min (fromIntegral counter :: Double) (fromIntegral mFactor :: Double)
                 (wN_1, wN) = if mFunction == "linear" then
                                     (mFactor' / (mFactor' + 1), 1.0 / (mFactor' + 1))
                              else if mFunction == "exponential" then 
                                     (1.0 - (1.0 / (2.0 ** mFactor')), (1.0 / (2.0 ** mFactor')))
                              else error ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
 
-                -- simple "success-based" benefit, scaled to averge time of search iteration
+                -- simple "success-based" benefit, scaled to average time of search iteration
                 searchBenefit = if searchDelta <= 0.0 then 0.0
-                                else 1.0 / timeFactor
+                                else searchDelta / timeFactor
 
                 previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
             
-                -- average of new if m=1, no memory if m=0, longer memory with larger m
+                -- average of new am]nd previous if m=1, no memory if m=0, longer memory with larger m
+                -- m should be limited to counter
+                -- linear ((m * previous value) + new value) / m+1 
+                -- exponential ((2^(-m)  * previous value) + new value) / (2^(-m) + 1)
                 newBanditVal = if searchBenefit > inThetaBandit then 
                                     (wN * searchBenefit) + (wN_1 * inThetaBandit)
                                else 
@@ -274,7 +281,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                                          else 0.0
                 updatedSuccessList = fmap (+ incrementNonBanditVals) previousSuccessList
 
-                -- uopdate the bandit from list by splitting and rejoining
+                -- uopdate the bandit from list by splitting and rejoining, then normalizing to 1.0
                 firstBanditPart = take indexBandit updatedSuccessList
                 thirdBanditPart = drop (indexBandit + 1) updatedSuccessList
                 newSuccessList = firstBanditPart ++ (newBanditVal : thirdBanditPart)
@@ -415,11 +422,26 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
       else
          let -- choose staticApproximation or not
              -- up top here because used by other non-build options
-             -- if happens--need to rtansfomr back before returning
-             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.33), (False, 0.67)]
-             ((inGS, origData, inData, inGraphList), staticApproxString) = if transformToStaticApproximation then
+             -- if happens--need to transform  back before returning
+             transformToStaticApproximation = chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.25), (False, 0.75)]
+
+             -- choose to togle multitraverse (n-speed up compared to default multi-traverse)
+             -- if already False--don't change
+             transformMultiTraverse = if transformToStaticApproximation then False
+                                      else if not (multiTraverseCharacters inGS') then False
+                                      else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.50), (False, 0.50)]
+             
+             -- Can't do both static approx and multitraverse:False
+             ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation then
                                                                             (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
-                                                                           else ((inGS', inData', inData', inGraphList'), "")
+                                                                        else if transformMultiTraverse then 
+                                                                            (TRANS.transform [("multitraverse","false")] inGS' inData' inData' 0 inGraphList', ",MultiTraverse:False")
+                                                                        else 
+                                                                            ((inGS', inData', inData', inGraphList'), "")
+
+           
+
+
          in
          -- bandit list with search arguments set
          -- primes (') for build to start with untransformed data
@@ -608,8 +630,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
       
              -- process
              uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
-             (uniqueGraphs, transString) = if not transformToStaticApproximation then (uniqueGraphs', "")
-                                              else (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+             (uniqueGraphs, transString) = if (not transformToStaticApproximation && not transformMultiTraverse) then (uniqueGraphs', "")
+                                           else if transformToStaticApproximation then 
+                                                (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
+                                           else 
+                                                (fth4 $ TRANS.transform [("multiTraverse","true")] inGS origData inData 0 uniqueGraphs', ",MultiTraverse:True")
 
              -- string of delta and cost of graphs
              deltaString = if null inGraphList' then "10.0,"
@@ -618,7 +643,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              currentBestString = show $ minimum $ fmap snd6 uniqueGraphs
 
              -- create string for search stats
-             searchString = "," ++ searchBandit ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg searchArgs) ++ staticApproxString ++ transString
+             searchString = "," ++ searchBandit ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg searchArgs) ++ transformString ++ transString
                             
          in
          (uniqueGraphs, [searchString ++ thompsonString])

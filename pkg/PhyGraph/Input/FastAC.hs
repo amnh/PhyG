@@ -321,7 +321,7 @@ getFastA fileContents' fileName isPreligned =
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
         -- removes ';' comments
-        let fileContents =  unlines $ filter (not.null) $ takeWhile (/= ';') <$> lines fileContents'
+        let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ' ')) $ takeWhile (/= ';') <$> lines fileContents'
         in
         if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
         else
@@ -340,7 +340,7 @@ getFastAText :: T.Text -> String -> Bool-> [TermData]
 getFastAText fileContents' fileName isPreligned =
     if T.null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
     else
-        -- removes ';' comments
+        -- removes ';' comments and spaces
         let fileContents =  T.unlines $ filter (not . T.null) $ T.takeWhile (/= ';') <$> T.lines fileContents'
         in
         if T.head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
@@ -356,12 +356,13 @@ getFastAText fileContents' fileName isPreligned =
 
 
 -- | getRawDataPairsFastA takes splits of Text and returns terminalName, Data pairs--minimal error checking
+-- taxon nmame unitil finds ' ' , '$' or ';'
 getRawDataPairsFastA :: Bool -> [T.Text] -> [TermData]
 getRawDataPairsFastA isPreligned inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= ' ') $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.strip $ T.filter C.isPrint $ T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
             firtDataSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstData)
@@ -378,7 +379,6 @@ getRawDataPairsFastA isPreligned inTextList =
 -- | getFastC processes fasta file
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
--- NEED TO ADD AMBIGUITY
 getFastC :: String -> String -> Bool -> [TermData]
 getFastC fileContents' fileName isPreligned =
     if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
@@ -407,7 +407,6 @@ getFastC fileContents' fileName isPreligned =
 -- | getFastCText processes fasta file
 -- assumes spaces between alphabet elements
 -- deletes '-' (unless "prealigned")
--- NEED TO ADD AMBIGUITY
 getFastCText :: T.Text -> String -> Bool -> [TermData]
 getFastCText fileContents' fileName isPreligned =
     if T.null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
@@ -474,12 +473,13 @@ getRestAmbiguityGroup fileName inList =
 
 -- | getRawDataPairsFastC takes splits of Text and returns terminalName, Data pairs--minimal error checking
 -- this splits on spaces in sequences
+-- takes taxon name until encouters '' '. '$', or ';'
 getRawDataPairsFastC :: Bool -> [T.Text] -> [TermData]
 getRawDataPairsFastC isPreligned inTextList =
     if null inTextList then []
     else
         let firstText = head inTextList
-            firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
+            firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= ' ') $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = filter (/= T.pack "-") firstData
         in

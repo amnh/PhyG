@@ -35,7 +35,7 @@ library
     bv-little                >= 1.2       && < 2.0,
     containers               >= 0.6.2     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
-    fgl                      >= 5.7       && < 6.0,
+    fgl                      >= 5.8       && < 6.0,
     graphviz                 >= 2999.20   && < 3000,
     parallel                 >= 3.2       && < 4.0,
     random                   >= 1.2       && < 2.0,
@@ -58,8 +58,7 @@ flag test-osx
    Default:     False
    Manual:      True
 
-if flag(test-osx)
-    GHC-Options:
+GHC-Options:
       -feager-blackholing
       -O2
       -Wall
@@ -80,6 +79,9 @@ if flag(test-osx)
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
+
+if flag(test-osx)
+    GHC-Options:
       -- -fllvm
 
 else

@@ -979,13 +979,14 @@ getW23NetPenalty inGraph =
             numLeaves = length leafList
             numTreeEdges = 2.0 * (fromIntegral numLeaves) - 2.0
             numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
-            divisor = numTreeEdges - numExtraEdges
+            -- divisor = numTreeEdges - numExtraEdges
         in
        --  trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
-        if divisor == 0.0 then infinity
+        -- if divisor == 0.0 then infinity
         -- else (sum blockPenaltyList) / divisor
         -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
-        else (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
+        --else 
+        (numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges)
         -- )
 
 -- | getBlockW2015 takes the list of trees for a block, gets the root cost and determines the individual

@@ -173,8 +173,8 @@ removeNCharNTax inText =
     (nCharacters, nTaxa, remainder')
 
 -- | glueInterleave takes interleves lines and puts them together with name error checking based on number of taxa
--- needs to be more robust on detecting multichar blocks--now if only a single multicahr in a block would think
---its a regular block
+-- needs to be more robust on detecting multichar blocks--now if only a single multichar in a block would think
+-- its a regular block
 glueInterleave :: String -> [T.Text] -> Int -> Int -> [(T.Text, [String])] -> [TermData]
 glueInterleave fileName lineList numTax numChars curData
   | null lineList =

@@ -69,7 +69,7 @@ allowedCommandList = ["build", "fuse", "read", "reblock", "refine", "rename", "r
 
 -- list of valid instructions
 validInstructionList :: [Instruction]
-validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run, Select, Set, Swap, Search, Support, Transform]
+validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run, Search, Select, Set, Support, Swap, Transform]
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
@@ -121,20 +121,20 @@ searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnete
 
 -- | buildArgList is the list of valid build arguments
 selectArgList :: [String]
-selectArgList = ["all", "atrandom", "best", "unique"]
+selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 
 -- | setArgLIst contains valid 'set' arguments
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "rootcost", "seed", "softwiredmethod"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod"]
 
 -- | refinement arguments
 supportArgList :: [String]
-supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] -- "bootstrap", 
+supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] 
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "drift", "ia", "keep", "maxchanges", "maxtemp", 
-    "mintemp", "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "drift", "ia", "keep", "maxchanges",
+    "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments
 transformArgList :: [String]

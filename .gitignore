@@ -11,7 +11,7 @@
 *.cb
 *.cb2
 .*.lb
-*.pdf
+# *.pdf
 
 ## Intermediate documents:
 *.dvi
@@ -295,3 +295,5 @@ log.out
 *.csv
 *.tre
 *.tree
+*.eps
+*.ps

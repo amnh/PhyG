@@ -202,14 +202,34 @@ alignmentWithAllGaps overlapλ character =
 
 {-# SCC handleMissing #-}
 handleMissing
-  :: Vector v e
+  :: ( Bits e
+     , Vector v e
+     )
   => (OpenDynamicCharacter v e -> OpenDynamicCharacter v e -> (Word, OpenDynamicCharacter v e))
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
   -> (Word, OpenDynamicCharacter v e)
 handleMissing f lhs rhs =
-  case (isMissing lhs, isMissing rhs) of
-    (True , True ) -> (0, lhs)
-    (True , False) -> (0, rhs)
-    (False, True ) -> (0, lhs)
-    (False, False) -> f lhs rhs
+  let implicitlyAlignWithMissing strIsLeft (_,med,_) =
+        let sym = med GV.! 0
+            zed = sym `xor` sym
+            nil = GV.replicate (GV.length med) zed
+            str | strIsLeft = (med, med, nil)
+                | otherwise = (nil, med, med)
+        in (0, str)
+  in  case (isMissing lhs, isMissing rhs) of
+        -- Case 1: *Both* children are missing
+        --   Without loss of generality, we return the "left" child, as both children are identical.
+        (True , True ) -> (0, lhs)
+
+        -- Case 2: The *left* child is missing
+        --   Implicitly align the non-missing string with an equal length string of '?' missing symbols
+        (True , False) -> implicitlyAlignWithMissing False rhs
+
+        -- Case 2: The *right* child is missing
+        --   Implicitly align the non-missing string with an equal length string of '?' missing symbols
+        (False, True ) -> implicitlyAlignWithMissing True lhs
+
+        -- Case 4: *Niether* child is missing
+        --   Proceed with string alignment
+        (False, False) -> f lhs rhs
