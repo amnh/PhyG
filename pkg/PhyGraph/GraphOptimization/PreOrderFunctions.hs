@@ -95,13 +95,15 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
     else
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
-        let -- preOrderBlockVect = fmap doBlockTraversal $ Debug.debugVectorZip inCharInfoVV blockCharacterDecoratedVV
-            preOrderBlockVect = V.fromList (PU.seqParMap rdeepseq  (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV)))  -- `using` PU.myParListChunkRDS)
+        let preOrderBlockVect = V.fromList (PU.seqParMap rdeepseq  (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV)))  -- `using` PU.myParListChunkRDS)
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
-            preOrderBlockVect' = if hasNonExact && (graphType inGS) == Tree then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
-                                 else preOrderBlockVect
+            -- also assignes unions for use in rearrangemenrts
+            -- should be ok for softwired--if done by display trees, and soft and hardwired with outdegree=1
+            preOrderBlockVect' = V.zipWith (makeIAUnionAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+                                 -- if hasNonExact && (graphType inGS) == Tree then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+                                 -- else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
@@ -116,28 +118,31 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
     -- )
 
--- | makeIAAssignments takes the vector of vector of character trees and (if) slim/wide/huge
--- does an additional post and pre order pass to assign IA fileds and final fields in slim/wide/huge
-makeIAAssignments :: AssignmentMethod -> Int -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
-makeIAAssignments finalMethod rootIndex = V.zipWith (makeCharacterIA finalMethod rootIndex)
+-- | makeIAUnionAssignments takes the vector of vector of character trees and (if) slim/wide/huge
+-- does an additional post and pre order pass to assign IAand final fields in all sequece types slim/wide/huge
+-- assigns union for all types
+makeIAUnionAssignments :: AssignmentMethod -> Int -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
+makeIAUnionAssignments finalMethod rootIndex = V.zipWith (makeCharacterIAUnion finalMethod rootIndex)
 
--- | makeCharacterIA takes an individual character postorder tree and if non-exact (non-prealigned) perform post and preorder IA passes
+-- | makeCharacterIAUnion takes an individual character postorder tree and if perform post and preorder IA passes
 -- and assignment to final field in slim/wide/huge
-makeCharacterIA :: AssignmentMethod -> Int -> DecoratedGraph -> CharInfo -> DecoratedGraph
-makeCharacterIA finalMethod rootIndex inGraph charInfo =
+-- also assignes unions for all types
+makeCharacterIAUnion :: AssignmentMethod -> Int -> DecoratedGraph -> CharInfo -> DecoratedGraph
+makeCharacterIAUnion finalMethod rootIndex inGraph charInfo =
     if charType charInfo `notElem` nonExactCharacterTypes then inGraph
     else
-        let postOrderIATree = postOrderIA inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
+        let postOrderIATree = postOrderIAUnion inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
             preOrderIATree = preOrderIA postOrderIATree rootIndex finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)]
         in
         preOrderIATree
 
--- | postOrderIA performs a post-order IA pass assigning leaf preliminary states
+-- | postOrderIAUnion performs a post-order IA pass assigning leaf preliminary states
 -- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
 -- matrix
--- should eb OK for any root--or partial graph as in for breanch swapping
-postOrderIA :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
-postOrderIA inGraph charInfo inNodeList =
+-- should eb OK for any root--or partial graph as in for branch swapping
+-- also sets unions for all character types, IA based for sequence
+postOrderIAUnion :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
+postOrderIAUnion inGraph charInfo inNodeList =
     if null inNodeList then inGraph
     else
         let inNode@(nodeIndex, nodeLabel) = head inNodeList
@@ -146,7 +151,6 @@ postOrderIA inGraph charInfo inNodeList =
             nodeType' = GO.getNodeType inGraph nodeIndex
         in
 
-        -- trace ("POIA Node: " ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show  $ fmap fst inNodeList)) (
         -- checking sanity of data
         if V.null $ vertData nodeLabel then error "Null vertData in postOrderIA"
         else if V.null $ V.head $ vertData nodeLabel then
@@ -154,16 +158,18 @@ postOrderIA inGraph charInfo inNodeList =
             error "Null vertData data in postOrderIA"
 
         -- leaf take assignment from alignment field
-        else if nodeType' == LeafNode then -- nodeType nodeLabel  == LeafNode then
-
-            -- trace ("PostOLeaf: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal $ V.head $ V.head $ vertData nodeLabel))
-            postOrderIA inGraph charInfo (tail inNodeList)
-            -- postOrderIA newGraph charInfo (tail inNodeList)
+        else if nodeType' == LeafNode then 
+            -- set leaf union fields to preliminary or IA fields
+            let newCharacter = M.makeIAUnionPrelimLeaf charInfo inCharacter 
+                newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter), nodeType = nodeType'}
+                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+            in
+            postOrderIAUnion newGraph charInfo (tail inNodeList)
 
         -- HTU take create assignment from children
         else
             let childNodes = LG.labDescendants inGraph inNode
-                childTree = postOrderIA inGraph charInfo childNodes
+                childTree = postOrderIAUnion inGraph charInfo childNodes
             in
             --trace ("Children: " ++ (show  $ fmap fst childNodes)) (
 
@@ -184,7 +190,7 @@ postOrderIA inGraph charInfo inNodeList =
                         newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                     in
                     -- trace ("PostO1Child: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal childCharacter))
-                    postOrderIA newGraph charInfo (tail inNodeList)
+                    postOrderIAUnion newGraph charInfo (tail inNodeList)
 
             -- two children
             else
@@ -198,7 +204,7 @@ postOrderIA inGraph charInfo inNodeList =
                     newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                 in
                 -- trace ("PostO2hildren: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal newCharacter) ++ " " ++ (show $ nodeType newLabel)) -- ++ " From: " ++ (show childlabels))
-                postOrderIA newGraph charInfo (tail inNodeList)
+                postOrderIAUnion newGraph charInfo (tail inNodeList)
             -- )
     -- )
 
@@ -207,6 +213,7 @@ postOrderIA inGraph charInfo inNodeList =
 
 -- | preOrderIA performs a pre-order IA pass assigning via the apropriate 3-way matrix
 -- the "final" fields are also set by filtering out gaps and 0.
+-- skips non-unaligned-sequence types
 preOrderIA :: DecoratedGraph -> Int -> AssignmentMethod -> CharInfo -> [(LG.LNode VertexInfo, LG.LNode VertexInfo)] -> DecoratedGraph
 preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
     if null inNodePairList then inGraph
@@ -242,7 +249,8 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
                      inCharacter { hugeIAFinal = extractMediansGapped $ hugeIAPrelim inCharacter'
                                  -- , hugeFinal = extractMedians $ hugeIAPrelim inCharacter'
                                  }
-                  | otherwise = error ("Unrecognized character type " ++ show characterType)
+                  | otherwise = inCharacter -- error ("Unrecognized character type " ++ show characterType)
+
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
@@ -265,7 +273,7 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
                         inCharacter { hugeFinal = hugeFinal parentCharacter
                                     , hugeIAFinal = hugeIAFinal parentCharacter
                                     }
-                      | otherwise = error ("Unrecognized character type " ++ show characterType)
+                      | otherwise = inCharacter -- error ("Unrecognized character type " ++ show characterType)
 
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
                     newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
@@ -276,12 +284,7 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
 
         -- 2 children, make 3-way
         else
-            let {-
-                childLabels = fmap snd childNodes
-                leftChar = V.head $ V.head $ vertData $ head childLabels
-                rightChar = V.head $ V.head $ vertData $ last childLabels
-                -}
-                finalCharacter = M.makeIAFinalCharacter finalMethod charInfo inCharacter parentCharacter -- leftChar rightChar
+            let finalCharacter = M.makeIAFinalCharacter finalMethod charInfo inCharacter parentCharacter -- leftChar rightChar
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph

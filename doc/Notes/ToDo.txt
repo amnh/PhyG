@@ -536,3 +536,7 @@
 		in this case have alphabets
 
 426) Diagnosis for sequences--make an IA and use that four output--but without packing and removing constants etc.
+
+427) Check huge IA seems off (too high after transform)
+
+428) Check presligned hard-wired 3-way in makeIAFinalCharacter
