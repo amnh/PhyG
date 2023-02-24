@@ -39,6 +39,7 @@ Portability :  portable (I hope)
 module Input.BitPack
   ( packNonAdditiveData
   , median2Packed
+  , median2PackedUnionField
   , packedPreorder
   , threeWayPacked
   , threeWayPacked'
@@ -1002,6 +1003,29 @@ median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftCha
     in
     -- trace ("M2P: " ++ (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) ++ " " ++ (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) ++ " -> " ++   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) ++ " at cost " ++ (show newCost))
     newCharacter
+
+-- | median2PackedUnionField takes two characters of packedNonAddTypes
+-- and retuns new character data based on 2-median and cost
+median2PackedUnionField :: CharType -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
+median2PackedUnionField inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftChar rightChar =
+    let (newStateVect, numNoChange, numChange) = if inCharType == Packed2  then median2Word64 andOR2  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
+                                  else if inCharType == Packed4  then median2Word64 andOR4  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
+                                  else if inCharType == Packed5  then median2Word64 andOR5  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
+                                  else if inCharType == Packed8  then median2Word64 andOR8  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
+                                  else if inCharType == Packed64 then median2Word64 andOR64 (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
+                                  else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+
+        -- this for PMDL/ML costs
+        newCost = if thisNoChangeCost == 0.0 then inCharWeight * (fromIntegral numChange)
+                  else inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral numNoChange)))
+
+        newCharacter = emptyCharacter { packedNonAddUnion = newStateVect
+                                      , localCost = newCost
+                                      , globalCost =newCost + globalCost leftChar + globalCost rightChar
+                                      }
+    in
+    newCharacter
+
 
 -- | unionPacked returns character that is the union (== OR) for bit packed characters
 -- of the final fields as preliminary and final

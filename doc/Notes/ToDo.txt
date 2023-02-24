@@ -540,3 +540,5 @@
 427) Check huge IA seems off (too high after transform)
 
 428) Check presligned hard-wired 3-way in makeIAFinalCharacter
+
+429) Sectorial based on final states?
