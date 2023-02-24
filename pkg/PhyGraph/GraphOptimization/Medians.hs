@@ -226,6 +226,9 @@ distance2UnionsBlock firstBlock secondBlock charInfo =
 -- assumes all same length
 -- PMDL costs are claculate by type--additive by conversion to non-additive --but if states> 129 won't do it so warning in docs
 -- bp2,4,5,8,64, nonadd are by weights vis set command, matrix, sequence are set by tcm with non-zero diagnonal
+
+-- wrong for prealigned--needs to DO
+
 distance2UnionsCharacter :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
 distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
