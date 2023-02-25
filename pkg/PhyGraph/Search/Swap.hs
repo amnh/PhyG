@@ -620,7 +620,11 @@ getUnionRejoinEdgeList inGraph charInfoVV nodeIndexList splitDiffCost unionThres
 
 -- | getUnionDistance gets distance between two the union fields of two characters
 getUnionDistance :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> Double
-getUnionDistance union1 union2 charInfoVV = snd $ M.distance2Unions union1 union2 charInfoVV
+getUnionDistance union1 union2 charInfoVV = 
+   let (newUnionChar, newUnionCost) = M.distance2Unions union1 union2 charInfoVV
+      
+   in
+   newUnionCost
 
 
 -- | rejoinGraphTuple is a wrapper around rejoinGraph for fmapping--only returns graph list not simulated annealing params

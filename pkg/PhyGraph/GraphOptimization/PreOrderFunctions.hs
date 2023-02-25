@@ -129,7 +129,8 @@ makeIAUnionAssignments finalMethod rootIndex = V.zipWith (makeCharacterIAUnion f
 -- also assignes unions for all types
 makeCharacterIAUnion :: AssignmentMethod -> Int -> DecoratedGraph -> CharInfo -> DecoratedGraph
 makeCharacterIAUnion finalMethod rootIndex inGraph charInfo =
-    if charType charInfo `notElem` nonExactCharacterTypes then inGraph
+    -- if charType charInfo `notElem` nonExactCharacterTypes then inGraph
+    if False then inGraph
     else
         let postOrderIATree = postOrderIAUnion inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
             preOrderIATree = preOrderIA postOrderIATree rootIndex finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)]
