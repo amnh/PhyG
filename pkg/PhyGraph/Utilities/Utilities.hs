@@ -942,3 +942,8 @@ hasResolutionDuplicateEdges inResData =
         edgeDupList = length $ (fmap LG.toEdge edgeList) L.\\ (L.nub $ fmap LG.toEdge edgeList)
     in
     edgeDupList > 0
+
+-- | getUnionFieldsNode reutnrs String of union fields nicely
+getUnionFieldsNode :: VertexBlockData -> String
+getUnionFieldsNode inVertData =
+    "UnionFields " ++ show inVertData

@@ -512,13 +512,15 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
                -- 2) union delta below threshold and recurse to children
              -- if > threshold then stop, no add, no recurse since children can only get hihger ubnion distance
           -- use split graph (with reoptimized nodes) and overall graph root to get avialbel edges in base graph for rejoin
+
           prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
           unionEdgeList = getUnionRejoinEdgeList reoptimizedSplitGraph (six6 firstGraph) [graphRoot] ((snd6 firstGraph) - splitCost) (unionThreshold inGS) prunedToRejoinUnionData []
 
           
           -- determine those edges within distance of original if limited (ie NNI etc)
-          rejoinEdges' = if maxMoveEdgeDist >= ((maxBound :: Int) `div` 3) then edgesInBaseGraph
-                         else take maxMoveEdgeDist $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot]) 
+          rejoinEdges' = unionEdgeList 
+                         -- if maxMoveEdgeDist >= ((maxBound :: Int) `div` 3) then edgesInBaseGraph
+                         -- else take maxMoveEdgeDist $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot]) 
 
           -- randomize edges list order for anneal and drift
           rejoinEdges = if isJust inSimAnnealParams then 
@@ -538,7 +540,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
 
           newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
       in
-      trace ("SJG:" ++ (show (length edgesInBaseGraph, length unionEdgeList))) (
+      --trace ("SJG:" ++ (show (length edgesInBaseGraph, length unionEdgeList))) (
       -- regular swap
       if isNothing inSimAnnealParams then
          -- only returns graphs if same of better else empty
@@ -566,7 +568,7 @@ splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCo
          -- keep going if nothing
          else
             splitJoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams firstGraph breakEdgeNumber breakEdgeListComplete (tail breakEdgeList)
-      )
+      --)
 
 -- | getUnionRejoinEdgeList takes a graph (split and reoptimized usually), the overall root index (of split),
 -- split cost, and union threshold value and returns list of edges that have union distance <= threshold factor
@@ -585,9 +587,12 @@ getUnionRejoinEdgeList inGraph charInfoVV nodeIndexList splitDiffCost unionThres
           -- node data and union distance
           nodeData = vertData $ fromJust $ LG.lab inGraph nodeIndex
           unionDistance = getUnionDistance nodeToJoinUnionData nodeData charInfoVV
-          metThreshold = trace ("GUREL: " ++ (show (unionDistance, splitDiffCost, unionThreshold))) (unionDistance / splitDiffCost) < unionThreshold
+          metThreshold = unionDistance < splitDiffCost * unionThreshold
+
+          -- nodeDataString = U.getUnionFieldsNode nodeData
+          -- toJoinString = U.getUnionFieldsNode nodeToJoinUnionData
       in
-      
+      --trace ("GUREL: " ++ (show (unionDistance, splitDiffCost, unionThreshold * splitDiffCost))) ( 
       if (length childEdges) `notElem` [0,1,2] then error ("Node has improper number of children : " ++ (show $ length childEdges))
       -- add non-outgroup root edge to list for rejoin after checking for acceptable union distance 
       -- if edge is not within union distance factor then stop--no recursion
@@ -617,6 +622,7 @@ getUnionRejoinEdgeList inGraph charInfoVV nodeIndexList splitDiffCost unionThres
          in
          -- recurse remaining nodes
          getUnionRejoinEdgeList inGraph charInfoVV (tail nodeIndexList) splitDiffCost unionThreshold nodeToJoinUnionData newCurEdgeListChild
+         --)
 
 -- | getUnionDistance gets distance between two the union fields of two characters
 getUnionDistance :: VertexBlockData -> VertexBlockData -> V.Vector (V.Vector CharInfo) -> Double
@@ -710,7 +716,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
             -- then recurse
             else 
                -- trace ("In steepest: " ++ (show PU.getNumThreads) ++ " " ++ (show $ length $ take PU.getNumThreads rejoinEdges)) (
-               let -- this could be made a little paralle--but if lots of threads basically can do all 
+               let -- this could be made a little parallel--but if lots of threads basically can do all 
                    -- to not overload paralle threads
                    {-  This not so efficient is swapping in single graphs so leaving it be
                    saRounds = if isNothing inSimAnnealParams then 1

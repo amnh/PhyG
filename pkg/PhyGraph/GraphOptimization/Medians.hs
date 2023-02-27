@@ -231,6 +231,7 @@ distance2UnionsBlock firstBlock secondBlock charInfoV =
     -- 1) Check length/composition union fields
     -- 2) check cost for each type
     -- 3) use DO for alignments even on unoin fields (triple)
+-- as a result can use non-alignred dynamic characters as unions for comparison
 distance2UnionsCharacter :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
 distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
@@ -268,7 +269,8 @@ distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` nonExactCharacterTypes then
-      let newCharVect = getNonExactUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
+      let newCharVect = getDOMedianCharInfo inCharInfo firstVertChar secondVertChar
+      -- let newCharVect = getNonExactUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
       in
       -- trace ("M2S: " ++ (show $ localCost  newCharVect))
       (newCharVect, localCost  newCharVect)
@@ -850,7 +852,7 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
     if characterType == AlignedSlim then
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (alignedSlimUnion leftChar) (alignedSlimUnion rightChar)
         in
-        trace ("GPA2M-slim: " ++ (show (GV.length prelimChar, GV.length $ alignedSlimUnion leftChar, GV.length $ alignedSlimUnion rightChar)))
+        -- trace ("GPA2M-slim: " ++ (show (GV.length prelimChar, GV.length $ alignedSlimUnion leftChar, GV.length $ alignedSlimUnion rightChar)))
         nodeChar { alignedSlimUnion = prelimChar
                  , localCost = (weight charInfo) * (fromIntegral cost)
                  , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
@@ -881,7 +883,7 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
 -- | makeIAUnionPrelimLeaf makes union and sets for leaf characters--leaves alignment fields unchanged
 makeIAUnionPrelimLeaf :: CharInfo -> CharacterData -> CharacterData
 makeIAUnionPrelimLeaf charInfo nodeChar  =
-    trace ("In makeIAUnionPrelimLeaf") (
+    --traceNoLF ("In makeIAUnionPrelimLeaf") (
     let characterType = charType charInfo
     in
     if characterType == NonAdd then 
@@ -902,7 +904,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
     else if characterType `elem` [SlimSeq, NucSeq] then 
         let prelimState = extractMedians $ slimAlignment nodeChar
         in
-        trace ("MIAUPL: " ++ (show $ GV.length prelimState))
+        --trace ("MIAUPL: " ++ (show $ GV.length prelimState))
         nodeChar {slimIAUnion = prelimState}
 
     else if characterType `elem` [WideSeq, AminoSeq] then 
@@ -936,7 +938,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
         nodeChar {packedNonAddUnion = prelimState}
 
     else error ("Unrecognized character type " ++ show characterType)
-    )
+    --)
 
 -- | getNonExactUnionFields takes two non-exact characters and union field assignment
 -- based on character type and nodeChar
@@ -977,7 +979,7 @@ getNonExactUnionFields charInfo nodeChar leftChar rightChar =
 -- union fields are unions of parent states (aligned, or IA, or static)
 makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
-     trace ("In makeIAPrelimCharacter") (
+     --traceNoLF ("In makeIAPrelimCharacter") (
      let characterType = charType charInfo
      in
      if characterType == NonAdd then 
@@ -1021,7 +1023,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
         -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
-        trace ("MIAUP-C: " ++ (show $ GV.length $ GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)))
+        -- trace ("MIAUP-C: " ++ (show $ GV.length $ GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)))
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
                     , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
                 , slimIAUnion = GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)
@@ -1047,7 +1049,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
                 , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
     else nodeChar --error ("Unrecognized character type " ++ show characterType)
-    )
+    -- )
 
 -- | makeIAFinalCharacterStaticIA takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified

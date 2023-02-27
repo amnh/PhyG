@@ -135,6 +135,8 @@ makeCharacterIAUnion finalMethod rootIndex inGraph charInfo =
         let postOrderIATree = postOrderIAUnion inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
             preOrderIATree = preOrderIA postOrderIATree rootIndex finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)]
         in
+        -- trace ("MCIAU:" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree rootIndex) ++ "\n" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree 0) 
+        --    ++ "\nAfter preorder:\t" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree rootIndex) ++ "\n" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree 0))
         preOrderIATree
 
 -- | postOrderIAUnion performs a post-order IA pass assigning leaf preliminary states
@@ -522,48 +524,58 @@ updatePreorderCharacter nodeIndex preOrderTree postOrderCharacter charInfo =
 updateCharacter :: CharacterData -> CharacterData -> CharType  -> CharacterData
 updateCharacter postOrderCharacter preOrderCharacter localCharType
   | localCharType == Add =
-    postOrderCharacter { rangeFinal = rangeFinal preOrderCharacter }
+    postOrderCharacter { rangeFinal = rangeFinal preOrderCharacter
+                       , rangeUnion = rangeUnion preOrderCharacter }
 
   | localCharType == NonAdd =
-    postOrderCharacter { stateBVFinal = stateBVFinal preOrderCharacter }
+    postOrderCharacter { stateBVFinal = stateBVFinal preOrderCharacter
+                       , stateBVUnion = stateBVUnion preOrderCharacter}
 
   | localCharType `elem` packedNonAddTypes =
-    postOrderCharacter { packedNonAddFinal = packedNonAddFinal preOrderCharacter }
+    postOrderCharacter { packedNonAddFinal = packedNonAddFinal preOrderCharacter
+                       , packedNonAddUnion = packedNonAddUnion preOrderCharacter }
 
   | localCharType == Matrix =
-    postOrderCharacter { matrixStatesFinal = matrixStatesFinal preOrderCharacter }
+    postOrderCharacter { matrixStatesFinal = matrixStatesFinal preOrderCharacter
+                       , matrixStatesUnion = matrixStatesUnion preOrderCharacter }
 
   | localCharType == AlignedSlim =
     postOrderCharacter { alignedSlimPrelim = alignedSlimPrelim preOrderCharacter
                        , alignedSlimFinal  = alignedSlimFinal preOrderCharacter
-                       }
+                       , alignedSlimUnion  = alignedSlimUnion preOrderCharacter
+                      }
 
   | localCharType == AlignedWide =
     postOrderCharacter { alignedWidePrelim = alignedWidePrelim preOrderCharacter
                        , alignedWideFinal  = alignedWideFinal preOrderCharacter
+                       , alignedWideUnion  = alignedWideUnion preOrderCharacter
                        }
 
   | localCharType == AlignedHuge =
     postOrderCharacter { alignedHugePrelim = alignedHugePrelim preOrderCharacter
                        , alignedHugeFinal  = alignedHugeFinal preOrderCharacter
+                       , alignedHugeUnion  = alignedHugeUnion preOrderCharacter
                        }
 
   | localCharType == SlimSeq || localCharType == NucSeq =
     postOrderCharacter { slimAlignment = slimAlignment preOrderCharacter
                       , slimFinal = slimFinal preOrderCharacter
                       , slimIAFinal = slimIAFinal preOrderCharacter
+                      , slimIAUnion = slimIAUnion preOrderCharacter
                       }
 
   | localCharType == WideSeq || localCharType == AminoSeq =
     postOrderCharacter { wideAlignment = wideAlignment preOrderCharacter
                       , wideFinal = wideFinal preOrderCharacter
                       , wideIAFinal = wideIAFinal preOrderCharacter
+                      , wideIAUnion = wideIAUnion preOrderCharacter
                       }
 
   | localCharType == HugeSeq =
     postOrderCharacter { hugeAlignment = hugeAlignment preOrderCharacter
                       , hugeFinal = hugeFinal preOrderCharacter
                       , hugeIAFinal = hugeIAFinal preOrderCharacter
+                      , hugeIAUnion = hugeIAUnion preOrderCharacter
                       }
 
   | otherwise = error ("Character type unimplemented : " ++ show localCharType)
