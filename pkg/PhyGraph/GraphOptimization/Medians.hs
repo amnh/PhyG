@@ -269,7 +269,7 @@ distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` nonExactCharacterTypes then
-      let newCharVect = getDOMedianCharInfo inCharInfo firstVertChar secondVertChar
+      let newCharVect = getDOMedianCharInfoUnion inCharInfo firstVertChar secondVertChar
       -- let newCharVect = getNonExactUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
       in
       -- trace ("M2S: " ++ (show $ localCost  newCharVect))
@@ -547,7 +547,75 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
 
     else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
 
+-- | getDOMedianCharInfoUnion  is a wrapper around getDOMedian with CharInfo-based interface
+-- for union fields.  
+-- Strips out solo gapos (0/1) before DO step
+getDOMedianCharInfoUnion :: CharInfo -> CharacterData -> CharacterData -> CharacterData
+getDOMedianCharInfoUnion charInfo = getDOMedianUnion (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
+-- | getDOMedianUnion calls appropriate pairwise DO to create sequence median after some type wrangling
+-- works on union states
+-- filters out gaps (0/1) values before DO
+getDOMedianUnion
+  :: Double
+  -> S.Matrix Int
+  -> TCMD.DenseTransitionCostMatrix
+  -> MR.MetricRepresentation Word64
+  -> MR.MetricRepresentation BV.BitVector
+  -> CharType
+  -> CharacterData
+  -> CharacterData
+  -> CharacterData
+getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
+  | null thisMatrix = error "Null cost matrix in getDOMedian"
+  | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
+  | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
+  | thisType == HugeSeq           = newHugeCharacterData
+  | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+  where
+    blankCharacterData = emptyCharacter
+
+    newSlimCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r)   = slimPairwiseDO
+                thisSlimTCM (makeDynamicCharacterFromSingleVector $ GV.filter (<2) $ slimIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (<2) $ slimIAUnion rightChar)
+        in  blankCharacterData
+              { slimIAUnion   = extractMedians r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
+              }
+
+    newWideCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            coefficient = MR.minInDelCost thisWideTCM
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r)   = widePairwiseDO
+                coefficient
+                (MR.retreivePairwiseTCM thisWideTCM)
+                (makeDynamicCharacterFromSingleVector $ GV.filter (<2)  $ wideIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (<2) $ wideIAUnion rightChar)
+        in  blankCharacterData
+              { wideIAUnion    = extractMedians r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
+              }
+
+    newHugeCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            coefficient = MR.minInDelCost thisHugeTCM
+            subtreeCost = newCost + globalCost leftChar + globalCost rightChar
+            (cost, r)   = hugePairwiseDO
+                coefficient
+                (MR.retreivePairwiseTCM thisHugeTCM)
+                (makeDynamicCharacterFromSingleVector $ GV.filter ((<2) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter ((<2) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion rightChar)
+        in blankCharacterData
+              { hugeIAUnion = extractMedians r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost  = newCost
+              , globalCost = subtreeCost
+              }
 
 
 -- | getDOMedianCharInfo  is a wrapper around getDOMedian with CharInfo-based interface
