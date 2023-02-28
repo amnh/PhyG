@@ -555,7 +555,7 @@ getDOMedianCharInfoUnion charInfo = getDOMedianUnion (weight charInfo) (costMatr
 
 -- | getDOMedianUnion calls appropriate pairwise DO to create sequence median after some type wrangling
 -- works on union states
--- filters out gaps (0/1) values before DO
+-- filters out gaps (0/1) values before DO (>1)
 getDOMedianUnion
   :: Double
   -> S.Matrix Int
@@ -579,7 +579,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
         let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM (makeDynamicCharacterFromSingleVector $ GV.filter (<2) $ slimIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (<2) $ slimIAUnion rightChar)
+                thisSlimTCM (makeDynamicCharacterFromSingleVector $ GV.filter (>1) $ slimIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (>1) $ slimIAUnion rightChar)
         in  blankCharacterData
               { slimIAUnion   = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -594,7 +594,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             (cost, r)   = widePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (makeDynamicCharacterFromSingleVector $ GV.filter (<2)  $ wideIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (<2) $ wideIAUnion rightChar)
+                (makeDynamicCharacterFromSingleVector $ GV.filter (>1)  $ wideIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (>1) $ wideIAUnion rightChar)
         in  blankCharacterData
               { wideIAUnion    = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -609,7 +609,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (makeDynamicCharacterFromSingleVector $ GV.filter ((<2) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter ((<2) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion rightChar)
+                (makeDynamicCharacterFromSingleVector $ GV.filter ((>1) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter ((>1) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion rightChar)
         in blankCharacterData
               { hugeIAUnion = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
