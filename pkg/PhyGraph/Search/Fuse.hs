@@ -398,7 +398,16 @@ rejoinGraphTupleRecursive swapType inGS inData numToKeep inMaxMoveEdgeDist steep
    if null graphDataList then []
    else 
       let firstGraphData = head graphDataList
-          firstRejoinResult = S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams firstGraphData
+
+          -- update with unions for rejoining
+          -- using best cost for differentiate since there was no single graph to get original deltas
+          -- add randomize edges option?
+          (splitGraphDec, splitGraphSimple, splitCost, baseGraphRootIndex, prunedGraphRootIndex, prunedParentRootIndex, _, edgesInPrunedList, netPenaltyFactor) = firstGraphData
+          prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphDec prunedGraphRootIndex
+          unionEdgeList = S.getUnionRejoinEdgeList inGS splitGraphDec charInfoVV [baseGraphRootIndex] (curBestCost - splitCost) (unionThreshold inGS) prunedToRejoinUnionData []
+          firstGraphData' = (splitGraphDec, splitGraphSimple, splitCost, baseGraphRootIndex, prunedGraphRootIndex, prunedParentRootIndex, unionEdgeList, edgesInPrunedList, netPenaltyFactor)
+
+          firstRejoinResult = S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams firstGraphData'
           firstBestCost = if (not . null) firstRejoinResult then minimum $ fmap snd6 firstRejoinResult
                           else infinity
           

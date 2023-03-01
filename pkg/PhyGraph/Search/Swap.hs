@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 module Search.Swap  ( swapSPRTBR
                     , reoptimizeSplitGraphFromVertexTuple
                     , rejoinGraphTuple
+                    , getUnionRejoinEdgeList
                     ) where
 
 import           Control.Parallel.Strategies
