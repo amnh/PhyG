@@ -601,7 +601,7 @@ makeCharLine useIA (blockDatum, charInfo) =
                        else 
                             let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
                             in
-                            if maxSymbolLength > 1 then fmap nothingToGap stringFinal
+                            if maxSymbolLength > 1 then removeRecurrrentSpaces $ fmap nothingToNothing stringFinal
                             else filter (/= ' ') stringFinal
 
         in
@@ -609,8 +609,18 @@ makeCharLine useIA (blockDatum, charInfo) =
         -- trace ("MCL:" ++ (show localType) ++ " " ++ stringFinal)
         -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
         [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal']
-        where nothingToGap a = if a == '\8220' then '-'
-                               else a
+        where nothingToNothing a = if a == '\8220' then '\00'
+                                   else a
+
+-- | removeRecurrrentSpaces removes spaces that are followed by spaces
+removeRecurrrentSpaces :: String -> String
+removeRecurrrentSpaces inString =
+    if null inString then []
+    else if length inString == 1 then inString
+    else if head inString == ' ' then
+        if (head $ tail inString) == ' ' then removeRecurrrentSpaces (tail inString)
+        else (head inString) : removeRecurrrentSpaces (tail inString)
+    else (head inString) : removeRecurrrentSpaces (tail inString)
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo :: LG.LEdge EdgeInfo -> [String]

@@ -242,15 +242,15 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
             let newCharacter
                   | characterType `elem` [SlimSeq, NucSeq] =
                      inCharacter { slimIAFinal = extractMediansGapped $ slimIAPrelim inCharacter'
-                                 -- , slimFinal = extractMedians $ slimIAPrelim  inCharacter'
+                                 , slimFinal = extractMedians $ slimGapped  inCharacter'
                                  }
                   | characterType `elem` [WideSeq, AminoSeq] =
                      inCharacter { wideIAFinal = extractMediansGapped $ wideIAPrelim inCharacter'
-                                 -- , wideFinal = extractMedians $ wideIAPrelim inCharacter'
+                                 , wideFinal = extractMedians $ wideGapped inCharacter'
                                  }
                   | characterType == HugeSeq =
                      inCharacter { hugeIAFinal = extractMediansGapped $ hugeIAPrelim inCharacter'
-                                 -- , hugeFinal = extractMedians $ hugeIAPrelim inCharacter'
+                                 , hugeFinal = extractMedians $ hugeGapped inCharacter'
                                  }
                   | otherwise = inCharacter -- error ("Unrecognized character type " ++ show characterType)
 
@@ -1152,7 +1152,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar { slimFinal = GV.filter (/= 0) finalAssignmentDO
+         else childChar { slimFinal = finalAssignmentDO
                         , slimAlignment = if isTree then finalGapped
                                           else mempty
                         }
@@ -1171,7 +1171,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                  else extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar { wideFinal = GV.filter (/= 0) finalAssignmentDO
+         else childChar { wideFinal = finalAssignmentDO
                         , wideAlignment = if isTree then finalGapped
                                           else mempty
                         }
@@ -1189,7 +1189,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                  else extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
-         else childChar { hugeFinal = GV.filter (not . BV.isZeroVector) finalAssignmentDO
+         else childChar { hugeFinal = finalAssignmentDO
                         , hugeAlignment = if isTree then finalGapped
                                           else mempty
                         }
