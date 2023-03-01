@@ -842,12 +842,13 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 -- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
-makeEdgeData :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
-makeEdgeData doIA inGraph charInfoVV (eNode, vNode, _) =
+-- using IA assignments not so great for search deltas
+makeEdgeData :: Bool -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
+makeEdgeData doIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
    let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
    in
-   createEdgeUnionOverBlocks doIA (not doIA) eNodeVertData vNodeVertData charInfoVV []
+   createEdgeUnionOverBlocks doIA filterGaps eNodeVertData vNodeVertData charInfoVV []
 
 -- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 -- The function takes data in blocks and block vector of char info and
@@ -970,20 +971,29 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
         nodeChar {matrixStatesUnion = prelimState}
 
     else if characterType `elem` [SlimSeq, NucSeq] then 
-        let prelimState = extractMedians $ slimAlignment nodeChar
+        let prelimState = extractMediansGapped $ slimAlignment nodeChar
         in
         --trace ("MIAUPL: " ++ (show $ GV.length prelimState))
-        nodeChar {slimIAUnion = prelimState}
+        nodeChar { slimIAPrelim = slimAlignment nodeChar
+                 , slimIAFinal = prelimState
+                 , slimIAUnion = prelimState
+                 }
 
     else if characterType `elem` [WideSeq, AminoSeq] then 
-        let prelimState = extractMedians $ wideAlignment nodeChar
+        let prelimState = extractMediansGapped $ wideAlignment nodeChar
         in
-        nodeChar {wideIAUnion = prelimState}
+        nodeChar { wideIAPrelim = wideAlignment nodeChar
+                 , wideIAFinal = prelimState
+                 , wideIAUnion = prelimState
+                 }
 
     else if characterType == HugeSeq then 
-        let prelimState = extractMedians $ hugeAlignment nodeChar
+        let prelimState = extractMediansGapped $ hugeAlignment nodeChar
         in
-        nodeChar {hugeIAUnion = prelimState}
+        nodeChar { hugeIAPrelim = hugeAlignment nodeChar
+                 , hugeIAFinal = prelimState
+                 , hugeIAUnion = prelimState
+                 }
 
     else if characterType == AlignedSlim then 
         let prelimState = snd3 $ alignedSlimPrelim nodeChar
@@ -1007,7 +1017,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
 
     else error ("Unrecognized character type " ++ show characterType)
     --)
-
+{-
 -- | getNonExactUnionFields takes two non-exact characters and union field assignment
 -- based on character type and nodeChar
 -- modifies both IA and union fields
@@ -1038,7 +1048,7 @@ getNonExactUnionFields charInfo nodeChar leftChar rightChar =
                 , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
     else error ("Unrecognized character type " ++ show characterType)
-
+-}
 
 
 -- | makeIAPrelimCharacter takes two characters and performs 2-way assignment

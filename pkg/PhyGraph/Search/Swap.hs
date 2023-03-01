@@ -880,11 +880,14 @@ singleJoin :: String
 singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge@(u,v, _) = 
    -- trace ("Rejoinging: " ++ (show $ LG.toEdge targetEdge)) (
    let newEdgeList = [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
-       targetEdgeData = M.makeEdgeData doIA splitGraph charInfoVV targetEdge
+
+       -- set edge union creation type to IA-based, filtering gaps
+       targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
 
        --this for SPR/NNI only
        prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
 
+       -- rejoin should always be DO based on edge and pruned root but can be different lengths (unless Static Approx)
        sprReJoinCost = edgeJoinDelta doIA charInfoVV prunedRootVertexData targetEdgeData
 
        sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u,v),(originalConnectionOfPruned, prunedGraphRootIndex)] splitGraphSimple
@@ -1011,8 +1014,9 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
    -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
    if null edgesInPrunedGraph then ([], inSimAnnealParams)
    else 
-      -- get target edge data
-      let targetEdgeData = M.makeEdgeData doIA splitGraph charInfoVV targetEdge
+      -- get target edge data\
+      -- always unsing IA for union, but filtering out gaps
+      let targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
       in  
       
       -- logic for annealing/Drift  regular swap first
@@ -1020,7 +1024,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
          if not steepest then       
             -- get heuristic delta joins for edges in pruned graph
             let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA (not doIA) splitGraph charInfoVV) rerootEdgeList
                 rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
                    
                 -- check for possible better/equal graphs and verify
@@ -1057,7 +1061,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
 
                 -- get heuristic delta joins for steepest edge set
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA (not doIA) splitGraph charInfoVV) rerootEdgeList
                 rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
                 
                 -- check for possible better/equal graphs and verify
@@ -1093,7 +1097,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
 
                 -- get heuristic delta joins for steepest edge set
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA (not doIA) splitGraph charInfoVV) rerootEdgeList
                 rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
 
                 minDelta = if (not . null) rerootEdgeDeltaList then minimum $ rerootEdgeDeltaList

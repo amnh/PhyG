@@ -1183,7 +1183,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         parentFinal = (mempty, mempty, parentFinalDC)
                                         -- parentGapped = (mempty, mempty, hugeGapped parentChar)
                                         childGapped = (mempty, mempty, hugeGapped childChar)
-                                        finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal  childGapped
+                                        finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal childGapped
                                     in
                                      extractMedians finalAssignmentDOGapped
                                  else extractMedians finalGapped
