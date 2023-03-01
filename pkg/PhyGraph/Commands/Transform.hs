@@ -105,7 +105,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeGraphFactor = any ((=="graphfactor").fst) lcArgList
             changeCompressionResolutions = any ((=="compressresolutions").fst) lcArgList
             changeMultiTraverse = any ((=="multitraverse").fst) lcArgList
-            changeUnionThreshold = any ((=="unionthreshold").fst) lcArgList
+            changeUnionThreshold = any ((=="jointhreshold").fst) lcArgList
             
             
             reweightBlock = filter ((=="weight").fst) lcArgList
@@ -172,10 +172,10 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head reRootBlock) = Just $ outGroupName inGS  
                | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
 
-            changeUnionBlock = filter ((=="unionthreshold").fst) lcArgList
+            changeUnionBlock = filter ((=="jointhreshold").fst) lcArgList
             unionValue
                | length changeUnionBlock > 1 =
-                  errorWithoutStackTrace ("Multiple unionThreshold specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple joinThreshold specifications in transform--can have only one: " ++ show inArgs)
                | null changeUnionBlock = Just $ unionThreshold inGS 
                | null (snd $ head changeUnionBlock) = Just $ unionThreshold inGS 
                | otherwise = readMaybe (snd $ head changeUnionBlock) :: Maybe Double

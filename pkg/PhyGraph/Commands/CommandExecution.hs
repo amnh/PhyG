@@ -662,13 +662,13 @@ setCommand argList globalSettings processedData inSeedList =
             (globalSettings {softWiredMethod = localMethod}, processedData, inSeedList)
 
         -- this not intended for users
-        else if head commandList == "unionthreshold"  then
+        else if head commandList == "jointhreshold"  then
             let localValue = readMaybe (head optionList) :: Maybe Double
             in
-            if localValue == Nothing then error ("Set option 'unionThreshold' must be set to an double value >= 1.0 (e.g. unionThreshold:1.17): " ++ (head optionList))
-            else if (fromJust localValue) < 1.0 then errorWithoutStackTrace ("Set option 'unionThreshold' must be set to a double value >= 1.0 (e.g. unionThreshold:1.17): " ++ (head optionList))
+            if localValue == Nothing then error ("Set option 'joinThreshold' must be set to an double value >= 1.0 (e.g. joinThreshold:1.17): " ++ (head optionList))
+            else if (fromJust localValue) < 1.0 then errorWithoutStackTrace ("Set option 'joinThreshold' must be set to a double value >= 1.0 (e.g. joinThreshold:1.17): " ++ (head optionList))
             else 
-                trace ("UnionThreshold set to " ++ head optionList)
+                trace ("JoinThreshold set to " ++ head optionList)
                 (globalSettings {unionThreshold = (fromJust localValue)}, processedData, inSeedList)
 
 

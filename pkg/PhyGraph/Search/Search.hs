@@ -474,7 +474,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
                                                 -- swap options
                                                 swapType = "spr"
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (head randIntList) buildGraphs', buildArgs ++ swapArgs)
@@ -487,7 +487,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
                                                 -- swap options
                                                 swapType = "alternate" --default anyway
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in    
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (head randIntList) buildGraphs', buildArgs ++ swapArgs)
@@ -495,7 +495,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "swapSPR" then 
                                             let -- swap options
                                                 swapType = "spr"
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (head randIntList) inGraphList, swapArgs)
@@ -503,7 +503,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "swapAlternate" then 
                                             let -- swap options
                                                 swapType = "alternate" --default anyway
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in    
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (head randIntList) inGraphList, swapArgs)
@@ -511,7 +511,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "driftSPR" then
                                             let -- swap args
                                                 swapType = "spr"
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                                 
                                                 -- swap with drift (common) arguments
                                                 swapDriftArgs = swapArgs ++ driftArgs
@@ -522,7 +522,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "driftAlternate" then
                                             let -- swap args
                                                 swapType = "alternate"
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                                 
                                                 -- swap with drift (common) arguments
                                                 swapDriftArgs = swapArgs ++ driftArgs
@@ -533,7 +533,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "annealSPR" then
                                             let -- swap args
                                                 swapType = "spr"
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                                 
                                                 -- swap with anneal (common) arguments
                                                 swapAnnealArgs = swapArgs ++ annealArgs
@@ -544,7 +544,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "annealAlternate" then
                                             let -- swap args
                                                 swapType = "alternate"
-                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep)]
+                                                swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                                 
                                                 -- swap with anneal (common) arguments
                                                 swapAnnealArgs = swapArgs ++ annealArgs

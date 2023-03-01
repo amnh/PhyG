@@ -125,7 +125,9 @@ mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> PhylogeneticGrap
 mutateGraph inGS inData maxNetEdges rSeed inGraph =
     if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
     else
-        let randList = randomIntList rSeed
+        let joinAll = False -- keep selection of rejoins based on unions
+            atRandom = True -- randomize split and rejoin edge orders
+            randList = randomIntList rSeed
             saValues = Just $ SAParams  { method = getRandomElement (randList !! 0) [Drift, SimAnneal]
                                         , numberSteps = getRandomElement (randList !! 1) [5, 10, 20]
                                         , currentStep = 0
@@ -161,7 +163,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         -- only swap mutation stuff for tree
         if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then
             -- trace ("1")
-            let (newGraphList, _) =  S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+            let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
             in
             if (not . null) newGraphList then head newGraphList
             else inGraph
@@ -171,7 +173,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         else
             if editType == "swap" then
                 -- trace ("2")
-                let (newGraphList, _) =  S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+                let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
                 in
                 if (not . null) newGraphList then head newGraphList
                 else inGraph
