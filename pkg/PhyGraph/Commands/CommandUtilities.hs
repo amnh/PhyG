@@ -435,8 +435,8 @@ getAlignmentBasedChanges' index (a, b) =
     else if null a then []
     else 
         -- empty spaces sometimes
-        let stringList1 = filter (/= "“") $ filter (not . null) $ LS.splitOn (" ") (head a)          
-            stringList2 = filter (/= "“") $ filter (not . null) $ LS.splitOn (" ") (head b)
+        let stringList1 = filter (not . null) $ LS.splitOn (" ") (head a)          
+            stringList2 = filter (not . null) $ LS.splitOn (" ") (head b)
         in
 
         -- this so returns empty for non--sequence characters
@@ -601,7 +601,7 @@ makeCharLine useIA (blockDatum, charInfo) =
                        else 
                             let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
                             in
-                            if maxSymbolLength > 1 then stringFinal
+                            if maxSymbolLength > 1 then fmap nothingToGap stringFinal
                             else filter (/= ' ') stringFinal
 
         in
@@ -609,7 +609,8 @@ makeCharLine useIA (blockDatum, charInfo) =
         -- trace ("MCL:" ++ (show localType) ++ " " ++ stringFinal)
         -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
         [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal']
-
+        where nothingToGap a = if a == '\8220' then '-'
+                               else a
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo :: LG.LEdge EdgeInfo -> [String]
