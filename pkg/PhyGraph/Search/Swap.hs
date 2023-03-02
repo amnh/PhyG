@@ -634,11 +634,7 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost union
       else 
          let -- first and second child data child 
              newCurEdgeListChild = if metThreshold then 
-                                       -- do not add edge if network, but still recurse
-                                       let newEdgeList = if graphType inGS == Tree then childEdges
-                                                         else filter ((== False) . (LG.isNetworkEdge inGraph) . LG.toEdge) childEdges
-                                       in
-                                       getUnionRejoinEdgeList inGS inGraph charInfoVV childNodeIndexList splitDiffCost unionThreshold nodeToJoinUnionData (newEdgeList ++  curEdgeList)
+                                       getUnionRejoinEdgeList inGS inGraph charInfoVV childNodeIndexList splitDiffCost unionThreshold nodeToJoinUnionData (childEdges ++  curEdgeList)
 
                                     else curEdgeList
 

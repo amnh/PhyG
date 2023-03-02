@@ -181,6 +181,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                              , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                                              }
         in
+        --trace ("GFCI: " ++ (show localWideTCM) ++ "\n" ++ (show localHugeTCM)) (
         -- trace ("FASTCINFO:" ++ (show $ charType defaultSeqCharInfo)) (
         if (null . fst3) localTCM && (null . snd3) localTCM then 
             trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
@@ -188,7 +189,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
         else 
             trace ("Processing TCM data for file : "  ++ dataName) 
             defaultSeqCharInfo
-        -- )
+        --)
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
 getTCMMemo
@@ -281,7 +282,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                 if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
                                 else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
                                 else if seqType == HugeSeq then AlignedHuge
-                                else error "Unrecognozed data type in getFastaCharInfo"
+                                else error "Unrecognozed data type in getFastcCharInfo"
 
             defaultSeqCharInfo = emptyCharInfo {
                                        charType = alignedSeqType
@@ -302,6 +303,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                      , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ "#0"), alignedSeqType, thisAlphabet)
                                      }
         in
+        --trace ("GFCI: " ++ (show localWideTCM) ++ "\n" ++ (show localHugeTCM)) (
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM then 
             trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
