@@ -211,13 +211,12 @@ getTCMMemo
      )
   => (a, S.Matrix Int)
   -> (Rational, MR.MetricRepresentation b)
-getTCMMemo (_inAlphabet, inMatrix) | trace (show inMatrix) False = undefined
 getTCMMemo (_inAlphabet, inMatrix) =
     let (coefficient, tcm) = fmap transformGapLastToGapFirst . TCM.fromRows $ S.getFullVects inMatrix
         metric = case tcmStructure $ TCM.diagnoseTcm tcm of
-                   NonAdditive -> trace ("NonAdd") discreteMetric
-                   Additive    -> trace ("Add")    $ linearNorm . toEnum $ TCM.size tcm
-                   _           -> trace ("Metric") $ metricRepresentation tcm
+                   NonAdditive -> discreteMetric
+                   Additive    -> linearNorm . toEnum $ TCM.size tcm
+                   _           -> metricRepresentation tcm
     in (coefficient, metric)
 
 
@@ -325,7 +324,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                     , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ "#0"), alignedSeqType, thisAlphabet)
                                     }
         in
-        trace ("GFCI: " <> (show localHugeTCM)) (
+        --trace ("GFCI: " <> (show localHugeTCM)) (
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM then 
             trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
@@ -333,7 +332,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
         else 
             trace ("Processing TCM data for file : "  ++ dataName) 
             defaultSeqCharInfo
-        )
+        -- )
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present
 

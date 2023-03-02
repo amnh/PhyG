@@ -139,8 +139,11 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
                             convert2BVTriple 32 $ (snd3 . alignedSlimPrelim) charData
                          else if charType charInfo == AlignedWide then
                             convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
+                         -- no point in huge recoding--with not be packed anyway
                          else if charType charInfo == AlignedHuge then
-                            (snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData)
+                            error "No point in converting huge--can't pack anyway"
+                            -- this is wrong
+                            -- (snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData)
                          else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
         in
         (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd, weight = charWeight * (fromIntegral $ fromEnum matrixCoefficient)})
@@ -168,7 +171,7 @@ convert2BV size (_, inM, _) =
 
 -- | getRecodingType takes a cost matrix and detemines if it can be recodes as non-additive,
 -- non-additive with gap chars, or matrix
--- assumes indel costs are in last row and column
+-- assumes indel costs are in first row and column
 getRecodingType :: S.Matrix Int -> (String, Int)
 getRecodingType inMatrix =
    if S.null inMatrix then error "Null matrix in getRecodingType"
@@ -176,15 +179,19 @@ getRecodingType inMatrix =
       if (not . S.isSymmetric) inMatrix then ("matrix",  0)
       else
          let matrixLL = S.toFullLists inMatrix
-             lastRow = L.last matrixLL
+             secondRow = matrixLL L.!! 1
              numUniqueCosts = length $ L.group $ L.sort $ (filter (/= 0) $ concat matrixLL)
 
          in
          -- trace  ("GRT: " ++ (show numUniqueCosts)) (
-         -- all same except for 0
-         if numUniqueCosts == 1 then ("nonAdd", 0)
 
-         else ("matrix",  head lastRow)
+         -- don't recode huge--no point
+         if S.rows inMatrix > 32 then ("matrix",  head secondRow)
+
+         -- all same except for 0
+         else if numUniqueCosts == 1 then ("nonAdd", 0)
+         
+         else ("matrix", head secondRow)
          {-
          -- all same except for gaps
          else if numUniqueCosts == 2 then
