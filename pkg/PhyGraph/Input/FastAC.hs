@@ -34,6 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
+{-# Language LambdaCase #-}
+
 module Input.FastAC
   ( getFastA
   , getFastAText
@@ -128,6 +130,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     AminoSeq -> toSymbols ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
                     _        -> sequenceData
 
+            localCostMatrix :: S.Matrix Int
             localCostMatrix = if null $ fst3 localTCM then
                                 let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
                                                                     else ((head . head . snd3) localTCM,  (last . head . snd3) localTCM)
@@ -135,21 +138,35 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                                 S.fromLists $ generateDefaultMatrix seqAlphabet 0 indelCost substitutionCost
                               else S.fromLists $ snd3 localTCM
 
-            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length localCostMatrix) (S.getCost localCostMatrix)
-            -- not sure of this
-            tcmNaught = genDiscreteDenseOfDimension (length sequenceData)
-            localDenseCostMatrix = if seqType `elem` [NucSeq, SlimSeq] then tcmDense
-                                   else tcmNaught
 
-            (wideWeightFactor, localWideTCM)
-              | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]] -- this 2x2 so if some Show instances are called don't get error
+            (additionalWeight, localDenseCostMatrix, localWideTCM, localHugeTCM) = 
+                let dimension = fromIntegral $ V.length localCostMatrix
 
-            (hugeWeightFactor, localHugeTCM)
-              | seqType == HugeSeq           = getTCMMemo (thisAlphabet, localCostMatrix)
-              | otherwise                    = metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]] -- this 2x2 so if some Show instances are called don't get error
+                    -- this 2x2 so if some Show instances are called don't get error
+                    slimMetricNil = genDiscreteDenseOfDimension dimension                     
+                    wideMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+                    hugeMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+
+
+                    slimMetric = TCMD.generateDenseTransitionCostMatrix 0 dimension $ MR.retreiveSCM wideMetric
+                    (wideWeight, wideMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
+                    (hugeWeight, hugeMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
+
+                    resultSlim = (         1, slimMetric,    wideMetricNil, hugeMetricNil)
+                    resultWide = (wideWeight, slimMetricNil, wideMetric,    hugeMetricNil)
+                    resultHuge = (hugeWeight, slimMetricNil, wideMetricNil, hugeMetric)
+
+                in  case seqType of
+                      NucSeq   -> resultSlim
+                      SlimSeq  -> resultSlim
+                      WideSeq  -> resultWide
+                      AminoSeq -> resultWide
+                      HugeSeq  -> resultHuge
+                      _        -> error $ "getFastaCharInfo: Failure proceesing the CharType: '" <> show seqType <> "'"
+
 
             tcmWeightFactor = thd3 localTCM
+
             thisAlphabet =
               case fst3 localTCM of
                 a | null a -> seqAlphabet
@@ -165,20 +182,15 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             defaultSeqCharInfo = emptyCharInfo {
                                                charType = alignedSeqType
                                              , activity = True
-                                             , weight = tcmWeightFactor *
-                                                        if seqType == HugeSeq
-                                                        then fromRational hugeWeightFactor
-                                                        else if seqType `elem` [WideSeq, AminoSeq]
-                                                        then fromRational wideWeightFactor
-                                                        else 1
+                                             , weight = tcmWeightFactor * fromRational additionalWeight
                                              , costMatrix = localCostMatrix
-                                             , slimTCM = localDenseCostMatrix
-                                             , wideTCM = localWideTCM
-                                             , hugeTCM = localHugeTCM
-                                             , name = T.pack (filter (/= ' ') dataName <> "#0")
-                                             , alphabet = thisAlphabet
+                                             , slimTCM    = localDenseCostMatrix
+                                             , wideTCM    = localWideTCM
+                                             , hugeTCM    = localHugeTCM
+                                             , name       = T.pack (filter (/= ' ') dataName <> "#0")
+                                             , alphabet   = thisAlphabet
                                              , prealigned = isPrealigned
-                                             , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
+                                             , origInfo   = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                                              }
         in
         --trace ("GFCI: " ++ (show localWideTCM) ++ "\n" ++ (show localHugeTCM)) (
@@ -199,12 +211,13 @@ getTCMMemo
      )
   => (a, S.Matrix Int)
   -> (Rational, MR.MetricRepresentation b)
+getTCMMemo (_inAlphabet, inMatrix) | trace (show inMatrix) False = undefined
 getTCMMemo (_inAlphabet, inMatrix) =
-    let (coefficient, tcm) = TCM.fromRows $ S.getFullVects inMatrix
+    let (coefficient, tcm) = fmap transformGapLastToGapFirst . TCM.fromRows $ S.getFullVects inMatrix
         metric = case tcmStructure $ TCM.diagnoseTcm tcm of
-                   NonAdditive -> discreteMetric
-                   Additive    -> linearNorm . toEnum $ TCM.size tcm
-                   _           -> metricRepresentation tcm
+                   NonAdditive -> trace ("NonAdd") discreteMetric
+                   Additive    -> trace ("Add")    $ linearNorm . toEnum $ TCM.size tcm
+                   _           -> trace ("Metric") $ metricRepresentation tcm
     in (coefficient, metric)
 
 
@@ -246,11 +259,12 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
         --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
         let thisAlphabet = fromSymbols symbolsFound
 
+
             symbolsFound
               | not $ null $ fst3 localTCM = fst3 localTCM
               | otherwise = getSequenceAphabet [] $ concatMap snd inData
 
-            inMatrix
+            localCostMatrix
               | not $ null $ fst3 localTCM = S.fromLists $ snd3 localTCM
               | otherwise = let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
                                                                 else ((head . head . snd3) localTCM,  (last . head . snd3) localTCM)
@@ -258,25 +272,38 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                             S.fromLists $ generateDefaultMatrix thisAlphabet 0 indelCost substitutionCost
 
             tcmWeightFactor = thd3 localTCM
-            tcmDense = TCMD.generateDenseTransitionCostMatrix 0 (fromIntegral $ V.length inMatrix) (S.getCost inMatrix)
 
-            -- not sure of this
-            tcmNaught = genDiscreteDenseOfDimension (length thisAlphabet)
-            localDenseCostMatrix = if length thisAlphabet < 9  then tcmDense
-                                   else tcmNaught
+
+            (additionalWeight, localDenseCostMatrix, localWideTCM, localHugeTCM) = 
+                let dimension = fromIntegral $ V.length localCostMatrix
+
+                    -- this 2x2 so if some Show instances are called don't get error
+                    slimMetricNil = genDiscreteDenseOfDimension dimension                     
+                    wideMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+                    hugeMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+
+                    slimMetric = TCMD.generateDenseTransitionCostMatrix 0 dimension $ MR.retreiveSCM wideMetric
+                    (wideWeight, wideMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
+                    (hugeWeight, hugeMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
+
+                    resultSlim = (         1, slimMetric,    wideMetricNil, hugeMetricNil)
+                    resultWide = (wideWeight, slimMetricNil, wideMetric,    hugeMetricNil)
+                    resultHuge = (hugeWeight, slimMetricNil, wideMetricNil, hugeMetric)
+
+                in  case seqType of
+                      NucSeq   -> resultSlim
+                      SlimSeq  -> resultSlim
+                      WideSeq  -> resultWide
+                      AminoSeq -> resultWide
+                      HugeSeq  -> resultHuge
+                      _        -> error $ "getFastaCharInfo: Failure proceesing the CharType: '" <> show seqType <> "'"
+
             seqType =
                 case length thisAlphabet of
                   n | n <=  8 -> SlimSeq
                   n | n <= 64 -> WideSeq
                   _           -> HugeSeq
 
-            (wideWeightFactor, localWideTCM)
-              | seqType `elem` [WideSeq, AminoSeq] = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]] -- this 2x2 so if some Show instances are called don't get error
-
-            (hugeWeightFactor, localHugeTCM)
-              | seqType == HugeSeq           = getTCMMemo (thisAlphabet, inMatrix)
-              | otherwise                          = metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]] -- this 2x2 so if some Show instances are called don't get error
             alignedSeqType = if not isPrealigned then seqType
                              else
                                 if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
@@ -284,26 +311,21 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
                                 else if seqType == HugeSeq then AlignedHuge
                                 else error "Unrecognozed data type in getFastcCharInfo"
 
-            defaultSeqCharInfo = emptyCharInfo {
-                                       charType = alignedSeqType
-                                     , activity = True
-                                     , weight = tcmWeightFactor *
-                                                if   seqType == HugeSeq
-                                                then fromRational hugeWeightFactor
-                                                else if seqType `elem` [WideSeq, AminoSeq]
-                                                then fromRational wideWeightFactor
-                                                else 1
-                                     , costMatrix = inMatrix
-                                     , slimTCM = localDenseCostMatrix
-                                     , wideTCM = localWideTCM
-                                     , hugeTCM = localHugeTCM
-                                     , name = T.pack (filter (/= ' ') dataName ++ "#0")
-                                     , alphabet = thisAlphabet
-                                     , prealigned = isPrealigned
-                                     , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ "#0"), alignedSeqType, thisAlphabet)
-                                     }
+            defaultSeqCharInfo = emptyCharInfo
+                                    { charType = alignedSeqType
+                                    , activity = True
+                                    , weight = tcmWeightFactor * fromRational additionalWeight
+                                    , costMatrix = localCostMatrix
+                                    , slimTCM    = localDenseCostMatrix
+                                    , wideTCM    = localWideTCM
+                                    , hugeTCM    = localHugeTCM
+                                    , name = T.pack (filter (/= ' ') dataName ++ "#0")
+                                    , alphabet = thisAlphabet
+                                    , prealigned = isPrealigned
+                                    , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ "#0"), alignedSeqType, thisAlphabet)
+                                    }
         in
-        --trace ("GFCI: " ++ (show localWideTCM) ++ "\n" ++ (show localHugeTCM)) (
+        trace ("GFCI: " <> (show localHugeTCM)) (
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM then 
             trace ("Warning: no tcm file specified for use with fasta file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
@@ -311,7 +333,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
         else 
             trace ("Processing TCM data for file : "  ++ dataName) 
             defaultSeqCharInfo
-        --)
+        )
 
 -- | getSequenceAphabet takes a list of ShortText and returns the alp[habet and adds '-' if not present
 
@@ -500,3 +522,15 @@ genDiscreteDenseOfDimension d =
       r = [0 .. n - 1]
       m = [ [ if i==j then 0 else 1 | j <- r] | i <- r]
   in  TCMD.generateDenseTransitionCostMatrix n n . S.getCost $ V.fromList <$> V.fromList m
+
+
+transformGapLastToGapFirst :: TCM.TCM -> TCM.TCM
+transformGapLastToGapFirst tcm = 
+  let n = TCM.size tcm
+  in  TCM.generate n $ \case
+        (0,0) -> tcm TCM.! (n - 1, n - 1)
+        (0,j) -> tcm TCM.! (n - 1, j - 1)
+        (i,0) -> tcm TCM.! (i - 1, n - 1)
+        (i,j) -> tcm TCM.! (i - 1, j - 1)
+
+
