@@ -142,7 +142,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
                          -- no point in huge recoding--with not be packed anyway
                          else if charType charInfo == AlignedHuge then
                             error "No point in converting huge--can't pack anyway"
-                            -- this is wrong
+                            -- this is wrong for some reason--creates incorrect IA
                             -- (snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData)
                          else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
         in

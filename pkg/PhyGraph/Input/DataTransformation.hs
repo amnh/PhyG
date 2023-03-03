@@ -83,7 +83,7 @@ import qualified Utilities.Utilities         as U
 -- | removeAllMissingCharacters removes charcaters from list in rawData if all taxa are missing
 -- this can happen when taxa are renamed or added in terminals file
 -- only checks a list length of 1 basically a sequence character
--- ststic chars passed on
+-- static chars passed on
 removeAllMissingCharacters :: RawData -> [RawData]
 removeAllMissingCharacters inData =
     let termData = fst inData

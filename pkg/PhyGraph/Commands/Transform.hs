@@ -488,6 +488,7 @@ transformData leavePrealigned inCharInfoV inCharLengthV inCharDataV  =
 -- checks if all gaps with the GV.filter.  If all gaps--it means the sequence char was missing and
 -- implied alignment produced all gaps.  The passing of character length is not necessary when changed missing seq to empty
 -- character--but leaving in case change back to [] 
+-- "nonAddGap" not currently implemented
 transformCharacter :: Bool -> CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
 transformCharacter leavePrealigned inCharData inCharInfo charLength =
    let inCharType = charType inCharInfo
@@ -562,7 +563,7 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
          let gapChar = setBit (BV.fromBits $ replicate alphSize False) gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData) then hugeAlignment inCharData
                                 else 
-                                 let missingElement = V.replicate charLength $ (BV.fromBits $ replicate alphSize True) 
+                                 let missingElement = V.replicate alphSize $ (BV.fromBits $ replicate alphSize True) 
                                  in (missingElement, missingElement, missingElement)
 
              newPrelimBV = impliedAlignChar
