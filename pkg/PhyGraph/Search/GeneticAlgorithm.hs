@@ -163,7 +163,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         -- only swap mutation stuff for tree
         if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then
             -- trace ("1")
-            let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+            let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom randList inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
             in
             if (not . null) newGraphList then head newGraphList
             else inGraph
@@ -173,7 +173,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         else
             if editType == "swap" then
                 -- trace ("2")
-                let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+                let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom randList inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
                 in
                 if (not . null) newGraphList then head newGraphList
                 else inGraph
