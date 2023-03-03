@@ -622,23 +622,6 @@ nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
   where
     baseAlphabet = fromSymbols $ ST.fromString <$> ["A","C","G","T"]
 
-{-
--- | getAminoAcidSequenceCodes returns the character sgtructure for an Amino Acid sequence type
-getAminoAcidSequenceCodes :: Alphabet ST.ShortText -> V.Vector (ST.ShortText, BV.BitVector)
-getAminoAcidSequenceCodes localAlphabet  =
-    let stateBVList = getStateBitVectorList localAlphabet
-        pairB = (ST.singleton 'B', snd (stateBVList V.! 2) .|. snd (stateBVList V.! 11)) -- B = D or N
-        pairZ = (ST.singleton 'Z', snd (stateBVList V.! 3) .|. snd (stateBVList V.! 13))-- E or Q
-        pairX = (ST.singleton 'X', foldr1 (.|.) $ V.toList $ V.map snd (V.init stateBVList))  --All AA not '-'
-        pairQuest = (ST.singleton '?', foldr1 (.|.) $ V.toList $ V.map snd stateBVList)       -- all including -'-' Not IUPAC
-        ambigPairVect = V.fromList [pairB, pairZ, pairX, pairQuest]
-        totalStateList = stateBVList V.++ ambigPairVect
-
-    in
-    --trace (show $ fmap BV.showBin $ fmap snd $ totalStateList)
-    totalStateList
--}
-
 -- | aminoAcidBVPairs for recoding protein sequences
 -- this done to insure not recalculating everything for each residue
 -- B, Z, X, ? for ambiguities
@@ -764,25 +747,6 @@ getGeneralSequenceChar inCharInfo stateList =
         in
         -- trace ("GGSC" ++ (show stateList) ++ "\n" ++ (show newSequenceChar ))
         [newSequenceChar]
-
-
-{-Not used
-
--- | getSingleStateBV takes a single state and returns its bitvector
--- based on alphabet size--does not check if ambiguous--assumes single state
-getSingleStateBV :: [ST.ShortText] -> ST.ShortText -> BV.BitVector
-getSingleStateBV localAlphabet localState =
-    let stateIndex = L.elemIndex localState localAlphabet
-        --bv1 = BV.bitVec (length localAlphabet) (1 :: Integer)
-        --bvState = bv1 BV.<<.(BV.bitVec (length localAlphabet)) (fromJust stateIndex)
-        bv1 = BV.fromBits (True :  replicate (length localAlphabet - 1) False)
-        bvState = shiftL bv1 (fromJust stateIndex)
-    in
-    if isNothing stateIndex then
-        if localState `elem` fmap ST.fromString ["?","-"] then BV.fromBits $ replicate (length localAlphabet) True
-        else error ("getSingleStateBV: State " ++ ST.toString localState ++ " Not found in alphabet " ++ show localAlphabet)
-    else bvState
--}
 
 
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
