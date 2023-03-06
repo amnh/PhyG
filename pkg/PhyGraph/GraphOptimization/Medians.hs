@@ -89,6 +89,8 @@ import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import           Data.Maybe
 import           Debug.Trace
+import qualified Data.List                   as L
+
 
 -- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
 -- and returns a dynamic character that canbe used with other functions
@@ -979,10 +981,13 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
 
     else if characterType `elem` [SlimSeq, NucSeq] then 
         let prelimState = extractMediansGapped $ slimAlignment nodeChar
-            unionState = if  not $ GV.null prelimState then prelimState
+            unionState = if  not $ GV.null prelimState then 
+                            if GV.null $ extractMediansSingle prelimState then
+                                --trace ("MIAUPL: " ++ (show $ convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState))
+                                convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState
+                            else prelimState
                          else extractMedians $ slimGapped nodeChar
         in
-        --trace ("MIAUPL: " ++ (show $ GV.length prelimState))
         nodeChar { slimIAPrelim = slimAlignment nodeChar
                  , slimIAFinal = prelimState
                  , slimIAUnion = unionState
@@ -1030,6 +1035,30 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
 
     else error ("Unrecognized character type " ++ show characterType)
     --)
+
+-- | convertIfAllGapsToAllBitsOn takes a single fields of a dynamic character and
+-- converts replaces
+-- 'gaps' with all bits on--in essence '?' or missing element 
+convertIfAllGapsToAllBitsOn :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e 
+convertIfAllGapsToAllBitsOn alphSize inVect =
+    if GV.null inVect then inVect
+    else 
+        let numElements = GV.length inVect
+            onBitList =  (fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]) 
+            onBits = L.foldl1' (.|.) onBitList
+        in
+        GV.replicate numElements onBits
+
+-- | allMissingBits test if all bits in alphabet size are ON
+allMissingBits :: (FiniteBits e, GV.Vector v e) => Int -> v e -> Bool
+allMissingBits alphSize inVect =
+    if GV.null inVect then False
+    else 
+        let onBitList =  (fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]) 
+            missingBits = L.foldl1' (.|.) onBitList
+            offBits = GV.filter (/= missingBits) inVect
+        in
+        GV.null offBits
 {-
 -- | getNonExactUnionFields takes two non-exact characters and union field assignment
 -- based on character type and nodeChar
@@ -1117,8 +1146,8 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         -- trace ("MIAUP-C: " ++ (show $ GV.length $ GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)))
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
                     , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
-                , slimIAUnion = if (GV.null $ slimIAUnion leftChar) then (slimIAUnion rightChar)
-                                else if (GV.null $ slimIAUnion rightChar) then (slimIAUnion leftChar)
+                , slimIAUnion = if (GV.null $ slimIAUnion leftChar) || (allMissingBits (length $ alphabet charInfo) $ slimIAUnion leftChar) then (slimIAUnion rightChar)
+                                else if (GV.null $ slimIAUnion rightChar)  || (allMissingBits (length $ alphabet charInfo) $ slimIAUnion rightChar) then (slimIAUnion leftChar)
                                 else GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)
                 , localCost = if (GV.null $ slimIAUnion leftChar) || (GV.null $ slimIAUnion rightChar) then 0
                               else (weight charInfo) * (fromIntegral cost)

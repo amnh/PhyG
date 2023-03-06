@@ -1019,7 +1019,7 @@ makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV blockInde
     in
     V.toList blockCharacterStringList
 
--- | isAllGaps checks wether a sequence is all gap charcaters '-'
+-- | isAllGaps checks whether a sequence is all gap charcaters '-'
 isAllGaps :: String -> Bool
 isAllGaps inSeq =
     if null inSeq then True
