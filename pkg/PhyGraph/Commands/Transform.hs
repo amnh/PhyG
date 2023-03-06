@@ -323,7 +323,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                      let lengthChangeString = if null inGraphList then ""
                                               else (":" ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                      in
-                     trace ("Changing multiTraverse to " ++ lengthChangeString)
+                     trace ("Changing multiTraverse to " ++ (show newMethod) ++ lengthChangeString)
                      (inGS {multiTraverseCharacters = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {multiTraverseCharacters = newMethod}, origData, inData, inGraphList)
 
