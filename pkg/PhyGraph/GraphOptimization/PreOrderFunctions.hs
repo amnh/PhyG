@@ -1001,8 +1001,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          --trace ("TNFinal-Root: " ++ (show finalAssignment') ++ " " ++ (show (SV.length finalAssignment', slimGapped childChar))) (
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = finalAssignment'
-                        , slimAlignment = if isTree then slimGapped childChar
-                                          else mempty
+                        , slimAlignment = slimGapped childChar
+                                          --if isTree then slimGapped childChar
+                                          --else mempty
                         }
          --)
 
@@ -1011,8 +1012,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
          else childChar { wideFinal = finalAssignment'
-                        , wideAlignment = if isTree then wideGapped childChar
-                                          else mempty
+                        , wideAlignment = wideGapped childChar
+                                          -- if isTree then wideGapped childChar
+                                          -- else mempty
                         }
 
       else if localCharType == HugeSeq then
@@ -1020,8 +1022,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
          else childChar { hugeFinal = finalAssignment'
-                        , hugeAlignment = if isTree then hugeGapped childChar
-                                          else mempty
+                        , hugeAlignment = hugeGapped childChar
+                                          -- if isTree then hugeGapped childChar
+                                          -- else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1057,12 +1060,15 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          --trace ("TNFinal-Leaf:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalAlignment, isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "\n->" ++ (show finalAlignment)) (
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
-                        , slimAlignment = if isTree then finalAlignment
-                                          else mempty
-                        , slimIAPrelim  = if isTree then finalAlignment
-                                          else mempty
-                        , slimIAFinal  =  if isTree then extractMediansGapped $ finalAlignment
-                                          else mempty
+                        , slimAlignment = finalAlignment
+                                          --if isTree then finalAlignment
+                                          --else mempty
+                        , slimIAPrelim  = finalAlignment
+                                          -- if isTree then finalAlignment
+                                          -- else mempty
+                        , slimIAFinal  =  extractMediansGapped finalAlignment
+                                          --if isTree then extractMediansGapped $ finalAlignment
+                                          --else mempty
                         }
          --)
 
@@ -1072,12 +1078,15 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
          else childChar { wideFinal = extractMedians $ wideGapped childChar -- finalAssignment'
-                        , wideAlignment = if isTree then finalAlignment
-                                          else mempty
-                        , wideIAPrelim =  if isTree then finalAlignment
-                                          else mempty
-                        , wideIAFinal =   if isTree then extractMediansGapped $ finalAlignment
-                                          else mempty
+                        , wideAlignment = finalAlignment
+                                          --if isTree then finalAlignment
+                                          --else mempty
+                        , wideIAPrelim =  finalAlignment
+                                          --if isTree then finalAlignment
+                                          --else mempty
+                        , wideIAFinal =   extractMediansGapped finalAlignment
+                                          --if isTree then extractMediansGapped $ finalAlignment
+                                          --else mempty
                         }
 
       else if localCharType == HugeSeq then
@@ -1086,12 +1095,15 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
          else childChar { hugeFinal = extractMedians $ hugeGapped childChar -- finalAssignment'
-                        , hugeAlignment = if isTree then finalAlignment
-                                          else mempty
-                        , hugeIAPrelim =  if isTree then finalAlignment
-                                          else mempty
-                        , hugeIAFinal =   if isTree then extractMediansGapped $ finalAlignment
-                                          else mempty
+                        , hugeAlignment = finalAlignment
+                                          -- if isTree then finalAlignment
+                                          -- else mempty
+                        , hugeIAPrelim =  finalAlignment
+                                          -- if isTree then finalAlignment
+                                          -- else mempty
+                        , hugeIAFinal =   extractMediansGapped finalAlignment
+                                          -- if isTree then extractMediansGapped $ finalAlignment
+                                          -- else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1153,8 +1165,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { slimFinal = finalAssignmentDO
-                        , slimAlignment = if isTree then finalGapped
-                                          else mempty
+                        , slimAlignment = finalGapped
+                                         --if isTree then finalGapped
+                                         -- else mempty
                         }
          --)
 
@@ -1172,8 +1185,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { wideFinal = finalAssignmentDO
-                        , wideAlignment = if isTree then finalGapped
-                                          else mempty
+                        , wideAlignment = finalGapped
+                                         --if isTree then finalGapped
+                                          --else mempty
                         }
 
       else if localCharType == HugeSeq then
@@ -1190,8 +1204,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { hugeFinal = finalAssignmentDO
-                        , hugeAlignment = if isTree then finalGapped
-                                          else mempty
+                        , hugeAlignment = finalGapped
+                                         --if isTree then finalGapped
+                                         -- else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1227,12 +1242,14 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
-                        , slimAlignment = if isTree then slimAlignment parentChar -- finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
-                                          else mempty
+                        , slimAlignment = slimAlignment parentChar 
+                                          -- if isTree then slimAlignment parentChar -- finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
+                                          -- else mempty
                         , slimGapped = slimGapped parentChar -- slimGapped' -- slimGapped parentChar -- finalGappedO --slimGapped parentChar
                         -- , slimIAPrelim = slimIAPrelim parentChar
-                        , slimIAFinal = if isTree then slimFinal parentChar
-                                        else mempty
+                        , slimIAFinal =  slimFinal parentChar
+                                        -- if isTree then slimFinal parentChar
+                                        --else mempty
                         }
         -- )
 
@@ -1244,8 +1261,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                           else mempty
                         , wideGapped = wideGapped parentChar -- wideGapped' -- wideGapped parentChar -- finalGappedO --wideGapped parentChar
                         -- , wideIAPrelim = wideIAPrelim parentChar
-                        , wideIAFinal = if isTree then wideFinal parentChar
-                                        else mempty
+                        , wideIAFinal = wideFinal parentChar
+                                        -- if isTree then wideFinal parentChar
+                                        -- else mempty
                         }
         -- )
 
@@ -1257,8 +1275,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                           else mempty
                         , hugeGapped = hugeGapped parentChar -- hugeGapped' -- hugeGapped parentChar -- finalGappedO --hugeGapped parentChar
                         -- , hugeIAPrelim = hugeIAPrelim parentChar
-                        , hugeIAFinal = if isTree then hugeFinal parentChar
-                                        else mempty
+                        , hugeIAFinal = hugeFinal parentChar
+                                        --if isTree then hugeFinal parentChar
+                                        --else mempty
                         }
         -- )
 
