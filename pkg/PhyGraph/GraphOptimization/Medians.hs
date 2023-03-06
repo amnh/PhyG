@@ -579,7 +579,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
         let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM (makeDynamicCharacterFromSingleVector $ GV.filter (>1) $ slimIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (>1) $ slimIAUnion rightChar)
+                thisSlimTCM (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ slimIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ slimIAUnion rightChar)
         in  blankCharacterData
               { slimIAUnion   = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -594,7 +594,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             (cost, r)   = widePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (makeDynamicCharacterFromSingleVector $ GV.filter (>1)  $ wideIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter (>1) $ wideIAUnion rightChar)
+                (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ wideIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ wideIAUnion rightChar)
         in  blankCharacterData
               { wideIAUnion    = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -609,7 +609,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (makeDynamicCharacterFromSingleVector $ GV.filter ((>1) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ GV.filter ((>1) . (fromEnum . BV.toUnsignedNumber)) $ hugeIAUnion rightChar)
+                (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ hugeIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ hugeIAUnion rightChar)
         in blankCharacterData
               { hugeIAUnion = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -752,7 +752,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                     in
                     GV.zipWith (.|.) lG rG
 
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if filterGaps then extractMediansSingle r
                  else r
 
         in  blankCharacterData { slimPrelim = r'
@@ -771,7 +771,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                     GV.zipWith (.|.) lG rG
          -- r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
 
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if filterGaps then extractMediansSingle  r
                  else r
 
         in  blankCharacterData { widePrelim = r'
@@ -791,7 +791,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
 
          -- r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
 
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if filterGaps then extractMediansSingle  r
                  else r
 
         in  blankCharacterData { hugePrelim = r'
@@ -970,29 +970,38 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
         in
         nodeChar {matrixStatesUnion = prelimState}
 
+    -- the checking for null in prelimstate (slim/wide/huge sequences) comes form case of splitting graph
+    -- and reoptimizing in swap and fuse but single leaf is split off
+
     else if characterType `elem` [SlimSeq, NucSeq] then 
         let prelimState = extractMediansGapped $ slimAlignment nodeChar
+            unionState = if  not $ GV.null prelimState then prelimState
+                         else extractMedians $ slimGapped nodeChar
         in
         --trace ("MIAUPL: " ++ (show $ GV.length prelimState))
         nodeChar { slimIAPrelim = slimAlignment nodeChar
                  , slimIAFinal = prelimState
-                 , slimIAUnion = prelimState
+                 , slimIAUnion = unionState
                  }
 
     else if characterType `elem` [WideSeq, AminoSeq] then 
         let prelimState = extractMediansGapped $ wideAlignment nodeChar
+            unionState = if  not $ GV.null prelimState then prelimState
+                         else extractMedians $ wideGapped nodeChar
         in
         nodeChar { wideIAPrelim = wideAlignment nodeChar
                  , wideIAFinal = prelimState
-                 , wideIAUnion = prelimState
+                 , wideIAUnion = unionState
                  }
 
     else if characterType == HugeSeq then 
         let prelimState = extractMediansGapped $ hugeAlignment nodeChar
+            unionState = if  not $ GV.null prelimState then prelimState
+                         else extractMedians $ hugeGapped nodeChar
         in
         nodeChar { hugeIAPrelim = hugeAlignment nodeChar
                  , hugeIAFinal = prelimState
-                 , hugeIAUnion = prelimState
+                 , hugeIAUnion = unionState
                  }
 
     else if characterType == AlignedSlim then 

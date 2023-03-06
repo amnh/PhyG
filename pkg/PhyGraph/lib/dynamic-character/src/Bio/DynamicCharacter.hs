@@ -39,6 +39,7 @@ module Bio.DynamicCharacter
   , transposeCharacter
     -- * Extractors
   , extractMedians
+  , extractMediansSingle
   , extractMediansLeft
   , extractMediansRight
   , extractMediansGapped
@@ -314,6 +315,20 @@ extractMedians (_,me,_)
     | otherwise  =
         let gap  = buildGap $ me ! 0
         in  GV.filter (/=gap) me
+
+-- |
+-- Extract the /ungapped/ medians of a single field of a dynamic character.
+{-# INLINEABLE extractMediansSingle #-}
+{-# SPECIALISE extractMediansSingle :: SV.Vector SlimState -> SV.Vector SlimState #-}
+{-# SPECIALISE extractMediansSingle :: UV.Vector WideState -> UV.Vector WideState #-}
+{-# SPECIALISE extractMediansSingle ::  V.Vector HugeState ->  V.Vector HugeState #-}
+extractMediansSingle :: (FiniteBits e, Vector v e) => v e -> v e
+extractMediansSingle me
+    | GV.null me = me
+    | otherwise  =
+        let gap  = buildGap $ me ! 0
+        in  GV.filter (/=gap) me
+
 
 
 -- |
