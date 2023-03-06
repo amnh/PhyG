@@ -583,7 +583,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             (cost, r)   = slimPairwiseDO
                 thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsRight)
         in 
-        trace ("GDOMU:" ++ show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
+        --trace ("GDOMU:" ++ show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
         blankCharacterData
               { slimIAUnion   = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
