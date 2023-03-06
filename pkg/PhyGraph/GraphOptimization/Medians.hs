@@ -580,11 +580,11 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             slimIAUnionNoGapsLeft = extractMediansSingle $ slimIAUnion leftChar
             slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
-            (cost, r)   = if GV.null slimIAUnionNoGapsLeft then (0, makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsRight)
-                          else if GV.null slimIAUnionNoGapsRight then (0, makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsLeft)
-                          else slimPairwiseDO
+            (cost, r)   = slimPairwiseDO
                 thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsRight)
-        in  blankCharacterData
+        in 
+        trace ("GDOMU:" ++ show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
+        blankCharacterData
               { slimIAUnion   = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
               , localCost     = newCost
@@ -1117,8 +1117,11 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         -- trace ("MIAUP-C: " ++ (show $ GV.length $ GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)))
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
                     , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
-                , slimIAUnion = GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)
-                , localCost = (weight charInfo) * (fromIntegral cost)
+                , slimIAUnion = if (GV.null $ slimIAUnion leftChar) then (slimIAUnion rightChar)
+                                else if (GV.null $ slimIAUnion rightChar) then (slimIAUnion leftChar)
+                                else GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)
+                , localCost = if (GV.null $ slimIAUnion leftChar) || (GV.null $ slimIAUnion rightChar) then 0
+                              else (weight charInfo) * (fromIntegral cost)
                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                 }
     else if characterType `elem` [WideSeq, AminoSeq] then
