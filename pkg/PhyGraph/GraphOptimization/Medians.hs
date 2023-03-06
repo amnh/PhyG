@@ -273,7 +273,7 @@ distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
       -- let newCharVect = getNonExactUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
       in
       -- trace ("M2S: " ++ (show $ localCost  newCharVect))
-      (newCharVect, localCost  newCharVect)
+     (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
@@ -578,8 +578,12 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
     newSlimCharacterData =
         let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
-            (cost, r)   = slimPairwiseDO
-                thisSlimTCM (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ slimIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ slimIAUnion rightChar)
+            slimIAUnionNoGapsLeft = extractMediansSingle $ slimIAUnion leftChar
+            slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
+            (cost, r)   = if GV.null slimIAUnionNoGapsLeft then (0, makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsRight)
+                          else if GV.null slimIAUnionNoGapsRight then (0, makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsLeft)
+                          else slimPairwiseDO
+                thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsRight)
         in  blankCharacterData
               { slimIAUnion   = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
