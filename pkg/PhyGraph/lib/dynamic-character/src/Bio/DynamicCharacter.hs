@@ -209,9 +209,10 @@ setFrom
   -> Int -- ^ Index to write to destination
   -> m ()
 setFrom (slc,smc,src) (dlc,dmc,drc) i j =
-    trace (show(GV.length slc, GV.length smc, GV.length src, i, j)) $
-    unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
-
+    if (GV.length slc == 0) then trace (show(GV.length slc, GV.length smc, GV.length src, i, j)) $
+                    unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
+    else 
+                     unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
 
 {-# INLINEABLE setAlign #-}
 {-# SPECIALISE setAlign :: TempSlimDynamicCharacter (ST s) -> Int -> SlimState -> SlimState -> SlimState -> ST s () #-}

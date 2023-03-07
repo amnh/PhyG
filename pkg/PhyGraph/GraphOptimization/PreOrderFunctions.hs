@@ -999,6 +999,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          let finalAssignment' = extractMedians $ slimGapped childChar
          in
          -- trace ("TNFinal-Root: " ++ (show finalAssignment') ++ " " ++ (show (GV.length finalAssignment', slimGapped childChar))) $
+         --traceNoLF ("TNFinal-Root") $
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = finalAssignment'
                         , slimAlignment = slimGapped childChar
@@ -1054,9 +1055,12 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         let finalAlignment = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+         let finalAlignment = if not $ GV.null $ extractMediansGapped (slimAlignment parentChar) then
+                                 DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+                              else slimGapped childChar
              -- finalAssignment' = extractMedians finalAlignment
          in
+         -- traceNoLF ("TNFinal-Leaf") $
          -- trace ("TNFinal-Leaf:" ++ (show (GV.length $ fst3  (slimAlignment parentChar), GV.length $ fst3 finalAlignment, isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "\n->" ++ (show finalAlignment)) $
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
@@ -1150,8 +1154,12 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
+         -- traceNoLF ("TNFinal-Tree") $
          -- trace ("TNFinal-TreeNode:" ++ (show (GV.length $ fst3  (slimAlignment parentChar), isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "\n->" ++ (show $ extractMedians $ DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar))) $
-         let finalGapped = DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+         let finalGapped = if not $ GV.null $ extractMediansGapped (slimAlignment parentChar) then
+                                  DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
+                            else slimGapped childChar
+                              
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
                                         parentFinal = (parentFinalDC, mempty, mempty)
@@ -1240,6 +1248,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
+         --traceNoLF ("TNFinal-1/1") $
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) $
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
