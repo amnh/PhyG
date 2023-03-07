@@ -76,6 +76,7 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import           Data.Word
 import           Foreign.C.Types
+import           Debug.Trace
 
 
 -- |
@@ -208,6 +209,7 @@ setFrom
   -> Int -- ^ Index to write to destination
   -> m ()
 setFrom (slc,smc,src) (dlc,dmc,drc) i j =
+    trace (show(GV.length slc, GV.length smc, GV.length src, i, j)) $
     unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
 
 

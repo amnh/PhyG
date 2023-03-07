@@ -537,6 +537,7 @@ splitJoinGraph swapType joinAll atRandom randomIntListSwap inGS inData numToKeep
           -- use split graph (with reoptimized nodes) and overall graph root to get avialbel edges in base graph for rejoin
 
           prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
+          --prunedToRejoinUnionData = vertData $ fromJust $ LG.lab (thd6 firstGraph) prunedGraphRootIndex
           unionEdgeList = getUnionRejoinEdgeList inGS reoptimizedSplitGraph (six6 firstGraph) [graphRoot] ((snd6 firstGraph) - splitCost) (unionThreshold inGS) prunedToRejoinUnionData []
 
           -- builds graph edge list with unions--need to be able to turn off and just used edges in base graph for some sort
