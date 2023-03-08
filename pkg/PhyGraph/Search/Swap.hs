@@ -573,7 +573,7 @@ splitJoinGraph swapType joinAll atRandom randomIntListSwap inGS inData numToKeep
 
           newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
       in
-      trace ("SJG:" ++ (show (length edgesInBaseGraph, length unionEdgeList))) $
+      --trace ("SJG:" ++ (show (length edgesInBaseGraph, length unionEdgeList))) $
       -- regular swap
       if isNothing inSimAnnealParams then
          -- only returns graphs if same of better else empty
