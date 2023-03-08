@@ -583,7 +583,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             slimIAUnionNoGapsLeft = extractMediansSingle $ slimIAUnion leftChar
             slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector $ slimIAUnionNoGapsRight)
+                thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsRight)
         in 
         --trace ("GDOMU:" ++ show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
         blankCharacterData
@@ -597,10 +597,12 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
         let newCost     = thisWeight * fromIntegral cost
             coefficient = MR.minInDelCost thisWideTCM
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            wideIAUnionNoGapsLeft = extractMediansSingle $ wideIAUnion leftChar
+            wideIAUnionNoGapsRight = extractMediansSingle $ wideIAUnion rightChar
             (cost, r)   = widePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ wideIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ wideIAUnion rightChar)
+                (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsRight)
         in  blankCharacterData
               { wideIAUnion    = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -612,10 +614,12 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
         let newCost     = thisWeight * fromIntegral cost
             coefficient = MR.minInDelCost thisHugeTCM
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
+            hugeIAUnionNoGapsLeft = extractMediansSingle $ hugeIAUnion leftChar
+            hugeIAUnionNoGapsRight = extractMediansSingle $ hugeIAUnion rightChar
             (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ hugeIAUnion leftChar) (makeDynamicCharacterFromSingleVector $ extractMediansSingle $ hugeIAUnion rightChar)
+                (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsRight)
         in blankCharacterData
               { hugeIAUnion = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -981,12 +985,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
 
     else if characterType `elem` [SlimSeq, NucSeq] then 
         let prelimState = extractMediansGapped $ slimAlignment nodeChar
-            unionState = if  not $ GV.null prelimState then 
-                            if GV.null $ extractMediansSingle prelimState then
-                                --trace ("MIAUPL: " ++ (show $ convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState))
-                                convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState
-                            else prelimState
-                         else extractMedians $ slimGapped nodeChar
+            unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (slimGapped nodeChar)
         in
         nodeChar { slimIAPrelim = slimAlignment nodeChar
                  , slimIAFinal = prelimState
@@ -995,8 +994,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
 
     else if characterType `elem` [WideSeq, AminoSeq] then 
         let prelimState = extractMediansGapped $ wideAlignment nodeChar
-            unionState = if  not $ GV.null prelimState then prelimState
-                         else extractMedians $ wideGapped nodeChar
+            unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (wideGapped nodeChar)
         in
         nodeChar { wideIAPrelim = wideAlignment nodeChar
                  , wideIAFinal = prelimState
@@ -1005,8 +1003,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
 
     else if characterType == HugeSeq then 
         let prelimState = extractMediansGapped $ hugeAlignment nodeChar
-            unionState = if  not $ GV.null prelimState then prelimState
-                         else extractMedians $ hugeGapped nodeChar
+            unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (hugeGapped nodeChar)
         in
         nodeChar { hugeIAPrelim = hugeAlignment nodeChar
                  , hugeIAFinal = prelimState
@@ -1036,11 +1033,22 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
     else error ("Unrecognized character type " ++ show characterType)
     --)
 
--- | convertIfAllGapsToAllBitsOn takes a single fields of a dynamic character and
+-- | unionBVOrMissing returns union state, if all '-' converts to missing characters
+--  so BV unions get a zero cost as opposed to checking against all '-' seqquence
+unionBVOrMissing :: (FiniteBits e, GV.Vector v e) => v e -> Int -> (v e, v e, v e) -> v e
+unionBVOrMissing prelimState alphSize nodeGapped =
+    if not $ GV.null prelimState then 
+        if GV.null $ extractMediansSingle prelimState then
+        --trace ("MIAUPL: " ++ (show $ convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState))
+            convertAllGapsToAllBitsOn alphSize prelimState
+        else prelimState
+    else extractMedians nodeGapped
+
+-- | convertAllGapsToAllBitsOn takes a single fields of a dynamic character and
 -- converts replaces
 -- 'gaps' with all bits on--in essence '?' or missing element 
-convertIfAllGapsToAllBitsOn :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e 
-convertIfAllGapsToAllBitsOn alphSize inVect =
+convertAllGapsToAllBitsOn :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e 
+convertAllGapsToAllBitsOn alphSize inVect =
     if GV.null inVect then inVect
     else 
         let numElements = GV.length inVect
@@ -1144,11 +1152,11 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         in
         -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
         -- trace ("MIAUP-C: " ++ (show $ GV.length $ GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)))
+
+        -- the check for all missing basically creates an intersection result so all missing isn't porpagated post-order
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
-                    , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
-                , slimIAUnion = if (GV.null $ slimIAUnion leftChar) || (allMissingBits (length $ alphabet charInfo) $ slimIAUnion leftChar) then (slimIAUnion rightChar)
-                                else if (GV.null $ slimIAUnion rightChar)  || (allMissingBits (length $ alphabet charInfo) $ slimIAUnion rightChar) then (slimIAUnion leftChar)
-                                else GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)
+                , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
+                , slimIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (slimIAUnion leftChar) (slimIAUnion rightChar)
                 , localCost = if (GV.null $ slimIAUnion leftChar) || (GV.null $ slimIAUnion rightChar) then 0
                               else (weight charInfo) * (fromIntegral cost)
                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
@@ -1157,8 +1165,8 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         let (prelimChar, minCost)  = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
         in
         nodeChar {wideIAPrelim = (extractMediansGapped $ wideIAPrelim leftChar
-                    , prelimChar, extractMediansGapped $ wideIAPrelim rightChar)
-                , wideIAUnion = GV.zipWith (.|.) (wideIAUnion leftChar) (wideIAUnion rightChar)
+                , prelimChar, extractMediansGapped $ wideIAPrelim rightChar)
+                , wideIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (wideIAUnion leftChar) (wideIAUnion rightChar)
                 , localCost = (weight charInfo) * (fromIntegral minCost)
                 , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
@@ -1166,13 +1174,20 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         let (prelimChar, minCost)  = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
         in
         nodeChar {hugeIAPrelim = (extractMediansGapped $ hugeIAPrelim leftChar
-                    , prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)
-                , hugeIAUnion = GV.zipWith (.|.) (hugeIAUnion leftChar) (hugeIAUnion rightChar)
+                , prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)
+                , hugeIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (hugeIAUnion leftChar) (hugeIAUnion rightChar)
                 , localCost = (weight charInfo) * (fromIntegral minCost)
                 , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
     else nodeChar --error ("Unrecognized character type " ++ show characterType)
     -- )
+
+-- | orBVOrMissingIntersection takes two uninBV seqs and returns union or intersectino if one/both missing
+orBVOrMissingIntersection :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e -> v e
+orBVOrMissingIntersection alphSize unionIALeft unionIARight =
+    if (GV.null unionIALeft) || (allMissingBits alphSize unionIALeft) then unionIARight
+    else if (GV.null unionIARight)  || (allMissingBits alphSize unionIARight) then unionIALeft
+    else GV.zipWith (.|.) unionIALeft unionIARight
 
 -- | makeIAFinalCharacterStaticIA takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified

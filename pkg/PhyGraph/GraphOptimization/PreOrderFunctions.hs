@@ -1055,9 +1055,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         let finalAlignment = if not $ GV.null $ extractMediansGapped (slimAlignment parentChar) then
-                                 DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-                              else slimGapped childChar
+         let finalAlignment = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              -- finalAssignment' = extractMedians finalAlignment
          in
          -- traceNoLF ("TNFinal-Leaf") $
@@ -1077,7 +1075,8 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          --)
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
-         let finalAlignment = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+         let finalAlignment = doPreOrderWithParentCheck isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+                              
              -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
@@ -1094,7 +1093,8 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         }
 
       else if localCharType == HugeSeq then
-         let finalAlignment = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+         let finalAlignment = doPreOrderWithParentCheck isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+
              -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
@@ -1155,10 +1155,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          -- traceNoLF ("TNFinal-Tree") $
-         -- trace ("TNFinal-TreeNode:" ++ (show (GV.length $ fst3  (slimAlignment parentChar), isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "\n->" ++ (show $ extractMedians $ DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar))) $
-         let finalGapped = if not $ GV.null $ extractMediansGapped (slimAlignment parentChar) then
-                                  DOP.preOrderLogic isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-                            else slimGapped childChar
+         let finalGapped = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
                               
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
@@ -1181,7 +1178,8 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          --)
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
-         let finalGapped = DOP.preOrderLogic isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+         let finalGapped = doPreOrderWithParentCheck isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
+
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (wideFinal parentChar)
                                         parentFinal = (mempty, parentFinalDC, mempty)
@@ -1200,7 +1198,8 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         }
 
       else if localCharType == HugeSeq then
-         let finalGapped = DOP.preOrderLogic isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+         let finalGapped = doPreOrderWithParentCheck isLeft (hugeAlignment parentChar) (hugeGapped parentChar) (hugeGapped childChar)
+
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (hugeFinal parentChar)
                                         parentFinal = (mempty, mempty, parentFinalDC)
@@ -1303,6 +1302,13 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
+
+-- | doPreOrderWithParentCheck performs post order losig if parent non-zero--otherwise returns preliminary assignment
+doPreOrderWithParentCheck :: (FiniteBits e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) 
+doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
+    if not $ GV.null $ extractMediansGapped alignmentParent then
+            DOP.preOrderLogic isLeft alignmentParent gappedParent gappedChild 
+    else gappedChild
 
 -- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
 -- to get the final state.  This takes place in several steps
