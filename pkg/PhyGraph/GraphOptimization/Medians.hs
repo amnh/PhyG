@@ -45,6 +45,7 @@ module GraphOptimization.Medians  ( median2
                                   , median2NonExact
                                   -- , median2SingleNonExact
                                   , median2StaticIA
+                                  , makeIAUnionPrelimLeaf
                                   , makeIAPrelimCharacter
                                   , makeIAFinalCharacter
                                   -- , createUngappedMedianSequence
@@ -65,6 +66,7 @@ module GraphOptimization.Medians  ( median2
                                   , getFinal3WayWideHuge
                                   , generalSequenceDiff
                                   , union2Single
+                                  , distance2Unions
                                   ) where
 
 import           Bio.DynamicCharacter
@@ -86,7 +88,9 @@ import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import           Data.Maybe
--- import           Debug.Trace
+import           Debug.Trace
+import qualified Data.List                   as L
+
 
 -- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
 -- and returns a dynamic character that canbe used with other functions
@@ -203,78 +207,87 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
+-- | distance2Unions is a block wrapper around  distance2UnionsBlock
+-- really only to get union distance--keeping union states in there in csae needed later
+distance2Unions ::VertexBlockData ->  VertexBlockData -> V.Vector (V.Vector CharInfo) -> (VertexBlockData, VertexCost)
+distance2Unions firstBlock secondBlock charInfoVV =
+    let (newBlockV, newCostV) = V.unzip $ V.zipWith3 distance2UnionsBlock firstBlock secondBlock charInfoVV
+    in
+    (newBlockV, V.sum newCostV)
 
-{-
--- | median2SingleStaticIA takes character data and returns median character and cost for Static and IA fields of dynamic
--- median2SingleStaticIA assumes that the character vectors in the various states are the same length
--- that is--all leaves (hence other vertices later) have the same number of each type of character
--- used for post-order assignments
--- this is from preliminary states
-median2SingleStaticIA :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
-median2SingleStaticIA firstVertChar secondVertChar inCharInfo =
+-- | distance2UnionsBlock is a block wrapper around  distance2UnionsCharacter
+distance2UnionsBlock :: V.Vector CharacterData ->  V.Vector CharacterData -> V.Vector CharInfo -> (V.Vector CharacterData, VertexCost)
+distance2UnionsBlock firstBlock secondBlock charInfoV =
+    let (newBlockV, newCostV) = V.unzip $ V.zipWith3 distance2UnionsCharacter firstBlock secondBlock charInfoV
+    in
+    (newBlockV, V.sum newCostV)
+
+-- | distance2UnionsCharacter takes character data and returns median of union characters and cost
+-- median2Unions assumes that the character vectors in the various states are the same length
+-- this is from union states
+-- assumes all same length
+-- PMDL costs are claculate by type--additive by conversion to non-additive --but if states> 129 won't do it so warning in docs
+-- bp2,4,5,8,64, nonadd are by weights vis set command, matrix, sequence are set by tcm with non-zero diagnonal
+
+-- wrong for prealigned--needs to DO
+    -- 1) Check length/composition union fields
+    -- 2) check cost for each type
+    -- 3) use DO for alignments even on unoin fields (triple)
+-- as a result can use non-alignred dynamic characters as unions for comparison
+distance2UnionsCharacter :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
         thisActive  = activity inCharInfo
+        thisNoChangeCost = noChangeCost inCharInfo
+        thisChangeCost = changeCost inCharInfo
     in
     if not thisActive then (firstVertChar, 0)
     else if thisType == Add then
-        let newCharVect = intervalAdd thisWeight firstVertChar secondVertChar
+        let newCharVect = intervalAddUnionField thisWeight firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
     else if thisType == NonAdd then
-        let newCharVect = interUnion thisWeight firstVertChar secondVertChar
+        let newCharVect = interUnionUnionField thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` packedNonAddTypes then
         --assumes all weight 1
-        let newCharVect = BP.median2Packed thisType firstVertChar secondVertChar
+        let newCharVect = BP.median2PackedUnionField thisType thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
     else if thisType == Matrix then
-      let newCharVect = addMatrix thisWeight thisMatrix firstVertChar secondVertChar
+      let newCharVect = addMatrixUnionField thisWeight thisMatrix firstVertChar secondVertChar
         in
-        --trace (show $ alphabet inCharInfo)
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` prealignedCharacterTypes then
-      let newCharVect = getPreAligned2Median inCharInfo emptyCharacter firstVertChar secondVertChar
+      let newCharVect = getPreAligned2MedianUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` nonExactCharacterTypes then
-      let newCharVect = makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
-        in
-        --trace (show $ alphabet inCharInfo)
-        (newCharVect, localCost  newCharVect)
+      let newCharVect = getDOMedianCharInfoUnion inCharInfo firstVertChar secondVertChar
+      -- let newCharVect = getNonExactUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
+      in
+      -- trace ("M2S: " ++ (show $ localCost  newCharVect))
+     (newCharVect, localCost  newCharVect)
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
--}
 
 -- | localOr wrapper for BV.or for vector elements
 localOr :: BV.BitVector -> BV.BitVector -> BV.BitVector
 localOr lBV rBV = lBV .|. rBV
-
-{-
--- | localAnd wrapper for BV.and for vector elements
-localAnd :: BV.BitVector -> BV.BitVector -> BV.BitVector
-localAnd lBV rBV = lBV .&. rBV
-
--- | localAndOr takes the intesection vect and union vect elements
--- and return intersection is /= 0 otherwise union
-localAndOr ::BV.BitVector -> BV.BitVector -> BV.BitVector
-localAndOr interBV unionBV = if BV.isZeroVector interBV then unionBV else interBV
--}
 
 -- | interUnionBV takes two bitvectors and returns new state, nochange number (1 or 0), change number (0 or 1)
 interUnionBV :: BV.BitVector -> BV.BitVector -> (BV.BitVector, Int, Int)
 interUnionBV leftBV rightBV =
     if BV.isZeroVector (leftBV .&. rightBV)  then (leftBV .|. rightBV, 0, 1)
     else (leftBV .&. rightBV, 1, 0)
-
 
 -- | interUnion takes two non-additive chars and creates newCharcter as 2-median
 -- in post-order pass to create preliminary states assignment
@@ -296,6 +309,27 @@ interUnion thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
     newCharacter
 
+-- | interUnionUnionField takes two non-additive chars and creates newCharcter as 2-median
+-- in post-order pass to create union states assignment and cost
+-- assumes a single weight for all
+-- performs two passes though chars to get cost of assignments
+-- snd3 $ rangePrelim left/rightChar due to triple in prelim
+-- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since 
+-- only for nonadd characters with > 64 states.
+interUnionUnionField :: Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
+interUnionUnionField thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
+    let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (stateBVUnion leftChar) (stateBVUnion rightChar)
+        newCost = thisWeight * ((lNoChangeCost * (fromIntegral $ V.sum noChangeCostVect)) + (lChangeCost * (fromIntegral $ V.sum changeCostVect)))
+        newCharacter = emptyCharacter { stateBVUnion = newStateVect
+                                      , localCost = newCost
+                                      , globalCost = newCost + globalCost leftChar + globalCost rightChar
+                                      }
+    in
+    --trace ("NonAdditive: " ++ (show numUnions) ++ " " ++ (show newCost) ++ "\t" ++ (show $ stateBVPrelim leftChar) ++ "\t" ++ (show $ stateBVPrelim rightChar) ++ "\t"
+    --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
+    newCharacter
+
+
 -- | localUnion takes two non-additive chars and creates newCharcter as 2-union/or
 -- assumes a single weight for all
 -- performs single
@@ -311,7 +345,7 @@ localUnion leftChar rightChar =
     --   ++ (show intersectVect) ++ "\t" ++ (show unionVect) ++ "\t" ++ (show newStateVect))
     newCharacter
 
--- | getNewRange takes min and max range of two additive charcaters and returns
+-- | getNewRange takes min and max range of two additive characters and returns
 -- a triple of (newMin, newMax, Cost)
 getNewRange :: Int-> Int -> Int -> Int -> (Int, Int, Int)
 getNewRange lMin lMax rMin rMax =
@@ -336,14 +370,31 @@ intervalAdd thisWeight leftChar rightChar =
         newMinRange = V.map fst3 newRangeCosts
         newMaxRange = V.map snd3 newRangeCosts
         newCost = thisWeight * fromIntegral (V.sum $ V.map thd3 newRangeCosts)
-        newCharcater = emptyCharacter { rangePrelim = (snd3 $ rangePrelim leftChar, V.zip newMinRange newMaxRange, snd3 $ rangePrelim rightChar)
+        newCharacter = emptyCharacter { rangePrelim = (snd3 $ rangePrelim leftChar, V.zip newMinRange newMaxRange, snd3 $ rangePrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
-    newCharcater
+    newCharacter
 
--- | getUnionRange takes min and max range of two additive charcaters and returns
+
+-- | intervalAddUnionField takes two additive chars and creates newCharcter as 2-median
+-- in post-order pass to create union states assignment and cost
+-- assumes a single weight for all
+intervalAddUnionField :: Double -> CharacterData -> CharacterData -> CharacterData
+intervalAddUnionField thisWeight leftChar rightChar =
+    let newRangeCosts = V.zipWith4 getNewRange (V.map fst $ rangeUnion leftChar) (V.map snd $ rangeUnion leftChar) (V.map fst $ rangeUnion rightChar) (V.map snd $ rangeUnion rightChar)
+        newMinRange = V.map fst3 newRangeCosts
+        newMaxRange = V.map snd3 newRangeCosts
+        newCost = thisWeight * fromIntegral (V.sum $ V.map thd3 newRangeCosts)
+        newCharacter = emptyCharacter { rangeUnion = V.zip newMinRange newMaxRange
+                                      , localCost = newCost
+                                      , globalCost = newCost + globalCost leftChar + globalCost rightChar
+                                      }
+    in
+    newCharacter
+
+-- | getUnionRange takes min and max range of two additive characters and returns
 -- a pair of (newMin, newMax)
 getUnionRange :: Int -> Int -> Int -> Int -> (Int, Int)
 getUnionRange lMin lMax rMin rMax =
@@ -357,13 +408,14 @@ intervalUnion leftChar rightChar =
     let newRangeCosts = V.zipWith4 getUnionRange (V.map fst $ rangeFinal leftChar) (V.map snd $ rangeFinal leftChar) (V.map fst $ rangeFinal rightChar) (V.map snd $ rangeFinal rightChar)
         newMinRange = V.map fst newRangeCosts
         newMaxRange = V.map snd newRangeCosts
-        newCharcater = emptyCharacter { rangePrelim = (V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange, V.zip newMinRange newMaxRange)
-                                      , rangeFinal = V.zip newMinRange newMaxRange
+        newRange = V.zip newMinRange newMaxRange
+        newCharacter = emptyCharacter { rangePrelim = (newRange, newRange, newRange)
+                                      , rangeFinal = newRange
                                       }
     in
     --trace ("Additive: " ++ (show newCost) ++ "\t" ++ (show $ rangeFinal leftChar) ++ "\t" ++ (show $ rangeFinal rightChar)
      --   ++ (show newRangeCosts))
-    newCharcater
+    newCharacter
 
 -- | getMinCostStates takes cost matrix and vector of states (cost, _, _) and retuns a list of (totalCost, best child state)
 getMinCostStates :: S.Matrix Int -> V.Vector MatrixTriple -> Int -> Int -> Int -> [(Int, ChildStateIndex)]-> Int -> [(Int, ChildStateIndex)]
@@ -412,6 +464,26 @@ addMatrix thisWeight thisMatrix firstVertChar secondVertChar =
         in
         --trace ("Matrix: " ++ (show newCost) ++ "\n\t" ++ (show $ matrixStatesPrelim firstVertChar)  ++ "\n\t" ++ (show $ matrixStatesPrelim secondVertChar) ++
         --  "\n\t" ++ (show initialMatrixVector) ++ "\n\t" ++ (show initialCostVector))
+        newCharacter
+
+-- | addMatrixUnionField thisWeight thisMatrix firstVertChar secondVertChar matrix character
+-- uinion fields
+-- assumes each character has same cost matrix
+-- Need to add approximation ala DO tcm lookup later
+-- Local and global costs are based on current not necessarily optimal minimum cost states
+addMatrixUnionField :: Double -> S.Matrix Int -> CharacterData -> CharacterData -> CharacterData
+addMatrixUnionField thisWeight thisMatrix firstVertChar secondVertChar =
+  if null thisMatrix then error "Null cost matrix in addMatrix"
+  else
+    let numStates = length thisMatrix
+        initialMatrixVector = getNewVector thisMatrix numStates <$> V.zip (matrixStatesUnion firstVertChar) (matrixStatesUnion secondVertChar)
+        initialCostVector = fmap (V.minimum . fmap fst3) initialMatrixVector
+        newCost = thisWeight * fromIntegral (V.sum initialCostVector)
+        newCharacter = emptyCharacter { matrixStatesUnion = initialMatrixVector
+                                      , localCost = newCost  - globalCost firstVertChar - globalCost secondVertChar
+                                      , globalCost = newCost
+                                      }
+        in
         newCharacter
 
 -- | getUnionVector takes the vector of states and costs from two nodes
@@ -477,7 +549,83 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
 
     else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
 
+-- | getDOMedianCharInfoUnion  is a wrapper around getDOMedian with CharInfo-based interface
+-- for union fields.  
+-- Strips out solo gapos (0/1) before DO step
+getDOMedianCharInfoUnion :: CharInfo -> CharacterData -> CharacterData -> CharacterData
+getDOMedianCharInfoUnion charInfo = getDOMedianUnion (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
+-- | getDOMedianUnion calls appropriate pairwise DO to create sequence median after some type wrangling
+-- works on union states
+-- filters out gaps (0/1) values before DO (>1)
+getDOMedianUnion
+  :: Double
+  -> S.Matrix Int
+  -> TCMD.DenseTransitionCostMatrix
+  -> MR.MetricRepresentation Word64
+  -> MR.MetricRepresentation BV.BitVector
+  -> CharType
+  -> CharacterData
+  -> CharacterData
+  -> CharacterData
+getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
+  | null thisMatrix = error "Null cost matrix in getDOMedian"
+  | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
+  | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
+  | thisType == HugeSeq           = newHugeCharacterData
+  | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+  where
+    blankCharacterData = emptyCharacter
+
+    newSlimCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            slimIAUnionNoGapsLeft = extractMediansSingle $ slimIAUnion leftChar
+            slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
+            (cost, r)   = slimPairwiseDO
+                thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsRight)
+        in 
+        --trace ("GDOMU:" ++ show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
+        blankCharacterData
+              { slimIAUnion   = extractMedians r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
+              }
+
+    newWideCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            coefficient = MR.minInDelCost thisWideTCM
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            wideIAUnionNoGapsLeft = extractMediansSingle $ wideIAUnion leftChar
+            wideIAUnionNoGapsRight = extractMediansSingle $ wideIAUnion rightChar
+            (cost, r)   = widePairwiseDO
+                coefficient
+                (MR.retreivePairwiseTCM thisWideTCM)
+                (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsRight)
+        in  blankCharacterData
+              { wideIAUnion    = extractMedians r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
+              }
+
+    newHugeCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            coefficient = MR.minInDelCost thisHugeTCM
+            subtreeCost = newCost + globalCost leftChar + globalCost rightChar
+            hugeIAUnionNoGapsLeft = extractMediansSingle $ hugeIAUnion leftChar
+            hugeIAUnionNoGapsRight = extractMediansSingle $ hugeIAUnion rightChar
+            (cost, r)   = hugePairwiseDO
+                coefficient
+                (MR.retreivePairwiseTCM thisHugeTCM)
+                (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsRight)
+        in blankCharacterData
+              { hugeIAUnion = extractMedians r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost  = newCost
+              , globalCost = subtreeCost
+              }
 
 
 -- | getDOMedianCharInfo  is a wrapper around getDOMedian with CharInfo-based interface
@@ -614,7 +762,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                     in
                     GV.zipWith (.|.) lG rG
 
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if filterGaps then extractMediansSingle r
                  else r
 
         in  blankCharacterData { slimPrelim = r'
@@ -633,7 +781,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                     GV.zipWith (.|.) lG rG
          -- r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
 
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if filterGaps then extractMediansSingle  r
                  else r
 
         in  blankCharacterData { widePrelim = r'
@@ -653,7 +801,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
 
          -- r   = GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
 
-            r' = if filterGaps then GV.filter (/= (bit gapIndex)) r
+            r' = if filterGaps then extractMediansSingle  r
                  else r
 
         in  blankCharacterData { hugePrelim = r'
@@ -704,12 +852,13 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 -- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
-makeEdgeData :: Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
-makeEdgeData doIA inGraph charInfoVV (eNode, vNode, _) =
+-- using IA assignments not so great for search deltas
+makeEdgeData :: Bool -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
+makeEdgeData doIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
    let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
    in
-   createEdgeUnionOverBlocks doIA (not doIA) eNodeVertData vNodeVertData charInfoVV []
+   createEdgeUnionOverBlocks doIA filterGaps eNodeVertData vNodeVertData charInfoVV []
 
 -- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 -- The function takes data in blocks and block vector of char info and
@@ -773,46 +922,277 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
 
     else error ("Unrecognized character type " ++ show characterType)
 
+-- | getPreAligned2MedianUnionFields takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
+-- uses IA-type functions for slim/wide/huge-- based on union fields
+getPreAligned2MedianUnionFields :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
+    let characterType = charType charInfo
+    in
+    if characterType == AlignedSlim then
+        let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (alignedSlimUnion leftChar) (alignedSlimUnion rightChar)
+        in
+        -- trace ("GPA2M-slim: " ++ (show (GV.length prelimChar, GV.length $ alignedSlimUnion leftChar, GV.length $ alignedSlimUnion rightChar)))
+        nodeChar { alignedSlimUnion = prelimChar
+                 , localCost = (weight charInfo) * (fromIntegral cost)
+                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 }
+
+    else if characterType == AlignedWide then
+        let (prelimChar, cost) = get2WayWideHuge (wideTCM charInfo) (alignedWideUnion leftChar) (alignedWideUnion rightChar)
+        in
+        trace ("GPA2M-wide: " ++ (show $ GV.length prelimChar))
+        nodeChar { alignedWideUnion = prelimChar
+                 , localCost = (weight charInfo) * (fromIntegral cost)
+                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 }
+
+    else if characterType == AlignedHuge then
+        let (prelimChar, cost) = get2WayWideHuge (hugeTCM charInfo) (alignedHugeUnion leftChar) (alignedHugeUnion rightChar)
+        in
+        trace ("GPA2M-huge: " ++ (show $ GV.length prelimChar))
+        nodeChar { alignedHugeUnion = prelimChar
+                 , localCost = (weight charInfo) * (fromIntegral cost)
+                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 }
+
+    else error ("Unrecognized character type " ++ show characterType)
+
+
+
+-- | makeIAUnionPrelimLeaf makes union and sets for leaf characters--leaves alignment fields unchanged
+makeIAUnionPrelimLeaf :: CharInfo -> CharacterData -> CharacterData
+makeIAUnionPrelimLeaf charInfo nodeChar  =
+    --traceNoLF ("In makeIAUnionPrelimLeaf") (
+    let characterType = charType charInfo
+    in
+    if characterType == NonAdd then 
+        let prelimState = snd3 $ stateBVPrelim nodeChar
+        in
+        nodeChar {stateBVUnion = prelimState}
+
+    else if characterType == Add then 
+        let prelimState = snd3 $ rangePrelim nodeChar
+        in
+        nodeChar {rangeUnion = prelimState}
+
+    else if characterType == Matrix then 
+        let prelimState = matrixStatesPrelim nodeChar
+        in
+        nodeChar {matrixStatesUnion = prelimState}
+
+    -- the checking for null in prelimstate (slim/wide/huge sequences) comes form case of splitting graph
+    -- and reoptimizing in swap and fuse but single leaf is split off
+
+    else if characterType `elem` [SlimSeq, NucSeq] then 
+        let prelimState = extractMediansGapped $ slimAlignment nodeChar
+            unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (slimGapped nodeChar)
+        in
+        nodeChar { slimIAPrelim = slimAlignment nodeChar
+                 , slimIAFinal = prelimState
+                 , slimIAUnion = unionState
+                 }
+
+    else if characterType `elem` [WideSeq, AminoSeq] then 
+        let prelimState = extractMediansGapped $ wideAlignment nodeChar
+            unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (wideGapped nodeChar)
+        in
+        nodeChar { wideIAPrelim = wideAlignment nodeChar
+                 , wideIAFinal = prelimState
+                 , wideIAUnion = unionState
+                 }
+
+    else if characterType == HugeSeq then 
+        let prelimState = extractMediansGapped $ hugeAlignment nodeChar
+            unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (hugeGapped nodeChar)
+        in
+        nodeChar { hugeIAPrelim = hugeAlignment nodeChar
+                 , hugeIAFinal = prelimState
+                 , hugeIAUnion = unionState
+                 }
+
+    else if characterType == AlignedSlim then 
+        let prelimState = snd3 $ alignedSlimPrelim nodeChar
+        in
+        nodeChar {alignedSlimUnion = prelimState}
+
+    else if characterType == AlignedWide then 
+        let prelimState = snd3 $ alignedWidePrelim nodeChar
+        in
+        nodeChar {alignedWideUnion = prelimState}
+
+    else if characterType == AlignedHuge then 
+        let prelimState = snd3 $ alignedHugePrelim nodeChar
+        in
+        nodeChar {alignedHugeUnion = prelimState}
+
+    else if characterType `elem` [Packed2, Packed4, Packed5, Packed8, Packed64] then 
+        let prelimState = snd3 $ packedNonAddPrelim nodeChar
+        in
+        nodeChar {packedNonAddUnion = prelimState}
+
+    else error ("Unrecognized character type " ++ show characterType)
+    --)
+
+-- | unionBVOrMissing returns union state, if all '-' converts to missing characters
+--  so BV unions get a zero cost as opposed to checking against all '-' seqquence
+unionBVOrMissing :: (FiniteBits e, GV.Vector v e) => v e -> Int -> (v e, v e, v e) -> v e
+unionBVOrMissing prelimState alphSize nodeGapped =
+    if not $ GV.null prelimState then 
+        if GV.null $ extractMediansSingle prelimState then
+        --trace ("MIAUPL: " ++ (show $ convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState))
+            convertAllGapsToAllBitsOn alphSize prelimState
+        else prelimState
+    else extractMedians nodeGapped
+
+-- | convertAllGapsToAllBitsOn takes a single fields of a dynamic character and
+-- converts replaces
+-- 'gaps' with all bits on--in essence '?' or missing element 
+convertAllGapsToAllBitsOn :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e 
+convertAllGapsToAllBitsOn alphSize inVect =
+    if GV.null inVect then inVect
+    else 
+        let numElements = GV.length inVect
+            onBitList =  (fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]) 
+            onBits = L.foldl1' (.|.) onBitList
+        in
+        GV.replicate numElements onBits
+
+-- | allMissingBits test if all bits in alphabet size are ON
+allMissingBits :: (FiniteBits e, GV.Vector v e) => Int -> v e -> Bool
+allMissingBits alphSize inVect =
+    if GV.null inVect then False
+    else 
+        let onBitList =  (fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]) 
+            missingBits = L.foldl1' (.|.) onBitList
+            offBits = GV.filter (/= missingBits) inVect
+        in
+        GV.null offBits
+{-
+-- | getNonExactUnionFields takes two non-exact characters and union field assignment
+-- based on character type and nodeChar
+-- modifies both IA and union fields
+-- union fields are unions of parent states (aligned, or IA, or static)
+getNonExactUnionFields :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+getNonExactUnionFields charInfo nodeChar leftChar rightChar =
+    let characterType = charType charInfo
+    in
+    if characterType `elem` [SlimSeq, NucSeq] then
+        let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (slimIAUnion leftChar) (slimIAUnion rightChar)
+        in
+        nodeChar { slimIAUnion = prelimChar
+                   , localCost = (weight charInfo) * (fromIntegral cost)
+                   , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                    }
+    else if characterType `elem` [WideSeq, AminoSeq] then
+        let (prelimChar, minCost) = get2WayWideHuge (wideTCM charInfo) (wideIAUnion leftChar) (wideIAUnion rightChar)
+        in
+        nodeChar { wideIAUnion = prelimChar
+                   , localCost = (weight charInfo) * (fromIntegral minCost)
+                   , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
+                   }
+    else if characterType == HugeSeq then
+        let (prelimChar, minCost) = get2WayWideHuge (hugeTCM charInfo) (hugeIAUnion leftChar) (hugeIAUnion rightChar)
+        in
+        nodeChar {hugeIAUnion = prelimChar
+                , localCost = (weight charInfo) * (fromIntegral minCost)
+                , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
+                }
+    else error ("Unrecognized character type " ++ show characterType)
+-}
 
 
 -- | makeIAPrelimCharacter takes two characters and performs 2-way assignment
--- based on character type and nodeChar--only IA fields are modified
+-- based on character type and nodeChar
+-- modifies both IA and union fields
+-- union fields are unions of parent states (aligned, or IA, or static)
 makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
+     --traceNoLF ("In makeIAPrelimCharacter") (
      let characterType = charType charInfo
      in
+     if characterType == NonAdd then 
+        let leftState = stateBVUnion leftChar
+            rightState = stateBVUnion rightChar
+            unionState = V.zipWith (.|.) leftState rightState
+        in
+        nodeChar {stateBVUnion = unionState}
 
-     if characterType `elem` [SlimSeq, NucSeq] then
+    else if characterType == Add then 
+        let prelimState = V.zipWith4 getUnionRange (V.map fst $ rangeUnion leftChar) (V.map snd $ rangeUnion leftChar) (V.map fst $ rangeUnion rightChar) (V.map snd $ rangeUnion rightChar)
+        in
+        nodeChar {rangeUnion = prelimState}
+
+    else if characterType == Matrix then 
+        let numStates = length $ costMatrix charInfo
+            newMatrixVector = getUnionVector (costMatrix charInfo) numStates <$> V.zip (matrixStatesUnion leftChar) (matrixStatesUnion rightChar)
+        in
+        nodeChar {matrixStatesUnion = newMatrixVector}
+    else if characterType == AlignedSlim then 
+        let prelimState = GV.zipWith (.|.) (alignedSlimUnion leftChar) (alignedSlimUnion rightChar)
+        in
+        nodeChar {alignedSlimUnion = prelimState}
+
+    else if characterType == AlignedWide then 
+        let prelimState = GV.zipWith (.|.) (alignedWideUnion leftChar) (alignedWideUnion rightChar)
+        in
+        nodeChar {alignedWideUnion = prelimState}
+
+    else if characterType == AlignedHuge then 
+        let prelimState = GV.zipWith (.|.) (alignedHugeUnion leftChar) (alignedHugeUnion rightChar)
+        in
+        nodeChar {alignedHugeUnion = prelimState}
+
+    else if characterType `elem` [Packed2, Packed4, Packed5, Packed8, Packed64] then 
+        let prelimState = GV.zipWith (.|.) (packedNonAddUnion leftChar) (packedNonAddUnion leftChar)
+        in
+        nodeChar {packedNonAddUnion = prelimState}
+    
+    else if characterType `elem` [SlimSeq, NucSeq] then
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
         -- trace ("MPC: " ++ (show prelimChar) ++ "\nleft: " ++ (show $ extractMediansGapped $ slimIAPrelim leftChar) ++ "\nright: " ++ (show $ extractMediansGapped $ slimIAPrelim rightChar))
+        -- trace ("MIAUP-C: " ++ (show $ GV.length $ GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)))
+
+        -- the check for all missing basically creates an intersection result so all missing isn't porpagated post-order
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
                 , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
-                , localCost = (weight charInfo) * (fromIntegral cost)
+                , slimIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (slimIAUnion leftChar) (slimIAUnion rightChar)
+                , localCost = if (GV.null $ slimIAUnion leftChar) || (GV.null $ slimIAUnion rightChar) then 0
+                              else (weight charInfo) * (fromIntegral cost)
                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
                 }
-     else if characterType `elem` [WideSeq, AminoSeq] then
+    else if characterType `elem` [WideSeq, AminoSeq] then
         let (prelimChar, minCost)  = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
         in
         nodeChar {wideIAPrelim = (extractMediansGapped $ wideIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ wideIAPrelim rightChar)
+                , wideIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (wideIAUnion leftChar) (wideIAUnion rightChar)
                 , localCost = (weight charInfo) * (fromIntegral minCost)
                 , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
-     else if characterType == HugeSeq then
+    else if characterType == HugeSeq then
         let (prelimChar, minCost)  = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
         in
         nodeChar {hugeIAPrelim = (extractMediansGapped $ hugeIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)
+                , hugeIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (hugeIAUnion leftChar) (hugeIAUnion rightChar)
                 , localCost = (weight charInfo) * (fromIntegral minCost)
                 , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
                 }
-     else error ("Unrecognized character type " ++ show characterType)
+    else nodeChar --error ("Unrecognized character type " ++ show characterType)
+    -- )
 
+-- | orBVOrMissingIntersection takes two uninBV seqs and returns union or intersectino if one/both missing
+orBVOrMissingIntersection :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e -> v e
+orBVOrMissingIntersection alphSize unionIALeft unionIARight =
+    if (GV.null unionIALeft) || (allMissingBits alphSize unionIALeft) then unionIARight
+    else if (GV.null unionIARight)  || (allMissingBits alphSize unionIARight) then unionIALeft
+    else GV.zipWith (.|.) unionIALeft unionIARight
 
 -- | makeIAFinalCharacterStaticIA takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified
 -- this pulls from current node for left and right states
+-- skips other than unaligned sequence characters
 makeIAFinalCharacter :: AssignmentMethod -> CharInfo -> CharacterData -> CharacterData-> CharacterData
 makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
      let characterType = charType charInfo
@@ -841,7 +1221,7 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
         nodeChar { hugeIAFinal = finalIAChar
                  , hugeFinal = finalChar
                  }
-     else error ("Unrecognized character type " ++ show characterType)
+     else nodeChar -- error ("Unrecognized character type " ++ show characterType)
 
 
 

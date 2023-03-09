@@ -123,9 +123,10 @@ searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnete
 selectArgList :: [String]
 selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 
--- | setArgLIst contains valid 'set' arguments
+-- | setArgList contains valid 'set' arguments
+    -- joinThreshold and dynamicEpsilon are not intended for users--but could be of course
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod"]
 
 -- | refinement arguments
 supportArgList :: [String]
@@ -133,13 +134,13 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "drift", "ia", "keep", "maxchanges",
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "joinall", "keep", "maxchanges",
     "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments
 transformArgList :: [String]
 transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor", 
-    "graphssteepest", "multitraverse", "name", "outgroup", "softwiredmethod", "staticapprox", "tohardwired", 
+    "graphssteepest", "jointhreshold", "multitraverse", "name", "outgroup", "softwiredmethod", "staticapprox", "tohardwired", 
     "tosoftwired", "totree", "type", "weight"]
 
 

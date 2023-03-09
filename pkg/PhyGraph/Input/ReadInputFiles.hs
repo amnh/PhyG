@@ -395,7 +395,8 @@ processTCMContents indelGap inContents fileName =
             in
             if isNothing indelMaybe then errorWithoutStackTrace ("Specification of indel cost must be an Integer (Indel cost, Substitution cost): " ++ indelString)
             else if isNothing substMaybe then errorWithoutStackTrace ("Specification of substitution cost must be an Integer (Indel cost, Substitution cost): " ++ substString)
-            else ([], [[fromJust indelMaybe, fromJust substMaybe],[]], 1.0)
+            else 
+                ([], [[fromJust indelMaybe, fromJust substMaybe],[]], 1.0)
         --First line is alphabet
         else 
             let tcmLines = lines inContents

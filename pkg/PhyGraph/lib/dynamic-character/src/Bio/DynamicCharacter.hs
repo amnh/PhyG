@@ -39,6 +39,7 @@ module Bio.DynamicCharacter
   , transposeCharacter
     -- * Extractors
   , extractMedians
+  , extractMediansSingle
   , extractMediansLeft
   , extractMediansRight
   , extractMediansGapped
@@ -75,6 +76,7 @@ import qualified Data.Vector.Storable        as SV
 import qualified Data.Vector.Unboxed         as UV
 import           Data.Word
 import           Foreign.C.Types
+import           Debug.Trace
 
 
 -- |
@@ -207,8 +209,10 @@ setFrom
   -> Int -- ^ Index to write to destination
   -> m ()
 setFrom (slc,smc,src) (dlc,dmc,drc) i j =
-    unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
-
+    if (GV.length slc == 0) then trace (show(GV.length slc, GV.length smc, GV.length src, i, j)) $
+                    unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
+    else 
+                     unsafeWrite dlc j (slc ! i) *> unsafeWrite dmc j (smc ! i) *> unsafeWrite drc j (src ! i)
 
 {-# INLINEABLE setAlign #-}
 {-# SPECIALISE setAlign :: TempSlimDynamicCharacter (ST s) -> Int -> SlimState -> SlimState -> SlimState -> ST s () #-}
@@ -314,6 +318,20 @@ extractMedians (_,me,_)
     | otherwise  =
         let gap  = buildGap $ me ! 0
         in  GV.filter (/=gap) me
+
+-- |
+-- Extract the /ungapped/ medians of a single field of a dynamic character.
+{-# INLINEABLE extractMediansSingle #-}
+{-# SPECIALISE extractMediansSingle :: SV.Vector SlimState -> SV.Vector SlimState #-}
+{-# SPECIALISE extractMediansSingle :: UV.Vector WideState -> UV.Vector WideState #-}
+{-# SPECIALISE extractMediansSingle ::  V.Vector HugeState ->  V.Vector HugeState #-}
+extractMediansSingle :: (FiniteBits e, Vector v e) => v e -> v e
+extractMediansSingle me
+    | GV.null me = me
+    | otherwise  =
+        let gap  = buildGap $ me ! 0
+        in  GV.filter (/=gap) me
+
 
 
 -- |

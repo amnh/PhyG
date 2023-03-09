@@ -442,7 +442,9 @@ getAlignmentBasedChanges' index (a, b) =
         -- this so returns empty for non--sequence characters
         if null stringList1 then []
         
-        else if length stringList1 /= length stringList2 then error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges'")
+        else if length stringList1 /= length stringList2 then 
+            error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges': " 
+            ++ (show (length stringList1, length stringList2) ++ "\n" ++ (show stringList1) ++ "\n" ++ (show stringList2)))
         else getAlignmentBasedChangesGuts index stringList1 stringList2
     
 
@@ -563,29 +565,34 @@ makeCharLine useIA (blockDatum, charInfo) =
                         else error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
 
         -- set where get string from, IA for change lists 
-        (slimField, wideField, hugeField) = if useIA then (snd3 $ slimAlignment blockDatum, snd3 $ wideAlignment blockDatum, snd3 $ hugeAlignment blockDatum)
+        (slimField, wideField, hugeField) = if useIA then (slimIAFinal blockDatum, wideIAFinal blockDatum, hugeIAFinal blockDatum)
                                             else (slimFinal blockDatum, wideFinal blockDatum, hugeFinal blockDatum)
 
 
         -- (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
-        (_, stringFinal) =  if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
-                            else if localType == NonAdd then (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ snd3 $ stateBVPrelim blockDatum, concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal blockDatum)
-                            else if localType `elem` packedNonAddTypes then (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ packedNonAddPrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
-                            else if localType == Matrix then (show $ matrixStatesPrelim blockDatum, show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
+        stringFinal =  if localType == Add then (show $ rangeFinal blockDatum)
+                            else if localType == NonAdd then (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal blockDatum)
+                            else if localType `elem` packedNonAddTypes then (UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
+                            else if localType == Matrix then (show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
                             else if localType `elem` sequenceCharacterTypes
                                 then case localType of
-                                    x | x `elem` [NucSeq  ] -> (SV.foldMap (U.bitVectToCharState' localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState' localAlphabet) slimField)
-                                    x | x `elem` [SlimSeq ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) $ slimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) slimField)
-                                    x | x `elem` [WideSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) wideField)
-                                    x | x `elem` [AminoSeq] -> (UV.foldMap (U.bitVectToCharState' localAlphabet) $ widePrelim blockDatum, UV.foldMap (U.bitVectToCharState' localAlphabet) wideField)
-                                    x | x `elem` [HugeSeq]           -> (   foldMap (U.bitVectToCharState localAlphabet) $ hugePrelim blockDatum, foldMap (U.bitVectToCharState localAlphabet) hugeField)
-                                    x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet charInfo) || (isAlphabetRna $ alphabet charInfo) then (SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum, SV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedSlimFinal blockDatum)
-                                                                        else (SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum, SV.foldMap (U.bitVectToCharState localAlphabet) $ alignedSlimFinal blockDatum)
-                                    x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet charInfo) then (UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedWidePrelim blockDatum, UV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedWideFinal blockDatum)
-                                                                        else (UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum, UV.foldMap (U.bitVectToCharState localAlphabet) $ alignedWideFinal blockDatum)
-                                    x | x `elem` [AlignedHuge]       -> (   foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum, foldMap (U.bitVectToCharState localAlphabet) $ alignedHugeFinal blockDatum)
+                                    x | x `elem` [NucSeq  ] -> (SV.foldMap (U.bitVectToCharState' localAlphabet) slimField)
+                                    x | x `elem` [SlimSeq ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) slimField)
+                                    x | x `elem` [WideSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) wideField)
+                                    x | x `elem` [AminoSeq] -> (UV.foldMap (U.bitVectToCharState' localAlphabet) wideField)
+                                    x | x `elem` [HugeSeq]           -> (foldMap (U.bitVectToCharState localAlphabet) hugeField)
+                                    x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet charInfo) || (isAlphabetRna $ alphabet charInfo) then 
+                                                                            (SV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedSlimFinal blockDatum)
+                                                                        else 
+                                                                            (SV.foldMap (U.bitVectToCharState localAlphabet) $ alignedSlimFinal blockDatum)
+                                    x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet charInfo) then 
+                                                                            (UV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedWideFinal blockDatum)
+                                                                        else 
+                                                                            (UV.foldMap (U.bitVectToCharState localAlphabet) $ alignedWideFinal blockDatum)
+                                    x | x `elem` [AlignedHuge]       -> (foldMap (U.bitVectToCharState localAlphabet) $ alignedHugeFinal blockDatum)
                                              
                                     _ -> error ("Un-implemented data type " ++ show localType)
+
                             else error ("Un-implemented data type " ++ show localType)
 
         -- this removes ' ' between elements if sequence elements are a single character (e.g. DNA)
@@ -594,7 +601,7 @@ makeCharLine useIA (blockDatum, charInfo) =
                        else 
                             let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
                             in
-                            if maxSymbolLength > 1 then stringFinal
+                            if maxSymbolLength > 1 then removeRecurrrentSpaces $ fmap nothingToNothing stringFinal
                             else filter (/= ' ') stringFinal
 
         in
@@ -602,7 +609,18 @@ makeCharLine useIA (blockDatum, charInfo) =
         -- trace ("MCL:" ++ (show localType) ++ " " ++ stringFinal)
         -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
         [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal']
+        where nothingToNothing a = if a == '\8220' then '\00'
+                                   else a
 
+-- | removeRecurrrentSpaces removes spaces that are followed by spaces
+removeRecurrrentSpaces :: String -> String
+removeRecurrrentSpaces inString =
+    if null inString then []
+    else if length inString == 1 then inString
+    else if head inString == ' ' then
+        if (head $ tail inString) == ' ' then removeRecurrrentSpaces (tail inString)
+        else (head inString) : removeRecurrrentSpaces (tail inString)
+    else (head inString) : removeRecurrrentSpaces (tail inString)
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo :: LG.LEdge EdgeInfo -> [String]
@@ -1001,7 +1019,7 @@ makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV blockInde
     in
     V.toList blockCharacterStringList
 
--- | isAllGaps checks wether a sequence is all gap charcaters '-'
+-- | isAllGaps checks whether a sequence is all gap charcaters '-'
 isAllGaps :: String -> Bool
 isAllGaps inSeq =
     if null inSeq then True

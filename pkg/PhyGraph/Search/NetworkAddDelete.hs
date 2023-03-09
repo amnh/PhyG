@@ -1327,8 +1327,8 @@ heuristicAddDelta :: GlobalSettings -> PhylogeneticGraph -> (LG.LEdge b, LG.LEdg
 heuristicAddDelta inGS inPhyloGraph ((u,v, _), (u',v', _)) n1 n2 =
   if LG.isEmpty (fst6 inPhyloGraph) then error "Empty graph in heuristicAddDelta"
   else if graphType inGS == HardWired then
-      let uvVertData = M.makeEdgeData  False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u, v, dummyEdge)
-          uvPrimeData =  M.makeEdgeData  False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u', v', dummyEdge)
+      let uvVertData = M.makeEdgeData  False False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u, v, dummyEdge)
+          uvPrimeData =  M.makeEdgeData  False False (thd6 inPhyloGraph) (six6 inPhyloGraph) (u', v', dummyEdge)
           hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks uvVertData uvPrimeData (six6 inPhyloGraph) []
       in
       (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)

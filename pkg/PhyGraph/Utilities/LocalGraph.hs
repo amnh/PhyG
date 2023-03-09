@@ -577,17 +577,17 @@ isOutDeg1Node :: Gr a b -> Node -> Bool
 isOutDeg1Node inGraph inNode =  G.outdeg inGraph inNode == 1
 
 -- | isNetworkNode checks if node is network node
-isNetworkNode  :: Gr a b -> Node -> Bool
-isNetworkNode  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode > 0)
+isNetworkNode :: Gr a b -> Node -> Bool
+isNetworkNode inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode > 0)
 
 -- | isNetworkLeaf checks if node is network node and a leaf--usually an error condition in phylogenetic networks
-isNetworkLeaf  :: Gr a b -> Node -> Bool
-isNetworkLeaf  inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode == 0)
+isNetworkLeaf :: Gr a b -> Node -> Bool
+isNetworkLeaf inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode == 0)
 
 
 -- | - | isNetworkEdge checks if edge is network edge
-isNetworkEdge  :: Gr a b -> Edge -> Bool
-isNetworkEdge  inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg inGraph (snd inEdge) > 0)
+isNetworkEdge :: Gr a b -> Edge -> Bool
+isNetworkEdge inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg inGraph (snd inEdge) > 0)
 
 -- | - | isNetworkLabEdge checks if edge is network edge
 isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool

@@ -221,7 +221,7 @@ bitVectToCharState localAlphabet bitValue =
   -- check for symbol length > 1 then add space (since sorted last element longest)
   let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet) 
       charString = foldr pollSymbol mempty indices
-      charString' = L.intercalate "," charString
+      charString' = L.intercalate "," $ filter (/= "\8220") charString
   in
   -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) ( 
   if popCount bitValue > 1 then "[" ++ charString' ++ "]"  ++ " "
@@ -258,8 +258,8 @@ bitVectToCharState' localAlphabet bitValue =
 
     -- Nucl IUPAC
     else if ((isAlphabetDna localAlphabet) || (isAlphabetRna localAlphabet)) && (SET.size (alphabetSymbols localAlphabet) == 5) then
-
-        if stringVal == "AG" then "R" ++ " "
+        if stringVal == "" then ""
+        else if stringVal == "AG" then "R" ++ " "
         else if stringVal == "CT" then "Y" ++ " "
         else if stringVal == "CG" then "S" ++ " "
         else if stringVal == "AT" then "W" ++ " "
@@ -288,7 +288,7 @@ bitVectToCharState' localAlphabet bitValue =
         else if stringVal == "-ACT" then "h" ++ " "
         else if stringVal == "-ACG" then "v" ++ " "
 
-        else ("Unrecognized nucleic acid ambiguity code : " ++ (L.intercalate "," $ stringVal'))  
+        else ("Unrecognized nucleic acid ambiguity code : " ++ "|" ++ stringVal ++ "|")  
 
     else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ (show localAlphabet))  
   --  )
@@ -942,3 +942,8 @@ hasResolutionDuplicateEdges inResData =
         edgeDupList = length $ (fmap LG.toEdge edgeList) L.\\ (L.nub $ fmap LG.toEdge edgeList)
     in
     edgeDupList > 0
+
+-- | getUnionFieldsNode reutnrs String of union fields nicely
+getUnionFieldsNode :: VertexBlockData -> String
+getUnionFieldsNode inVertData =
+    "UnionFields " ++ show inVertData

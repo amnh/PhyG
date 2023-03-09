@@ -105,6 +105,8 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeGraphFactor = any ((=="graphfactor").fst) lcArgList
             changeCompressionResolutions = any ((=="compressresolutions").fst) lcArgList
             changeMultiTraverse = any ((=="multitraverse").fst) lcArgList
+            changeUnionThreshold = any ((=="jointhreshold").fst) lcArgList
+            
             
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
@@ -170,6 +172,13 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head reRootBlock) = Just $ outGroupName inGS  
                | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
 
+            changeUnionBlock = filter ((=="jointhreshold").fst) lcArgList
+            unionValue
+               | length changeUnionBlock > 1 =
+                  errorWithoutStackTrace ("Multiple joinThreshold specifications in transform--can have only one: " ++ show inArgs)
+               | null changeUnionBlock = Just $ unionThreshold inGS 
+               | null (snd $ head changeUnionBlock) = Just $ unionThreshold inGS 
+               | otherwise = readMaybe (snd $ head changeUnionBlock) :: Maybe Double
 
             nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
             charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
@@ -314,7 +323,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                      let lengthChangeString = if null inGraphList then ""
                                               else (":" ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                      in
-                     trace ("Changing multiTraverse to " ++ lengthChangeString)
+                     trace ("Changing multiTraverse to " ++ (show newMethod) ++ lengthChangeString)
                      (inGS {multiTraverseCharacters = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {multiTraverseCharacters = newMethod}, origData, inData, inGraphList)
 
@@ -347,6 +356,15 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   else 
                      trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
                      (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, newPhylogeneticGraphList)
+
+            -- changes unionThreshold error check factor
+            else if changeUnionThreshold then
+               if isNothing unionValue then errorWithoutStackTrace ("UninThreshold value is not specified correcty. Must be a double (e.g. 1.17): " ++ (show (snd $ head changeUnionBlock)))
+               else 
+                  trace ("Changing uninoTHreshold factor to " ++ (show $ fromJust unionValue))
+                  (inGS {dynamicEpsilon = (fromJust unionValue)}, origData, inData, inGraphList)
+
+            
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
 
@@ -470,6 +488,7 @@ transformData leavePrealigned inCharInfoV inCharLengthV inCharDataV  =
 -- checks if all gaps with the GV.filter.  If all gaps--it means the sequence char was missing and
 -- implied alignment produced all gaps.  The passing of character length is not necessary when changed missing seq to empty
 -- character--but leaving in case change back to [] 
+-- "nonAddGap" not currently implemented
 transformCharacter :: Bool -> CharacterData -> CharInfo -> Int -> (CharacterData, CharInfo)
 transformCharacter leavePrealigned inCharData inCharInfo charLength =
    let inCharType = charType inCharInfo
@@ -544,7 +563,7 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
          let gapChar = setBit (BV.fromBits $ replicate alphSize False) gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData) then hugeAlignment inCharData
                                 else 
-                                 let missingElement = V.replicate charLength $ (BV.fromBits $ replicate alphSize True) 
+                                 let missingElement = V.replicate alphSize $ (BV.fromBits $ replicate alphSize True) 
                                  in (missingElement, missingElement, missingElement)
 
              newPrelimBV = impliedAlignChar
