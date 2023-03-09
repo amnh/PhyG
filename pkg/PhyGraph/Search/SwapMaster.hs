@@ -141,6 +141,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                        in
                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                                      else (newGraphList'', 0)
+
               in
               let finalGraphList = if null newGraphList'' then inGraphList
                                    else newGraphList'''
