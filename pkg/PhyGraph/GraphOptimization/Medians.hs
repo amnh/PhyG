@@ -940,7 +940,7 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
     else if characterType == AlignedWide then
         let (prelimChar, cost) = get2WayWideHuge (wideTCM charInfo) (alignedWideUnion leftChar) (alignedWideUnion rightChar)
         in
-        trace ("GPA2M-wide: " ++ (show $ GV.length prelimChar))
+        --trace ("GPA2M-wide: " ++ (show $ GV.length prelimChar))
         nodeChar { alignedWideUnion = prelimChar
                  , localCost = (weight charInfo) * (fromIntegral cost)
                  , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
@@ -949,7 +949,7 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
     else if characterType == AlignedHuge then
         let (prelimChar, cost) = get2WayWideHuge (hugeTCM charInfo) (alignedHugeUnion leftChar) (alignedHugeUnion rightChar)
         in
-        trace ("GPA2M-huge: " ++ (show $ GV.length prelimChar))
+        --trace ("GPA2M-huge: " ++ (show $ GV.length prelimChar))
         nodeChar { alignedHugeUnion = prelimChar
                  , localCost = (weight charInfo) * (fromIntegral cost)
                  , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]

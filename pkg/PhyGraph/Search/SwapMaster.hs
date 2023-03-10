@@ -93,11 +93,15 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
                returnMutated = any ((=="returnmutated").fst) lcArgList
 
-               -- turn off union selection of rejoin
-               joinAll = any ((=="joinall").fst) lcArgList
+               -- turn off union selection of rejoin--dfault to do both, union first
+               joinAll = if (any ((=="joinall").fst) lcArgList) then True
+                         else if (any ((=="joinsome").fst) lcArgList) then False
+                         else False
 
-               -- randomize split graph and rejoin edges
-               atRandom = any ((=="atrandom").fst) lcArgList
+               -- randomize split graph and rejoin edges, defualt to randomize
+               atRandom = if (any ((=="atrandom").fst) lcArgList) then True
+                          else if (any ((=="inOrder").fst) lcArgList) then False
+                          else True
 
                randomIntListSwap = randomIntList rSeed
 
@@ -141,9 +145,13 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                        in
                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                                      else (newGraphList'', 0)
+
               in
               let finalGraphList = if null newGraphList'' then inGraphList
-                                   else newGraphList'''
+                                   else newGraphList''' 
+
+                  fullBuffWarning = if length (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList''') >= (fromJust keepNum) then "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
+                                    else ""
                   endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
                                 ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
@@ -151,7 +159,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                 ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                   
               in
-              trace (endString)
+              trace (endString ++ fullBuffWarning)
               finalGraphList
               )
             

@@ -78,7 +78,7 @@ buildArgList = ["atrandom", "best", "block", "character", "cun", "displaytrees",
 
 -- | fuseArgList arguments
 fuseArgList :: [String]
-fuseArgList = ["all", "atrandom", "best", "keep", "once", "pairs", "none", "spr",  "steepest", "tbr", "unique", "reciprocal", "noreciprocal"]
+fuseArgList = ["all", "atrandom", "best", "joinall", "joinsome", "keep", "once", "pairs", "none", "spr",  "steepest", "tbr", "unique", "reciprocal", "noreciprocal"]
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList :: [String]
@@ -134,7 +134,7 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "joinall", "keep", "maxchanges",
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "inorder", "joinall", "joinsome", "keep", "maxchanges",
     "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments
