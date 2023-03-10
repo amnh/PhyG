@@ -97,7 +97,9 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                joinAll = any ((=="joinall").fst) lcArgList
 
                -- randomize split graph and rejoin edges
-               atRandom = any ((=="atrandom").fst) lcArgList
+               atRandom = if (any ((=="atrandom").fst) lcArgList) then True
+                          else if (any ((=="inOrder").fst) lcArgList) then False
+                          else True
 
                randomIntListSwap = randomIntList rSeed
 

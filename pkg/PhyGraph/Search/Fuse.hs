@@ -77,7 +77,7 @@ fuseAllGraphs :: GlobalSettings
               -> Bool
               -> [PhylogeneticGraph]
               -> ([PhylogeneticGraph], Int)
-fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType joinAll doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList =
+fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType joinAll' doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList =
    if null inGraphList then ([], 0)
    else if length inGraphList == 1 then (inGraphList, 0)
    else
@@ -123,6 +123,8 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType joi
 
          -- ParMap created too large a memory footprint. Pafrallleism at lower levels
          -- newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
+         -- turning on JoinAll for fuse no mater what options specified
+         joinAll = True
          newGraphList = fusePairRecursive inGS inData doSteepest numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist curBest swapType joinAll reciprocal [] graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList

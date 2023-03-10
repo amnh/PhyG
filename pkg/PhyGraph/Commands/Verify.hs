@@ -134,7 +134,7 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
-swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "joinall", "keep", "maxchanges",
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "inorder", "joinall", "keep", "maxchanges",
     "nni", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments

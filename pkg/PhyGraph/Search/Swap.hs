@@ -1,7 +1,7 @@
 {- |
 Module      :  Swap.hs
 Description :  Module specifying graph swapping rearrangement functions
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Copyright   :  (c) 2021-2023 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without
@@ -57,11 +57,13 @@ import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import           Debug.Trace
 
 
--- | swapSPRTBR perfomrs SPR or TBR branch (edge) swapping on graphs
+-- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
 -- runs both SPR and TBR depending on argument since so much duplicated functionality
 -- 'steepest' abandons swap graph and switces to found graph as soon as anyhting 'better'
 -- is found. The alternative (all) examines the entire neighborhood and retuns the best result
 -- the retuns is a list of better graphs and the number of swapping rounds were required to ge there
+-- if "joinAll" is specified a single round is perfomred--otherwise a union round is
+-- followed by "joinAll".   JoinAlll is turned on for annealing/drifting
 swapSPRTBR  :: String
             -> Bool
             -> Bool
@@ -77,6 +79,33 @@ swapSPRTBR  :: String
             -> (Maybe SAParams, PhylogeneticGraph)
             -> ([PhylogeneticGraph], Int)
 swapSPRTBR swapType joinAll atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph) =
+   if joinAll || isJust inSimAnnealParams then 
+      swapSPRTBR' swapType True atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+   else 
+      let (firstList, firstCounter) = swapSPRTBR' swapType False atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+          bestFirstList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] firstList
+          (secondListList, secondCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR' swapType True atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip (replicate (length bestFirstList) Nothing) bestFirstList
+      in
+      (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ concat secondListList, sum (firstCounter : secondCounterList))
+
+-- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
+-- options such as joinAll to ensure complete swap but with an edge unions pass to
+-- reduce time of swap 
+swapSPRTBR'  :: String
+            -> Bool
+            -> Bool
+            -> [Int]
+            -> GlobalSettings
+            -> ProcessedData
+            -> Int
+            -> Int
+            -> Bool
+            -> Bool
+            -> Bool
+            -> Bool
+            -> (Maybe SAParams, PhylogeneticGraph)
+            -> ([PhylogeneticGraph], Int)
+swapSPRTBR' swapType joinAll atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph) =
    -- trace ("In swapSPRTBR:") (
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else
