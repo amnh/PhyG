@@ -93,10 +93,12 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
                returnMutated = any ((=="returnmutated").fst) lcArgList
 
-               -- turn off union selection of rejoin
-               joinAll = any ((=="joinall").fst) lcArgList
+               -- turn off union selection of rejoin--dfault to do both, union first
+               joinAll = if (any ((=="joinall").fst) lcArgList) then True
+                         else if (any ((=="joinsome").fst) lcArgList) then False
+                         else False
 
-               -- randomize split graph and rejoin edges
+               -- randomize split graph and rejoin edges, defualt to randomize
                atRandom = if (any ((=="atrandom").fst) lcArgList) then True
                           else if (any ((=="inOrder").fst) lcArgList) then False
                           else True

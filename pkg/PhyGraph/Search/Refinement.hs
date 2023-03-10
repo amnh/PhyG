@@ -232,7 +232,11 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                           else if doSPR' then "spr"
                           else "none"
 
-               joinAll = any ((=="joinall").fst) lcArgList
+               --set edge join preferences a;;/some default all
+               joinAll = if (any ((=="joinall").fst) lcArgList) then True
+                         else if (any ((=="joinsome").fst) lcArgList) then False
+                         else True
+
 
                        
                returnBest = any ((=="best").fst) lcArgList

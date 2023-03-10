@@ -83,9 +83,10 @@ swapSPRTBR swapType joinAll atRandom randomIntListSwap inGS inData numToKeep max
       swapSPRTBR' swapType True atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
    else 
       let (firstList, firstCounter) = swapSPRTBR' swapType False atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
-          bestFirstList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] firstList
+          bestFirstList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : firstList)
           (secondListList, secondCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR' swapType True atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip (replicate (length bestFirstList) Nothing) bestFirstList
       in
+      --trace ("SSPRTBR:" ++ (show (length firstList, length bestFirstList)))
       (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ concat secondListList, sum (firstCounter : secondCounterList))
 
 -- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate

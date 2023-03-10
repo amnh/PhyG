@@ -88,6 +88,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             -- recombine elite with mutated and mutated with mutated
             recombineSwap = getRandomElement (seedList !! 4) ["none" , "nni", "spr"] --  these take too long, "tbr", "alternate"]
 
+            -- options to join via union choices or all in fuse
             joinAll =  getRandomElement (seedList !! 6) [False, True]
             
             doSteepest = True
@@ -127,7 +128,7 @@ mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> PhylogeneticGrap
 mutateGraph inGS inData maxNetEdges rSeed inGraph =
     if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
     else
-        let joinAll = False -- keep selection of rejoins based on unions
+        let joinAll = True -- keep selection of rejoins based on all possibilities
             atRandom = True -- randomize split and rejoin edge orders
             randList = randomIntList rSeed
             saValues = Just $ SAParams  { method = getRandomElement (randList !! 0) [Drift, SimAnneal]
