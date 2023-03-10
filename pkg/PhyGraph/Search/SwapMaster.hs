@@ -148,7 +148,10 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
               in
               let finalGraphList = if null newGraphList'' then inGraphList
-                                   else newGraphList'''
+                                   else newGraphList''' 
+
+                  fullBuffWarning = if length (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList''') >= (fromJust keepNum) then "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
+                                    else ""
                   endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
                                 ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
@@ -156,7 +159,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                 ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
                   
               in
-              trace (endString)
+              trace (endString ++ fullBuffWarning)
               finalGraphList
               )
             

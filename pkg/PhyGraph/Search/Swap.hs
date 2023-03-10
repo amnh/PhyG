@@ -83,8 +83,12 @@ swapSPRTBR swapType joinAll atRandom randomIntListSwap inGS inData numToKeep max
       swapSPRTBR' swapType True atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
    else 
       let (firstList, firstCounter) = swapSPRTBR' swapType False atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+
+          -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
           bestFirstList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : firstList)
+          
           (secondListList, secondCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR' swapType True atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip (replicate (length bestFirstList) Nothing) bestFirstList
+
       in
       --trace ("SSPRTBR:" ++ (show (length firstList, length bestFirstList)))
       (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ concat secondListList, sum (firstCounter : secondCounterList))
@@ -379,15 +383,6 @@ postProcessSwap swapType joinAll atRandom randomIntListSwap inGS inData numToKee
          -- for alternarte do SPR first then TBR
          let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList -- (newGraphList ++ (tail inGraphList))
          in
-         {- This moved to swapAll functionality
-         if alternate || swapType == "alternate" then 
-            let (sprList, _, _) = swapAll' "spr" inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
-                sprMinCost = min curBestCost ((snd6 . head) sprList)
-                graphsToTBRSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] sprList -- (sprList ++ (tail inGraphList))
-
-            in
-            swapAll' "tbr" inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 2) sprMinCost sprList graphsToTBRSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams
-         -}
 
          -- for alternate if found better return immediately
          if alternate then (newGraphList, counter, inSimAnnealParams)
@@ -421,6 +416,7 @@ postProcessSwap swapType joinAll atRandom randomIntListSwap inGS inData numToKee
              -- but have same cost
              graphsToDo' = if length graphsToDo >= (numToKeep - 1) then (tail inGraphList)
                            else if length newCurSameBetterList == length curSameBetterList then (tail inGraphList)
+                           --else if (fmap fst6 newCurSameBetterList) ==  (fmap fst6 curSameBetterList) then (tail inGraphList)
                            else graphsToDo
 
          in
