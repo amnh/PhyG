@@ -919,6 +919,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
    let newEdgeList = [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
 
        -- set edge union creation type to IA-based, filtering gaps
+       --targetEdgeData = M.makeEdgeData True True splitGraph charInfoVV targetEdge
        targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
 
        --this for SPR/NNI only
