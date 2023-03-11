@@ -55,7 +55,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                as LG
 import           Utilities.Utilities                 as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import qualified Search.Swap                         as S
+--import qualified Search.Swap                         as S
 
 
 -- Haven't added in unions--but prob should

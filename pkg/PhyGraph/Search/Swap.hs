@@ -54,7 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import           Debug.Trace
+--import           Debug.Trace
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs

@@ -88,8 +88,8 @@ import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import           Data.Maybe
-import           Debug.Trace
 import qualified Data.List                   as L
+--import           Debug.Trace
 
 
 -- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
