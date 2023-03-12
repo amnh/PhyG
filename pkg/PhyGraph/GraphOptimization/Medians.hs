@@ -987,8 +987,8 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
         let prelimState = extractMediansGapped $ slimAlignment nodeChar
             unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (slimGapped nodeChar)
         in
-        nodeChar { slimIAPrelim = slimAlignment nodeChar
-                 , slimIAFinal = prelimState
+        nodeChar { slimIAPrelim = makeDynamicCharacterFromSingleVector unionState -- slimAlignment nodeChar
+                 , slimIAFinal = unionState -- prelimState
                  , slimIAUnion = unionState
                  }
 
@@ -996,8 +996,8 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
         let prelimState = extractMediansGapped $ wideAlignment nodeChar
             unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (wideGapped nodeChar)
         in
-        nodeChar { wideIAPrelim = wideAlignment nodeChar
-                 , wideIAFinal = prelimState
+        nodeChar { wideIAPrelim = makeDynamicCharacterFromSingleVector unionState -- ideAlignment nodeChar
+                 , wideIAFinal = unionState -- prelimState
                  , wideIAUnion = unionState
                  }
 
@@ -1005,8 +1005,8 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
         let prelimState = extractMediansGapped $ hugeAlignment nodeChar
             unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (hugeGapped nodeChar)
         in
-        nodeChar { hugeIAPrelim = hugeAlignment nodeChar
-                 , hugeIAFinal = prelimState
+        nodeChar { hugeIAPrelim = makeDynamicCharacterFromSingleVector unionState -- hugeAlignment nodeChar
+                 , hugeIAFinal = unionState -- prelimState
                  , hugeIAUnion = unionState
                  }
 
@@ -1033,8 +1033,8 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
     else error ("Unrecognized character type " ++ show characterType)
     --)
 
--- | unionBVOrMissing returns union state, if all '-' converts to missing characters
---  so BV unions get a zero cost as opposed to checking against all '-' seqquence
+-- | unionBVOrMissing returns leaf algnment state, if all '-' converts to missing characters
+--  so BV unions and IAFinal get a zero cost as opposed to checking against all '-' seqquence
 unionBVOrMissing :: (FiniteBits e, GV.Vector v e) => v e -> Int -> (v e, v e, v e) -> v e
 unionBVOrMissing prelimState alphSize nodeGapped =
     if not $ GV.null prelimState then 
