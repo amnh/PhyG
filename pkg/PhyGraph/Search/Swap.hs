@@ -223,7 +223,7 @@ swapAll swapType joinAll atRandom randomIntListSwap inGS inData numToKeep maxMov
                            else infinity
 
          in
-         -- if TBR found better go around again with SPR first
+         -- if TBR found better go around again with SPR first--since returned if found better during TBR rejoin
          if tbrBestCost < sprBestCost then
             swapAll swapType joinAll atRandom (drop 2 randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest alternate tbrCounter tbrBestCost tbrGraphs tbrGraphs numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor tbrSAPArams
 
