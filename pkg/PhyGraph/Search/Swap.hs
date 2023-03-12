@@ -916,6 +916,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
 
        -- set edge union creation type to IA-based, filtering gaps (should be linear)
        targetEdgeData = M.makeEdgeData True True splitGraph charInfoVV targetEdge
+       -- this for using DO for edge O(n^2)
        --targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
 
        --this for SPR/NNI only
