@@ -96,9 +96,9 @@ swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist stee
           afterSecondList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ (concat secondListList) ++ bestFirstList
           afterSecondCounter = sum (firstCounter : secondCounterList)
           -}
-
+          -- recursive list version as opposed ot parMap version
           (afterSecondList, afterSecondCounter) = swapSPRTBRList swapType "joinAll" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated [inGraph] firstCounter $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 1000) randomIntListSwap)) (replicate (length bestFirstList) Nothing) bestFirstList
-          
+
       in
       {-This not working so turned off for now
       -- if found better recurse to join pruned
