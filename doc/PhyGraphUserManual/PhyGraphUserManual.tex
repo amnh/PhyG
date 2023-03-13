@@ -225,7 +225,7 @@
 		A script is a simple text file containing a list of commands to be performed. Running 
 		analyses using scripts allows for the entire analysis to proceed from the beginning to 
 		the end with one click of a button and may produce faster results as \phyg automatically 
-		optimizes the workflow of the analysis by taking into account the functional relationships 
+		optimizes the workflow of the analysis by considering the functional relationships 
 		among various tasks and efficiently distributing the jobs and resources (such as memory 
 		and multiple processors). This script 	can also include references to other script files 
 		(Figure \ref{firstscript}).
@@ -253,14 +253,14 @@
 		\label{subsec:parallel}
 		\phyg is a multi-threading application and will, by default, spawn as many jobs as there 
 		are cores in the machine and can be more efficient. Should the user wish to limit or 
-		specify the number of processors used by \phyg this can be achieved by including the options 
-		`\textbf{+RTS -NX -RTS}', where `\textbf{X}' is the number of processors offered to the 
-		program, when executing the script. These options are specified after the program as in:
-		
+		specify the number of processors used by \phyg this can be achieved by including the 
+		options `\textbf{+RTS -NX -RTS}', where `\textbf{X}' is the number of processors offered 
+		to the program, when executing the script. Should the user wish to use a single processor, 
+		this can be specified by typing:
+
 		\begin{quote}
-		phyg fileName +RTS -NX 
-		\end{quote}
-		
+		phyg fileName +RTS -N1 
+		\end{quote}		
 		%possible to include and other options
 
 		
@@ -270,7 +270,6 @@
 	\section{Input Data Formats} 
 	Any character names in input files are (for now) ignored and internal names are created
 	by appending the character number in its file to the filename as in "fileName:0".
-	%No idea what thing means
 	Qualitative data, and prealigned data include their index in their input files and unaligned 
 	data are treated as a single character.
 		
@@ -362,9 +361,7 @@
 		newlines). Each command consists of a name followed by a list of arguments 
 		separated by commas and enclosed in parentheses. Commands and arguments 
 		are case insensitive with the exception of filename specifications, which are always 
-		in double quotes (\texttt{"fileName"}). File options require a valid filename %\hl{what 
-		does this mean?} 
-		Arguments may be preceded or followed by 
+		in double quotes (\texttt{"fileName"}). Arguments may be preceded or followed by 
 		options separated by a colon \texttt{`:'}, with no space before the option. Command 
 		arguments are order independent and can be entered from a file as stdin 
 		(\texttt{$<$ fileName}).
@@ -375,15 +372,15 @@
 	
 		\noindent Most of the arguments are optional, and there are only a few \phyg options
 		 that require specification. 	There are defaults for all options except input graphs. 
-		 Parameters are given with options in a range `a to b' (a-b) with any value in the interval, 
-		 or alternates `a or b' (a|b). 
+		 \hl{Parameters are given with options in a range `a to b' (a-b) with any value in the interval, 
+		 or alternates `a or b' (a|b).} 
 		%\hl{reword this, confusing}
 		
-		Commands are standard commands that can affect the behavior of another command 
+		\hl{Commands are standard commands that can affect the behavior of another command 
 		when included in its list of arguments. Therefore, certain commands can function as 
 		arguments of other commands. For example, the command \texttt{swap} specifies 
 		the method of branch swapping. This command is used to conduct a local search on 
-		a set of trees. %In addition, \texttt{swap} functions as an argument for \texttt{build}
+		a set of trees.} %In addition, \texttt{swap} functions as an argument for \texttt{build}
 		%specifying \hl{...}.
 
 		For input graphs, wildcards are allowed (i.e. `*' and `?').\\
