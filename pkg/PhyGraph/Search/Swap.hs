@@ -117,7 +117,11 @@ swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist stee
                 
 
             in
-            {-This not working so turned off for now-}
+            {-
+            This not working so turned off for now
+            need to change "joinAll" to "joinAlternate" in call
+            to swapSPRTBRList
+            -}
             
             {-
             -- if found better recurse to join pruned
