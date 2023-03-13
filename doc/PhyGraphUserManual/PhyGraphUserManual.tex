@@ -106,7 +106,7 @@
 \chapter{What is PhyG?}
 
 	\section{Introduction}
-	PhylogeneticGraph (\phyg) is a multi-platform program designed to produce phylogenetic 
+	PhylogeneticGraph (\texttt{PhyG}) is a multi-platform program designed to produce phylogenetic 
 	graphs from input data and graphs via heuristic searching of general phylogenetic graph 
 	space. \texttt{PhyG} is the successor of \href{https://github.com/wardwheeler/POY5}{\textbf{POY}}
 	\citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015}, containing much of its 
@@ -137,13 +137,13 @@
 		
 		\subsection{Obtaining and Installing \phyg}
 		\phyg source code, precompiled binaries, test data, and documentation in pdf format, 
-		%as well as tutorials
-		are available from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} website.
+		as well as tutorials, are available from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} website.
 
 		\subsubsection{Installing from the binaries}
 		Download the \phyg binary from the \href{https://github.com/amnh/PhyGraph}{GitHub} 
 		website. Binaries are available for Mac OSX computers with either Intel or M1 processors, 
-		and Linux machines. The user can go directly to the website and click on the appropriate link 
+		and Linux machines (see information relating to Windows machine below).
+		The user can go directly to the website and click on the appropriate link 
 		for the binary. On most systems this will download to either your Desktop or Downloads folder. 
 		Alternatively, open a \textit{Terminal} window (located in your Applications folder) and type 
 		the following for either the Mac Intel, Mac M1 or Linux binary:
@@ -166,8 +166,14 @@
 		\end{quote}
 		
 		\noindent The binary should either be moved into your \$PATH or referred to its 
-		absolute when executing a script.
-				
+		absolute when executing a script.\\
+		
+		For those users with Windows machines, a Windows Subsystem for Linux 
+		(WSL) can be installed. This system will allow you to run the Linux binary directly 
+		on your machine, without having to install a virtual machine or dual-boot setup. 
+		The WSL, along with directions for installation, can be found 
+		\href{https://learn.microsoft.com/en-us/windows/wsl/}{here}.
+	
 		\subsubsection{Compiling from the source}
 		For the majority of users, downloading the binaries will suffice. Should the user prefer to 
 		compile \phyg directly from the source, the source code can be downloaded 
@@ -176,7 +182,8 @@
 		a command-line program for downloading and building software written in Haskell (ghc).  
 		Information on its installation can be found  
 		\href{https://www.schoolofhaskell.com/user/simonmichael/how-to-cabal-install}{here}.
-		To install an optimized version of \phyg, run the following in a \textit{Terminal}:
+		To install an optimized version of \texttt{PhyG}, open a \textit{Terminal} and run the 
+		following:
 		
 		\begin{quote}
 		cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
@@ -194,21 +201,21 @@
 		output files and formats, graph type and search parameters.
 		
 		\subsection{Executing Scripts}
-		The program is invoked from the command-line as in:
+		The program is invoked from the command-line as in:\\
 		
 		\begin{quote}
 		phyg commandFile
 		\end{quote}
-		
-		\noindent For example, typing\\
+
+		\noindent For example, typing the following in a \textit{Terminal} window will invoke 
+		\phyg to run the script \texttt{mol.pg}, which is located in the Desktop folder \texttt{phygfiles}:\\
 		
 		\begin{quote}
   		phyg Users/Ward/Desktop/phygfiles/mol.pg
 		\end{quote}
 
-		\noindent in a \textit{Terminal} window will invoke \phyg to run the script \texttt{mol.pg}, 
-		which is located in the Desktop of the home directory \texttt{/Users/Ward/Desktop/phygfiles}. 
-		This is the equivalent of including\\
+		\noindent 
+		This is the equivalent of typing the following from any location on your computer:\\
 		
 		\begin{quote}
    		cd ("Users/Ward/Desktop/phygfiles")
@@ -228,7 +235,7 @@
 		annotations can be included. Comments are prepended with `-{}-' and can span multiple 
 		lines, provided each line begins with `-{}-'. 
 
-		\begin{figure}
+		\begin{figure}[H]
 		\centering
 		\includegraphics[width=\textwidth]{First_run.jpg}
 		\caption{\phyg scripts. The headers in the scripts are comments, leading with `-{}-', which is 
