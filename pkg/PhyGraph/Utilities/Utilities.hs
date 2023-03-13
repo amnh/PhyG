@@ -696,6 +696,13 @@ incrementSimAnnealParams inParams =
                                        , randomIntegerList = randList
                                        }
 
+-- | generateRandLists generates n random lists from seed
+generateRandIntLists :: Int -> Int -> [[Int]]
+generateRandIntLists rSeed number = 
+    if number == 0 then []
+    else
+        fmap GU.randomIntList  (take number $ GU.randomIntList  rSeed)
+
 -- | generateUniqueRandList take a int and simulated anealing parameter slist and creates
 -- a list of SA paramter values with unique rnandomInt lists
 -- sets current step to 0

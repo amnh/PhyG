@@ -89,7 +89,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             recombineSwap = getRandomElement (seedList !! 4) ["none" , "nni", "spr"] --  these take too long, "tbr", "alternate"]
 
             -- options to join via union choices or all in fuse
-            joinAll =  getRandomElement (seedList !! 6) [False, True]
+            joinType =  getRandomElement (seedList !! 6) [False, True]
             
             doSteepest = True
             returnBest = False
@@ -99,7 +99,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             randomPairs = True
             reciprocal = False
 
-            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0 recombineSwap joinAll doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
+            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0 recombineSwap joinType doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
 
             -- selection of graphs population
             -- unique sorted on cost so getting unique with lowest cost
@@ -128,7 +128,7 @@ mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> PhylogeneticGrap
 mutateGraph inGS inData maxNetEdges rSeed inGraph =
     if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
     else
-        let joinAll = True -- keep selection of rejoins based on all possibilities
+        let joinType = "joinAll" -- keep selection of rejoins based on all possibilities
             atRandom = True -- randomize split and rejoin edge orders
             randList = randomIntList rSeed
             saValues = Just $ SAParams  { method = getRandomElement (randList !! 0) [Drift, SimAnneal]
@@ -166,7 +166,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         -- only swap mutation stuff for tree
         if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then
             -- trace ("1")
-            let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom randList inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+            let (newGraphList, _) =  S.swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randList, inSimAnnealParams, inGraph)
             in
             if (not . null) newGraphList then head newGraphList
             else inGraph
@@ -176,7 +176,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         else
             if editType == "swap" then
                 -- trace ("2")
-                let (newGraphList, _) =  S.swapSPRTBR swapType joinAll atRandom randList inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
+                let (newGraphList, _) =  S.swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randList,inSimAnnealParams, inGraph)
                 in
                 if (not . null) newGraphList then head newGraphList
                 else inGraph

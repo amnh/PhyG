@@ -24,7 +24,7 @@ read(prefasta:"chel-prealigned.fas", tcm:"sg2t2.mat")
 --set(bc64:(0.5,1.5))
 --set(bcgt64:(0.6,1.6))
 
-set(dynamicEpsilon:0.0)
+--set(dynamicEpsilon:0.0)
 
 -- For network testing
 --set (outgroup:"one")
@@ -65,7 +65,7 @@ set(dynamicEpsilon:0.0)
 
 --select(best)
 
-swap(alternate)
+--swap(alternate)
 -- swap(alternate)
 
 -- fuse(spr,all)
@@ -75,7 +75,7 @@ swap(alternate)
 
 --transform(weight:0.1, name:"chel.fas#0*")
 
-search(hours:1, minutes:2, instances:2, Thompson:1, linear)
+search(hours:0, minutes:1, instances:2, Thompson:1, linear)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 

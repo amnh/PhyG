@@ -61,6 +61,7 @@ import           System.IO
 import qualified Utilities.Utilities         as U
 
 
+
 -- Add non reroot thing liike IA for faster
 
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
@@ -158,13 +159,13 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    let (updatedThetaList, newStopCount) = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSecondsCPU outTotalSeconds stopCount stopNum
    let thetaString = L.intercalate "," $ fmap (show . snd) updatedThetaList
 
-   let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
+   let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
    hPutStrLn stderr $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
                       , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
                       ]
-   if elapsedSeconds >= allotedSeconds || newStopCount >= stopNum
+   if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum
    then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString ++ "," ++ thetaString ++ "," ++ "*"]) -- output with strings correctly added together
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
@@ -477,7 +478,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in
                                             -- search
-                                            (R.swapMaster swapArgs inGS inData (head randIntList) buildGraphs', buildArgs ++ swapArgs)
+                                            (R.swapMaster swapArgs inGS inData (randIntList !! 1) buildGraphs', buildArgs ++ swapArgs)
 
                                           else if searchBandit == "buildAlternate" then 
                                             let -- build part
@@ -490,7 +491,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in    
                                             -- search
-                                            (R.swapMaster swapArgs inGS inData (head randIntList) buildGraphs', buildArgs ++ swapArgs)
+                                            (R.swapMaster swapArgs inGS inData (randIntList !! 1) buildGraphs', buildArgs ++ swapArgs)
 
                                           else if searchBandit == "swapSPR" then 
                                             let -- swap options
@@ -498,7 +499,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in
                                             -- search
-                                            (R.swapMaster swapArgs inGS inData (head randIntList) inGraphList, swapArgs)
+                                            (R.swapMaster swapArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
 
                                           else if searchBandit == "swapAlternate" then 
                                             let -- swap options
@@ -506,7 +507,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
                                             in    
                                             -- search
-                                            (R.swapMaster swapArgs inGS inData (head randIntList) inGraphList, swapArgs)
+                                            (R.swapMaster swapArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
 
                                           else if searchBandit == "driftSPR" then
                                             let -- swap args
@@ -517,7 +518,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList) inGraphList, swapArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
 
                                           else if searchBandit == "driftAlternate" then
                                             let -- swap args
@@ -528,7 +529,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (head randIntList) inGraphList, swapDriftArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapDriftArgs)
 
                                           else if searchBandit == "annealSPR" then
                                             let -- swap args
@@ -539,7 +540,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList) inGraphList, swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
 
                                           else if searchBandit == "annealAlternate" then
                                             let -- swap args
@@ -550,12 +551,12 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (head randIntList) inGraphList, swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
 
                                           else if searchBandit == "geneticAlgorithm" then
                                             -- args from above
                                             -- perform search
-                                            (R.geneticAlgorithmMaster gaArgs inGS inData (head randIntList) inGraphList, gaArgs)
+                                            (R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 1) inGraphList, gaArgs)
 
                                           else if searchBandit == "fuse" then
                                             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
@@ -563,70 +564,70 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 fuseArgs = [("none",""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGS inData(randIntList !! 1) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseSPR" then
                                             let -- fuse arguments
                                                 fuseArgs = [("spr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGS inData (randIntList !! 1) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseTBR" then
                                             let -- fuse arguments
                                                 fuseArgs = [("tbr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (head randIntList) inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGS inData (randIntList !! 1) inGraphList, fuseArgs)
 
                                           else if searchBandit == "networkAdd" then
                                             let -- network add args
                                                 netEditArgs = netAddArgs
                                             in
                                             -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "networkDelete" then
                                             let -- network delete args
                                                 netEditArgs = netDelArgs
                                             in
                                             -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "networkAddDelete" then
                                             let -- network add/delete args
                                                 netEditArgs = netAddDelArgs
                                             in
                                             -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "networkAddDelete" then
                                             let -- network add/delete args
                                                 netEditArgs = netAddDelArgs
                                             in
                                             -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "networkMove" then
                                             let -- network move args
                                                 netEditArgs = netMoveArgs
                                             in
                                             -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "driftNetwork" then
                                             let -- network add/delete  + drift args
                                                 netEditArgs = netAddDelArgs ++ driftArgs
                                             in
                                             -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "annealNetwork" then
                                             let -- network add/delete  + annealing  args
                                                 netEditArgs = netAddDelArgs ++ annealArgs
                                             in
                                             -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (head randIntList) inGraphList, netEditArgs)
+                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
 
                                           else error ("Unknown/unimplemented method in search: " ++ searchBandit)
