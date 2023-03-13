@@ -76,41 +76,68 @@ swapSPRTBR  :: String
             -> Bool
             -> Bool
             -> Bool
-            -> ([Int], Maybe SAParams, PhylogeneticGraph)
+            -> [PhylogeneticGraph]
+            -> Int 
+            -> [([Int], Maybe SAParams, PhylogeneticGraph)]
             -> ([PhylogeneticGraph], Int)
-swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randomIntListSwap, inSimAnnealParams, inGraph) =
+swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated curBestGraphs inCounter inTripleList =
    --trace ("SWAPSPRTBR: " ++ swapType ++ " " ++ joinType ++ " " ++ (show $ snd6 inGraph)) $
-   if joinType == "joinAll" || isJust inSimAnnealParams then 
-      swapSPRTBR' swapType "joinAll" atRandom  inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randomIntListSwap, inSimAnnealParams, inGraph)
+   if null inTripleList then (curBestGraphs, inCounter)
    else 
-      -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
-      let (firstList, firstCounter) = swapSPRTBR' swapType "joinPruned" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randomIntListSwap, inSimAnnealParams, inGraph)
-
-          -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
-          bestFirstList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : firstList)
-          
-          -- change to "joinAlternate" for return to pruned union
-          {-
-          (secondListList, secondCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR' swapType "joinAll" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 1000) randomIntListSwap)) (replicate (length bestFirstList) Nothing) bestFirstList
-
-          afterSecondList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ (concat secondListList) ++ bestFirstList
-          afterSecondCounter = sum (firstCounter : secondCounterList)
-          -}
-          -- recursive list version as opposed ot parMap version
-          (afterSecondList, afterSecondCounter) = swapSPRTBRList swapType "joinAll" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated [inGraph] firstCounter $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 1000) randomIntListSwap)) (replicate (length bestFirstList) Nothing) bestFirstList
-
+      let (randomIntListSwap, inSimAnnealParams, inGraph) = head inTripleList
       in
-      {-This not working so turned off for now
-      -- if found better recurse to join pruned
-      if (snd6 . head) afterSecondList < snd6 inGraph then 
-         let (recurseListList, recurseCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length afterSecondList) ((head . drop 2000) randomIntListSwap)) (replicate (length afterSecondList) Nothing) afterSecondList
-         in
-         (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (concat recurseListList), sum (afterSecondCounter : recurseCounterList))
-      else 
-      -}
-      (afterSecondList, afterSecondCounter)
+      -- dont swap if worse than current best
+      -- if snd6 inGraph > (snd6 . head) curBestGraphs then 
+      --   swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated curBestGraphs inCounter (tail inTripleList)
+      --else
+        if joinType == "joinAll" || isJust inSimAnnealParams then 
+            swapSPRTBR' swapType "joinAll" atRandom  inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randomIntListSwap, inSimAnnealParams, inGraph)
+         else 
+            -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
+            let (firstList, firstCounter) = swapSPRTBR' swapType "joinPruned" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randomIntListSwap, inSimAnnealParams, inGraph)
 
--- | swapSPRTBRList is a wrpper around swapSPRTBR' allowing for a list of graphs and a current best cost
+                -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
+                bestFirstList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : firstList)
+                
+                -- change to "joinAlternate" for return to pruned union
+                {-
+                (afterSecondListList, afterSecondCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR' swapType "joinAll" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 2000) randomIntListSwap)) (replicate (length bestFirstList) Nothing) bestFirstList
+
+                bestSecondList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ concat afterSecondListList
+                afterSecondCounter = if null  afterSecondCounterList then inCounter
+                                     else inCounter + minimum afterSecondCounterList
+                -}
+                
+                -- recursive list version as opposed ot parMap version
+                -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
+                (afterSecondList, afterSecondCounter) = swapSPRTBRList swapType "joinAll" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestFirstList firstCounter $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 1000) randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
+
+                bestSecondList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] afterSecondList
+                -- bestSecondCost = (snd6 . head) bestSecondList
+                
+
+            in
+            {-This not working so turned off for now-}
+            
+            {-
+            -- if found better recurse to join pruned
+            if bestSecondCost < snd6 inGraph then 
+               let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (bestSecondList ++ (fmap thd3 $ tail inTripleList))
+                   tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
+                   
+                   -- (recurseListList, recurseCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length afterSecondList) ((head . drop 2000) randomIntListSwap)) (replicate (length afterSecondList) Nothing) afterSecondList
+                   
+                   -- (recurseList, recurseCounter) = swapSPRTBR swapType "joinAlternate" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) tripleToSwap
+               in
+               swapSPRTBR swapType "joinAlternate" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) tripleToSwap
+               -- (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] recurseList, recurseCounter)
+
+            else 
+               swapSPRTBR swapType "joinAlternate" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) (tail inTripleList)
+            -}
+            (bestSecondList, afterSecondCounter + inCounter)
+
+-- | swapSPRTBRList is a wrapper around swapSPRTBR' allowing for a list of graphs and a current best cost
 -- reduce time of swap 
 swapSPRTBRList :: String
             -> String
@@ -140,9 +167,8 @@ swapSPRTBRList swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist 
              bestGraphCost = minimum $ fmap snd6 graphList 
          in
          if bestGraphCost < (snd6 . head) curBestGraphs then
-            let 
-               graphsToSwp = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (bestGraphList ++ (fmap thd3 $ tail tripleList))
-               tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwp)) (U.generateUniqueRandList (length graphsToSwp) inSimAnnealParams) graphsToSwp
+            let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (bestGraphList ++ (fmap thd3 $ tail tripleList))
+                tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
             in
             swapSPRTBRList swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestGraphList swapCounter tripleToSwap
          else 
