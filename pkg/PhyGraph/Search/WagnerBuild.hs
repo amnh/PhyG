@@ -206,7 +206,7 @@ getDelta leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
        
        -- create edge union 'character' blockData
        -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
-       -- edge union based on final IA assignments
+       -- edge union based on final IA assignments filtering gaps (True True)
        edgeUnionVertData = M.createEdgeUnionOverBlocks True True eNodeVertData vNodeVertData charInfoVV []
 
    in
