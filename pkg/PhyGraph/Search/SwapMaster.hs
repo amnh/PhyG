@@ -95,8 +95,11 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
                -- turn off union selection of rejoin--dfault to do both, union first
                joinAll = if (any ((=="joinall").fst) lcArgList) then True
-                         else if (any ((=="joinsome").fst) lcArgList) then False
+                         else if (any ((=="joinpruned").fst) lcArgList) then False
                          else False
+
+               joinType = if not joinAll then "joinAlternate"
+                          else "joinAll"
 
                -- randomize split graph and rejoin edges, defualt to randomize
                atRandom = if (any ((=="atrandom").fst) lcArgList) then True
@@ -121,26 +124,26 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
            trace (progressString) (
            let (newGraphList, counterNNI)  = if doNNI then
-                                               let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" joinAll atRandom randomIntListSwap inGS inData (fromJust keepNum) 2 doSteepest False doIA returnMutated) (zip newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" joinType atRandom inGS inData (fromJust keepNum) 2 doSteepest False doIA returnMutated) (zip3 (U.generateRandIntLists (head randomIntListSwap) (length inGraphList)) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then
-                                               let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" joinAll atRandom randomIntListSwap inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated) (zip newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated) (zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList)) newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then
-                                               let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" joinAll atRandom randomIntListSwap inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
+                                               let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" joinType atRandom  inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList')) newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                               else (newGraphList', 0)
 
                (newGraphList''', counterAlternate) = if doAlternate then
-                                                       let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "alternate" joinAll atRandom randomIntListSwap inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
+                                                       let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "alternate" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated) (zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList'')) newSimAnnealParamList newGraphList'') -- `using` PU.myParListChunkRDS
                                                            (graphListList, counterList) = unzip graphPairList
                                                        in
                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
