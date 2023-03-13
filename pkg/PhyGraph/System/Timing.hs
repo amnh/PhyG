@@ -108,7 +108,9 @@ timeDifference :: CPUTime -> CPUTime -> CPUTime
 timeDifference (CPUTime a) (CPUTime b) = CPUTime $ max a b - min a b
 
 timeLeft ::  CPUTime -> CPUTime -> CPUTime
-timeLeft (CPUTime a) (CPUTime b) = CPUTime $ a - b
+timeLeft (CPUTime a) (CPUTime b) = 
+    if b > a then CPUTime 0
+    else CPUTime $ a - b
 
 timeSum :: CPUTime -> CPUTime -> CPUTime
 timeSum (CPUTime a) (CPUTime b) = CPUTime $ a + b

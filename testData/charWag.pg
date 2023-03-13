@@ -75,7 +75,7 @@ read(prefasta:"chel-prealigned.fas", tcm:"sg2t2.mat")
 
 --transform(weight:0.1, name:"chel.fas#0*")
 
-search(hours:0, minutes:10, instances:2, Thompson:1, linear)
+search(hours:0, minutes:1, instances:2, Thompson:1, linear)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 

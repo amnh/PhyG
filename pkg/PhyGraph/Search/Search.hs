@@ -61,6 +61,7 @@ import           System.IO
 import qualified Utilities.Utilities         as U
 
 
+
 -- Add non reroot thing liike IA for faster
 
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
@@ -164,7 +165,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
                       ]
-   if elapsedSeconds >= allotedSeconds || newStopCount >= stopNum
+   if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum
    then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString ++ "," ++ thetaString ++ "," ++ "*"]) -- output with strings correctly added together
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
