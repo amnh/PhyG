@@ -150,7 +150,7 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                                      else (newGraphList'', 0)
 
               in
-              let finalGraphList = if null newGraphList'' then inGraphList
+              let finalGraphList = if null newGraphList''' then inGraphList
                                    else newGraphList''' 
 
                   fullBuffWarning = if length (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList''') >= (fromJust keepNum) then "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."

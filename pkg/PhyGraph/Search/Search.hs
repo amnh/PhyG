@@ -158,7 +158,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    let (updatedThetaList, newStopCount) = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSecondsCPU outTotalSeconds stopCount stopNum
    let thetaString = L.intercalate "," $ fmap (show . snd) updatedThetaList
 
-   let remainingTime = allotedSeconds `timeDifference` elapsedSeconds
+   let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
    hPutStrLn stderr $ unlines [ "Thread   \t" <> show refIndex
                       , "Alloted  \t" <> show allotedSeconds
                       , "Ellapsed \t" <> show elapsedSeconds
