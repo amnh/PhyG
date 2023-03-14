@@ -64,9 +64,9 @@ import qualified Data.Set                    as SET
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
 -- fst6 and thd6 (both) are modified since this is used for output
--- Collapsed frst can no longer be used for greaph optimization since non-binary
+-- Collapsed frst can no longer be used for graph optimization since non-binary
 -- this is done by removing the end vertex 'v' of min length 0 edge (u->v)
--- this removes (u,v) and teh two (v, x) and (v, y) out edges from v.  New edges are created
+-- this removes (u,v) and the two (v, x) and (v, y) out edges from v.  New edges are created
 -- (u, x) and (u,y) with length labels of (v,x) and (v,y)
 -- assumes all indexing is the same between the simple and decorated graph
 -- done recusively until no minLength == zero edges so edges renumbered properly
