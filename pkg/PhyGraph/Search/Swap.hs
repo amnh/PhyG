@@ -110,7 +110,7 @@ swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist stee
                 
                 -- recursive list version as opposed ot parMap version
                 -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
-                (afterSecondList, afterSecondCounter) = swapSPRTBRList swapType "joinAll" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestFirstList firstCounter $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 1000) randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
+                (afterSecondList, afterSecondCounter) = swapSPRTBRList swapType "joinAll" atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestFirstList firstCounter $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . tail) randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
 
                 bestSecondList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] afterSecondList
                 -- bestSecondCost = (snd6 . head) bestSecondList
@@ -520,7 +520,7 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
          -- regular swap--keep going with novel equal cost graphs
          else 
             -- traceNoLF ("(" ++ (show (snd6 $ head newCurSameBetterList,  length newCurSameBetterList, length curSameBetterList, length graphsToDo',length newNovelGraphs, length ((tail inGraphList) ++ newGraphList), length $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList) ++ ")"))
-            swapAll' swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor breakEdgeNumber inSimAnnealParams
+            swapAll' swapType joinType atRandom (tail randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor breakEdgeNumber inSimAnnealParams
          -- )
          
 -- | postProcessAnnealDrift factors out the post processing of swap results to allow for clearer code 
