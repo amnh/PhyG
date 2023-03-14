@@ -171,7 +171,7 @@ main = do
 
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList = filter ((==0).snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap snd3) $ fmap (fmap (U.filledDataFields (0,0))) $ fmap fst reconciledData
-    if (length taxaDataSizeList /= 0) then hPutStrLn stderr ("\nWarning (but a serious one): There are taxa without any data: "
+    if (length taxaDataSizeList /= 0) then errorWithoutStackTrace ("\nError: There are taxa without any data: "
             ++ (L.intercalate ", " $ fmap Text.unpack $ fmap fst taxaDataSizeList) ++ "\n")
     else hPutStrLn stderr "All taxa contain data"
 
