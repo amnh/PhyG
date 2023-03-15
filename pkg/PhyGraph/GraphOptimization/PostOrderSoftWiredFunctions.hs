@@ -68,7 +68,7 @@ import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
--- import           Debug.Trace
+import           Debug.Trace
 
 
 
@@ -867,8 +867,8 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
 updateGraphCostsComplexities :: GlobalSettings -> PhylogeneticGraph -> PhylogeneticGraph
 updateGraphCostsComplexities inGS inGraph = 
     if optimalityCriterion inGS == Parsimony then inGraph
-    else if optimalityCriterion inGS `elem` [SI, MAPA] then
-        -- trace ("\tFinalizing graph cost with root priors")
+    else if optimalityCriterion inGS `elem` [SI, MAPA, NCM] then
+        trace ("\tFinalizing graph cost with root priors")
         updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
     else if optimalityCriterion inGS == PMDL then
         -- trace ("\tFinalizing graph cost with model and root complexities")
@@ -893,7 +893,7 @@ getW15RootCost inGS inGraph =
         (fromIntegral numRoots) * (rootComplexity inGS)
 
 -- | getW15NetPenaltyFull takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
--- does not use resoliution cache's so can be used with Naive or Resolution cache SoftWired
+-- does not use resolution cache's so can be used with Naive or Resolution cache SoftWired
 -- has to be a single display tree--or could have no penalty for network since edges would be in one or other 
 -- display tree
 getW15NetPenaltyFull :: Maybe ([VertexCost], [SimpleGraph], PhylogeneticGraph, Int) -> GlobalSettings -> ProcessedData -> Maybe Int -> PhylogeneticGraph -> VertexCost
@@ -960,7 +960,7 @@ getW15NetPenalty startVertex inGraph =
         -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )))
         (sum $ blockPenaltyList) / divisor
         
--- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2023)
+-- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler and Washburn (2023)
 -- basic idea is new edge improvement must be better than average existing edge cost
 -- penalty for each added edge (unlike W15 which was on a block by block basis--and requires additional tree diagnoses)
 -- num extra edges/2 since actually add 2 new edges when one network edge

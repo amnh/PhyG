@@ -147,13 +147,13 @@ data GraphType = Tree | HardWired | SoftWired
 -- | Optimality criterion sets the cost function for graphs and potentially models
 -- likelihood form is the "Self Information" in context of Kolmogorov complexity/MDL/PMDL
 -- MAPA is Integrate Likelihood/dBaysian stuff via TCM modification
-data OptimalityCriterion = Parsimony | PMDL | SI | MAPA
+data OptimalityCriterion = Parsimony | PMDL | SI | MAPA | NCM
     deriving stock (Show, Eq)
 
 data GraphFactor = NoNetworkPenalty | Wheeler2015Network | Wheeler2023Network | PMDLGraph
     deriving stock (Show, Eq)
 
-data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot
+data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot | NCMRoot
     deriving stock (Show, Eq)
 
 data SoftWiredAlgorithm = Naive | ResolutionCache
