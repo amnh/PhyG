@@ -81,7 +81,7 @@ swapSPRTBR  :: String
             -> [([Int], Maybe SAParams, PhylogeneticGraph)]
             -> ([PhylogeneticGraph], Int)
 swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated curBestGraphs inCounter inTripleList =
-   --trace ("SWAPSPRTBR: " ++ swapType ++ " " ++ joinType ++ " " ++ (show $ snd6 inGraph)) $
+   --trace ("SWAPSPRTBR: " ++ swapType ++ " " ++ joinType ++ " " ++ (show $ snd6 $ thd3 $ head inTripleList)) $
    if null inTripleList then (curBestGraphs, inCounter)
    else 
       let (randomIntListSwap, inSimAnnealParams, inGraph) = head inTripleList

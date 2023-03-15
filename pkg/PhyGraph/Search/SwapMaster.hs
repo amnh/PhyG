@@ -53,13 +53,13 @@ import           Utilities.Utilities         as U
 -- | swapMaster processes and spawns the swap functions
 -- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
 swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-swapMaster inArgs inGS inData rSeed inGraphList =
-   if null inGraphList then trace ("No graphs to swap") []
+swapMaster inArgs inGS inData rSeed inGraphListInput =
+   if null inGraphListInput then trace ("No graphs to swap") []
    -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
    else
 
            let -- process args for swap
-               (keepNum, maxMoveEdgeDist, steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList) = getSwapParams inArgs
+               (keepNum, maxMoveEdgeDist, steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, replicateNumber, lcArgList) = getSwapParams inArgs
                doNNI = any ((=="nni").fst) lcArgList
                doSPR = any ((=="spr").fst) lcArgList
                doTBR = any ((=="tbr").fst) lcArgList
@@ -110,10 +110,20 @@ swapMaster inArgs inGS inData rSeed inGraphList =
 
                simAnnealParams = getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed
 
-               -- create simulated annealing random lists uniquely for each fmap
-               newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
+               -- swap replicates is meant to allow multiple randomized swap trajectories
+               -- set to 1 if not randomized swap or SA/Drifting (set by their own options)
+               replicates = if not atRandom then 1
+                            else if doAnnealing then  1
+                            else fromJust replicateNumber
 
-               progressString = if (not doAnnealing && not doDrift) then ("Swapping " ++ (show $ length inGraphList) ++ " input graph(s) with minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs per input graph")
+               -- replicate inGraphList based on 'replicates' for randomized trajectories
+               inGraphList  = concat $ replicate replicates inGraphListInput 
+               numGraphs = length inGraphList          
+
+               -- create simulated annealing random lists uniquely for each fmap
+               newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
+
+               progressString = if (not doAnnealing && not doDrift) then ("Swapping " ++ (show $ length inGraphListInput) ++ " input graph(s) with " ++ (show replicates) ++ " trajectories at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs per input graph")
                                 else
                                     if (method $ fromJust simAnnealParams) == SimAnneal then
                                         ("Simulated Annealing (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
@@ -121,29 +131,29 @@ swapMaster inArgs inGS inData rSeed inGraphList =
                                         ("Drifting (Swapping) " ++ (show $ rounds $ fromJust simAnnealParams) ++ " rounds " ++ (show $ length inGraphList) ++ " with " ++ (show $ driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ (show $ length inGraphList) ++ " input graph(s) at minimum cost "++ (show $ minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ (show $ fromJust keepNum) ++ " graphs")
 
            in
-
+           
            trace (progressString) (
            let (newGraphList, counterNNI)  = if doNNI then
-                                               let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" joinType atRandom inGS inData (fromJust keepNum) 2 doSteepest False doIA returnMutated inGraphList 0) [(zip3 (U.generateRandIntLists (head randomIntListSwap) (length inGraphList)) newSimAnnealParamList inGraphList)] -- `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" joinType atRandom inGS inData (fromJust keepNum) 2 doSteepest False doIA returnMutated inGraphList 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (inGraphList, 0)
                (newGraphList', counterSPR)  = if doSPR then
-                                               let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated newGraphList 0) [(zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList)) newSimAnnealParamList newGraphList)] -- `using` PU.myParListChunkRDS
+                                               let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated newGraphList 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList)) newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                              else (newGraphList, 0)
 
                (newGraphList'', counterTBR) = if doTBR then
-                                               let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" joinType atRandom  inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated newGraphList' 0) [(zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList')) newSimAnnealParamList newGraphList')] -- `using` PU.myParListChunkRDS
+                                               let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" joinType atRandom  inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated newGraphList' 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList')) newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
                                                    (graphListList, counterList) = unzip graphPairList
                                                in
                                                (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
                                               else (newGraphList', 0)
 
                (newGraphList''', counterAlternate) = if doAlternate then
-                                                       let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "alternate" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated newGraphList'' 0) [(zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList'')) newSimAnnealParamList newGraphList'')] -- `using` PU.myParListChunkRDS
+                                                       let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "alternate" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated newGraphList'' 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList'')) newSimAnnealParamList newGraphList'') -- `using` PU.myParListChunkRDS
                                                            (graphListList, counterList) = unzip graphPairList
                                                        in
                                                        (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
@@ -212,7 +222,7 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
        Just saValues
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
-getSwapParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Bool, Maybe Int, Maybe Double, Maybe Double, Maybe Int, [(String, String)])
+getSwapParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Bool, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)])
 getSwapParams inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
@@ -282,6 +292,13 @@ getSwapParams inArgs =
               | null maxChangesList = Just 15
               | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int
 
+             replicatesList = filter ((=="replicates").fst) lcArgList
+             replicates
+              | length replicatesList > 1 =
+                errorWithoutStackTrace ("Multiple 'swap' replicates number specifications in swap command--can have only one: " ++ show inArgs)
+              | null replicatesList = Just 1
+              | otherwise = readMaybe (snd $ head replicatesList) :: Maybe Int
+
         in
         -- check inputs
         if isNothing keepNum               then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
@@ -290,7 +307,8 @@ getSwapParams inArgs =
         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
+        else if isNothing replicates       then errorWithoutStackTrace ("Swap 'replicates' specification not an integer (e.g. replicates:5): "  ++ show (snd $ head replicatesList))
 
         else
             -- trace ("GSP: " ++ (show inArgs) ++ " " ++ (show )(keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList))
-            (keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList)
+            (keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, replicates, lcArgList)
