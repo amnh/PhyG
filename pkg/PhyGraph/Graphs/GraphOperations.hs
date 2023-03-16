@@ -636,7 +636,7 @@ nubGraph curList inList =
   else 
     let (firstGraphNC, firstGraphC) = head inList 
 
-        -- nub on newick topology only
+        -- nub on newick topology only--does not collapse
         firstString = makeNewickList False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] []
 
         -- nub on prettty string
