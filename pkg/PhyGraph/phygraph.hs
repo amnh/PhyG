@@ -59,7 +59,6 @@ import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
 import qualified Data.CSV                     as CSV
 import qualified Utilities.LocalGraph        as LG
-import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import           Debug.Trace
@@ -282,12 +281,12 @@ main = do
     --hPutStrLn stderr (show _finalGlobalSettings)
 
     -- Add in model and root cost if optimality criterion needs it
-    if (rootComplexity initialGlobalSettings) /= 0.0 then hPutStrLn stderr ("\tUpdating final graph with any root costs") 
-    else hPutStrLn stderr ""
+    -- if (rootComplexity initialGlobalSettings) /= 0.0 then hPutStrLn stderr ("\tUpdating final graph with any root priors") 
+    -- else hPutStrLn stderr ""
 
-    -- rediagnose for NCM due to packing etc
+    -- rediagnose for NCM due to packing, in most cases not required, just being sure etc
     let rediagnoseWithReportingdata = True
-    let finalGraphList' = fmap (T.updateGraphCostsComplexities initialGlobalSettings reportingData rediagnoseWithReportingdata) finalGraphList
+    let finalGraphList' = T.updateGraphCostsComplexities initialGlobalSettings reportingData rediagnoseWithReportingdata finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'

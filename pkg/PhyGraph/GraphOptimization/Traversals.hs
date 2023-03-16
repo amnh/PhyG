@@ -56,6 +56,8 @@ import           Data.Maybe
 import           Debug.Trace
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import           Control.Parallel.Strategies
+import qualified ParallelUtilities                    as PU
 
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
@@ -289,31 +291,36 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
 
 -- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
 -- updates NCM with roig data due to weights of bitpacking
-updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-updateGraphCostsComplexities inGS reportingData rediagnoseWithReportingData inGraph = 
-    if optimalityCriterion inGS == Parsimony then inGraph
+updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+updateGraphCostsComplexities inGS reportingData rediagnoseWithReportingData inGraphList = 
+    if optimalityCriterion inGS == Parsimony then inGraphList
     
     else if optimalityCriterion inGS `elem` [SI, MAPA] then
         trace ("\tFinalizing graph cost with root priors")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
+        updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
     
     else if optimalityCriterion inGS `elem` [NCM] then
-        trace ("\tFinalizing graph cost (updating) with root priors") $
-        let updatedGraph = if reportingData == emptyProcessedData || not rediagnoseWithReportingData then 
-                                trace ("\t\tCannot update cost with original data--skipping")
-                                updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
-                            else 
-                                let newGraph = multiTraverseFullyLabelGraph inGS reportingData False False Nothing (fst6 inGraph)
-                                in updatePhylogeneticGraphCost newGraph ((rootComplexity inGS) +  (snd6 newGraph))
-        in updatedGraph
+        trace ("\tFinalizing graph cost (updating NCM) with root priors") $
+        let updatedGraphList = if reportingData == emptyProcessedData || not rediagnoseWithReportingData then 
+                                 -- trace ("\t\tCannot update cost with original data--skipping")
+                                 updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
+                               else 
+                                let newGraphList = PU.seqParMap rdeepseq (multiTraverseFullyLabelGraph inGS reportingData False False Nothing) (fmap fst6 inGraphList)
+                                in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
+        in updatedGraphList
                                 
     else if optimalityCriterion inGS == PMDL then
         -- trace ("\tFinalizing graph cost with model and root complexities")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) + (modelComplexity inGS) + (snd6 inGraph))
+        updatePhylogeneticGraphCostList ((rootComplexity inGS) + (modelComplexity inGS)) inGraphList
+
     else error ("Optimality criterion not recognized/implemented: " ++ (show $ optimalityCriterion inGS))
 
 
---newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)
+-- | updatePhylogeneticGraphCostList is a list wrapper for updatePhylogeneticGraphCost
+updatePhylogeneticGraphCostList :: VertexCost -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+updatePhylogeneticGraphCostList rootCost inGraphList =
+    fmap (updateCost rootCost) inGraphList
+    where updateCost z (a, oldCost, b, c, d, e) = (a, oldCost + z, b, c, d, e)
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph
