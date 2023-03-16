@@ -93,7 +93,7 @@ is split into a series of new characters depending on the number of states (in n
 A single Word64 can then hold 32 2-state. 16 4-state, 12 5-state (awkward but useful for DNA),
 4 8-state, 1 64-state, and a bit-vector for >64 states.
 
-Character weights are all = 1 in static charcaters.  This is ensured by organizeBlockData
+Character weights are all = 1 in static characters.  This is ensured by organizeBlockData
 in Input.Reorganize.hs basically--characters are multiplied by weight (if integer--otherwise not recoded)
 So can check and only recode characters with weight of 1.
 -}
@@ -1403,7 +1403,7 @@ packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
 
 -- | recodeNonAddCharacters takes block data, goes through characters
 -- and recodes NonAdditive.
--- Concat and list for charInfoV because new charcaters can be created
+-- Concat and list for charInfoV because new characters can be created
 -- and newCharInfo then as well, could be multiple per input 'charcater'
 recodeNonAddCharacters :: GlobalSettings -> BlockData -> BlockData
 recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
@@ -1531,7 +1531,7 @@ makeNewCharacterData charByTaxSingleCharData  =
     taxonByCharV
 
 -- | recodeBV2Word64 take a list of BV.bitvector non-add characters and the states number of creates
--- Word64 representaions where subcharcaters are created and shifted to proper positions and ORd
+-- Word64 representaions where subcharacters are created and shifted to proper positions and ORd
 -- to create packed reresentation--new character types Packed2, Packed4, Packed5, and Packed8.
 -- this results in a single character and charInfo in list so can be concatenated
 -- and removed if empty

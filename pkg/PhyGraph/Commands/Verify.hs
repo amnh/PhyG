@@ -86,7 +86,7 @@ geneticAlgorithmArgList = ["elitist", "ga", "generations", "geneticalgorithm", "
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["acceptequal", "acceptworse", "all",  "annealing", "atrandom", "drift", "keep", "maxchanges", "maxnetedges", "netadd", 
+netEdgeArgList = ["acceptequal", "acceptworse", "all",  "annealing", "atrandom", "drift", "inorder", "keep", "maxchanges", "maxnetedges", "netadd", 
     "netadddel", "netadddelete", "netdel", "netdelete", "netmove", "returnmutated", "rounds", "steepest", "steps"]
 
 -- | Read arg list allowable modifiers in read
