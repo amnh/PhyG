@@ -1153,7 +1153,7 @@ deleteOneNetAddAll inGS inData leafGraph maxNetEdges numToKeep doSteepest doRand
               graphToInsert = T.multiTraverseFullyLabelSoftWired inGS inData False False leafGraph Nothing simpleGraphToInsert -- `using` PU.myParListChunkRDS
 
               -- keep same cost and just keep better--check if better than original later
-              graphToInsert' = POSW.updatePhylogeneticGraphCost graphToInsert inGraphCost
+              graphToInsert' = T.updatePhylogeneticGraphCost graphToInsert inGraphCost
 
 
               insertedGraphTripleList = insertEachNetEdge inGS inData leafGraph rSeed (curNumNetNodes + 1) numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams graphToInsert'

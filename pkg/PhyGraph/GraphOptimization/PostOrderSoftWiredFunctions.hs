@@ -45,8 +45,6 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , createVertexDataOverBlocksStaticIA
                                                       , createVertexDataOverBlocksNonExact
                                                       , getBlockCost
-                                                      , updatePhylogeneticGraphCost
-                                                      , updateGraphCostsComplexities
                                                       , getW15NetPenalty
                                                       , getW15NetPenaltyFull
                                                       , getW23NetPenalty
@@ -862,23 +860,6 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
               | otherwise = medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
-
--- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
-updateGraphCostsComplexities :: GlobalSettings -> PhylogeneticGraph -> PhylogeneticGraph
-updateGraphCostsComplexities inGS inGraph = 
-    if optimalityCriterion inGS == Parsimony then inGraph
-    else if optimalityCriterion inGS `elem` [SI, MAPA, NCM] then
-        trace ("\tFinalizing graph cost with root priors")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
-    else if optimalityCriterion inGS == PMDL then
-        -- trace ("\tFinalizing graph cost with model and root complexities")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) + (modelComplexity inGS) + (snd6 inGraph))
-    else error ("Optimality criterion not recognized/implemented: " ++ (show $ optimalityCriterion inGS))
-
--- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
--- and returns Phylogenetic graph
-updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
-updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e)
 
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa

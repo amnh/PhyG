@@ -284,8 +284,10 @@ main = do
     -- Add in model and root cost if optimality criterion needs it
     if (rootComplexity initialGlobalSettings) /= 0.0 then hPutStrLn stderr ("\tUpdating final graph with any root costs") 
     else hPutStrLn stderr ""
-    
-    let finalGraphList' = fmap (POSW.updateGraphCostsComplexities initialGlobalSettings) finalGraphList
+
+    -- rediagnose for NCM due to packing etc
+    let rediagnoseWithReportingdata = True
+    let finalGraphList' = fmap (T.updateGraphCostsComplexities initialGlobalSettings reportingData rediagnoseWithReportingdata) finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'

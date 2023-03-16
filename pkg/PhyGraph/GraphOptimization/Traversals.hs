@@ -41,6 +41,8 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelHardWired
                                     , checkUnusedEdgesPruneInfty
                                     , generalizedGraphPostOrderTraversal
+                                    , updateGraphCostsComplexities
+                                    , updatePhylogeneticGraphCost
                                     ) where
 
 
@@ -54,6 +56,7 @@ import           Data.Maybe
 import           Debug.Trace
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph
@@ -111,7 +114,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
         in
         --trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
         -- trace ("MTFLS: " ++ (show $ fmap fst unlabelledNodes))
-        checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ POSW.updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
+        checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum
 -- traversal cost for all nonexact charcters--the initial rooting is used for exact characters
@@ -211,8 +214,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             staticOnlyGraph = if (graphType inGS) == SoftWired then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
                               else outgroupRooted
             -- staticOnlyGraph = head recursiveRerootList'
-            staticOnlyGraph' = if startVertex == Nothing then POSW.updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
-                               else POSW.updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
+            staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost  staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
+                               else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
         -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
         (staticOnlyGraph', head startVertexList)
@@ -228,7 +231,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
 
-            finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith POSW.updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
+            finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
         in
         -- trace ("GPOT-1: " ++ (show (snd6 finalizedPostOrderGraph)))
         (finalizedPostOrderGraph, head startVertexList)
@@ -243,7 +246,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty graphWithBestAssignments
                              else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
-            graphWithBestAssignments' = POSW.updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+            graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
         -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', head startVertexList)
@@ -283,3 +286,36 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
             multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
         else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
+
+-- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
+-- updates NCM with roig data due to weights of bitpacking
+updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+updateGraphCostsComplexities inGS reportingData rediagnoseWithReportingData inGraph = 
+    if optimalityCriterion inGS == Parsimony then inGraph
+    
+    else if optimalityCriterion inGS `elem` [SI, MAPA] then
+        trace ("\tFinalizing graph cost with root priors")
+        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
+    
+    else if optimalityCriterion inGS `elem` [NCM] then
+        trace ("\tFinalizing graph cost (updating) with root priors") $
+        let updatedGraph = if reportingData == emptyProcessedData || not rediagnoseWithReportingData then 
+                                trace ("\t\tCannot update cost with original data--skipping")
+                                updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
+                            else 
+                                let newGraph = multiTraverseFullyLabelGraph inGS reportingData False False Nothing (fst6 inGraph)
+                                in updatePhylogeneticGraphCost newGraph ((rootComplexity inGS) +  (snd6 newGraph))
+        in updatedGraph
+                                
+    else if optimalityCriterion inGS == PMDL then
+        -- trace ("\tFinalizing graph cost with model and root complexities")
+        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) + (modelComplexity inGS) + (snd6 inGraph))
+    else error ("Optimality criterion not recognized/implemented: " ++ (show $ optimalityCriterion inGS))
+
+
+--newPhylogeneticGraphList = PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)
+
+-- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
+-- and returns Phylogenetic graph
+updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
+updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e)
