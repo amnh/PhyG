@@ -119,7 +119,7 @@ searchArgList :: [String]
 searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnetedges", "minutes", "mfactor", "seconds", "simple", 
     "stop", "thompson"]
 
--- | buildArgList is the list of valid build arguments
+-- | selectArgList is the list of valid select arguments
 selectArgList :: [String]
 selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 
