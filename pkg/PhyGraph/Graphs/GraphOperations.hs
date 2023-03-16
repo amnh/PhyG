@@ -634,8 +634,13 @@ nubGraph :: [(PhylogeneticGraph, PhylogeneticGraph, String)] -> [(PhylogeneticGr
 nubGraph curList inList =
   if null inList then reverse $ fmap fst3 curList
   else 
-    let (firstGraphNC, firstGraphC) = head inList
-        firstString = LG.prettyIndices $ thd6 firstGraphNC
+    let (firstGraphNC, firstGraphC) = head inList 
+
+        -- nub on newick topology only
+        firstString = makeNewickList False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] []
+
+        -- nub on prettty string
+        -- firstString = LG.prettyIndices $ thd6 firstGraphNC
         isMatch = filter (== firstString) (fmap thd3 curList)
     in
     -- trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (
