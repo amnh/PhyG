@@ -208,7 +208,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
 
        -- build graphs
        buildGraphs = B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList1 !! 1)
-       bestBuildGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] buildGraphs
+       bestBuildGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) buildGraphs
 
        -- if not a tree then try to add net edges
        netAddArgs = [("netAdd", ""), ("keep", show (1 :: Int)), ("steepest", ""), ("atRandom", "")]

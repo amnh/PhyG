@@ -83,7 +83,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
         let seedList = randomIntList rSeed
 
             -- get elite list of best solutions
-            initialEliteList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] inGraphList
+            initialEliteList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) inGraphList
 
             -- mutate input graphs, produces number input, limited to popsize
             mutatedGraphList' = zipWith (mutateGraph inGS inData maxNetEdges) (randomIntList $ head seedList) $ takeRandom (seedList !! 1) popSize inGraphList
@@ -97,7 +97,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                                     mutatedGraphList' ++ additionalMutated
 
             -- get unique graphs, no point in recombining repetitions
-            uniqueMutatedGraphList = GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] (mutatedGraphList ++ inGraphList)
+            uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (mutatedGraphList ++ inGraphList)
 
             -- recombine elite with mutated and mutated with mutated
             recombineSwap = getRandomElement (seedList !! 4) [None, NNI, SPR] --  these take too long, "tbr", "alternate"]
@@ -117,7 +117,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
 
             -- selection of graphs population
             -- unique sorted on cost so getting unique with lowest cost
-            selectedGraphs = take popSize $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] recombinedGraphList
+            selectedGraphs = GO.selectGraphs Unique popSize 0.0 (-1) recombinedGraphList
             newCost = snd6 $ head selectedGraphs
 
         in
@@ -132,7 +132,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
 
         -- if new graphs not better then add in elites to ensure monotonic decrease in cost
         else
-            let newGraphList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (initialEliteList ++ selectedGraphs)
+            let newGraphList = GO.selectGraphs Unique keepNum 0.0 (-1) (initialEliteList ++ selectedGraphs)
             in
             geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations (stopCount + 1) stopNum newGraphList
         )

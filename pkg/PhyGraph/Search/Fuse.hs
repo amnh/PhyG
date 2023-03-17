@@ -137,7 +137,7 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType joi
       trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs with" ++ swapTypeString ++ " swapping") (
       if null newGraphList then (inGraphList, counter + 1)
       else if returnUnique then
-         let uniqueList = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (inGraphList ++ newGraphList)
+         let uniqueList = GO.selectGraphs Unique keepNum 0.0 (-1) (inGraphList ++ newGraphList)
          in
          if fuseBest < curBest then
                -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
@@ -147,11 +147,11 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType joi
 
       else -- return best
          -- only do one round of fusing
-         if singleRound then (take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraphList ++ newGraphList), counter + 1)
+         if singleRound then (GO.selectGraphs Best keepNum 0.0 (-1) (inGraphList ++ newGraphList), counter + 1)
 
          -- recursive rounds
          else
-            let allBestList = take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraphList ++ newGraphList)
+            let allBestList = GO.selectGraphs Best keepNum 0.0 (-1) (inGraphList ++ newGraphList)
             in
 
             -- found better
@@ -295,9 +295,9 @@ fusePair inGS inData steepest numLeaves charInfoVV netPenalty keepNum maxMoveEdg
 
           -- get "best" fused graphs from leftRight and rightLeft
           bestFusedGraphs = if reciprocal then
-                              take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (leftRightFusedGraphList ++ rightLeftFusedGraphList)
+                              GO.selectGraphs Best keepNum 0.0 (-1) (leftRightFusedGraphList ++ rightLeftFusedGraphList)
                             else 
-                              take keepNum $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] leftRightFusedGraphList
+                              GO.selectGraphs Best keepNum 0.0 (-1) leftRightFusedGraphList
 
           -- | get fuse graphs via swap function
       in
@@ -378,7 +378,7 @@ recombineComponents inGS inData steepest numToKeep inMaxMoveEdgeDist swapType jo
       --trace ("Checking in fusing") (
       if null recombinedGraphList then []
       else if bestFuseCost <= curBetterCost then
-         take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] recombinedGraphList
+         GO.selectGraphs Best numToKeep 0.0 (-1) recombinedGraphList
       else []
       -- )
       -- )

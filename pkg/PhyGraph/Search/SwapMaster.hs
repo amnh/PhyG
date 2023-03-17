@@ -132,12 +132,12 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
            trace (progressString) (
            let (newGraphList, counter) = let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR swapType joinType atRandom inGS inData (fromJust keepNum) maxMoveEdgeDist doSteepest False doIA returnMutated inGraphList 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                              (graphListList, counterList) = unzip graphPairList
-                                         in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
+                                         in (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
               in
               let finalGraphList = if null newGraphList then inGraphList
                                    else newGraphList
 
-                  fullBuffWarning = if length (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList) >= (fromJust keepNum) then "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
+                  fullBuffWarning = if length (GO.selectGraphs Best (maxBound::Int) 0.0 (-1) finalGraphList) >= (fromJust keepNum) then "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
                                     else ""
 
                   endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counter) ++ (show swapType))

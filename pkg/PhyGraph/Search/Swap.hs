@@ -54,7 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
@@ -97,13 +97,13 @@ swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist stee
             let (firstList, firstCounter) = swapSPRTBR' swapType JoinPruned atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randomIntListSwap, inSimAnnealParams, inGraph)
 
                 -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
-                bestFirstList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : firstList)
+                bestFirstList = GO.selectGraphs Best numToKeep 0.0 (-1) (inGraph : firstList)
                 
                 -- change toJoinAlternate for return to pruned union
                 {-
                 (afterSecondListList, afterSecondCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR' swapType JoinAll atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 2000) randomIntListSwap)) (replicate (length bestFirstList) Nothing) bestFirstList
 
-                bestSecondList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] $ concat afterSecondListList
+                bestSecondList = GO.selectGraphs Best numToKeep 0.0 (-1) $ concat afterSecondListList
                 afterSecondCounter = if null  afterSecondCounterList then inCounter
                                      else inCounter + minimum afterSecondCounterList
                 -}
@@ -112,7 +112,7 @@ swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist stee
                 -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
                 (afterSecondList, afterSecondCounter) = swapSPRTBRList swapType JoinAll atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestFirstList firstCounter $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . tail) randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
 
-                bestSecondList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] afterSecondList
+                bestSecondList = GO.selectGraphs Best numToKeep 0.0 (-1) afterSecondList
                 -- bestSecondCost = (snd6 . head) bestSecondList
                 
 
@@ -126,7 +126,7 @@ swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist stee
             {-
             -- if found better recurse to join pruned
             if bestSecondCost < snd6 inGraph then 
-               let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (bestSecondList ++ (fmap thd3 $ tail inTripleList))
+               let graphsToSwap = GO.selectGraphs Best numToKeep 0.0 (-1) (bestSecondList ++ (fmap thd3 $ tail inTripleList))
                    tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
                    
                    -- (recurseListList, recurseCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length afterSecondList) ((head . drop 2000) randomIntListSwap)) (replicate (length afterSecondList) Nothing) afterSecondList
@@ -134,7 +134,7 @@ swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist stee
                    -- (recurseList, recurseCounter) = swapSPRTBR swapTypeJoinAlternate atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) tripleToSwap
                in
                swapSPRTBR swapTypeJoinAlternate atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) tripleToSwap
-               -- (take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] recurseList, recurseCounter)
+               -- (GO.selectGraphs Best numToKeep 0.0 (-1) recurseList, recurseCounter)
 
             else 
                swapSPRTBR swapTypeJoinAlternate atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) (tail inTripleList)
@@ -167,11 +167,11 @@ swapSPRTBRList swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist 
          swapSPRTBRList swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated curBestGraphs inCounter (tail tripleList)
       else
          let (graphList, swapCounter) = swapSPRTBR' swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (randomIntListSwap, inSimAnnealParams, inGraph)
-             bestGraphList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : graphList)
+             bestGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) (inGraph : graphList)
              bestGraphCost = minimum $ fmap snd6 graphList 
          in
          if bestGraphCost < (snd6 . head) curBestGraphs then
-            let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (bestGraphList ++ (fmap thd3 $ tail tripleList))
+            let graphsToSwap = GO.selectGraphs Best numToKeep 0.0 (-1) (bestGraphList ++ (fmap thd3 $ tail tripleList))
                 tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
             in
             swapSPRTBRList swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestGraphList swapCounter tripleToSwap
@@ -241,12 +241,12 @@ swapSPRTBR' swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist ste
              (annealDriftGraphs', anealDriftCounter, _) = unzip3 $ (PU.seqParMap rdeepseq (swapAll swapType joinType atRandom randomIntListSwap inGS inData 1 maxMoveEdgeDist True alternate 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
 
              -- annealed/Drifted 'mutated' graphs
-             annealDriftGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] $ concat annealDriftGraphs'
+             annealDriftGraphs = GO.selectGraphs Unique numToKeep 0.0 (-1) $ concat annealDriftGraphs'
 
              -- swap back "normally" if desired for full drifting/annealing 
              (swappedGraphs, counter, _) = swapAll swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist True alternate 0 (min (snd6 inGraph) (minimum $ fmap snd6 annealDriftGraphs)) [] annealDriftGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired charInfoVV doIA inGraphNetPenaltyFactor Nothing
 
-             bestGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (inGraph : swappedGraphs)
+             bestGraphs = GO.selectGraphs Best numToKeep 0.0 (-1) (inGraph : swappedGraphs)
          in
          -- trace ("Steepest SSPRTBR: " ++ (show (length swappedGraphs, counter)))
          --trace ("AC:" ++ (show $ fmap snd6 $ concat annealedGraphs') ++ " -> " ++ (show $ fmap snd6 $ swappedGraphs')) (
@@ -298,7 +298,7 @@ swapAll swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMo
       else 
          let -- spr first
              (sprGraphs, sprCounter, sprSAPArams) = swapAll' SPR joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest False counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor 0 inSimAnnealParams
-             graphsToTBR = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (sprGraphs ++ inGraphList)
+             graphsToTBR = GO.selectGraphs Best numToKeep 0.0 (-1) (sprGraphs ++ inGraphList)
              sprBestCost = (snd6 . head) graphsToTBR
             
              -- tbr until find better or novel equal
@@ -379,7 +379,7 @@ swapAll' swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxM
    -- don't beed to check for mutated here since checked above
    if null inGraphList then
       -- trace (" Out cost " ++ (show curBestCost) ++ (" " ++ swapType))
-      (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] curSameBetterList, counter, inSimAnnealParams)
+      (GO.selectGraphs Unique numToKeep 0.0 (-1) curSameBetterList, counter, inSimAnnealParams)
    else
       let firstGraph = head inGraphList
           firstDecoratedGraph = thd6 firstGraph
@@ -417,10 +417,10 @@ swapAll' swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxM
           (newGraphList', newSAParams, newBreakEdgeNumber) = splitJoinGraph swapType joinType atRandom (tail randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber breakEdgeList breakEdgeList
 
           -- get best return graph list-can be empty if nothing better ort smame cost
-          newGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList'
+          newGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) newGraphList'
 
           -- get unique return graph list-can be empty if nothing better ort same cost
-          newGraphListUnique = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] newGraphList'
+          newGraphListUnique = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) newGraphList'
 
           newMinCost = if (not . null) newGraphList' then minimum $ fmap snd6 newGraphList'
                        else infinity 
@@ -472,7 +472,7 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost))( -- ++ swapType) (
          -- for alternarte do SPR first then TBR
-         let graphsToSwap = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList -- (newGraphList ++ (tail inGraphList))
+         let graphsToSwap = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList -- (newGraphList ++ (tail inGraphList))
          in
 
          -- for alternate if found better return immediately
@@ -485,7 +485,7 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
       -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
       else if newMinCost > curBestCost then
          -- trace ("Worse " ++ (show newMinCost)) (
-         let newCurSameBetterList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
+         let newCurSameBetterList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) (curSameBetterList ++ newGraphList)
          in
          -- traceNoLF ("\tHolding " ++ (show $ length newCurSameBetterList) ++ " at cost "  ++ (show curBestCost) ++ " with " ++ (show $ tail inGraphList) ++ " remaining to " ++ swapType ++ " swap") 
 
@@ -497,11 +497,11 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
       else
          -- Important to not limit curSameBest since may rediscover graphs via swapping on equal when limiting the number to keep
          -- can be a cause of infinite running issues.
-         let newCurSameBetterList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curSameBetterList ++ newGraphList)
+         let newCurSameBetterList = GO.selectGraphs Best numToKeep 0.0 (-1) (curSameBetterList ++ newGraphList)
              
-             graphsToDo  = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList
+             graphsToDo  = GO.selectGraphs Best numToKeep 0.0 (-1)  $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList
 
-             -- newNovelGraphs = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"]  $ newGraphList `GO.phylogeneticGraphListMinus` (curSameBetterList ++ (tail inGraphList))
+             -- newNovelGraphs = GO.selectGraphs Best numToKeep 0.0 (-1)  $ newGraphList `GO.phylogeneticGraphListMinus` (curSameBetterList ++ (tail inGraphList))
 
              -- these conditions help to prevent recswapping endlessly on new graphs thatare not in buffers,
              -- but have same cost
@@ -574,7 +574,7 @@ postProcessAnnealDrift swapType joinType atRandom randomIntListSwap inGS inData 
       -- not better so check for drift changes or annealing steps and return if reached maximum number
       else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then 
          --trace ("PPA return: " ++ (show (newMinCost, curBestCost))) 
-         (take numToKeep $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
+         (GO.selectGraphs Unique numToKeep 0.0 (-1) (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
 
       -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
       else 
@@ -688,7 +688,7 @@ splitJoinGraph swapType joinType atRandom randomIntListSwap inGS inData numToKee
             -}
             rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost [] doIA netPenaltyFactor reoptimizedSplitGraph (GO.convertDecoratedToSimpleGraph splitGraph) splitCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph charInfoVV inSimAnnealParams
 
-          newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList
+          newGraphList' = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList
       in
       --trace ("SJG:" ++ (show (length edgesInBaseGraph, length unionEdgeList))) $
       -- regular swap
@@ -853,7 +853,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                    -}
                    
                    -- newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
-                   newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rejoinGraphList -- newGraphList
+                   newGraphList' = GO.selectGraphs Best numToKeep 0.0 (-1) rejoinGraphList -- newGraphList
                in
                -- will only return graph if <= curBest cost
                if null rejoinGraphList then ([], inSimAnnealParams)
@@ -884,7 +884,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                    -}
                   
                    -- newGraphList = fmap (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
-                   newGraphList' = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] rejoinGraphList -- newGraphList
+                   newGraphList' = GO.selectGraphs Best numToKeep 0.0 (-1) rejoinGraphList -- newGraphList
                in
                -- found nothing better or equal 
                if null rejoinGraphList then 
@@ -898,7 +898,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
 
                -- found equal cost graph 
                else if (snd6 . head) newGraphList' == curBestCost then 
-                  let newBestList = take numToKeep $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (curBestGraphs ++ newGraphList') 
+                  let newBestList = GO.selectGraphs Best numToKeep 0.0 (-1) (curBestGraphs ++ newGraphList') 
                   in
                   rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost newBestList doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph charInfoVV inSimAnnealParams 
                -- found worse graphs only

@@ -117,7 +117,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                    newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
                    iterationHitString = ("Hit minimum cost in " ++ (show $ length $ head newCostList) ++ " of " ++ (show $ length newGraphList) ++ " iterations")
                    completeGraphList = inGraphList <> fold newGraphList
-                   filteredGraphList = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] completeGraphList
+                   filteredGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) completeGraphList
                    selectedGraphList = take keepNum filteredGraphList
                in  (selectedGraphList, commentList ++ [[iterationHitString]])
     )
@@ -148,7 +148,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    -- (elapsedSeconds, output) <- timeOpUT $
    (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $
        let  -- this line to keep control of graph number
-            inGraphList' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] inGraphList
+            inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) inGraphList
             result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
        in  pure result
 
@@ -400,7 +400,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
 
              buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
-             uniqueGraphs = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+             uniqueGraphs = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
 
              buildString = if searchBandit `elem` ["buildCharacter", "buildDistance"] then searchBandit
                            else if buildType == "character" then "buildCharacter"
@@ -465,13 +465,13 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             -- reducing to unique best cost trees--but is a memory pig
                                             let graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
                                             in
-                                            (take numToCharBuild $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] graphList, buildArgs)
+                                            (take numToCharBuild $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) graphList, buildArgs)
 
                                           else if searchBandit == "buildSPR" then 
                                             let -- build part
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                                 buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
-                                                buildGraphs' = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+                                                buildGraphs' = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
 
                                                 -- swap options
                                                 swapType = "spr"
@@ -484,7 +484,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             let -- build part
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                                 buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
-                                                buildGraphs' = GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] buildGraphs
+                                                buildGraphs' = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
 
                                                 -- swap options
                                                 swapType = "alternate" --default anyway
@@ -633,7 +633,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else error ("Unknown/unimplemented method in search: " ++ searchBandit)
       
              -- process
-             uniqueGraphs' = take keepNum $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] (searchGraphs ++ inGraphList)
+             uniqueGraphs' = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (searchGraphs ++ inGraphList)
              (uniqueGraphs, transString) = if (not transformToStaticApproximation && not transformMultiTraverse) then (uniqueGraphs', "")
                                            else if transformToStaticApproximation then 
                                                 (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")

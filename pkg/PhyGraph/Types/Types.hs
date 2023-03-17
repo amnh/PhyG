@@ -195,8 +195,8 @@ data SwapType = None | NNI | SPR | TBR | Alternate
 data JoinType = JoinPruned | JoinAll | JoinAlternate
     deriving stock (Show, Eq)
 
--- | SelectGraph types to select gaphs
-data SelectGraph = Best | Unique | AtRandom
+-- | SelectGraphType types to select gaphs
+data SelectGraphType = Best | Unique | AtRandom | All 
     deriving stock (Show, Eq)
 
 -- | Support method types

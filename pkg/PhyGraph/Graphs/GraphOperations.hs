@@ -66,7 +66,8 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , getDisplayTreeCostList
                                , phylogeneticGraphListMinus
                                , makeLeafGraph
-                               , makeSimpleLeafGraph     
+                               , makeSimpleLeafGraph  
+                               , selectGraphs   
                                ) where
 
 import           Bio.DynamicCharacter
@@ -88,6 +89,7 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
+import qualified Commands.Verify             as V
 
 -- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
 -- if an element is multiple times in firt list each will be removed
@@ -516,17 +518,34 @@ showDecGraphs inDecVV =
     else
         concat $ fmap concat $ V.toList $ fmap V.toList $ fmap (fmap LG.prettify) $ fmap (fmap convertDecoratedToSimpleGraph) inDecVV
 
+-- | selectGraphs is a wrapper around selectPhylogeneticGraph with a better interface
+selectGraphs :: SelectGraphType -> Int -> Double -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+selectGraphs selectType numberToKeep threshold rSeed inGraphList =
+  if null inGraphList then []
+  else if (selectType == AtRandom) && (rSeed == (-1)) then error ("AtRandom selection without proper random seed value")
+  else
+    let thresholdArgString = ("threshold", show threshold)
+        stringArgs = if selectType == Best then ("best", "")
+                     else if selectType == Unique then ("unique", "")
+                     else if selectType == AtRandom then ("atrandom", "")
+                     else if selectType == All then ("all", "")
+                     else  ("best", "")
+    in
+    take numberToKeep $ selectPhylogeneticGraph [stringArgs, thresholdArgString] rSeed [] inGraphList
+    
+
+
 -- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
 -- and returns or filters that list based on options.
 -- uses selectListCostPairs in GeneralUtilities
 selectPhylogeneticGraph :: [Argument] -> Int -> [String] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-selectPhylogeneticGraph inArgs rSeed selectArgList curGraphs =
+selectPhylogeneticGraph inArgs rSeed _ curGraphs =
     if null curGraphs then []
     else
         let fstArgList = fmap (fmap C.toLower . fst) inArgs
             sndArgList = fmap (fmap C.toLower . snd) inArgs
             lcArgList = zip fstArgList sndArgList
-            checkCommandList = checkCommandArgs "select" fstArgList selectArgList
+            checkCommandList = checkCommandArgs "select" fstArgList V.selectArgList
         in
            -- check for valid command options
            if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ show inArgs)

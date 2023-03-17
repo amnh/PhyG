@@ -66,7 +66,7 @@ import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 
@@ -150,7 +150,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
             newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
 
             -- save best overall dysplay trees for later use in penalty phase
-            newBestTreeList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (multiTraverseTreeList ++ currentBestTreeList)
+            newBestTreeList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList ++ currentBestTreeList)
         in
         -- trace ("GBDCBL: " ++ (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
         getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
@@ -894,7 +894,7 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                 staticIA = False
                 outgroupRootedList =  PU.seqParMap rdeepseq (postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)) blockTreeList
                 multiTraverseTreeList = PU.seqParMap rdeepseq (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupRootedList
-                lowestCostDisplayTree = head $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] multiTraverseTreeList
+                lowestCostDisplayTree = head $ GO.selectGraphs Best 1 0.0 (-1) multiTraverseTreeList
 
                 -- now can do as input (below)
                 lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree
