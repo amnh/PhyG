@@ -45,8 +45,6 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , createVertexDataOverBlocksStaticIA
                                                       , createVertexDataOverBlocksNonExact
                                                       , getBlockCost
-                                                      , updatePhylogeneticGraphCost
-                                                      , updateGraphCostsComplexities
                                                       , getW15NetPenalty
                                                       , getW15NetPenaltyFull
                                                       , getW23NetPenalty
@@ -68,7 +66,7 @@ import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import qualified GraphFormatUtilities        as GFU
 import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
-import           Debug.Trace
+-- import           Debug.Trace
 
 
 
@@ -152,7 +150,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
             newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
 
             -- save best overall dysplay trees for later use in penalty phase
-            newBestTreeList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] (multiTraverseTreeList ++ currentBestTreeList)
+            newBestTreeList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList ++ currentBestTreeList)
         in
         -- trace ("GBDCBL: " ++ (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
         getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
@@ -863,23 +861,6 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
         in
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
--- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
-updateGraphCostsComplexities :: GlobalSettings -> PhylogeneticGraph -> PhylogeneticGraph
-updateGraphCostsComplexities inGS inGraph = 
-    if optimalityCriterion inGS == Parsimony then inGraph
-    else if optimalityCriterion inGS `elem` [SI, MAPA, NCM] then
-        trace ("\tFinalizing graph cost with root priors")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) +  (snd6 inGraph))
-    else if optimalityCriterion inGS == PMDL then
-        -- trace ("\tFinalizing graph cost with model and root complexities")
-        updatePhylogeneticGraphCost inGraph ((rootComplexity inGS) + (modelComplexity inGS) + (snd6 inGraph))
-    else error ("Optimality criterion not recognized/implemented: " ++ (show $ optimalityCriterion inGS))
-
--- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
--- and returns Phylogenetic graph
-updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
-updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e)
-
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
 getW15RootCost :: GlobalSettings -> PhylogeneticGraph -> VertexCost
@@ -913,7 +894,7 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                 staticIA = False
                 outgroupRootedList =  PU.seqParMap rdeepseq (postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)) blockTreeList
                 multiTraverseTreeList = PU.seqParMap rdeepseq (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupRootedList
-                lowestCostDisplayTree = head $ GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] multiTraverseTreeList
+                lowestCostDisplayTree = head $ GO.selectGraphs Best 1 0.0 (-1) multiTraverseTreeList
 
                 -- now can do as input (below)
                 lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree

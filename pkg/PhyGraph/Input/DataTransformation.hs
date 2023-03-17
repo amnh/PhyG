@@ -78,6 +78,7 @@ import           GeneralUtilities
 import           Numeric.Natural
 import           Text.Read
 import qualified Utilities.Utilities         as U
+
 -- import           Debug.Trace
 
 -- | removeAllMissingCharacters removes charcaters from list in rawData if all taxa are missing
@@ -964,5 +965,3 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
                             error "Mismatch in number of characters and character info"
                 else  getQualitativeCharacters inCharInfoList rawDataList []
                 -- )
-
-

@@ -147,7 +147,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            
            -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
            firstGraphs = if null buildBlock then
-                            take (fromJust numReturnTrees) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] firstGraphs'
+                            GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) firstGraphs'
                          else firstGraphs'
 
            -- reporting info
@@ -313,7 +313,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
             in
             trace ("\tDistance build yielded " ++ (show $ length treeList''') ++ " trees" ++ costRangeString) (
             if (not simpleTreeOnly) then treeList'''
-            else GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList'''
+            else GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) treeList'''
             )
          )
 
@@ -329,8 +329,8 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
             trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " tree(s)" ++ costRangeString)
             treeList
          else 
-            trace ("\tCharacter build yielded " ++ (show $ length $ GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList) ++ " tree(s)" ++ costRangeString)
-            GO.selectPhylogeneticGraph [("best", (show (1 :: Int)))] 0 ["best"] treeList
+            trace ("\tCharacter build yielded " ++ (show $ length $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) treeList) ++ " tree(s)" ++ costRangeString)
+            GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) treeList
          )
 
 -- | distanceWagner takes Processed data and pairwise distance matrix and returns

@@ -180,11 +180,29 @@ data SearchData
     , commentString   :: String
     , duration        :: Int
     } deriving stock (Show, Eq)
+
 -- | maxSimultaneousGraphsSteepest is the maximum number of graphs that are evaluated
 -- at a step in "steepest" algorithms of swap and fuse. Set becasue can increase 
 -- run time of these procedurs by delaying finding "better" solutins to move to.
 maxSimultaneousGraphsSteepest :: Int
 maxSimultaneousGraphsSteepest = 10
+
+-- | SwapType types for swapping, TBRAlternate for special casing in Swap
+data SwapType = None | NNI | SPR | TBR | Alternate | TBRAlternate
+    deriving stock (Show, Eq)
+
+-- | JoinType types for join methods 
+data JoinType = JoinPruned | JoinAll | JoinAlternate
+    deriving stock (Show, Eq)
+
+-- | SelectGraphType types to select gaphs
+data SelectGraphType = Best | Unique | AtRandom | All 
+    deriving stock (Show, Eq)
+
+-- | Support method types
+data SupportMethod = Jackknife | Bootstrap | GoodmanBremer
+    deriving stock (Show, Eq)
+
 
 data  GlobalSettings
     = GlobalSettings

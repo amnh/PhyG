@@ -59,11 +59,16 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
    else
 
            let -- process args for swap
-               (keepNum, maxMoveEdgeDist, steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, replicateNumber, lcArgList) = getSwapParams inArgs
-               doNNI = any ((=="nni").fst) lcArgList
-               doSPR = any ((=="spr").fst) lcArgList
-               doTBR = any ((=="tbr").fst) lcArgList
-               doAlternate' = any ((=="alternate").fst) lcArgList
+               (keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, replicateNumber, lcArgList) = getSwapParams inArgs
+
+               swapType = if (any ((=="nni").fst) lcArgList) then NNI
+                          else if (any ((=="spr").fst) lcArgList) then SPR
+                          else if (any ((=="tbr").fst) lcArgList) then TBR
+                          else if (any ((=="alternate").fst) lcArgList) then Alternate
+                          else Alternate
+
+               maxMoveEdgeDist = if swapType == NNI then 2
+                                  else fromJust maxMoveEdgeDist'
 
                -- randomized orders of split and join-- not implemented
                -- doRandomized = any ((=="randomized").fst) lcArgList
@@ -81,12 +86,6 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                doSteepest = if (not doSteepest' && not doAll) then True
                             else doSteepest'
 
-               -- alternating rounds of SPR ande TBR is default unless NNI, SPR, or TBR specified 
-               -- swap type if alternate will be "TBR"
-               doAlternate = if doAlternate' then True
-                             else if (doTBR || doSPR || doNNI) then False
-                             else True
-
                -- simulated annealing parameters
                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
                doAnnealing = any ((=="annealing").fst) lcArgList
@@ -94,12 +93,10 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                returnMutated = any ((=="returnmutated").fst) lcArgList
 
                -- turn off union selection of rejoin--dfault to do both, union first
-               joinAll = if (any ((=="joinall").fst) lcArgList) then True
-                         else if (any ((=="joinpruned").fst) lcArgList) then False
-                         else False
+               joinType = if (any ((=="joinall").fst) lcArgList) then JoinAll
+                          else if (any ((=="joinpruned").fst) lcArgList) then JoinPruned
+                          else JoinAlternate
 
-               joinType = if not joinAll then "joinAlternate"
-                          else "joinAll"
 
                -- randomize split graph and rejoin edges, defualt to randomize
                atRandom = if (any ((=="atrandom").fst) lcArgList) then True
@@ -133,43 +130,21 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
            in
            
            trace (progressString) (
-           let (newGraphList, counterNNI)  = if doNNI then
-                                               let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR "nni" joinType atRandom inGS inData (fromJust keepNum) 2 doSteepest False doIA returnMutated inGraphList 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
-                                                   (graphListList, counterList) = unzip graphPairList
-                                               in (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                             else (inGraphList, 0)
-               (newGraphList', counterSPR)  = if doSPR then
-                                               let graphPairList = PU.seqParMap rdeepseq  (S.swapSPRTBR "spr" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest False doIA returnMutated newGraphList 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList)) newSimAnnealParamList newGraphList) -- `using` PU.myParListChunkRDS
-                                                   (graphListList, counterList) = unzip graphPairList
-                                               in
-                                               (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                             else (newGraphList, 0)
-
-               (newGraphList'', counterTBR) = if doTBR then
-                                               let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "tbr" joinType atRandom  inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated newGraphList' 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList')) newSimAnnealParamList newGraphList') -- `using` PU.myParListChunkRDS
-                                                   (graphListList, counterList) = unzip graphPairList
-                                               in
-                                               (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                              else (newGraphList', 0)
-
-               (newGraphList''', counterAlternate) = if doAlternate then
-                                                       let graphPairList =  PU.seqParMap rdeepseq  (S.swapSPRTBR "alternate" joinType atRandom inGS inData (fromJust keepNum) (2 * (fromJust maxMoveEdgeDist)) doSteepest doAlternate doIA returnMutated newGraphList'' 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) (length newGraphList'')) newSimAnnealParamList newGraphList'') -- `using` PU.myParListChunkRDS
-                                                           (graphListList, counterList) = unzip graphPairList
-                                                       in
-                                                       (take (fromJust keepNum) $ GO.selectPhylogeneticGraph [("unique", "")] 0 ["unique"] $ concat graphListList, sum counterList)
-                                                     else (newGraphList'', 0)
-
+           let (newGraphList, counter) = let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR swapType joinType atRandom inGS inData (fromJust keepNum) maxMoveEdgeDist doSteepest False doIA returnMutated inGraphList 0) (fmap (:[]) $ zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
+                                             (graphListList, counterList) = unzip graphPairList
+                                         in (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
               in
-              let finalGraphList = if null newGraphList''' then inGraphList
-                                   else newGraphList''' 
+              let finalGraphList = if null newGraphList then inGraphList
+                                   else newGraphList
 
-                  fullBuffWarning = if length (GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] newGraphList''') >= (fromJust keepNum) then "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
+                  fullBuffWarning = if length (GO.selectGraphs Best (maxBound::Int) 0.0 (-1) finalGraphList) >= (fromJust keepNum) then "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
                                     else ""
-                  endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
+
+                  endString = if (not doAnnealing && not doDrift) then ("\n\tAfter swap: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counter) ++ " " ++ (show swapType))
                               else if (method $ fromJust simAnnealParams) == SimAnneal then
-                                ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
+                                ("\n\tAfter Simulated Annealing: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counter) ++ " " ++ (show swapType))
                               else
-                                ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counterNNI) ++ " NNI, " ++ (show counterSPR) ++ " SPR, " ++ (show counterTBR) ++ " TBR, " ++ (show counterAlternate) ++ " Alternating SPR/TBR")
+                                ("\n\tAfter Drifting: " ++ (show $ length finalGraphList) ++ " resulting graphs with minimum cost " ++ (show $ minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ (show counter) ++ " " ++ (show swapType))
                   
               in
               trace (endString ++ fullBuffWarning)

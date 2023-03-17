@@ -1,7 +1,7 @@
 --read(fasta:"metazoa-aa-1.fas")
 read(fasta:"chel.fas")
 read(fasta:"chel-16.fas")
---set(criterion:NCM)
+set(criterion:NCM)
 --read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
 --read(prefasta:"chel-prealigned.fas")
