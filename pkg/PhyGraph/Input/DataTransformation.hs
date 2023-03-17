@@ -94,10 +94,10 @@ removeAllMissingCharacters inData =
     -- trace ("RAMC: " ++ (T.unpack $ name $ head charData) ++ (show (length termData, length charData))) (
     -- if length charData /= 1 then error ("removeAllMissingCharacters assumes a single character input and has " ++ (show $ length charData))
     -- check for non-single sequence character
-    if length charData /= 1 || ((charType $ head charData) `elem` exactCharacterTypes) then [inData] 
-    else 
+    if length charData /= 1 || ((charType $ head charData) `elem` exactCharacterTypes) then [inData]
+    else
         if (not . null) lengthCheck then [inData]
-        else 
+        else
             trace ("Warning: Input file " ++ (T.unpack $ name $ head charData) ++ " contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped.")
             []
     -- )
@@ -276,7 +276,7 @@ createBVNames inDataList =
 
         -- hash not guaranteed to be stable over OS or library version
         -- leafHash = fmap H.hash leafList
-        leafHash = leafList 
+        leafHash = leafList
         leafHashPair = L.sortOn fst $ zip leafHash [0..(length textNameList - 1)] -- textNameList
         (_, leafReoderedList) = unzip leafHashPair
         -- leafOrder = sortOn fst $ zip leafReoderedList [0..((length textNameList) - 1)]
@@ -424,7 +424,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 
                 -- max in case of all missing character
                 numStates = max 1 (popCount nonMissingBV)
-                
+
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
                 foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
                 stateAlphabet = fromSymbolsWOGap  foundSymbols -- fromSymbolsWOGap foundSymbols
@@ -445,7 +445,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 stateAlphabet = fromSymbolsWOGap foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             if maxRange < minRange then error ("Error in processing of additive character states " ++ (show (minRange, maxRange)))
-            else 
+            else
                 -- trace ("RA: " ++ (show (minimum minRangeL, maximum maxRangeL)) ++ " -> " ++ (show (minRange, maxRange)) ++ " " ++ (show foundSymbols)) -- ++ " -> " ++ (show stateAlphabet))
                 charInfo {alphabet = stateAlphabet}
 
@@ -603,8 +603,8 @@ setMissingBits inVal curIndex alphSize =
     else
         -- trace ("SMB:" ++ (show (curIndex, alphSize, inVal, setBit inVal curIndex)))
         setMissingBits (setBit inVal curIndex) (curIndex + 1) alphSize
-    
-    
+
+
 
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])
@@ -665,7 +665,7 @@ getNucleotideSequenceChar isPrealigned stateList =
                                  emptyCharacter { slimPrelim         = sequenceVect
                                                 , slimGapped         = (sequenceVect, sequenceVect, sequenceVect)
                                                 }
-                          else 
+                          else
                                  emptyCharacter { alignedSlimPrelim  = (sequenceVect, sequenceVect, sequenceVect)
                                                 }
     in [newSequenceChar]
@@ -680,7 +680,7 @@ getAminoAcidSequenceChar isPrealigned stateList =
                                  emptyCharacter { widePrelim         = sequenceVect
                                                 , wideGapped         = (sequenceVect, sequenceVect, sequenceVect)
                                                 }
-                          else 
+                          else
                                  emptyCharacter { alignedWidePrelim  = (sequenceVect, sequenceVect, sequenceVect)
                                                 }
     in [newSequenceChar]
@@ -700,20 +700,20 @@ getGeneralBVCode bvCodeVect inState =
             allBVStates = V.foldl1' (.|.) (fmap snd bvCodeVect)
             bvDimension = fromEnum $ BV.dimension $ snd $ V.head bvCodeVect
         in
-        if isNothing newCode then 
-            
+        if isNothing newCode then
+
             --B is Aspartic Acid or Asparagine if '-' =0 then states 3 and 12.
-            if inState == ST.fromString "B" then 
+            if inState == ST.fromString "B" then
                 let x = BV.fromBits $ (replicate 3 False) ++ [True] ++ (replicate 8 False) ++ [True] ++ (replicate (bvDimension - 13) False)
                 in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
 
             -- any amino acid but not '-'
-            else if inState == ST.fromString "X" then 
+            else if inState == ST.fromString "X" then
                 let x = allBVStates .&. (BV.fromBits (False : (replicate (bvDimension - 1) True)))
                 in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
 
-            -- any state including '-'    
-            else if inState == ST.fromString "?" then 
+            -- any state including '-'
+            else if inState == ST.fromString "?" then
                 let x = allBVStates .&. (BV.fromBits (replicate bvDimension True))
                 in (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
             else error ("State " ++ ST.toString inState ++ " not found in bitvect code " ++ show bvCodeVect)
@@ -828,7 +828,7 @@ getIntRange localState totalAlphabet =
             else (fromJust onlyInt, fromJust onlyInt)
         --Range of states
         else
-            let hasDash = ST.any (== '-') localState 
+            let hasDash = ST.any (== '-') localState
                 statesStringList = if hasDash then fmap ST.toString $ fmap (ST.filter (`notElem` ['[',']'])) $ ST.split (== '-') localState
                                    else fmap (: []) $ ST.toString $ ST.filter (`notElem` ['[',']']) localState
                                    --words $ tail $ init stateString
@@ -907,7 +907,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                 let (minRange, maxRange) = getIntRange firstState totalAlphabet
                     newCharacter = emptyCharacter { rangePrelim = (V.singleton (minRange, maxRange), V.singleton (minRange, maxRange), V.singleton (minRange, maxRange)) }
                 in
-                if ST.length firstState > 1 then 
+                if ST.length firstState > 1 then
                     -- trace ("GQC: " ++ show firstState)
                     getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
                 else getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
@@ -942,7 +942,7 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
                     localAlphabet = alphabet $ head inCharInfoList
                     isNucleotideData = isAlphabetDna localAlphabet
                     isAminoAcidData = isAlphabetAminoAcid localAlphabet
-                in 
+                in
                 -- trace ("CLC: " ++ (show localCharType)) (
                 if localCharType `elem` sequenceCharacterTypes then
                     --in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes
@@ -950,10 +950,10 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
                          NucSeq   -> getNucleotideSequenceChar False rawDataList
                          AminoSeq ->  getAminoAcidSequenceChar False rawDataList
                          -- ambiguities different, and alphabet varies with character (potentially)
-                         AlignedSlim -> if isNucleotideData then 
+                         AlignedSlim -> if isNucleotideData then
                                             getNucleotideSequenceChar True rawDataList
                                         else getGeneralSequenceChar (head inCharInfoList) rawDataList
-                         AlignedWide -> if isAminoAcidData then 
+                         AlignedWide -> if isAminoAcidData then
                                             getAminoAcidSequenceChar True rawDataList
                                         else getGeneralSequenceChar (head inCharInfoList) rawDataList
                          AlignedHuge -> getGeneralSequenceChar (head inCharInfoList) rawDataList

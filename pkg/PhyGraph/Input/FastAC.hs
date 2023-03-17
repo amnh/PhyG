@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-{-# Language LambdaCase #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Input.FastAC
   ( getFastA
@@ -85,16 +85,15 @@ getAlphabet curList inList =
 -- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
 --   in already)
 generateDefaultMatrix :: Alphabet ST.ShortText -> Int -> Int -> Int -> [[Int]]
-generateDefaultMatrix inAlph rowCount indelCost substitutionCost =
-    if null inAlph then []
-    else if rowCount == length inAlph then []
-    else
-        let firstPart = if rowCount < ((length inAlph) - 1) then replicate rowCount substitutionCost
-                        else replicate rowCount indelCost
-            thirdPart = if rowCount < ((length inAlph) - 1) then (replicate ((length inAlph) - rowCount - 1 - 1) substitutionCost) ++ [indelCost]
-                        else []
-        in
-        (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1) indelCost substitutionCost
+generateDefaultMatrix inAlph rowCount indelCost substitutionCost
+  | null inAlph = []
+  | rowCount == length inAlph = []
+  | otherwise = let firstPart = if rowCount < (length inAlph - 1) then replicate rowCount substitutionCost
+                                else replicate rowCount indelCost
+                    thirdPart = if rowCount < (length inAlph - 1) then replicate (length inAlph - rowCount - 1 - 1) substitutionCost ++ [indelCost]
+                                else []
+                in
+                (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1) indelCost substitutionCost
 
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
@@ -156,11 +155,11 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
             tcmWeightFactor = thd3 localTCM
 
 
-            (additionalWeight, localDenseCostMatrix, localWideTCM, localHugeTCM) = 
+            (additionalWeight, localDenseCostMatrix, localWideTCM, localHugeTCM) =
                 let dimension = fromIntegral $ V.length localCostMatrix
 
                     -- this 2x2 so if some Show instances are called don't get error
-                    slimMetricNil = genDiscreteDenseOfDimension dimension                     
+                    slimMetricNil = genDiscreteDenseOfDimension dimension
                     wideMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
                     hugeMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
 
@@ -180,12 +179,12 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
                       HugeSeq  -> resultHuge
                       _        -> error $ "getFastaCharInfo: Failure proceesing the CharType: '" <> show seqType <> "'"
 
-            alignedSeqType = if not isPrealigned then seqType
-                             else
-                                if seqType `elem` [NucSeq, SlimSeq] then AlignedSlim
-                                else if seqType `elem` [WideSeq, AminoSeq] then AlignedWide
-                                else if seqType == HugeSeq then AlignedHuge
-                                else error "Unrecognozed data type in getFastcCharInfo"
+            alignedSeqType
+              | not isPrealigned = seqType
+              | seqType `elem` [NucSeq, SlimSeq] = AlignedSlim
+              | seqType `elem` [WideSeq, AminoSeq] = AlignedWide
+              | seqType == HugeSeq = AlignedHuge
+              | otherwise = error "Unrecognozed data type in getFastcCharInfo"
 
             defaultSeqCharInfo = emptyCharInfo
                                     { charType = alignedSeqType
@@ -203,11 +202,11 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
         in
         --trace ("GFCI: " <> (show localHugeTCM)) (
         --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
-        if (null . fst3) localTCM && (null . snd3) localTCM then 
-            trace ("Warning: no tcm file specified for use with fasta/c file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.") 
+        if (null . fst3) localTCM && (null . snd3) localTCM then
+            trace ("Warning: no tcm file specified for use with fasta/c file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.")
             defaultSeqCharInfo
-        else 
-            trace ("Processing TCM data for file : "  ++ dataName) 
+        else
+            trace ("Processing TCM data for file : "  ++ dataName)
             defaultSeqCharInfo
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
@@ -259,7 +258,7 @@ getSequenceAphabet newAlph inStates =
 -- need to read in TCM or default
 
 --Not correct with default alphabet and matrix now after tcm recodeing added to low for decmials I htink.
--- only for multi-character element seqeunces 
+-- only for multi-character element seqeunces
 getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharInfo
 getFastcCharInfo inData dataName isPrealigned localTCM =
     if null inData then error "Empty inData in getFastcCharInfo"
@@ -268,7 +267,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
         let symbolsFound
               | not $ null $ fst3 localTCM = fst3 localTCM
               | otherwise = getSequenceAphabet [] $ concatMap snd inData
-            
+
             thisAlphabet = fromSymbols symbolsFound
 
             seqType =
@@ -336,7 +335,7 @@ getRawDataPairsFastA isPreligned inTextList =
         in
         --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
         -- trace ("FA " ++ (show firtDataSTList)) (
-        if isPreligned then 
+        if isPreligned then
             -- trace ("GRDPF: " ++ (show isPreligned))
             (firstName, firtDataSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
         else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
@@ -467,7 +466,7 @@ genDiscreteDenseOfDimension d =
 
 
 transformGapLastToGapFirst :: TCM.TCM -> TCM.TCM
-transformGapLastToGapFirst tcm = 
+transformGapLastToGapFirst tcm =
   let n = TCM.size tcm
   in  TCM.generate n $ \case
         (0,0) -> tcm TCM.! (n - 1, n - 1)
