@@ -34,40 +34,40 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE BangPatterns #-}
+
 
 module Commands.CommandUtilities where
 
 
-import Data.Foldable
-import qualified Data.List              as L
+import           Data.Alphabet
+import           Data.Bits
+import qualified Data.Char                    as C
+import           Data.Foldable
+import qualified Data.List                    as L
+import qualified Data.List.Split              as LS
+import qualified Data.List.Split              as SL
 import           Data.Maybe
-import qualified Data.Text.Lazy         as T
-import qualified Data.Text.Short        as ST
-import qualified Data.Vector            as V
-import qualified Data.Vector.Storable   as SV
-import qualified Data.Vector.Unboxed    as UV
+import qualified Data.Text.Lazy               as T
+import qualified Data.Text.Short              as ST
+import qualified Data.Vector                  as V
+import qualified Data.Vector.Storable         as SV
+import qualified Data.Vector.Unboxed          as UV
 import           Debug.Trace
 import           GeneralUtilities
 import           GraphFormatUtilities
-import           System.IO
-import           Types.Types
-import qualified Utilities.LocalGraph   as LG
-import qualified Utilities.Utilities    as U
-import qualified Data.Char              as C
-import qualified Data.List.Split as SL 
-import Graphs.GraphOperations as GO
 import qualified GraphOptimization.Traversals as TRAV
-import System.Info
-import System.Process
-import System.Directory
-import qualified SymMatrix                   as S
-import           Data.Alphabet
-import Data.Bits
-import qualified Input.Reorganize            as IR
-import qualified Data.List.Split             as LS
+import           Graphs.GraphOperations       as GO
+import qualified Input.Reorganize             as IR
+import qualified SymMatrix                    as S
+import           System.Directory
+import           System.IO
+import           System.Info
+import           System.Process
+import           Types.Types
+import qualified Utilities.LocalGraph         as LG
+import qualified Utilities.Utilities          as U
 -- import qualified Commands.Transform          as DT
-import qualified Data.Set                    as SET
+import qualified Data.Set                     as SET
 
 
 -- | processSearchFields takes a [String] and reformats the String associated with the
@@ -76,71 +76,69 @@ import qualified Data.Set                    as SET
 processSearchFields :: [[String]] -> [[String]]
 processSearchFields inStringListList =
     if null inStringListList then []
-    else 
+    else
         let firstList = head inStringListList
         in
         if head firstList /= "Search" then firstList : processSearchFields (tail inStringListList)
-        else 
+        else
             let newHeader = ["Iteration","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
                 instanceSplitList = LS.splitOn "*" (L.last firstList)
                 (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
             in
             -- trace ("GSI: " ++ (show firstList))
-            [L.init firstList] ++ [newHeader ++ (head searchBanditListList) ++ ["Arguments"]] ++ (concat instanceStringListList) ++ processSearchFields (tail inStringListList)
+            [L.init firstList] ++ [newHeader ++ head searchBanditListList ++ ["Arguments"]] ++ concat instanceStringListList ++ processSearchFields (tail inStringListList)
 
--- processSearchInstance takes the String of instance information and 
+-- processSearchInstance takes the String of instance information and
 -- returns appropriate [[String]] for pretty csv output
 processSearchInstance :: String -> ([[String]], [String])
 processSearchInstance inString =
     if null inString then ([], [])
-    else 
+    else
         let tempList = getSearchIterations inString
             iterationList = L.init tempList
-            iterationCounterList = fmap (:[]) $ fmap show [0..(length iterationList - 1)]
+            iterationCounterList = fmap ((:[]) . show) [0..(length iterationList - 1)]
             searchBanditList = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
             preArgStringList = fmap getPreArgString iterationList
             searchArgStringList = fmap getSearchArgString iterationList
-            searchBanditProbsList = fmap getBanditProbs $ fmap (tail . (dropWhile (/= '['))) iterationList
+            searchBanditProbsList = fmap (getBanditProbs . tail . (dropWhile (/= '['))) iterationList
             processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
             instanceStringList = processedSearchList ++ [LS.splitOn "," $ L.last tempList]
         in
         (instanceStringList, searchBanditList)
         where concat4 a b c d = a ++ b ++ c ++ d
 
--- | getBanditProbs parses bandit prob line for probabilities 
+-- | getBanditProbs parses bandit prob line for probabilities
 getBanditProbs :: String -> [String]
 getBanditProbs  inString =
     if null inString then []
-    else 
+    else
         let stuff = dropWhile (/= ',') inString
             stuff2 = tail $ takeWhile (/=  ')') stuff
             remainder = tail $ dropWhile (/=  ')') stuff
             remainder' = if length remainder > 2 then drop 2 remainder
-                        else [] 
+                        else []
         in
-        stuff2 : getBanditProbs remainder' 
+        stuff2 : getBanditProbs remainder'
 
 -- | getSearchArgString get seach iteration arguments and concats, removing ','
 getSearchArgString :: String -> [String]
 getSearchArgString inString =
-    if null inString then []
-    else 
-      [L.intercalate " " $ drop 4 $ tail $ LS.splitOn "," $ takeWhile (/= '[') inString]
+    [L.intercalate " " $ drop 4 $ tail $ LS.splitOn "," $ takeWhile (/= '[') inString | not (null inString)]
 
 -- getPreArgString gets search srtategy fields (type, delta, min cost, CPUtime)
--- befroe arguments fields 
+-- befroe arguments fields
 getPreArgString :: String -> [String]
 getPreArgString inString =
     if null inString then []
-    else 
-        (take 4 $ tail $ LS.splitOn "," inString)
+    else
+        take 4 $ tail $ LS.splitOn "," inString
 
 -- | getBanditNames extracts the names of search bandits from comment list
 -- already first part filtered out so only pairs in "(,)"
 getBanditNames :: String -> [String]
 getBanditNames  inString =
     if null inString then []
-    else 
+    else
         let firstBanditName = takeWhile (/= ',') $ tail inString
             remainder = dropWhile (/= '(') $ tail inString
         in
@@ -150,7 +148,7 @@ getBanditNames  inString =
 getSearchIterations :: String -> [String]
 getSearchIterations inList =
     if null inList then []
-    else 
+    else
         let commentField = filter (/= '"') inList
             commentLines = LS.splitOn "]" commentField
         in
@@ -159,16 +157,16 @@ getSearchIterations inList =
 -- changeDotPreamble takes an input string to search for and a new one to add in its place
 -- searches through dot file (can have multipl graphs) replacing teh search string each time.
 changeDotPreamble :: String -> String -> String -> String
-changeDotPreamble findString newString inDotString = 
+changeDotPreamble findString newString inDotString =
     if null inDotString then []
-    else 
+    else
         changePreamble' findString newString [] (lines inDotString)
 
 -- changeDotPreamble' internal process for changeDotPreamble
 changePreamble' :: String -> String -> [String] -> [String] -> String
 changePreamble' findString newString accumList inLineList =
     if null inLineList then unlines $ reverse accumList
-    else 
+    else
         -- trace ("CP':" ++ (head inLineList) ++ " " ++  findString ++ " " ++ newString) (
         let firstLine = head inLineList
         in
@@ -178,7 +176,7 @@ changePreamble' findString newString accumList inLineList =
 
 --printGraph graphviz simple dot file of graph
 --execute with "dot -Teps test.dot -o test.eps"
---need to add output to argument filename and call 
+--need to add output to argument filename and call
 --graphviz via System.Process.runprocess
 --also, reorder GenForest so smalles (num leaves) is either first or
 --last so can print small to large all the way so easier to read
@@ -208,8 +206,8 @@ printGraphVizDot graphDotString dotFile =
         -}
         if isJust pCode then do
             _  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
-            hPutStrLn stderr ("\tExecuted dot " ++ outputType ++ " " ++ dotFile ++ " -O ") 
-        else 
+            hPutStrLn stderr ("\tExecuted dot " ++ outputType ++ " " ++ dotFile ++ " -O ")
+        else
             hPutStrLn stderr "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download"
 
 
@@ -218,31 +216,31 @@ printGraphVizDot graphDotString dotFile =
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
     let inInstruction = instruction sD
-        (instructionString, durationString, commentString') = if inInstruction /= NotACommand then 
-                                                (show $ instruction sD, show $ ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD)
-                                              else (commentString sD, show $ ((fromIntegral $ duration sD) / 1000000000000 :: Double), "No Comment")
-    
+        (instructionString, durationString, commentString') = if inInstruction /= NotACommand then
+                                                (show $ instruction sD, show ((fromIntegral $ duration sD) / 1000 :: Double), commentString sD)
+                                              else (commentString sD, show ((fromIntegral $ duration sD) / 1000000000000 :: Double), "No Comment")
+
     in
-    [instructionString, L.intercalate " " $ fmap showArg $ arguments sD, show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD, 
+    [instructionString, unwords $ (showArg <$> arguments sD), show $ minGraphCostIn sD, show $ maxGraphCostIn sD, show $ numGraphsIn sD, show $ minGraphCostOut sD, show $ maxGraphCostOut sD, show $ numGraphsOut sD,
         durationString, commentString']
-    where showArg a = (fst a) ++ ":" ++ (snd a) 
+    where showArg a = fst a ++ ":" ++ snd a
 
 -- | requireReoptimization checks if set command in globalk settings requires reoptimization of graphs due to change in
 -- graph type, optimality criterion etc.
-requireReoptimization :: GlobalSettings -> GlobalSettings -> Bool 
-requireReoptimization gsOld gsNew =
-    if graphType gsOld /= graphType gsNew then True
-    else if optimalityCriterion gsOld /= optimalityCriterion gsNew then True
-    else if finalAssignment gsOld /= finalAssignment gsNew then True
-    else if graphFactor gsOld /= graphFactor gsNew then True
-    else if rootCost gsOld /= rootCost gsNew then True
-    else False
+requireReoptimization :: GlobalSettings -> GlobalSettings -> Bool
+requireReoptimization gsOld gsNew
+  | graphType gsOld /= graphType gsNew = True
+  | optimalityCriterion gsOld /= optimalityCriterion gsNew = True
+  | finalAssignment gsOld /= finalAssignment gsNew = True
+  | graphFactor gsOld /= graphFactor gsNew = True
+  | rootCost gsOld /= rootCost gsNew = True
+  | otherwise = False
 
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
 outputBlockTrees :: [String] -> [VertexCost] -> Int -> (String , V.Vector [DecoratedGraph]) -> String
 outputBlockTrees commandList costList lOutgroupIndex (labelString, graphLV) =
-    let blockIndexStringList = fmap ((++ "\n") . ("Block " ++)) (fmap show [0..((V.length graphLV) - 1)])
-        blockStrings = concatMap (++ "\n") (fmap (makeBlockGraphStrings commandList costList lOutgroupIndex ) $ zip blockIndexStringList (V.toList graphLV))
+    let blockIndexStringList = fmap (((++ "\n") . ("Block " ++)) . show) [0..((V.length graphLV) - 1)]
+        blockStrings = unlines (makeBlockGraphStrings commandList costList lOutgroupIndex <$> zip blockIndexStringList (V.toList graphLV))
     in
     labelString ++ blockStrings
 
@@ -258,7 +256,7 @@ makeBlockGraphStrings commandList costList lOutgroupIndex (labelString, graphL) 
 outputDisplayString :: [String] -> [VertexCost] -> Int -> [DecoratedGraph] -> String
 outputDisplayString commandList costList lOutgroupIndex graphList
   | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = GO.makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0) 
+  | "newick" `elem` commandList = GO.makeNewickList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0)
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -267,7 +265,7 @@ outputDisplayString commandList costList lOutgroupIndex graphList
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = GO.makeNewickList (not (any (=="nobranchlengths") commandList)) (not (any (=="nohtulabels") commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList 
+  | "newick" `elem` commandList = GO.makeNewickList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -276,7 +274,7 @@ outputGraphString commandList lOutgroupIndex graphList costList
 outputGraphStringSimple :: [String] -> Int -> [SimpleGraph] ->  [VertexCost] -> String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList costList lOutgroupIndex graphList
-  | "newick" `elem` commandList = GO.makeNewickList True True lOutgroupIndex graphList costList 
+  | "newick" `elem` commandList = GO.makeNewickList True True lOutgroupIndex graphList costList
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
   | otherwise = -- "dot" as default
     makeDotList costList lOutgroupIndex graphList
@@ -286,8 +284,8 @@ outputGraphStringSimple commandList lOutgroupIndex graphList costList
 -- need to specify -O option for multiple graph(outgroupIndex globalSettings)s
 makeDotList :: [VertexCost] -> Int -> [SimpleGraph] -> String
 makeDotList costList rootIndex graphList =
-    let graphStringList = fmap fgl2DotString $ fmap (LG.rerootTree rootIndex) graphList
-        costStringList = fmap ("\n//" ++) $ fmap show costList
+    let graphStringList = fmap (fgl2DotString . LG.rerootTree rootIndex) graphList
+        costStringList = fmap (("\n//" ++) . show) costList
     in
     L.intercalate "\n" (zipWith (++) graphStringList costStringList)
 
@@ -321,7 +319,7 @@ getDataListList :: [RawData] -> [T.Text] -> [[String]]
 getDataListList inDataList fullTaxList =
     if null inDataList then []
     else
-        let fileNames = " " : fmap (takeWhile (/= ':')) (fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
+        let fileNames = " " : fmap (takeWhile (/= ':') . T.unpack) (fmap name $ fmap head $ fmap snd inDataList)
             presenceAbsenceList = fmap (isThere inDataList) fullTaxList
             fullMatrix = zipWith (:) (fmap T.unpack fullTaxList) presenceAbsenceList
         in
@@ -354,12 +352,12 @@ phyloDataToString charIndexStart inDataVect =
 -- | getCharInfoStrings takes charInfo and returns list of Strings of fields
 getCharInfoStrings :: CharInfo -> [String]
 getCharInfoStrings inChar =
-    let activityString = if (activity inChar) then "active"
+    let activityString = if activity inChar then "active"
                          else "inactive"
-        prealignedString = if (prealigned inChar) then "prealigned"
+        prealignedString = if prealigned inChar then "prealigned"
                          else "unaligned"
     in
-    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ [(init $ concat $ fmap (++ ",") $ fmap ST.toString . toList $ alphabet inChar)] ++ [show $ costMatrix inChar]
+    [T.unpack $ name inChar, show $ charType inChar, activityString, show $ weight inChar, prealignedString] ++ [init $ concat $ fmap (++ ",") $ fmap ST.toString . toList $ alphabet inChar] ++ [show $ costMatrix inChar]
 
 -- | executeRenameReblockCommands takes all the "Rename commands" pairs and
 -- creates a list of pairs of new name and list of old names to be converted
@@ -371,11 +369,11 @@ executeRenameReblockCommands thisInStruction curPairs commandList  =
         let (firstOption, firstArgs) = head commandList
 
         -- skip "Read" and "Rename "commands already processed
-        if (firstOption /= thisInStruction) then executeRenameReblockCommands thisInStruction curPairs (tail commandList)
+        if firstOption /= thisInStruction then executeRenameReblockCommands thisInStruction curPairs (tail commandList)
         else
             let newName = T.filter C.isPrint $ T.filter (/= '"') $ T.pack $ snd $ head firstArgs
                 newNameList = replicate (length $ tail firstArgs) newName
-                oldNameList = (fmap (T.filter (/= '"') . T.pack) (fmap snd $ tail firstArgs))
+                oldNameList = fmap (T.filter (/= '"') . T.pack) (fmap snd $ tail firstArgs)
                 newPairs = zip newNameList oldNameList
             in
             executeRenameReblockCommands thisInStruction (curPairs ++ newPairs) (tail commandList)
@@ -406,59 +404,56 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
             edgeTitle = [[" "],["Edge Weight/Length Information"]]
             edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
             edgeInfoList = fmap getEdgeInfo edgeList
-            
-            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State", "Sequence Changes (position, parent final state, node final state)"]] 
 
-            vertexParentStateList =  fmap (:[]) $ fmap last $ concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList
+            vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State", "Sequence Changes (position, parent final state, node final state)"]]
+
+            vertexParentStateList =  fmap ((:[]) . last) (concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList)
             vertexStateList = fmap (drop 9) vertexInfoListChanges
-            
+
             -- process to change to lines of individual changes--basically a transpose
             vertexChangeListByPosition = fmap (getAlignmentBasedChanges' 0) (zip vertexParentStateList vertexStateList)
 
             -- putting parent states before current state
             vertexStateInfoList = fmap (take 9) vertexInfoListChanges
-            
+
             vertexChangeList = L.zipWith4 concat4 vertexStateInfoList vertexParentStateList vertexStateList vertexChangeListByPosition
 
             -- filter out those that are the same states
             differenceList = removeNoChangeLines vertexChangeList
         in
-        -- trace ("GGD: " ++ (show $ snd6 staticGraph)) 
-        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList 
+        -- trace ("GGD: " ++ (show $ snd6 staticGraph))
+        [vertexTitle, topHeaderList, [show graphIndex]] ++ vertexInfoList ++ edgeTitle ++ edgeHeaderList ++ edgeInfoList ++ vertexChangeTitle ++ differenceList
         where concat4 a b c d = a ++ b ++ c ++ d
 
 -- | getAlignmentBasedChanges' takes two equal length implied Alignments and outputs list of element changes between the two
 -- assumes single String in each list
 getAlignmentBasedChanges' :: Int -> ([String], [String]) -> [String]
-getAlignmentBasedChanges' index (a, b) =
-    if length a > 1 || length b < 1 then error ("Should only have length 1 lists here: " ++ (show (length a, length b)))
-    else if null a then []
-    else 
+getAlignmentBasedChanges' index (a, b)
+  | length a > 1 || length b < 1 = error ("Should only have length 1 lists here: " ++ (show (length a, length b)))
+  | null a = []
+  | otherwise = 
         -- empty spaces sometimes
-        let stringList1 = filter (not . null) $ LS.splitOn (" ") (head a)          
+        let stringList1 = filter (not . null) $ LS.splitOn (" ") (head a)
             stringList2 = filter (not . null) $ LS.splitOn (" ") (head b)
         in
 
         -- this so returns empty for non--sequence characters
         if null stringList1 then []
-        
-        else if length stringList1 /= length stringList2 then 
-            error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges': " 
-            ++ (show (length stringList1, length stringList2) ++ "\n" ++ (show stringList1) ++ "\n" ++ (show stringList2)))
+
+        else if length stringList1 /= length stringList2 then
+                 error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges': "
+                 ++ (show (length stringList1, length stringList2) ++ "\n" ++ (show stringList1) ++ "\n" ++ (show stringList2)))
         else getAlignmentBasedChangesGuts index stringList1 stringList2
-    
+
 
 -- | getAlignmentBasedChangesGuts takes processed element lists and cretes string of changes
 getAlignmentBasedChangesGuts :: Int -> [String] -> [String] -> [String]
-getAlignmentBasedChangesGuts index a b =
-    if null a then []
-    else 
-        if (head a) == (head b) then 
-            getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
-        else 
-            ((show index) ++ ":" ++ (head a) ++ "," ++ (head b)) : getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
+getAlignmentBasedChangesGuts index a b
+  | null a = []
+  | (head a) == (head b) = getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
+  | otherwise = ((show index) ++ ":" ++ (head a) ++ "," ++ (head b)) : getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
 
- 
+
 -- | getAlignmentBasedChanges takes two equal length implied Alignments and outputs list of element changes between the two
 -- only working for nucleotide prealigned or not
 getAlignmentBasedChanges :: Int -> ([String], [String]) -> [String]
@@ -472,18 +467,15 @@ getAlignmentBasedChanges index (a, b) =
                       else head b
         in
         if null string1 then []
+            
         -- this so returns empty for non--sequence characters
         else if (length string1 < 2) || (length string2 < 2) then []
         else if length string1 /= length string2 then []
         else 
             -- index stuff in case gets out of sync in list (missing data, no changes etc)
             if (take 1 string1) == (take 1 string2) then 
-                -- if index < 0 then "" : getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
-                -- else 
-                getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
+               getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
             else 
-                -- if index < 0 then ["", ((show index) ++ ":" ++ (take 1 string1) ++ "," ++ (take 1 string2))] ++ getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
-                -- else 
                 ((show index) ++ ":" ++ (take 1 string1) ++ "," ++ (take 1 string2)) : getAlignmentBasedChanges (index + 1) ([tail string1], [tail string2])
 
 -- | removeNoChangeLines takes lines of vertex changes and removes lines where parent and child startes are the same
@@ -491,13 +483,11 @@ getAlignmentBasedChanges index (a, b) =
 removeNoChangeLines :: [[String]] -> [[String]]
 removeNoChangeLines inStringList =
     if null inStringList then []
-    else 
-        let parentState = (head inStringList) !! 9
-            childState  = (head inStringList) !! 10
+    else
+        let parentState = head inStringList !! 9
+            childState  = head inStringList !! 10
         in
-        if parentState == " " then (head inStringList) : removeNoChangeLines (tail inStringList)
-        else if parentState /= childState then (head inStringList) : removeNoChangeLines (tail inStringList)
-        else removeNoChangeLines (tail inStringList)
+        (if (parentState == " ") || (parentState /= childState) then (head inStringList) : removeNoChangeLines (tail inStringList) else removeNoChangeLines (tail inStringList))
 
 -- | getVertexCharInfo returns a list of list of Strings of vertex information
 -- one list for each character at the vertex
@@ -532,17 +522,17 @@ getVertexAndParentCharInfo useIA blockDataVect inGraph charInfoVectVect allVertV
 
         -- for root--gets its own values as parent--filtered out in diff list later
         blockCharVectParent = if parentNodes == "None" then blockCharVectNode
-                              else V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd $ allVertVect V.! (head nodeParents))) charInfoVectVect
+                              else V.zip3  (V.map fst3 blockDataVect)  (vertData  (snd $ allVertVect V.! head nodeParents)) charInfoVectVect
         blockInfoListParent = concat $ V.toList $ V.map (getBlockList useIA) blockCharVectParent
     in
     basicInfoList : blockInfoListParent
-    
+
 
 -- | getBlockList takes a pair of Vector of chardata and vector of charInfo and returns Strings
 getBlockList :: Bool -> (NameText, V.Vector CharacterData, V.Vector CharInfo) -> [[String]]
 getBlockList useIA (blockName, blockDataVect, charInfoVect) =
     let firstLine = [" ", " ", " ", " ", " ", " ", T.unpack blockName," ", " ", " ", " ", " "]
-        charlines = V.toList $ V.map (makeCharLine useIA)(V.zip blockDataVect charInfoVect)
+        charlines = V.toList $ V.map (makeCharLine useIA) (V.zip blockDataVect charInfoVect)
     in
     firstLine : charlines
 
@@ -557,55 +547,55 @@ getBlockList useIA (blockName, blockDataVect, charInfoVect) =
 makeCharLine :: Bool -> (CharacterData, CharInfo) -> [String]
 makeCharLine useIA (blockDatum, charInfo) =
     let localType = charType charInfo
-        localAlphabet = fmap ST.toString $ alphabet charInfo
-        isPrealigned = if prealigned charInfo == True then "Prealigned "
+        localAlphabet = (ST.toString <$> alphabet charInfo)
+        isPrealigned = if prealigned charInfo then "Prealigned "
                        else ""
-        enhancedCharType = if localType `elem` sequenceCharacterTypes then (isPrealigned ++ (show localType))
-                        else if localType `elem` exactCharacterTypes then (show localType)
-                        else error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
+        enhancedCharType
+          | localType `elem` sequenceCharacterTypes = (isPrealigned ++ (show localType))
+          | localType `elem` exactCharacterTypes = (show localType)
+          | otherwise = error ("Character Type :" ++ (show localType) ++ "unrecogniized or not implemented")
 
-        -- set where get string from, IA for change lists 
+        -- set where get string from, IA for change lists
         (slimField, wideField, hugeField) = if useIA then (slimIAFinal blockDatum, wideIAFinal blockDatum, hugeIAFinal blockDatum)
                                             else (slimFinal blockDatum, wideFinal blockDatum, hugeFinal blockDatum)
 
 
         -- (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
-        stringFinal =  if localType == Add then (show $ rangeFinal blockDatum)
-                            else if localType == NonAdd then (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal blockDatum)
-                            else if localType `elem` packedNonAddTypes then (UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
-                            else if localType == Matrix then (show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
-                            else if localType `elem` sequenceCharacterTypes
-                                then case localType of
+        stringFinal
+          | localType == Add = (show $ rangeFinal blockDatum)
+          | localType == NonAdd = (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal blockDatum)
+          | localType `elem` packedNonAddTypes = (UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
+          | localType == Matrix = (show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
+          | localType `elem` sequenceCharacterTypes = case localType of
                                     x | x `elem` [NucSeq  ] -> (SV.foldMap (U.bitVectToCharState' localAlphabet) slimField)
                                     x | x `elem` [SlimSeq ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) slimField)
                                     x | x `elem` [WideSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) wideField)
                                     x | x `elem` [AminoSeq] -> (UV.foldMap (U.bitVectToCharState' localAlphabet) wideField)
                                     x | x `elem` [HugeSeq]           -> (foldMap (U.bitVectToCharState localAlphabet) hugeField)
-                                    x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet charInfo) || (isAlphabetRna $ alphabet charInfo) then 
+                                    x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet charInfo) || (isAlphabetRna $ alphabet charInfo) then
                                                                             (SV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedSlimFinal blockDatum)
-                                                                        else 
+                                                                        else
                                                                             (SV.foldMap (U.bitVectToCharState localAlphabet) $ alignedSlimFinal blockDatum)
-                                    x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet charInfo) then 
+                                    x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet charInfo) then
                                                                             (UV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedWideFinal blockDatum)
-                                                                        else 
+                                                                        else
                                                                             (UV.foldMap (U.bitVectToCharState localAlphabet) $ alignedWideFinal blockDatum)
                                     x | x `elem` [AlignedHuge]       -> (foldMap (U.bitVectToCharState localAlphabet) $ alignedHugeFinal blockDatum)
-                                             
-                                    _ -> error ("Un-implemented data type " ++ show localType)
 
-                            else error ("Un-implemented data type " ++ show localType)
+                                    _ -> error ("Un-implemented data type " ++ show localType)
+          | otherwise = error ("Un-implemented data type " ++ show localType)
 
         -- this removes ' ' between elements if sequence elements are a single character (e.g. DNA)
-        stringFinal' = if useIA then stringFinal
-                       else if localType `elem` [NucSeq,  AminoSeq] then filter (/= ' ') stringFinal
-                       else 
-                            let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
-                            in
-                            if maxSymbolLength > 1 then removeRecurrrentSpaces $ fmap nothingToNothing stringFinal
-                            else filter (/= ' ') stringFinal
+        stringFinal'
+          | useIA = stringFinal
+          | localType `elem` [NucSeq,  AminoSeq] = filter (/= ' ') stringFinal
+          | otherwise = let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
+                        in
+                        if maxSymbolLength > 1 then removeRecurrrentSpaces $ fmap nothingToNothing stringFinal
+                        else filter (/= ' ') stringFinal
 
         in
-        
+
         -- trace ("MCL:" ++ (show localType) ++ " " ++ stringFinal)
         -- [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringPrelim, stringFinal, show $ localCost blockDatum]
         [" ", " ", " ", " ", " ", " ", " ", T.unpack $ name charInfo, enhancedCharType, stringFinal']
@@ -614,13 +604,12 @@ makeCharLine useIA (blockDatum, charInfo) =
 
 -- | removeRecurrrentSpaces removes spaces that are followed by spaces
 removeRecurrrentSpaces :: String -> String
-removeRecurrrentSpaces inString =
-    if null inString then []
-    else if length inString == 1 then inString
-    else if head inString == ' ' then
-        if (head $ tail inString) == ' ' then removeRecurrrentSpaces (tail inString)
+removeRecurrrentSpaces inString
+  | null inString = []
+  | length inString == 1 = inString
+  | head inString == ' ' = if (head $ tail inString) == ' ' then removeRecurrrentSpaces (tail inString)
         else (head inString) : removeRecurrrentSpaces (tail inString)
-    else (head inString) : removeRecurrrentSpaces (tail inString)
+  | otherwise = (head inString) : removeRecurrrentSpaces (tail inString)
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo :: LG.LEdge EdgeInfo -> [String]
@@ -633,12 +622,12 @@ getEdgeInfo inEdge =
 -- softwired use display trees, hardWired transform to softwired then proceed with display trees
 -- key to keep cost matrices and weights
 getTNTString :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Int -> String
-getTNTString inGS inData inGraph graphNumber = 
+getTNTString inGS inData inGraph graphNumber =
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create TNT data for in getTNTString"
     else
         let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
-            leafNameList = fmap (++ "\t") $ fmap T.unpack $ fmap (vertName . snd) leafList
-            headerString = "xread\n'TNT data for Graph " ++ (show graphNumber) ++ " generated by PhylogeneticGraph (PhyG)\n\tSource characters:\n"
+            leafNameList = fmap ((++ "\t") . T.unpack) (fmap (vertName . snd) leafList)
+            headerString = "xread\n'TNT data for Graph " ++ show graphNumber ++ " generated by PhylogeneticGraph (PhyG)\n\tSource characters:\n"
             finalString = "proc/;\n\n"
             numTaxa = V.length $ fst3 inData
             charInfoVV = six6 inGraph
@@ -647,12 +636,12 @@ getTNTString inGS inData inGraph graphNumber =
             ccCodeInfo = getCharacterInfo charInfoVV
 
         in
-            
-        if graphType inGS == Tree then 
+
+        if graphType inGS == Tree then
             let leafDataList = V.fromList $ fmap (vertData . snd) leafList
 
                 -- get character strings
-                taxonCharacterStringList = V.toList $ fmap (++ "\n") $ fmap (getTaxonCharString charInfoVV) leafDataList 
+                taxonCharacterStringList = V.toList $ fmap ((++ "\n") . getTaxonCharString charInfoVV) leafDataList
                 nameCharStringList = concat $ zipWith (++) leafNameList taxonCharacterStringList
 
                 -- length information for cc code extents
@@ -667,13 +656,13 @@ getTNTString inGS inData inGraph graphNumber =
                 -- merge lengths and cc codes
                 ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
             in
-            -- trace ("GTNTS:" ++ (show charLengthList)) 
-            headerString  ++ nameLengthString ++ "'\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
+            -- trace ("GTNTS:" ++ (show charLengthList))
+            headerString  ++ nameLengthString ++ "'\n" ++ show (sum charLengthList) ++ " " ++ show numTaxa ++ "\n"
                 ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString
-            
+
 
         -- for softwired networks--use display trees
-        else if graphType inGS == SoftWired then 
+        else if graphType inGS == SoftWired then
 
             -- get display trees for each data block-- takes first of potentially multiple
             let middleStuffString = createDisplayTreeTNT inGS inData inGraph
@@ -681,36 +670,36 @@ getTNTString inGS inData inGraph graphNumber =
             headerString ++ middleStuffString ++ finalString
 
         -- for hard-wired networks--transfoirm to softwired and use display trees
-        else if graphType inGS == HardWired then 
+        else if graphType inGS == HardWired then
             let newGS = inGS {graphType = SoftWired}
-                
+
                 pruneEdges = False
                 warnPruneEdges = False
                 startVertex = Nothing
 
-                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph) 
+                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph)
 
                 middleStuffString = createDisplayTreeTNT inGS inData newGraph
 
             in
-            trace ("There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation")
-            --headerString ++ nameLengthString ++ "'\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
-            --    ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString       
+            trace "There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation"
+            --headerString ++ nameLengthString ++ "'\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n"
+            --    ++ nameCharStringList ++ ";\n" ++ ccCodeString ++ finalString
             headerString ++ middleStuffString ++ finalString
 
-        else 
+        else
             trace ("TNT  not yet implemented for graphtype " ++ show (graphType inGS))
-            ("There is no implied alignment for "++ (show (graphType inGS)))
+            ("There is no implied alignment for "++ show (graphType inGS))
 
 -- | createDisplayTreeTNT take a softwired graph and creates TNT data string
 createDisplayTreeTNT :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> String
 createDisplayTreeTNT inGS inData inGraph =
     let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
-        leafNameList = fmap (++ "\t") $ fmap T.unpack $ fmap (vertName . snd) leafList
+        leafNameList = fmap ((++ "\t") . T.unpack) (fmap (vertName . snd) leafList)
         charInfoVV = six6 inGraph
         numTaxa = V.length $ fst3 inData
         ccCodeInfo = getCharacterInfo charInfoVV
-        blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+        blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
 
         -- create seprate processed data for each block
         blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
@@ -722,7 +711,7 @@ createDisplayTreeTNT inGS inData inGraph =
         (leafDataList, mergedCharInfoVV) = mergeDataBlocks (V.toList decoratedBlockTreeList) [] []
 
         -- get character strings
-        taxonCharacterStringList = V.toList $ fmap (++ "\n") $ fmap (getTaxonCharString mergedCharInfoVV) leafDataList 
+        taxonCharacterStringList = V.toList $ fmap ((++ "\n") . getTaxonCharString mergedCharInfoVV) leafDataList
         nameCharStringList = concat $ zipWith (++) leafNameList taxonCharacterStringList
 
         -- length information for cc code extents
@@ -730,15 +719,15 @@ createDisplayTreeTNT inGS inData inGraph =
 
         -- Block/Character names for use in comment to show sources of new characters
         charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
-                
+
         nameLengthPairList = zip charNameList charLengthList
         nameLengthString = concat $ pairListToStringList nameLengthPairList 0
 
         -- merge lengths and cc codes
         ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
     in
-    nameLengthString ++ "'\n" ++ (show $ sum charLengthList) ++ " " ++ (show numTaxa) ++ "\n" 
-                ++ nameCharStringList ++ ";\n" ++ ccCodeString 
+    nameLengthString ++ "'\n" ++ show (sum charLengthList) ++ " " ++ show numTaxa ++ "\n"
+                ++ nameCharStringList ++ ";\n" ++ ccCodeString
 
 
 
@@ -750,24 +739,24 @@ pairListToStringList pairList startIndex =
     else
         let (a, b) = head pairList
         in
-        ("\t\t" ++ (show startIndex) ++ "-" ++ (show $ b + startIndex - 1) ++ " : " ++ a ++ "\n") : pairListToStringList (tail pairList) (startIndex + b)
+        ("\t\t" ++ show startIndex ++ "-" ++ show (b + startIndex - 1) ++ " : " ++ a ++ "\n") : pairListToStringList (tail pairList) (startIndex + b)
 
 -- | mergeDataBlocks takes a list of Phylogenetic Graphs (Trees) and merges the data blocks (each graph should have only 1)
 -- and merges the charInfo Vectors returning data and charInfo
-mergeDataBlocks :: [PhylogeneticGraph] -> [[(V.Vector CharacterData)]] -> [V.Vector CharInfo] -> (V.Vector (V.Vector (V.Vector CharacterData)), V.Vector (V.Vector CharInfo))
-mergeDataBlocks inGraphList curDataList curInfoList = 
-    if null inGraphList then (V.fromList $ fmap V.fromList $ fmap reverse curDataList, V.fromList $ reverse curInfoList)
-    else 
+mergeDataBlocks :: [PhylogeneticGraph] -> [[V.Vector CharacterData]] -> [V.Vector CharInfo] -> (V.Vector (V.Vector (V.Vector CharacterData)), V.Vector (V.Vector CharInfo))
+mergeDataBlocks inGraphList curDataList curInfoList =
+    if null inGraphList then (V.fromList $ fmap (V.fromList . reverse) curDataList, V.fromList $ reverse curInfoList)
+    else
         let firstGraph = head inGraphList
             firstTree = thd6 firstGraph
             firstCharInfo = V.head $ six6 firstGraph
             leafList = snd4 $ LG.splitVertexList firstTree
 
             -- since each graph has a single block--take head to get vector of characters
-            leafCharacterList = V.toList $ fmap V.head $ fmap (vertData . snd) (V.fromList leafList)
+            leafCharacterList = V.toList $ fmap (V.head . vertData . snd) (V.fromList leafList)
 
             -- zip data for each taxon
-            newDataList = if null curDataList then fmap (:[]) $ leafCharacterList
+            newDataList = if null curDataList then (:[]) <$> leafCharacterList
                           else zipWith (:) leafCharacterList curDataList
         in
         mergeDataBlocks (tail inGraphList) newDataList (firstCharInfo : curInfoList)
@@ -786,7 +775,7 @@ getBlockString :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> String
 getBlockString lengthBlock charInfoV charDataV =
     -- this to deal with missing characters
     -- trace ("GBS: " ++ (show $ V.length charDataV)) (
-    if V.null charDataV then L.replicate lengthBlock '?' 
+    if V.null charDataV then L.replicate lengthBlock '?'
     else concat $ V.zipWith getCharacterString  charDataV charInfoV
     -- )
 
@@ -794,9 +783,9 @@ getBlockString lengthBlock charInfoV charDataV =
 
 -- | mergeCharInfoCharLength merges cc code char info and char lengths for scope
 mergeCharInfoCharLength :: [(String, String, String)] -> [Int] -> Int -> String
-mergeCharInfoCharLength codeList lengthList charIndex =      
+mergeCharInfoCharLength codeList lengthList charIndex =
     if null codeList then []
-    else 
+    else
         let (ccCodeString, costsString, weightString) = head codeList
             charLength = head lengthList
             startScope = show charIndex
@@ -808,14 +797,14 @@ mergeCharInfoCharLength codeList lengthList charIndex =
                            else "costs " ++ scope ++ " = " ++ costsString ++ ";\n"
             ccCodeString' = "cc " ++ ccCodeString ++ " " ++ scope ++ ";\n"
         in
-        (ccCodeString' ++ weightString' ++ costsString') ++ (mergeCharInfoCharLength (tail codeList) (tail lengthList) (charIndex + charLength))
-        
+        (ccCodeString' ++ weightString' ++ costsString') ++ mergeCharInfoCharLength (tail codeList) (tail lengthList) (charIndex + charLength)
 
 
--- | getCharacterInfo takes charInfo vect vect and reiurns triples of ccCode, costs, and weight values 
+
+-- | getCharacterInfo takes charInfo vect vect and reiurns triples of ccCode, costs, and weight values
 -- for each character
 getCharacterInfo :: V.Vector (V.Vector CharInfo) -> [(String, String, String)]
-getCharacterInfo inCharInfoVV = 
+getCharacterInfo inCharInfoVV =
    concat $ V.toList $ fmap getBlockInfo inCharInfoVV
 
 -- | getBlockInfo gets character code info for a block
@@ -836,22 +825,22 @@ getCharCodeInfo inCharInfo =
                        else makeMatrixString inAlph inMatrix
     in
     let codeTriple = case inCharType of
-                      x | x `elem` [Add              ] -> ("+", "", charWeightString)
-                      x | x `elem` [NonAdd           ] -> ("-", "", charWeightString)
+                      x | x == Add -> ("+", "", charWeightString)
+                      x | x == NonAdd -> ("-", "", charWeightString)
                       x | x `elem` packedNonAddTypes   -> ("-", "", charWeightString)
-                      x | x `elem` [Matrix           ] -> ("(", matrixString, charWeightString)
-                      x | x `elem` sequenceCharacterTypes -> if costMatrixType == "nonAdd" then ("-", "", charWeightString) 
+                      x | x == Matrix -> ("(", matrixString, charWeightString)
+                      x | x `elem` sequenceCharacterTypes -> if costMatrixType == "nonAdd" then ("-", "", charWeightString)
                                                              else ("(", matrixString, charWeightString)
                       _                                -> error ("Un-implemented data type " ++ show inCharType)
     in
     codeTriple
 
--- | makeMatrixString takes alphabet and input cost matrix and creates TNT 
+-- | makeMatrixString takes alphabet and input cost matrix and creates TNT
 -- matrix cost line
 -- could be lesser but might not be symmetrical
 makeMatrixString :: Alphabet ST.ShortText -> S.Matrix Int -> String
-makeMatrixString inAlphabet inMatrix = 
-    let elementList =  fmap ST.toString $ toList inAlphabet
+makeMatrixString inAlphabet inMatrix =
+    let elementList =  (ST.toString <$> toList inAlphabet)
 
         -- get element pairs (Strings)
         elementPairList = filter notDiag $ getListPairs elementList
@@ -861,21 +850,21 @@ makeMatrixString inAlphabet inMatrix =
         elementPairCosts = fmap (inMatrix S.!) elementIndexPairList
 
         -- make strings of form state_i / state_j cost ...
-        costString = makeCostString elementPairList elementPairCosts 
+        costString = makeCostString elementPairList elementPairCosts
 
     in
     costString
-    where notDiag (a,b) = if a < b then True else False
+    where notDiag (a,b) = a < b
 
 -- | makeCostString takes list of state pairs and list of costs and creates tnt cost string
 makeCostString :: [(String, String)] -> [Int] -> String
 makeCostString namePairList costList =
     if null namePairList then []
-    else 
+    else
         let (a,b) = head namePairList
             c = head costList
         in
-        (a ++ "/" ++ b ++ " " ++ (show c) ++ " ") ++ (makeCostString (tail namePairList) (tail costList))
+        (a ++ "/" ++ b ++ " " ++ show c ++ " ") ++ makeCostString (tail namePairList) (tail costList)
 
 -- | getBlockLength returns a list of the lengths of all characters in a blocks
 getBlockLength :: V.Vector CharacterData -> V.Vector CharInfo -> [Int]
@@ -887,41 +876,41 @@ getBlockLength inCharDataV inCharInfoV =
 getBlockNames :: V.Vector CharInfo -> [String]
 getBlockNames inCharInfoV =
     -- trace ("GBL:" ++ (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
-    V.toList $ fmap T.unpack $ fmap name inCharInfoV
+    V.toList $ fmap (T.unpack . name) inCharInfoV
 
 
 -- | getCharacterString returns a string of character states
 -- need to add splace between (large alphabets etc)
 -- local alphabet for charactes where that is input.  MAytrix and additive are integers
 getCharacterString :: CharacterData -> CharInfo -> String
-getCharacterString inCharData inCharInfo = 
+getCharacterString inCharData inCharInfo =
     let inCharType = charType inCharInfo
-        localAlphabet = if inCharType /= NonAdd then fmap ST.toString $ alphabet inCharInfo
+        localAlphabet = if inCharType /= NonAdd then ST.toString <$> alphabet inCharInfo
                         else fmap ST.toString discreteAlphabet
     in
     let charString = case inCharType of
-                      x | x `elem` [NonAdd           ] ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
+                      x | x == NonAdd ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
                       x | x `elem` packedNonAddTypes   -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
-                      x | x `elem` [Add              ] ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
-                      x | x `elem` [Matrix           ] ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
+                      x | x == Add ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
+                      x | x == Matrix ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
                       x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ slimAlignment inCharData
                       x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ wideAlignment inCharData
-                      x | x `elem` [HugeSeq]           ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ hugeAlignment inCharData
-                      x | x `elem` [AlignedSlim]       -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
-                      x | x `elem` [AlignedWide]       -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedWidePrelim inCharData
-                      x | x `elem` [AlignedHuge]       ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedHugePrelim inCharData 
+                      x | x == HugeSeq           ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ hugeAlignment inCharData
+                      x | x == AlignedSlim       -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
+                      x | x == AlignedWide       -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedWidePrelim inCharData
+                      x | x == AlignedHuge       ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedHugePrelim inCharData
                       _                                -> error ("Un-implemented data type " ++ show inCharType)
-        allMissing = null $ filter (/= '-') charString
+        allMissing = not (any (/= '-') charString)
     in
     if not allMissing then charString
     else replicate (length charString) '?'
-        
+
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
 bitVectToCharStringTNT ::  (FiniteBits b, Bits b) => Alphabet String -> b -> String
-bitVectToCharStringTNT localAlphabet bitValue = 
+bitVectToCharStringTNT localAlphabet bitValue =
     let stateString = U.bitVectToCharState localAlphabet bitValue
     in
-    if length stateString > 1 then "[" ++ (filter (/=',') stateString) ++ "]"
+    if length stateString > 1 then "[" ++ filter (/=',') stateString ++ "]"
     else stateString
 
 -- | Implied Alignment report functions
@@ -932,16 +921,16 @@ getImpliedAlignmentString :: GlobalSettings -> Bool ->  Bool -> ProcessedData ->
 getImpliedAlignmentString inGS includeMissing concatSeqs inData inGraph graphNumber =
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
     else
-        let headerString = "Implied Alignments for Graph " ++ (show graphNumber) ++ "\n"
+        let headerString = "Implied Alignments for Graph " ++ show graphNumber ++ "\n"
         in
-        if graphType inGS == Tree then 
-            if not concatSeqs then headerString ++ (getTreeIAString includeMissing inGraph)
-            else headerString ++ (U.concatFastas $ getTreeIAString includeMissing inGraph)
+        if graphType inGS == Tree then
+            if not concatSeqs then headerString ++ getTreeIAString includeMissing inGraph
+            else headerString ++ U.concatFastas (getTreeIAString includeMissing inGraph)
 
         -- for softwired networks--use display trees
-        else if graphType inGS == SoftWired then 
+        else if graphType inGS == SoftWired then
             -- get display trees for each data block-- takes first of potentially multiple
-            let blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 inGraph
+            let blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
 
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
@@ -950,24 +939,24 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inGraph graphNum
                 decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
 
                 -- extract IA strings as if mutiple graphs
-                diplayIAStringList = fmap (getTreeIAString includeMissing) $ V.toList decoratedBlockTreeList
+                diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
 
             in
-            if not concatSeqs then headerString ++ (concat diplayIAStringList)
-            else headerString ++ (U.concatFastas $ concat diplayIAStringList)
+            if not concatSeqs then headerString ++ concat diplayIAStringList
+            else headerString ++ U.concatFastas (concat diplayIAStringList)
 
-        -- There is no IA for Hardwired at least as of yet 
+        -- There is no IA for Hardwired at least as of yet
         -- so convert to softwired and use display trees
-        else if graphType inGS == HardWired then 
+        else if graphType inGS == HardWired then
             let newGS = inGS {graphType = SoftWired}
-                
+
                 pruneEdges = False
                 warnPruneEdges = False
                 startVertex = Nothing
 
-                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph) 
+                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph)
 
-                blockDisplayList = fmap GO.convertDecoratedToSimpleGraph $ fmap head $ fth6 newGraph
+                blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 newGraph)
 
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
@@ -976,16 +965,16 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inGraph graphNum
                 decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
 
                 -- extract IA strings as if mutiple graphs
-                diplayIAStringList = fmap (getTreeIAString includeMissing) $ V.toList decoratedBlockTreeList
+                diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
             in
-            trace ("There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way") (
-            if not concatSeqs then headerString ++ (concat diplayIAStringList)
-            else headerString ++ (U.concatFastas $ concat diplayIAStringList)
+            trace "There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way" (
+            if not concatSeqs then headerString ++ concat diplayIAStringList
+            else headerString ++ U.concatFastas (concat diplayIAStringList)
             )
 
-        else 
+        else
             trace ("IA  not yet implemented for graphtype " ++ show (graphType inGS))
-            ("There is no implied alignment for " ++  (show (graphType inGS)))
+            ("There is no implied alignment for " ++  show (graphType inGS))
 
 -- | getTreeIAString takes a Tree Decorated Graph and returns Implied AlignmentString
 getTreeIAString :: Bool -> PhylogeneticGraph -> String
@@ -1004,10 +993,10 @@ makeBlockData a b c = (a, b, V.singleton c)
 
 -- | makeFullIAStrings goes block by block, creating fasta strings for each
 makeFullIAStrings ::  Bool -> V.Vector (V.Vector CharInfo) -> [NameText] -> V.Vector VertexBlockData -> [String]
-makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList = 
+makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList =
     let numBlocks = V.length charInfoVV
     in
-    concat $ fmap (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) (V.fromList [0.. numBlocks - 1])
+    concatMap (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) (V.fromList [0.. numBlocks - 1])
 
 -- | makeBlockIAStrings extracts data for a block (via index) and calls function to make iaStrings for each character
 makeBlockIAStrings :: Bool -> [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> [String]
@@ -1021,11 +1010,10 @@ makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV blockInde
 
 -- | isAllGaps checks whether a sequence is all gap charcaters '-'
 isAllGaps :: String -> Bool
-isAllGaps inSeq =
-    if null inSeq then True
-    else
-        if length (filter (`notElem` ['-', '\n']) inSeq) == 0 then True
-        else False
+isAllGaps inSeq
+  | null inSeq = True
+  | length (filter (`notElem` ['-', '\n']) inSeq) == 0 = True
+  | otherwise = False
 
 -- | makeBlockCharacterString creates implied alignmennt string for sequnce charactes and null if not
 makeBlockCharacterString :: Bool -> [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
@@ -1035,14 +1023,14 @@ makeBlockCharacterString includeMissing leafNameList leafDataVV thisCharInfo cha
         thisCharName = name thisCharInfo
     in
     if thisCharType `notElem` sequenceCharacterTypes then []
-    else 
+    else
         let -- thisCharData = fmap (V.! charIndex) leafDataVV
             thisCharData = getTaxDataOrMissing leafDataVV charIndex 0 []
-            nameDataPairList = zip leafNameList thisCharData 
+            nameDataPairList = zip leafNameList thisCharData
             fastaString = pairList2Fasta includeMissing thisCharInfo nameDataPairList
-        in 
+        in
         -- trace ("MBCS: " ++ (show $ length leafNameList) ++ " " ++ (show $ V.length thisCharData) ++ "\n" ++ (show leafDataVV))
-        "\nSequence character " ++ (T.unpack thisCharName) ++ "\n" ++ fastaString ++ "\n"
+        "\nSequence character " ++ T.unpack thisCharName ++ "\n" ++ fastaString ++ "\n"
 
 {-
 -- | getCharacterDataOrMissing takes a vector of vector of charcter data and returns list
@@ -1050,52 +1038,50 @@ makeBlockCharacterString includeMissing leafNameList leafDataVV thisCharInfo cha
 getCharacterDataOrMissing :: V.Vector (V.Vector CharacterData) -> Int -> [[CharacterData]] -> [[CharacterData]]
 getCharacterDataOrMissing leafDataVV charIndex newCharList =
     if charIndex == V.length leafDataVV then reverse newCharList
-    else 
+    else
         let firstCharData = getTaxDataOrMissing leafDataVV charIndex 0 []
         in
         getCharacterDataOrMissing leafDataVV (charIndex + 1) (firstCharData : newCharList)
 -}
 
 -- | getTaxDataOrMissing gets teh index character if data not null, empty character if not
-getTaxDataOrMissing :: V.Vector (V.Vector CharacterData) -> Int -> Int -> [CharacterData] -> [CharacterData]  
-getTaxDataOrMissing charDataV charIndex taxonIndex newTaxList =
-    if taxonIndex == V.length charDataV then reverse newTaxList
-    else if V.null (charDataV V.! taxonIndex) then getTaxDataOrMissing charDataV charIndex (taxonIndex + 1) (emptyCharacter : newTaxList)
-    else getTaxDataOrMissing charDataV charIndex (taxonIndex + 1) (((charDataV V.! taxonIndex) V.! charIndex) : newTaxList)
+getTaxDataOrMissing :: V.Vector (V.Vector CharacterData) -> Int -> Int -> [CharacterData] -> [CharacterData]
+getTaxDataOrMissing charDataV charIndex taxonIndex newTaxList
+  | taxonIndex == V.length charDataV = reverse newTaxList
+  | V.null (charDataV V.! taxonIndex) = getTaxDataOrMissing charDataV charIndex (taxonIndex + 1) (emptyCharacter : newTaxList)
+  | otherwise = getTaxDataOrMissing charDataV charIndex (taxonIndex + 1) (((charDataV V.! taxonIndex) V.! charIndex) : newTaxList)
 
--- | pairList2Fasta takes a character type and list of pairs of taxon names (as T.Text) 
+-- | pairList2Fasta takes a character type and list of pairs of taxon names (as T.Text)
 -- and character data and returns fasta formated string
 pairList2Fasta :: Bool -> CharInfo -> [(NameText, CharacterData)] -> String
-pairList2Fasta includeMissing inCharInfo nameDataPairList = 
+pairList2Fasta includeMissing inCharInfo nameDataPairList =
     if null nameDataPairList then []
-    else 
+    else
         let (firstName, blockDatum) = head nameDataPairList
             inCharType = charType inCharInfo
-            localAlphabet = fmap ST.toString $ alphabet inCharInfo
+            localAlphabet = (ST.toString <$> alphabet inCharInfo)
 
             sequenceString = case inCharType of
                                -- x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
-                               x | x `elem` [SlimSeq] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
-                               x | x `elem` [NucSeq  ] -> SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ slimAlignment blockDatum
+                               x | x == SlimSeq -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
+                               x | x == NucSeq -> SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ slimAlignment blockDatum
                                -- x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
-                               x | x `elem` [WideSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
-                               x | x `elem` [AminoSeq] -> UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ wideAlignment blockDatum
-                               x | x `elem` [HugeSeq]           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment blockDatum
-                               x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet inCharInfo) || (isAlphabetRna $ alphabet inCharInfo) then SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
+                               x | x == WideSeq -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
+                               x | x == AminoSeq -> UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ wideAlignment blockDatum
+                               x | x == HugeSeq           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment blockDatum
+                               x | x == AlignedSlim       -> if isAlphabetDna (alphabet inCharInfo) || isAlphabetRna (alphabet inCharInfo) then SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
                                                                    else SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
-                               x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet inCharInfo) then UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
+                               x | x == AlignedWide       -> if isAlphabetAminoAcid $ alphabet inCharInfo then UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
                                                                    else UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
-                               x | x `elem` [AlignedHuge]       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum 
+                               x | x == AlignedHuge       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum
                                _                                -> error ("Un-implemented data type " ++ show inCharType)
 
-            sequenceString' = if null $ filter (/= '-') sequenceString then
+            sequenceString' = if not (any (/= '-') sequenceString) then
                                 replicate (length sequenceString) '?'
                               else sequenceString
-            sequenceChunks = fmap (++ "\n") $ SL.chunksOf 50 sequenceString'
+            sequenceChunks = ((++ "\n") <$> SL.chunksOf 50 sequenceString')
 
-        in 
-        if (not includeMissing) && (isAllGaps sequenceString) then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)
-        else if blockDatum == emptyCharacter then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)
-        else (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta includeMissing inCharInfo (tail nameDataPairList))
-        
+        in
+        (if ((not includeMissing) && (isAllGaps sequenceString)) || (blockDatum == emptyCharacter) then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList) else (concat $ (('>' : (T.unpack firstName)) ++ "\n") : sequenceChunks) ++ (pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)))
+
 

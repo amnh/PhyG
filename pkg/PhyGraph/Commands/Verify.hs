@@ -1,7 +1,7 @@
 {- |
 Module      :  Verify.hs
-Description :  Module to verify (more or less) input commands 
-Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
+Description :  Module to verify (more or less) input commands
+Copyright   :  (c) 2022-2023 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
 Redistribution and use in source and binary forms, with or without
@@ -55,11 +55,11 @@ module Commands.Verify
     , transformArgList
     ) where
 
-import           Types.Types
+import qualified Data.Char        as C
+import qualified Data.List        as L
 import           GeneralUtilities
-import qualified Data.List as L
-import qualified Data.Char as C
 import           Text.Read
+import           Types.Types
 
 -- import           Debug.Trace
 
@@ -73,7 +73,7 @@ validInstructionList =  [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run
 
 -- | buildArgList is the list of valid build arguments
 buildArgList :: [String]
-buildArgList = ["atrandom", "best", "block", "character", "cun", "displaytrees", "distance", "dwag", "eun", "first", "graph", "none","nj", 
+buildArgList = ["atrandom", "best", "block", "character", "cun", "displaytrees", "distance", "dwag", "eun", "first", "graph", "none","nj",
                 "otu", "rdwag","return", "replicates", "spr","tbr", "wpgma"]
 
 -- | fuseArgList arguments
@@ -86,18 +86,18 @@ geneticAlgorithmArgList = ["elitist", "ga", "generations", "geneticalgorithm", "
 
 -- | netEdgeArgList arguments for network edge add/delete operations
 netEdgeArgList :: [String]
-netEdgeArgList = ["acceptequal", "acceptworse", "all",  "annealing", "atrandom", "drift", "inorder", "keep", "maxchanges", "maxnetedges", "netadd", 
+netEdgeArgList = ["acceptequal", "acceptworse", "all",  "annealing", "atrandom", "drift", "inorder", "keep", "maxchanges", "maxnetedges", "netadd",
     "netadddel", "netadddelete", "netdel", "netdelete", "netmove", "returnmutated", "rounds", "steepest", "steps"]
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fastc", "fenewick", "include", "newick" , "nucleotide", 
-                "preaminoacid", "prefasta", "prefastc", "prenucleotide", "rename", "tcm", "tnt"] -- "prealigned", "csv", 
+readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fastc", "fenewick", "include", "newick" , "nucleotide",
+                "preaminoacid", "prefasta", "prefastc", "prenucleotide", "rename", "tcm", "tnt"] -- "prealigned", "csv",
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
 reconcileArgList :: [String]
-reconcileArgList = ["compare", "connect", "edgelabel", "method", "outformat", "threshold", "vertexlabel"] -- "outfile" 
+reconcileArgList = ["compare", "connect", "edgelabel", "method", "outformat", "threshold", "vertexlabel"] -- "outfile"
 
 -- | reconcileOptionsList list of allowable command options of method, compare, threshhold, and outformat
 reconcileOptionsList :: [String]
@@ -110,13 +110,13 @@ refineArgList = fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees", 
-    "dot", "dotpdf", "graphs", "htulabels", "ia", "includemissing", "impliedalignment", "newick", "nobranchlengths", "nocollapse", 
+reportArgList = ["all", "append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees",
+    "dot", "dotpdf", "graphs", "htulabels", "ia", "includemissing", "impliedalignment", "newick", "nobranchlengths", "nocollapse",
     "nohtulabels","overwrite", "pairdist", "reconcile", "search", "support", "tnt"] ++ reconcileArgList
 
 -- | search arguments
 searchArgList :: [String]
-searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnetedges", "minutes", "mfactor", "seconds", "simple", 
+searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnetedges", "minutes", "mfactor", "seconds", "simple",
     "stop", "thompson"]
 
 -- | selectArgList is the list of valid select arguments
@@ -130,7 +130,7 @@ setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions
 
 -- | refinement arguments
 supportArgList :: [String]
-supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"] 
+supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"]
 
 -- | buildArgList is the list of valid build arguments
 swapArgList :: [String]
@@ -139,21 +139,21 @@ swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "a
 
 -- | transform arguments
 transformArgList :: [String]
-transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor", 
-    "graphssteepest", "jointhreshold", "multitraverse", "name", "outgroup", "softwiredmethod", "staticapprox", "tohardwired", 
+transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor",
+    "graphssteepest", "jointhreshold", "multitraverse", "name", "outgroup", "softwiredmethod", "staticapprox", "tohardwired",
     "tosoftwired", "totree", "type", "weight"]
 
 
--- | verifyCommands takes a command list and tests whether the commands 
--- and arguments are permissible before program execution--prevents late failure 
+-- | verifyCommands takes a command list and tests whether the commands
+-- and arguments are permissible before program execution--prevents late failure
 -- after alot of processing time.
--- bit does not check for files existance, write/read ability, or contents for format or 
+-- bit does not check for files existance, write/read ability, or contents for format or
 -- anyhhting else for that matter
 -- does check if files are both read from and written to
 verifyCommands :: [Command] -> [String] -> [String] -> Bool
-verifyCommands inCommandList inFilesToRead inFilesToWrite = 
+verifyCommands inCommandList inFilesToRead inFilesToWrite =
     if null inCommandList then True
-    else 
+    else
         let firstCommand = head inCommandList
             commandInstruction = fst firstCommand
             inArgs = snd firstCommand
@@ -161,10 +161,10 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
             -- check valid commandInstructions
             -- this is done earlier but might get oved so putting here just in case
             checkInstruction = commandInstruction `elem` validInstructionList
-     
+
         in
         if not checkInstruction then errorWithoutStackTrace ("Invalid command was specified : " ++ (show commandInstruction))
-        else 
+        else
             -- check each command for valid arguments
             -- make lower-case arguments
             let fstArgList = filter (/= []) $ fmap (fmap C.toLower . fst) inArgs
@@ -172,17 +172,17 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                 fileNameList = fmap (filter (/= '"')) $ filter (/= []) $ fmap snd inArgs
 
                 -- Read
-                (checkOptions, filesToReadFrom, filesToWriteTo) = 
+                (checkOptions, filesToReadFrom, filesToWriteTo) =
 
                                    -- Build
-                                   if commandInstruction == Build then 
+                                   if commandInstruction == Build then
                                         (checkCommandArgs "build" fstArgList buildArgList, [""], [""])
 
-                                   -- Fuse 
-                                   else if commandInstruction == Fuse then 
+                                   -- Fuse
+                                   else if commandInstruction == Fuse then
                                         (checkCommandArgs "fuse" fstArgList fuseArgList, [""], [""])
 
-                                   else if commandInstruction == Read then 
+                                   else if commandInstruction == Read then
                                         let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
@@ -191,7 +191,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                         else (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
 
                                    -- Reblock -- no arguments--but reads string and blocknames
-                                   else if commandInstruction == Reblock then 
+                                   else if commandInstruction == Reblock then
                                         let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
@@ -205,11 +205,11 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                    -- Reconcile -- part of report
 
                                    -- Refine
-                                   else if commandInstruction == Refine then 
+                                   else if commandInstruction == Refine then
                                         (checkCommandArgs "refine" fstArgList refineArgList,[""], [""])
 
                                    -- Rename -- -- no arguments--but reads string and taxon names
-                                   else if commandInstruction == Rename then 
+                                   else if commandInstruction == Rename then
                                         let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
@@ -221,7 +221,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                         -- )
 
                                    -- Report
-                                   else if commandInstruction == Report then 
+                                   else if commandInstruction == Report then
                                         let fileArgs = concat $ filter (/= []) $ fmap snd inArgs
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
@@ -232,15 +232,15 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                    -- Run  -- processed out before this into command list
 
                                    -- Search
-                                   else if commandInstruction == Search then 
+                                   else if commandInstruction == Search then
                                         if "reconcile" `notElem` fstArgList then (checkCommandArgs "report" fstArgList searchArgList, [""], [""])
-                                        else 
+                                        else
                                             let reconcilePairList = zip fstArgList sndArgList
                                                 nonThresholdreconcileModPairList = filter ((/= "threshold"). fst) $ reconcilePairList
                                                 thresholdreconcileModPairList = filter ((== "threshold"). fst) $ reconcilePairList
                                                 checkReconcile1 = checkCommandArgs "reconcile"  (fmap fst nonThresholdreconcileModPairList) reconcileArgList
                                                 checkReconcile2 = checkCommandArgs "reconcile"  (fmap fst thresholdreconcileModPairList) reconcileArgList
-                                                checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"  
+                                                checkReconcile3 = checkCommandArgs "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"
                                                     (fmap snd nonThresholdreconcileModPairList) reconcileOptionsList
                                                 checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
                                                 checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
@@ -248,28 +248,28 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             if checkReconcile then (checkCommandArgs "report" fstArgList searchArgList,[""], [""])
                                             else (False, [], [])
                                    -- Select
-                                   else if commandInstruction == Select then 
+                                   else if commandInstruction == Select then
                                         (checkCommandArgs "select" fstArgList selectArgList, [""], [""])
 
                                    -- Set
-                                   else if commandInstruction == Set then 
+                                   else if commandInstruction == Set then
                                         (checkCommandArgs "set" fstArgList setArgList, [""], [""])
 
                                    -- Support
-                                   else if commandInstruction == Support then 
+                                   else if commandInstruction == Support then
                                         (checkCommandArgs "support" fstArgList supportArgList, [""], [""])
 
                                    -- Swap
-                                   else if commandInstruction == Swap then 
+                                   else if commandInstruction == Swap then
                                         (checkCommandArgs "swap" fstArgList swapArgList, [""], [""])
 
-                                   -- Transform 
-                                   else if commandInstruction == Transform then 
+                                   -- Transform
+                                   else if commandInstruction == Transform then
                                         (checkCommandArgs "transform" fstArgList transformArgList, [""], [""])
-                                         
+
                                    else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
 
-                                   
+
 
             in
             if checkOptions then
@@ -278,14 +278,14 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                     readAndWriteFileList = L.intersect allFilesToReadFrom allFilesToWriteTo
                 in
                 -- trace (show (allFilesToReadFrom, allFilesToWriteTo)) (
-                if (not .null) readAndWriteFileList then 
+                if (not .null) readAndWriteFileList then
                     errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
                 else verifyCommands (tail inCommandList) allFilesToReadFrom allFilesToWriteTo
                 -- )
 
-            else 
+            else
                 -- Won't get to here--will error at earlier stages
                 False
-            
+
         where isInt a = if (readMaybe a :: Maybe Int) /= Nothing then True else False
 

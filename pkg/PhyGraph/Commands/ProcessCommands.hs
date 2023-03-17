@@ -1,6 +1,6 @@
 {- |
 Module      :  ProcessCommands.hs
-Description :  Module tpo process command 
+Description :  Module tpo process command
 Copyright   :  (c) 2022-2023 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
 License     :
 
@@ -46,7 +46,7 @@ Portability :  portable (I hope)
 -}
 
 
-module Commands.ProcessCommands  
+module Commands.ProcessCommands
     ( expandRunCommands
     , getCommandList
     , movePrealignedTCM
@@ -54,6 +54,7 @@ module Commands.ProcessCommands
     )
     where
 
+import qualified Commands.Verify      as V
 import           Data.Char
 import           Data.Foldable
 import qualified Data.List            as L
@@ -62,10 +63,9 @@ import           Data.Maybe
 import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
-import qualified Commands.Verify              as V
 --import           Debug.Trace
 
--- | preprocessOptimalityCriteriaScripts takes a processed command list and 
+-- | preprocessOptimalityCriteriaScripts takes a processed command list and
 -- processes for optimlity criteria that change tcms and such for
 -- PMDL, SI, MAPA, and NCM
 preprocessOptimalityCriteriaScripts :: [Command] -> [Command]
@@ -88,7 +88,7 @@ expandRunCommands curLines inLines =
         in
         --trace ("FL " ++ firstLine) (
         -- only deal with run lines
-        if (leftParens /= rightParens) then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ firstLine)
+        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ firstLine)
         else if null firstLine then expandRunCommands curLines (tail inLines)
         else if take 3 (fmap toLower firstLine) /= "run" then expandRunCommands (firstLine : curLines) (restLine : tail inLines)
         else do -- is a "run command"
@@ -114,7 +114,7 @@ splitCommandLine inLine =
             firstCommand = firstPart ++ parenPart
             restPart = drop (length firstCommand) inLine
         in
-        if (leftParens /= rightParens) then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ inLine)
+        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ inLine)
         else (firstCommand, restPart)
 
 -- | checkFileNames checks if first and last element of String are double quotes and removes them
@@ -240,11 +240,11 @@ getBalancedParenPart curString inString countLeft countRight =
 argumentSplitter :: String -> String -> [(String, String)]
 argumentSplitter commandLineString inString
   | null inString = []
-  | (freeOfSimpleErrors inString) == False = errorWithoutStackTrace ("Error in command specification format")
+  | not (freeOfSimpleErrors inString) = errorWithoutStackTrace "Error in command specification format"
   | otherwise =
-    let commaIndex = if (L.elemIndex ',' inString) == Nothing then (maxBound :: Int) else fromJust (L.elemIndex ',' inString)
-        semiIndex = if (L.elemIndex ':' inString) == Nothing then (maxBound :: Int) else fromJust (L.elemIndex ':' inString)
-        leftParenIndex = if (L.elemIndex '(' inString) == Nothing then (maxBound :: Int) else fromJust (L.elemIndex '(' inString)
+    let commaIndex = fromMaybe (maxBound :: Int) (L.elemIndex ',' inString)
+        semiIndex = fromMaybe (maxBound :: Int) (L.elemIndex ':' inString)
+        leftParenIndex = fromMaybe (maxBound :: Int) (L.elemIndex '(' inString)
         firstDivider = minimum [commaIndex, semiIndex, leftParenIndex]
     in
     -- simple no argument arg
@@ -254,12 +254,12 @@ argumentSplitter commandLineString inString
     else if commaIndex == firstDivider then
         -- no arg
         if null (take firstDivider inString) then errorWithoutStackTrace ("Error in command '" ++ commandLineString ++ "' perhaps due to extraneous commas (',')")
-        else if head (take firstDivider inString) == '"' then ([], (take firstDivider inString)) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
-        else ((take firstDivider inString), []) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
+        else if head (take firstDivider inString) == '"' then ([], take firstDivider inString) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
+        else (take firstDivider inString, []) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
     else if semiIndex == firstDivider then
         -- has arg after ':'
         if inString !! (semiIndex + 1) == '(' then
-            (take firstDivider inString,(takeWhile (/= ')') (drop (firstDivider + 1) inString) ++ ")")) : argumentSplitter commandLineString (drop 2 $ dropWhile (/= ')') inString)
+            (take firstDivider inString,takeWhile (/= ')') (drop (firstDivider + 1) inString) ++ ")") : argumentSplitter commandLineString (drop 2 $ dropWhile (/= ')') inString)
         else
             let nextStuff =  dropWhile (/= ',') inString
                 remainder = if null nextStuff then [] else tail nextStuff
@@ -276,7 +276,7 @@ argumentSplitter commandLineString inString
 -- add as new errors are found
 freeOfSimpleErrors :: String -> Bool
 freeOfSimpleErrors commandString
-  | null commandString = errorWithoutStackTrace ("\n\nError in command string--empty")
+  | null commandString = errorWithoutStackTrace "\n\nError in command string--empty"
   | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments or extra double quotes'\"'.")
   | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after or within arguments.")
   | isSequentialSubsequence  [',','('] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
