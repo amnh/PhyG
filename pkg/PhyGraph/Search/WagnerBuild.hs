@@ -42,19 +42,19 @@ module Search.WagnerBuild  ( wagnerTreeBuild
 import           Control.Parallel.Strategies
 -- import qualified Data.List                           as L
 import           Data.Maybe
-import qualified Data.Text.Lazy                      as TL
-import qualified Data.Vector                         as V
+import qualified Data.Text.Lazy                                as TL
+import qualified Data.Vector                                   as V
 import           Debug.Trace
 import           GeneralUtilities
-import qualified GraphOptimization.Medians           as M
-import qualified GraphOptimization.PreOrderFunctions as PRE
-import qualified GraphOptimization.Traversals        as T
-import qualified Graphs.GraphOperations              as GO
-import qualified ParallelUtilities                   as PU
-import           Types.Types
-import qualified Utilities.LocalGraph                as LG
-import           Utilities.Utilities                 as U
+import qualified GraphOptimization.Medians                     as M
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
+import qualified GraphOptimization.PreOrderFunctions           as PRE
+import qualified GraphOptimization.Traversals                  as T
+import qualified Graphs.GraphOperations                        as GO
+import qualified ParallelUtilities                             as PU
+import           Types.Types
+import qualified Utilities.LocalGraph                          as LG
+import           Utilities.Utilities                           as U
 --import qualified Search.Swap                         as S
 
 
@@ -76,7 +76,7 @@ rasWagnerBuild inGS inData rSeed numReplicates =
 
           hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
       in
-      trace ("\t\tBuilding " ++ (show numReplicates) ++ " character Wagner replicates")
+      trace ("\t\tBuilding " ++ show numReplicates ++ " character Wagner replicates")
       -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
@@ -87,7 +87,7 @@ rasWagnerBuild inGS inData rSeed numReplicates =
 -- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallation--(zipWith not doing so well?)
 wagnerTreeBuild' :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> (V.Vector Int, Int) -> PhylogeneticGraph
 wagnerTreeBuild' inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars (additionSequence, replicateIndex) =
-   wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex 
+   wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex
 
 -- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition)
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network
@@ -96,14 +96,14 @@ wagnerTreeBuild' inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExact
 -- currently naive wrt candidate tree costs
 wagnerTreeBuild :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> V.Vector Int -> Int -> PhylogeneticGraph
 wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex =
-   trace ("\tBuilding Wagner replicate " ++ (show replicateIndex)) (
-   let rootHTU = (numLeaves, TL.pack $ "HTU" ++ (show numLeaves))
-       nextHTU = (numLeaves + 1, TL.pack $ "HTU" ++ (show $ numLeaves + 1))
+   trace ("\tBuilding Wagner replicate " ++ show replicateIndex) (
+   let rootHTU = (numLeaves, TL.pack $ "HTU" ++ show numLeaves)
+       nextHTU = (numLeaves + 1, TL.pack $ "HTU" ++ show (numLeaves + 1))
 
-       edge0 = (numLeaves, (additionSequence V.! 0), 0.0)
+       edge0 = (numLeaves, additionSequence V.! 0, 0.0)
        edge1 = (numLeaves, numLeaves + 1, 0.0)
-       edge2 = (numLeaves + 1, (additionSequence V.! 1), 0.0)
-       edge3 = (numLeaves + 1, (additionSequence V.! 2), 0.0)
+       edge2 = (numLeaves + 1, additionSequence V.! 1, 0.0)
+       edge3 = (numLeaves + 1, additionSequence V.! 2, 0.0)
 
        initialTree = LG.insEdges [edge0, edge1, edge2, edge3] $ LG.insNodes [rootHTU, nextHTU] leafSimpleGraph
 
@@ -113,9 +113,9 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        -- False flag for staticIA--can't be done in build
        calculateBranchLengths = False -- must be True for delata using existing edge
        initialPostOrderTree = POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree 
+       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
 
-       wagnerTree = recursiveAddEdgesWagner (V.drop 3 $ additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
+       wagnerTree = recursiveAddEdgesWagner (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in
    -- trace ("Initial Tree:\n" ++ (LG.prettify initialTree) ++ "FDT at cost "++ (show $ snd6 initialFullyDecoratedTree) ++":\n"
    --    ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
@@ -135,13 +135,13 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
       -- trace ("RAEW-In: " ++ (show $ length additionSequence)) (
       -- edges/taxa to add, but not the edges that leads to outgroup--redundant with its sister edge
       let -- outgroupEdges = filter ((< numLeaves) . snd3) $ LG.out inDecGraph numLeaves
-          edgesToInvade = (LG.labEdges inDecGraph) -- L.\\ outgroupEdges
+          edgesToInvade = LG.labEdges inDecGraph -- L.\\ outgroupEdges
           leafToAdd = V.head additionSequence
           leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
 
           -- since this is apporximate--can get a bit off
           {-
-          --add unions here 
+          --add unions here
           -- not clear what the delta to compare is--have an existing tree cost and the leaf to add would be 0.
           -- use a single tree after first addition?
           unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
@@ -161,12 +161,12 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           -- False flag for static IA--can't do when adding in new leaves
           calculateBranchLengths = False -- must be True for delata using existing edge
           newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
-                          if (V.length additionSequence > 1) then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+                          if V.length additionSequence > 1 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                           else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
       in
-      if isNothing (LG.lab inDecGraph leafToAdd) then error ("Missing label data for vertices")
-      else 
+      if isNothing (LG.lab inDecGraph leafToAdd) then error "Missing label data for vertices"
+      else
          recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       -- )
 
@@ -183,7 +183,7 @@ addTaxonWagner numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData l
    let edge0 = (numVerts, leafToAdd, 0.0)
        edge1 = (fst3 targetEdge, numVerts, 0.0)
        edge2 = (numVerts, snd3 targetEdge, 0.0)
-       newNode = (numVerts, TL.pack ("HTU" ++ (show numVerts)))
+       newNode = (numVerts, TL.pack ("HTU" ++ show numVerts))
 
        -- full post order
        --newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge (LG.toEdge targetEdge) inSimple
@@ -203,7 +203,7 @@ getDelta :: VertexBlockData -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (
 getDelta leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
    let eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
-       
+
        -- create edge union 'character' blockData
        -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
        -- edge union based on final IA assignments filtering gaps (True True)
@@ -211,12 +211,12 @@ getDelta leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
 
    in
    -- trace ("GD: " ++ (show edgeUnionVertData)) (
-   if (LG.lab inDecGraph eNode == Nothing) || (LG.lab inDecGraph vNode == Nothing) then error ("Missing label data for vertices")
+   if isNothing (LG.lab inDecGraph eNode) || isNothing (LG.lab inDecGraph vNode) then error "Missing label data for vertices"
    else
       let -- Use edge union data for delta to edge data
-          dLeafEdgeUnionCost = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV
+          dLeafEdgeUnionCost = sum (fst <$> V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV)
 
-          
+
           -- should be able to use existing information--but for now using this
           -- existingEdgeCost' = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) eNodeVertData vNodeVertData charInfoVV
       in

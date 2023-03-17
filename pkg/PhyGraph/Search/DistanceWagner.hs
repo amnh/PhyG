@@ -151,7 +151,7 @@ wagBest :: M.Matrix Double -> Tree -> V.Vector Int -> Int -> Int ->  V.Vector In
 wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
   | length leavesToAdd == nOTUs =
   let (eVertex, uVertex, edgeWeight) =  orderEdge $ getStartingPair choiceOpt distMatrix
-      initialTree = (V.fromList[eVertex, uVertex],V.fromList [(eVertex, uVertex, edgeWeight)])
+      initialTree = (V.fromList [eVertex, uVertex],V.fromList [(eVertex, uVertex, edgeWeight)])
       leavesToAdd' = V.filter (/= eVertex) $ V.filter (/= uVertex) leavesToAdd
   in
   wagBest distMatrix initialTree leavesToAdd' nOTUs nOTUs leavesToAdd' choiceOpt
@@ -168,7 +168,7 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
   in
   --trace (show (percentAdded, decileNumber, decileRemainder)) (
   if decileRemainder == 0  && oddRemainder == 0 then
-      traceNoLF ("\t"++ (show $ 10 * decileNumber) ++ "%")
+      traceNoLF ("\t"++ show (10 * decileNumber) ++ "%")
       wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   else wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   --)
@@ -204,7 +204,7 @@ makeTreeFromOrder distMatrix initialTree nOTUs vertexIndex leavesToAdd =
       if decileRemainder == 0 then
           trace ("\t\t"++ (show $ 10 * decileNumber) ++ "%")
           makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
-      else 
+      else
       -}
       makeTreeFromOrder augmentedDistMatrix newTree nOTUs (vertexIndex + 1) (V.tail leavesToAdd)
 
@@ -216,7 +216,7 @@ getRandomAdditionSequence leafNames distMatrix outgroup initiaLeavesToAdd =
   let eVertex = initiaLeavesToAdd V.! 0
       uVertex = initiaLeavesToAdd V.! 1
       edgeWeight = distMatrix M.! (eVertex, uVertex)
-      initialTree = (V.fromList[eVertex, uVertex],V.fromList [(eVertex, uVertex, edgeWeight)])
+      initialTree = (V.fromList [eVertex, uVertex],V.fromList [(eVertex, uVertex, edgeWeight)])
       leavesToAdd = V.filter (/= eVertex) $ V.filter (/= uVertex) initiaLeavesToAdd
   in
   let thisTree = makeTreeFromOrder distMatrix initialTree nOTUs nOTUs leavesToAdd
@@ -242,7 +242,7 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSeq
       in
       [(newickTree', fst wagnerResult, treeCost, snd wagnerResult)]
   else if addSequence == "asis" then
-      let initialTree = (V.fromList[0, 1],V.fromList [(0, 1, distMatrix M.! (0,1))])
+      let initialTree = (V.fromList [0, 1],V.fromList [(0, 1, distMatrix M.! (0,1))])
           leavesToAdd = V.fromList [2..(nOTUs-1)]
           asIsResult = makeTreeFromOrder distMatrix initialTree nOTUs nOTUs leavesToAdd
           treeCost = getTreeCost $ fst asIsResult -- V.sum $ V.map getEdgeCost asIsEdges

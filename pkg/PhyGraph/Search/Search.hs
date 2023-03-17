@@ -37,28 +37,28 @@ Portability :  portable (I hope)
 module Search.Search  ( search
                       ) where
 
-import qualified Commands.Transform           as TRANS
-import qualified Commands.Verify              as VER
+import qualified Commands.Transform       as TRANS
+import qualified Commands.Verify          as VER
 import           Control.Concurrent.Async
 import           Control.DeepSeq
-import           Data.Bifunctor               (bimap)
+import           Data.Bifunctor           (bimap)
 import           Data.Char
 import           Data.Foldable
-import qualified Data.List                    as L
+import qualified Data.List                as L
 import           Data.Maybe
 import           GeneralUtilities
 -- import qualified GraphOptimization.Traversals as T
-import qualified Graphs.GraphOperations       as GO
-import qualified Search.Build                 as B
-import qualified Search.Refinement            as R
+import qualified Data.Vector              as V
+import           Debug.Trace
+import qualified Graphs.GraphOperations   as GO
+import qualified Search.Build             as B
+import qualified Search.Refinement        as R
+import           System.IO
+import           System.Random
 import           System.Timing
 import           Text.Read
 import           Types.Types
-import           Debug.Trace
-import           System.Random
-import qualified Data.Vector                  as V
-import           System.IO
-import qualified Utilities.Utilities         as U
+import qualified Utilities.Utilities      as U
 
 
 
@@ -67,12 +67,12 @@ import qualified Utilities.Utilities         as U
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
 treeBanditList :: [String]
 treeBanditList = [
-                 "buildCharacter", "buildDistance", "buildSPR", "buildAlternate", 
-                 "swapSPR", "swapAlternate", 
+                 "buildCharacter", "buildDistance", "buildSPR", "buildAlternate",
+                 "swapSPR", "swapAlternate",
                  "fuse", "fuseSPR", "fuseTBR",
-                 "driftSPR", "driftAlternate", "annealSPR", "annealAlternate", 
-                 "geneticAlgorithm" 
-                 ] 
+                 "driftSPR", "driftAlternate", "annealSPR", "annealAlternate",
+                 "geneticAlgorithm"
+                 ]
 
 -- | netWorkBanditList is list of search types unique to graphType network
 netWorkBanditList :: [String]
@@ -90,23 +90,23 @@ uncurry3' f (a, b, c) = force <$> f a b c
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList =
    let (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) = getSearchParams inArgs
-       
+
        -- flatThetaList is the initial prior list (flat) of search (bandit) choices
        -- can also be used in search for non-Thomspon search
-       flatThetaList = if graphType inGS == Tree then 
+       flatThetaList = if graphType inGS == Tree then
                             zip treeBanditList (L.replicate (length treeBanditList) (1.0 / (fromIntegral $ length treeBanditList)))
-                       else 
+                       else
                             zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
-       
+
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
        initialSeconds = fromSeconds . fromIntegral $ (0 :: Int)
-       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList 1 maxNetEdges initialSeconds threshold 0 stopNum 
+       searchTimed = uncurry3' $ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction flatThetaList 1 maxNetEdges initialSeconds threshold 0 stopNum
        infoIndices = [1..]
        seadStreams = randomIntList <$> randomIntList rSeed
-   
-   in 
+
+   in
    trace ("Randomized seach for " ++ (show searchTime) ++ " seconds with " ++ (show instances) ++ " instances keeping at most " ++ (show keepNum) ++ " graphs") (
-            
+
         do  --  threadCount <- (max 1) <$> getNumCapabilities
            let threadCount = instances -- <- (max 1) <$> getNumCapabilities
            let startGraphs = replicate threadCount (inGraphList, mempty)
@@ -121,28 +121,28 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                    selectedGraphList = take keepNum filteredGraphList
                in  (selectedGraphList, commentList ++ [[iterationHitString]])
     )
-    where getMinGraphListCost a = minimum $ fmap snd6 a 
+    where getMinGraphListCost a = minimum $ fmap snd6 a
 
 -- this CPUtime is total over all threads--not wall clock
 -- so changed to crappier getCurrentTime in System.Timing to
 -- get wall clock-like ellapsed time
-searchForDuration :: GlobalSettings 
-                  -> ProcessedData 
-                  -> [[VertexCost]] 
-                  -> Int 
-                  -> Bool 
-                  -> Int 
-                  -> String 
-                  -> [(String, Double)] 
+searchForDuration :: GlobalSettings
+                  -> ProcessedData
+                  -> [[VertexCost]]
                   -> Int
-                  -> Int 
-                  -> CPUTime 
-                  -> CPUTime 
-                  -> Int 
+                  -> Bool
                   -> Int
-                  -> Int 
-                  -> [Int] 
-                  -> ([PhylogeneticGraph], [String]) 
+                  -> String
+                  -> [(String, Double)]
+                  -> Int
+                  -> Int
+                  -> CPUTime
+                  -> CPUTime
+                  -> Int
+                  -> Int
+                  -> Int
+                  -> [Int]
+                  -> ([PhylogeneticGraph], [String])
                   -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList (inGraphList, infoStringList) = do
    -- (elapsedSeconds, output) <- timeOpUT $
@@ -152,7 +152,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
             result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
        in  pure result
 
-   -- update theta list based on performance    
+   -- update theta list based on performance
    let outTotalSeconds = timeSum inTotalSeconds elapsedSecondsCPU
    let finalTimeString = ",Final Values,,," ++ (show $ toSeconds outTotalSeconds)
    -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
@@ -173,18 +173,18 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
 updateTheta :: Bool -> Int -> String -> Int -> [String] -> [(String, Double)] -> CPUTime -> CPUTime -> Int -> Int -> ([(String, Double)], Int)
 updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList elapsedSeconds totalSeconds stopCount stopNum =
     if null inPairList then ([], stopCount)
-    else if not thompsonSample then 
+    else if not thompsonSample then
         let searchBandit = takeWhile (/= ',') (tail $ head infoStringList)
             searchDeltaString = takeWhile (/= ',') $ drop (1 + length searchBandit) (tail $ head infoStringList)
             searchDelta = read searchDeltaString :: Double
             newStopCount = if searchDelta <= 0.0 then stopCount + 1
                            else 0
             stopString = if newStopCount >= stopNum then ("\n\tSearch iterations have not improved for " ++ (show newStopCount) ++ " iterations--terminating this search command")
-                         else "" 
+                         else ""
         in
         trace  stopString
         (inPairList, newStopCount)
-    else 
+    else
         -- trace ("UT1: " ++ (show infoStringList)) (
         -- update via results, previous history, memory \factor and type of memory "loss"
         let -- get search info for last search iteration
@@ -196,10 +196,10 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             -- get timing and benefit accounting for 0's
             -- average time ratio in time factor for benefit adjustment
             totalTime = (fromIntegral $ toSeconds totalSeconds) / (fromIntegral counter) :: Double
-            timeFactor = if counter == 1 then 1.0 
+            timeFactor = if counter == 1 then 1.0
                          else if toSeconds elapsedSeconds == 0 then 0.1
                          else (fromIntegral $ toSeconds elapsedSeconds) / totalTime
-            
+
             durationTime = if toSeconds elapsedSeconds <= 1 then 1
                            else toSeconds elapsedSeconds
 
@@ -213,7 +213,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                            else 0
 
             stopString = if newStopCount >= stopNum then ("\n\tSearch iterations have not improved for " ++ (show newStopCount) ++ " iterations--terminating this search command")
-                         else "" 
+                         else ""
         in
         -- check error
         if isNothing indexBandit' then error ("Bandit index not found: " ++ searchBandit ++ " in " ++ (show inPairList))
@@ -226,7 +226,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             -- dowenweights unsiucessful bandit
             -- need to add more downweight if search long
             let previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
-            
+
                 benefit = if searchDelta <= 0.0 then 0.0
                           else searchDelta / (fromIntegral durationTime)
 
@@ -259,7 +259,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                 mFactor' = min (fromIntegral counter :: Double) (fromIntegral mFactor :: Double)
                 (wN_1, wN) = if mFunction == "linear" then
                                     (mFactor' / (mFactor' + 1), 1.0 / (mFactor' + 1))
-                             else if mFunction == "exponential" then 
+                             else if mFunction == "exponential" then
                                     (1.0 - (1.0 / (2.0 ** mFactor')), (1.0 / (2.0 ** mFactor')))
                              else error ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
 
@@ -268,14 +268,14 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
                                 else searchDelta / timeFactor
 
                 previousSuccessList = fmap (* (fromIntegral counter)) $ fmap snd inPairList
-            
+
                 -- average of new am]nd previous if m=1, no memory if m=0, longer memory with larger m
                 -- m should be limited to counter
-                -- linear ((m * previous value) + new value) / m+1 
+                -- linear ((m * previous value) + new value) / m+1
                 -- exponential ((2^(-m)  * previous value) + new value) / (2^(-m) + 1)
-                newBanditVal = if searchBenefit > inThetaBandit then 
+                newBanditVal = if searchBenefit > inThetaBandit then
                                     (wN * searchBenefit) + (wN_1 * inThetaBandit)
-                               else 
+                               else
                                     (wN_1 * inThetaBandit) + (wN * (inThetaBandit + searchBenefit))
 
                 -- for nonBandit if not successful increment them (basically to downweight bandit), other wise not
@@ -294,9 +294,9 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
             in
             -- trace ("Not simple: " ++ mFunction ++ " search benefit " ++ (show searchBenefit) ++ " " ++ searchBandit ++ " index " ++ (show indexBandit) ++ " total time: " ++ (show $ toSeconds totalSeconds) ++ " elapsed time: " ++ (show $ toSeconds elapsedSeconds) ++ " -> " ++ (show (searchDelta, toSeconds elapsedSeconds)) ++ "\n" ++ (show $ fmap snd inPairList) ++ "\n" ++ (show newThetaList) ++ "\n" ++ (head infoStringList)) (
             trace  stopString
-            (zip (fmap fst inPairList) newThetaList, newStopCount)   
+            (zip (fmap fst inPairList) newThetaList, newStopCount)
             -- )
-            
+
 
         else errorWithoutStackTrace ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
         -- )
@@ -305,21 +305,21 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
 -- | performSearch takes in put graphs and performs randomized build and search with time limit
 -- Thompson sampling and mFactor to pick strategy from updated theta success values
 -- the random calls return the tail of the input list to avoid long list access--can do vector since infinite
-performSearch :: GlobalSettings 
-               -> ProcessedData 
-               -> [[VertexCost]] 
-               -> Int 
-               -> Bool 
-               -> [(String, Double)] 
+performSearch :: GlobalSettings
+               -> ProcessedData
+               -> [[VertexCost]]
                -> Int
-               -> Int 
+               -> Bool
+               -> [(String, Double)]
+               -> Int
+               -> Int
                -> CPUTime
-               -> ([PhylogeneticGraph], [String]) 
+               -> ([PhylogeneticGraph], [String])
                -> ([PhylogeneticGraph], [String])
 performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rSeed inTime (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let -- set up log for sample
-          thompsonString = "," ++ (show thetaList) 
+          thompsonString = "," ++ (show thetaList)
 
           -- get infinite lists if integers and doubles
           randIntList = randomIntList rSeed
@@ -328,7 +328,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           -- this for constant access to random doubles need take for infinite list
           -- need to update as more random doubles are needed
           randDoubleVect = V.fromList $ take 20 randDoubleList
-          
+
           -- choose search type from list with frequencies as input from searchForDuration
           searchBandit = chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
 
@@ -337,7 +337,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           buildType = if searchBandit == "buildCharacter" then "character"
                       else if searchBandit == "buildDistance" then "distance"
                       else chooseElementAtRandomPair (randDoubleVect V.! 11) [("distance", 0.5), ("character", 0.5)]
-                            
+
           numToCharBuild = (10 :: Int)
           numToDistBuild = (1000 :: Int)
           numDistToKeep = (100 :: Int)
@@ -350,10 +350,10 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                             else  [("replicates", show numToDistBuild), ("rdwag", ""), ("best", show numDistToKeep), ("return", show numToCharBuild)]
                           else if buildType == "character" then
                              if buildMethod == "block" then [("replicates", show (1 :: Int))]
-                             else [("replicates", show numToCharBuild)] 
+                             else [("replicates", show numToCharBuild)]
                           else []
 
-          blockOptions = if buildMethod == "block" then 
+          blockOptions = if buildMethod == "block" then
                             [("block", ""),("atRandom", ""),("displaytrees", show numToCharBuild),(reconciliationMethod, "")]
                          else []
 
@@ -366,7 +366,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           acceptWorse = chooseElementAtRandomPair (randDoubleVect V.! 3) [("10.0", 0.33), ("20.0", 0.34), ("40", 0.33)]
           driftArgs = [("drift", ""),("maxChanges", maxChanges), ("acceptEqual", acceptEqual), ("acceptWorse", acceptWorse)]
 
-          -- common annealing arguments 
+          -- common annealing arguments
           tempSteps = chooseElementAtRandomPair (randDoubleVect V.! 4)  [("5", 0.33), ("10", 0.34), ("20", 0.33)]
           annealArgs = [("annealing", ""),("steps", tempSteps)]
 
@@ -374,9 +374,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           fusePairs = chooseElementAtRandomPair (randDoubleVect V.! 5) [("20", 0.45), ("40", 0.45), ("100", 0.1)]
           fuseKeep = 2 * keepNum
 
-          -- network edit options 
+          -- network edit options
           netGeneralArgs = [("keep", show keepNum), ("steepest", ""), ("atRandom", ""), ("maxnetedges", show maxNetEdges)]
-          netMoveArgs = ("netMove", "") : netGeneralArgs 
+          netMoveArgs = ("netMove", "") : netGeneralArgs
           netAddArgs = ("netAdd", "") : netGeneralArgs
           netDelArgs = ("netDel", "") : netGeneralArgs
           netAddDelArgs = ("netadddel", "") : netGeneralArgs
@@ -390,7 +390,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           recombinations    = chooseElementAtRandomPair (randDoubleVect V.! 9)  [("20", 0.45), ("40", 0.45), ("100", 0.1)]
 
           gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations), ("stop", "2")]
-         
+
       in
 
       -- no input graphs so must build to start
@@ -408,13 +408,13 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
              -- string of delta cost of graphs
              deltaString = if null inGraphList' then "10.0"
-                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) 
+                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs))
 
              currentBestString = show $ minimum $ fmap snd6 uniqueGraphs
 
              searchString = "," ++ buildString ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg buildArgs)
 
-                            
+
          in  (uniqueGraphs, [searchString ++ thompsonString])
 
 
@@ -434,29 +434,29 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              transformMultiTraverse = if transformToStaticApproximation then False
                                       else if not (multiTraverseCharacters inGS') then False
                                       else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.50), (False, 0.50)]
-             
+
              -- Can't do both static approx and multitraverse:False
              ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation then
                                                                             (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
-                                                                        else if transformMultiTraverse then 
+                                                                        else if transformMultiTraverse then
                                                                             (TRANS.transform [("multitraverse","false")] inGS' inData' inData' 0 inGraphList', ",MultiTraverse:False")
-                                                                        else 
+                                                                        else
                                                                             ((inGS', inData', inData', inGraphList'), "")
 
-           
+
 
 
          in
          -- bandit list with search arguments set
          -- primes (') for build to start with untransformed data
-         let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then 
+         let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then
                                             let -- build options
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                             in
                                             -- search
                                             (B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0), buildArgs)
 
-                                          else if searchBandit == "buildDistance" then 
+                                          else if searchBandit == "buildDistance" then
                                             let -- build options
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                             in
@@ -467,7 +467,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             in
                                             (take numToCharBuild $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) graphList, buildArgs)
 
-                                          else if searchBandit == "buildSPR" then 
+                                          else if searchBandit == "buildSPR" then
                                             let -- build part
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                                 buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
@@ -480,7 +480,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (randIntList !! 1) buildGraphs', buildArgs ++ swapArgs)
 
-                                          else if searchBandit == "buildAlternate" then 
+                                          else if searchBandit == "buildAlternate" then
                                             let -- build part
                                                 buildArgs = [(buildType, "")] ++ wagnerOptions ++ blockOptions
                                                 buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
@@ -489,11 +489,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 -- swap options
                                                 swapType = "alternate" --default anyway
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
-                                            in    
+                                            in
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (randIntList !! 1) buildGraphs', buildArgs ++ swapArgs)
 
-                                          else if searchBandit == "swapSPR" then 
+                                          else if searchBandit == "swapSPR" then
                                             let -- swap options
                                                 swapType = "spr"
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
@@ -501,11 +501,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
 
-                                          else if searchBandit == "swapAlternate" then 
+                                          else if searchBandit == "swapAlternate" then
                                             let -- swap options
                                                 swapType = "alternate" --default anyway
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
-                                            in    
+                                            in
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
 
@@ -513,7 +513,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             let -- swap args
                                                 swapType = "spr"
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
-                                                
+
                                                 -- swap with drift (common) arguments
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
@@ -524,7 +524,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             let -- swap args
                                                 swapType = "alternate"
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
-                                                
+
                                                 -- swap with drift (common) arguments
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
@@ -535,7 +535,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             let -- swap args
                                                 swapType = "spr"
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
-                                                
+
                                                 -- swap with anneal (common) arguments
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
@@ -546,7 +546,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             let -- swap args
                                                 swapType = "alternate"
                                                 swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom","")]
-                                                
+
                                                 -- swap with anneal (common) arguments
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
@@ -631,13 +631,13 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
 
                                           else error ("Unknown/unimplemented method in search: " ++ searchBandit)
-      
+
              -- process
              uniqueGraphs' = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (searchGraphs ++ inGraphList)
              (uniqueGraphs, transString) = if (not transformToStaticApproximation && not transformMultiTraverse) then (uniqueGraphs', "")
-                                           else if transformToStaticApproximation then 
+                                           else if transformToStaticApproximation then
                                                 (fth4 $ TRANS.transform [("dynamic",[])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-                                           else 
+                                           else
                                                 (fth4 $ TRANS.transform [("multiTraverse","true")] inGS origData inData 0 uniqueGraphs', ",MultiTraverse:True")
 
              -- string of delta and cost of graphs
@@ -648,7 +648,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
              -- create string for search stats
              searchString = "," ++ searchBandit ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg searchArgs) ++ transformString ++ transString
-                            
+
          in
          (uniqueGraphs, [searchString ++ thompsonString])
          where showArg a = (fst a) ++ ":" ++ (snd a)
@@ -751,7 +751,7 @@ getSearchParams inArgs =
       else if isNothing mFactor then errorWithoutStackTrace ("Thompson mFactor specification not an integer or not found in search (e.g. Thompson:1) "  ++ show (head thompsonList))
       else if isNothing maxNetEdges then errorWithoutStackTrace ("Search 'maxNetEdges' specification not an integer or not found (e.g. maxNetEdges:8): "  ++ show (snd $ head maxNetEdgesList))
       else if isNothing stopNum then errorWithoutStackTrace ("Search stop specification not an integer or not found in search (e.g. stop:10) "  ++ show (head stopList))
-         
+
       else
          let seconds' = if ((fromJust minutes > 0) || (fromJust hours > 0) || (fromJust days > 0)) && (null secondsList) then Just 0
                         else seconds

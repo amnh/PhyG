@@ -37,14 +37,14 @@ Portability :  portable (I hope)
 module Search.GeneticAlgorithm ( geneticAlgorithm
                                ) where
 
-import           GeneralUtilities
-import qualified Graphs.GraphOperations               as GO
-import qualified Search.Fuse                          as F
-import qualified Search.NetworkAddDelete              as N
-import qualified Search.Swap                          as S
-import           Types.Types
-import qualified Utilities.LocalGraph                 as LG
 import           Debug.Trace
+import           GeneralUtilities
+import qualified Graphs.GraphOperations  as GO
+import qualified Search.Fuse             as F
+import qualified Search.NetworkAddDelete as N
+import qualified Search.Swap             as S
+import           Types.Types
+import qualified Utilities.LocalGraph    as LG
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
@@ -59,20 +59,20 @@ import           Debug.Trace
 --       selection based on delta with best graph and severity factor on (0,Inf) 1 pure cost delta < 1 more severe, > 1 less severe
 --       if "elitist" (default) 'best' graphs are always selected to ensure no worse.
 -- 4) operation repearts for number of generations
-geneticAlgorithm :: GlobalSettings 
-                 -> ProcessedData 
-                 -> Int 
-                 -> Bool 
-                 -> Int 
-                 -> Int 
-                 -> Int 
-                 -> Int 
-                 -> Int 
-                 -> Double 
-                 -> Int 
-                 -> Int 
-                 -> Int 
-                 -> [PhylogeneticGraph] 
+geneticAlgorithm :: GlobalSettings
+                 -> ProcessedData
+                 -> Int
+                 -> Bool
+                 -> Int
+                 -> Int
+                 -> Int
+                 -> Int
+                 -> Int
+                 -> Double
+                 -> Int
+                 -> Int
+                 -> Int
+                 -> [PhylogeneticGraph]
                  -> ([PhylogeneticGraph], Int)
 geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
     if null inGraphList then ([], 0)
@@ -104,7 +104,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
 
             -- options to join via union choices or all in fuse
             joinType =  getRandomElement (seedList !! 6) [False, True]
-            
+
             doSteepest = True
             returnBest = False
             returnUnique = True
