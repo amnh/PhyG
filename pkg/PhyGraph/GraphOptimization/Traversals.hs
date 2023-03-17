@@ -291,8 +291,8 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
 
 -- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
 -- updates NCM with roig data due to weights of bitpacking
-updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-updateGraphCostsComplexities inGS reportingData rediagnoseWithReportingData inGraphList = 
+updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList = 
     if optimalityCriterion inGS == Parsimony then inGraphList
     
     else if optimalityCriterion inGS `elem` [SI, MAPA] then
@@ -301,7 +301,7 @@ updateGraphCostsComplexities inGS reportingData rediagnoseWithReportingData inGr
     
     else if optimalityCriterion inGS `elem` [NCM] then
         trace ("\tFinalizing graph cost (updating NCM) with root priors") $
-        let updatedGraphList = if reportingData == emptyProcessedData || not rediagnoseWithReportingData then 
+        let updatedGraphList = if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData)) then 
                                  -- trace ("\t\tCannot update cost with original data--skipping")
                                  updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
                                else 
