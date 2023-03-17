@@ -59,7 +59,6 @@ import qualified Utilities.Utilities          as U
 import qualified Input.BitPack                as BP
 import qualified Data.CSV                     as CSV
 import qualified Utilities.LocalGraph        as LG
-import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import           Control.Parallel.Strategies
 import qualified ParallelUtilities           as PU
 import           Debug.Trace
@@ -124,7 +123,8 @@ main = do
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
     else hPutStrLn stderr ("Entered " ++ (show $ length rawData) ++ " data file(s) and " ++ (show $ length rawGraphs) ++ " input graphs")
 
-    -- get set partitions character from Set commands early
+    -- get set partitions character from Set commands early, the enpty seed list puts in first section--only processing a few fields
+    -- confusing and should be changed
     let setCommands = filter ((== Set).fst) thingsToDo
     (_, partitionCharOptimalityGlobalSettings, _, _) <- CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
     
@@ -199,7 +199,7 @@ main = do
 
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
     -- Need to check data for equal in character number
-    let naiveData = DT.createNaiveData reconciledData leafBitVectorNames []
+    let naiveData = DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
 
     -- Set reporting data for qualitative characaters to Naive data (usually but not is huge), empty if packed
     let reportingData = if reportNaiveData partitionCharOptimalityGlobalSettings then 
@@ -281,8 +281,12 @@ main = do
     --hPutStrLn stderr (show _finalGlobalSettings)
 
     -- Add in model and root cost if optimality criterion needs it
-    hPutStrLn stderr ("\tUpdating final graph costs") 
-    let finalGraphList' = fmap (POSW.updateGraphCostsComplexities initialGlobalSettings) finalGraphList
+    -- if (rootComplexity initialGlobalSettings) /= 0.0 then hPutStrLn stderr ("\tUpdating final graph with any root priors") 
+    -- else hPutStrLn stderr ""
+
+    -- rediagnose for NCM due to packing, in most cases not required, just being sure etc
+    let rediagnoseWithReportingdata = True
+    let finalGraphList' = T.updateGraphCostsComplexities initialGlobalSettings reportingData rediagnoseWithReportingdata finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'

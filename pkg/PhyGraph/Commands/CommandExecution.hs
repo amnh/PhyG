@@ -73,7 +73,6 @@ import qualified System.Info              as SI
 import qualified Data.Version             as DV
 import qualified System.CPU               as SC
 import qualified System.IO.Unsafe         as SIOU
-import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
 import qualified ParallelUtilities            as PU
 import qualified Data.List.Split as SL 
 import Control.Parallel.Strategies
@@ -149,7 +148,8 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
             -- reporting collapsed 
             -- reverse sorting graphs by cost
-            let graphsWithUpdatedCosts = reverse (L.sortOn snd6 $ fmap (POSW.updateGraphCostsComplexities globalSettings) curGraphs')
+            let rediagnoseWithReportingData = (optimalityCriterion globalSettings) == NCM
+                graphsWithUpdatedCosts = reverse $ L.sortOn snd6 $ TRAV.updateGraphCostsComplexities globalSettings reportingData rediagnoseWithReportingData curGraphs'
                 reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs excludeRename numInputFiles crossReferenceString reportingData graphsWithUpdatedCosts supportGraphList pairwiseDist
             
             if null reportString then do
@@ -192,7 +192,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
         
         else if firstOption == Set then 
             -- if set changes graph aspects--may nned to reoptimize
-            let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings processedData seedList
+            let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings origProcessedData processedData seedList
                 newGraphList = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
                                else trace ("Reoptimizing gaphs") fmap (TRAV.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
                 
@@ -250,8 +250,9 @@ makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime commen
 
 -- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 -- needs to be abtracted--too long
-setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> [Int] -> (GlobalSettings, ProcessedData, [Int])
-setCommand argList globalSettings processedData inSeedList =
+-- if seed list is empty [] then processes first set--confusing--shold be refactored
+setCommand :: [Argument] -> GlobalSettings -> ProcessedData -> ProcessedData -> [Int] -> (GlobalSettings, ProcessedData, [Int])
+setCommand argList globalSettings origProcessedData processedData inSeedList =
     let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
         optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
         checkCommandList = checkCommandArgs "set" commandList VER.setArgList
@@ -274,6 +275,39 @@ setCommand argList globalSettings processedData inSeedList =
             else 
                 trace ("PartitionCharacter set to '" ++ (head optionList) ++ "'")
                 (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
+
+        -- sets root cost as well-- need in both places--one to process data and one to 
+        -- keep in current global
+        else if head commandList == "criterion"  then
+            let localCriterion
+                  | (head optionList == "parsimony") = Parsimony
+                  | (head optionList == "pmdl") = PMDL
+                  | (head optionList == "si") = SI
+                  | (head optionList == "mapa") = MAPA
+                  | (head optionList == "ncm") = NCM
+
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony', 'ml', or 'pmdl'")
+
+                -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
+                lGraphComplexityList = if localCriterion `elem` [Parsimony, NCM] then IL.repeat (0.0, 0.0)
+                                       else if localCriterion `elem` [PMDL, SI, MAPA] then U.calculateGraphComplexity processedData
+                                       else errorWithoutStackTrace ("Optimality criterion not recognized: " ++ (show localCriterion))
+
+                lRootComplexity = if localCriterion == Parsimony then 0.0
+                                  else if localCriterion `elem`  [PMDL, SI, MAPA] then U.calculateW15RootCost processedData
+                                  else if localCriterion == NCM then 
+                                    if origProcessedData /= emptyProcessedData then U.calculateNCMRootCost origProcessedData
+                                    else U.calculateNCMRootCost processedData
+                                  else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+
+                lGraphFactor = if localCriterion `elem` [PMDL, SI, MAPA] then PMDLGraph
+                               else graphFactor globalSettings
+                message = if localCriterion `elem` [PMDL, SI] then ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
+                          else if localCriterion == NCM then ("Optimality criterion set to " ++ (show localCriterion) ++ " in -log (base 10) likelihood units")
+                          else ("Optimality criterion set to " ++ (show localCriterion))
+            in
+            trace message
+            (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList, rootComplexity = lRootComplexity, graphFactor = lGraphFactor}, processedData, inSeedList)
 
         else if head commandList == "bc2"  then
             let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
@@ -486,30 +520,42 @@ setCommand argList globalSettings processedData inSeedList =
                     (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                 else (globalSettings {bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
         
-         --  modified criterion causes changes in graphfactor and root cost 
-         else if head commandList == "criterion"  then
+         -- processed above, but need here since put in different value
+         else if head commandList == "criterion"  then --(globalSettings, processedData, inSeedList)
+            --{-
+            --trace ("In Set: " ++ (show optionList)) $
             let localCriterion
                   | (head optionList == "parsimony") = Parsimony
                   | (head optionList == "pmdl") = PMDL
                   | (head optionList == "si") = SI
                   | (head optionList == "mapa") = MAPA
-                  
+                  | (head optionList == "ncm") = NCM
+
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. Criterion '" ++ (head optionList) ++ "' is not 'parsimony', 'ml', or 'pmdl'")
 
                 -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
-                lGraphComplexityList = if localCriterion == Parsimony then IL.repeat (0.0, 0.0)
+                lGraphComplexityList = if localCriterion `elem` [Parsimony, NCM] then IL.repeat (0.0, 0.0)
                                        else if localCriterion `elem` [PMDL, SI, MAPA] then U.calculateGraphComplexity processedData
                                        else errorWithoutStackTrace ("Optimality criterion not recognized: " ++ (show localCriterion))
 
                 lRootComplexity = if localCriterion == Parsimony then 0.0
-                                 else if localCriterion `elem`  [PMDL, SI, MAPA] then U.calculateW15RootCost processedData
-                                 else error ("Optimality criterion not recognized: " ++ (show localCriterion))
+                                  else if localCriterion `elem`  [PMDL, SI, MAPA] then U.calculateW15RootCost processedData
+                                  else if localCriterion == NCM then 
+                                    if origProcessedData /= emptyProcessedData then U.calculateNCMRootCost origProcessedData
+                                    else U.calculateNCMRootCost processedData
+                                  else error ("Optimality criterion not recognized: " ++ (show localCriterion))
 
                 lGraphFactor = if localCriterion `elem` [PMDL, SI, MAPA] then PMDLGraph
                                else graphFactor globalSettings
+                -- message reported above
+                {-
+                message = if localCriterion `elem` [PMDL, SI] then ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
+                          else ("Optimality criterion set to " ++ (show localCriterion))
+                -}
             in
-            trace ("Optimality criterion set to " ++ (show localCriterion) ++ " Tree Complexity = " ++ (show $ fst $ IL.head lGraphComplexityList) ++ " bits")
+            --trace message
             (globalSettings {optimalityCriterion = localCriterion, graphComplexityList = lGraphComplexityList, rootComplexity = lRootComplexity, graphFactor = lGraphFactor}, processedData, inSeedList)
+            --} 
 
         -- modify the behavior of resolutionCache softwired optimization
         else if head commandList == "compressresolutions"  then

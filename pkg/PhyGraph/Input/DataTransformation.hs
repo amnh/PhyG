@@ -78,6 +78,7 @@ import           GeneralUtilities
 import           Numeric.Natural
 import           Text.Read
 import qualified Utilities.Utilities         as U
+
 -- import           Debug.Trace
 
 -- | removeAllMissingCharacters removes charcaters from list in rawData if all taxa are missing
@@ -301,9 +302,9 @@ createBVNames inDataList =
 -- for data output as they haven't been reordered or transformed in any way.
 -- the RawData is a list since it is organized by input file
 -- the list accumulator is to avoid Vector snoc/cons O(n)
-createNaiveData :: [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
-createNaiveData inDataList leafBitVectorNames curBlockData =
-    -- trace ("CND: ") (
+createNaiveData :: GlobalSettings -> [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
+createNaiveData inGS inDataList leafBitVectorNames curBlockData =
+    -- trace ("CND: " ++ (show $ (optimalityCriterion inGS))) $
     if null inDataList
     then --trace ("Naive data with " ++ (show $ length curBlockData) ++ " blocks and " ++ (show $ fmap length $ fmap V.head $ fmap snd3 curBlockData) ++ " characters")
         ( V.fromList $ fmap fst leafBitVectorNames
@@ -314,7 +315,7 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then trace "Empty CharInfo" createNaiveData (tail inDataList) leafBitVectorNames curBlockData
+        if null firstCharInfo then trace "Empty CharInfo" createNaiveData inGS (tail inDataList) leafBitVectorNames curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
@@ -344,10 +345,14 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
                 -- create "orginal" character info for later use in outputs after character recoding and transformation etc.
                 thisBlockCharInfo' = fmap setOrigCharInfo thisBlockCharInfo''
 
-
+                -- recode with appropriate missing data codes
                 recodedCharacters' = fmap (recodeNonAddMissingBlock thisBlockCharInfo') recodedCharacters
 
-                thisBlockData     = (thisBlockName', recodedCharacters', thisBlockCharInfo')
+                -- reweight characters by NCM (Tuffley and Steel, 1997) factor (does not include root factor--must be separately calculated)
+                thisBlockCharInfoNCM = if (optimalityCriterion inGS) == NCM then fmap reweightNCM thisBlockCharInfo'
+                                       else thisBlockCharInfo'
+
+                thisBlockData     = (thisBlockName', recodedCharacters', thisBlockCharInfoNCM)
 
                 (prealignedDataEqualLength, nameMinPairList, nameNonMinPairList) = checkPrealignedEqualLength (fmap fst leafBitVectorNames) thisBlockData
 
@@ -357,8 +362,18 @@ createNaiveData inDataList leafBitVectorNames curBlockData =
             -- trace ("CND:" ++ (show $ fmap snd firstData)) (
             else
                 trace ("Recoding input block: " ++ T.unpack thisBlockName')
-                createNaiveData (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
+                createNaiveData inGS (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
+
+-- | reweightNCM takes character info and reweights via NCM (Tuffley and Steel, 1997) -log_10 1/(alphabet size)
+reweightNCM :: CharInfo -> CharInfo
+reweightNCM inCharInfo =
+    let originalWeight = weight inCharInfo
+        alphabetSize = length $ alphabet inCharInfo
+        newWeight = originalWeight * (-1.0) * logBase 10 (1.0 / (fromIntegral alphabetSize))
+    in
+    --trace ("RWNCM: " ++ (show (originalWeight, newWeight)))
+    inCharInfo {weight = newWeight}
 
 -- | setOrigCharInfo takes fields from charInfo and sets the initial original charcter infomatin field
 -- as a singleton Vector
@@ -373,7 +388,7 @@ recodeNonAddMissingBlock :: V.Vector CharInfo -> V.Vector CharacterData -> V.Vec
 recodeNonAddMissingBlock blockCharInfo singleTaxonBlockData =
     V.zipWith recodeNonAddMissingCharacter blockCharInfo singleTaxonBlockData
 
--- | recodeAddNonAddMissingCharacter recodes additive and non -additive missing data
+-- | recodeAddNonAddMissingCharacter recodes additive and non-additive missing data
 recodeNonAddMissingCharacter :: CharInfo -> CharacterData -> CharacterData
 recodeNonAddMissingCharacter charInfo inCharData =
     let inCharType = charType charInfo
@@ -392,7 +407,7 @@ recodeNonAddMissingCharacter charInfo inCharData =
 
 
 -- | getAddNonAddAlphabets takes recoded character data and resets the alphabet
--- field in charInfo to reflect observed states.  This is used tpo properly sety missing and
+-- field in charInfo to reflect observed states.  This is used too properly sety missing and
 -- bit packing values
 resetAddNonAddAlphabets :: V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> CharInfo
 resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
@@ -950,5 +965,3 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
                             error "Mismatch in number of characters and character info"
                 else  getQualitativeCharacters inCharInfoList rawDataList []
                 -- )
-
-

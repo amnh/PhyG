@@ -72,7 +72,11 @@ supportGraph inArgs inGS inData rSeed inGraphList =
      -- check for valid command options
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'support': " ++ show inArgs)
      else
-         let doBootStrap = any ((=="bootstrap").fst) lcArgList
+         let supportMeasure = if (any ((=="Bootstrap").fst) lcArgList) then Bootstrap
+                              else if (any ((=="jackknife").fst) lcArgList) then Jackknife
+                              else if (any ((=="goodmanbremer").fst) lcArgList) then GoodmanBremer
+                              else GoodmanBremer
+
              onlyBuild = any ((=="buildonly").fst) lcArgList
 
              jackList   = filter ((=="jackknife").fst) lcArgList
@@ -111,14 +115,20 @@ supportGraph inArgs inGS inData rSeed inGraphList =
          else if isNothing goodBremSample then errorWithoutStackTrace ("Goodman-Bremer sample specification not an integer (e.g. gbsample:1000) in support: " ++ show (snd $ head goodBremSampleList))
          
          else
-            let thisMethod = if doBootStrap && (not . null) jackList && (null goodBremList) then trace ("Bootstrap and Jackknife specified--defaulting to Jackknife") "jackknife"
-                         else if (doBootStrap || (not . null) jackList) && (not . null) goodBremList then trace ("Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer") "goodBrem"
-                         else if doBootStrap then
-                           "bootstrap"
-                         else if (not . null) jackList then "jackknife"
-                         else "goodBrem"
+            let thisMethod = if (supportMeasure == Bootstrap) && ((not . null) jackList && (null goodBremList)) then 
+                                trace ("Bootstrap and Jackknife specified--defaulting to Jackknife") 
+                                Jackknife
+                             else if (supportMeasure == Bootstrap) || (((not . null) jackList) && ((not . null) goodBremList)) then 
+                                trace ("Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer") 
+                                GoodmanBremer
+                             else if supportMeasure == Bootstrap then 
+                                Bootstrap
+                             else if (not . null) jackList then 
+                                Jackknife
+                             else 
+                                GoodmanBremer
 
-                gbSampleSize = if goodBremSample == Just (maxBound :: Int)  then Nothing
+                gbSampleSize = if goodBremSample == Just (maxBound :: Int) then Nothing
                                else goodBremSample
 
                 -- sample trees uniformly at random--or "nth"
@@ -137,11 +147,11 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 buildOptions = [("distance",""), ("replicates", show (100 :: Int)), ("best", show (1 :: Int)), ("rdwag", ""), ("dWag", "")] -- [("replicates", show 10), ("best", show 1)]
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show (1 :: Int))]
-                supportGraphList = if thisMethod == "bootstrap" || thisMethod == "jackknife" then
-                                       let extraString = if  thisMethod == "jackknife" then (" with delete fraction  " ++ (show $ 1 - jackFreq))
+                supportGraphList = if thisMethod == Bootstrap || thisMethod == Jackknife then
+                                       let extraString = if  thisMethod == Jackknife then (" with delete fraction  " ++ (show $ 1 - jackFreq))
                                                          else ""
                                        in
-                                       trace ("Generating " ++ thisMethod ++ " resampling support with " ++ (show replicates) ++ " replicates" ++ extraString)
+                                       trace ("Generating " ++ (show thisMethod) ++ " resampling support with " ++ (show replicates) ++ " replicates" ++ extraString)
                                        [getResampleGraph inGS inData rSeed thisMethod replicates buildOptions swapOptions jackFreq]
                                    else
                                        let extraString = if  gbSampleSize /= Nothing then (" based on " ++ (show $ fromJust gbSampleSize) ++ " samples at random")
@@ -153,8 +163,16 @@ supportGraph inArgs inGS inData rSeed inGraphList =
 
             supportGraphList
 
--- | getResampledGraphs performs resampling and search for bootstrap and jackknife support
-getResampleGraph :: GlobalSettings -> ProcessedData -> Int -> String -> Int -> [(String, String)] -> [(String, String)] -> Double -> PhylogeneticGraph
+-- | getResampledGraphs performs resampling and search for Bootstrap and jackknife support
+getResampleGraph :: GlobalSettings 
+                 -> ProcessedData 
+                 -> Int 
+                 -> SupportMethod 
+                 -> Int 
+                 -> [(String, String)] 
+                 -> [(String, String)] 
+                 -> Double 
+                 -> PhylogeneticGraph
 getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOptions jackFreq =
    let resampledGraphList = PU.seqParMap rdeepseq  (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) -- `using` PU.myParListChunkRDS
        -- create appropriate support graph >50% ?
@@ -172,7 +190,14 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
 
 -- | makeResampledDataAndGraph takes paramters, resmaples data and find a graph based on search parameters
 -- returning the resampled graph
-makeResampledDataAndGraph :: GlobalSettings -> ProcessedData -> String -> [(String, String)] -> [(String, String)] -> Double -> Int -> PhylogeneticGraph
+makeResampledDataAndGraph :: GlobalSettings 
+                          -> ProcessedData 
+                          -> SupportMethod 
+                          -> [(String, String)] 
+                          -> [(String, String)] 
+                          -> Double 
+                          -> Int 
+                          -> PhylogeneticGraph
 makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq rSeed =
    let randomIntegerList1 = randomIntList rSeed
        -- create resampled data
@@ -183,7 +208,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
 
        -- build graphs
        buildGraphs = B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList1 !! 1)
-       bestBuildGraphList = GO.selectPhylogeneticGraph [("best", "")] 0 ["best"] buildGraphs
+       bestBuildGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) buildGraphs
 
        -- if not a tree then try to add net edges
        netAddArgs = [("netAdd", ""), ("keep", show (1 :: Int)), ("steepest", ""), ("atRandom", "")]
@@ -202,16 +227,16 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
 -- based on either with replacement (bootstrp) or without (jackknife)
 -- jackknife moves through processed data and creates a new data set
 --    based on simple prob
--- bootStrap draws chars from input directly copying--currently disabled
+-- Bootstrap draws chars from input directly copying--currently disabled
 -- if a block of data end up with zero resampled characters it is deleted
-resampleData :: Int -> String -> Double -> ProcessedData -> ProcessedData
+resampleData :: Int -> SupportMethod -> Double -> ProcessedData -> ProcessedData
 resampleData rSeed resampleType sampleFreq (nameVect, nameBVVect, blockDataVect) =
    if V.null blockDataVect then error "Null input data in resampleData"
    else
       let lRandomIntegerList = randomIntList rSeed
       in
          --Bootstrap  or Jackknife resampling
-         let newBlockDataVect' = if resampleType == "bootstrap" then V.zipWith resampleBlockBootstrap (V.fromList lRandomIntegerList) blockDataVect
+         let newBlockDataVect' = if resampleType == Bootstrap then V.zipWith resampleBlockBootstrap (V.fromList lRandomIntegerList) blockDataVect
                                  else V.zipWith (resampleBlockJackknife  sampleFreq) (V.fromList lRandomIntegerList) blockDataVect
              -- filter any zero length blocks
              newBlockDataVect = V.filter ((not . V.null) . thd3) newBlockDataVect'
@@ -232,7 +257,7 @@ resampleBlockBootstrap rSeed (nameText, charDataVV, charInfoV) =
 
 -- | makeSampledPairVectBootstrap takes a list of Int and a vectors of charinfo and char data
 -- and returns new vectors of chardata and charinfo based on randomly sampled character indices
--- this to create a bootstrap replicate of equal size
+-- this to create a Bootstrap replicate of equal size
 -- this for a single taxon hecen pass teh random ints so same for each one
 makeSampledPairVectBootstrap :: [Int] -> [Int] -> V.Vector CharInfo -> V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
 makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharDataVect =
@@ -268,7 +293,7 @@ makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharD
 
 
 -- | subSampleStatic takes a random int list and a static charcter
--- bootstrap resamples that character based on ransom it list and number of "subcharacters" in character
+-- Bootstrap resamples that character based on ransom it list and number of "subcharacters" in character
 subSampleStatic :: [Int] -> CharacterData -> CharInfo -> CharacterData
 subSampleStatic randIntList inCharData inCharInfo =
    let (a1, a2, a3) = rangePrelim inCharData

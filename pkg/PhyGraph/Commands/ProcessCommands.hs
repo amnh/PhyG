@@ -66,8 +66,8 @@ import qualified Commands.Verify              as V
 --import           Debug.Trace
 
 -- | preprocessOptimalityCriteriaScripts takes a processed command list and 
--- prtocesses for optimlity criteria that change tcms and such for
--- PMDL, SI, and MAPA
+-- processes for optimlity criteria that change tcms and such for
+-- PMDL, SI, MAPA, and NCM
 preprocessOptimalityCriteriaScripts :: [Command] -> [Command]
 preprocessOptimalityCriteriaScripts inCommandList = inCommandList
 

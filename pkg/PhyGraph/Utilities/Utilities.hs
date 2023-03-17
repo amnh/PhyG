@@ -139,6 +139,35 @@ getGraphComplexity numLeaves numRoots numNetNodes =
     -- maybe softwired is numDisplatTrees * harWired since have those edges in input
     (baseTreeComplexity * numDisplayTrees, hardwiredAddComplexity)
 
+-- | calculateNCMRootCost calcuates the contant fact of SUM -log 1/r over all charctaers
+-- approximate for packed data (based on alphabet size for packed)
+calculateNCMRootCost :: ProcessedData -> VertexCost
+calculateNCMRootCost (_, _, blockDataV) =
+    if V.null blockDataV then 0.0
+    else
+        V.sum $ fmap getBlockNCMRootCost blockDataV
+
+-- | getBlockNCMRootCost gets NCM root cost for character block
+getBlockNCMRootCost :: BlockData -> VertexCost
+getBlockNCMRootCost (_, charDataVV, charInfoV) =
+    if V.null charDataVV || V.null charInfoV then 0
+    else 
+        -- get length of each characters 
+        -- this for prealigned and non-aligned sequences mainly
+        -- but if data are reorganized and packed--all data
+        let numChars = V.length charInfoV
+            leafCharListV = fmap (charDataVV V.!)  [0.. numChars - 1]
+            maxCharLengthList = zipWith getMaxCharacterLength (V.toList charInfoV) (fmap V.toList leafCharListV)
+            weightList = fmap weight (V.toList charInfoV) 
+            rootCostList = zipWith (*) weightList (fmap fromIntegral maxCharLengthList)
+        in
+        -- trace ("GNCMR: " ++ (show (numChars, maxCharLengthList, weightList, rootCostList))) $
+        sum rootCostList
+
+
+
+
+
 
 -- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa

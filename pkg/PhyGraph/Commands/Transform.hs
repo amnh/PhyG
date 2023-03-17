@@ -36,7 +36,7 @@ Portability :  portable (I hope)
 
 module Commands.Transform
   ( transform
-  , makeStaticApprox
+  , makeStaticApprox                                             
   ) where
 
 import Types.Types
@@ -68,6 +68,7 @@ import qualified Commands.Verify             as VER
 import qualified Data.Text.Lazy              as TL
 import qualified Data.Char as C
 import qualified Data.Bits as B
+
 
 
 -- | transform changes aspects of data sande settings during execution
