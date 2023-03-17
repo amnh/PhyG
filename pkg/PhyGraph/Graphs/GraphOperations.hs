@@ -524,14 +524,14 @@ selectGraphs selectType numberToKeep threshold rSeed inGraphList =
   if null inGraphList then []
   else if (selectType == AtRandom) && (rSeed == (-1)) then error ("AtRandom selection without proper random seed value")
   else
-    let thresholdArgString = ("threshold", show threshold)
-        stringArgs = if selectType == Best then ("best", "")
+    let stringArgs = if threshold > 0.0 then ("threshold", show threshold)
+                     else if selectType == Best then ("best", "")
                      else if selectType == Unique then ("unique", "")
                      else if selectType == AtRandom then ("atrandom", "")
                      else if selectType == All then ("all", "")
                      else  ("best", "")
     in
-    take numberToKeep $ selectPhylogeneticGraph [stringArgs, thresholdArgString] rSeed [] inGraphList
+    take numberToKeep $ selectPhylogeneticGraph [stringArgs] rSeed [] inGraphList
     
 
 
