@@ -43,8 +43,8 @@ module Reconciliation.Eun ( reconcile
                           where
 
 import           Control.Parallel.Strategies
-import qualified Data.Bits                         as B
 import qualified Data.BitVector                    as BV
+import qualified Data.Bits                         as B
 import qualified Data.Graph.Inductive.Graph        as G
 import qualified Data.Graph.Inductive.PatriciaTree as P
 import qualified Data.Graph.Inductive.Query.BFS    as BFS
@@ -91,10 +91,10 @@ setOutDegreeOneBits inBitVect out1VertexList vertexIndex =
   else
     let vertListIndex = L.elemIndex vertexIndex out1VertexList
         vertexPosition = fromJust vertListIndex
-        boolList = (replicate vertexPosition False) ++ [True] ++ (replicate ((length out1VertexList) - vertexPosition - 1) False)
+        boolList = replicate vertexPosition False ++ [True] ++ replicate (length out1VertexList - vertexPosition - 1) False
         prependBitVect = BV.fromBits boolList
     in
-    if vertListIndex == Nothing then error ("Vertex " ++ (show vertexIndex) ++ " not found in list " ++ show out1VertexList)
+    if isNothing vertListIndex then error ("Vertex " ++ show vertexIndex ++ " not found in list " ++ show out1VertexList)
     else BV.append prependBitVect inBitVect
 
 -- | getRoot takes a graph and list of nodes and returns vertex with indegree 0
@@ -148,7 +148,7 @@ makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList myVertex =
           myChildrenNodes = PU.seqParMap rdeepseq (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
 
           rawBV = BV.or $ fmap (snd . head) myChildrenNodes
-          myBV = if (length myChildren /= 1) then rawBV
+          myBV = if length myChildren /= 1 then rawBV
                  else setOutDegreeOneBits rawBV out1VertexList myVertex
       in
       (myVertex, myBV) : concat myChildrenNodes
@@ -173,7 +173,7 @@ getNodesFromARoot inGraph nLeaves leafNodes rootVertex =
 
         -- check if outdegree = 1
         rawBV = BV.or $ fmap (snd . head) rootChildNewNodes
-        rootBV = if (length rootChildVerts /= 1) then rawBV
+        rootBV = if length rootChildVerts /= 1 then rawBV
                  else setOutDegreeOneBits rawBV out1VertexList rootVertex
     in
     (rootVertex, rootBV) : concat rootChildNewNodes
@@ -563,7 +563,7 @@ combinable comparison bvList bvIn
           isCombinable = L.foldl' (&&) True intersectList
       in
       [bvIn | isCombinable]
-  | otherwise = errorWithoutStackTrace("Comparison method " ++ comparison ++ " unrecongnized (combinable/identity)")
+  | otherwise = errorWithoutStackTrace ("Comparison method " ++ comparison ++ " unrecongnized (combinable/identity)")
       where checkBitVectors a b
               = let c = BV.and [a, b] in
                   c == a || c == b || c == 0
@@ -576,7 +576,7 @@ getGraphCompatibleList :: String -> [[BV.BV]] -> BV.BV-> [BV.BV]
 getGraphCompatibleList comparison inBVListList bvToCheck =
   if null inBVListList then error "Null list of list of bitvectors in getGraphCompatibleList"
   else
-    let compatibleList = concat $ fmap (flip (combinable comparison) bvToCheck) inBVListList
+    let compatibleList = concatMap (flip (combinable comparison) bvToCheck) inBVListList
     in
     -- trace (show $ length compatibleList)
     compatibleList
@@ -598,7 +598,7 @@ getCompatibleList comparison inBVListList =
 -- urRoot added to make sure there will be a single connected graph
 getThresholdNodes :: String -> Int -> Int -> [[G.LNode BV.BV]] -> ([G.LNode BV.BV], [Double])
 getThresholdNodes comparison thresholdInt numLeaves objectListList
-  | thresholdInt < 0 || thresholdInt > 100 = errorWithoutStackTrace"Threshold must be in range [0,100]"
+  | thresholdInt < 0 || thresholdInt > 100 = errorWithoutStackTrace "Threshold must be in range [0,100]"
   | null objectListList = error "Empty list of object lists in getThresholdObjects"
   | otherwise =
     let numGraphs = fromIntegral $ length objectListList
@@ -606,7 +606,7 @@ getThresholdNodes comparison thresholdInt numLeaves objectListList
         objectGroupList
           | comparison == "combinable" = getCompatibleList comparison (fmap (fmap snd) objectListList)
           | comparison == "identity" = L.group $ L.sort (snd <$> concat objectListList)
-          | otherwise = errorWithoutStackTrace("Comparison method " ++ comparison ++ " unrecognized (combinable/identity)")
+          | otherwise = errorWithoutStackTrace ("Comparison method " ++ comparison ++ " unrecognized (combinable/identity)")
         uniqueList = zip indexList (fmap head objectGroupList)
         frequencyList = PU.seqParMap rdeepseq  (((/ numGraphs) . fromIntegral) . length) objectGroupList  -- `using` PU.myParListChunkRDS
         fullPairList = zip uniqueList frequencyList
@@ -621,7 +621,7 @@ getThresholdNodes comparison thresholdInt numLeaves objectListList
 -- used and number from numleaves so can use BV
 getThresholdEdges :: (Show a, Ord a) => Int -> Int -> [a] -> ([a], [Double])
 getThresholdEdges thresholdInt numGraphsInput objectList
-  | thresholdInt < 0 || thresholdInt > 100 = errorWithoutStackTrace"Threshold must be in range [0,100]"
+  | thresholdInt < 0 || thresholdInt > 100 = errorWithoutStackTrace "Threshold must be in range [0,100]"
   | null objectList = error "Empty list of object lists in getThresholdEdges"
   | otherwise =
   let threshold = (fromIntegral thresholdInt / 100.0) :: Double
@@ -729,7 +729,7 @@ addUrRootAndEdges inGraph =
       unconnectedLeafList = getUnConnectedLeaves inGraph (fst <$> origLabVerts)
   in
   -- all ok--no unconnected vertices
-  if (length origRootList == 1) && (null unconnectedLeafList) then inGraph
+  if (length origRootList == 1) && null unconnectedLeafList then inGraph
 
   -- add edges to unconencted leaves
   else if length origRootList == 1 then
@@ -782,7 +782,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
         unionNodes = L.sort $ leafNodes ++ addAndReIndexUniqueNodes numFirstNodes (concatMap (drop numLeaves) (G.labNodes <$> tail processedGraphs)) (drop numLeaves firstNodes)
         -- unionEdges = addAndReIndexEdges "unique" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
 
-        totallLeafString = L.foldl' L.union [] (fmap (fmap snd)  (fmap getLeafListNewick inputGraphList))
+        totallLeafString = L.foldl' L.union [] (fmap (fmap snd . getLeafListNewick) inputGraphList)
         totallLeafSet = zip [0..(length totallLeafString - 1)] totallLeafString
         --
         -- Create Adams II consensus
@@ -848,38 +848,38 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
     if localMethod == "eun" then
       if outputFormat == "dot" then (thresholdEUNOutDotString,  gvRelabelledEUNGraph)
       else if outputFormat == "fenewick" then (thresholdEUNOutFENString, gvRelabelledEUNGraph)
-      else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
+      else errorWithoutStackTrace ("Output graph format " ++ outputFormat ++ " is not implemented")
 
     else if localMethod == "adams" then
       if outputFormat == "dot" then (adamsIIOutDotString,  adamsII')
       else if outputFormat == "fenewick" then (adamsIIOutFENString, adamsII')
-      else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
+      else errorWithoutStackTrace ("Output graph format " ++ outputFormat ++ " is not implemented")
 
     else if (localMethod == "majority") || (localMethod == "cun") || (localMethod == "strict") then
         if outputFormat == "dot" then (thresholdConsensusOutDotString, gvRelabelledConsensusGraph)
         else if outputFormat == "fenewick" then (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
-        else errorWithoutStackTrace("Output graph format " ++ outputFormat ++ " is not implemented")
+        else errorWithoutStackTrace ("Output graph format " ++ outputFormat ++ " is not implemented")
 
-    else errorWithoutStackTrace("Graph combination method " ++ localMethod ++ " is not implemented")
+    else errorWithoutStackTrace ("Graph combination method " ++ localMethod ++ " is not implemented")
 
 
 -- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leafws to teh graphs and reindexes
 -- the nodes and edges of the input graphs consistenly
 -- String as oposed to Text due tyo reuse of code in Eun.c
 makeProcessedGraph :: [LG.LNode T.Text] -> SimpleGraph -> SimpleGraph
-makeProcessedGraph leafTextList inGraph =
-  if null leafTextList then error "Null leaf list in makeFullLeafSetGraph"
-  else if LG.isEmpty inGraph then error "Empty graph in makeFullLeafSetGraph"
-  else
-    let (_, graphleafTextList, _, _) = LG.splitVertexList inGraph
-        leafStringList = fmap nodeToString leafTextList
-        graphLeafStringList = fmap nodeToString graphleafTextList
-        reIndexedGraph = reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
-        textNodes = fmap nodeToText $ LG.labNodes reIndexedGraph
-        doubleEdges = fmap edgeToDouble $ LG.labEdges reIndexedGraph
+makeProcessedGraph leafTextList inGraph
+  | null leafTextList = error "Null leaf list in makeFullLeafSetGraph"
+  | LG.isEmpty inGraph = error "Empty graph in makeFullLeafSetGraph"
+  | otherwise = let (_, graphleafTextList, _, _) = LG.splitVertexList inGraph
+                    leafStringList = fmap nodeToString leafTextList
+                    graphLeafStringList = fmap nodeToString graphleafTextList
+                    reIndexedGraph = reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
+                    textNodes = (nodeToText <$> LG.labNodes reIndexedGraph)
+                    doubleEdges = (edgeToDouble <$> LG.labEdges reIndexedGraph)
 
-    in
-    LG.mkGraph textNodes doubleEdges
-    where nodeToString (a,b) = (a, T.unpack b)
-          nodeToText   (a,b) = (a, T.pack b)
-          edgeToDouble   (a,b,c) = (a,b, read c :: Double)
+                in
+                LG.mkGraph textNodes doubleEdges
+  where
+      nodeToString (a, b) = (a, T.unpack b)
+      nodeToText (a, b) = (a, T.pack b)
+      edgeToDouble (a, b, c) = (a, b, read c :: Double)

@@ -44,6 +44,7 @@ import qualified GraphFormatUtilities as GFU
 import qualified Reconciliation.Eun   as E
 import           Types.Types
 import qualified Utilities.LocalGraph as LG
+import           Data.Maybe      
 -- import           Debug.Trace
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
@@ -52,10 +53,10 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
    if null inGraphList then ("Error: No input graphs to reconcile", LG.empty)
    else
       let -- convert SimpleGraph to String String from Text Double
-          stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True) $ fmap GFU.textGraph2StringGraph inGraphList
+          stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True . GFU.textGraph2StringGraph) inGraphList
 
           -- parse arguements
-          commandList = fmap mergePair $ filter (('"' `notElem`).snd) commandPairList
+          commandList = (mergePair <$> filter (('"' `notElem`).snd) commandPairList)
           (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
 
           -- call EUN/reconcile functions
@@ -112,7 +113,7 @@ processReconcileArgs validCommandList inList' =
         in
         if null notMatchedList then
             (localMethod, compareMethod, threshold, connect, edgeLabel, vertexLabel, outFormat)
-        else errorWithoutStackTrace("\n\nError(s) in reconcile command specification (case insensitive):\n" ++ getCommandErrorString notMatchedList)
+        else errorWithoutStackTrace ("\n\nError(s) in reconcile command specification (case insensitive):\n" ++ getCommandErrorString notMatchedList)
         -- )
 
 -- | getMethod returns method value or dedfault otherwise
@@ -125,7 +126,7 @@ getMethod inTextList =
         let firstCommand = T.takeWhile (/= ':') $ head inTextList
             firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
         in
-        if (T.find (== ':') (head inTextList) == Nothing) then getMethod (tail inTextList)
+        if isNothing (T.find (== ':') (head inTextList)) then getMethod (tail inTextList)
         else if firstCommand == T.pack "method" then
             let option = T.unpack firstOption
             in
@@ -134,7 +135,7 @@ getMethod inTextList =
             else if option == "majority" then "majority"
             else if option == "strict" then "strict"
             else if option == "adams" then "adams"
-            else errorWithoutStackTrace("Reconcile option \'" ++ option ++ "\' not recognized (eun|cun|majority|strict)")
+            else errorWithoutStackTrace ("Reconcile option \'" ++ option ++ "\' not recognized (eun|cun|majority|strict)")
         else getMethod (tail inTextList)
 
 -- | getCompareMethod returns compareMethod value or default otherwise
@@ -147,13 +148,13 @@ getCompareMethod inTextList =
         let firstCommand = T.takeWhile (/= ':') $ head inTextList
             firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
         in
-        if (T.find (== ':') (head inTextList) == Nothing) then getCompareMethod (tail inTextList)
+        if isNothing (T.find (== ':') (head inTextList)) then getCompareMethod (tail inTextList)
         else if firstCommand == T.pack "compare" then
             let option = T.unpack firstOption
             in
             if option == "combinable" then "combinable"
             else if option == "identity" then "identity"
-            else errorWithoutStackTrace("Compare option \'" ++ option ++ "\' not recognized (combinable|identity)")
+            else errorWithoutStackTrace ("Compare option \'" ++ option ++ "\' not recognized (combinable|identity)")
         else getCompareMethod (tail inTextList)
 
 -- | getConect returns connect value or default otherwise (True|False)
@@ -161,51 +162,45 @@ getCompareMethod inTextList =
 getConnect :: [T.Text] -> Bool
 getConnect inTextList =
     -- default
-    if null inTextList then False
-    else
-        let firstCommand = T.takeWhile (/= ':') $ head inTextList
-            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-        in
-        if (T.find (== ':') (head inTextList) == Nothing) then getConnect (tail inTextList)
-        else if firstCommand == T.pack "connect" then
-            let option = T.unpack firstOption
-            in
-            (option == "true") || (option /= "false" && errorWithoutStackTrace("Connect option \'" ++ option ++ "\' not recognized (True|False)"))
-        else getConnect (tail inTextList)
+    not (null inTextList) && (let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                                  firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+                              in
+                              if isNothing (T.find (== ':') (head inTextList)) then getConnect (tail inTextList)
+                              else if firstCommand == T.pack "connect" then
+                                  let option = T.unpack firstOption
+                                  in
+                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("Connect option \'" ++ option ++ "\' not recognized (True|False)"))
+                              else getConnect (tail inTextList))
 
 -- | getEdgeLabel returns edgeLabel value or default otherwise (True|False)
 -- assumes in lower case
 getEdgeLabel :: [T.Text] -> Bool
 getEdgeLabel inTextList =
     -- default
-    if null inTextList then True
-    else
-        let firstCommand = T.takeWhile (/= ':') $ head inTextList
-            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-        in
-        if (T.find (== ':') (head inTextList) == Nothing) then getEdgeLabel (tail inTextList)
-        else if firstCommand == T.pack "edgelabel" then
-            let option = T.unpack firstOption
-            in
-            (option == "true") || (option /= "false" && errorWithoutStackTrace("EdgeLAbel option \'" ++ option ++ "\' not recognized (True|False)"))
-        else getEdgeLabel (tail inTextList)
+    null inTextList || (let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+                        in
+                        if isNothing (T.find (== ':') (head inTextList)) then getEdgeLabel (tail inTextList)
+                        else if firstCommand == T.pack "edgelabel" then
+                            let option = T.unpack firstOption
+                            in
+                            (option == "true") || (option /= "false" && errorWithoutStackTrace ("EdgeLAbel option \'" ++ option ++ "\' not recognized (True|False)"))
+                        else getEdgeLabel (tail inTextList))
 
 -- | getVertexLabel returns edgeLabel value or default otherwise (True|False)
 -- assumes in lower case
 getVertexLabel :: [T.Text] -> Bool
 getVertexLabel inTextList =
     -- default
-    if null inTextList then False
-    else
-        let firstCommand = T.takeWhile (/= ':') $ head inTextList
-            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-        in
-        if (T.find (== ':') (head inTextList) == Nothing) then getVertexLabel (tail inTextList)
-        else if firstCommand == T.pack "vertexlabel" then
-            let option = T.unpack firstOption
-            in
-            (option == "true") || (option /= "false" && errorWithoutStackTrace("VertexLabel option \'" ++ option ++ "\' not recognized (True|False)"))
-        else getVertexLabel (tail inTextList)
+    not (null inTextList) && (let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                                  firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+                              in
+                              if isNothing (T.find (== ':') (head inTextList)) then getVertexLabel (tail inTextList)
+                              else if firstCommand == T.pack "vertexlabel" then
+                                  let option = T.unpack firstOption
+                                  in
+                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("VertexLabel option \'" ++ option ++ "\' not recognized (True|False)"))
+                              else getVertexLabel (tail inTextList))
 
 
 -- | getThreshold returns threshold value or default otherwise
@@ -218,7 +213,7 @@ getThreshold inTextList =
         let firstCommand = T.takeWhile (/= ':') $ head inTextList
             firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
         in
-        if (T.find (== ':') (head inTextList) == Nothing) then getThreshold (tail inTextList)
+        if isNothing (T.find (== ':') (head inTextList)) then getThreshold (tail inTextList)
         else if firstCommand == T.pack "threshold" then read (T.unpack firstOption) :: Int
         else getThreshold (tail inTextList)
 
@@ -234,9 +229,7 @@ getOutputFormat inTextList =
             outFormat = T.unpack firstOption
          in
          if outFormat == "dot" then "dot"
-         else if outFormat == "fenewick" then "fenewick"
-         else if outFormat == "newick" then "fenewick"
-         else getOutputFormat (tail inTextList)
+         else (if (outFormat == "fenewick") || (outFormat == "newick") then "fenewick" else getOutputFormat (tail inTextList))
 
 
 -- |
