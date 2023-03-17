@@ -59,7 +59,21 @@ import           Debug.Trace
 --       selection based on delta with best graph and severity factor on (0,Inf) 1 pure cost delta < 1 more severe, > 1 less severe
 --       if "elitist" (default) 'best' graphs are always selected to ensure no worse.
 -- 4) operation repearts for number of generations
-geneticAlgorithm :: GlobalSettings -> ProcessedData -> Int -> Bool -> Int -> Int -> Int -> Int -> Int -> Double -> Int -> Int -> Int -> [PhylogeneticGraph] -> ([PhylogeneticGraph], Int)
+geneticAlgorithm :: GlobalSettings 
+                 -> ProcessedData 
+                 -> Int 
+                 -> Bool 
+                 -> Int 
+                 -> Int 
+                 -> Int 
+                 -> Int 
+                 -> Int 
+                 -> Double 
+                 -> Int 
+                 -> Int 
+                 -> Int 
+                 -> [PhylogeneticGraph] 
+                 -> ([PhylogeneticGraph], Int)
 geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
     if null inGraphList then ([], 0)
     else if generationCounter == generations then  (inGraphList, generationCounter)
@@ -86,7 +100,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             uniqueMutatedGraphList = GO.selectPhylogeneticGraph [("unique","")] 0 ["unique"] (mutatedGraphList ++ inGraphList)
 
             -- recombine elite with mutated and mutated with mutated
-            recombineSwap = getRandomElement (seedList !! 4) ["none" , "nni", "spr"] --  these take too long, "tbr", "alternate"]
+            recombineSwap = getRandomElement (seedList !! 4) [None, NNI, SPR] --  these take too long, "tbr", "alternate"]
 
             -- options to join via union choices or all in fuse
             joinType =  getRandomElement (seedList !! 6) [False, True]
@@ -128,7 +142,7 @@ mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> PhylogeneticGrap
 mutateGraph inGS inData maxNetEdges rSeed inGraph =
     if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
     else
-        let joinType = "joinAll" -- keep selection of rejoins based on all possibilities
+        let joinType = JoinAll -- keep selection of rejoins based on all possibilities
             atRandom = True -- randomize split and rejoin edge orders
             randList = randomIntList rSeed
             saValues = Just $ SAParams  { method = getRandomElement (randList !! 0) [Drift, SimAnneal]
@@ -154,7 +168,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
             doIA = False
             returnMutated = True
             inSimAnnealParams = saValues
-            swapType = getRandomElement (randList !! 4) ["spr","interleave"]
+            swapType = getRandomElement (randList !! 4) [SPR,Alternate]
 
             --randomize network edit parameters
             netEditType = getRandomElement (randList !! 5) ["netAdd", "netDelete", "netAddDelete"] -- , "netMove"]

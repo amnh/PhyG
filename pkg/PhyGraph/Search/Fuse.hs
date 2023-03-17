@@ -66,7 +66,7 @@ fuseAllGraphs :: GlobalSettings
               -> Int
               -> Int
               -> Int
-              -> String
+              -> SwapType
               -> Bool
               -> Bool
               -> Bool
@@ -129,8 +129,8 @@ fuseAllGraphs inGS inData rSeedList keepNum maxMoveEdgeDist counter swapType joi
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd6 newGraphList
                     else infinity
 
-         swapTypeString = if swapType == "none" then "out"
-                          else " " ++ swapType
+         swapTypeString = if swapType == None then "out"
+                          else " " ++ (show swapType)
 
       in
 
@@ -176,7 +176,7 @@ fusePairRecursive :: GlobalSettings
          -> Int
          -> Int
          -> VertexCost
-         -> String
+         -> SwapType
          -> Bool
          -> Bool
          -> [PhylogeneticGraph]
@@ -208,7 +208,7 @@ fusePair :: GlobalSettings
          -> Int
          -> Int
          -> VertexCost
-         -> String
+         -> SwapType
          -> Bool
          -> Bool
          -> (PhylogeneticGraph, PhylogeneticGraph)
@@ -320,7 +320,7 @@ recombineComponents :: GlobalSettings
                     -> Bool
                     -> Int
                     -> Int
-                    -> String
+                    -> SwapType
                     -> Bool
                     -> V.Vector (V.Vector CharInfo)
                     -> VertexCost
@@ -387,7 +387,7 @@ recombineComponents inGS inData steepest numToKeep inMaxMoveEdgeDist swapType jo
 -- this to save on memory footprint since there wold be many calls generated 
 -- the rejoin operation is parallelized itself
 -- recursive best cost so can keep all better than input but can have progress info 
-rejoinGraphTupleRecursive :: String
+rejoinGraphTupleRecursive :: SwapType
                           -> Bool
                           -> GlobalSettings
                           -> ProcessedData

@@ -223,14 +223,11 @@ fuseGraphs inArgs inGS inData rSeed inGraphList =
                             else doSteepest'
 
                -- readdition options, specified as swap types
-               doSPR' = any ((=="spr").fst) lcArgList
-               doTBR' = any ((=="tbr").fst) lcArgList
-               
                -- no alternate or nni for fuse--not really meaningful
 
-               swapType = if doTBR' then "tbr"
-                          else if doSPR' then "spr"
-                          else "none"
+               swapType = if (any ((=="tbr").fst) lcArgList) then TBR
+                          else if (any ((=="spr").fst) lcArgList) then SPR
+                          else None
 
                --set edge join preferences a;;/some default all
                joinAll = if (any ((=="joinall").fst) lcArgList) then True
