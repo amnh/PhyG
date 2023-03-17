@@ -72,10 +72,10 @@ import qualified Data.Text.Lazy            as T
 import qualified Data.Text.Short           as ST
 import           Debug.Trace
 --import qualified GeneralUtilities          as GU
+import qualified Data.Vector               as V
 import qualified Input.DataTransformation  as DT
 import qualified Input.FastAC              as FAC
 import qualified SymMatrix                 as SM
-import qualified Data.Vector               as V
 import           Text.Read
 import           Types.Types
 
@@ -122,7 +122,7 @@ getTNTDataText inString fileName =
                 in
                 if isNothing semiColonLineNumber then  errorWithoutStackTrace ("\n\nTNT input file " ++ fileName ++ " processing error--can't find ';' to end data block" ++ show restFile)
                 else
-                    let dataBlock = filter ((>0).T.length) $ fmap (T.filter printOrSpace) $ take (fromJust semiColonLineNumber) restFile
+                    let dataBlock = filter ((>0).T.length) (T.filter printOrSpace <$> take (fromJust semiColonLineNumber) restFile)
                         --dataBlock = filter ((>0).T.length) $ fmap (T.filter C.isPrint) $ take (fromJust semiColonLineNumber) restFile
                         charInfoBlock = filter (/= T.pack ";") $ filter ((>0).T.length) $ tail $ drop (fromJust semiColonLineNumber) restFile
                         numDataLines = length dataBlock
@@ -182,7 +182,7 @@ glueInterleave fileName lineList numTax numChars curData
     -- check chars after process due to ambiguities
     if length curData /= numTax then error ("Error in glueInterleave: final taxon number error: " ++ show numTax ++ " vs. " ++ show (length curData))
     else
-        let nameList = fmap T.strip $ fmap fst curData
+        let nameList = fmap (T.strip . fst) curData
             charShortTextList = fmap (fmap ST.fromString . snd) curData
         in
         --trace ((show $ length curData) ++ " " ++ (show $ length $ snd $ head curData))
@@ -250,7 +250,7 @@ collectAmbiguities fileName inStringList =
             let ambiguityStringList = takeWhile (/="]") inStringList ++ ["]"]
             in
             --trace ("CA:" ++ (concat ambiguityStringList)) --  ++ " " ++ concat (drop (length $ concat ambiguityStringList) inStringList))
-            (concat ambiguityStringList) : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
+            concat ambiguityStringList : collectAmbiguities fileName (drop (length $ concat ambiguityStringList) inStringList)
         else firstString : collectAmbiguities fileName (tail inStringList)
         -- )
 
@@ -329,11 +329,11 @@ getCCodes fileName charNumber commandWordList curCharInfo =
                           else T.singleton $ T.head $ head commandWordList
             scopeList = if T.length (head commandWordList) == 1 then tail commandWordList
                         --not a weight--weight gets added to scope without special case
-                        else if (T.head $ head commandWordList) /= '/' then 
+                        else if T.head (head commandWordList) /= '/' then
                             T.tail (head commandWordList) : tail commandWordList
                         --a weight '/'--weight gets added to scope without special case
-                        else 
-                            (T.unwords $ tail $ T.words $ T.tail (head commandWordList)) : tail commandWordList
+                        else
+                            T.unwords (tail $ T.words $ T.tail (head commandWordList)) : tail commandWordList
             charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
             updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus (head commandWordList) charIndices 0 []
         in
@@ -564,7 +564,7 @@ reconcileAlphabetAndCostMatrix fileName charName observedAlphabet inferredAlphab
         [ "Error: TNT file "
         , fileName
         , " character number "
-        , (tail $ dropWhile (/= '#') charName), " Observed "
+        , tail $ dropWhile (/= '#') charName, " Observed "
         , show observedAlphabet
         , " is incompatible with matrix specification states "
         , show inferredAlphabet
@@ -700,16 +700,16 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString newStateNumber : newAlph) (ST.fromString newStateNumber : newStates)
             else
                 -- trace ("GAlphAmb: " ++ (show firstState)) (
-                let hasDecimal = any (== '.') firstState
+                let hasDecimal = elem '.' firstState
                     gutsList = if hasDecimal then words $ filter (`notElem` ['[',']']) firstState
-                               else fmap (:[]) $ filter (`notElem` ['[',']']) firstState
+                               else (:[]) <$> filter (`notElem` ['[',']']) firstState
                     newStateNumberList = fmap readMaybe gutsList :: [Maybe Double]
                     newStateNumberStringList = fmap (((takeWhile (/='.') . show) . (/ scaleFactor)) . fromJust) newStateNumberList
                 in
                 if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " ++ fileName ++ " ccode processing error: Additive character not a number (Int/Float) " ++ firstState)
                 else
                     let newAmbigState = if hasDecimal then ST.fromString $ '[' : unwords newStateNumberStringList ++ "]"
-                                        else ST.fromString $ '[' : (concat newStateNumberStringList) ++ "]"
+                                        else ST.fromString $ '[' : concat newStateNumberStringList ++ "]"
                     in
                     getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (fmap ST.fromString newStateNumberStringList ++ newAlph) (newAmbigState : newStates)
                 -- )

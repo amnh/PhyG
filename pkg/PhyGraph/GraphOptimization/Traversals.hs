@@ -46,18 +46,18 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     ) where
 
 
-import qualified Data.List                            as L
-import           GeneralUtilities
-import           Types.Types
-import qualified Utilities.LocalGraph                 as LG
-import qualified GraphOptimization.PreOrderFunctions  as PRE
-import qualified Graphs.GraphOperations               as GO
+import           Control.Parallel.Strategies
+import qualified Data.List                                     as L
 import           Data.Maybe
 import           Debug.Trace
-import           Utilities.Utilities                  as U
+import           GeneralUtilities
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import           Control.Parallel.Strategies
-import qualified ParallelUtilities                    as PU
+import qualified GraphOptimization.PreOrderFunctions           as PRE
+import qualified Graphs.GraphOperations                        as GO
+import qualified ParallelUtilities                             as PU
+import           Types.Types
+import qualified Utilities.LocalGraph                          as LG
+import           Utilities.Utilities                           as U
 
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
@@ -187,7 +187,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
         {-  root and model complexities moved to output
         -- same root cost if same data and number of roots
-        localRootCost = rootComplexity inGS 
+        localRootCost = rootComplexity inGS
                         {-if (rootCost inGS) == NoRootCost then 0.0
                         else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inGS outgroupRooted
                         else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
@@ -274,8 +274,8 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
     if null unusedEdges then inGraph
 
     -- unused edges--do not prune return "infinite cost"
-    else if not pruneEdges then 
-        -- trace ("Unused edge->Infinity") 
+    else if not pruneEdges then
+        -- trace ("Unused edge->Infinity")
         (inSimple, infinity, inCanonical, blockTreeV, charTreeVV, charInfoVV)
 
     -- unused but pruned--need to prune nodes and reoptimize to get final assignments correct
@@ -292,23 +292,23 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
 -- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
 -- updates NCM with roig data due to weights of bitpacking
 updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList = 
+updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList =
     if optimalityCriterion inGS == Parsimony then inGraphList
-    
+
     else if optimalityCriterion inGS `elem` [SI, MAPA] then
         trace ("\tFinalizing graph cost with root priors")
         updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
-    
+
     else if optimalityCriterion inGS `elem` [NCM] then
         trace ("\tFinalizing graph cost (updating NCM) with root priors") $
-        let updatedGraphList = if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData)) then 
+        let updatedGraphList = if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData)) then
                                  -- trace ("\t\tCannot update cost with original data--skipping")
                                  updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
-                               else 
+                               else
                                 let newGraphList = PU.seqParMap rdeepseq (multiTraverseFullyLabelGraph inGS reportingData False False Nothing) (fmap fst6 inGraphList)
                                 in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
         in updatedGraphList
-                                
+
     else if optimalityCriterion inGS == PMDL then
         -- trace ("\tFinalizing graph cost with model and root complexities")
         updatePhylogeneticGraphCostList ((rootComplexity inGS) + (modelComplexity inGS)) inGraphList

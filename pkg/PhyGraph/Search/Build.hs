@@ -49,6 +49,7 @@ import qualified Data.List                      as L
 import           Data.Maybe
 import qualified Data.Text.Lazy                 as TL
 import qualified Data.Vector                    as V
+import           Debug.Trace
 import           GeneralUtilities
 import qualified GraphOptimization.Traversals   as T
 import qualified Graphs.GraphOperations         as GO
@@ -60,11 +61,10 @@ import qualified Search.WagnerBuild             as WB
 import qualified SymMatrix                      as M
 import           Text.Read
 import           Types.Types
-import qualified Utilities.Distances            as DD
 import qualified Utilities.DistanceUtilities    as DU
+import qualified Utilities.Distances            as DD
 import qualified Utilities.LocalGraph           as LG
 import qualified Utilities.Utilities            as U
-import           Debug.Trace
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
@@ -144,28 +144,28 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                             -- trace ("BG: " ++ (concatMap LG.prettyIndices returnGraphs))
                             PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
                             )
-           
+
            -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
            firstGraphs = if null buildBlock then
                             GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) firstGraphs'
                          else firstGraphs'
 
            -- reporting info
-           returnString = if (not . null) firstGraphs then  
+           returnString = if (not . null) firstGraphs then
                             ("\tReturning " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
                           else "\t\tReturning 0 graphs"
-                          
-           costString = if (not . null) firstGraphs then  
+
+           costString = if (not . null) firstGraphs then
                             ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd6 firstGraphs, maximum $ fmap snd6 firstGraphs)))
                         else "\t\tBlock build returned 0 graphs"
 
        in
-       if isNothing numDisplayTrees then 
+       if isNothing numDisplayTrees then
                                 errorWithoutStackTrace ("DisplayTrees specification in build not an integer: "  ++ show (snd $ head displayBlock))
-       else if isNothing numReturnTrees then 
+       else if isNothing numReturnTrees then
                                 errorWithoutStackTrace ("Return number specifications in build not an integer: " ++ show (snd $ head returnList))
 
-       else 
+       else
             trace returnString (
             if inputGraphType == Tree || (not . null) buildBlock then
               -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
@@ -176,7 +176,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
               trace ("\tRediagnosing as " ++ (show (graphType inGS)))
               PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) -- `using` PU.myParListChunkRDS
             )
-       
+
 
 -- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
 -- as per the arguments producing a set of displayTrees (ordered or resolved random), and/or the reconciled graph
@@ -221,20 +221,20 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
       in
       if reconciledGraph == LG.empty && not returnTrees then
-        errorWithoutStackTrace ("\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees.")
+        errorWithoutStackTrace "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
       -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
-      else if returnGraph && not returnTrees then 
-        trace ("Reconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees for softwired network") 
+      else if returnGraph && not returnTrees then
+        trace ("Reconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees for softwired network")
         [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
-         if reconciledGraph /= LG.empty then 
-            trace ("\n\tReconciled graph has " ++ (show numNetNodes) ++ " network nodes hence up to 2^" ++ (show numNetNodes) ++ " display trees") 
+         if reconciledGraph /= LG.empty then
+            trace ("\n\tReconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees")
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
             reconciledGraph : displayGraphs
          else
-            trace ("\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds.") 
+            trace "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds."
             displayGraphs
      -- ))
 
@@ -292,7 +292,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
              nameStringVect = fmap TL.unpack nameTextVect
              distMatrix = M.fromLists pairwiseDistances
          in
-         trace ("\tBuilding Distance Wagner") (
+         trace "\tBuilding Distance Wagner" (
          let refinement
                | doTBR = "tbr"
                | doSPR = "spr"
@@ -308,11 +308,11 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
          in
          if null treeList''' then errorWithoutStackTrace ("Distance build is specified, but without any method: " ++ show inArgs)
          else
-            let costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList''', maximum $ fmap snd6 treeList''')))
+            let costRangeString = if not simpleTreeOnly then " at cost range " ++ show (minimum $ fmap snd6 treeList''', maximum $ fmap snd6 treeList''')
                                   else ""
             in
-            trace ("\tDistance build yielded " ++ (show $ length treeList''') ++ " trees" ++ costRangeString) (
-            if (not simpleTreeOnly) then treeList'''
+            trace ("\tDistance build yielded " ++ show (length treeList''') ++ " trees" ++ costRangeString) (
+            if not simpleTreeOnly then treeList'''
             else GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) treeList'''
             )
          )
@@ -320,16 +320,16 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
       else
          -- character build
          -- final diagnosis in input graph type
-         trace ("\tBuilding Character Wagner") (
+         trace "\tBuilding Character Wagner" (
          let treeList = WB.rasWagnerBuild inGS inData rSeed (fromJust numReplicates)
-             costRangeString = if (not simpleTreeOnly) then (" at cost range " ++ (show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)))
+             costRangeString = if not simpleTreeOnly then " at cost range " ++ show (minimum $ fmap snd6 treeList, maximum $ fmap snd6 treeList)
                                else ""
          in
-         if (not simpleTreeOnly) then 
-            trace ("\tCharacter build yielded " ++ (show $ length treeList) ++ " tree(s)" ++ costRangeString)
+         if not simpleTreeOnly then
+            trace ("\tCharacter build yielded " ++ show (length treeList) ++ " tree(s)" ++ costRangeString)
             treeList
-         else 
-            trace ("\tCharacter build yielded " ++ (show $ length $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) treeList) ++ " tree(s)" ++ costRangeString)
+         else
+            trace ("\tCharacter build yielded " ++ show (length $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) treeList) ++ " tree(s)" ++ costRangeString)
             GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) treeList
          )
 
@@ -362,7 +362,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
    if not simpleTreeOnly then fmap ((T.multiTraverseFullyLabelGraph inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
    else
       let numTrees = length randomizedAdditionWagnerSimpleGraphList
-          simpleRDWagList = fmap ((GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
+          simpleRDWagList = fmap (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
       in
       L.zip6 simpleRDWagList (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
 

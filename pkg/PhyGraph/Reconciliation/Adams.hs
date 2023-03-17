@@ -77,7 +77,7 @@ getAdamsIIPair inGraphVectA inGraphVectB =
             rootSplits = map getSecond rootVertexList
             rootSplitLeafListList = getSplitLeafListList rootSplits inGraphVectList
             rootLUBPre = leastUpperBound rootSplitLeafListList
-            rootLUB = map L.sort [x | x <- rootLUBPre, not (null x)] --need map sort $
+            rootLUB = [L.sort x | x <- rootLUBPre, not (null x)] --need map sort $
 
             --create nodes based on LUBs
             leavesPlaced = concat [x | x <- rootLUB, length x < 3]
@@ -85,7 +85,7 @@ getAdamsIIPair inGraphVectA inGraphVectB =
             vertexLeafSetList = map (map getLeafSetFromNodeName . V.toList) curVertexSets
             potentialVertexSets = map (map getSecond . V.toList) curVertexSets
         in
-        if not sameLeafSet then errorWithoutStackTrace("Leaf sets of input graphs do not match"  ++ show leafSets)
+        if not sameLeafSet then errorWithoutStackTrace ("Leaf sets of input graphs do not match"  ++ show leafSets)
         else
           --return processed when have all nodes
             let allAdamsNodes = makeAdamsNodes [rootNode] "root" rootLUB leavesPlaced (zip potentialVertexSets vertexLeafSetList) --curVertexSets vertexLeafSetList
@@ -112,8 +112,8 @@ makeAdamsII leafNodeList inFGList
         allTreesList = PU.seqParMap rdeepseq  isTree inFGList' -- `using` PU.myParListChunkRDS
         allTrees = L.foldl1' (&&) allTreesList
     in
-    if not allTrees then errorWithoutStackTrace("Input graphs are not all trees in makeAdamsII: " ++ show allTreesList)
-    else if not (leafSetConstant [] inFGList) then errorWithoutStackTrace"Input leaf sets not constant in makeAdamsII"
+    if not allTrees then errorWithoutStackTrace ("Input graphs are not all trees in makeAdamsII: " ++ show allTreesList)
+    else if not (leafSetConstant [] inFGList) then errorWithoutStackTrace "Input leaf sets not constant in makeAdamsII"
     else
       let inPGVList = fmap fgl2PGV inFGList' -- paralle problem with NFData seqParMap myStrategy fgl2PGV inFGList
           adamsPGV = L.foldl1' getAdamsIIPair inPGVList
@@ -222,7 +222,7 @@ isTree inGraph =
       uniqueLeafLabels = L.nub leafLabels
       eList = fst <$> G.edges inGraph
       uList = snd <$> G.edges inGraph
-      selfList = filter (== True) $ zipWith (==) eList uList
+      selfList = filter id $ zipWith (==) eList uList
   in
   not ((((length rootNodes /= 1) || (maxIndegree > 1)) || (length leafLabels /= length uniqueLeafLabels)) || not (null selfList)))
 
@@ -414,7 +414,7 @@ makeAdamsNodes inAdamsTree parentName inLUBList placedTaxa bothLeafLists = --inT
         else --core case with LUB creation and taxon placementg
             let splitListList = map (getSplitList curLUB placedTaxa) bothLeafLists --(zip inTreeVertexLists vertexLeafSetList)
                 newLUBpre = leastUpperBound splitListList
-                newLUB =  map L.sort  [x | x <- newLUBpre, not (null x)] --had "map sort $" was this "sort" necessary?  for List intersection?
+                newLUB =  [L.sort x | x <- newLUBpre, not (null x)] --had "map sort $" was this "sort" necessary?  for List intersection?
                 newNode = (lub2TreeRep curLUB, map lub2TreeRep newLUB, [parentName])
             in
             --trace ("New LUBs " ++ show newLUB ++ " newNode " ++ show newNode)
@@ -563,7 +563,7 @@ getAndCheckLeafSets inGraphs =
         let leafSetList = map getLeafSet inGraphs
             firstSet = head leafSetList
             setDiffList = map (setEqual firstSet) (tail leafSetList)
-            allEmpty = all (True ==) setDiffList
+            allEmpty = and setDiffList
         in
         (allEmpty, leafSetList)
 

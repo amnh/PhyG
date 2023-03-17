@@ -43,29 +43,29 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             ) where
 
 import           Bio.DynamicCharacter
-import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
+import           Data.Bits
 import qualified Data.List                   as L
 import qualified Data.Map                    as MAP
 import           Data.Maybe
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
 -- import qualified Data.Vector.Storable         as SV
+import           Control.Parallel.Strategies
+import           Data.Alphabet
 import qualified Data.Vector.Unboxed         as UV
+import           Debug.Trace
 import qualified DirectOptimization.PreOrder as DOP
 import           GeneralUtilities
 import qualified GraphOptimization.Medians   as M
 import qualified Graphs.GraphOperations      as GO
 import qualified Input.BitPack               as BP
+import qualified ParallelUtilities           as PU
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.ThreeWayFunctions as TW
 import qualified Utilities.Utilities         as U
-import           Data.Alphabet
-import           Debug.Trace
-import           Control.Parallel.Strategies
-import qualified ParallelUtilities                    as PU
 
 
 -- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
@@ -107,7 +107,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths _ rootInd
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
-        if null blockCharacterDecoratedVV then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " ++ (show rootIndex) ++ " This can be caused if the graphType not set correctly: " ++ (show $ graphType inGS))
+        if null blockCharacterDecoratedVV then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " ++ show rootIndex ++ " This can be caused if the graphType not set correctly: " ++ show (graphType inGS))
         else
             {-
             let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
@@ -135,7 +135,7 @@ makeCharacterIAUnion finalMethod rootIndex inGraph charInfo =
         let postOrderIATree = postOrderIAUnion inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
             preOrderIATree = preOrderIA postOrderIATree rootIndex finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)]
         in
-        -- trace ("MCIAU:" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree rootIndex) ++ "\n" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree 0) 
+        -- trace ("MCIAU:" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree rootIndex) ++ "\n" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree 0)
         --    ++ "\nAfter preorder:\t" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree rootIndex) ++ "\n" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree 0))
         preOrderIATree
 
@@ -161,9 +161,9 @@ postOrderIAUnion inGraph charInfo inNodeList =
             error "Null vertData data in postOrderIA"
 
         -- leaf take assignment from alignment field
-        else if nodeType' == LeafNode then 
+        else if nodeType' == LeafNode then
             -- set leaf union fields to preliminary or IA fields
-            let newCharacter = M.makeIAUnionPrelimLeaf charInfo inCharacter 
+            let newCharacter = M.makeIAUnionPrelimLeaf charInfo inCharacter
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter), nodeType = nodeType'}
                 newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
             in
@@ -387,7 +387,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
                             else
                                 -- not issue if hardwired I don't think
-                                if graphType inGS /= HardWired then trace ("NetNode:" ++ (show $ LG.getInOutDeg inGraph firstNode) ++ " DuplicateEdges (?): " ++ (show $ LG.getDuplicateEdges inGraph)) NetworkNode
+                                if graphType inGS /= HardWired then trace ("NetNode:" ++ show (LG.getInOutDeg inGraph firstNode) ++ " DuplicateEdges (?): " ++ show (LG.getDuplicateEdges inGraph)) NetworkNode
                                 else NetworkNode
             firstVertData = vertData firstLabel
 
@@ -396,10 +396,10 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
 
             -- if single parent then as usual--else take head of two so no confusion as to whichn is which
             -- this is holdover from no indegree 2 nodes--could be simplified and return structures changed
-            firstParentVertData = if (length firstParents == 1) then vertData $ snd firstParent
+            firstParentVertData = if length firstParents == 1 then vertData $ snd firstParent
                                   else vertData $ snd $ head firstParents
 
-            secondParentData = if (length firstParents == 1) then U.copyToNothing firstParentVertData
+            secondParentData = if length firstParents == 1 then U.copyToNothing firstParentVertData
                                else U.copyToJust $ vertData $ snd $ last firstParents
 
             -- child data
@@ -409,7 +409,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             isIn1Out1 = (length firstChildren == 1) && (length firstParents == 1) -- softwired can happen, need to pass "grandparent" node to skip in 1 out 1
             isIn2Out1 = (length firstChildren == 1) && (length firstParents == 2) -- hardwired can happen, need to pass both parents
 
-            
+
             -- this OK with one or two children
             firstChildrenBV = fmap (bvLabel . snd) firstChildren
             firstChildrenIsLeft
@@ -422,25 +422,24 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             -- check children if indegree == 2 then don't add to nodes to do if in there already
 
             childrenTriple  = zip3 firstChildren (replicate (length firstChildren) newFirstNode) firstChildrenIsLeft
-            childrenTriple' = if (graphType inGS) == HardWired then filter (indeg2NotInNodeList inGraph (tail nodesToUpdate)) childrenTriple
+            childrenTriple' = if graphType inGS == HardWired then filter (indeg2NotInNodeList inGraph (tail nodesToUpdate)) childrenTriple
                               else childrenTriple
 
-        in 
+        in
         -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
         -- makeFinalAndChildren inGS finalMethod staticIA inGraph (childrenPairs ++ tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
         -- childrenPair after nodess to do for hardWired to ensure both parent done before child
-        makeFinalAndChildren inGS finalMethod staticIA inGraph ((tail nodesToUpdate) ++ childrenTriple') (newFirstNode : updatedNodes) inCharInfo
+        makeFinalAndChildren inGS finalMethod staticIA inGraph (tail nodesToUpdate ++ childrenTriple') (newFirstNode : updatedNodes) inCharInfo
         --)
 
 -- | indeg2NotInNodeList checcks a node agains a list by index (fst) if node is indegree 2 and
 -- already in the list of n odes "todo" filter out as will already be optimized in appropriate pre-order
 indeg2NotInNodeList :: LG.Gr a b -> [(LG.LNode a, LG.LNode a, Bool)] -> (LG.LNode a, LG.LNode a, Bool) -> Bool
-indeg2NotInNodeList inGraph checkNodeList (childNode@(childIndex, _), _, _) =
- if LG.isEmpty inGraph then error "Empty graph in indeg2NotInNodeList"
- else
-    if LG.indeg inGraph childNode < 2 then True
-    else if childIndex `elem` (fmap (fst . fst3) checkNodeList) then False
-    else True
+indeg2NotInNodeList inGraph checkNodeList (childNode@(childIndex, _), _, _)
+  | LG.isEmpty inGraph = error "Empty graph in indeg2NotInNodeList"
+  | LG.indeg inGraph childNode < 2 = True
+  | childIndex `elem` fmap (fst . fst3) checkNodeList = False
+  | otherwise = True
 
 
 
@@ -470,7 +469,7 @@ assignPreorderStatesAndEdges inGS finalMethd calculateBranchEdges rootIndex preO
             -- map for case where tree does not contain all leaves as in swap procedures
             -- needs to be updated for softwired as well
             nodeMap = MAP.fromList $ zip (fmap fst newNodeList) newNodeList
-            newEdgeList = if (graphType inGS == Tree || graphType inGS == HardWired) then
+            newEdgeList = if graphType inGS == Tree || graphType inGS == HardWired then
                                 if useMap then fmap (updateEdgeInfoTreeMap finalMethd inCharInfoVV nodeMap) postOrderEdgeList
                                 else fmap (updateEdgeInfoTree finalMethd inCharInfoVV (V.fromList newNodeList)) postOrderEdgeList
                           else
@@ -631,7 +630,7 @@ getEdgeCharacterWeightSoftWired finalMethod uNode vNode rootIndex inCharInfo (no
         vCharacter = V.head $ V.head $ vertData vLabel
     in
     -- if edge not present and not around root then return  no costs
-    if foundVertexPair == Nothing then (0,0)
+    if isNothing foundVertexPair then (0,0)
     else getCharacterDistFinal finalMethod uCharacter vCharacter inCharInfo
 
 
@@ -643,21 +642,15 @@ getEdgeVerts uNode vNode rootIndex nodeVect edgeVect =
     --hack or display edge check I'm not sure--not all edges are in all display trees
     if (uNode >= V.length nodeVect) || (vNode >= V.length nodeVect) then Nothing
 
-    else if edgeInVect (uNode, vNode) edgeVect then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
-    else if (edgeInVect (rootIndex, uNode) edgeVect) && (edgeInVect (rootIndex, vNode) edgeVect) then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode)
-    else Nothing
+    else (if edgeInVect (uNode, vNode) edgeVect || (edgeInVect (rootIndex, uNode) edgeVect && edgeInVect (rootIndex, vNode) edgeVect) then Just (snd $ nodeVect V.! uNode, snd $ nodeVect V.! vNode) else Nothing)
     -- )
 
 -- | edgeInVect takes an edges and returns True if in Vector, False otherwise
 edgeInVect :: (Int , Int) -> V.Vector (LG.LEdge EdgeInfo) -> Bool
 edgeInVect (u, v) edgeVect =
-    if V.null edgeVect then False
-    else
-        let (a, b, _) = V.head edgeVect
-        in
-        if (u, v) == (a, b) then True
-        else if (v, u) == (a, b) then True
-        else edgeInVect (u, v) (V.tail edgeVect)
+    not (V.null edgeVect) && (let (a, b, _) = V.head edgeVect
+                              in
+                              ((((u, v) == (a, b)) || ((v, u) == (a, b))) || edgeInVect (u, v) (V.tail edgeVect)))
 
 -- | updateEdgeInfoTree takes a Decorated graph--fully labelled post and preorder and and edge and
 -- gets edge info--basically lengths
@@ -760,23 +753,23 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         let --minCost = localCost (M.intervalAdd thisWeight uCharacter vCharacter)
             (minDiffV, maxDiffV) = V.unzip $ V.zipWith maxMinIntervalDiff  (rangeFinal uCharacter) (rangeFinal vCharacter)
 
-            minCost = thisWeight * (fromIntegral $ V.sum minDiffV)
-            maxCost = thisWeight * (fromIntegral $ V.sum maxDiffV)
+            minCost = thisWeight * fromIntegral (V.sum minDiffV)
+            maxCost = thisWeight * fromIntegral (V.sum maxDiffV)
         in
         (minCost, maxCost)
 
     -- assumes noChangeCost < changeCost for PMDL/ML
     else if thisCharType == NonAdd then
         let -- minCost = localCost (M.interUnion thisWeight uCharacter vCharacter)
-            minDiff = length $ V.filter (==False) $ V.zipWith hasBVIntersection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
-            maxDiff = length $ V.filter (==False) $ V.zipWith equalAndSingleState (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            minDiff = length $ V.filter not $ V.zipWith hasBVIntersection (stateBVFinal uCharacter) (stateBVFinal vCharacter)
+            maxDiff = length $ V.filter not $ V.zipWith equalAndSingleState (stateBVFinal uCharacter) (stateBVFinal vCharacter)
             maxCost = thisWeight * fromIntegral maxDiff
             minCost = thisWeight * fromIntegral minDiff
-            minNoChange = (length (stateBVFinal uCharacter)) - minDiff
-            maxNoChange = (length (stateBVFinal uCharacter)) - maxDiff
-            minCost' = thisWeight * ((lNoChangeCost * (fromIntegral minNoChange)) + (lChangeCost * (fromIntegral minDiff)))
-            maxCost' = thisWeight * ((lNoChangeCost * (fromIntegral maxNoChange)) + (lChangeCost * (fromIntegral maxDiff)))
-            
+            minNoChange = length (stateBVFinal uCharacter) - minDiff
+            maxNoChange = length (stateBVFinal uCharacter) - maxDiff
+            minCost' = thisWeight * ((lNoChangeCost * fromIntegral minNoChange) + (lChangeCost * fromIntegral minDiff))
+            maxCost' = thisWeight * ((lNoChangeCost * fromIntegral maxNoChange) + (lChangeCost * fromIntegral maxDiff))
+
         in
         if lNoChangeCost == 0.0 then (minCost, maxCost)
         else (minCost', maxCost')
@@ -784,8 +777,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     else if thisCharType `elem` packedNonAddTypes then
         let -- minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
             (minDiffV, maxDiffV) = UV.unzip $ UV.zipWith (BP.minMaxCharDiff thisCharType (lNoChangeCost, lChangeCost)) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
-            maxCost = thisWeight * (UV.sum maxDiffV)
-            minCost = thisWeight * (UV.sum minDiffV)
+            maxCost = thisWeight * UV.sum maxDiffV
+            minCost = thisWeight * UV.sum minDiffV
         in
         (minCost, maxCost)
 
@@ -857,8 +850,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else error ("Character type not recognized/unimplemented : " ++ show thisCharType)
-    where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b) 
-          equalAndSingleState a b = if (a == b) && (popCount a == 1) then True else False
+    where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b)
+          equalAndSingleState a b = (a == b) && (popCount a == 1)
 
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
 zero2Gap :: (FiniteBits a) => a -> a
@@ -913,7 +906,7 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
     -}
     -- trace ("MMD: " ++ (show (statePairs,cartesianPairs)))
     (minimum costList, maximum costList)
-    
+
 
 -- | createFinalAssignment takes vertex data (child or current vertex) and creates the final
 -- assignment from parent (if not root or leaf) and 'child' ie current vertex
@@ -967,7 +960,7 @@ setFinal :: GlobalSettings -> AssignmentMethod -> Bool -> NodeType -> Bool -> Ch
 setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
-       isTree = (graphType inGS) == Tree
+       isTree = graphType inGS == Tree
    in
    -- Three cases, Root, leaf, HTU
    -- trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
@@ -1006,7 +999,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                           --if isTree then slimGapped childChar
                                           --else mempty
                         }
-         
+
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAssignment' = extractMedians $ wideGapped childChar
@@ -1076,7 +1069,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAlignment = doPreOrderWithParentCheck isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-                              
+
              -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
@@ -1156,7 +1149,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          -- traceNoLF ("TNFinal-Tree") $
          let finalGapped = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-                              
+
              finalAssignmentDO = if finalMethod == DirectOptimization then
                                     let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
                                         parentFinal = (parentFinalDC, mempty, mempty)
@@ -1251,7 +1244,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) $
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
-                        , slimAlignment = slimAlignment parentChar 
+                        , slimAlignment = slimAlignment parentChar
                                           -- if isTree then slimAlignment parentChar -- finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
                                           -- else mempty
                         , slimGapped = slimGapped parentChar -- slimGapped' -- slimGapped parentChar -- finalGappedO --slimGapped parentChar
@@ -1276,7 +1269,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         }
         -- )
 
-    else if (localCharType == HugeSeq)  then -- parentChar
+    else if localCharType == HugeSeq  then -- parentChar
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (hugeAlignment parentChar), (hugeGapped parentChar) ,(hugeGapped childChar)))) (
          if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
          else childChar { hugeFinal = hugeFinal parentChar
@@ -1295,8 +1288,8 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       --for Hardwired graphs
    else if isIn2Out1 then
-        if (parent2CharM == Nothing) then error ("Nothing parent2char in setFinal")
-        else 
+        if isNothing parent2CharM then error "Nothing parent2char in setFinal"
+        else
             -- trace ("SF: " ++ "makeing 3-way final")
             TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
 
@@ -1304,10 +1297,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    -- )
 
 -- | doPreOrderWithParentCheck performs post order losig if parent non-zero--otherwise returns preliminary assignment
-doPreOrderWithParentCheck :: (FiniteBits e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) 
+doPreOrderWithParentCheck :: (FiniteBits e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e)
 doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
     if not $ GV.null $ extractMediansGapped alignmentParent then
-            DOP.preOrderLogic isLeft alignmentParent gappedParent gappedChild 
+            DOP.preOrderLogic isLeft alignmentParent gappedParent gappedChild
     else gappedChild
 
 -- | getDOFinal takes parent final, and node gapped (including its parent gapped) and performs a DO median
@@ -1477,10 +1470,10 @@ makeNonAdditiveCharacterFinal :: BV.BitVector -> BV.BitVector-> BV.BitVector-> B
 makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
    -- From Wheeler (2012) after Fitch (1971)
    -- trace (show inData) (
-   if BV.isZeroVector ((complement nodePrelim) .&. parentFinal) then
+   if BV.isZeroVector (complement nodePrelim .&. parentFinal) then
       --trace ("R1 " ++ show parentFinal)
       parentFinal
-   else if (BV.isZeroVector (leftChild .&. rightChild)) then
+   else if BV.isZeroVector (leftChild .&. rightChild) then
       --trace ("R2 " ++ show (nodePrelim .|. parentFinal))
       nodePrelim .|. parentFinal
    else
