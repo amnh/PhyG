@@ -48,6 +48,8 @@ import qualified Data.Vector                 as V
 import qualified Data.Bimap                  as BM
 import           Data.Bits
 import           Data.Foldable
+import qualified Data.InfList                as IL
+import qualified Data.Set                    as SET
 import qualified Data.Text.Lazy              as T
 import qualified Data.Text.Short             as ST
 import qualified Data.Vector.Storable        as SV
@@ -58,8 +60,6 @@ import qualified GeneralUtilities            as GU
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
-import qualified Data.InfList                as IL
-import qualified Data.Set                    as SET
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
@@ -84,22 +84,22 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
             zeroEdgeList = filter ((`notElem` (leafIndexList ++ rootChildIndexList)) . snd3) zeroEdgeList'
         in
         if null zeroEdgeList then inPhylograph
-        else 
+        else
             -- get node to be deleted and its out edges
             let nodeToDelete = snd3 $ head zeroEdgeList
                 sourceEdgeToDelete = fst3 $ head zeroEdgeList
-                
+
                 -- new dec edges
                 firstOutEdgeDec = head $ LG.out inDecorated nodeToDelete
                 secondOutEdgeDec = last $ LG.out inDecorated nodeToDelete
-                
+
                 newFirstEdgeDec = (sourceEdgeToDelete, snd3 firstOutEdgeDec, thd3 firstOutEdgeDec)
                 newSecondEdgeDec = (sourceEdgeToDelete, snd3 secondOutEdgeDec, thd3 secondOutEdgeDec)
 
                 -- new simple edges
                 firstOutEdgeSimple = head $ LG.out inSimple nodeToDelete
                 secondOutEdgeSimple = last $ LG.out inSimple nodeToDelete
-                
+
                 newFirstEdgeSimple = (sourceEdgeToDelete, snd3 firstOutEdgeSimple, thd3 firstOutEdgeSimple)
                 newSecondEdgeSimple = (sourceEdgeToDelete, snd3 secondOutEdgeSimple, thd3 secondOutEdgeSimple)
 
@@ -115,16 +115,16 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
 -- number of network nodes-assumes for now--single component gaph not forest
 -- first in pair is softwired complexity, second hardwired complexity
 calculateGraphComplexity :: ProcessedData -> IL.InfList (VertexCost, VertexCost)
-calculateGraphComplexity (nameVect, _, _) = 
+calculateGraphComplexity (nameVect, _, _) =
     let numNetNodesList = IL.fromList [(0 :: Int)..]
         numRoots = 1
         graphComplexity = IL.map (getGraphComplexity (V.length nameVect) numRoots) numNetNodesList
     in
     graphComplexity
 
--- | getGraphComplexity takes the number of leaves and number of 
+-- | getGraphComplexity takes the number of leaves and number of
 -- network nodes and calculates the graph complexity
--- tree num edges (2n-2) n leaves * 2 nodes for each edge * (log 2n -1 vertices-- min specify) 
+-- tree num edges (2n-2) n leaves * 2 nodes for each edge * (log 2n -1 vertices-- min specify)
 getGraphComplexity :: Int -> Int -> Int -> (VertexCost, VertexCost)
 getGraphComplexity numLeaves numRoots numNetNodes =
     -- place holder for now
@@ -151,14 +151,14 @@ calculateNCMRootCost (_, _, blockDataV) =
 getBlockNCMRootCost :: BlockData -> VertexCost
 getBlockNCMRootCost (_, charDataVV, charInfoV) =
     if V.null charDataVV || V.null charInfoV then 0
-    else 
-        -- get length of each characters 
+    else
+        -- get length of each characters
         -- this for prealigned and non-aligned sequences mainly
         -- but if data are reorganized and packed--all data
         let numChars = V.length charInfoV
             leafCharListV = fmap (charDataVV V.!)  [0.. numChars - 1]
             maxCharLengthList = zipWith getMaxCharacterLength (V.toList charInfoV) (fmap V.toList leafCharListV)
-            weightList = fmap weight (V.toList charInfoV) 
+            weightList = fmap weight (V.toList charInfoV)
             rootCostList = zipWith (*) weightList (fmap fromIntegral maxCharLengthList)
         in
         -- trace ("GNCMR: " ++ (show (numChars, maxCharLengthList, weightList, rootCostList))) $
@@ -223,7 +223,7 @@ splitSequence partitionST stList =
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharStateQual :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b -> String
-bitVectToCharStateQual localAlphabet bitValue = 
+bitVectToCharStateQual localAlphabet bitValue =
   let charString = L.intercalate "," $ foldr pollSymbol mempty indices
   in
   if popCount bitValue > 1 then "[" ++ charString ++ "]"
@@ -231,9 +231,9 @@ bitVectToCharStateQual localAlphabet bitValue =
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
-    -- this is a hack--the alphabets for non-additive charcaters gets truncated to binary at some point earlier 
+    -- this is a hack--the alphabets for non-additive charcaters gets truncated to binary at some point earlier
     localAlphabet' = if length localAlphabet == finiteBitSize bitValue then localAlphabet
-                     else fromSymbolsWOGap $ fmap show [0.. (finiteBitSize bitValue) - 1] 
+                     else fromSymbolsWOGap $ fmap show [0.. (finiteBitSize bitValue) - 1]
     vec = alphabetSymbols localAlphabet'
     pollSymbol i polled
       | bitValue `testBit` i = (vec V.! i) : polled
@@ -241,18 +241,18 @@ bitVectToCharStateQual localAlphabet bitValue =
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
-bitVectToCharState localAlphabet bitValue = 
+bitVectToCharState localAlphabet bitValue =
   -- check for symbol length > 1 then add space (since sorted last element longest)
-  let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet) 
+  let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
       charString = foldr pollSymbol mempty indices
       charString' = L.intercalate "," $ filter (/= "\8220") charString
   in
-  -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) ( 
+  -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
   if popCount bitValue > 1 then "[" ++ charString' ++ "]"  ++ " "
   else if maxSymbolLength ==  1 then charString'  ++ " "
   else charString' ++ " "
   -- )
-  
+
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
@@ -262,17 +262,17 @@ bitVectToCharState localAlphabet bitValue =
       | otherwise         = polled
 
 bitVectToCharState' :: (Show b, Bits b) => Alphabet String -> b -> String
-bitVectToCharState' localAlphabet bitValue = 
+bitVectToCharState' localAlphabet bitValue =
   -- trace ("BVCA': " ++ (show $ isAlphabetAminoAcid localAlphabet) ++ " " ++ (show $ isAlphabetDna localAlphabet) ++ " " ++ (show localAlphabet)) (
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
-  in 
+  in
   if length stringVal == 1 then (L.intercalate "," $ stringVal') ++ " "
   else
     -- AA IUPAC
     -- if isAlphabetAminoAcid localAlphabet then
     if SET.size (alphabetSymbols localAlphabet) > 5 then
-    
+
         if stringVal == "DN" then "B" ++ " "
         else if stringVal == "EQ" then "Z" ++ " "
         else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X" ++ " "
@@ -312,9 +312,9 @@ bitVectToCharState' localAlphabet bitValue =
         else if stringVal == "-ACT" then "h" ++ " "
         else if stringVal == "-ACG" then "v" ++ " "
 
-        else ("Unrecognized nucleic acid ambiguity code : " ++ "|" ++ stringVal ++ "|")  
+        else ("Unrecognized nucleic acid ambiguity code : " ++ "|" ++ stringVal ++ "|")
 
-    else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ (show localAlphabet))  
+    else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ (show localAlphabet))
   --  )
   where
     indices = [ 0 .. len - 1 ]
@@ -447,7 +447,7 @@ getNumberSequenceCharacters blockDataVect =
         in
         sequenceChars + getNumberSequenceCharacters (V.tail blockDataVect)
 
--- | getNumber4864PackedChars takes processed data and returns the number of 
+-- | getNumber4864PackedChars takes processed data and returns the number of
 -- packed characters with states  in 4, 8, and 64
 -- this for NCM since weightiong may be apperoximate and needs to be rediagnosed
 getNumber4864PackedChars :: V.Vector BlockData -> Int
@@ -475,14 +475,14 @@ has4864PackedChars blockDataVect =
         else has4864PackedChars (V.tail blockDataVect)
 
 -- | getLengthSequenceCharacters takes processed data and returns the total length (maximum) of non-exact (= sequence) characters
--- utilised to get rough estimate of fraction of non-exact characters for 
+-- utilised to get rough estimate of fraction of non-exact characters for
 -- dynamic epsilon adjustment to data types
 -- maximum since that ius th eminimum length of optimized HTU sequences
 getLengthSequenceCharacters :: V.Vector BlockData -> Int
 getLengthSequenceCharacters blockDataVect =
     if V.null blockDataVect then 0
     else
-        let -- get character info 
+        let -- get character info
             firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
 
@@ -499,7 +499,7 @@ getLengthSequenceCharacters blockDataVect =
 
 -- | getMaxCharLength takes characterData and returns the length of the longest character field from preliminary
 getMaxCharLength :: CharacterData -> Int
-getMaxCharLength inChardata = 
+getMaxCharLength inChardata =
     let nonAdd = (V.length . fst3) $ stateBVPrelim inChardata
         add = (V.length . fst3) $ rangePrelim inChardata
         matrix = V.length  $ matrixStatesPrelim inChardata
@@ -509,7 +509,7 @@ getMaxCharLength inChardata =
         aSlim = (SV.length . fst3) $ alignedSlimPrelim inChardata
         aWide = (UV.length . fst3) $ alignedWidePrelim inChardata
         aHuge = (V.length . fst3) $ alignedHugePrelim inChardata
-    in 
+    in
     -- trace ("GMCL: " ++ (show [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]))
     maximum [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]
 
@@ -749,7 +749,7 @@ incrementSimAnnealParams inParams =
 
 -- | generateRandLists generates n random lists from seed
 generateRandIntLists :: Int -> Int -> [[Int]]
-generateRandIntLists rSeed number = 
+generateRandIntLists rSeed number =
     if number == 0 then []
     else
         fmap GU.randomIntList  (take number $ GU.randomIntList  rSeed)
@@ -900,8 +900,8 @@ getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByC
 concatFastas :: String -> String
 concatFastas inMultFastaString =
     if null inMultFastaString then []
-    else 
-            -- split on "Sequence character" 
+    else
+            -- split on "Sequence character"
         let fastaFileStringList = filter (not . null) $ spitIntoFastas inMultFastaString
 
             -- make pairs from each "file"
@@ -920,12 +920,12 @@ concatFastas inMultFastaString =
         -- trace ("CF:" ++ (show $ length fastaFileStringList) ++ " " ++ (show $ fmap length fastaFileStringList))
         concat newFastaPairs
 
--- | spitIntoFastas takes String generated by reprot ia functions, 
+-- | spitIntoFastas takes String generated by reprot ia functions,
 -- splits on "Sequence character" line, creating separate fastas
 spitIntoFastas :: String -> [String]
 spitIntoFastas inString =
     if null inString then []
-    else 
+    else
         let linesList = splitFastaLines [] [] $ filter (not .null) $ lines inString
             fastaStringList = fmap unlines linesList
         in
@@ -935,17 +935,17 @@ spitIntoFastas inString =
 splitFastaLines :: [String] -> [[String]] -> [String] -> [[String]]
 splitFastaLines curFasta curFastaList inLineList =
     if null inLineList then reverse ((reverse curFasta) : curFastaList)
-    else 
+    else
         let firstLine = head inLineList
             firstWord = head $ words firstLine
         in
-        if null firstLine then 
+        if null firstLine then
             splitFastaLines curFasta curFastaList (tail inLineList)
 
-        else if firstWord == "Sequence" then 
+        else if firstWord == "Sequence" then
             splitFastaLines [] ((reverse curFasta) : curFastaList) (tail inLineList)
 
-        else 
+        else
             splitFastaLines (firstLine : curFasta) curFastaList (tail inLineList)
 
 
@@ -953,27 +953,27 @@ splitFastaLines curFasta curFastaList inLineList =
 mergeFastaData :: [[String]] -> [String]
 mergeFastaData inDataLL =
     if null $ head inDataLL then []
-    else 
+    else
         let firstData = concat $ fmap head inDataLL
             formattedData = concatMap (++ "\n") $ SL.chunksOf 50 firstData
         in
         formattedData : mergeFastaData (fmap tail inDataLL)
 
 -- | fasta2PairList takes an individual fasta file as single string and returns
--- pairs data of taxon name and data 
+-- pairs data of taxon name and data
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
 fasta2PairList :: String -> [(String, String)]
-fasta2PairList fileContents' = 
+fasta2PairList fileContents' =
     if null fileContents' then []
-    else     
+    else
         let fileContents =  unlines $ filter (not.null) $ lines fileContents'
         in
         if null fileContents then []
         else if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
         else
             let terminalSplits = SL.splitWhen (== '>') fileContents
-                
+
                 -- tail because initial split will an empty text
                 pairData =  getRawDataPairs (tail terminalSplits)
             in
@@ -990,12 +990,12 @@ getRawDataPairs inList =
             firstData = concat $ tail $ lines firstText
         in
         ('>' : firstName ++ "\n", firstData) : getRawDataPairs (tail inList)
- 
 
--- | hasResolutionDuplicateEdges checks resolution subtree in verteexInfo for duplicate d edges in softwired 
+
+-- | hasResolutionDuplicateEdges checks resolution subtree in verteexInfo for duplicate d edges in softwired
 -- subtree field
 hasResolutionDuplicateEdges :: ResolutionData -> Bool
-hasResolutionDuplicateEdges inResData = 
+hasResolutionDuplicateEdges inResData =
     let edgeList = snd $ displaySubGraph inResData
         edgeDupList = length $ (fmap LG.toEdge edgeList) L.\\ (L.nub $ fmap LG.toEdge edgeList)
     in

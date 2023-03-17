@@ -34,7 +34,7 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE DeriveAnyClass     #-}
+
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DerivingStrategies #-}
 
@@ -42,9 +42,10 @@ module Types.Types where
 
 import           Control.DeepSeq
 import           Data.Alphabet
-import qualified Data.TCM                  as TCM
 import qualified Data.BitVector.LittleEndian as BV
+import qualified Data.InfList                as IL
 import qualified Data.MetricRepresentation   as MR
+import qualified Data.TCM                    as TCM
 import qualified Data.TCM.Dense              as TCMD
 import qualified Data.Text.Lazy              as T
 import qualified Data.Text.Short             as ST
@@ -56,7 +57,6 @@ import           Foreign.C.Types             (CUInt)
 import           GHC.Generics
 import qualified SymMatrix                   as S
 import qualified Utilities.LocalGraph        as LG
-import qualified Data.InfList                as IL
 
 -- | Debug Flag
 isDebug :: Bool
@@ -73,11 +73,11 @@ epsilon = 0.0001
 
 -- | infinity is a large Double for use with Graph costs
 infinity :: Double
-infinity = (read "Infinity") :: Double
+infinity = read "Infinity" :: Double
 
 -- | maxAddStatesToRecode maximum size of addditive character to recode into
 --non-additive characters 65 can fit in 4 Word64 since nstates - 1 binaries
--- prob could be bigger based on cost of optimizing additive versus but this 
+-- prob could be bigger based on cost of optimizing additive versus but this
 -- seems a reasonale number (prob should be timed to verify)
 maxAddStatesToRecode :: Int
 maxAddStatesToRecode = 129
@@ -182,7 +182,7 @@ data SearchData
     } deriving stock (Show, Eq)
 
 -- | maxSimultaneousGraphsSteepest is the maximum number of graphs that are evaluated
--- at a step in "steepest" algorithms of swap and fuse. Set becasue can increase 
+-- at a step in "steepest" algorithms of swap and fuse. Set becasue can increase
 -- run time of these procedurs by delaying finding "better" solutins to move to.
 maxSimultaneousGraphsSteepest :: Int
 maxSimultaneousGraphsSteepest = 10
@@ -191,12 +191,12 @@ maxSimultaneousGraphsSteepest = 10
 data SwapType = None | NNI | SPR | TBR | Alternate | TBRAlternate
     deriving stock (Show, Eq)
 
--- | JoinType types for join methods 
+-- | JoinType types for join methods
 data JoinType = JoinPruned | JoinAll | JoinAlternate
     deriving stock (Show, Eq)
 
 -- | SelectGraphType types to select gaphs
-data SelectGraphType = Best | Unique | AtRandom | All 
+data SelectGraphType = Best | Unique | AtRandom | All
     deriving stock (Show, Eq)
 
 -- | Support method types
@@ -206,38 +206,38 @@ data SupportMethod = Jackknife | Bootstrap | GoodmanBremer
 
 data  GlobalSettings
     = GlobalSettings
-    { outgroupIndex       :: Int -- Outgroup terminal index, default 0 (first input leaf)
-    , outGroupName        :: T.Text -- Outgroup name
-    , optimalityCriterion :: OptimalityCriterion
-    , graphType           :: GraphType
-    , compressResolutions :: Bool -- "nub" resolutions in softwired graph
-    , finalAssignment     :: AssignmentMethod
-    , graphFactor         :: GraphFactor -- net penalty/graph complexity
-    , partitionCharacter  :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
-    , rootCost            :: RootCost
-    , rootComplexity      :: VertexCost -- complexity of root in bits per root for PMDL/ML calculations
-    , graphComplexityList :: IL.InfList (VertexCost, VertexCost) --complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
-    , modelComplexity     :: Double -- model cost for PMDL, 0.0 for other criteria
-    , seed                :: Int -- random seed
-    , searchData          :: [SearchData]
-    , numDataLeaves       :: Int --number of leaves  set after data processing--for conveniance really
-    , bc2                 :: (Double, Double) -- PMDL bitCost for 2 states of no-change and change as pair
-    , bc4                 :: (Double, Double) -- PMDL bitCost for 4 states of no-change and change as pair
-    , bc5                 :: (Double, Double) -- PMDL bitCost for 5 states of no-change and change as pair
-    , bc8                 :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
-    , bc64                :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
-    , bcgt64              :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
-    , fractionDynamic     :: Double -- estimated fraction of character length that are dynamic (actually seqeunce) for setting dynamicEpsilon
-    , dynamicEpsilon      :: Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
-    , graphsSteepest      :: Int -- he maximum number of graphs that are evaluated
-                                 -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase 
+    { outgroupIndex           :: Int -- Outgroup terminal index, default 0 (first input leaf)
+    , outGroupName            :: T.Text -- Outgroup name
+    , optimalityCriterion     :: OptimalityCriterion
+    , graphType               :: GraphType
+    , compressResolutions     :: Bool -- "nub" resolutions in softwired graph
+    , finalAssignment         :: AssignmentMethod
+    , graphFactor             :: GraphFactor -- net penalty/graph complexity
+    , partitionCharacter      :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
+    , rootCost                :: RootCost
+    , rootComplexity          :: VertexCost -- complexity of root in bits per root for PMDL/ML calculations
+    , graphComplexityList     :: IL.InfList (VertexCost, VertexCost) --complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
+    , modelComplexity         :: Double -- model cost for PMDL, 0.0 for other criteria
+    , seed                    :: Int -- random seed
+    , searchData              :: [SearchData]
+    , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
+    , bc2                     :: (Double, Double) -- PMDL bitCost for 2 states of no-change and change as pair
+    , bc4                     :: (Double, Double) -- PMDL bitCost for 4 states of no-change and change as pair
+    , bc5                     :: (Double, Double) -- PMDL bitCost for 5 states of no-change and change as pair
+    , bc8                     :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
+    , bc64                    :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
+    , bcgt64                  :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
+    , fractionDynamic         :: Double -- estimated fraction of character length that are dynamic (actually seqeunce) for setting dynamicEpsilon
+    , dynamicEpsilon          :: Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
+    , graphsSteepest          :: Int -- he maximum number of graphs that are evaluated
+                                 -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase
                                  -- run time of these procedurs by delaying finding "better" solutins to move to.
-    , softWiredMethod     :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
+    , softWiredMethod         :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
     , multiTraverseCharacters :: Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
-    , reportNaiveData      :: Bool -- reports using Naive data so preserves character order and codings.  This comes at a cost in memory footprint.  If False, 
+    , reportNaiveData         :: Bool -- reports using Naive data so preserves character order and codings.  This comes at a cost in memory footprint.  If False,
                                    -- packed characters are reported--and are somewhat inscrutable. But perhaps 3% of data footprint--useful for large
                                    -- add/non add dat asets liker SNP genomic data
-    , unionThreshold      :: Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhps) character Wagner build
+    , unionThreshold          :: Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhps) character Wagner build
                                     -- as described by Varon and Wheeler (2013) and set to 1.17 experimentally
     } deriving stock (Show, Eq)
 
@@ -249,7 +249,7 @@ instance NFData GlobalSettings where rnf x = seq x ()
 --  TCMD.DenseTransitionCostMatrix          => genDiscreteDenseOfDimension (length alphabet)
 --  MR.MetricRepresentation Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
 --  MR.MetricRepresentation BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
--- changeCost and noChange costs are for PMDL costs for packed/non-additive character for 
+-- changeCost and noChange costs are for PMDL costs for packed/non-additive character for
 -- other character types the cost matrix holds this information in comvcert with weight since the matrix values are integers
 data CharInfo = CharInfo { name       :: NameText
                          , charType   :: CharType
@@ -259,15 +259,15 @@ data CharInfo = CharInfo { name       :: NameText
                          , slimTCM    :: TCMD.DenseTransitionCostMatrix
                          , wideTCM    :: MR.MetricRepresentation Word64
                          , hugeTCM    :: MR.MetricRepresentation BV.BitVector
-                         , changeCost :: Double 
-                         , noChangeCost :: Double 
+                         , changeCost :: Double
+                         , noChangeCost :: Double
                          , alphabet   :: Alphabet ST.ShortText
                          , prealigned :: Bool
                          , origInfo   :: V.Vector (NameText, CharType, Alphabet ST.ShortText)
                          } deriving stock (Show, Eq)
 
 instance NFData CharInfo where rnf x = seq x ()
-instance Ord CharInfo where x `compare`  y = (show x) `compare` (show y)
+instance Ord CharInfo where x `compare`  y = show x `compare` show y
 
 
 -- | Types for vertex information
@@ -311,13 +311,13 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 --  sequence character, creating a properly "rooted" tree/graph for each non-exact seqeunce character
 -- prelim is created from gapped, final from (via 3-way minimization) parent final and child alignment (2nd and 3rd fields).
 -- the 'alignment' fields hold the implied alignment data
--- the 'union' fields hold post-order unions of subgraph charcaters (ia for sequence) fir use in uinion threshold 
+-- the 'union' fields hold post-order unions of subgraph charcaters (ia for sequence) fir use in uinion threshold
 -- during branch addintion/readdition (e.g swapping)
-data CharacterData = CharacterData { -- for Non-additive  
+data CharacterData = CharacterData { -- for Non-additive
                                        stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
                                      , stateBVFinal       :: V.Vector BV.BitVector
                                      , stateBVUnion       :: V.Vector BV.BitVector
-                                     
+
                                      -- for Additive
                                      , rangePrelim        :: (V.Vector (Int, Int), V.Vector (Int, Int), V.Vector (Int, Int))
                                      , rangeFinal         :: V.Vector (Int, Int)
@@ -347,7 +347,7 @@ data CharacterData = CharacterData { -- for Non-additive
                                      , wideIAPrelim       :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
                                      , wideIAFinal        :: UV.Vector Word64
                                      , wideIAUnion        :: UV.Vector Word64
-                                     
+
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped medians of left, right, and preliminary used in preorder pass
@@ -558,7 +558,7 @@ emptyProcessedData = (V.empty, V.empty, V.empty)
 -- | emptySearchData for use in getting basic procesin input data
 emptySearchData :: SearchData
 emptySearchData  = SearchData
-        { instruction     = NotACommand 
+        { instruction     = NotACommand
         , arguments       = []
         , minGraphCostIn  = infinity
         , maxGraphCostIn  = infinity
@@ -568,7 +568,7 @@ emptySearchData  = SearchData
         , numGraphsOut    = 0
         , commentString   = []
         , duration        = 0
-        } 
+        }
 
 -- | emptyGlobalSettings for early use in parition charcter.  Can't have full due to data dependency of outpogroup name
 emptyGlobalSettings :: GlobalSettings
@@ -580,8 +580,8 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , finalAssignment = DirectOptimization
                                      , graphFactor = Wheeler2015Network
                                      , rootCost = NoRootCost
-                                     , rootComplexity  = 0.0 
-                                     , graphComplexityList  = IL.repeat (0.0, 0.0) 
+                                     , rootComplexity  = 0.0
+                                     , graphComplexityList  = IL.repeat (0.0, 0.0)
                                      , modelComplexity = 0.0
                                      , seed = 0
                                      , searchData = []
@@ -609,7 +609,7 @@ emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empt
 
 -- | emptycharacter useful for intialization and missing data
 emptyCharacter :: CharacterData
-emptyCharacter = CharacterData   { -- for non-additive 
+emptyCharacter = CharacterData   { -- for non-additive
                                    stateBVPrelim      = (mempty, mempty, mempty)  -- preliminary for Non-additive chars, Sankoff Approx
                                  , stateBVFinal       = mempty
                                  , stateBVUnion       = mempty
@@ -633,7 +633,7 @@ emptyCharacter = CharacterData   { -- for non-additive
                                  , slimIAPrelim       = (mempty, mempty, mempty)
                                  , slimIAFinal        = mempty
                                  , slimIAUnion        = mempty
-                                 
+
                                  -- gapped median of left, right, and preliminary used in preorder pass
                                  , widePrelim         = mempty
                                  -- gapped median of left, right, and preliminary used in preorder pass
@@ -653,7 +653,7 @@ emptyCharacter = CharacterData   { -- for non-additive
                                  , hugeIAPrelim       = (mempty, mempty, mempty)
                                  , hugeIAFinal        = mempty
                                  , hugeIAUnion        = mempty
-                                 
+
                                  -- vectors for pre-aligned sequences also used in static approx
                                  , alignedSlimPrelim  = (mempty, mempty, mempty)
                                  , alignedSlimFinal   = mempty
@@ -681,7 +681,7 @@ emptyCharacter = CharacterData   { -- for non-additive
 
 -- | emptyVertex useful for graph rearrangements
 emptyVertexInfo :: VertexInfo
-emptyVertexInfo = VertexInfo { index        = (-1)
+emptyVertexInfo = VertexInfo { index        = -1
                              , bvLabel      = BV.fromBits [False]
                              , parents      = mempty
                              , children     = mempty
@@ -715,10 +715,10 @@ emptyCharInfo = CharInfo { name       = T.pack "EmptyCharName"
                          , slimTCM    = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList [[0,1],[1,0]] -- genDiscreteDenseOfDimension 2
                          , wideTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
                          , hugeTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
-                         , changeCost = 1.0 
+                         , changeCost = 1.0
                          , noChangeCost = 0.0
                          , alphabet   = fromSymbols $ fmap ST.fromString ["0", "1"]
                          , prealigned = False
                          , origInfo   = V.empty
-                         } 
+                         }
 

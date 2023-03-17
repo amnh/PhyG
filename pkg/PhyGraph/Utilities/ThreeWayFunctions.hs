@@ -48,8 +48,8 @@ module Utilities.ThreeWayFunctions  ( threeMedianFinal
 
 import           Bio.DynamicCharacter
 import           Data.Alphabet
-import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
+import           Data.Bits
 import qualified Data.List                   as L
 import qualified Data.MetricRepresentation   as MR
 import qualified Data.TCM.Dense              as TCMD
