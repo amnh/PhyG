@@ -656,13 +656,13 @@ nubGraph curList inList =
     let (firstGraphNC, firstGraphC) = head inList 
 
         -- nub on newick topology only--should be collapsed already
-        firstString = makeNewickList False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] []
+        firstString = makeNewickList False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
 
         -- nub on prettty string
-        -- firstString = LG.prettyIndices $ thd6 firstGraphNC
+        --firstString = LG.prettyIndices $ thd6 firstGraphNC
         isMatch = filter (== firstString) (fmap thd3 curList)
     in
-    -- trace ("NG: " ++ (show $ null isMatch) ++ " " ++ firstString) (
+    --trace ("NG: " ++ (show $ null isMatch) ++ "->" ++ firstString) $
     if null curList then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
     else if null isMatch then nubGraph ((firstGraphNC, firstGraphC, firstString) : curList) (tail inList)
     else nubGraph curList (tail inList)

@@ -54,7 +54,7 @@ import           Types.Types
 import qualified Utilities.LocalGraph                 as LG
 import           Utilities.Utilities                  as U
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
--- import           Debug.Trace
+import           Debug.Trace
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
@@ -302,7 +302,7 @@ swapAll swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMo
              sprBestCost = (snd6 . head) graphsToTBR
             
              -- tbr until find better or novel equal
-             (tbrGraphs, tbrCounter, tbrSAPArams) = swapAll' TBR joinType atRandom (tail randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest True sprCounter sprBestCost graphsToTBR graphsToTBR numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor 0 sprSAPArams
+             (tbrGraphs, tbrCounter, tbrSAPArams) = swapAll' TBRAlternate joinType atRandom (tail randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest True sprCounter sprBestCost graphsToTBR graphsToTBR numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor 0 sprSAPArams
              tbrBestCost = if (not . null) tbrGraphs then
                               (snd6 . head) tbrGraphs
                            else infinity
@@ -1043,7 +1043,8 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
             else ([], inSimAnnealParams)
          else ([], inSimAnnealParams)
 
-      else -- TBR 
+      -- Full TBR
+      else if (swapType == TBR) then
          
          -- do TBR stuff returning SPR results if heuristic better
          let sprResult = if (sprReJoinCost + splitCost) <= curBestCost + (sprReJoinCost * (dynamicEpsilon inGS)) then 
@@ -1057,9 +1058,14 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
          in
          if (not . null) sprResult then (sprResult, inSimAnnealParams)
 
-         -- else if ((snd6 rediagnosedSPRGraph) - curBestCost) > 1.17 * (curBestCost - splitCost) then ([], inSimAnnealParams)
-         
          else (tbrResult, inSimAnnealParams)
+
+      -- TBRAlternate can skip SPR moves since done already in alternate scenario 
+      else 
+         let (tbrResult, _) = tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
+         in
+         (tbrResult, inSimAnnealParams)
+
 
    -- simulated annealing/Drift swap
    else 

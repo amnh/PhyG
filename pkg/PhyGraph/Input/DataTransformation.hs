@@ -78,7 +78,6 @@ import           GeneralUtilities
 import           Numeric.Natural
 import           Text.Read
 import qualified Utilities.Utilities         as U
-import qualified GraphOptimization.Traversals as TRANS
 
 -- import           Debug.Trace
 

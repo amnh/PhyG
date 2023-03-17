@@ -187,8 +187,8 @@ data SearchData
 maxSimultaneousGraphsSteepest :: Int
 maxSimultaneousGraphsSteepest = 10
 
--- | SwapType types for swapping 
-data SwapType = None | NNI | SPR | TBR | Alternate
+-- | SwapType types for swapping, TBRAlternate for special casing in Swap
+data SwapType = None | NNI | SPR | TBR | Alternate | TBRAlternate
     deriving stock (Show, Eq)
 
 -- | JoinType types for join methods 
