@@ -71,9 +71,11 @@ module GraphOptimization.Medians  ( median2
 
 import           Bio.DynamicCharacter
 import           Data.Alphabet
-import           Data.Bits
 import qualified Data.BitVector.LittleEndian as BV
+import           Data.Bits
 import           Data.Foldable
+import qualified Data.List                   as L
+import           Data.Maybe
 import qualified Data.MetricRepresentation   as MR
 import qualified Data.TCM.Dense              as TCMD
 import qualified Data.Vector                 as V
@@ -87,8 +89,6 @@ import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
-import           Data.Maybe
-import qualified Data.List                   as L
 --import           Debug.Trace
 
 
@@ -191,7 +191,7 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
         thisActive  = activity inCharInfo
         dummyStaticCharacter = emptyCharacter
     in
-    if (not thisActive) || (thisType `elem` exactCharacterTypes) then (dummyStaticCharacter, 0)
+    if not thisActive || (thisType `elem` exactCharacterTypes) then (dummyStaticCharacter, 0)
     else if thisType `elem` prealignedCharacterTypes then
          let newCharVect = getPreAligned2Median inCharInfo dummyStaticCharacter firstVertChar secondVertChar
          in
@@ -294,12 +294,12 @@ interUnionBV leftBV rightBV =
 -- assumes a single weight for all
 -- performs two passes though chars to get cost of assignments
 -- snd3 $ rangePrelim left/rightChar due to triple in prelim
--- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since 
+-- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since
 -- only for nonadd characters with > 64 states.
 interUnion :: Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
 interUnion thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
-        newCost = thisWeight * ((lNoChangeCost * (fromIntegral $ V.sum noChangeCostVect)) + (lChangeCost * (fromIntegral $ V.sum changeCostVect)))
+        newCost = thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
         newCharacter = emptyCharacter { stateBVPrelim = (snd3 $ stateBVPrelim leftChar, newStateVect, snd3 $ stateBVPrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
@@ -314,12 +314,12 @@ interUnion thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
 -- assumes a single weight for all
 -- performs two passes though chars to get cost of assignments
 -- snd3 $ rangePrelim left/rightChar due to triple in prelim
--- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since 
+-- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since
 -- only for nonadd characters with > 64 states.
 interUnionUnionField :: Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
 interUnionUnionField thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (stateBVUnion leftChar) (stateBVUnion rightChar)
-        newCost = thisWeight * ((lNoChangeCost * (fromIntegral $ V.sum noChangeCostVect)) + (lChangeCost * (fromIntegral $ V.sum changeCostVect)))
+        newCost = thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
         newCharacter = emptyCharacter { stateBVUnion = newStateVect
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
@@ -358,7 +358,7 @@ getNewRange lMin lMax rMin rMax =
     -- newInterval
     else if lMax <= rMin then (lMax, rMin, rMin - lMax)
     else if rMax <= lMin then (rMax, lMin, lMin - rMax)
-    else error ("This can't happen " ++ (show (lMin, lMax, rMin, rMax)))
+    else error ("This can't happen " ++ show (lMin, lMax, rMin, rMax))
 
 -- | intervalAdd takes two additive chars and creates newCharcter as 2-median
 -- in post-order pass to create preliminary states assignment
@@ -550,7 +550,7 @@ pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
 
 -- | getDOMedianCharInfoUnion  is a wrapper around getDOMedian with CharInfo-based interface
--- for union fields.  
+-- for union fields.
 -- Strips out solo gapos (0/1) before DO step
 getDOMedianCharInfoUnion :: CharInfo -> CharacterData -> CharacterData -> CharacterData
 getDOMedianCharInfoUnion charInfo = getDOMedianUnion (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
@@ -584,7 +584,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
             (cost, r)   = slimPairwiseDO
                 thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsRight)
-        in 
+        in
         --trace ("GDOMU:" ++ show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
         blankCharacterData
               { slimIAUnion   = extractMedians r
@@ -730,7 +730,7 @@ getPrealignedUnion thisType leftChar rightChar =
                            , alignedHugeFinal = finalUnion
                            }
 
-    else error ("Unrecognised character type '" ++ (show thisType) ++ "' in getPrealignedUnion")
+    else error ("Unrecognised character type '" ++ show thisType ++ "' in getPrealignedUnion")
 
 
 -- | getDynamicUnion calls appropriate pairwise function to create sequence median after some type wrangling
@@ -900,24 +900,24 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
         in
         -- trace ("GPA2M: " ++ (show $ GV.length prelimChar))
         nodeChar { alignedSlimPrelim = (extractMediansGapped $ alignedSlimPrelim leftChar, prelimChar,  extractMediansGapped $ alignedSlimPrelim rightChar)
-                 , localCost = (weight charInfo) * (fromIntegral cost)
-                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 , localCost = weight charInfo * fromIntegral cost
+                 , globalCost = sum [ weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
                  }
 
     else if characterType == AlignedWide then
         let (prelimChar, cost) = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ alignedWidePrelim leftChar) (extractMediansGapped $ alignedWidePrelim rightChar)
         in
         nodeChar { alignedWidePrelim = (extractMediansGapped $ alignedWidePrelim leftChar, prelimChar,  extractMediansGapped $ alignedWidePrelim rightChar)
-                 , localCost = (weight charInfo) * (fromIntegral cost)
-                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 , localCost = weight charInfo * fromIntegral cost
+                 , globalCost = sum [ weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
                  }
 
     else if characterType == AlignedHuge then
         let (prelimChar, cost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ alignedHugePrelim leftChar) (extractMediansGapped $ alignedHugePrelim rightChar)
         in
         nodeChar { alignedHugePrelim = (extractMediansGapped $ alignedHugePrelim leftChar, prelimChar,  extractMediansGapped $ alignedHugePrelim rightChar)
-                 , localCost = (weight charInfo) * (fromIntegral cost)
-                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 , localCost = weight charInfo * fromIntegral cost
+                 , globalCost = sum [ weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
                  }
 
     else error ("Unrecognized character type " ++ show characterType)
@@ -933,8 +933,8 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
         in
         -- trace ("GPA2M-slim: " ++ (show (GV.length prelimChar, GV.length $ alignedSlimUnion leftChar, GV.length $ alignedSlimUnion rightChar)))
         nodeChar { alignedSlimUnion = prelimChar
-                 , localCost = (weight charInfo) * (fromIntegral cost)
-                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 , localCost = weight charInfo * fromIntegral cost
+                 , globalCost = sum [ weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
                  }
 
     else if characterType == AlignedWide then
@@ -942,8 +942,8 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
         in
         --trace ("GPA2M-wide: " ++ (show $ GV.length prelimChar))
         nodeChar { alignedWideUnion = prelimChar
-                 , localCost = (weight charInfo) * (fromIntegral cost)
-                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 , localCost = weight charInfo * fromIntegral cost
+                 , globalCost = sum [ weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
                  }
 
     else if characterType == AlignedHuge then
@@ -951,8 +951,8 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
         in
         --trace ("GPA2M-huge: " ++ (show $ GV.length prelimChar))
         nodeChar { alignedHugeUnion = prelimChar
-                 , localCost = (weight charInfo) * (fromIntegral cost)
-                 , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                 , localCost = weight charInfo * fromIntegral cost
+                 , globalCost = sum [ weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
                  }
 
     else error ("Unrecognized character type " ++ show characterType)
@@ -965,17 +965,17 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
     --traceNoLF ("In makeIAUnionPrelimLeaf") (
     let characterType = charType charInfo
     in
-    if characterType == NonAdd then 
+    if characterType == NonAdd then
         let prelimState = snd3 $ stateBVPrelim nodeChar
         in
         nodeChar {stateBVUnion = prelimState}
 
-    else if characterType == Add then 
+    else if characterType == Add then
         let prelimState = snd3 $ rangePrelim nodeChar
         in
         nodeChar {rangeUnion = prelimState}
 
-    else if characterType == Matrix then 
+    else if characterType == Matrix then
         let prelimState = matrixStatesPrelim nodeChar
         in
         nodeChar {matrixStatesUnion = prelimState}
@@ -983,7 +983,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
     -- the checking for null in prelimstate (slim/wide/huge sequences) comes form case of splitting graph
     -- and reoptimizing in swap and fuse but single leaf is split off
 
-    else if characterType `elem` [SlimSeq, NucSeq] then 
+    else if characterType `elem` [SlimSeq, NucSeq] then
         let prelimState = extractMediansGapped $ slimAlignment nodeChar
             unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (slimGapped nodeChar)
         in
@@ -992,7 +992,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
                  , slimIAUnion = unionState
                  }
 
-    else if characterType `elem` [WideSeq, AminoSeq] then 
+    else if characterType `elem` [WideSeq, AminoSeq] then
         let prelimState = extractMediansGapped $ wideAlignment nodeChar
             unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (wideGapped nodeChar)
         in
@@ -1001,7 +1001,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
                  , wideIAUnion = unionState
                  }
 
-    else if characterType == HugeSeq then 
+    else if characterType == HugeSeq then
         let prelimState = extractMediansGapped $ hugeAlignment nodeChar
             unionState = unionBVOrMissing prelimState (length $ alphabet charInfo) (hugeGapped nodeChar)
         in
@@ -1010,22 +1010,22 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
                  , hugeIAUnion = unionState
                  }
 
-    else if characterType == AlignedSlim then 
+    else if characterType == AlignedSlim then
         let prelimState = snd3 $ alignedSlimPrelim nodeChar
         in
         nodeChar {alignedSlimUnion = prelimState}
 
-    else if characterType == AlignedWide then 
+    else if characterType == AlignedWide then
         let prelimState = snd3 $ alignedWidePrelim nodeChar
         in
         nodeChar {alignedWideUnion = prelimState}
 
-    else if characterType == AlignedHuge then 
+    else if characterType == AlignedHuge then
         let prelimState = snd3 $ alignedHugePrelim nodeChar
         in
         nodeChar {alignedHugeUnion = prelimState}
 
-    else if characterType `elem` [Packed2, Packed4, Packed5, Packed8, Packed64] then 
+    else if characterType `elem` [Packed2, Packed4, Packed5, Packed8, Packed64] then
         let prelimState = snd3 $ packedNonAddPrelim nodeChar
         in
         nodeChar {packedNonAddUnion = prelimState}
@@ -1037,7 +1037,7 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
 --  so BV unions and IAFinal get a zero cost as opposed to checking against all '-' seqquence
 unionBVOrMissing :: (FiniteBits e, GV.Vector v e) => v e -> Int -> (v e, v e, v e) -> v e
 unionBVOrMissing prelimState alphSize nodeGapped =
-    if not $ GV.null prelimState then 
+    if not $ GV.null prelimState then
         if GV.null $ extractMediansSingle prelimState then
         --trace ("MIAUPL: " ++ (show $ convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState))
             convertAllGapsToAllBitsOn alphSize prelimState
@@ -1046,13 +1046,13 @@ unionBVOrMissing prelimState alphSize nodeGapped =
 
 -- | convertAllGapsToAllBitsOn takes a single fields of a dynamic character and
 -- converts replaces
--- 'gaps' with all bits on--in essence '?' or missing element 
-convertAllGapsToAllBitsOn :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e 
+-- 'gaps' with all bits on--in essence '?' or missing element
+convertAllGapsToAllBitsOn :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e
 convertAllGapsToAllBitsOn alphSize inVect =
     if GV.null inVect then inVect
-    else 
+    else
         let numElements = GV.length inVect
-            onBitList =  (fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]) 
+            onBitList =  fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]
             onBits = L.foldl1' (.|.) onBitList
         in
         GV.replicate numElements onBits
@@ -1060,13 +1060,11 @@ convertAllGapsToAllBitsOn alphSize inVect =
 -- | allMissingBits test if all bits in alphabet size are ON
 allMissingBits :: (FiniteBits e, GV.Vector v e) => Int -> v e -> Bool
 allMissingBits alphSize inVect =
-    if GV.null inVect then False
-    else 
-        let onBitList =  (fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]) 
-            missingBits = L.foldl1' (.|.) onBitList
-            offBits = GV.filter (/= missingBits) inVect
-        in
-        GV.null offBits
+    not (GV.null inVect) && (let onBitList =  fmap (setBit (inVect GV.! 0)) [0..alphSize - 1]
+                                 missingBits = L.foldl1' (.|.) onBitList
+                                 offBits = GV.filter (/= missingBits) inVect
+                             in
+                             GV.null offBits)
 {-
 -- | getNonExactUnionFields takes two non-exact characters and union field assignment
 -- based on character type and nodeChar
@@ -1110,43 +1108,43 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
      --traceNoLF ("In makeIAPrelimCharacter") (
      let characterType = charType charInfo
      in
-     if characterType == NonAdd then 
+     if characterType == NonAdd then
         let leftState = stateBVUnion leftChar
             rightState = stateBVUnion rightChar
             unionState = V.zipWith (.|.) leftState rightState
         in
         nodeChar {stateBVUnion = unionState}
 
-    else if characterType == Add then 
+    else if characterType == Add then
         let prelimState = V.zipWith4 getUnionRange (V.map fst $ rangeUnion leftChar) (V.map snd $ rangeUnion leftChar) (V.map fst $ rangeUnion rightChar) (V.map snd $ rangeUnion rightChar)
         in
         nodeChar {rangeUnion = prelimState}
 
-    else if characterType == Matrix then 
+    else if characterType == Matrix then
         let numStates = length $ costMatrix charInfo
             newMatrixVector = getUnionVector (costMatrix charInfo) numStates <$> V.zip (matrixStatesUnion leftChar) (matrixStatesUnion rightChar)
         in
         nodeChar {matrixStatesUnion = newMatrixVector}
-    else if characterType == AlignedSlim then 
+    else if characterType == AlignedSlim then
         let prelimState = GV.zipWith (.|.) (alignedSlimUnion leftChar) (alignedSlimUnion rightChar)
         in
         nodeChar {alignedSlimUnion = prelimState}
 
-    else if characterType == AlignedWide then 
+    else if characterType == AlignedWide then
         let prelimState = GV.zipWith (.|.) (alignedWideUnion leftChar) (alignedWideUnion rightChar)
         in
         nodeChar {alignedWideUnion = prelimState}
 
-    else if characterType == AlignedHuge then 
+    else if characterType == AlignedHuge then
         let prelimState = GV.zipWith (.|.) (alignedHugeUnion leftChar) (alignedHugeUnion rightChar)
         in
         nodeChar {alignedHugeUnion = prelimState}
 
-    else if characterType `elem` [Packed2, Packed4, Packed5, Packed8, Packed64] then 
+    else if characterType `elem` [Packed2, Packed4, Packed5, Packed8, Packed64] then
         let prelimState = GV.zipWith (.|.) (packedNonAddUnion leftChar) (packedNonAddUnion leftChar)
         in
         nodeChar {packedNonAddUnion = prelimState}
-    
+
     else if characterType `elem` [SlimSeq, NucSeq] then
         let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
         in
@@ -1157,9 +1155,9 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         nodeChar {slimIAPrelim = (extractMediansGapped $ slimIAPrelim leftChar
                 , prelimChar,  extractMediansGapped $ slimIAPrelim rightChar)
                 , slimIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (slimIAUnion leftChar) (slimIAUnion rightChar)
-                , localCost = if (GV.null $ slimIAUnion leftChar) || (GV.null $ slimIAUnion rightChar) then 0
-                              else (weight charInfo) * (fromIntegral cost)
-                , globalCost = sum [ (weight charInfo) * (fromIntegral cost), globalCost leftChar, globalCost rightChar]
+                , localCost = if GV.null (slimIAUnion leftChar) || GV.null (slimIAUnion rightChar) then 0
+                              else weight charInfo * fromIntegral cost
+                , globalCost = sum [ weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
                 }
     else if characterType `elem` [WideSeq, AminoSeq] then
         let (prelimChar, minCost)  = get2WayWideHuge (wideTCM charInfo) (extractMediansGapped $ wideIAPrelim leftChar) (extractMediansGapped $ wideIAPrelim rightChar)
@@ -1167,8 +1165,8 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         nodeChar {wideIAPrelim = (extractMediansGapped $ wideIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ wideIAPrelim rightChar)
                 , wideIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (wideIAUnion leftChar) (wideIAUnion rightChar)
-                , localCost = (weight charInfo) * (fromIntegral minCost)
-                , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
+                , localCost = weight charInfo * fromIntegral minCost
+                , globalCost = sum [ weight charInfo * fromIntegral minCost, globalCost leftChar, globalCost rightChar]
                 }
     else if characterType == HugeSeq then
         let (prelimChar, minCost)  = get2WayWideHuge (hugeTCM charInfo) (extractMediansGapped $ hugeIAPrelim leftChar) (extractMediansGapped $ hugeIAPrelim rightChar)
@@ -1176,18 +1174,18 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
         nodeChar {hugeIAPrelim = (extractMediansGapped $ hugeIAPrelim leftChar
                 , prelimChar, extractMediansGapped $ hugeIAPrelim rightChar)
                 , hugeIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (hugeIAUnion leftChar) (hugeIAUnion rightChar)
-                , localCost = (weight charInfo) * (fromIntegral minCost)
-                , globalCost = sum [ (weight charInfo) * (fromIntegral minCost), globalCost leftChar, globalCost rightChar]
+                , localCost = weight charInfo * fromIntegral minCost
+                , globalCost = sum [ weight charInfo * fromIntegral minCost, globalCost leftChar, globalCost rightChar]
                 }
     else nodeChar --error ("Unrecognized character type " ++ show characterType)
     -- )
 
 -- | orBVOrMissingIntersection takes two uninBV seqs and returns union or intersectino if one/both missing
 orBVOrMissingIntersection :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e -> v e
-orBVOrMissingIntersection alphSize unionIALeft unionIARight =
-    if (GV.null unionIALeft) || (allMissingBits alphSize unionIALeft) then unionIARight
-    else if (GV.null unionIARight)  || (allMissingBits alphSize unionIARight) then unionIALeft
-    else GV.zipWith (.|.) unionIALeft unionIARight
+orBVOrMissingIntersection alphSize unionIALeft unionIARight
+  | GV.null unionIALeft || allMissingBits alphSize unionIALeft = unionIARight
+  | GV.null unionIARight  || allMissingBits alphSize unionIARight = unionIALeft
+  | otherwise = GV.zipWith (.|.) unionIALeft unionIARight
 
 -- | makeIAFinalCharacterStaticIA takes two characters and performs 2-way assignment
 -- based on character type and nodeChar--only IA fields are modified
@@ -1296,10 +1294,10 @@ local3WaySlim lSlimTCM b c d =
 generalSequenceDiff :: (Show a, FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
     -- trace ("GSD: " ++ (show (numStates, uState, vState))) (
-    let uState' = if (popCount uState == 0) then bit gapIndex else uState
-        vState' = if (popCount vState == 0) then bit gapIndex else vState
-        uStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit uState') [0.. numStates - 1]) [0.. numStates - 1]
-        vStateList = fmap snd $ filter ((== True).fst) $ zip (fmap (testBit vState') [0.. numStates - 1]) [0.. numStates - 1]
+    let uState' = if popCount uState == 0 then bit gapIndex else uState
+        vState' = if popCount vState == 0 then bit gapIndex else vState
+        uStateList = fmap snd $ filter fst $ zip (fmap (testBit uState') [0.. numStates - 1]) [0.. numStates - 1]
+        vStateList = fmap snd $ filter fst $ zip (fmap (testBit vState') [0.. numStates - 1]) [0.. numStates - 1]
         uvCombinations = cartProd uStateList vStateList
         costOfPairs = fmap (thisMatrix S.!) uvCombinations
     in
