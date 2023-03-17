@@ -1,0 +1,630 @@
+Cabal-Version: 3.8
+Name:          PhyGraph
+Version:       0.1.0
+Stability:     Alpha
+Build-Type:    Simple
+Tested-With:
+  GHC == 9.2.4
+  GHC == 9.4.2
+
+
+Author:        Ward Wheeler <wheeler@amnh.org>
+Copyright:     (c) 2015-2022 Ward Wheeler
+License:       BSD-3-Clause
+License-File:  LICENSE
+
+
+Maintainer:    Ward Wheeler <wheeler@amnh.org>
+Homepage:      https://github.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https://github.com/wardwheeler/PhyGraph/issues
+
+
+Extra-Doc-Files:
+  CHANGELOG.md
+  README.md
+
+
+Extra-Source-Files:
+  ffi/external-direct-optimization/*.h
+
+
+-- Global deviations from Haskell98
+Common ffi-build-info
+
+  CC-Options:
+    -rdynamic --std=c11
+
+  -- Here we list all directories that contain C & C++ header files that the FFI
+  -- tools will need to locate when preprocessing the C files. Without listing
+  -- the directories containing the C header files here, the FFI preprocessor
+  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
+  -- that the parent directory of the nessicary C & C++ header files must be
+  -- specified. The preprocessor will not recursively look in subdirectories for
+  -- header files!
+  Include-Dirs:
+    ffi/external-direct-optimization
+
+  -- Specify the header files as required source files here.
+  -- Do not specify them in the c-sources or cxx-sources stanzas.
+  -- This is required for sdist and install commands to work correctly.
+  Includes:
+    alignCharacters.h
+    alignmentMatrices.h
+    c_alignment_interface.h
+    c_code_alloc_setup.h
+    costMatrix.h
+    debug_constants.h
+    dyn_character.h
+    ukkCheckPoint.h
+    ukkCommon.h
+
+  C-Sources:
+    ffi/external-direct-optimization/alignCharacters.c
+    ffi/external-direct-optimization/alignmentMatrices.c
+    ffi/external-direct-optimization/c_alignment_interface.c
+    ffi/external-direct-optimization/c_code_alloc_setup.c
+    ffi/external-direct-optimization/costMatrix.c
+    ffi/external-direct-optimization/dyn_character.c
+    ffi/external-direct-optimization/ukkCheckPoint.c
+    ffi/external-direct-optimization/ukkCommon.c
+
+
+-- Global deviations from Haskell98
+Common language-specs
+
+  Default-Language:
+    GHC2021
+
+  Other-Extensions:
+    BangPatterns
+    DerivingStrategies
+
+
+Common static-build-flags
+
+  -- MacOS static compilation options
+  If os(darwin)
+--    cc-options:
+
+    GHC-Options:
+--      -static
+
+--    ld-options:
+--        -pie --tryng for dlopen stuff
+
+  -- Linux static compilation options
+  Else
+    -- Options for: C Compiler
+--    CC-Options:
+--      -pthread
+--      -static
+
+    extra-bundled-libraries:
+      HSprocess,
+      HSunix,
+
+    Extra-Lib-Dirs:
+      /usr/lib/x86_64-linux-gnu
+
+    Extra-Lib-Dirs-Static:
+      /usr/lib/x86_64-linux-gnu
+
+    -- Options for: GHC
+    GHC-Options:
+      -static
+--      -staticlib
+--      -optc-pthread
+--      -optc-static
+--      -optl-static
+--      -optl-pthread
+--      -optl-lglibc
+--      -optl-static-libgcc
+
+    -- Options for: Linker
+    LD-Options:
+--      -pie --tryng for dlopen stuff
+--      -pthread
+--      -static
+--      -static-libgcc
+
+
+Flag super-optimization
+   Description: Apply extremely agressive and extremely time consuming optimization passes
+   Default:     False
+   Manual:      True
+
+-- at command line "--enable-executable-static" for static binaries
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Preamble of package description and reusable definitions from above has ended
+-- and below we list all build targets of the package. Build targets include:
+--
+--   * Primary executable(s) for public usage
+--
+--   * Exposed sub-libraries for public consumption as program dependancies
+--
+--   * Benchmarks for executables and sub-libraries
+--
+--   * Test-suites for executables and sub-libraries
+--
+--   * Additional executables for non-public, diagnostic purposes
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+-- Phylogenetic Graphs
+--
+-- This is the main program of this package, supporting fully featured
+-- phylogenetic trees, networks, and forests.
+Executable phyg
+
+  Import:
+    ffi-build-info,
+    language-specs,
+    static-build-flags
+
+  Main-Is:
+    phygraph.hs
+
+  GHC-Options:
+    -feager-blackholing
+    -O2
+    -rtsopts
+    -threaded
+    -Wall
+
+  If os(darwin)
+    GHC-Options:
+      -- problems getting llvm to function in OSX (can't find opt)
+      -- -fllvm
+  else
+    GHC-Options:
+     -- -fllvm
+
+  -- this since can't going on ghc-9.4.3/4
+  if flag(super-optimization)
+    GHC-Options:
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+      -fllvm
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+
+  else
+    GHC-Options:
+--    "-with-rtsopts=-N"
+--    rts -AL8 was rejected  should be >= A
+--    rts --nonmoving-gc causes large memory blow-ups
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+
+  Build-Depends:
+    PhyGraph:alphabet,
+    PhyGraph:dynamic-character,
+    PhyGraph:tcm,
+    PhyloLib,
+    array,
+    async,
+    base >=4.10,
+    bimap,
+    bv,
+    bv-little,
+    clock,
+    concurrent-hashtable,
+    containers >=0.6,
+    cpuinfo,
+    deepseq,
+    directory,
+    fgl >=5.8,
+    graphviz   >=2999.20,
+    hashable,
+    inflist,
+    logfloat,
+    MissingH >= 1.4.3,
+    parallel,
+    process,
+    random,
+    random-shuffle,
+    sort,
+    split,
+    text,
+    text-short,
+    time,
+    vector,
+    -- currently doesn't compile but could be useful
+    -- lots of good functions
+    -- Graphalyze,
+
+  -- include the source files needed in src for github library
+  -- this for local library files
+  HS-Source-Dirs: .
+
+  Other-Modules:
+    Commands.CommandExecution
+    Commands.CommandUtilities
+    Commands.ProcessCommands
+    Commands.Transform
+    Commands.Verify
+    Debug.Debug
+    GraphOptimization.Medians
+    -- GraphOptimization.PostOrderFunctions
+    GraphOptimization.PostOrderSoftWiredFunctions
+    GraphOptimization.PostOrderSoftWiredFunctionsNew
+    GraphOptimization.PreOrderFunctions
+    GraphOptimization.Traversals
+    Graphs.GraphOperations
+    Input.BitPack
+    Input.DataTransformation
+    Input.FastAC
+    Input.ReadInputFiles
+    Input.Reorganize
+    Input.TNTUtilities
+    Reconciliation.Adams
+    Reconciliation.Eun
+    Reconciliation.ReconcileGraphs
+    Search.Build
+    Search.DistanceMethods
+    Search.DistanceWagner
+    Search.Fuse
+    Search.GeneticAlgorithm
+    Search.NetworkAddDelete
+    Search.Refinement
+    Search.Search
+    Search.Swap
+    Search.SwapMaster
+    Search.WagnerBuild
+    Support.Support
+    System.Timing
+    Types.DistanceTypes
+    Types.Types
+    Utilities.Distances
+    Utilities.DistanceUtilities
+    Utilities.LocalGraph
+    Utilities.LocalSequence
+    Utilities.TcmHash
+    Utilities.ThreeWayFunctions
+    Utilities.Utilities
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Collection of sub-libraries which both, compose the package's primary program
+-- (PCG/PhyG), and are also exposed for external consumption by other programs.
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+library alphabet
+
+  Import:
+    language-specs
+
+  HS-Source-Dirs:
+    lib/alphabet/src
+
+  Build-Depends:
+    PhyGraph:utility,
+    base                     >= 4.11      && < 5.0,
+    bimap                    >= 0.3       && < 1.0,
+    binary                   >= 0.8       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    deepseq                  >= 1.4       && < 2.0,
+    keys                     >= 3.12      && < 4.0,
+    mtl                      >= 2.2.2     && < 3.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    semigroupoids            >= 5.3       && < 5.4,
+    text-short               >= 0.1.3     && < 1.0,
+    transformers             >= 0.5.6     && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
+
+  -- Apparently this is needed to compile with profiling, which is really stupid.
+  -- It should only be in the modules which use TemplateHaskell, not all modules.
+  -- I consider this a temporary hack to get things to compile with profiling.
+  other-extensions: TemplateHaskell
+
+  Exposed-Modules:
+    Data.Alphabet
+    Data.Alphabet.Codec
+    Data.Alphabet.IUPAC
+    Data.Alphabet.Special
+
+  Other-Modules:
+    Data.Alphabet.Internal
+
+
+-- Library for performing string alignment on dynamic characters.
+
+-- Provides various metrics for scoring static characters and
+-- performing string alignment on dynamic characters.
+
+library dynamic-character
+
+  Import:
+    ffi-build-info,
+    language-specs
+
+  HS-Source-Dirs:
+    lib/dynamic-character/src
+
+  Build-Depends:
+    PhyGraph:alphabet,
+    PhyGraph:tcm,
+    PhyGraph:utility,
+    base                     >= 4.11      && < 5.0,
+    bv-little,
+    containers               >= 0.6.2     && < 1.0,
+    matrices                 >= 0.5       && < 1.0,
+    monad-loops              >= 0.4       && < 1.0,
+    primitive                >= 0.7.1     && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
+
+  Exposed-Modules:
+    Bio.DynamicCharacter
+    Bio.DynamicCharacter.Measure
+    Bio.DynamicCharacter.HandleGaps
+    DirectOptimization.Pairwise
+    DirectOptimization.Pairwise.Visualization
+    DirectOptimization.Pairwise.Swapping
+    DirectOptimization.Pairwise.Ukkonen
+    DirectOptimization.PreOrder
+
+  Other-Modules:
+    DirectOptimization.Pairwise.Direction
+    DirectOptimization.Pairwise.Huge
+    DirectOptimization.Pairwise.Internal
+    DirectOptimization.Pairwise.Slim
+    DirectOptimization.Pairwise.Slim.FFI
+    DirectOptimization.Pairwise.Wide
+
+
+-- Library for working with TCMs and SCMs in various representations.
+
+-- General purpose library for working with transition cost matrices (TCMs)
+-- and symbol change matrices (SCMs). Specialization options are provided
+-- for the discrete metric (non-additive) and the L1 norm (additive) TCMs &
+-- SCMs. Exposes a memoized binding for sparsely indexed, large TCMs.
+
+library tcm
+
+  Import:
+    ffi-build-info,
+    language-specs
+
+  HS-Source-Dirs:
+    lib/tcm/src
+
+  Build-Depends:
+    PhyGraph:utility,
+    binary                   >= 0.8       && < 1.0,
+    base                     >= 4.11      && < 5.0,
+    containers               >= 0.6.2     && < 1.0,
+    deepseq                  >= 1.4       && < 2.0,
+    hashable                 >= 1.3       && < 2.0,
+    hashtables               >= 1.2       && < 2.0,
+    concurrent-hashtable     >= 0.1.8     && < 2.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    mono-traversable         >= 1.0       && < 2.0,
+    semigroupoids            >= 5.3       && < 5.4,
+    stm                      >= 2.5       && < 3.0,
+    vector                   >= 0.12.0.3  && < 0.13,
+    vector-binary-instances  >= 0.2.5     && < 1.0,
+
+  Exposed-Modules:
+    Data.Hashable.Memoize
+    Data.MetricRepresentation
+    Data.TCM
+    Data.TCM.Dense
+    Data.TCM.Overlap
+
+  Other-Modules:
+    Data.TCM.Dense.FFI
+    Data.TCM.Internal
+
+  -- Includes: (Omitted)
+  --    costMatrix_2d.hpp
+  --    costMatrix_3d.hpp
+  --    costMatrixWrapper_2d.h
+  --    costMatrixWrapper_3d.h
+  --    costMatrixWrapper.h
+  --    dynamicCharacterOperations.h
+
+  -- Include-Dirs: (Omitted)
+  --    ffi/memoized-tcm
+
+
+
+
+-- A binding to a C++ hashtable for thread-safe memoization.
+
+-- This package is designed to provide a thread safe binding to a "pure"
+-- memoization of two-way and three-way Sankoff character cost and median
+-- computations.
+
+--library tcm-memo
+--
+--  Import:
+--    ffi-buildinfo,
+----    language-specs,
+--
+--  default-language:
+--    Haskell2010
+--
+--  HS-Source-Dirs:
+--    lib/tcm-memo/src
+--
+--  cc-options:       --std=c11
+--
+--  cxx-options:      --std=c++14
+--
+--  -- This library is required for linking to the C++ standard template library.
+--  If os(darwin)
+--    extra-libraries:  c++
+--  else
+--    extra-libraries:  stdc++
+--
+--  HS-Source-Dirs:   lib/tcm-memo/ffi
+--
+--  c-sources:
+--    ffi/memoized-tcm/costMatrixWrapper.c
+--    ffi/memoized-tcm/dynamicCharacterOperations.c
+--
+--  cxx-sources:
+--    ffi/memoized-tcm/costMatrix_2d.cpp
+--    ffi/memoized-tcm/costMatrix_3d.cpp
+--
+--  -- Here we list all directories that contain C & C++ header files that the FFI
+--  -- tools will need to locate when preprocessing the C files. Without listing
+--  -- the directories containing the C header files here, the FFI preprocessor
+--  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
+--  -- that the parent directory of the nessicary C & C++ header files must be
+--  -- specified. The preprocessor will not recursively look in subdirectories for
+--  -- header files!
+--  include-dirs:
+--    ffi/memoized-tcm
+--
+--  Build-Depends:
+--    exportable,
+--    base                     >= 4.11      && < 5.0,
+--    deepseq                  >= 1.4       && < 2.0,
+--    QuickCheck               >= 2.14      && < 3.0,
+--
+--  Exposed-Modules:
+--    Data.TCM.Memoized
+--    Data.TCM.Memoized.Types
+--    Data.TCM.Memoized.FFI
+--
+--  Other-Modules:
+--  --  Data.TCM.Memoized.FFI
+
+
+-- Collection of utility functions and data structures
+
+-- Defines custom data structures for special use cases, more abstract functions
+-- that base provides, and re-exported correcting to deficient libraries.
+
+library utility
+
+  Import:
+    language-specs
+
+  HS-Source-Dirs:
+    lib/utility/src
+
+  Build-Depends:
+    base                     >= 4.11      && < 5.0,
+    binary                   >= 0.8       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    deepseq                  >= 1.4       && < 2.0,
+    foldl                    >= 1.4       && < 2.0,
+    hashable                 >= 1.3       && < 2.0,
+    keys                     >= 3.12      && < 4.0,
+    lens                     >= 4.18      && < 6.0,
+    matrix                   >= 0.3.6     && < 0.4,
+    pointed                  >= 5.0       && < 6.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    semigroupoids            >= 5.3       && < 5.4,
+    vector                   >= 0.12.0.3  && < 0.13,
+    vector-binary-instances  >= 0.2       && < 1.0,
+    vector-instances         >= 3.4       && < 3.5,
+
+  If impl(ghc < 9.0)
+    Build-Depends:
+      integer-gmp            >= 1.0.2     && < 2.0
+
+
+  Exposed-Modules:
+    Data.List.Utility
+    Data.Matrix.NotStupid
+    Data.Vector.NonEmpty
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Test-suites of the sub-libraries which compose PCG/PhyG
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+test-suite test-dynamic-character
+
+  Import:
+    language-specs
+
+  Main-Is:
+    TestSuite.hs
+
+  Type:
+    exitcode-stdio-1.0
+
+  HS-Source-Dirs:
+    lib/dynamic-character/test
+
+  Build-Depends:
+    PhyGraph:alphabet,
+    PhyGraph:dynamic-character,
+    PhyGraph:tcm,
+    base                     >= 4.11      && < 5.0,
+    bimap                    >= 0.3       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    tasty                    >= 1.4       && < 2.0,
+    tasty-quickcheck         >= 0.10      && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13,
+
+  Other-Modules:
+    DirectOptimization.Pairwise.Test
+    Test.Aligners
+    Test.QuickCheck.Instances.DynamicCharacter
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Additional executables which exist for the one of a few select purposes:
+--
+--   * Generating data for PCG/PhyG input
+--
+--   * Debugging the component sub-libraries of PCG/PhyG and PCG/PhyG itself
+--
+--   * Performing correctness verification
+--
+--   * Stocastically searching for non-totality counterexamples
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+--Executable inspect-dynamic-character
+--
+--  Import:
+--    language-specs,
+--    static-build-flags
+--
+--  Scope:
+--    private
+--
+--  Main-Is:
+--    Inspect.hs
+--
+--  HS-Source-Dirs:
+--    lib/dynamic-character/test
+--
+--  Build-Depends:
+--    PhyGraph:alphabet,
+--    PhyGraph:dynamic-character,
+--    PhyGraph:tcm,
+--    base                     >= 4.11      && < 5.0,
+--    bimap                    >= 0.3       && < 1.0,
+--    containers               >= 0.6.2     && < 1.0,
+--    QuickCheck               >= 2.14      && < 3.0,
+--    tasty                    >= 1.4       && < 2.0,
+--    tasty-quickcheck         >= 0.10      && < 1.0,
+--    vector                   >= 0.12.0.3  && < 0.13,
+--
+--  Other-Modules:
+--    Test.Aligners
+--    Test.QuickCheck.Instances.DynamicCharacter
