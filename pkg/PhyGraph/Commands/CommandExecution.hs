@@ -148,8 +148,8 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
             -- reporting collapsed 
             -- reverse sorting graphs by cost
-            let rediagnoseWithReportingData = (optimalityCriterion globalSettings) == NCM
-                graphsWithUpdatedCosts = reverse $ L.sortOn snd6 $ TRAV.updateGraphCostsComplexities globalSettings reportingData rediagnoseWithReportingData curGraphs'
+            let rediagnoseWithReportingData = ((optimalityCriterion globalSettings) == NCM && (U.has4864PackedChars (thd3 processedData)))
+                graphsWithUpdatedCosts = reverse $ L.sortOn snd6 $ TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs'
                 reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs excludeRename numInputFiles crossReferenceString reportingData graphsWithUpdatedCosts supportGraphList pairwiseDist
             
             if null reportString then do

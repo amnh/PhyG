@@ -164,11 +164,6 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
         -- trace ("GNCMR: " ++ (show (numChars, maxCharLengthList, weightList, rootCostList))) $
         sum rootCostList
 
-
-
-
-
-
 -- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
 -- this for a single root
@@ -451,6 +446,33 @@ getNumberSequenceCharacters blockDataVect =
             sequenceChars = length $ V.filter (== True) $ V.map (`elem` sequenceCharacterTypes) characterTypes
         in
         sequenceChars + getNumberSequenceCharacters (V.tail blockDataVect)
+
+-- | getNumber4864PackedChars takes processed data and returns the number of 
+-- packed characters with states  in 4, 8, and 64
+-- this for NCM since weightiong may be apperoximate and needs to be rediagnosed
+getNumber4864PackedChars :: V.Vector BlockData -> Int
+getNumber4864PackedChars blockDataVect =
+    if V.null blockDataVect then 0
+    else
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            packedChars = length $ V.filter (== True) $ V.map (`elem` [Packed4, Packed8, Packed64]) characterTypes
+        in
+        packedChars + getNumber4864PackedChars (V.tail blockDataVect)
+
+-- | has4864PackedChars takes processed data and if has
+-- packed characters with states  in 4, 8, and 64
+-- this for NCM since weightiong may be apperoximate and needs to be rediagnosed
+has4864PackedChars :: V.Vector BlockData -> Bool
+has4864PackedChars blockDataVect =
+    if V.null blockDataVect then False
+    else
+        let firstBlock = GU.thd3 $ V.head blockDataVect
+            characterTypes = V.map charType firstBlock
+            packedChars = length $ V.filter (== True) $ V.map (`elem` [Packed4, Packed8, Packed64]) characterTypes
+        in
+        if packedChars > 0 then True
+        else has4864PackedChars (V.tail blockDataVect)
 
 -- | getLengthSequenceCharacters takes processed data and returns the total length (maximum) of non-exact (= sequence) characters
 -- utilised to get rough estimate of fraction of non-exact characters for 
