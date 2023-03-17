@@ -75,7 +75,7 @@ collapseGraph :: PhylogeneticGraph -> PhylogeneticGraph
 collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
     if LG.isEmpty inSimple then inPhylograph
     else
-        let inDecTreeEdgeList = filter (not . (LG.isNetworkLabEdge inDecorated)) $ LG.labEdges inDecorated
+        let inDecTreeEdgeList = filter (not . LG.isNetworkLabEdge inDecorated) $ LG.labEdges inDecorated
             zeroEdgeList' = filter ((== 0.0) . minLength . thd3) inDecTreeEdgeList
 
             -- remove cases of pendent edges--don't remove those either
@@ -131,10 +131,10 @@ getGraphComplexity numLeaves numRoots numNetNodes =
     let nodeComplexity = logBase 2.0 (fromIntegral $ (2 * numLeaves) - 1 + numNetNodes) -- bits to specify each vertex
         treeEdges = (2 * numLeaves) - 2
         extraRootEdges = 2 * (numRoots - 1)
-        baseTreeComplexity = nodeComplexity * (fromIntegral $ 2 * (treeEdges - extraRootEdges))
-        numDisplayTrees = 2.0 ** (fromIntegral numNetNodes)
+        baseTreeComplexity = nodeComplexity * fromIntegral (2 * (treeEdges - extraRootEdges))
+        numDisplayTrees = 2.0 ** fromIntegral numNetNodes
         harWiredEdges = (treeEdges - extraRootEdges) + (3 * numNetNodes)
-        hardwiredAddComplexity = nodeComplexity * (fromIntegral $ 2 * harWiredEdges)
+        hardwiredAddComplexity = nodeComplexity * fromIntegral (2 * harWiredEdges)
     in
     -- maybe softwired is numDisplatTrees * harWired since have those edges in input
     (baseTreeComplexity * numDisplayTrees, hardwiredAddComplexity)
@@ -172,7 +172,7 @@ calculateW15RootCost (nameVect, _, blockDataV) =
     let numLeaves = V.length nameVect
         insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
     in
-    insertDataCost /  (fromIntegral numLeaves)
+    insertDataCost /  fromIntegral numLeaves
 
 -- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block
 -- this most easily done before bit packing since won't vary anyway.
@@ -192,19 +192,19 @@ getCharacterInsertCost :: CharacterData -> CharInfo -> Double
 getCharacterInsertCost inChar charInfo =
     let localCharType = charType charInfo
         thisWeight = weight charInfo
-        inDelCost = (costMatrix charInfo) S.! (0, (length (alphabet charInfo) - 1))
+        inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
     in
-    if localCharType == Add then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ rangePrelim inChar)
-    else if localCharType == NonAdd then thisWeight * (fromIntegral $ V.length $ GU.snd3 $ stateBVPrelim inChar)
+    if localCharType == Add then thisWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+    else if localCharType == NonAdd then thisWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
     -- this wrong--need to count actual characters packed2/32, packed4/32
-    else if localCharType `elem` packedNonAddTypes then thisWeight * (fromIntegral $ UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
-    else if localCharType == Matrix then thisWeight * (fromIntegral $ V.length $ matrixStatesPrelim inChar)
-    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ slimPrelim inChar)
-    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ widePrelim inChar)
-    else if localCharType == HugeSeq then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ hugePrelim inChar)
-    else if localCharType == AlignedSlim then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ SV.length $ snd3 $ alignedSlimPrelim inChar)
-    else if localCharType == AlignedWide then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ UV.length $ snd3 $ alignedWidePrelim inChar)
-    else if localCharType == AlignedHuge then thisWeight * (fromIntegral inDelCost) * (fromIntegral $ V.length $ snd3 $ alignedHugePrelim inChar)
+    else if localCharType `elem` packedNonAddTypes then thisWeight * fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
+    else if localCharType == Matrix then thisWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * fromIntegral inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
+    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * fromIntegral inDelCost * fromIntegral (UV.length $ widePrelim inChar)
+    else if localCharType == HugeSeq then thisWeight * fromIntegral inDelCost * fromIntegral (V.length $ hugePrelim inChar)
+    else if localCharType == AlignedSlim then thisWeight * fromIntegral inDelCost * fromIntegral (SV.length $ snd3 $ alignedSlimPrelim inChar)
+    else if localCharType == AlignedWide then thisWeight * fromIntegral inDelCost * fromIntegral (UV.length $ snd3 $ alignedWidePrelim inChar)
+    else if localCharType == AlignedHuge then thisWeight * fromIntegral inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
     else error ("Character type unimplemented : " ++ show localCharType)
 
 
@@ -233,7 +233,7 @@ bitVectToCharStateQual localAlphabet bitValue =
     len = length vec
     -- this is a hack--the alphabets for non-additive charcaters gets truncated to binary at some point earlier
     localAlphabet' = if length localAlphabet == finiteBitSize bitValue then localAlphabet
-                     else fromSymbolsWOGap $ fmap show [0.. (finiteBitSize bitValue) - 1]
+                     else fromSymbolsWOGap $ fmap show [0.. finiteBitSize bitValue - 1]
     vec = alphabetSymbols localAlphabet'
     pollSymbol i polled
       | bitValue `testBit` i = (vec V.! i) : polled
@@ -243,14 +243,13 @@ bitVectToCharStateQual localAlphabet bitValue =
 bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState localAlphabet bitValue =
   -- check for symbol length > 1 then add space (since sorted last element longest)
-  let maxSymbolLength = maximum $ fmap length $ SET.toList (alphabetSymbols localAlphabet)
+  let -- maxSymbolLength = maximum (length <$> SET.toList (alphabetSymbols localAlphabet))
       charString = foldr pollSymbol mempty indices
       charString' = L.intercalate "," $ filter (/= "\8220") charString
   in
   -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
   if popCount bitValue > 1 then "[" ++ charString' ++ "]"  ++ " "
-  else if maxSymbolLength ==  1 then charString'  ++ " "
-  else charString' ++ " "
+  else charString'  ++ " "
   -- )
 
   where
@@ -267,7 +266,7 @@ bitVectToCharState' localAlphabet bitValue =
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
   in
-  if length stringVal == 1 then (L.intercalate "," $ stringVal') ++ " "
+  if length stringVal == 1 then L.intercalate "," stringVal' ++ " "
   else
     -- AA IUPAC
     -- if isAlphabetAminoAcid localAlphabet then
@@ -281,7 +280,7 @@ bitVectToCharState' localAlphabet bitValue =
         else "[" ++ stringVal ++ "]" ++ " "
 
     -- Nucl IUPAC
-    else if ((isAlphabetDna localAlphabet) || (isAlphabetRna localAlphabet)) && (SET.size (alphabetSymbols localAlphabet) == 5) then
+    else if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5) then
         if stringVal == "" then ""
         else if stringVal == "AG" then "R" ++ " "
         else if stringVal == "CT" then "Y" ++ " "
@@ -312,9 +311,9 @@ bitVectToCharState' localAlphabet bitValue =
         else if stringVal == "-ACT" then "h" ++ " "
         else if stringVal == "-ACG" then "v" ++ " "
 
-        else ("Unrecognized nucleic acid ambiguity code : " ++ "|" ++ stringVal ++ "|")
+        else "Unrecognized nucleic acid ambiguity code : " ++ "|" ++ stringVal ++ "|"
 
-    else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ (show localAlphabet))
+    else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ show localAlphabet)
   --  )
   where
     indices = [ 0 .. len - 1 ]
@@ -349,7 +348,7 @@ matrixStateToString inStateVect =
     in
     if length statesStringList == 1 then head statesStringList
     else
-        "[" ++ (L.intercalate " " statesStringList) ++ "]"
+        "[" ++ unwords statesStringList ++ "]"
 
 
 
@@ -357,7 +356,7 @@ matrixStateToString inStateVect =
 -- [a-b] if not
 additivStateToString :: (Int, Int) -> String
 additivStateToString (a,b) = if a == b then show a
-                             else "[" ++ (show a) ++ "-" ++ (show b) ++ "]"
+                             else "[" ++ show a ++ "-" ++ show b ++ "]"
 
 -- | filledDataFields takes rawData and checks taxon to see what percent
 -- "characters" are found.
@@ -419,7 +418,7 @@ getNumberPrealignedCharacters blockDataVect =
     else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
-            sequenceChars = length $ V.filter (== True) $ V.map (`elem` prealignedCharacterTypes) characterTypes
+            sequenceChars = length $ V.filter id $ V.map (`elem` prealignedCharacterTypes) characterTypes
         in
         sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
 
@@ -431,7 +430,7 @@ getNumberNonExactCharacters blockDataVect =
     else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
-            sequenceChars = length $ V.filter (== True) $ V.map (`elem` nonExactCharacterTypes) characterTypes
+            sequenceChars = length $ V.filter id $ V.map (`elem` nonExactCharacterTypes) characterTypes
         in
         sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
 
@@ -443,7 +442,7 @@ getNumberSequenceCharacters blockDataVect =
     else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
-            sequenceChars = length $ V.filter (== True) $ V.map (`elem` sequenceCharacterTypes) characterTypes
+            sequenceChars = length $ V.filter id $ V.map (`elem` sequenceCharacterTypes) characterTypes
         in
         sequenceChars + getNumberSequenceCharacters (V.tail blockDataVect)
 
@@ -456,7 +455,7 @@ getNumber4864PackedChars blockDataVect =
     else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
-            packedChars = length $ V.filter (== True) $ V.map (`elem` [Packed4, Packed8, Packed64]) characterTypes
+            packedChars = length $ V.filter id $ V.map (`elem` [Packed4, Packed8, Packed64]) characterTypes
         in
         packedChars + getNumber4864PackedChars (V.tail blockDataVect)
 
@@ -465,14 +464,11 @@ getNumber4864PackedChars blockDataVect =
 -- this for NCM since weightiong may be apperoximate and needs to be rediagnosed
 has4864PackedChars :: V.Vector BlockData -> Bool
 has4864PackedChars blockDataVect =
-    if V.null blockDataVect then False
-    else
-        let firstBlock = GU.thd3 $ V.head blockDataVect
-            characterTypes = V.map charType firstBlock
-            packedChars = length $ V.filter (== True) $ V.map (`elem` [Packed4, Packed8, Packed64]) characterTypes
-        in
-        if packedChars > 0 then True
-        else has4864PackedChars (V.tail blockDataVect)
+    not (V.null blockDataVect) && (let firstBlock = GU.thd3 $ V.head blockDataVect
+                                       characterTypes = V.map charType firstBlock
+                                       packedChars = length $ V.filter id $ V.map (`elem` [Packed4, Packed8, Packed64]) characterTypes
+                                   in
+                                   ((packedChars > 0) || has4864PackedChars (V.tail blockDataVect)))
 
 -- | getLengthSequenceCharacters takes processed data and returns the total length (maximum) of non-exact (= sequence) characters
 -- utilised to get rough estimate of fraction of non-exact characters for
@@ -488,10 +484,10 @@ getLengthSequenceCharacters blockDataVect =
 
             -- get sequences in block
             firstBlockCharacters = GU.snd3 $ V.head blockDataVect
-            (sequenceCharVect, _) = V.unzip $ V.filter ((== True) . snd) $ (V.zip firstBlockCharacters (V.map (`elem` sequenceCharacterTypes) characterTypes))
+            (sequenceCharVect, _) = V.unzip $ V.filter snd (V.zip firstBlockCharacters (V.map (`elem` sequenceCharacterTypes) characterTypes))
 
             -- get max length sequence data
-            sequenceCharsLength = V.sum $ fmap V.maximum $ fmap (fmap getMaxCharLength) sequenceCharVect
+            sequenceCharsLength = V.sum $ fmap (V.maximum . fmap getMaxCharLength) sequenceCharVect
 
         in
         -- trace ("GLSC: " ++ (show (sequenceCharsLength, V.length firstBlockCharacters, fmap V.length firstBlockCharacters)))
@@ -522,7 +518,7 @@ getNumberExactCharacters blockDataVect =
     else
         let firstBlock = GU.thd3 $ V.head blockDataVect
             characterTypes = V.map charType firstBlock
-            exactChars = length $ V.filter (== True) $ V.map (`elem` exactCharacterTypes) characterTypes
+            exactChars = length $ V.filter id $ V.map (`elem` exactCharacterTypes) characterTypes
         in
         exactChars + getNumberExactCharacters (V.tail blockDataVect)
 
@@ -533,7 +529,7 @@ getFractionDynamic inData =
     let numStaticCharacters = getNumberExactCharacters $ thd3 inData
         lengthDynamicCharacters = getLengthSequenceCharacters $ thd3 inData
     in
-    (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)
+    fromIntegral lengthDynamicCharacters / fromIntegral (lengthDynamicCharacters + numStaticCharacters)
 
 -- | splitBlockCharacters takes a block of characters (vector) and splits into two partitions of exact (Add, NonAdd, Matrix) and sequence characters
 -- (= nonExact) using accumulators
@@ -604,7 +600,7 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
 prettyPrintVertexInfo :: VertexInfo -> String
 prettyPrintVertexInfo inVertData =
     let zerothPart = "Vertex name " ++ T.unpack (vertName inVertData) ++ " Index " ++ show (index inVertData)
-        firstPart = "\n\tBitVector (as number) " ++ (show ((BV.toUnsignedNumber $ bvLabel inVertData) :: Int))
+        firstPart = "\n\tBitVector (as number) " ++ show ((BV.toUnsignedNumber $ bvLabel inVertData) :: Int)
         secondPart = "\n\tParents " ++ show (parents inVertData) ++ " Children " ++ show (children inVertData)
         thirdPart = "\n\tType " ++ show (nodeType inVertData) ++ " Local Cost " ++ show (vertexCost inVertData) ++ " SubGraph Cost " ++ show (subGraphCost inVertData)
         fourthPart = "\n\tData Blocks: " ++ show (V.length $ vertData inVertData) ++ " Characters (by block) " ++ show (V.length <$> vertData inVertData)
@@ -628,33 +624,32 @@ getProcessDataByBlock filterMissing (nameVect, nameBVVect, blockDataVect) = reve
 -- | getProcessDataByBlock' called by getProcessDataByBlock with counter
 -- and later reversed
 getProcessDataByBlock' :: Bool -> Int -> ProcessedData -> [ProcessedData]
-getProcessDataByBlock' filterMissing counter (nameVect, nameBVVect, blockDataVect) =
-    if V.null blockDataVect then []
-    else if counter == (V.length blockDataVect) then []
-    else
-        let thisBlockData = blockDataVect V.! counter
-        in
-        if not filterMissing then (nameVect, nameBVVect, V.singleton thisBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect)
-        else
-            let (blockName, charDataLeafVect, blockCharInfo) = thisBlockData
-                isMissingVect = V.map V.null charDataLeafVect
-                (nonMissingNameVect, nonMissingBVVect, nonMissingLeafData, _) = V.unzip4 $ V.filter ((== False) . GU.fth4) (V.zip4 nameVect nameBVVect charDataLeafVect isMissingVect)
-                nonMissingBlockData = (blockName, nonMissingLeafData, blockCharInfo)
-            in
-            (nonMissingNameVect, nonMissingBVVect, V.singleton nonMissingBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect)
+getProcessDataByBlock' filterMissing counter (nameVect, nameBVVect, blockDataVect)
+  | V.null blockDataVect = []
+  | counter == V.length blockDataVect = []
+  | otherwise = let thisBlockData = blockDataVect V.! counter
+                in
+                if not filterMissing then (nameVect, nameBVVect, V.singleton thisBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect)
+                else
+                    let (blockName, charDataLeafVect, blockCharInfo) = thisBlockData
+                        isMissingVect = V.map V.null charDataLeafVect
+                        (nonMissingNameVect, nonMissingBVVect, nonMissingLeafData, _) = V.unzip4 $ V.filter (not . GU.fth4) (V.zip4 nameVect nameBVVect charDataLeafVect isMissingVect)
+                        nonMissingBlockData = (blockName, nonMissingLeafData, blockCharInfo)
+                    in
+                    (nonMissingNameVect, nonMissingBVVect, V.singleton nonMissingBlockData) : getProcessDataByBlock' filterMissing (counter + 1) (nameVect, nameBVVect, blockDataVect)
 
 
 -- | copyToNothing takes VertexBlockData and copies to VertexBlockDataMaybe
 -- data as nothing
 copyToNothing :: VertexBlockData -> VertexBlockDataMaybe
-copyToNothing vbd = fmap setNothing vbd
+copyToNothing = fmap setNothing
     where setNothing a = V.replicate (V.length a) Nothing
 
 
 -- | copyToJust takes VertexBlockData and copies to VertexBlockDataMaybe
 -- data as Just CharacterData
 copyToJust :: VertexBlockData -> VertexBlockDataMaybe
-copyToJust vbd = fmap (fmap Just) vbd
+copyToJust = fmap (fmap Just)
 
 -- | simAnnealAccept takes simulated annealing parameters, current best graph (e) cost,
 -- candidate graph cost (e') and a uniform random integer and returns a Bool to accept or reject
@@ -668,10 +663,10 @@ copyToJust vbd = fmap (fmap Just) vbd
 -- curStep == (numSteps -1) greedy False is not better
 simAnnealAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
 simAnnealAccept inParams curBestCost candCost  =
-    if inParams == Nothing then error "simAnnealAccept Simulated anneling parameters = Nothing"
+    if isNothing inParams then error "simAnnealAccept Simulated anneling parameters = Nothing"
 
     -- drifting probs
-    else if (method $ fromJust inParams) == Drift then
+    else if method (fromJust inParams) == Drift then
         driftAccept inParams curBestCost candCost
 
     -- simulated annealing probs
@@ -689,7 +684,7 @@ simAnnealAccept inParams curBestCost candCost  =
 
             -- factors here for tweaking
             energyFactor = 10.0 * (100 * (curBestCost - candCost') / curBestCost)
-            tempFactor' = 10.0 * (fromIntegral $ numSteps - curStep) / (fromIntegral $ numSteps)
+            tempFactor' = 10.0 * fromIntegral (numSteps - curStep) / fromIntegral numSteps
 
             -- flipped order - (e' -e)
             -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
@@ -699,7 +694,7 @@ simAnnealAccept inParams curBestCost candCost  =
 
             -- multiplier for resolution 1000, 100 prob be ok
             randMultiplier = 1000
-            intAccept = floor $ (fromIntegral randMultiplier) * probAcceptance
+            intAccept = floor $ fromIntegral randMultiplier * probAcceptance
 
             -- use remainder for testing--passing infinite list and take head
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
@@ -729,7 +724,7 @@ simAnnealAccept inParams curBestCost candCost  =
 -- | incrementSimAnnealParams increments the step number by 1 but returns all other the same
 incrementSimAnnealParams :: Maybe SAParams -> Maybe SAParams
 incrementSimAnnealParams inParams =
-    if inParams == Nothing then error "incrementSimAnnealParams Simulated anneling parameters = Nothing"
+    if isNothing inParams then error "incrementSimAnnealParams Simulated anneling parameters = Nothing"
     else
         let curStep = currentStep $ fromJust inParams
             curChanges = driftChanges $ fromJust inParams
@@ -758,39 +753,39 @@ generateRandIntLists rSeed number =
 -- a list of SA paramter values with unique rnandomInt lists
 -- sets current step to 0
 generateUniqueRandList :: Int -> Maybe SAParams -> [Maybe SAParams]
-generateUniqueRandList number inParams =
-    if number == 0 then []
-    else if inParams == Nothing then replicate number Nothing
-    else
-        let randIntList = randomIntegerList $ fromJust inParams
-            randSeedList = take number randIntList
-            randIntListList = fmap GU.randomIntList randSeedList
-            -- simAnnealParamList = replicate number inParams
-            newSimAnnealParamList = fmap Just $ fmap (updateSAParams (fromJust inParams)) randIntListList
-        in
-        -- trace ("New random list fist elements: " ++ (show $ fmap (take 1) randIntListList))
-        newSimAnnealParamList
-
-        where updateSAParams a b = a {randomIntegerList = b}
+generateUniqueRandList number inParams
+  | number == 0 = []
+  | isNothing inParams = replicate number Nothing
+  | otherwise = let randIntList = randomIntegerList $ fromJust inParams
+                    randSeedList = take number randIntList
+                    randIntListList = fmap GU.randomIntList randSeedList
+                    -- simAnnealParamList = replicate number inParams
+                    newSimAnnealParamList = fmap (Just . updateSAParams (fromJust inParams)) randIntListList
+                in
+                -- trace ("New random list fist elements: " ++ (show $ fmap (take 1) randIntListList))
+                newSimAnnealParamList
+  where
+      updateSAParams a b = a {randomIntegerList = b}
 
 -- | driftAccept takes SAParams, currrent best cost, and candidate cost
 -- and returns a Boolean and an incremented set of params
 -- this based on a percentage of diffference in graph cost
 driftAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
 driftAccept simAnealVals curBestCost candCost  =
-    if simAnealVals == Nothing then error "Nothing value in driftAccept"
+    if isNothing simAnealVals then error "Nothing value in driftAccept"
     else
         let curNumChanges = driftChanges $ fromJust simAnealVals
             randIntList = randomIntegerList $ fromJust simAnealVals
 
             --- prob acceptance for better, same, and worse costs
-            probAcceptance = if candCost < curBestCost then 1.0
-                             else if candCost == curBestCost then driftAcceptEqual $ fromJust simAnealVals
-                             else 1.0 / ((driftAcceptWorse $ fromJust simAnealVals) + (100.0 * (candCost - curBestCost) / curBestCost))
+            probAcceptance
+              | candCost < curBestCost = 1.0
+              | candCost == curBestCost = driftAcceptEqual $ fromJust simAnealVals
+              | otherwise = 1.0 / (driftAcceptWorse (fromJust simAnealVals) + (100.0 * (candCost - curBestCost) / curBestCost))
 
             -- multiplier for resolution 1000, 100 prob be ok
             randMultiplier = 1000
-            intAccept = floor $ (fromIntegral randMultiplier) * probAcceptance
+            intAccept = floor $ fromIntegral randMultiplier * probAcceptance
 
             -- use remainder for testing--passing infinite list and take head
             (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
@@ -819,8 +814,8 @@ driftAccept simAnealVals curBestCost candCost  =
 -- | getTraversalCosts takes a Phylogenetic Graph and returns costs of traversal trees
 getTraversalCosts :: PhylogeneticGraph -> [VertexCost]
 getTraversalCosts inGraph =
-    let traversalTrees = V.toList $ fmap V.toList $ fft6 inGraph
-        traversalRoots = fmap head $ fmap LG.getRoots $ concat traversalTrees
+    let traversalTrees = V.toList (V.toList <$> fft6 inGraph)
+        traversalRoots = fmap (head . LG.getRoots) (concat traversalTrees)
         traversalRootCosts = fmap (subGraphCost . snd) traversalRoots
     in
     traversalRootCosts
@@ -832,16 +827,16 @@ getSequenceCharacterLengths inCharData inCharInfo =
     in
     -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
     case inCharType of
-      x | x `elem` [NonAdd           ] -> 0 -- V.length  $ snd3 $ stateBVPrelim inCharData
+      x | x == NonAdd -> 0 -- V.length  $ snd3 $ stateBVPrelim inCharData
       x | x `elem` packedNonAddTypes   -> 0 -- UV.length  $ snd3 $ packedNonAddPrelim inCharData
-      x | x `elem` [Add              ] -> 0 -- V.length  $ snd3 $ rangePrelim inCharData
-      x | x `elem` [Matrix           ] -> 0 -- V.length  $ matrixStatesPrelim inCharData
+      x | x == Add -> 0 -- V.length  $ snd3 $ rangePrelim inCharData
+      x | x == Matrix -> 0 -- V.length  $ matrixStatesPrelim inCharData
       x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
       x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
-      x | x `elem` [HugeSeq]           -> V.length  $ snd3 $ hugeAlignment inCharData
-      x | x `elem` [AlignedSlim]       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
-      x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
-      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData
+      x | x == HugeSeq           -> V.length  $ snd3 $ hugeAlignment inCharData
+      x | x == AlignedSlim       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
+      x | x == AlignedWide       -> UV.length $ snd3 $ alignedWidePrelim inCharData
+      x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData
       _                                -> error ("Un-implemented data type " ++ show inCharType)
       -- )
 
@@ -852,16 +847,16 @@ getCharacterLength inCharData inCharInfo =
     in
     -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
     case inCharType of
-      x | x `elem` [NonAdd           ] -> V.length  $ snd3 $ stateBVPrelim inCharData
+      x | x == NonAdd -> V.length  $ snd3 $ stateBVPrelim inCharData
       x | x `elem` packedNonAddTypes   -> UV.length  $ snd3 $ packedNonAddPrelim inCharData
-      x | x `elem` [Add              ] -> V.length  $ snd3 $ rangePrelim inCharData
-      x | x `elem` [Matrix           ] -> V.length  $ matrixStatesPrelim inCharData
+      x | x == Add -> V.length  $ snd3 $ rangePrelim inCharData
+      x | x == Matrix -> V.length  $ matrixStatesPrelim inCharData
       x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
       x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
-      x | x `elem` [HugeSeq]           -> V.length  $ snd3 $ hugeAlignment inCharData
-      x | x `elem` [AlignedSlim]       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
-      x | x `elem` [AlignedWide]       -> UV.length $ snd3 $ alignedWidePrelim inCharData
-      x | x `elem` [AlignedHuge]       -> V.length  $ snd3 $ alignedHugePrelim inCharData
+      x | x == HugeSeq           -> V.length  $ snd3 $ hugeAlignment inCharData
+      x | x == AlignedSlim       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
+      x | x == AlignedWide       -> UV.length $ snd3 $ alignedWidePrelim inCharData
+      x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData
       _                                -> error ("Un-implemented data type " ++ show inCharType)
       -- )
 
@@ -907,7 +902,7 @@ concatFastas inMultFastaString =
             -- make pairs from each "file"
             fastaTaxDataPairLL = fmap fasta2PairList fastaFileStringList
 
-            fastTaxNameList = fmap fst $ head fastaTaxDataPairLL
+            fastTaxNameList = (fst <$> head fastaTaxDataPairLL)
 
             -- merge sequences with (++)
             fastaDataLL =  fmap (fmap snd) fastaTaxDataPairLL
@@ -934,7 +929,7 @@ spitIntoFastas inString =
 -- | splitFastaLines splits a list of lines into lists based on the line "Sequence character"
 splitFastaLines :: [String] -> [[String]] -> [String] -> [[String]]
 splitFastaLines curFasta curFastaList inLineList =
-    if null inLineList then reverse ((reverse curFasta) : curFastaList)
+    if null inLineList then reverse (reverse curFasta : curFastaList)
     else
         let firstLine = head inLineList
             firstWord = head $ words firstLine
@@ -943,7 +938,7 @@ splitFastaLines curFasta curFastaList inLineList =
             splitFastaLines curFasta curFastaList (tail inLineList)
 
         else if firstWord == "Sequence" then
-            splitFastaLines [] ((reverse curFasta) : curFastaList) (tail inLineList)
+            splitFastaLines [] (reverse curFasta : curFastaList) (tail inLineList)
 
         else
             splitFastaLines (firstLine : curFasta) curFastaList (tail inLineList)
@@ -954,8 +949,8 @@ mergeFastaData :: [[String]] -> [String]
 mergeFastaData inDataLL =
     if null $ head inDataLL then []
     else
-        let firstData = concat $ fmap head inDataLL
-            formattedData = concatMap (++ "\n") $ SL.chunksOf 50 firstData
+        let firstData = concatMap head inDataLL
+            formattedData = unlines $ SL.chunksOf 50 firstData
         in
         formattedData : mergeFastaData (fmap tail inDataLL)
 
@@ -997,7 +992,7 @@ getRawDataPairs inList =
 hasResolutionDuplicateEdges :: ResolutionData -> Bool
 hasResolutionDuplicateEdges inResData =
     let edgeList = snd $ displaySubGraph inResData
-        edgeDupList = length $ (fmap LG.toEdge edgeList) L.\\ (L.nub $ fmap LG.toEdge edgeList)
+        edgeDupList = length $ fmap LG.toEdge edgeList L.\\ L.nub (fmap LG.toEdge edgeList)
     in
     edgeDupList > 0
 

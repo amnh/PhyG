@@ -44,7 +44,6 @@ import           Control.Parallel.Strategies
 import qualified Data.List                                     as L
 import           Data.Maybe
 import qualified Data.Vector                                   as V
-import           Debug.Trace
 import           GeneralUtilities
 import qualified GraphOptimization.Medians                     as M
 import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
@@ -55,6 +54,7 @@ import qualified ParallelUtilities                             as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
 import           Utilities.Utilities                           as U
+-- import           Debug.Trace
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
@@ -330,8 +330,6 @@ swapAll swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMo
 
          -- found nothing better or equal
          else (graphsToTBR, tbrCounter, tbrSAPArams)
-
-
 
 -- | swapAll' performs branch swapping on all 'break' edges and all readditions
 -- this not a "map" version to reduce memory footprint to a more mangeable level

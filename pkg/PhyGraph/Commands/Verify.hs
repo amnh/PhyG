@@ -132,7 +132,7 @@ setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions
 supportArgList :: [String]
 supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"]
 
--- | buildArgList is the list of valid build arguments
+-- | swapArgList is the list of valid swap arguments
 swapArgList :: [String]
 swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "inorder", "joinall", "joinpruned", "keep", "maxchanges",
     "nni", "replicates", "returnmutated", "spr", "steepest", "steps", "tbr"]
