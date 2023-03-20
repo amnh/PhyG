@@ -1270,8 +1270,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
          else childChar { wideFinal = wideFinal parentChar
-                        , wideAlignment = if isTree then wideAlignment parentChar -- finalGappedO -- wideAlignment parentChar -- finalGappedO-- wideAlignment parentChar
-                                          else mempty
+                        , wideAlignment = wideAlignment parentChar
+                                         -- if isTree then wideAlignment parentChar -- finalGappedO -- wideAlignment parentChar -- finalGappedO-- wideAlignment parentChar
+                                         -- else mempty
                         , wideGapped = wideGapped parentChar -- wideGapped' -- wideGapped parentChar -- finalGappedO --wideGapped parentChar
                         -- , wideIAPrelim = wideIAPrelim parentChar
                         , wideIAFinal = wideFinal parentChar
@@ -1284,8 +1285,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (hugeAlignment parentChar), (hugeGapped parentChar) ,(hugeGapped childChar)))) (
          if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
          else childChar { hugeFinal = hugeFinal parentChar
-                        , hugeAlignment = if isTree then hugeAlignment parentChar -- finalGappedO -- hugeAlignment parentChar -- finalGappedO-- hugeAlignment parentChar
-                                          else mempty
+                        , hugeAlignment = hugeAlignment parentChar
+                                          --if isTree then hugeAlignment parentChar -- finalGappedO -- hugeAlignment parentChar -- finalGappedO-- hugeAlignment parentChar
+                                          --else mempty
                         , hugeGapped = hugeGapped parentChar -- hugeGapped' -- hugeGapped parentChar -- finalGappedO --hugeGapped parentChar
                         -- , hugeIAPrelim = hugeIAPrelim parentChar
                         , hugeIAFinal = hugeFinal parentChar
