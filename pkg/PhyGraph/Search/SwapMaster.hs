@@ -52,7 +52,12 @@ import           Utilities.Utilities         as U
 
 -- | swapMaster processes and spawns the swap functions
 -- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
-swapMaster ::  [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+swapMaster ::  [Argument] 
+           -> GlobalSettings
+           -> ProcessedData 
+           -> Int 
+           -> [PhylogeneticGraph] 
+           -> [PhylogeneticGraph]
 swapMaster inArgs inGS inData rSeed inGraphListInput =
    if null inGraphListInput then trace "No graphs to swap" []
    -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
@@ -128,6 +133,17 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                  | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs")
                  | otherwise = "Drifting (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
 
+               -- popultae SwapParams structure
+               localSwapParams = SwapParams { swapType = swapType
+                                           , joinType = joinType 
+                                           , atRandom = atRandom
+                                           , keepNum  = (fromJust keepNum)
+                                           , maxMoveEdgDist = maxMoveEdgeDist
+                                           , doSteepest = doSteepest
+                                           , joinAlternate = False -- join prune alternates--turned off for now
+                                           , doIA = doIA
+                                           , returnMutated = returnMutated 
+                                           }
            in
 
            trace progressString (
@@ -153,7 +169,16 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
 
 
 -- | getSimumlatedAnnealingParams returns SA parameters
-getSimAnnealParams :: Bool -> Bool -> Maybe Int -> Maybe Int -> Maybe Int -> Maybe Double -> Maybe Double -> Maybe Int -> Int -> Maybe SAParams
+getSimAnnealParams :: Bool 
+                   -> Bool 
+                   -> Maybe Int 
+                   -> Maybe Int 
+                   -> Maybe Int
+                   -> Maybe Double 
+                   -> Maybe Double 
+                   -> Maybe Int 
+                   -> Int 
+                   -> Maybe SAParams
 getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed =
     if not doAnnealing && not doDrift then Nothing
     else
@@ -199,7 +224,8 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
        Just saValues
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
-getSwapParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Bool, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)])
+getSwapParams :: [Argument] 
+              -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Bool, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)])
 getSwapParams inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs

@@ -70,7 +70,12 @@ swapMaster = SM.swapMaster
 
 
 -- | driver for overall refinement
-refineGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+refineGraph :: [Argument] 
+            -> GlobalSettings 
+            -> ProcessedData 
+            -> Int 
+            -> [PhylogeneticGraph] 
+            -> [PhylogeneticGraph]
 refineGraph inArgs inGS inData rSeed inGraphList =
    if null inGraphList then errorWithoutStackTrace "No graphs input to refine"
    else
@@ -111,7 +116,12 @@ refineGraph inArgs inGS inData rSeed inGraphList =
 --       selection based on delta with best graph and severity factor on (0,Inf) 1 pure cost delta < 1 more severe, > 1 less severe
 --       if "elitist" (default) 'best' graphs are always selected to ensure no worse.
 -- 4) operation repearts for number of generations
-geneticAlgorithmMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+geneticAlgorithmMaster :: [Argument] 
+                       -> GlobalSettings 
+                       -> ProcessedData 
+                       -> Int 
+                       -> [PhylogeneticGraph] 
+                       -> [PhylogeneticGraph]
 geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace "No graphs to undergo Genetic Algorithm" []
    else
@@ -126,7 +136,8 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
       )
 
 -- | getGeneticAlgParams returns paramlist from arglist
-getGeneticAlgParams :: [Argument] -> (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int, Maybe Int, Int)
+getGeneticAlgParams :: [Argument] 
+                    -> (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int, Maybe Int, Int)
 getGeneticAlgParams inArgs =
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
@@ -202,7 +213,12 @@ getGeneticAlgParams inArgs =
 
 -- | fuseGraphs is a wrapper for graph recombination
 -- the functions make heavy use of branch swapping functions in Search.Swap
-fuseGraphs :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+fuseGraphs :: [Argument] 
+           -> GlobalSettings 
+           -> ProcessedData 
+           -> Int 
+           -> [PhylogeneticGraph] 
+           -> [PhylogeneticGraph]
 fuseGraphs inArgs inGS inData rSeed inGraphList
   | null inGraphList = trace "Fusing--skipped: No graphs to fuse" []
   | length inGraphList == 1 = trace "Fusing--skipped: Need > 1 graphs to fuse" inGraphList
@@ -264,7 +280,8 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
       )
 
 -- | getFuseGraphParams returns fuse parameters from arglist
-getFuseGraphParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, [(String, String)])
+getFuseGraphParams :: [Argument] 
+                   -> (Maybe Int, Maybe Int, Maybe Int, [(String, String)])
 getFuseGraphParams inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
@@ -307,7 +324,12 @@ getFuseGraphParams inArgs =
             (keepNum, maxMoveEdgeDist, fusePairs, lcArgList)
 
 -- | netEdgeMaster overall master for add/delete net edges
-netEdgeMaster :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+netEdgeMaster :: [Argument] 
+              -> GlobalSettings 
+              -> ProcessedData 
+              -> Int 
+              -> [PhylogeneticGraph] 
+              -> [PhylogeneticGraph]
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace "No graphs to edit network edges" []
    else if graphType inGS == Tree then trace "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired" inGraphList
@@ -475,7 +497,8 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             )
 
 -- | getNetEdgeParams returns net edge cparameters from argument list
-getNetEdgeParams :: [Argument] -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int)
+getNetEdgeParams :: [Argument]
+                 -> (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int)
 getNetEdgeParams inArgs =
      let fstArgList = fmap (fmap toLower . fst) inArgs
          sndArgList = fmap (fmap toLower . snd) inArgs
