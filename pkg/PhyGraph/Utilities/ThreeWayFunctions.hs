@@ -110,19 +110,19 @@ threeMedianFinal charInfo parent1 parent2 curNode =
    else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
       let threeFinal = threeWaySlim charInfo parent1 parent2 curNode
       in
-      curNode { slimFinal = extractMedians (threeFinal, threeFinal, threeFinal)
+      curNode { slimFinal = extractMedians $ M.makeDynamicCharacterFromSingleVector threeFinal
               }
 
    else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
       let threeFinal = threeWayWide charInfo parent1 parent2 curNode
       in
-      curNode { wideFinal = extractMedians (threeFinal, threeFinal, threeFinal)
+      curNode { wideFinal = extractMedians $ M.makeDynamicCharacterFromSingleVector threeFinal
               }
 
    else if localCharType == HugeSeq then
       let threeFinal = threeWayHuge charInfo parent1 parent2 curNode
       in
-      curNode { hugeFinal = extractMedians (threeFinal, threeFinal, threeFinal)
+      curNode { hugeFinal = extractMedians $ M.makeDynamicCharacterFromSingleVector threeFinal
               }
 
    else error ("Unrecognized/implemented character type: " ++ show localCharType)

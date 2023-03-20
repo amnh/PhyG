@@ -971,7 +971,7 @@ setFinal :: GlobalSettings
 setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
-       isTree = graphType inGS == Tree
+       -- isTree = graphType inGS == Tree
    in
    -- Three cases, Root, leaf, HTU
    -- trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
