@@ -560,6 +560,7 @@ data SwapParams = SwapParams { swapType :: SwapType -- NNI/SPR/TBR/Alternate
                              , joinAlternate :: Bool -- in alternate swapping for TBR
                              , doIA :: Bool --use Implied alignment fields for rearragement costs
                              , returnMutated :: Bool -- return changed graphs for simlated annealing, genetic algorithm
+                             , gs :: GlobalSettings -- these should not change during swap so convenient to ave here
                              } deriving stock (Show, Eq)
 
 instance NFData SwapParams where rnf x = seq x ()
