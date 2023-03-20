@@ -44,7 +44,7 @@ set(seed:1666899539)
 --build(replicates:10, block, displayTrees:10, cun)
 
 build(replicates:10)
-swap(keep:2)
+swap()
 
 --search(hours:0, minutes:1, instances:2, Thompson:1, linear)
 --search(minutes:5, instances:1, Thompson:1, simple)
