@@ -956,7 +956,18 @@ assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isI
 -- performs preorder logic for exact characters
 -- staticIA flage is for IA and static only optimization used in IA heuriastics for DO
 -- no IA for networks--at least for now.Bool ->
-setFinal :: GlobalSettings -> AssignmentMethod -> Bool -> NodeType -> Bool -> CharInfo -> Bool -> Bool -> CharacterData -> CharacterData -> Maybe CharacterData -> CharacterData
+setFinal :: GlobalSettings 
+         -> AssignmentMethod 
+         -> Bool 
+         -> NodeType 
+         -> Bool 
+         -> CharInfo 
+         -> Bool 
+         -> Bool 
+         -> CharacterData 
+         -> CharacterData 
+         -> Maybe CharacterData 
+         -> CharacterData
 setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
@@ -1296,7 +1307,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
 
--- | doPreOrderWithParentCheck performs post order losig if parent non-zero--otherwise returns preliminary assignment
+-- | doPreOrderWithParentCheck performs post order logic if parent non-zero--otherwise returns preliminary assignment
 doPreOrderWithParentCheck :: (FiniteBits e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e)
 doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
     if not $ GV.null $ extractMediansGapped alignmentParent then

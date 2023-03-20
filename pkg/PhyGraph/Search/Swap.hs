@@ -54,7 +54,7 @@ import qualified ParallelUtilities                             as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
 import           Utilities.Utilities                           as U
--- import           Debug.Trace
+import           Debug.Trace
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
@@ -424,9 +424,6 @@ swapAll' swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxM
                        else infinity
 
       in
-      -- trace ("SA':"  ++ (show (LG.isPhylogeneticGraph (fst6 firstGraph), LG.isPhylogeneticGraph firstDecoratedGraph)) ++ "\n" ++ (LG.prettyIndices firstDecoratedGraph)) (
-      -- trace ("Current min cost: "  ++ (show (newMinCost, curBestCost))) (
-      -- traceNoLF ("\tBEF:" ++ (show breakEdgeFactor)) (
       -- logic for returning normal swap operations (better only)
       -- versus simulated annealin/Drifing returning potentially sub-optimal
       if isNothing inSimAnnealParams then

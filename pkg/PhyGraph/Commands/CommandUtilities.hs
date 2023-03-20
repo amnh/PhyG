@@ -917,7 +917,13 @@ bitVectToCharStringTNT localAlphabet bitValue =
 
 -- | getImpliedAlignmentString returns as a single String the implied alignments of all sequence characters
 -- softwired use display trees, hardWired transform to softwired then proceed with display trees
-getImpliedAlignmentString :: GlobalSettings -> Bool ->  Bool -> ProcessedData -> PhylogeneticGraph -> Int -> String
+getImpliedAlignmentString :: GlobalSettings 
+                          -> Bool 
+                          -> Bool 
+                          -> ProcessedData 
+                          -> PhylogeneticGraph 
+                          -> Int 
+                          -> String
 getImpliedAlignmentString inGS includeMissing concatSeqs inData inGraph graphNumber =
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
     else
@@ -930,12 +936,12 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inGraph graphNum
         -- for softwired networks--use display trees
         else if graphType inGS == SoftWired then
             -- get display trees for each data block-- takes first of potentially multiple
-            let blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
+            let blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
 
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
-                -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
+                -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
                 decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
 
                 -- extract IA strings as if mutiple graphs
