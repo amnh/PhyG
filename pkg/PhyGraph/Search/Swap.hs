@@ -398,16 +398,10 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
 
 -- | postProcessSwap factors out the post processing of swap results to allow for clearer code
 -- with "regular" optimal swapping
-postProcessSwap   :: SwapType
-                  -> JoinType
-                  -> Bool
-                  -> [Int]
+postProcessSwap   :: SwapParams
                   -> GlobalSettings
                   -> ProcessedData
-                  -> Int
-                  -> Int
-                  -> Bool
-                  -> Bool
+                  -> [Int]
                   -> Int
                   -> VertexCost
                   -> [PhylogeneticGraph]
@@ -416,15 +410,13 @@ postProcessSwap   :: SwapType
                   -> SimpleGraph
                   -> DecoratedGraph
                   -> DecoratedGraph
-                  -> V.Vector (V.Vector CharInfo)
-                  -> Bool
                   -> VertexCost
                   -> Maybe SAParams
                   -> VertexCost
                   -> Int
                   -> [PhylogeneticGraph]
                   -> ([PhylogeneticGraph], Int, Maybe SAParams)
-postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
+postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
    -- found better cost graph
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost))( -- ++ swapType) (
@@ -436,7 +428,7 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
          if (alternate || joinType ==JoinAlternate) then (newGraphList, counter, inSimAnnealParams)
 
          -- regular swap--keep going with better graphs
-         else swapAll' swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor breakEdgeNumber inSimAnnealParams
+         else swapAll' swapParams inGS inData randomIntListSwap (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams
          )
 
       -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
@@ -447,7 +439,7 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
          -- traceNoLF ("\tHolding " ++ (show $ length newCurSameBetterList) ++ " at cost "  ++ (show curBestCost) ++ " with " ++ (show $ tail inGraphList) ++ " remaining to " ++ swapType ++ " swap")
 
          -- breakEdgeNUmber set to zero for new graph to look at
-         swapAll' swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor 0 inSimAnnealParams
+         swapAll' swapParams inGS inData randomIntListSwap (counter + 1) curBestCost newCurSameBetterList (tail inGraphList) numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor 0 inSimAnnealParams
          -- )
 
       -- found same cost graphs
@@ -477,7 +469,7 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
          -- regular swap--keep going with novel equal cost graphs
          else
             -- traceNoLF ("(" ++ (show (snd6 $ head newCurSameBetterList,  length newCurSameBetterList, length curSameBetterList, length graphsToDo',length newNovelGraphs, length ((tail inGraphList) ++ newGraphList), length $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList) ++ ")"))
-            swapAll' swapType joinType atRandom (tail randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor breakEdgeNumber inSimAnnealParams
+            swapAll' swapParams inGS inData (tail randomIntListSwap) (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams
          -- )
 
 -- | postProcessAnnealDrift factors out the post processing of swap results to allow for clearer code
@@ -488,16 +480,10 @@ postProcessSwap swapType joinType atRandom randomIntListSwap inGS inData numToKe
 -- else go on with updated number of changes/steps
 -- removes alternate and just does straight NNI/SPR/TBR in order to properly do teh returns of altered and better graphs
 -- not sure about curBestGraph and return--new Graphs could be empty
-postProcessAnnealDrift  :: SwapType
-                        -> JoinType
-                        -> Bool
-                        -> [Int]
+postProcessAnnealDrift  :: SwapParams
                         -> GlobalSettings
                         -> ProcessedData
-                        -> Int
-                        -> Int
-                        -> Bool
-                        -> Bool
+                        -> [Int]
                         -> Int
                         -> VertexCost
                         -> [PhylogeneticGraph]
@@ -506,15 +492,13 @@ postProcessAnnealDrift  :: SwapType
                         -> SimpleGraph
                         -> DecoratedGraph
                         -> DecoratedGraph
-                        -> V.Vector (V.Vector CharInfo)
-                        -> Bool
                         -> VertexCost
                         -> Maybe SAParams
                         -> VertexCost
                         -> Int
                         -> [PhylogeneticGraph]
                         -> ([PhylogeneticGraph], Int, Maybe SAParams)
-postProcessAnnealDrift swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
+postProcessAnnealDrift swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
    -- trace ("PPA: " ++ (show (newMinCost, curBestCost)) ++ " counts " ++ (show ((currentStep $ fromJust inSimAnnealParams), (numberSteps $ fromJust inSimAnnealParams), (driftChanges $ fromJust inSimAnnealParams), (driftMaxChanges $ fromJust inSimAnnealParams)))) (
    -- found better cost graph
       if newMinCost < curBestCost then
@@ -536,7 +520,7 @@ postProcessAnnealDrift swapType joinType atRandom randomIntListSwap inGS inData 
       -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
       else
          -- traceNoLF ("[" ++ (show $ length (newGraphList ++ (tail inGraphList))) ++ "]")
-         swapAll' swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest alternate (counter + 1) curBestCost (newGraphList ++ curSameBetterList) (newGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor breakEdgeNumber inSimAnnealParams
+         swapAll' swapParams inGS inData randomIntListSwap (counter + 1) curBestCost (newGraphList ++ curSameBetterList) (newGraphList ++ (tail inGraphList))  numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams
 
       -- )
 
@@ -556,23 +540,16 @@ postProcessAnnealDrift swapType joinType atRandom randomIntListSwap inGS inData 
 -- returns teh "breakEdgeNumber" so that in steepest, the edge breaking can continue in where it left off so to speak.
 -- this can speed up SPR/TBR by a contant factor by not revisiting stable edges (not used in SA/drifting)
 -- used in POY v1-3
-splitJoinGraph :: SwapType
-               -> JoinType
-               -> Bool
-               -> [Int]
+splitJoinGraph :: SwapParams
                -> GlobalSettings
                -> ProcessedData
-               -> Int
-               -> Int
-               -> Bool
+               -> [Int]
                -> VertexCost
                -> [PhylogeneticGraph]
                -> Int
                -> SimpleGraph
                -> DecoratedGraph
                -> DecoratedGraph
-               -> V.Vector (V.Vector CharInfo)
-               -> Bool
                -> VertexCost
                -> Maybe SAParams
                -> PhylogeneticGraph
@@ -580,7 +557,7 @@ splitJoinGraph :: SwapType
                -> [LG.LEdge EdgeInfo]
                -> [LG.LEdge EdgeInfo]
                -> ([PhylogeneticGraph], Maybe SAParams, Int)
-splitJoinGraph swapType joinType atRandom randomIntListSwap inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber' breakEdgeListComplete breakEdgeList =
+splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber' breakEdgeListComplete breakEdgeList =
    if null breakEdgeList then (curSameBetterList, inSimAnnealParams, 0)
    else
       -- split on first input edge
@@ -612,7 +589,7 @@ splitJoinGraph swapType joinType atRandom randomIntListSwap inGS inData numToKee
 
           prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
           --prunedToRejoinUnionData = vertData $ fromJust $ LG.lab (thd6 firstGraph) prunedGraphRootIndex
-          unionEdgeList = getUnionRejoinEdgeList inGS reoptimizedSplitGraph (six6 firstGraph) [graphRoot] ((snd6 firstGraph) - splitCost) (unionThreshold inGS) prunedToRejoinUnionData []
+          unionEdgeList = getUnionRejoinEdgeList inGS reoptimizedSplitGraph [graphRoot] ((snd6 firstGraph) - splitCost) prunedToRejoinUnionData []
 
           -- builds graph edge list with unions--need to be able to turn off and just used edges in base graph for some sort
           -- of "no-union" swap
@@ -643,7 +620,7 @@ splitJoinGraph swapType joinType atRandom randomIntListSwap inGS inData numToKee
             ++ "\nTarget edges to rejoin: " ++ (show $ fmap LG.toEdge rejoinEdges)
             ++ "\nFull edgelist: " ++ (show $ fmap LG.toEdge breakEdgeListComplete))
             -}
-            rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost [] doIA netPenaltyFactor reoptimizedSplitGraph (GO.convertDecoratedToSimpleGraph splitGraph) splitCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph charInfoVV inSimAnnealParams
+            rejoinGraph swapParams inGS inData curBestCost [] netPenaltyFactor reoptimizedSplitGraph (GO.convertDecoratedToSimpleGraph splitGraph) splitCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph inSimAnnealParams
 
           newGraphList' = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList
       in
@@ -654,7 +631,7 @@ splitJoinGraph swapType joinType atRandom randomIntListSwap inGS inData numToKee
          -- adds null o\r better graphs to reurn list
          if (not . null) newGraphList && steepest then (newGraphList', inSimAnnealParams, breakEdgeNumber)
          else
-            let (recurseGraphList, _, newEdgeBreakNumber) = splitJoinGraph swapType joinType atRandom (tail randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber breakEdgeListComplete (tail breakEdgeList)
+            let (recurseGraphList, _, newEdgeBreakNumber) = splitJoinGraph swapParams inGS inData (tail randomIntListSwap) curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber breakEdgeListComplete (tail breakEdgeList)
             in
             (newGraphList' ++ recurseGraphList, inSimAnnealParams, newEdgeBreakNumber)
 
@@ -674,15 +651,21 @@ splitJoinGraph swapType joinType atRandom randomIntListSwap inGS inData numToKee
 
          -- keep going if nothing
          else
-            splitJoinGraph swapType joinType atRandom (tail randomIntListSwap) inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired charInfoVV doIA netPenaltyFactor newSAParams firstGraph breakEdgeNumber breakEdgeListComplete (tail breakEdgeList)
+            splitJoinGraph swapParams inGS inData (tail randomIntListSwap) curBestCost curSameBetterList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor newSAParams firstGraph breakEdgeNumber breakEdgeListComplete (tail breakEdgeList)
       --)
 
 -- | getUnionRejoinEdgeList takes a graph (split and reoptimized usually), the overall root index (of split),
 -- split cost, and union threshold value and returns list of edges that have union distance <= threshold factor
 -- assumes that root edges are not network edges (an invariant)
 -- checks node then recurses to children
-getUnionRejoinEdgeList :: GlobalSettings -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> [LG.Node] -> Double -> Double -> VertexBlockData -> [LG.LEdge EdgeInfo] -> [LG.LEdge EdgeInfo]
-getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost unionThreshold nodeToJoinUnionData curEdgeList =
+getUnionRejoinEdgeList :: GlobalSettings 
+                       -> DecoratedGraph 
+                       -> [LG.Node] 
+                       -> Double 
+                       -> VertexBlockData 
+                       -> [LG.LEdge EdgeInfo] 
+                       -> [LG.LEdge EdgeInfo]
+getUnionRejoinEdgeList inGS inGraph nodeIndexList splitDiffCost nodeToJoinUnionData curEdgeList =
    -- returns edges in post order since prepending--could reverse if want pre-order edges
    -- might be better post order, unclear
    if null nodeIndexList then curEdgeList
@@ -690,11 +673,12 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost union
       let nodeIndex = head nodeIndexList
           childEdges = LG.out inGraph nodeIndex
           childNodeIndexList = fmap snd3 childEdges
+          charInfoVV = six6 inGraph
 
           -- node data and union distance
           nodeData = vertData $ fromJust $ LG.lab inGraph nodeIndex
           unionDistance = getUnionDistance nodeToJoinUnionData nodeData charInfoVV
-          metThreshold = unionDistance < splitDiffCost * unionThreshold
+          metThreshold = unionDistance < splitDiffCost * (unionThreshold inGS)
 
           -- nodeDataString = U.getUnionFieldsNode nodeData
           -- toJoinString = U.getUnionFieldsNode nodeToJoinUnionData
@@ -708,9 +692,9 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost union
       else if LG.isRoot inGraph nodeIndex then
                if metThreshold then
                   if (null $ LG.out inGraph (head childNodeIndexList)) then
-                     getUnionRejoinEdgeList inGS inGraph charInfoVV [(snd3 $ last childEdges)] splitDiffCost unionThreshold nodeToJoinUnionData ((last childEdges) : curEdgeList)
+                     getUnionRejoinEdgeList inGS inGraph [(snd3 $ last childEdges)] splitDiffCost nodeToJoinUnionData ((last childEdges) : curEdgeList)
                   else
-                     getUnionRejoinEdgeList inGS inGraph charInfoVV [(snd3 $ head childEdges)] splitDiffCost unionThreshold nodeToJoinUnionData ((head childEdges) : curEdgeList)
+                     getUnionRejoinEdgeList inGS inGraph [(snd3 $ head childEdges)] splitDiffCost nodeToJoinUnionData ((head childEdges) : curEdgeList)
                else curEdgeList
 
       -- non-root node--process childre 1/2
@@ -719,14 +703,14 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost union
       else
          let -- first and second child data child
              newCurEdgeListChild = if metThreshold then
-                                       getUnionRejoinEdgeList inGS inGraph charInfoVV childNodeIndexList splitDiffCost unionThreshold nodeToJoinUnionData (childEdges ++  curEdgeList)
+                                       getUnionRejoinEdgeList inGS inGraph childNodeIndexList splitDiffCost nodeToJoinUnionData (childEdges ++  curEdgeList)
 
                                     else curEdgeList
 
 
          in
          -- recurse remaining nodes
-         getUnionRejoinEdgeList inGS inGraph charInfoVV (tail nodeIndexList) splitDiffCost unionThreshold nodeToJoinUnionData newCurEdgeListChild
+         getUnionRejoinEdgeList inGS inGraph (tail nodeIndexList) splitDiffCost nodeToJoinUnionData newCurEdgeListChild
          -- )
 
 -- | getUnionDistance gets distance between two the union fields of two characters
@@ -736,7 +720,6 @@ getUnionDistance union1 union2 charInfoVV =
 
    in
    newUnionCost
-
 
 -- | rejoinGraphTuple is a wrapper around rejoinGraph for fmapping--only returns graph list not simulated annealing params
 rejoinGraphTuple :: SwapType
