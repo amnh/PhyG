@@ -134,21 +134,21 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                  | otherwise = "Drifting (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
 
                -- popultae SwapParams structure
-               localSwapParams = SwapParams { swapType = swapType
-                                           , joinType = joinType 
-                                           , atRandom = atRandom
-                                           , keepNum  = (fromJust keepNum)
-                                           , maxMoveEdgDist = maxMoveEdgeDist
-                                           , doSteepest = doSteepest
-                                           , joinAlternate = False -- join prune alternates--turned off for now
-                                           , doIA = doIA
-                                           , returnMutated = returnMutated 
-                                           , gs = inGS
-                                           }
+               localSwapParams = SwapParams {  swapType = swapType
+                                             , joinType = joinType 
+                                             , atRandom = atRandom
+                                             , keepNum  = (fromJust keepNum)
+                                             , maxMoveEdgDist = maxMoveEdgeDist
+                                             , doSteepest = doSteepest
+                                             , joinAlternate = False -- join prune alternates--turned off for now
+                                             , doIA = doIA
+                                             , returnMutated = returnMutated 
+                                             , gs = inGS
+                                             }
            in
 
            trace progressString (
-           let (newGraphList, counter) = let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR localSwapParams inGraphList 0) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
+           let (newGraphList, counter) = let graphPairList = PU.seqParMap rdeepseq (S.swapSPRTBR localSwapParams inGS inData inGraphList 0) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                              (graphListList, counterList) = unzip graphPairList
                                          in (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
               in
