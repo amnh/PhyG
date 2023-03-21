@@ -413,11 +413,7 @@ postProcessSwap   :: SwapParams
                   -> Int
                   -> [PhylogeneticGraph]
                   -> ([PhylogeneticGraph], Int, Maybe SAParams)
-postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList' =
-      -- this to test memory footprint of grtaph edits--remove if does not improve
-      let newGraphList =  fmap GO.remakePhylogeneticGraph newGraphList'
-      in       
-      
+postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
       -- found better cost graph
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost))( -- ++ swapType) (
