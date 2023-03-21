@@ -230,13 +230,16 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                  | any ((=="spr").fst) lcArgList = SPR
                  | otherwise = None
 
-               --set edge join preferences a;;/some default all
-               joinAll
-                 | any ((=="joinall").fst) lcArgList = True
-                 | any ((=="joinsome").fst) lcArgList = False
-                 | otherwise = True
+               -- turn off union selection of rejoin--default to do both, union first
+               joinType
+                 | any ((=="joinall").fst) lcArgList = JoinAll
+                 | any ((=="joinpruned").fst) lcArgList = JoinPruned
+                 | otherwise = JoinAlternate
 
-
+               -- set implied alignment swapping
+               doIA' = any ((=="ia").fst) lcArgList
+               doIA = if (graphType inGS /= Tree) && doIA' then trace "\tIgnoring 'IA' swap option for non-Tree" False
+                      else doIA'
 
                returnBest = any ((=="best").fst) lcArgList
                returnUnique = any ((=="unique").fst) lcArgList
@@ -254,9 +257,21 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                  | otherwise = True
 
                seedList = randomIntList rSeed
+
+               -- populate SwapParams structure
+               swapParams = SwapParams {  swapType = swapType
+                                             , joinType = joinType 
+                                             , atRandom = randomPairs -- really same as swapping at random not so important here
+                                             , keepNum  = (fromJust keepNum)
+                                             , maxMoveEdgeDist = (2 * fromJust maxMoveEdgeDist)
+                                             , steepest = doSteepest
+                                             , joinAlternate = False -- join prune alternates--turned off for now
+                                             , doIA = doIA
+                                             , returnMutated = False -- no SA/Drift swapping in Fuse
+                                             }
            in
            -- perform graph fuse operations
-           let (newGraphList, counterFuse) = F.fuseAllGraphs inGS inData seedList (fromJust keepNum) (2 * fromJust maxMoveEdgeDist) 0 swapType joinAll doSteepest returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
+           let (newGraphList, counterFuse) = F.fuseAllGraphs swapParams inGS inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
 
            in
            trace ("\tAfter fusing: " ++ show (length newGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ show counterFuse)

@@ -555,8 +555,8 @@ data SwapParams = SwapParams { swapType :: SwapType -- NNI/SPR/TBR/Alternate
                              , joinType :: JoinType -- Union priuning on or off
                              , atRandom :: Bool -- randomized spluting and rejoining
                              , keepNum :: Int -- number equally costly solutoins to keep
-                             , maxMoveEdgDist :: Int -- maximum rejoin distance from initial mplacement 
-                             , doSteepest :: Bool -- steepest descent versus "all"
+                             , maxMoveEdgeDist :: Int -- maximum rejoin distance from initial mplacement 
+                             , steepest :: Bool -- steepest descent versus "all"
                              , joinAlternate :: Bool -- in alternate swapping for TBR
                              , doIA :: Bool --use Implied alignment fields for rearragement costs
                              , returnMutated :: Bool -- return changed graphs for simlated annealing, genetic algorithm
