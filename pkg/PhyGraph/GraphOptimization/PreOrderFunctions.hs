@@ -956,11 +956,22 @@ assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isI
 -- performs preorder logic for exact characters
 -- staticIA flage is for IA and static only optimization used in IA heuriastics for DO
 -- no IA for networks--at least for now.Bool ->
-setFinal :: GlobalSettings -> AssignmentMethod -> Bool -> NodeType -> Bool -> CharInfo -> Bool -> Bool -> CharacterData -> CharacterData -> Maybe CharacterData -> CharacterData
+setFinal :: GlobalSettings 
+         -> AssignmentMethod 
+         -> Bool 
+         -> NodeType 
+         -> Bool 
+         -> CharInfo 
+         -> Bool 
+         -> Bool 
+         -> CharacterData 
+         -> CharacterData 
+         -> Maybe CharacterData 
+         -> CharacterData
 setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
-       isTree = graphType inGS == Tree
+       -- isTree = graphType inGS == Tree
    in
    -- Three cases, Root, leaf, HTU
    -- trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
@@ -1259,8 +1270,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
          else childChar { wideFinal = wideFinal parentChar
-                        , wideAlignment = if isTree then wideAlignment parentChar -- finalGappedO -- wideAlignment parentChar -- finalGappedO-- wideAlignment parentChar
-                                          else mempty
+                        , wideAlignment = wideAlignment parentChar
+                                         -- if isTree then wideAlignment parentChar -- finalGappedO -- wideAlignment parentChar -- finalGappedO-- wideAlignment parentChar
+                                         -- else mempty
                         , wideGapped = wideGapped parentChar -- wideGapped' -- wideGapped parentChar -- finalGappedO --wideGapped parentChar
                         -- , wideIAPrelim = wideIAPrelim parentChar
                         , wideIAFinal = wideFinal parentChar
@@ -1273,8 +1285,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (hugeAlignment parentChar), (hugeGapped parentChar) ,(hugeGapped childChar)))) (
          if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
          else childChar { hugeFinal = hugeFinal parentChar
-                        , hugeAlignment = if isTree then hugeAlignment parentChar -- finalGappedO -- hugeAlignment parentChar -- finalGappedO-- hugeAlignment parentChar
-                                          else mempty
+                        , hugeAlignment = hugeAlignment parentChar
+                                          --if isTree then hugeAlignment parentChar -- finalGappedO -- hugeAlignment parentChar -- finalGappedO-- hugeAlignment parentChar
+                                          --else mempty
                         , hugeGapped = hugeGapped parentChar -- hugeGapped' -- hugeGapped parentChar -- finalGappedO --hugeGapped parentChar
                         -- , hugeIAPrelim = hugeIAPrelim parentChar
                         , hugeIAFinal = hugeFinal parentChar
@@ -1296,7 +1309,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
    -- )
 
--- | doPreOrderWithParentCheck performs post order losig if parent non-zero--otherwise returns preliminary assignment
+-- | doPreOrderWithParentCheck performs post order logic if parent non-zero--otherwise returns preliminary assignment
 doPreOrderWithParentCheck :: (FiniteBits e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e)
 doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
     if not $ GV.null $ extractMediansGapped alignmentParent then
