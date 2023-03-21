@@ -722,35 +722,26 @@ getUnionDistance union1 union2 charInfoVV =
    newUnionCost
 
 -- | rejoinGraphTuple is a wrapper around rejoinGraph for fmapping--only returns graph list not simulated annealing params
-rejoinGraphTuple :: SwapType
+rejoinGraphTuple :: SwapParams 
                  -> GlobalSettings
                  -> ProcessedData
-                 -> Int
-                 -> Int
-                 -> Bool
                  -> VertexCost
                  -> [PhylogeneticGraph]
-                 -> Bool
-                 -> V.Vector (V.Vector CharInfo)
                  -> Maybe SAParams
                  -> (DecoratedGraph, SimpleGraph, VertexCost, LG.Node,LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)
                  -> [PhylogeneticGraph]
-rejoinGraphTuple swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA charInfoVV inSimAnnealParams (reoptimizedSplitGraph, splitGraphSimple, splitGraphCost, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, rejoinEdges, edgesInPrunedGraph, netPenaltyFactor) =
-   fst $ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph charInfoVV inSimAnnealParams
+rejoinGraphTuple swapParams inGS inData curBestCost curBestGraphs inSimAnnealParams (reoptimizedSplitGraph, splitGraphSimple, splitGraphCost, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, rejoinEdges, edgesInPrunedGraph, netPenaltyFactor) =
+   fst $ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph inSimAnnealParams
 
 -- | rejoinGraph rejoins a split graph at all edges (if not steepest and found better)
 -- in "base" graph.
 -- if not steepest then do all as map, else recursive on base graph edge list
 -- nni doesn't apper to be correct here--maybe loose it--doing nothing
-rejoinGraph :: SwapType
+rejoinGraph :: SwapParams 
             -> GlobalSettings
             -> ProcessedData
-            -> Int
-            -> Int
-            -> Bool
             -> VertexCost
             -> [PhylogeneticGraph]
-            -> Bool
             -> VertexCost
             -> DecoratedGraph
             -> SimpleGraph
@@ -760,10 +751,9 @@ rejoinGraph :: SwapType
             -> LG.Node
             -> [LG.LEdge EdgeInfo]
             -> [LG.LEdge EdgeInfo]
-            -> V.Vector (V.Vector CharInfo)
             -> Maybe SAParams
             -> ([PhylogeneticGraph], Maybe SAParams)
-rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges' edgesInPrunedGraph charInfoVV inSimAnnealParams =
+rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges' edgesInPrunedGraph inSimAnnealParams =
 
    -- found no better--but return equal cost graphs
    -- trace ("In rejoinGraph with num rejoining edges: " ++ (show $ length rejoinEdges')) (
@@ -784,7 +774,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
             -- fmap over all edges in base graph
             if not steepest then
                let -- rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges `using` PU.myParListChunkRDS
-                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdges
+                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap rdeepseq (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdges
 
                    {-Checking only min but seems to make slower
                    newMinCost = if null rejoinGraphList then infinity
@@ -815,7 +805,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                    numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
                    rejoinEdgeList = take numGraphsToExamine rejoinEdges
                    --rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
-                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap rdeepseq (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList
+                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap rdeepseq (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList
 
                    {--Checking only min but seems to make slower
                    newMinCost = if null rejoinGraphList then infinity
@@ -829,7 +819,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                -- found nothing better or equal
                if null rejoinGraphList then
                   -- trace ("In steepest worse: " ++ (show $ length (drop PU.getNumThreads rejoinEdges)))
-                   rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph charInfoVV inSimAnnealParams
+                   rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph inSimAnnealParams
 
                -- found better graph
                else if (snd6 . head) newGraphList'  < curBestCost then
@@ -840,11 +830,11 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
                else if (snd6 . head) newGraphList' == curBestCost then
                   let newBestList = GO.selectGraphs Best numToKeep 0.0 (-1) (curBestGraphs ++ newGraphList')
                   in
-                  rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost newBestList doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph charInfoVV inSimAnnealParams
+                  rejoinGraph swapParams inGS inData curBestCost newBestList netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph inSimAnnealParams
                -- found worse graphs only
                else
                   -- trace ("In steepest worse (after recalculation): " ++ (show $ length (drop PU.getNumThreads rejoinEdges)))
-                  rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph charInfoVV inSimAnnealParams
+                  rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph inSimAnnealParams
                -- ) -- )
 
       -- Drifting/Simulated annealing
@@ -862,7 +852,7 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
              numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
              rejoinEdgeList = take numGraphsToExamine rejoinEdges
              simAnnealParamList = U.generateUniqueRandList numGraphsToExamine inSimAnnealParams
-             rejoinGraphPairList = PU.seqParMap rdeepseq (singleJoin' swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) (zip simAnnealParamList rejoinEdgeList)
+             rejoinGraphPairList = PU.seqParMap rdeepseq (singleJoin' swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph) (zip simAnnealParamList rejoinEdgeList)
 
              -- mechanics to see if trhere is a better graph in return set
              -- only taking first of each list--so can keep sa params with them--really all should have length == 1 anyway
@@ -895,28 +885,25 @@ rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost 
             else
                let newSAParams = (snd . head) rejoinGraphPairList
                in
-               rejoinGraph swapType inGS inData numToKeep maxMoveEdgeDist steepest curBestCost curBestGraphs doIA netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph charInfoVV newSAParams
+               rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned (drop numGraphsToExamine rejoinEdges) edgesInPrunedGraph newSAParams
 
          -- )
 
 -- | singleJoin' is a wrapper arounds singleJoin to allow parMap with individual SAParams
-singleJoin'   :: SwapType
-              -> Bool
+singleJoin'   :: SwapParams 
               -> GlobalSettings
               -> ProcessedData
               -> DecoratedGraph
               -> SimpleGraph
               -> VertexCost
-              -> Bool
               -> LG.Node
               -> LG.Node
-              -> V.Vector (V.Vector CharInfo)
               -> VertexCost
               -> [LG.LEdge EdgeInfo]
               -> (Maybe SAParams, LG.LEdge EdgeInfo)
               -> ([PhylogeneticGraph], Maybe SAParams)
-singleJoin' swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph (inSimAnnealParams, targetEdge) =
-   singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge
+singleJoin' swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph (inSimAnnealParams, targetEdge) =
+   singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge
 
 -- | singleJoin takes optimized split graph, split cost, target edge, swap type (ie TBR/SPR/NNI)
 -- and "rejoins" the split graph to a single graph--creates joined graph and calculates a heuristic graph cost
@@ -925,23 +912,20 @@ singleJoin' swapType steepest inGS inData splitGraph splitGraphSimple splitCost 
 -- always deletes connecting edge to pruned part and readds--this because sometimes it is there and sometimes not (depending on
 -- if SPR for terminal etc) and can create parallel edges with different weights (0.0 or not) so just remove to be sure.
 -- TBR uses dynamic epsilon even in SPR moves--SPR does not
-singleJoin :: SwapType
-           -> Bool
+singleJoin :: SwapParams
            -> GlobalSettings
            -> ProcessedData
            -> DecoratedGraph
            -> SimpleGraph
            -> VertexCost
-           -> Bool
            -> LG.Node
            -> LG.Node
-           -> V.Vector (V.Vector CharInfo)
            -> VertexCost
            -> [LG.LEdge EdgeInfo]
            -> Maybe SAParams
            -> LG.LEdge EdgeInfo
            -> ([PhylogeneticGraph], Maybe SAParams)
-singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge@(u,v, _) =
+singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge@(u,v, _) =
    -- trace ("Rejoinging: " ++ (show $ LG.toEdge targetEdge)) (
    let newEdgeList = [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
 
@@ -994,7 +978,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
                            else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
                            else []
                          else []
-             (tbrResult, _) = tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
+             (tbrResult, _) = tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
          in
          if (not . null) sprResult then (sprResult, inSimAnnealParams)
 
@@ -1002,7 +986,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
 
       -- TBRAlternate can skip SPR moves since done already in alternate scenario
       else
-         let (tbrResult, _) = tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
+         let (tbrResult, _) = tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
          in
          (tbrResult, inSimAnnealParams)
 
@@ -1047,7 +1031,7 @@ singleJoin swapType steepest inGS inData splitGraph splitGraphSimple splitCost d
 
          -- tbr
          else
-            tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph' newSAParams targetEdge
+            tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph' newSAParams targetEdge
    -- )
 
 -- | edgeJoinDelta calculates heuristic cost for jopineing pair edges
@@ -1068,28 +1052,27 @@ edgeJoinDelta doIA charInfoVV edgeA edgeB =
 -- if nothing equal or better found returns empty list
 -- tests if reroot edges are bridge edges
 -- uses dynamic epsilon--seems the delta estimate is high
-tbrJoin :: Bool
+tbrJoin :: SwapParams
         -> GlobalSettings
         -> ProcessedData
         -> DecoratedGraph
         -> SimpleGraph
         -> VertexCost
-        -> Bool
         -> LG.Node
         -> LG.Node
-        -> V.Vector (V.Vector CharInfo)
         -> VertexCost
         -> [LG.LEdge EdgeInfo]
         -> Maybe SAParams
         -> LG.LEdge EdgeInfo
         -> ([PhylogeneticGraph], Maybe SAParams)
-tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
+tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
    -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
    if null edgesInPrunedGraph then ([], inSimAnnealParams)
    else
       -- get target edge data\
-      -- always unsing IA for union, but filtering out gaps
-      let targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
+      -- always using IA for union, but filtering out gaps (doIA (not doIA))
+      let charInfoVV = six6 splitGraph
+          targetEdgeData = M.makeEdgeData True True splitGraph charInfoVV targetEdge
       in
 
       -- logic for annealing/Drift  regular swap first
@@ -1097,7 +1080,9 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
          if not steepest then
             -- get heuristic delta joins for edges in pruned graph
             let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA (not doIA) splitGraph charInfoVV) rerootEdgeList
+                
+                -- True True to use IA fields and filter gaps
+                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
                 rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
 
                 -- check for possible better/equal graphs and verify
@@ -1134,7 +1119,9 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
 
                 -- get heuristic delta joins for steepest edge set
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA (not doIA) splitGraph charInfoVV) rerootEdgeList
+                
+                -- True True to use IA fields and filter gaps
+                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
                 rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
 
                 -- check for possible better/equal graphs and verify
@@ -1146,9 +1133,9 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
             in
             -- trace ("TBR steepest: " ++ (show $ length rerootEdgeList) ++ " edges to go " ++ (show $ length $ (drop numEdgesToExamine edgesInPrunedGraph))) (
             if null candidateEdgeList then
-               tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) inSimAnnealParams targetEdge
+               tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost (drop numEdgesToExamine edgesInPrunedGraph) inSimAnnealParams targetEdge
             else if null rediagnosedGraphList then
-               tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) inSimAnnealParams targetEdge
+               tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost (drop numEdgesToExamine edgesInPrunedGraph) inSimAnnealParams targetEdge
             else
                -- trace ("TBR: " ++ (show $ minimum $ fmap snd6 rediagnosedGraphList))
                (rediagnosedGraphList, Nothing)
@@ -1170,7 +1157,9 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
 
                 -- get heuristic delta joins for steepest edge set
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData doIA (not doIA) splitGraph charInfoVV) rerootEdgeList
+                
+                -- True True to use IA fields and filter gaps
+                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
                 rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta doIA charInfoVV targetEdgeData) rerootEdgeDataList
 
                 minDelta = if (not . null) rerootEdgeDeltaList then minimum $ rerootEdgeDeltaList
@@ -1215,7 +1204,7 @@ tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGr
                -- rejected--recurse wirth updated params
                else
                   -- trace ("TBR SA Drift Reject: " ++ (show $ driftChanges $ fromJust newSAParams))
-                  tbrJoin steepest inGS inData splitGraph splitGraphSimple splitCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost (drop numEdgesToExamine edgesInPrunedGraph) newSAParams targetEdge
+                  tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost (drop numEdgesToExamine edgesInPrunedGraph) newSAParams targetEdge
             -- )
 
 -- | rerootPrunedAndMakeGraph reroots the pruned graph component on the rerootEdge and joins to base gaph at target edge
