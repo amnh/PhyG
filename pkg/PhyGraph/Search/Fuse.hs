@@ -319,7 +319,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost splitGr
    if null splitGraphCostPairList then []
    else
       -- top line to cover SPR HarWired bug
-      let doIA = False --- since splits not created together, IA won't be consistent between components
+      let -- since splits not created together, IA won't be consistent between components
           -- steepest = False -- should look at all better, now option
 
           -- network costs--using an input value that is minimum of inputs

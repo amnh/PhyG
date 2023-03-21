@@ -2025,3 +2025,11 @@ undirectedEdgeMinus firstList secondList =
         if firstEdge `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
         else if (b,a) `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
         else firstEdge : undirectedEdgeMinus (tail firstList) secondList
+
+-- | remakeGraph takes an existing graph and returns amkgraph version
+-- this to test whether multiple graph edits are creating large memory footprints
+remakeGraph :: Gr a b -> Gr a b
+remakeGraph inGraph =
+    if isEmpty inGraph then inGraph
+    else 
+        mkGraph (labNodes inGraph) (labEdges inGraph)

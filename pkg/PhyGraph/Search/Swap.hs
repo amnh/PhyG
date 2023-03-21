@@ -413,8 +413,12 @@ postProcessSwap   :: SwapParams
                   -> Int
                   -> [PhylogeneticGraph]
                   -> ([PhylogeneticGraph], Int, Maybe SAParams)
-postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
-   -- found better cost graph
+postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList' =
+      -- this to test memory footprint of grtaph edits--remove if does not improve
+      let newGraphList =  fmap GO.remakePhylogeneticGraph newGraphList'
+      in       
+      
+      -- found better cost graph
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost))( -- ++ swapType) (
          -- for alternarte do SPR first then TBR
@@ -422,7 +426,7 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
          in
 
          -- for alternate in TBR or prune union alternate if found better return immediately
-         if (swapType swapParams == TBRAlternate) || (joinType swapParams ==JoinAlternate) then (newGraphList, counter, inSimAnnealParams)
+         if (swapType swapParams == TBRAlternate) || (joinType swapParams == JoinAlternate) then (newGraphList, counter, inSimAnnealParams)
 
          -- regular swap--keep going with better graphs
          else swapAll' swapParams inGS inData randomIntListSwap (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams

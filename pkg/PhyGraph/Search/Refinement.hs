@@ -242,7 +242,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                       else doIA'
 
                returnBest = any ((=="best").fst) lcArgList
-               returnUnique = any ((=="unique").fst) lcArgList
+               returnUnique = (not returnBest) || (any ((=="unique").fst) lcArgList)
                doSingleRound = any ((=="once").fst) lcArgList
                randomPairs = any ((=="atrandom").fst) lcArgList
                fusePairs' = if fusePairs == Just (maxBound :: Int) then Nothing
