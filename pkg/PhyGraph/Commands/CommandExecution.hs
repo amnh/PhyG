@@ -46,7 +46,6 @@ module Commands.CommandExecution
 import           Commands.CommandUtilities
 import qualified Commands.Transform             as TRANS
 import qualified Commands.Verify                as VER
-import           Control.Parallel.Strategies
 import qualified Data.CSV                       as CSV
 import           Data.Char
 import qualified Data.Char                      as C
@@ -757,7 +756,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
             else if "diagnosis" `elem` commandList then
                 -- need to rediagnose if reportNaiveData
                 let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
-                                 else PU.seqParMap rdeepseq  (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                                 else PU.seqParMap PU.myStrategy   (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
                     dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0.. (length curGraphs' - 1)])
                 in
                 if null curGraphs then
@@ -858,7 +857,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     ("No impliedAlgnments for TNT to report", outfileName, writeMode)
                 else
                     let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
-                                     else PU.seqParMap rdeepseq  (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                                     else PU.seqParMap PU.myStrategy   (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
                         tntContentList = zipWith (getTNTString globalSettings processedData) curGraphs' [0.. (length curGraphs' - 1)]
                     in
                     (concat tntContentList, outfileName, writeMode)

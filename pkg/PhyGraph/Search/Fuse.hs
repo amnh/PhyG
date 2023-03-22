@@ -37,7 +37,6 @@ Portability :  portable (I hope)
 module Search.Fuse  ( fuseAllGraphs
                     ) where
 
-import           Control.Parallel.Strategies
 import qualified Data.BitVector.LittleEndian                   as BV
 import           Data.Bits
 import qualified Data.InfList                                  as IL
@@ -117,7 +116,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
          -- ParMap created too large a memory footprint. Pafrallleism at lower levels
-         -- newGraphList = concat (PU.seqParMap rdeepseq (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
+         -- newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
 
          newGraphList = fusePairRecursive swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal [] graphPairList
 
@@ -208,7 +207,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
           (leftRootIndex, _) = head $ LG.getRoots leftDecoratedGraph
           leftBreakEdgeList = if (graphType inGS) == Tree then filter ((/= leftRootIndex) . fst3) $ LG.labEdges leftDecoratedGraph
                               else filter ((/= leftRootIndex) . fst3) $ LG.getEdgeSplitList leftDecoratedGraph
-          leftSplitTupleList = PU.seqParMap rdeepseq  (LG.splitGraphOnEdge' leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
+          leftSplitTupleList = PU.seqParMap PU.myStrategy   (LG.splitGraphOnEdge' leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
           (_, _, leftPrunedGraphRootIndexList,  leftOriginalConnectionOfPrunedList, leftOriginalEdgeList, _) = L.unzip6 leftSplitTupleList
           --leftPrunedGraphRootIndexList = fmap thd4 leftSplitTupleList
           leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
@@ -219,7 +218,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
           (rightRootIndex, _) = head $ LG.getRoots rightDecoratedGraph
           rightBreakEdgeList = if (graphType inGS) == Tree then filter ((/= rightRootIndex) . fst3) $ LG.labEdges rightDecoratedGraph
                               else filter ((/= rightRootIndex) . fst3) $ LG.getEdgeSplitList rightDecoratedGraph
-          rightSplitTupleList = PU.seqParMap rdeepseq (LG.splitGraphOnEdge' rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
+          rightSplitTupleList = PU.seqParMap PU.myStrategy  (LG.splitGraphOnEdge' rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
           (_, _, rightPrunedGraphRootIndexList,  rightOriginalConnectionOfPrunedList, rightOriginalEdgeList, _) = L.unzip6 rightSplitTupleList
           -- rightPrunedGraphRootIndexList = fmap thd4 rightSplitTupleList
           rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
@@ -242,15 +241,15 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
           -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
           -- returns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
-          (leftBaseRightPrunedSplitGraphList, leftRightGraphRootIndexList, leftRightPrunedParentRootIndexList, leftRightPrunedRootIndexList, leftRightOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
+          (leftBaseRightPrunedSplitGraphList, leftRightGraphRootIndexList, leftRightPrunedParentRootIndexList, leftRightPrunedRootIndexList, leftRightOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap PU.myStrategy  (exchangePrunedGraphs numLeaves) (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
 
-          (rightBaseLeftPrunedSplitGraphList, rightLeftGraphRootIndexList, rightLeftPrunedParentRootIndexList, rightLeftPrunedRootIndexList, rightLeftOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap rdeepseq (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
+          (rightBaseLeftPrunedSplitGraphList, rightLeftGraphRootIndexList, rightLeftPrunedParentRootIndexList, rightLeftPrunedRootIndexList, rightLeftOriginalConnectionOfPrunedList) = L.unzip5 (PU.seqParMap PU.myStrategy  (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)) -- `using` PU.myParListChunkRDS)
 
           -- reoptimize splitGraphs so ready for readdition--using updated base and prune indices
           -- False for doIA
-          leftRightOptimizedSplitGraphCostList = PU.seqParMap rdeepseq (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) -- `using` PU.myParListChunkRDS
+          leftRightOptimizedSplitGraphCostList = PU.seqParMap PU.myStrategy  (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList) -- `using` PU.myParListChunkRDS
 
-          rightLeftOptimizedSplitGraphCostList = PU.seqParMap rdeepseq (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) -- `using` PU.myParListChunkRDS
+          rightLeftOptimizedSplitGraphCostList = PU.seqParMap PU.myStrategy  (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList) -- `using` PU.myParListChunkRDS
 
           -- Check if base graphs are different as well (nneded to be reoptimized to get base root bv)
           -- otherwise no point in recombination
@@ -346,7 +345,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost splitGr
                                netPenaltyFactorList
 
           -- do "all additions" -
-          -- recombinedGraphList = concat $ PU.seqParMap rdeepseq (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
+          -- recombinedGraphList = concat $ PU.seqParMap PU.myStrategy  (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
           recombinedGraphList = rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
 
 

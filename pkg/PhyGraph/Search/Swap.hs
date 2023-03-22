@@ -55,6 +55,8 @@ import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
 import           Utilities.Utilities                           as U
 import           Debug.Trace
+import Control.Monad.ST
+import Data.STRef
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
@@ -189,7 +191,7 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
              newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
 
              -- this to ensure current step set to 0
-             (annealDriftGraphs', anealDriftCounterList, _) = unzip3 $ (PU.seqParMap rdeepseq (swapAll swapParams inGS inData randomIntListSwap 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
+             (annealDriftGraphs', anealDriftCounterList, _) = unzip3 $ (PU.seqParMap PU.myStrategy (swapAll swapParams inGS inData randomIntListSwap 0 (snd6 inGraph) [] [inGraph] numLeaves leafGraph leafDecGraph leafGraphSoftWired inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
 
              -- annealed/Drifted 'mutated' graphs
              annealDriftGraphs = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) $ concat annealDriftGraphs'
@@ -207,6 +209,28 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
          else (annealDriftGraphs, sum anealDriftCounterList)
          -- )
          -- )
+
+-- | swapALLST State MOnda wrapper around swapAll
+swapALLST :: SwapParams
+         -> GlobalSettings
+         -> ProcessedData
+         -> [Int]
+         -> Int
+         -> VertexCost
+         -> [PhylogeneticGraph]
+         -> [PhylogeneticGraph]
+         -> Int
+         -> SimpleGraph
+         -> DecoratedGraph
+         -> DecoratedGraph
+         -> VertexCost
+         -> Maybe SAParams
+         -> ([PhylogeneticGraph], Int, Maybe SAParams)
+swapALLST swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams = runST $ do
+   output <- newSTRef $ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams
+   -- pure output
+   readSTRef output
+
 
 -- | swapAll is a high level function that basically deals with portioning out swap-type swaps
 -- and performs the high level options for Alternate where SPR is perfomred first, then TBR,
@@ -753,7 +777,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
             -- fmap over all edges in base graph
             if not (steepest swapParams) then
                let -- rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges `using` PU.myParListChunkRDS
-                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap rdeepseq (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdges
+                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap PU.myStrategy (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdges
 
                    {-Checking only min but seems to make slower
                    newMinCost = if null rejoinGraphList then infinity
@@ -784,7 +808,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                    numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
                    rejoinEdgeList = take numGraphsToExamine rejoinEdges
                    --rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
-                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap rdeepseq (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList
+                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap PU.myStrategy (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList
 
                    {--Checking only min but seems to make slower
                    newMinCost = if null rejoinGraphList then infinity
@@ -831,7 +855,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
              numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
              rejoinEdgeList = take numGraphsToExamine rejoinEdges
              simAnnealParamList = U.generateUniqueRandList numGraphsToExamine inSimAnnealParams
-             rejoinGraphPairList = PU.seqParMap rdeepseq (singleJoin' swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph) (zip simAnnealParamList rejoinEdgeList)
+             rejoinGraphPairList = PU.seqParMap PU.myStrategy (singleJoin' swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph) (zip simAnnealParamList rejoinEdgeList)
 
              -- mechanics to see if trhere is a better graph in return set
              -- only taking first of each list--so can keep sa params with them--really all should have length == 1 anyway
@@ -1063,17 +1087,17 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
             let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
                 
                 -- True True to use IA fields and filter gaps
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
-                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
+                rerootEdgeDataList = PU.seqParMap PU.myStrategy (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
 
                 -- check for possible better/equal graphs and verify
                 deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                 candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
-                candidateJoinedGraphList = PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
-                rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
+                candidateJoinedGraphList = PU.seqParMap PU.myStrategy (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+                rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap PU.myStrategy (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
 
                 -- for debugging
-                -- allRediagnosedList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph  splitGraphSimple  prunedGraphRootIndex originalConnectionOfPruned targetEdge) rerootEdgeList)
+                -- allRediagnosedList = PU.seqParMap PU.myStrategy (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (PU.seqParMap PU.myStrategy (rerootPrunedAndMakeGraph  splitGraphSimple  prunedGraphRootIndex originalConnectionOfPruned targetEdge) rerootEdgeList)
 
             in
             {-
@@ -1102,14 +1126,14 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
                 
                 -- True True to use IA fields and filter gaps
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
-                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
+                rerootEdgeDataList = PU.seqParMap PU.myStrategy (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
 
                 -- check for possible better/equal graphs and verify
                 deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                 candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
-                candidateJoinedGraphList = PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
-                rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList-- get
+                candidateJoinedGraphList = PU.seqParMap PU.myStrategy (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+                rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap PU.myStrategy (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList-- get
 
             in
             -- trace ("TBR steepest: " ++ (show $ length rerootEdgeList) ++ " edges to go " ++ (show $ length $ (drop numEdgesToExamine edgesInPrunedGraph))) (
@@ -1140,8 +1164,8 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
                 
                 -- True True to use IA fields and filter gaps
-                rerootEdgeDataList = PU.seqParMap rdeepseq (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
-                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap rdeepseq (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
+                rerootEdgeDataList = PU.seqParMap PU.myStrategy (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
 
                 minDelta = if (not . null) rerootEdgeDeltaList then minimum $ rerootEdgeDeltaList
                            else infinity
@@ -1149,8 +1173,8 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                               else []
 
                 -- check for possible better/equal graphs and verify
-                candidateJoinedGraphList = PU.seqParMap rdeepseq (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) minEdgeList
-                rediagnosedGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
+                candidateJoinedGraphList = PU.seqParMap PU.myStrategy (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) minEdgeList
+                rediagnosedGraphList = PU.seqParMap PU.myStrategy (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
 
                 newMinCost = if (not . null) minEdgeList then minimum $ fmap snd6 rediagnosedGraphList
                              else infinity

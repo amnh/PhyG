@@ -41,7 +41,6 @@ module Main (main) where
 import qualified Commands.CommandExecution    as CE
 import qualified Commands.ProcessCommands     as PC
 import qualified Commands.Verify              as V
-import           Control.Parallel.Strategies
 import qualified Data.CSV                     as CSV
 import qualified Data.List                    as L
 import           Data.Maybe
@@ -260,7 +259,7 @@ main = do
     dataCPUTime <- getCPUTime
 
     -- Diagnose any input graphs
-    let inputGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = PU.seqParMap PU.myStrategy  (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime <- getCPUTime

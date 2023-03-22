@@ -43,7 +43,6 @@ module Search.Build  ( buildGraph
                      ) where
 
 import qualified Commands.Verify                as VER
-import           Control.Parallel.Strategies
 import           Data.Char
 import qualified Data.List                      as L
 import           Data.Maybe
@@ -131,10 +130,10 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                             trace ("Block building initial graph(s)") (
                             let simpleTreeOnly = True
                                 processedDataList = U.getProcessDataByBlock True inData
-                                distanceMatrixList = if buildDistance then PU.seqParMap rdeepseq  DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
+                                distanceMatrixList = if buildDistance then PU.seqParMap PU.myStrategy   DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
                                                      else replicate (length processedDataList) []
 
-                                blockTrees = concat (PU.seqParMap rdeepseq  (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList)) --  `using` PU.myParListChunkRDS)
+                                blockTrees = concat (PU.seqParMap PU.myStrategy   (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList)) --  `using` PU.myParListChunkRDS)
                                 -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
 
                                 -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
@@ -142,7 +141,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                             in
                             -- trace (concatMap LG.prettify returnGraphs)
                             -- trace ("BG: " ++ (concatMap LG.prettyIndices returnGraphs))
-                            PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
+                            PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
                             )
 
            -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
@@ -174,7 +173,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
               -- )
             else
               trace ("\tRediagnosing as " ++ (show (graphType inGS)))
-              PU.seqParMap rdeepseq  (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) -- `using` PU.myParListChunkRDS
+              PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (fmap fst6 firstGraphs) -- `using` PU.myParListChunkRDS
             )
 
 

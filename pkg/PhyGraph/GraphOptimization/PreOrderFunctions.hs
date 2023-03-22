@@ -51,7 +51,6 @@ import           Data.Maybe
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Generic         as GV
 -- import qualified Data.Vector.Storable         as SV
-import           Control.Parallel.Strategies
 import           Data.Alphabet
 import qualified Data.Vector.Unboxed         as UV
 import           Debug.Trace
@@ -95,7 +94,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths _ rootInd
     else
         -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
-        let preOrderBlockVect = V.fromList (PU.seqParMap rdeepseq  (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV)))  -- `using` PU.myParListChunkRDS)
+        let preOrderBlockVect = V.fromList (PU.seqParMap PU.myStrategy   (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV)))  -- `using` PU.myParListChunkRDS)
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment

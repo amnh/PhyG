@@ -77,8 +77,16 @@ myParListChunk localStrategy = parListChunk getNumThreads localStrategy
 myParListChunkRDS :: (NFData a) => Strategy [a] 
 myParListChunkRDS = parListChunk getNumThreads myStrategy
 
+-- | myStrategy can be r0, rpar, rseq, rdeepseq
+-- r0 seems fastest in tests of PhyG
 myStrategy :: (NFData b) => Strategy b
-myStrategy = rdeepseq
+myStrategy = r0
+
+myStrategyR0 :: Strategy b
+myStrategyR0 = r0
+
+myStrategyRDS :: (NFData b) => Strategy b
+myStrategyRDS = rdeepseq
 
 myStrategyRS :: Strategy b
 myStrategyRS = rseq

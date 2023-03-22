@@ -73,7 +73,6 @@ module Graphs.GraphOperations (  ladderizeGraph
 
 import           Bio.DynamicCharacter
 import qualified Commands.Verify             as V
-import           Control.Parallel.Strategies
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits
 import qualified Data.Char                   as C
@@ -258,7 +257,7 @@ makeGraphTimeConsistent failOut inGraph
   | LG.isEmpty inGraph = LG.empty
   | LG.isTree inGraph = inGraph
   | otherwise = let coevalNodeConstraintList = LG.coevalNodePairs inGraph
-                    coevalNodeConstraintList' = PU.seqParMap rdeepseq  (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
+                    coevalNodeConstraintList' = PU.seqParMap PU.myStrategy  (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
                     coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
                     timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
                     newGraph = LG.delEdges timeOffendingEdgeList inGraph
