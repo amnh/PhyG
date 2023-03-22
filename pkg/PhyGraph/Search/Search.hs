@@ -358,7 +358,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                          else []
 
           -- common swap arguments
-          swapKeep = keepNum
+          swapKeep = min keepNum (chooseElementAtRandomPair (randDoubleVect V.! 15)  [(2, 0.50), (4, 0.33), (8, 0.17)])
 
           -- common drift arguments
           maxChanges = chooseElementAtRandomPair (randDoubleVect V.! 1) [("5", 0.33), ("10", 0.34), ("20", 0.33)]

@@ -49,6 +49,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getW15NetPenaltyFull
                                                       , getW23NetPenalty
                                                       , getW15RootCost
+                                                      , getNetPenalty
                                                       ) where
 
 import           Control.Parallel.Strategies
@@ -860,6 +861,15 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
               | otherwise = medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+
+-- | getNetPenalty returns appropriate network penalty
+getNetPenalty :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> VertexCost
+getNetPenalty inGS inData inGraph =
+    if (graphType inGS == Tree) then 0.0
+    else if (graphFactor inGS) == NoNetworkPenalty then 0.0
+    else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenaltyFull Nothing inGS inData  Nothing inGraph
+    else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty inGraph
+    else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
 
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa

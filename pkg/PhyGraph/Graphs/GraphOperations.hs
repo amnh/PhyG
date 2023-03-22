@@ -68,6 +68,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , makeLeafGraph
                                , makeSimpleLeafGraph
                                , selectGraphs
+                               , remakePhylogeneticGraph
                                ) where
 
 import           Bio.DynamicCharacter
@@ -1001,4 +1002,15 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
         (localIndex, newVertex)
         -- )
 
-
+-- | remakePhylogeneticGraph remakes (rebuilds from scratch) phylogenetic graph 
+-- fst, thd. 4th and 5th fields
+remakePhylogeneticGraph :: PhylogeneticGraph -> PhylogeneticGraph
+remakePhylogeneticGraph inGraph@(a,b,c,d,e,f) = 
+  if inGraph == emptyPhylogeneticGraph then inGraph
+  else 
+    let a' = LG.remakeGraph a
+        c' = LG.remakeGraph c
+        d' = fmap (fmap LG.remakeGraph) d
+        e' = fmap (fmap LG.remakeGraph) e
+    in
+    (a', b, c', d', e', f)
