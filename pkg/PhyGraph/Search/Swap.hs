@@ -92,24 +92,21 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
                 bestFirstList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : firstList)
 
                 -- change toJoinAlternate for return to pruned union
-                {-
-                (afterSecondListList, afterSecondCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR' swapType JoinAll atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . drop 2000) randomIntListSwap)) (replicate (length bestFirstList) Nothing) bestFirstList
+                
+                (alternateList, alternateCounter) = swapSPRTBRList (swapParams {joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $ zip3 (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
 
-                bestSecondList = GO.selectGraphs Best numToKeep 0.0 (-1) $ concat afterSecondListList
-                afterSecondCounter = if null  afterSecondCounterList then inCounter
-                                     else inCounter + minimum afterSecondCounterList
-                -}
+                -- bestAlternateList = bestFirstList
+                -- alternateCounter = firstCounter
+                bestAlternateList = GO.selectGraphs Best  (keepNum swapParams) 0.0 (-1) $ inGraph : (alternateList ++ bestFirstList)                
 
                 -- recursive list version as opposed ot parMap version
                 -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
-                (afterSecondList, afterSecondCounter) = swapSPRTBRList (swapParams {joinType = JoinAll}) inGS inData firstCounter bestFirstList $ zip3 (U.generateRandIntLists (length bestFirstList) ((head . tail) randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
+                (afterSecondList, afterSecondCounter) = swapSPRTBRList (swapParams {joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $ zip3 (U.generateRandIntLists (length bestAlternateList) (head $ drop 2 randomIntListSwap)) (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams) bestAlternateList
 
                 bestSecondList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) afterSecondList
-                -- bestSecondCost = (snd6 . head) bestSecondList
-
 
             in
-            {-
+            {-recursing back to join pruned when better found--should be faster
             This not working so turned off for now
             need to change JoinAll toJoinAlternate in call
             to swapSPRTBRList
@@ -132,6 +129,7 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
                swapSPRTBR swapTypeJoinAlternate atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) (tail inTripleList)
             -}
             (bestSecondList, afterSecondCounter + inCounter)
+            
 
 -- | swapSPRTBRList is a wrapper around swapSPRTBR' allowing for a list of graphs and a current best cost
 -- reduce time of swap
@@ -154,17 +152,23 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs tripleList =
              bestGraphList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : graphList)
              bestGraphCost = minimum $ fmap snd6 graphList
          in
+         {-This is necessary in some cases--even though swapped to completion in swapSPRTBR'-}
+         --if bestGraphCost < (snd6 . head) curBestGraphs && joinType swapParams == JoinAlternate then
          if bestGraphCost < (snd6 . head) curBestGraphs then
             let graphsToSwap = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (bestGraphList ++ (fmap thd3 $ tail tripleList))
                 tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
             in
-            swapSPRTBRList swapParams inGS inData swapCounter bestGraphList tripleToSwap
+            -- go back to joinPruned if in joinAlternate--short circuits
+            if joinType swapParams == JoinAlternate then 
+               swapSPRTBR swapParams inGS inData swapCounter bestGraphList $ [(tail randomIntListSwap, inSimAnnealParams, inGraph)] -- : tripleToSwap
+            else swapSPRTBRList swapParams inGS inData swapCounter bestGraphList tripleToSwap
          else
-            swapSPRTBRList swapParams inGS inData swapCounter bestGraphList (tail tripleList)
+         swapSPRTBRList swapParams inGS inData swapCounter bestGraphList (tail tripleList)
 
 -- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
 -- options such as joinType to ensure complete swap but with an edge unions pass to
 -- reduce time of swap
+-- also manages SA/Drifting versus greedy swap
 swapSPRTBR' :: SwapParams
             -> GlobalSettings
             -> ProcessedData
@@ -172,7 +176,7 @@ swapSPRTBR' :: SwapParams
             -> ([Int], Maybe SAParams, PhylogeneticGraph)
             -> ([PhylogeneticGraph], Int)
 swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph) =
-   -- trace ("In swapSPRTBR:") (
+   -- trace ("SPRTBRList:" ++ (show $ joinType swapParams)) $
    if LG.isEmpty (fst6 inGraph) then ([], 0)
    else
       let numLeaves = V.length $ fst3 inData
@@ -233,6 +237,7 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
 -- is performed before returning to TBR again.  THis contibues untill no new graphs are found in the
 -- SPR + TBR swap.
 -- each call to swapAll' sets break edge number to 0
+-- this swaps untill none found better
 swapAll  :: SwapParams
          -> GlobalSettings
          -> ProcessedData
@@ -411,6 +416,7 @@ postProcessSwap   :: SwapParams
                   -> [PhylogeneticGraph]
                   -> ([PhylogeneticGraph], Int, Maybe SAParams)
 postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor inSimAnnealParams newMinCost breakEdgeNumber newGraphList =
+
       -- found better cost graph
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost))( -- ++ swapType) (
@@ -426,6 +432,7 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
          )
 
       -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
+      -- but could change
       else if newMinCost > curBestCost then
          -- trace ("Worse " ++ (show newMinCost)) (
          let newCurSameBetterList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) (curSameBetterList ++ newGraphList)
