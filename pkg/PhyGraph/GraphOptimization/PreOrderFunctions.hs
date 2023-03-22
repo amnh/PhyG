@@ -968,7 +968,7 @@ setFinal :: GlobalSettings
          -> CharacterData 
          -> Maybe CharacterData 
          -> CharacterData
-setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
+setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
        -- isTree = graphType inGS == Tree
