@@ -91,8 +91,7 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
                 -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
                 bestFirstList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : firstList)
 
-                -- change toJoinAlternate for return to pruned union
-                
+                -- change JoinAlternate for return to pruned union
                 (alternateList, alternateCounter) = swapSPRTBRList (swapParams {joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $ zip3 (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
 
                 -- bestAlternateList = bestFirstList
@@ -106,28 +105,6 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
                 bestSecondList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) afterSecondList
 
             in
-            {-recursing back to join pruned when better found--should be faster
-            This not working so turned off for now
-            need to change JoinAll toJoinAlternate in call
-            to swapSPRTBRList
-            -}
-
-            {-
-            -- if found better recurse to join pruned
-            if bestSecondCost < snd6 inGraph then
-               let graphsToSwap = GO.selectGraphs Best numToKeep 0.0 (-1) (bestSecondList ++ (fmap thd3 $ tail inTripleList))
-                   tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
-
-                   -- (recurseListList, recurseCounterList) = unzip $ PU.seqParMap rdeepseq (swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated) $ zip3 (U.generateRandIntLists (length afterSecondList) ((head . drop 2000) randomIntListSwap)) (replicate (length afterSecondList) Nothing) afterSecondList
-
-                   -- (recurseList, recurseCounter) = swapSPRTBR swapTypeJoinAlternate atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) tripleToSwap
-               in
-               swapSPRTBR swapTypeJoinAlternate atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) tripleToSwap
-               -- (GO.selectGraphs Best numToKeep 0.0 (-1) recurseList, recurseCounter)
-
-            else
-               swapSPRTBR swapTypeJoinAlternate atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated bestSecondList (afterSecondCounter + inCounter) (tail inTripleList)
-            -}
             (bestSecondList, afterSecondCounter + inCounter)
             
 
