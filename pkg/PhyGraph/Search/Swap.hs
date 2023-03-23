@@ -268,9 +268,10 @@ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBett
 
          -- check if found additional
          else if tbrBestCost == sprBestCost then
-            let newTBRGraphs = tbrGraphs `GO.phylogeneticGraphListMinus` sprGraphs
+            let bestTBRGraphs = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) tbrGraphs
+                newTBRGraphs = bestTBRGraphs `GO.phylogeneticGraphListMinus` sprGraphs 
             in
-            if (not . null) newTBRGraphs then
+            if (not . null) newTBRGraphs && (length bestTBRGraphs < keepNum swapParams) then
                swapAll swapParams inGS inData (drop 3 randomIntListSwap) tbrCounter tbrBestCost tbrGraphs newTBRGraphs numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor tbrSAPArams
 
             -- found nothing new
@@ -398,7 +399,7 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
 
       -- found better cost graph
       if newMinCost < curBestCost then
-         traceNoLF ("\t->" ++ (show newMinCost))( -- ++ swapType) (
+         traceNoLF ("\t->" ++ (show newMinCost) ++ " " ++ (show curBestCost)) $
          -- for alternarte do SPR first then TBR
          let graphsToSwap = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) newGraphList -- (newGraphList ++ (tail inGraphList))
          in
@@ -408,7 +409,7 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
 
          -- regular swap--keep going with better graphs
          else swapAll' swapParams inGS inData randomIntListSwap (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams
-         )
+         
 
       -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
       -- but could change
@@ -434,20 +435,22 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
 
              -- these conditions help to prevent recswapping endlessly on new graphs thatare not in buffers,
              -- but have same cost
-             graphsToDo' = if length graphsToDo >= ((keepNum swapParams) - 1) then (tail inGraphList)
-                           else if length newCurSameBetterList == length curSameBetterList then (tail inGraphList)
+             (hitMax, graphsToDo') = if length graphsToDo >= ((keepNum swapParams) - 1) then (True, (tail inGraphList))
+                           else if length newCurSameBetterList == length curSameBetterList then (True, (tail inGraphList))
+                           else if length newCurSameBetterList >= ((keepNum swapParams) - 1) then (True, (tail inGraphList))
                            --else if (fmap fst6 newCurSameBetterList) ==  (fmap fst6 curSameBetterList) then (tail inGraphList)
-                           else graphsToDo
+                           else (False, graphsToDo)
 
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
          -- traceNoLF ("\tRemaining to " ++ swapType ++ " swap " ++ (show $ length graphsToDo') ++ " at cost "  ++ (show curBestCost)) (
 
+         -- this shortcut can cause infinte looping 
          -- for alternate in TBR or prune union alternate if found equal return immediately
-         if (swapType swapParams == TBRAlternate) || (joinType swapParams == JoinAlternate) then (newCurSameBetterList, counter, inSimAnnealParams)
+         --if (not hitMax) && ((swapType swapParams == TBRAlternate) || (joinType swapParams == JoinAlternate)) then (newCurSameBetterList, counter, inSimAnnealParams)
 
          -- regular swap--keep going with novel equal cost graphs
-         else
+         --else
             -- traceNoLF ("(" ++ (show (snd6 $ head newCurSameBetterList,  length newCurSameBetterList, length curSameBetterList, length graphsToDo',length newNovelGraphs, length ((tail inGraphList) ++ newGraphList), length $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList) ++ ")"))
             swapAll' swapParams inGS inData (tail randomIntListSwap) (counter + 1) curBestCost newCurSameBetterList graphsToDo' numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams
          -- )
