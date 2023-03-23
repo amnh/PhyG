@@ -76,6 +76,7 @@ import qualified Commands.Verify             as V
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits
 import qualified Data.Char                   as C
+import Data.Foldable (toList)
 import qualified Data.List                   as L
 import           Data.Ord
 import           Data.Maybe
@@ -518,7 +519,7 @@ showDecGraphs inDecVV =
         concatMap concat (V.toList $ fmap ((V.toList . fmap LG.prettify) . fmap convertDecoratedToSimpleGraph) inDecVV)
 
 -- | selectGraphs is a wrapper around selectPhylogeneticGraph with a better interface
-selectGraphs :: SelectGraphType -> Int -> Double -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+selectGraphs :: Foldable f => SelectGraphType -> Int -> Double -> Int -> f PhylogeneticGraph -> [PhylogeneticGraph]
 selectGraphs selectType numberToKeep threshold rSeed inGraphList
   | null inGraphList = []
   | (selectType == AtRandom) && (rSeed == (-1)) = error "AtRandom selection without proper random seed value"
@@ -530,7 +531,7 @@ selectGraphs selectType numberToKeep threshold rSeed inGraphList
                       | selectType == All = ("all", "")
                       | otherwise = ("best", "")
                 in
-                take numberToKeep $ selectPhylogeneticGraph [stringArgs] rSeed [] inGraphList
+                take numberToKeep $ selectPhylogeneticGraph [stringArgs] rSeed [] $ toList inGraphList
 
 
 
