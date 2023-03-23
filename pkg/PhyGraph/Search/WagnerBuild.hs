@@ -79,7 +79,7 @@ rasWagnerBuild inGS inData rSeed numReplicates =
       -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
-      PU.seqParMap PU.myStrategy  (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
+      PU.seqParMap PU.myStrategyHighLevel  (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
       -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
 
 

@@ -95,7 +95,7 @@ addDeleteNetEdges inGS inData rSeed maxNetEdges numToKeep maxRounds counter retu
          annealingRounds = rounds $ fromJust inSimAnnealParams
          saPAramList = (U.generateUniqueRandList annealingRounds inSimAnnealParams) -- (replicate annealingRounds inPhyloGraphList)
 
-         (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategy  (addDeleteNetEdges'' inGS inData leafGraph rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
+         (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategyHighLevel  (addDeleteNetEdges'' inGS inData leafGraph rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
 
       in
       (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
@@ -201,7 +201,7 @@ moveAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated do
          annealingRounds = rounds $ fromJust inSimAnnealParams
          saPAramList = (U.generateUniqueRandList annealingRounds inSimAnnealParams) -- (replicate annealingRounds inPhyloGraphList)
 
-         (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategy  (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
+         (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategyHighLevel (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
 
       in
       (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
@@ -354,7 +354,7 @@ insertAllNetEdges inGS inData rSeed maxNetEdges numToKeep maxRounds counter retu
          -- need to concat and send different randomization lists for each "round"
          let randSeedList = take maxRounds (randomIntList rSeed)
              randIntListList = fmap randomIntList randSeedList
-             (insertGraphList, counterList) = unzip $ PU.seqParMap PU.myStrategy  (insertAllNetEdgesRand inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList) randIntListList
+             (insertGraphList, counterList) = unzip $ PU.seqParMap PU.myStrategyHighLevel  (insertAllNetEdgesRand inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList) randIntListList
          in
          -- insert functions take care of returning "better" or empty
          -- should be empty if nothing better
@@ -365,7 +365,7 @@ insertAllNetEdges inGS inData rSeed maxNetEdges numToKeep maxRounds counter retu
           annealParamGraphList = U.generateUniqueRandList annealingRounds inSimAnnealParams
           replicateRandIntList = fmap randomIntList (take annealingRounds (randomIntList rSeed))
 
-          (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategy  (insertAllNetEdges'' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
+          (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategyHighLevel  (insertAllNetEdges'' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
       in
       if (not returnMutated) || isNothing inSimAnnealParams then
          (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
@@ -893,7 +893,7 @@ deleteAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated 
           replicateRandIntList = fmap randomIntList (take annealingRounds (randomIntList rSeed))
 
           -- (annealRoundsList, counterList) = unzip (zipWith3 (deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList) `using` PU.myParListChunkRDS)
-          (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategy  (deleteAllNetEdges'' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
+          (annealRoundsList, counterList) = unzip (PU.seqParMap PU.myStrategyHighLevel (deleteAllNetEdges'' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
       in
       (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
 
