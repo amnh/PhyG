@@ -54,9 +54,9 @@ import qualified ParallelUtilities                             as PU
 import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
 import           Utilities.Utilities                           as U
-import           Debug.Trace
-import Control.Monad.ST
-import Data.STRef
+-- import           Debug.Trace
+-- import Control.Monad.ST
+-- import Data.STRef
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
