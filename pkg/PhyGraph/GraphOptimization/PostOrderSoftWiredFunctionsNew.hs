@@ -46,7 +46,6 @@ module GraphOptimization.PostOrderSoftWiredFunctionsNew  ( postDecorateSoftWired
                                                          , backPortBlockTreeNodesToCanonicalGraph
                                                          ) where
 
-import           Control.Parallel.Strategies
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits
 import qualified Data.List                   as L
@@ -391,7 +390,7 @@ createBlockResolutions
 
         -- either parallel seems about the same
         -- newResolutionList = fmap (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs `using` PU.myParListChunkRDS
-        newResolutionList = PU.seqParMap rdeepseq  (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
+        newResolutionList = PU.seqParMap PU.myStrategy   (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
 
         --need to add in node and edge to left and right
         edgeLable = EdgeInfo { minLength = 0.0
@@ -646,7 +645,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
 
           -- extract (first) best resolution for each block--there can be more than one for each, but only use the first for
           -- traceback, preliminary and final assignment etc--part of the heuristic
-          (_, _, rootDisplayBlockCharResolutionV) = V.unzip3 $ PU.seqParMap rdeepseq (getBestResolutionList (Just rootIndex) True) rootResData
+          (_, _, rootDisplayBlockCharResolutionV) = V.unzip3 $ PU.seqParMap PU.myStrategy  (getBestResolutionList (Just rootIndex) True) rootResData
           firstOfEachRootRes = fmap V.head rootDisplayBlockCharResolutionV
 
           -- get preliminary character data for blocks
@@ -655,7 +654,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
 
           -- update root vertex info for display and character trees for each block
           -- this includes preliminary data and other fields
-          (rootUpdatedDisplayTreeV, rootUpdatedCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq (updateRootBlockTrees rootIndex) (V.zip  firstOfEachRootRes displayTreeV)
+          (rootUpdatedDisplayTreeV, rootUpdatedCharTreeVV) = V.unzip $ PU.seqParMap PU.myStrategy  (updateRootBlockTrees rootIndex) (V.zip  firstOfEachRootRes displayTreeV)
 
           -- traceback for each block based on its display tree, updating trees as it goes, left descendent then right
           -- at this stage all character trees will have same root descendents sionce all rooted from outgropu postorder traversal
@@ -666,8 +665,8 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           -- get left right from BV as in postorder
           ((leftChild', _), (rightChild', _)) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab canonicalGraph leftChild), (rightChild, fromJust $ LG.lab canonicalGraph rightChild))
 
-          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph leftChild') (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
-          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ PU.seqParMap rdeepseq (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+          (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = V.unzip $ PU.seqParMap PU.myStrategy  (traceBackBlock canonicalGraph leftChild') (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+          (traceBackDisplayTreeV, traceBackCharTreeVV) = V.unzip $ PU.seqParMap PU.myStrategy  (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
       in
       if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " ++ show (LG.descendants canonicalGraph rootIndex))

@@ -535,6 +535,7 @@ type BlockData = (NameText, V.Vector (V.Vector CharacterData), V.Vector CharInfo
 data SimulatedAnnealingMethod = SimAnneal | Drift
     deriving stock (Read, Show, Eq)
 
+-- | Simulated Annealing parameters
 data SAParams = SAParams { method            :: SimulatedAnnealingMethod
                          , numberSteps       :: Int
                          , currentStep       :: Int
@@ -547,6 +548,22 @@ data SAParams = SAParams { method            :: SimulatedAnnealingMethod
                          } deriving stock (Show, Eq)
 
 instance NFData SAParams where rnf x = seq x ()
+
+
+-- | SwapParam type for swap parameers
+data SwapParams = SwapParams { swapType :: SwapType -- NNI/SPR/TBR/Alternate
+                             , joinType :: JoinType -- Union priuning on or off
+                             , atRandom :: Bool -- randomized spluting and rejoining
+                             , keepNum :: Int -- number equally costly solutoins to keep
+                             , maxMoveEdgeDist :: Int -- maximum rejoin distance from initial mplacement 
+                             , steepest :: Bool -- steepest descent versus "all"
+                             , joinAlternate :: Bool -- in alternate swapping for TBR
+                             , doIA :: Bool --use Implied alignment fields for rearragement costs
+                             , returnMutated :: Bool -- return changed graphs for simlated annealing, genetic algorithm
+                             } deriving stock (Show, Eq)
+
+instance NFData SwapParams where rnf x = seq x ()
+
 
 -- | empty structures for convenient use
 

@@ -41,7 +41,6 @@ module Main (main) where
 import qualified Commands.CommandExecution    as CE
 import qualified Commands.ProcessCommands     as PC
 import qualified Commands.Verify              as V
-import           Control.Parallel.Strategies
 import qualified Data.CSV                     as CSV
 import qualified Data.List                    as L
 import           Data.Maybe
@@ -70,7 +69,8 @@ import qualified Utilities.Utilities          as U
 -- | main driver
 main :: IO ()
 main = do
-    let compileDate = "Mar 17 2023" ++ " " ++ "14:58:51"
+    let compileDate = (__DATE__ ++ " " ++ __TIME__)
+    -- let compileDate = (__DATE__ ++ " " ++ __TIME__)
     let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "\tunder the 3-Clause BSD License.\nCompiled " ++ compileDate
@@ -260,7 +260,7 @@ main = do
     dataCPUTime <- getCPUTime
 
     -- Diagnose any input graphs
-    let inputGraphList = PU.seqParMap rdeepseq (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = PU.seqParMap PU.myStrategy  (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime <- getCPUTime

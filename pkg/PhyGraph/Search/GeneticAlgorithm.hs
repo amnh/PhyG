@@ -103,7 +103,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             recombineSwap = getRandomElement (seedList !! 4) [None, NNI, SPR] --  these take too long, "tbr", "alternate"]
 
             -- options to join via union choices or all in fuse
-            joinType =  getRandomElement (seedList !! 6) [False, True]
+            joinType =  getRandomElement (seedList !! 6) [JoinPruned, JoinAll ]
 
             doSteepest = True
             returnBest = False
@@ -113,7 +113,20 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             randomPairs = True
             reciprocal = False
 
-            (recombinedGraphList, _) = F.fuseAllGraphs inGS inData (drop 6 seedList) (2 * popSize) (maxBound :: Int) 0 recombineSwap joinType doSteepest returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
+            -- populate SwapParams structure
+            swapParams = SwapParams { swapType = recombineSwap
+                                    , joinType = joinType 
+                                    , atRandom = True -- randomize swap order
+                                    , keepNum  = (2 * popSize)
+                                    , maxMoveEdgeDist = (maxBound :: Int)
+                                    , steepest = doSteepest
+                                    , joinAlternate = False -- not working now 
+                                    , doIA = False
+                                    , returnMutated = False 
+                                    }
+
+
+            (recombinedGraphList, _) = F.fuseAllGraphs swapParams inGS inData (drop 6 seedList) 0 returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
 
             -- selection of graphs population
             -- unique sorted on cost so getting unique with lowest cost
@@ -175,12 +188,24 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
             doRandomOrder = True
             maxRounds = getRandomElement (randList !! 6) [1..5]
 
+            -- populate SwapParams structure
+            swapParams = SwapParams { swapType = swapType
+                                         , joinType = joinType 
+                                         , atRandom = atRandom
+                                         , keepNum  = numToKeep
+                                         , maxMoveEdgeDist = maxMoveEdgeDist
+                                         , steepest = steepest
+                                         , joinAlternate = alternate 
+                                         , doIA = doIA
+                                         , returnMutated = returnMutated 
+                                         }
+
         in
 
         -- only swap mutation stuff for tree
         if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then
             -- trace ("1")
-            let (newGraphList, _) =  S.swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated [inGraph] 0 [(randList, inSimAnnealParams, inGraph)]
+            let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph][(randList, inSimAnnealParams, inGraph)]
             in
             if (not . null) newGraphList then head newGraphList
             else inGraph
@@ -190,7 +215,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         else
             if editType == "swap" then
                 -- trace ("2")
-                let (newGraphList, _) =  S.swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated [inGraph] 0 [(randList,inSimAnnealParams, inGraph)]
+                let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(randList,inSimAnnealParams, inGraph)]
                 in
                 if (not . null) newGraphList then head newGraphList
                 else inGraph

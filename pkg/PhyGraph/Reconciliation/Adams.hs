@@ -40,7 +40,6 @@ Portability :  portable (I hope)
 
 module Reconciliation.Adams (makeAdamsII) where
 
-import           Control.Parallel.Strategies
 import qualified Data.Graph.Inductive.Graph        as G
 import qualified Data.Graph.Inductive.PatriciaTree as P
 import qualified Data.List                         as L
@@ -109,7 +108,7 @@ makeAdamsII leafNodeList inFGList
         inGraphNonLeafNodes = fmap (drop $ length leafNodeList) inGraphNodes
         newNodeListList = fmap (leafNodeList ++ ) inGraphNonLeafNodes
         inFGList' = mkGraphPair <$> zip  newNodeListList inGraphEdges
-        allTreesList = PU.seqParMap rdeepseq  isTree inFGList' -- `using` PU.myParListChunkRDS
+        allTreesList = PU.seqParMap PU.myStrategy   isTree inFGList' -- `using` PU.myParListChunkRDS
         allTrees = L.foldl1' (&&) allTreesList
     in
     if not allTrees then errorWithoutStackTrace ("Input graphs are not all trees in makeAdamsII: " ++ show allTreesList)
