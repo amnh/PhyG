@@ -378,13 +378,17 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
    if null graphDataList then []
    else
       let firstGraphData = head graphDataList
-          charInfoVV = fmap thd3 $ thd3 inData
           -- update with unions for rejoining
           -- using best cost for differentiate since there was no single graph to get original deltas
           -- add randomize edges option?
+          
+          {- Turned off join prune option here 
+          charInfoVV = fmap thd3 $ thd3 inData
           (splitGraphDec, splitGraphSimple, splitCost, baseGraphRootIndex, prunedGraphRootIndex, prunedParentRootIndex, _, edgesInPrunedList, netPenaltyFactor) = firstGraphData
           prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphDec prunedGraphRootIndex
           unionEdgeList = S.getUnionRejoinEdgeList inGS splitGraphDec charInfoVV [baseGraphRootIndex] (curBestCost - splitCost) prunedToRejoinUnionData []
+         -}
+
           firstGraphData' = firstGraphData
                             {-Turned off for now since doesn't alternate 
                             if joinType swapParams /= JoinAll then
