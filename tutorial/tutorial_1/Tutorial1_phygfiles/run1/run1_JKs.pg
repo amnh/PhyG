@@ -1,0 +1,8 @@
+--Jacknifes for Chel1 
+set(seed:73412305) 
+set(outgroup:"Limulus") 
+read(nucleotide:"chel_16S.fas") 
+read(nucleotide:"chel_cox1.fas") 
+read(newick:"chel_run1.tre") 
+support(jackknife: 50)
+report("chel_run1_jk.dot", support, dotpdf, overwrite)
