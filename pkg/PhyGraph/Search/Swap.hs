@@ -40,7 +40,6 @@ module Search.Swap  ( swapSPRTBR
                     , getUnionRejoinEdgeList
                     ) where
 
-import           Control.Parallel.Strategies
 import qualified Data.List                                     as L
 import           Data.Maybe
 import qualified Data.Vector                                   as V
@@ -55,8 +54,6 @@ import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
 import           Utilities.Utilities                           as U
 -- import           Debug.Trace
--- import Control.Monad.ST
--- import Data.STRef
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
