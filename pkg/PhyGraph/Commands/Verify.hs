@@ -134,7 +134,7 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 
 -- | swapArgList is the list of valid swap arguments
 swapArgList :: [String]
-swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "inorder", "joinall", "joinpruned", "keep", "maxchanges",
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "inorder", "joinall", "joinpruned", "joinalternate", "keep", "maxchanges",
     "nni", "replicates", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments

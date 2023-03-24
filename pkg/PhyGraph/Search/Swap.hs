@@ -86,20 +86,23 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
       --else
         if (joinType swapParams) == JoinAll || isJust inSimAnnealParams then
             swapSPRTBR' (swapParams {joinType = JoinAll}) inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
-         else
+        else
             -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
             let (firstList, firstCounter) = swapSPRTBR' (swapParams {joinType = JoinPruned}) inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
 
                 -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
                 bestFirstList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : firstList)
 
-                -- change JoinAlternate for return to pruned union
-                (alternateList, alternateCounter) = swapSPRTBRList (swapParams {joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $ zip3 (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
+                ---change JoinAlternate for return to pruned union
+                (bestAlternateList, alternateCounter) = 
+                  if (joinType swapParams) == JoinAlternate then 
+                     let (alternateList, alternateCounter') = swapSPRTBRList (swapParams {joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $ zip3 (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap)) (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams) bestFirstList
+                     in
+                     (GO.selectGraphs Best  (keepNum swapParams) 0.0 (-1) $ inGraph : (alternateList ++ bestFirstList), alternateCounter') 
 
-                -- bestAlternateList = bestFirstList
-                -- alternateCounter = firstCounter
-                bestAlternateList = GO.selectGraphs Best  (keepNum swapParams) 0.0 (-1) $ inGraph : (alternateList ++ bestFirstList)                
-
+               -- JoinPruned-don't alternate during search
+                  else (bestFirstList, firstCounter)             
+                
                 -- recursive list version as opposed ot parMap version
                 -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
                 (afterSecondList, afterSecondCounter) = swapSPRTBRList (swapParams {joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $ zip3 (U.generateRandIntLists (length bestAlternateList) (head $ drop 2 randomIntListSwap)) (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams) bestAlternateList
@@ -133,7 +136,7 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs tripleList =
          in
          {-This is necessary in some cases--even though swapped to completion in swapSPRTBR'-}
          --if bestGraphCost < (snd6 . head) curBestGraphs && joinType swapParams == JoinAlternate then
-         if bestGraphCost < (snd6 . head) curBestGraphs then
+         if joinType swapParams == JoinAlternate && bestGraphCost < (snd6 . head) curBestGraphs then
             let graphsToSwap = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (bestGraphList ++ (fmap thd3 $ tail tripleList))
                 tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
             in
@@ -142,7 +145,7 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs tripleList =
                swapSPRTBR swapParams inGS inData swapCounter bestGraphList $ [(tail randomIntListSwap, inSimAnnealParams, inGraph)] -- : tripleToSwap
             else swapSPRTBRList swapParams inGS inData swapCounter bestGraphList tripleToSwap
          else
-         swapSPRTBRList swapParams inGS inData swapCounter bestGraphList (tail tripleList)
+            swapSPRTBRList swapParams inGS inData swapCounter bestGraphList (tail tripleList)
 
 -- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
 -- options such as joinType to ensure complete swap but with an edge unions pass to
@@ -399,7 +402,7 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
 
       -- found better cost graph
       if newMinCost < curBestCost then
-         traceNoLF ("\t->" ++ (show newMinCost) ++ " " ++ (show curBestCost)) $
+         traceNoLF ("\t->" ++ (show newMinCost)) $ --  ++ " " ++ (show curBestCost)) $
          -- for alternarte do SPR first then TBR
          let graphsToSwap = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) newGraphList -- (newGraphList ++ (tail inGraphList))
          in
@@ -435,11 +438,11 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
 
              -- these conditions help to prevent recswapping endlessly on new graphs thatare not in buffers,
              -- but have same cost
-             (hitMax, graphsToDo') = if length graphsToDo >= ((keepNum swapParams) - 1) then (True, (tail inGraphList))
-                           else if length newCurSameBetterList == length curSameBetterList then (True, (tail inGraphList))
-                           else if length newCurSameBetterList >= ((keepNum swapParams) - 1) then (True, (tail inGraphList))
+             graphsToDo' = if length graphsToDo >= ((keepNum swapParams) - 1) then (tail inGraphList)
+                           else if length newCurSameBetterList == length curSameBetterList then (tail inGraphList)
+                           else if length newCurSameBetterList >= ((keepNum swapParams) - 1) then (tail inGraphList)
                            --else if (fmap fst6 newCurSameBetterList) ==  (fmap fst6 curSameBetterList) then (tail inGraphList)
-                           else (False, graphsToDo)
+                           else graphsToDo
 
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
