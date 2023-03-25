@@ -96,14 +96,19 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList@((randomI
                 bestCandidates@(bestFirstCost, bestFirstList) = pruneOutWorse swapParams $ inGraph : toList firstList
 
              -- change JoinAlternate for return to pruned union
-                (alternateList, alternateCounter) = swapSPRTBRList (swapParams {joinType = JoinAlternate}) inGS inData firstCounter bestCandidates $ zip3
+                (alternateList, alternateCounter') = swapSPRTBRList (swapParams {joinType = JoinAlternate}) inGS inData firstCounter bestCandidates $ zip3
                     (U.generateRandIntLists   (length bestFirstList) (head $ drop 2 randomIntListSwap))
                     (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
                     (toList bestFirstList)
-             -- bestAlternateList = bestFirstList
+                (bestAltCandidates@(bestAltCost, bestAltList), alternateCounter) = if (joinType swapParams == JoinAlternate) 
+                  then
+                     (pruneOutWorse swapParams $ inGraph : toList (alternateList <> bestFirstList), alternateCounter')
+                  else (bestCandidates, firstCounter)
+
+               -- bestAlternateList = bestFirstList
                 -- alternateCounter = firstCounter
-                bestAltCandidates@(bestAltCost, bestAltList) = pruneOutWorse swapParams $ inGraph : toList (alternateList <> bestFirstList)
-             -- recursive list version as opposed ot parMap version
+               -- recursive list version as opposed ot parMap version
+
                 -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
                 (afterSecondList, afterSecondCounter) = swapSPRTBRList (swapParams {joinType = JoinAll}) inGS inData alternateCounter bestAltCandidates $ zip3
                     (U.generateRandIntLists   (length bestAltList) (head $ drop 2 randomIntListSwap))
@@ -149,7 +154,7 @@ swapSPRTBRList swapParams inGS inData inCounter bestCandidates@(curBestCost, cur
     in  {-
         This is necessary in some cases--even though swapped to completion in swapSPRTBR'
         -}
-        if bestGraphCost < curBestCost
+        if joinType swapParams == JoinAlternate && bestGraphCost < curBestCost
         then let (_, graphsToSwap) = prune $ toList bestGraphList <> fmap thd3 ts
                  tripleToSwap = zip3
                      (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap))
@@ -455,11 +460,11 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
 
              -- these conditions help to prevent recswapping endlessly on new graphs thatare not in buffers,
              -- but have same cost
-             (hitMax, graphsToDo') = if length graphsToDo >= ((keepNum swapParams) - 1) then (True, (tail inGraphList))
-                           else if length newCurSameBetterList == length curSameBetterList then (True, (tail inGraphList))
-                           else if length newCurSameBetterList >= ((keepNum swapParams) - 1) then (True, (tail inGraphList))
+             graphsToDo' = if length graphsToDo >= ((keepNum swapParams) - 1) then (tail inGraphList)
+                           else if length newCurSameBetterList == length curSameBetterList then (tail inGraphList)
+                           else if length newCurSameBetterList >= ((keepNum swapParams) - 1) then (tail inGraphList)
                            --else if (fmap fst6 newCurSameBetterList) ==  (fmap fst6 curSameBetterList) then (tail inGraphList)
-                           else (False, graphsToDo)
+                           else graphsToDo
 
          in
          -- trace ("Num in best: " ++ (show $ length curSameBetterList) ++ " Num to do: " ++ (show $ length graphsToDo) ++ " from: " ++ (show (length newNovelGraphList, length newGraphList)))
