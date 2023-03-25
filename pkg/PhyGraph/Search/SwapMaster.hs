@@ -48,6 +48,8 @@ import qualified Search.Swap                 as S
 import           Text.Read
 import           Types.Types
 import           Utilities.Utilities         as U
+import qualified Data.List.NonEmpty          as NE
+
 
 -- | swapMaster processes and spawns the swap functions
 -- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
@@ -146,9 +148,11 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
            in
 
            trace progressString (
-           let (newGraphList, counter) = let graphPairList = PU.seqParMap PU.myStrategyHighLevel  (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
+           let inBestGraphs = (snd6 $ head inGraphList, NE.fromList inGraphList)
+               (newGraphList, counter) = let graphPairList = PU.seqParMap PU.myStrategyHighLevel  (S.swapSPRTBR localSwapParams inGS inData 0 inBestGraphs) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                              (graphListList, counterList) = unzip graphPairList
-                                         in (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                             graphLL = fmap NE.toList graphListList
+                                         in (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphLL, sum counterList)
               in
               let finalGraphList = if null newGraphList then inGraphList
                                    else newGraphList

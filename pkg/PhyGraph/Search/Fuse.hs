@@ -53,6 +53,8 @@ import qualified ParallelUtilities                             as PU
 import qualified Search.Swap                                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
+import qualified Data.List.NonEmpty                            as NE
+
 
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing

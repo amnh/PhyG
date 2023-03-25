@@ -45,6 +45,7 @@ import qualified Search.NetworkAddDelete as N
 import qualified Search.Swap             as S
 import           Types.Types
 import qualified Utilities.LocalGraph    as LG
+import qualified Data.List.NonEmpty                            as NE
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
@@ -205,20 +206,20 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         -- only swap mutation stuff for tree
         if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then
             -- trace ("1")
-            let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph][(randList, inSimAnnealParams, inGraph)]
+            let inBestGraphs = (snd6 inGraph, NE.fromList [inGraph])
+                (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 inBestGraphs [(randList, inSimAnnealParams, inGraph)]
             in
-            if (not . null) newGraphList then head newGraphList
-            else inGraph
+            NE.head newGraphList
             -- head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
 
         -- graphs choose what type of mutation at random
         else
             if editType == "swap" then
                 -- trace ("2")
-                let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(randList,inSimAnnealParams, inGraph)]
+                let inBestGraphs = (snd6 inGraph, NE.fromList [inGraph])
+                    (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 inBestGraphs [(randList,inSimAnnealParams, inGraph)]
                 in
-                if (not . null) newGraphList then head newGraphList
-                else inGraph
+                NE.head newGraphList
                 -- head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
 
             else
