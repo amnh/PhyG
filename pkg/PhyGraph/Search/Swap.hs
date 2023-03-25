@@ -213,7 +213,7 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
              (annealDriftGraphs', anealDriftCounterList, _) = unzip3 $ (PU.seqParMap PU.myStrategy (swapAll swapParams inGS inData randomIntListSwap 0 (snd6 inGraph) (pure inGraph) numLeaves leafGraph leafDecGraph leafGraphSoftWired inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
 
              -- annealed/Drifted 'mutated' graphs
-             annealDriftGraphs = pruneDuplicates swapParams $ fold annealDriftGraphs'
+             annealDriftGraphs = pruneDuplicates swapParams $ concatMap NE.toList annealDriftGraphs'
 
              -- swap back "normally" if desired for full drifting/annealing
              (swappedGraphs, counter, _) = swapAll swapParams inGS inData randomIntListSwap (sum anealDriftCounterList) (min (snd6 inGraph) (minimum $ fmap snd6 annealDriftGraphs)) annealDriftGraphs numLeaves leafGraph leafDecGraph leafGraphSoftWired inGraphNetPenaltyFactor Nothing
@@ -388,7 +388,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
       -- logic for returning normal swap operations (better only)
       -- versus simulated annealin/Drifing returning potentially sub-optimal
       if isNothing inSimAnnealParams then
-         postProcessSwap swapParams inGS inData (drop 2 randomIntListSwap) counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor Nothing newMinCost newBreakEdgeNumber newGraphList
+         postProcessSwap swapParams inGS inData (drop 2 randomIntListSwap) counter curBestCost curSameBetterList inGraphList numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor Nothing newMinCost newBreakEdgeNumber (NE.fromList newGraphList)
 
       -- simulated annealing/Drift post processing
       else
@@ -428,14 +428,14 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
          if (swapType swapParams == TBRAlternate) || (joinType swapParams == JoinAlternate) then (newGraphList, counter, inSimAnnealParams)
 
          -- regular swap--keep going with better graphs
-         else swapAll' swapParams inGS inData randomIntListSwap (counter + 1) newMinCost newGraphList graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams
+         else swapAll' swapParams inGS inData randomIntListSwap (counter + 1) newMinCost (NE.toList newGraphList) graphsToSwap numLeaves leafSimpleGraph leafDecGraph leafGraphSoftWired netPenaltyFactor breakEdgeNumber inSimAnnealParams
 
 
       -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
       -- but could change
       else if newMinCost > curBestCost then
          -- trace ("Worse " ++ (show newMinCost)) (
-         let newCurSameBetterList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) (curSameBetterList ++ newGraphList)
+         let newCurSameBetterList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) (curSameBetterList ++ (NE.toList newGraphList))
          in
          -- traceNoLF ("\tHolding " ++ (show $ length newCurSameBetterList) ++ " at cost "  ++ (show curBestCost) ++ " with " ++ (show $ tail inGraphList) ++ " remaining to " ++ swapType ++ " swap")
 
@@ -447,9 +447,9 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
       else
          -- Important to not limit curSameBest since may rediscover graphs via swapping on equal when limiting the number to keep
          -- can be a cause of infinite running issues.
-         let newCurSameBetterList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (curSameBetterList ++ newGraphList)
+         let newCurSameBetterList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (curSameBetterList ++ (NE.toList newGraphList))
 
-             graphsToDo  = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1)  $ ((tail inGraphList) ++ newGraphList) `GO.phylogeneticGraphListMinus` curSameBetterList
+             graphsToDo  = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1)  $ ((tail inGraphList) ++ (NE.toList newGraphList)) `GO.phylogeneticGraphListMinus` curSameBetterList
 
              -- newNovelGraphs = GO.selectGraphs Best numToKeep 0.0 (-1)  $ newGraphList `GO.phylogeneticGraphListMinus` (curSameBetterList ++ (tail inGraphList))
 
@@ -506,7 +506,7 @@ postProcessAnnealDrift swapParams inGS inData randomIntListSwap counter curBestC
    -- found better cost graph
       if newMinCost < curBestCost then
          traceNoLF ("\t->" ++ (show newMinCost))
-         (newGraphList, counter, inSimAnnealParams)
+         (NE.fromList $ newGraphList, counter, inSimAnnealParams)
          {-
          -- for alternate do SPR first then TBR
          if not alternate then
@@ -518,7 +518,7 @@ postProcessAnnealDrift swapParams inGS inData randomIntListSwap counter curBestC
       -- not better so check for drift changes or annealing steps and return if reached maximum number
       else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then
          --trace ("PPA return: " ++ (show (newMinCost, curBestCost)))
-         (GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
+         (NE.fromList $ GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (newGraphList ++ curSameBetterList), counter, inSimAnnealParams)
 
       -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
       else
