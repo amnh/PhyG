@@ -419,7 +419,7 @@ postProcessSwap swapParams inGS inData randomIntListSwap counter curBestCost cur
 
       -- found better cost graph
       if newMinCost < curBestCost then
-         traceNoLF ("\t->" ++ (show newMinCost) ++ " " ++ (show curBestCost)) $
+         traceNoLF ("\t->" ++ (show newMinCost)) $ -- ++ " " ++ (show curBestCost)) $
          -- for alternarte do SPR first then TBR
          let graphsToSwap = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) newGraphList -- (newGraphList ++ (tail inGraphList))
          in
