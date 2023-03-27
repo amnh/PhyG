@@ -106,6 +106,8 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
 
                 bestSecondList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) afterSecondList
 
+                --add final joinall if buffer full?
+
             in
             (bestSecondList, afterSecondCounter + inCounter)
             
@@ -129,18 +131,16 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs tripleList =
       else
          let (graphList, swapCounter) = swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
              bestGraphList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : graphList)
-             bestGraphCost = minimum $ fmap snd6 graphList
+             bestGraphCost = snd6 $ head bestGraphList
          in
          {-This is necessary in some cases--even though swapped to completion in swapSPRTBR'-}
          --if bestGraphCost < (snd6 . head) curBestGraphs && joinType swapParams == JoinAlternate then
-         if joinType swapParams == JoinAlternate && bestGraphCost < (snd6 . head) curBestGraphs then
-            let graphsToSwap = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (bestGraphList ++ (fmap thd3 $ tail tripleList))
+         if (joinType swapParams == JoinAlternate || joinType swapParams == JoinPruned) && bestGraphCost < (snd6 . head) curBestGraphs then
+            let graphsToSwap = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) bestGraphList 
                 tripleToSwap = zip3 (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length graphsToSwap)) (U.generateUniqueRandList (length graphsToSwap) inSimAnnealParams) graphsToSwap
             in
             -- go back to joinPruned if in joinAlternate--short circuits
-            if joinType swapParams == JoinAlternate then 
-               swapSPRTBR swapParams inGS inData swapCounter bestGraphList $ [(tail randomIntListSwap, inSimAnnealParams, inGraph)] -- : tripleToSwap
-            else swapSPRTBRList swapParams inGS inData swapCounter bestGraphList tripleToSwap
+            swapSPRTBRList swapParams inGS inData swapCounter bestGraphList (tripleToSwap ++ tail tripleList) -- $ [(tail randomIntListSwap, inSimAnnealParams, inGraph)] -- : tripleToSwap
          else
             swapSPRTBRList swapParams inGS inData swapCounter bestGraphList (tail tripleList)
 
