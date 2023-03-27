@@ -17,7 +17,7 @@ packages:
 ---------------------------------------------------------------------------------
 
 executable-static: False
-with-compiler: ghc-9.4.4
+with-compiler: ghc-9.6.1
 
 
 ---------------------------------------------------------------------------------
@@ -56,6 +56,25 @@ minimize-conflict-set:    True
 
 
 ---------------------------------------------------------------------------------
+-- Package flags (useful defaults)
+---------------------------------------------------------------------------------
+
+-- Applies to *all* packages, not just dependencies...
+package *
+    benchmarks:        False
+    documentation:     True
+    tests:             False
+    library-profiling: True
+    library-profiling-detail: all-functions
+    optimization: 2
+
+-- Applies to *only* the specified package!
+package PhyGraph
+    profiling: True
+    profiling-detail: late
+    optimization: 2
+
+---------------------------------------------------------------------------------
 -- Dependency specifications
 --
 -- Always allow a newer version of libraries which are tightly coupled to the GHC
@@ -68,14 +87,14 @@ minimize-conflict-set:    True
 -- to use a version greater than or equal to the patch.
 ---------------------------------------------------------------------------------
 
-
 allow-newer:
     aeson,
     base,
     bytestring,
     text,
+    vector,
 
--- package hashtables 
+-- package hashtables
 --    flags: -debug
 
 preferences:
@@ -87,4 +106,3 @@ source-repository-package
   type: git
   location: https://github.com/recursion-ninja/bv-little
   tag: 4541d78545933f450af5c241a83e4b07a0e69dca
-
