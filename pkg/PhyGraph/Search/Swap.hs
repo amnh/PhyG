@@ -44,6 +44,8 @@ module Search.Swap  ( swapSPRTBR
 
 import           Control.Parallel.Strategies
 import Data.Foldable (fold, toList)
+import Data.Semigroup (Arg(..))
+import qualified Data.Set as Set
 import qualified Data.List                                     as L
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty                            as NE
@@ -66,6 +68,23 @@ import Data.STRef
 
 type BestCandidates  = (VertexCost, NonEmpty PhylogeneticGraph)
 type FoundCandidates = NonEmpty PhylogeneticGraph
+
+
+newtype MinCostGraphSet = MinCostGraphSet (Arg VertexCost (Set.Set PhylogeneticGraph))
+
+
+instance Semigroup MinCostGraphSet where
+
+  (<>) lhs@(MinCostGraphSet (Arg c1 s1)) rhs@(MinCostGraphSet (Arg c2 s2)) =
+      case c1 `compare`c2 of
+        LT -> lhs
+        GT -> rhs
+        EQ -> MinCostGraphSet . Arg c1 $ s1 <> s2
+
+
+candidateGraph :: PhylogeneticGraph -> MinCostGraphSet
+candidateGraph g = MinCostGraphSet . Arg (snd6 g) $ Set.singleton g
+
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
