@@ -152,11 +152,13 @@ Filenames must include the suffix (e.g. .fas, .fasta, .fastc, .ss, .tre). Note: 
 the wildcards capture files ending in .fasta and .fas. Failure to include these suffices 
 will result in the error "File(s) not found in `read' command". The filename must match 
 \textit{exactly}, including capitalization. We indicate that the files contain IUPAC 
-\texttt{nucleotide} sequence data in fasta format.
+\texttt{nucleotide} sequence data in fasta format. The argument \texttt{tcm} refers to 
+the transformation cost matrix. The first integer specifies the substitution cost and the 
+second integer value defines the indel cost. By default, the cost of both are set to 1.
 
 \item Having read in our data, it is advisable to verify that the files were properly 
-parsed. We \texttt{report} a \texttt{crossrefs} and \texttt{data} file, which allows us
-to output information concerning the characters and terminals in our data files. 
+parsed. We \texttt{report} a \texttt{crossrefs} and \texttt{data} files, which allows 
+us to output information concerning the characters and terminals in our data files. 
 
 \item Save this file with the name \textbf{flu\_net1.pg} in a directory \texttt{phygfiles} 
 located on your Desktop.
@@ -170,12 +172,14 @@ located on your Desktop.
 Notice the output appear in the \textit{Terminal} window.
 
 \item Examine the reported files \textbf{"flu\_net1\_data.csv"} and 
-\textbf{"flu\_net1\_cr.csv"}. The \texttt{data} file summarizes information 
-relating to the input data (number of terminals, number of input files, number of 
-character blocks and the total number of characters). The \texttt{crossrefs} file
-provides a comprehensive visual overview of the completeness of the data. Together
-these files indicate that data has been input for nine terminal taxa, across 12 data 
-blocks. The \texttt{crossrefs} file highlights that data is missing for three taxa.
+\textbf{"flu\_net1\_cr.csv"}. The \texttt{data} file summarizes information relating 
+to the input data (number of terminals, number of input files, number of character 
+blocks and the total number of characters). The \texttt{crossrefs} file provides a 
+comprehensive visual overview of the completeness of the data. Together these 
+files indicate that data has been input for nine terminal taxa, across 12 data 
+blocks. The \texttt{crossrefs} file highlights that data in two of the files is missing 
+for three taxa.
+
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
@@ -224,12 +228,19 @@ overwrite)} and \texttt{report("flu\_net1\_gv.tre", dotpdf, graphs, overwrite)}.
 \item Let's examine the reported tree files. Because the file \textbf{"flu\_net1.tre"} 
 represents a phylogenetic network (as opposed to tree), this file can not be viewed 
 using tree viewing programs such as \textit{FigTree} or \textit{TreeView}. Using 
-your preferred text editor, open this file. This looks like a standard newick tree file, 
-in parenthetical notation, however, notice the addition of six \textbf{\#}'s, which 
-represent reticulation events. The values associated with the taxon names and 
-HTUs are the branch lengths. The cost of the tree(s) can be found in square 
-brackets, at the end of each tree. In this analysis, \phyg returned a single network
- with a cost of 13930.
+your preferred text editor, open this file (Figure \ref{tre1}). This looks like a standard 
+newick tree file, in parenthetical notation, however, notice the addition of \hl{four} 
+\textbf{\#}'s, which represent reticulation events. The values associated with 
+the taxon names and HTUs are the branch lengths. The cost of the tree(s) can 
+be found in square brackets, at the end of each tree. In this analysis, \phyg returned 
+a single network  with a cost of 13930.
+ 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{tre1.png}
+\caption{\textbf{"flu\_net1.tre"}.}
+\label{tre1}
+\end{figure}
 
 \item  The command \texttt{report("filename.tre", dotpdf, graphs, overwrite)} will 
 produce a file that can be read in \textit{Adobe Illustrator}, \textit{Apple Preview} 
@@ -242,8 +253,8 @@ website. \textit{dot} is a graph description language and Graphviz an open-sourc
 graph visualization software. This program is well suited to representing graphs 
 and networks. Open the reported file \textbf{"flu\_net1\_gv.tre.eps"} in your preferred
 visualization program (Figure \ref{eps1}). The values associated with the taxon 
-names and HTUs are the branch lengths. Examining this file, we can see three 
-networks (one leading into HTU14, HTU15 and HTU16).
+names and HTUs are the branch lengths. Examining this file, we can see \hl{two} 
+networks (one leading into\hl{ HTU15 and HTU16}).
 
 \begin{figure}[H]
 \centering
@@ -254,12 +265,13 @@ networks (one leading into HTU14, HTU15 and HTU16).
 
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
-\subsection{Refining a network}
-\label{subsec:refininganetwork}
+\subsection{Refining a network: adding network edges}
+\label{subsec:netadd}
 
-Now that we have a network to work with, we can perform some edit operations on 
-the network edges. In this tutorial we will learn how to add, delete, add-delete and 
-move network edges to the existing network graph.
+Now that we have a network to work with, we can do some refinement operations 
+on the network edges. In the next four tutorials we will learn how to perform 
+manipulation of network edges to existing network graphs. This tutorial will 
+focus on adding network edges.
 
 \begin {enumerate}
 
@@ -270,14 +282,14 @@ first network.
 \item Open your text editor of choice and type the following:
 
 	\begin{quote}	
-	-\/-Refinements of networks using flu data sets\\
+	-\/-Refinements of networks using flu data sets using netadd\\
 	set(seed:1634561640)\\
 	set(outgroup:"1466\_H7N2\_Avian\_chicken\_pa\_1490921\_2002")\\
 	set(graphtype:softwired)\\
-	set(graphfactor:w23)\\ 
+	set(graphfactor:w15)\\ 
 	read(nucleotide:"flu*.fas*", tcm:(2,1))\\
 	read(newick:"flu\_net1.tre")\\
-	refine(netadd, atrandom, steepest)\\
+	refine(netadd, maxnetedges:5, atrandom, steepest)\\
 	report("flu\_net2.tre", graphs, newick, overwrite)\\
 	report("flu\_net2\_gv.tre", dotpdf, graphs, overwrite)
 	\end{quote}
@@ -288,29 +300,151 @@ analysis.
 \item The next three lines are identical to that of \textbf{flu\_net1.pg}, so we 
 will not comment about them any further. 
 
-\item Unlike the previous script, here we \texttt{set} the \texttt{graphfactor} to 
-\texttt{w23}. This penalty does not involve the calculation of the Maximum 
-Parsimony display tree, therefore it has a lower time complexity to calculate
-the penalty.
+\item Unlike the previous script, here, we \texttt{set} the \texttt{graphfactor} to 
+\texttt{w15}. This penalty involves the calculation of the most Parsimony 
+display tree. Because this penalty has a higher time complexity to calculate 
+the total network costs (than \texttt{w23} and \texttt{nopenalty}), this may take 
+significantly more time for larger datasets. 
 
 \item In addition to importing the nucleotide sequence data files, we also
 read in the \texttt{newick} tree file \textbf{"flu\_net2.tre"} generated from the 
-previous script. Reading in tree files can be a useful starting point and can 
-speed up analyses, especially when the \texttt{build} can be circumvented.
+previous tutorial. Reading in tree or graph files, rather than building them from 
+scratch, can be a useful starting point and can speed up analyses.
 
-\item
+\item Having read in our data and graph files, we can now perform refinements 
+of the network. The command \texttt{refine} performs edit operations on network 
+edges. The network specific refinement operations include \texttt{netadd}, 
+\texttt{netdel}, \texttt{netadddel} and \texttt{netmove}. These refinements are 
+only applied to network edges, hence they can only be applied to softwired and 
+hardwired graphs (as opposed to trees). \\
 
-\item
+The argument \texttt{netadd} adds network edges to input graphs at all possible
+positions until no better cost graph is found. Though no need to specify here, 
+the default arguments of \texttt{refine} are \texttt{atrandom} and \texttt{steepest}.
+\texttt{atrandom} randomizes the evaluation of the networks and the order by 
+which they are generated. \texttt{steepest} specifies that if a better network is 
+found during the network refinement operations then the refinements will switch 
+greedily to this graph and abandon the previous network. The argument  
+\texttt{maxnetedges:n} only applies to \texttt{netadd}. This specifies that network
+edges can only be added to networks with the number of edges less that the integer 
+specified in \texttt{maxnetedges:n}.
 
 \item Save this file with the name \textbf{flu\_net2.pg} in the same directory as the 
 data files and previously reported tree files.
 
+\item Run the script.
 
+\item \hl{Examine the output in the \textit{Terminal} window. Here we can see that 
+\phyg performed 3 rounds of netadd.}\\
+
+Let's examine the reported tree files. 
+
+\item Opening the file \textbf{"flu\_net2.tre"} in your preferred text editor. This 
+newick file has ten \textbf{\#}'s, representing the reticulation events (Figure 
+\ref{tre2}). Comparing this tree to \textbf{flu\_net1.tre} (our input tree), we can 
+see that the addition of two additional network edges, reduced the cost of the 
+network from 13930 to 13528. 
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{tre2.png}
+\caption{\textbf{"flu\_net2.tre"}.}
+\label{tre2}
+\end{figure}
+
+\item  Open the reported file \textbf{"flu\_net2\_gv.tre.eps"} in your preferred
+visualization program (Figure \ref{eps2}). The values associated with the taxon 
+names and HTUs are the branch lengths. Examining this file, we can see five 
+networks (one leading into HTU19, HTU24, HTU26, HTU22 and HTU16).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{eps2.png}
+\caption{\textbf{"flu\_net2\_gv.tre.eps"}.}
+\label{eps2}
+\end{figure}
 
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
+\subsection{Refining a network: deleting network edges}
+\label{subsec:netdel}
 
+This tutorial will focus on deleting network edges.
+
+\begin {enumerate}
+
+\item Open your text editor of choice and type the following:
+
+	\begin{quote}	
+	-\/-Refinements of networks using flu data sets using netdel\\
+	set(seed:1634561640)\\
+	set(outgroup:"1466\_H7N2\_Avian\_chicken\_pa\_1490921\_2002")\\
+	set(graphtype:softwired)\\
+	set(graphfactor:w15)\\ 
+	read(nucleotide:"flu*.fas*", tcm:(2,1))\\
+	read(newick:"flu\_net1.tre")\\
+	refine(netdel, atrandom, steepest)\\
+	report("flu\_net3.tre", graphs, newick, overwrite)\\
+	report("flu\_net3\_gv.tre", dotpdf, graphs, overwrite)
+	\end{quote}
+
+\item The script begins with a comment that describes the purpose of this 
+analysis.
+
+\item The next six lines are identical to that of \textbf{flu\_net1.pg}, so we 
+will not comment about them any further. 
+
+\end{enumerate}
+%-------------------------------------------------------------------------------------------------------
+\subsection{Refining a network: adding and deleting network edges}
+\label{subsec:netdel}
+
+This tutorial will focus on iteratively adding and deleting network edges.
+
+\begin {enumerate}
+
+\item Open your text editor of choice and type the following:
+
+	\begin{quote}	
+	-\/-Refinements of networks using flu data sets using netadddel\\
+	set(seed:1634561640)\\
+	set(outgroup:"1466\_H7N2\_Avian\_chicken\_pa\_1490921\_2002")\\
+	set(graphtype:softwired)\\
+	set(graphfactor:w15)\\ 
+	read(nucleotide:"flu*.fas*", tcm:(2,1))\\
+	read(newick:"flu\_net1.tre")\\
+	refine(netadddel, atrandom, steepest)\\
+	report("flu\_net4.tre", graphs, newick, overwrite)\\
+	report("flu\_net4\_gv.tre", dotpdf, graphs, overwrite)
+	\end{quote}
+
+\end{enumerate}
+%-------------------------------------------------------------------------------------------------------
+\subsection{Refining a network: moving network edges}
+\label{subsec:netdel}
+
+This tutorial will focus on moving network edges.
+
+\begin {enumerate}
+
+\item Open your text editor of choice and type the following:
+
+	\begin{quote}	
+	-\/-Refinements of networks using flu data sets using netmove\\
+	set(seed:1634561640)\\
+	set(outgroup:"1466\_H7N2\_Avian\_chicken\_pa\_1490921\_2002")\\
+	set(graphtype:softwired)\\
+	set(graphfactor:w15)\\ 
+	read(nucleotide:"flu*.fas*", tcm:(2,1))\\
+	read(newick:"flu\_net1.tre")\\
+	refine(netmove, atrandom, steepest)\\
+	report("flu\_net5.tre", graphs, newick, overwrite)\\
+	report("flu\_net5\_gv.tre", dotpdf, graphs, overwrite)
+	\end{quote}
+
+\end{enumerate}
+%-------------------------------------------------------------------------------------------------------
 
 %\printindex
 \bibliography{/Users/louise/DropboxAMNH/big-refs-3.bib}
