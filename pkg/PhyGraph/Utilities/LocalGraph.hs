@@ -69,7 +69,7 @@ import           System.IO
 
 
 -- | Gr local graph definition using FGL
-type Gr a b = G.OrdGr P.Gr a b
+type Gr a b = P.Gr a b
 type Node = G.Node
 type LNode a = G.LNode a
 type DotGraph = GV.DotGraph
@@ -80,8 +80,8 @@ type LEdge b = G.LEdge b
 -- | getFENLocal maps to forestEnhancedNewickStringList2FGLList in GraphFormatUtilities
 -- to allow for potnetial swapping FGL graph backend
 -- requires leading and trailing space and newlines to be removed
-getFENLocal :: T.Text -> [G.OrdGr P.Gr T.Text Double]
-getFENLocal = fmap G.OrdGr . GFU.forestEnhancedNewickStringList2FGLList
+getFENLocal :: T.Text -> [Utilities.LocalGraph.Gr T.Text Double]
+getFENLocal = GFU.forestEnhancedNewickStringList2FGLList
 
 
 -- | readDotLocal calls GrapvViz function to allow for substitution later
@@ -1220,9 +1220,9 @@ testEdge fullGraph candidateEdge@(e,u,_) =
 -- checks for path between nodes e and u, if there is delete edge otherwise keep edge in list for new graph
 -- transitive reduction  Aho et al. 1972
 -- this not iterative with new graphs--shold it be?
-transitiveReduceGraph :: Eq b => Gr a b -> Gr a b
+transitiveReduceGraph ::  (Eq b) => Gr a b -> Gr a b
 transitiveReduceGraph fullGraph =
-  let requiredEdges = fmap (testEdge $ fullGraph) (labEdges fullGraph)
+  let requiredEdges = fmap (testEdge fullGraph) (labEdges fullGraph)
       newGraph = G.mkGraph (labNodes fullGraph) (concat requiredEdges)
   in
   newGraph

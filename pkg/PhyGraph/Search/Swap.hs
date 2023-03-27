@@ -70,20 +70,22 @@ type BestCandidates  = (VertexCost, NonEmpty PhylogeneticGraph)
 type FoundCandidates = NonEmpty PhylogeneticGraph
 
 
-newtype MinCostGraphSet = MinCostGraphSet (Arg VertexCost (Set.Set PhylogeneticGraph))
+newtype MinCostGraphSet = MinCostGraphSet (Arg VertexCost (NonEmpty PhylogeneticGraph))
 
 
 instance Semigroup MinCostGraphSet where
 
-  (<>) lhs@(MinCostGraphSet (Arg c1 s1)) rhs@(MinCostGraphSet (Arg c2 s2)) =
-      case c1 `compare`c2 of
+  (<>) lhs@(MinCostGraphSet x) rhs@(MinCostGraphSet y) =
+      case x `compare`y of
         LT -> lhs
         GT -> rhs
-        EQ -> MinCostGraphSet . Arg c1 $ s1 <> s2
+        EQ -> let Arg c1 s1 = x
+                  Arg _  s2 = y
+              in  MinCostGraphSet . Arg c1 $ s1 <> s2
 
 
 candidateGraph :: PhylogeneticGraph -> MinCostGraphSet
-candidateGraph g = MinCostGraphSet . Arg (snd6 g) $ Set.singleton g
+candidateGraph g = MinCostGraphSet . Arg (snd6 g) $ pure g
 
 
 
