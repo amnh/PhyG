@@ -240,7 +240,7 @@ hasNetParent inGraph inNode =
 -- does NOT rename nodes since need vertex info on that--but are reindexed
 removeChainedNetworkNodes :: (Show a, Show b) => Bool -> Gr a b -> Maybe (Gr a b)
 removeChainedNetworkNodes showWarning inGraph =
-    if isEmpty inGraph then Just inGraph
+    if isEmpty inGraph then Nothing
     else
         let (_, _, _, netVertexList) = splitVertexList inGraph
             parentNetNodeList = fmap (hasNetParent inGraph) $ fmap fst netVertexList

@@ -101,7 +101,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                  | any ((=="joinall").fst) lcArgList = JoinAll
                  | any ((=="joinpruned").fst) lcArgList = JoinPruned
                  | any ((=="joinalternate").fst) lcArgList = JoinAlternate
-                 | otherwise = JoinPruned
+                 | otherwise = JoinAll --others miss too much--need to refine unions
 
 
                -- randomize split graph and rejoin edges, defualt to randomize
