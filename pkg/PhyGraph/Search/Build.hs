@@ -201,10 +201,12 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           contractedGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildren
           reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" contractedGraph -}
 
-          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
+          reconciledGraph = LG.removeChainedNetworkNodes True $ GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
+
 
           -- this for non-convertable graphs
-          reconciledGraph' = if reconciledGraph /= LG.empty then reconciledGraph
+          reconciledGraph' = if isNothing reconciledGraph then reconciledGraphInitial
+                             else if fromJust reconciledGraph /= LG.empty then fromJust reconciledGraph
                              else reconciledGraphInitial
 
 
@@ -217,21 +219,21 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
 
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
 
-          numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
+          numNetNodes = length $ fth4 (LG.splitVertexList $ fromJust reconciledGraph)
       in
-      if reconciledGraph == LG.empty && not returnTrees then
+      if isNothing reconciledGraph && not returnTrees then
         errorWithoutStackTrace "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
       -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
-      else if returnGraph && not returnTrees then
+      else if isJust reconciledGraph && not returnTrees then
         trace ("Reconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees for softwired network")
-        [reconciledGraph]
+        [fromJust reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
-         if reconciledGraph /= LG.empty then
+         if isJust reconciledGraph then
             trace ("\n\tReconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees")
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
-            reconciledGraph : displayGraphs
+            (fromJust reconciledGraph) : displayGraphs
          else
             trace "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds."
             displayGraphs
