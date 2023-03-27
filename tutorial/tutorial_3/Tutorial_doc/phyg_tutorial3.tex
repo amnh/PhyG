@@ -122,7 +122,7 @@ include trees, forests and both softwired and hardwired networks. The current ch
 are \texttt{tree} (the default), \texttt{hardwired} and \texttt{softwired}. We \texttt{set} 
 the \texttt{graphtype} to \texttt{softwired}.
 
-\item When conducting a network analysis, a penalty can be ascribed so that 
+\item When conducting a network analysis, a penalty can be ascribed, so that 
 softwired phylogenetic networks can compete equally with phylogenetic trees on 
 a parsimony optimality basis. A network penalty takes into account the change in 
 cost as edges are added to the tree. Current choices include \texttt{nopenalty}, 
@@ -148,7 +148,7 @@ of each of these files in our script, we will use wildcards (*) to capture all t
 	read(nucleotide:"flu*.fas*", tcm:(2,1)\\
 	\end{quote}
 
-Filenames must include the suffix (e.g. .fas, .fasta, .fastc, .ss, .tre). Note in this case, 
+Filenames must include the suffix (e.g. .fas, .fasta, .fastc, .ss, .tre). Note: in this case, 
 the wildcards capture files ending in .fasta and .fas. Failure to include these suffices 
 will result in the error "File(s) not found in `read' command". The filename must match 
 \textit{exactly}, including capitalization. We indicate that the files contain IUPAC 
@@ -166,6 +166,8 @@ located on your Desktop.
 	\begin{quote}
   	phyg flu\_net1.pg
 	\end{quote}
+
+Notice the output appear in the \textit{Terminal} window.
 
 \item Examine the reported files \textbf{"flu\_net1\_data.csv"} and 
 \textbf{"flu\_net1\_cr.csv"}. The \texttt{data} file summarizes information 
@@ -187,21 +189,21 @@ will learn how to generate a network from trees using \texttt{PhyG}.
 \begin{enumerate}
 
 \item Modify the script to include \texttt{build(distance, rdwag, block, graph, eun, 
-replicates:1000)}. By specifying \texttt{block}, \phyg performs independent builds 
+replicates: 1000)}. By specifying \texttt{block}, \phyg performs independent builds 
 for each ``block'' of data. If this option is not specified, the builds are performed 
 combining all the data. This command causes a pairwise distance matrix to be 
 calculated ($\BigO n^2$) that is subsequently used as a basis for distance tree 
 construction. \texttt{distance} trees are constructed on the \texttt{block}s of data 
-by performing random addition sequence distance Wagner builds, yielding multiple 
-trees determined by the argument \texttt{replicates:n}. The resulting trees or 
-\texttt{graph}s are reconciled using the \texttt{eun} argument, turning them into 
-a network. \texttt{eun} reconciles block trees into a Edge-Union-Network 
+by performing random addition sequence distance Wagner builds (\texttt{rdWag}), 
+yielding multiple trees (\texttt{n}), as determined by the argument \texttt{replicates}. 
+The resulting trees or graphs are reconciled using the \texttt{eun} argument, turning 
+them into a network. \texttt{eun} reconciles block trees into a Edge-Union-Network 
 \citep{MiyagiandWheeler2019, Wheeler2022}.
 
-\item We want to examine the resulting trees. Trees are not reported as 
-output in the terminal window and must be directed to a file. Modify the script 
-to output tree files with \texttt{report("flu\_net1.tre", graphs, newick, overwrite)}
-and \texttt{report("flu\_net1\_gv.tre", dotpdf, graphs, overwrite)}.
+\item We will want to examine the resulting trees. Trees are not reported as 
+output in the \textit{Terminal} window and must be directed to a file. Modify the 
+script to output tree files with \texttt{report("flu\_net1.tre", graphs, newick, 
+overwrite)} and \texttt{report("flu\_net1\_gv.tre", dotpdf, graphs, overwrite)}.
 
 	\begin{quote}	
 	-\/-building networks for softwired tests using flu datasets\\
@@ -241,7 +243,7 @@ graph visualization software. This program is well suited to representing graphs
 and networks. Open the reported file \textbf{"flu\_net1\_gv.tre.eps"} in your preferred
 visualization program (Figure \ref{eps1}). The values associated with the taxon 
 names and HTUs are the branch lengths. Examining this file, we can see three 
-networks (leading into HTU14, HTU15 and HTU16).
+networks (one leading into HTU14, HTU15 and HTU16).
 
 \begin{figure}[H]
 \centering
@@ -255,16 +257,20 @@ networks (leading into HTU14, HTU15 and HTU16).
 \subsection{Refining a network}
 \label{subsec:refininganetwork}
 
-Now that we have a network, we can perform some edit operations on the network
-edges. In this tutorial we will learn how to add, delete, add-delete and move network
-edges to the existing network graph.
+Now that we have a network to work with, we can perform some edit operations on 
+the network edges. In this tutorial we will learn how to add, delete, add-delete and 
+move network edges to the existing network graph.
 
 \begin {enumerate}
+
+\item Rather than modify the previous script (possible to do with comments and 
+additional text), we will generate a new script to perform the refinements of our
+first network.
 
 \item Open your text editor of choice and type the following:
 
 	\begin{quote}	
-	-\/-Network refinements of networks using flu data sets\\
+	-\/-Refinements of networks using flu data sets\\
 	set(seed:1634561640)\\
 	set(outgroup:"1466\_H7N2\_Avian\_chicken\_pa\_1490921\_2002")\\
 	set(graphtype:softwired)\\
@@ -279,22 +285,25 @@ edges to the existing network graph.
 \item The script begins with a comment that describes the purpose of this 
 analysis.
 
-\item The next three lines of this script are identical to that of \textbf{flu\_net1.pg}, 
-so we will not comment about them here. 
+\item The next three lines are identical to that of \textbf{flu\_net1.pg}, so we 
+will not comment about them any further. 
 
 \item Unlike the previous script, here we \texttt{set} the \texttt{graphfactor} to 
 \texttt{w23}. This penalty does not involve the calculation of the Maximum 
 Parsimony display tree, therefore it has a lower time complexity to calculate
 the penalty.
 
+\item In addition to importing the nucleotide sequence data files, we also
+read in the \texttt{newick} tree file \textbf{"flu\_net2.tre"} generated from the 
+previous script. Reading in tree files can be a useful starting point and can 
+speed up analyses, especially when the \texttt{build} can be circumvented.
+
+\item
+
+\item
+
 \item Save this file with the name \textbf{flu\_net2.pg} in the same directory as the 
-data files and previously reported trees.
-
-\item
-
-\item
-
-\item
+data files and previously reported tree files.
 
 
 
