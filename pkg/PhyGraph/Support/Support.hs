@@ -38,7 +38,6 @@ module Support.Support  ( supportGraph
                         ) where
 
 import qualified Commands.Verify                as VER
-import           Control.Parallel.Strategies
 import           Data.Char
 import qualified Data.List                      as L
 import           Data.Maybe
@@ -58,6 +57,8 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.Distances            as DD
 import qualified Utilities.LocalGraph           as LG
+
+-- "High level" paralleization used for overall graphs contruction
 
 -- | driver for overall support
 supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
@@ -171,7 +172,7 @@ getResampleGraph :: GlobalSettings
                  -> Double
                  -> PhylogeneticGraph
 getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOptions jackFreq =
-   let resampledGraphList = PU.seqParMap rdeepseq  (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) -- `using` PU.myParListChunkRDS
+   let resampledGraphList = PU.seqParMap PU.myStrategyHighLevel (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) -- `using` PU.myParListChunkRDS
        -- create appropriate support graph >50% ?
        -- need to add args
        reconcileArgs = if graphType inGS == Tree then [("method","majority"), ("compare","identity"), ("edgelabel","true"), ("vertexlabel","true"), ("connect","true"), ("threshold","51"), ("outformat", "dot")]
@@ -488,9 +489,9 @@ getGraphTupleList inGraph =
       tupleList
       where makeindexBVPair (a,b) = (a, bvLabel b)
 
--- | getGBTuples takes a tuple list fomr graph containing initialized values and update those values based
+-- | getGBTuples takes a tuple list from graph containing initialized values and update those values based
 -- on each graph in the inGraph neigborhood
--- first doess this via swap--for network does edge net edge in turn by removing using netDel
+-- first does this via swap--for network does edge net edge in turn by removing using netDel
 getGBTuples :: GlobalSettings
             -> ProcessedData
             -> Int
@@ -511,11 +512,11 @@ getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inG
 
                     -- SoftWired => delete edge -- could add net move if needed
                      else if graphType inGS == SoftWired then
-                        PU.seqParMap rdeepseq  (updateDeleteTuple inGS inData (LG.extractLeafGraph $ thd6 inGraph) inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                        PU.seqParMap PU.myStrategy (updateDeleteTuple inGS inData (LG.extractLeafGraph $ thd6 inGraph) inGraph) swapTuples -- `using` PU.myParListChunkRDS
 
                     -- HardWired => move edge
                     else
-                        PU.seqParMap rdeepseq  (updateMoveTuple inGS inData (LG.extractLeafGraph $ thd6 inGraph) inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                        PU.seqParMap PU.myStrategy (updateMoveTuple inGS inData (LG.extractLeafGraph $ thd6 inGraph) inGraph) swapTuples -- `using` PU.myParListChunkRDS
         in
         netTuples
 
@@ -555,7 +556,7 @@ updateMoveTuple inGS inData leafGraph inGraph inTuple@(inE, inV, inEBV, inVBV, i
 
 
 -- | performGBSwap takes parameters and  graphs and traverses swap neighborhood
--- examining each (or nth, or random) Graphs examining each ech in each graph for Goodman-Bremer
+-- examining each (or nth, or random) Graphs examining each ecah in each graph for Goodman-Bremer
 -- optimality support
 performGBSwap   :: GlobalSettings
                 -> ProcessedData
@@ -590,7 +591,7 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
 
 
             -- generate tuple lists for each break edge parallelized at this level
-            tupleListList = PU.seqParMap rdeepseq (splitRejoinGB' inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) (zip randomIntegerListList breakEdgeList)  -- `using` PU.myParListChunkRDS
+            tupleListList = PU.seqParMap PU.myStrategyHighLevel (splitRejoinGB' inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) (zip randomIntegerListList breakEdgeList)  -- `using` PU.myParListChunkRDS
 
             -- merge tuple lists--should all be in same order
             newTupleList = mergeTupleLists (filter (not . null) tupleListList) []

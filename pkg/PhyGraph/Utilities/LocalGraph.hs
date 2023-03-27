@@ -1249,7 +1249,7 @@ getGraphCoevalConstraints inGraph =
        let (_, _, _, networkNodeList) = splitVertexList inGraph
        in
        if null networkNodeList then []
-       else PU.seqParMap rdeepseq (getCoevalConstraintEdges inGraph) networkNodeList -- `using`  PU.myParListChunkRDS
+       else PU.seqParMap PU.myStrategy  (getCoevalConstraintEdges inGraph) networkNodeList -- `using`  PU.myParListChunkRDS
 
 -- | getGraphCoevalConstraintsNodes takes a graph and returns coeval constraints based on network nodes
 -- and nodes as a triple
@@ -1261,7 +1261,7 @@ getGraphCoevalConstraintsNodes inGraph =
        in
        if null networkNodeList then []
        else
-            let (edgeBeforeList, edgeAfterList) = unzip (PU.seqParMap rdeepseq  (getCoevalConstraintEdges inGraph) networkNodeList) --  `using`  PU.myParListChunkRDS)
+            let (edgeBeforeList, edgeAfterList) = unzip (PU.seqParMap PU.myStrategy   (getCoevalConstraintEdges inGraph) networkNodeList) --  `using`  PU.myParListChunkRDS)
             in zip3 networkNodeList edgeBeforeList edgeAfterList
 
 -- | meetsAllCoevalConstraintsNodes checks constraint pair list and examines
@@ -1328,7 +1328,7 @@ isGraphTimeConsistent inGraph =
     if isTree inGraph then True
     else
       let coevalNodeConstraintList = coevalNodePairs inGraph
-          coevalNodeConstraintList' = PU.seqParMap rdeepseq (addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
+          coevalNodeConstraintList' = PU.seqParMap PU.myStrategy  (addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
           coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
           timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
       in
@@ -1896,7 +1896,7 @@ generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
   else if isTree inGraph then [inGraph]
   else
     let atRandomList = take numDisplayTrees $ randomIntList rSeed
-        randDisplayTreeList = PU.seqParMap rdeepseq (randomlyResolveGraphToTree inGraph) atRandomList -- `using` PU.myParListChunkRDS
+        randDisplayTreeList = PU.seqParMap PU.myStrategy  (randomlyResolveGraphToTree inGraph) atRandomList -- `using` PU.myParListChunkRDS
     in
     randDisplayTreeList
 
@@ -2025,3 +2025,11 @@ undirectedEdgeMinus firstList secondList =
         if firstEdge `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
         else if (b,a) `L.elem` secondList then undirectedEdgeMinus (tail firstList) secondList
         else firstEdge : undirectedEdgeMinus (tail firstList) secondList
+
+-- | remakeGraph takes an existing graph and returns amkgraph version
+-- this to test whether multiple graph edits are creating large memory footprints
+remakeGraph :: Gr a b -> Gr a b
+remakeGraph inGraph =
+    if isEmpty inGraph then inGraph
+    else 
+        mkGraph (labNodes inGraph) (labEdges inGraph)
