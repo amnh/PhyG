@@ -130,7 +130,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                             trace ("Block building initial graph(s)") (
                             let simpleTreeOnly = True
                                 processedDataList = U.getProcessDataByBlock True inData
-                                distanceMatrixList = if buildDistance then PU.seqParMap PU.myStrategy DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
+                                distanceMatrixList = if buildDistance then PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
                                                      else replicate (length processedDataList) []
 
                                 blockTrees = concat (PU.seqParMap PU.myStrategyHighLevel (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList)) --  `using` PU.myParListChunkRDS)
@@ -354,7 +354,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
    let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0..(length leafNames - 1)]
        randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" randomizedAdditionSequences
        randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
-       randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
+       randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategyHighLevel (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
        charInfoVV = V.map thd3 $ thd3 inData
    in
