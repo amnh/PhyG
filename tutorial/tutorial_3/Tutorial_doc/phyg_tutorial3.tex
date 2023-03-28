@@ -169,7 +169,7 @@ located on your Desktop.
   	phyg flu\_net1.pg
 	\end{quote}
 
-Notice the output appear in the \textit{Terminal} window.
+Notice the output in the \textit{Terminal} window. 
 
 \item Examine the reported files \textbf{"flu\_net1\_data.csv"} and 
 \textbf{"flu\_net1\_cr.csv"}. The \texttt{data} file summarizes information relating 
@@ -225,7 +225,14 @@ overwrite)} and \texttt{report("flu\_net1\_gv.tre", dotpdf, graphs, overwrite)}.
 	
 \item Run the script.
 
-\item Let's examine the reported tree files. Because the file \textbf{"flu\_net1.tre"} 
+\item Notice the output in the \textit{Terminal} window. Following the \texttt{build}
+you'll see the warning: ``Chained network nodes (both parent and child nodes are 
+indegree > 1), removing edges to tree node parents (this may affect graph cost)''.
+This warning indicates that a pair of network vertices have violated the requirement 
+\citep{Moretetal2004} that network vertices cannot be connected by a single edge. 
+The graph has been modified or corrected prior to further refinement or examination.
+
+\item Examine the reported tree files. Because the file \textbf{"flu\_net1.tre"} 
 represents a phylogenetic network (as opposed to tree), this file can not be viewed 
 using tree viewing programs such as \textit{FigTree} or \textit{TreeView}. Using 
 your preferred text editor, open this file (Figure \ref{tre1}). This looks like a standard 
@@ -238,7 +245,7 @@ a single network  with a cost of 13976.
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{tre1.png}
-\caption{\textbf{"flu\_net1.tre"}.}
+\caption{Output file \textbf{"flu\_net1.tre"} in newick tree.}
 \label{tre1}
 \end{figure}
 
@@ -253,13 +260,13 @@ website. \textit{dot} is a graph description language and Graphviz an open-sourc
 graph visualization software. This program is well suited to representing graphs 
 and networks. Open the reported file \textbf{"flu\_net1\_gv.tre.eps"} in your preferred
 visualization program (Figure \ref{eps1}). The values associated with the taxon 
-names and HTUs are the branch lengths. Examining this file, we can see \hl{two} 
-networks (one leading into\hl{ HTU15 and HTU16}).
+names and HTUs are the branch lengths. Examining this file, we can see two
+networks (one leading into HTU14 and HTU15).
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{eps1.png}
-\caption{\textbf{"flu\_net1\_gv.tre.eps"}.}
+\caption{Output file\textbf{"flu\_net1\_gv.tre.eps"} in eps format.}
 \label{eps1}
 \end{figure}
 
@@ -301,13 +308,13 @@ analysis.
 will not comment about them any further. 
 
 \item Unlike the previous script, here, we \texttt{set} the \texttt{graphfactor} to 
-\texttt{w15}. This penalty involves the calculation of the most Parsimony 
+\texttt{w15}. This penalty involves the calculation of the most parsimonious 
 display tree. Because this penalty has a higher time complexity to calculate 
 the total network costs (than \texttt{w23} and \texttt{nopenalty}), this may take 
 significantly more time for larger datasets. 
 
 \item In addition to importing the nucleotide sequence data files, we also
-read in the \texttt{newick} tree file \textbf{"flu\_net2.tre"} generated from the 
+read in the \texttt{newick} tree file \textbf{"flu\_net1.tre"} generated from the 
 previous tutorial. Reading in tree or graph files, rather than building them from 
 scratch, can be a useful starting point and can speed up analyses.
 
@@ -315,8 +322,8 @@ scratch, can be a useful starting point and can speed up analyses.
 of the network. The command \texttt{refine} performs edit operations on network 
 edges. The network specific refinement operations include \texttt{netadd}, 
 \texttt{netdel}, \texttt{netadddel} and \texttt{netmove}. These refinements are 
-only applied to network edges, hence they can only be applied to softwired and 
-hardwired graphs (as opposed to trees). \\
+only applicable to network edges, hence they can only be applied to softwired 
+and hardwired graphs (as opposed to trees). \\
 
 The argument \texttt{netadd} adds network edges to input graphs at all possible
 positions until no better cost graph is found. Though no need to specify here, 
@@ -334,8 +341,7 @@ data files and previously reported tree files.
 
 \item Run the script.
 
-\item Examine the output in the \textit{Terminal} window. Here we can see that 
-\phyg performed 3 rounds of netadd.\\
+\item Examine the output in the \textit{Terminal} window. 
 
 Let's examine the reported tree files. 
 
@@ -398,7 +404,7 @@ will not comment about them any further.
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 \subsection{Refining a network: adding and deleting network edges}
-\label{subsec:netdel}
+\label{subsec:netadddel}
 
 This tutorial will focus on iteratively adding and deleting network edges.
 
@@ -422,7 +428,7 @@ This tutorial will focus on iteratively adding and deleting network edges.
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 \subsection{Refining a network: moving network edges}
-\label{subsec:netdel}
+\label{subsec:netmove}
 
 This tutorial will focus on moving network edges.
 
