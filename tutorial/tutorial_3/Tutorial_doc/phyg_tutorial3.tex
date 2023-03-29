@@ -408,19 +408,17 @@ substitution events that take place on a \textit{given} graph. \\
 Modify the script to include the following: 
 
 \begin{quote}
-report("flu\_net2\_ia.ss", ia, overwrite)
+report("flu\_net2\_ia.txt", ia, overwrite)
 \end{quote}
 
 This command will output an implied alignment for each reported graph, as well as 
-for each block of imported data. 
+for each block of imported data. Should you wish to output an implied alignment
+that is readable by the program \textit{TNT}, you should modify the command  
+replacing \texttt{ia} with the argument \texttt{tnt}.
 
-%Should you wish to output an implied alignment
-%that is readable by the program \textit{TNT}, you should modify the command  
-%replacing \texttt{ia} with the argument \texttt{tnt}.
-%
-%\begin{quote}
-%report("flu\_net2\_ia.ss", tnt, overwrite)
-%\end{quote}
+\begin{quote}
+report("flu\_net2.ss", tnt, overwrite)
+\end{quote}
 
 \end{enumerate}
 
