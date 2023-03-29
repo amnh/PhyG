@@ -825,9 +825,11 @@ insertNetEdge inGS inData leafGraph inPhyloGraph _ ((u,v, _), (u',v', _)) =
            -- newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
            -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newSimple
 
+           newSimple' = LG.removeChainedNetworkNodes False newSimple
+
 
            -- full two-pass optimization
-           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex (fromJust newSimple')
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
@@ -839,8 +841,11 @@ insertNetEdge inGS inData leafGraph inPhyloGraph _ ((u,v, _), (u',v', _)) =
        in
 
        -- remove these checks when working
+       if isNothing newSimple' then
+         trace ("\tWarning: Chained network")
+         emptyPhylogeneticGraph
 
-       if ((not . LG.isGraphTimeConsistent) newSimple) then
+       else if ((not . LG.isGraphTimeConsistent) $ fromJust newSimple') then
          trace ("\tWarning: Time consistency error")
          emptyPhylogeneticGraph
 
