@@ -411,13 +411,15 @@ report("flu\_net2\_ia.fas", ia, overwrite)
 \end{quote}
 
 This command will output an implied alignment for each reported graph, as well as 
-for each block of imported data. Should you wish to output an implied alignment
-that is readable by the program \textit{TNT}, you should modify the command  
-replacing \texttt{ia} with the argument \texttt{tnt}.
+for each block of imported data. 
+%Should you wish to output an implied alignment
+%that is readable by the program \textit{TNT}, you should modify the command  
+%replacing \texttt{ia} with the argument \texttt{tnt}.
+%
+%\begin{quote}
+%report("flu\_net2\_ia.ss", tnt, overwrite)
+%\end{quote}
 
-\begin{quote}
-report("flu\_net2\_ia.ss", tnt, overwrite)
-\end{quote}
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
@@ -623,7 +625,7 @@ cost of the tree?
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 \subsection{Refining a softwired network: moving network edges}
-\label{subsec:netmove}
+\label{subsec:softnetmove}
 
 This tutorial focuses on moving network edges.
 
@@ -705,12 +707,18 @@ networks leading to HTU18 and HTU20.
 
 %\item One of the output option for `softwired' networks is to report the `display' 
 %trees. Recall that a `display' tree or `tree-based network' is a tree created from 
-%a `softwired' graph by deleting one of two of the network edges/vertices.
+%a `softwired' graph by deleting one of two of the network edges/vertices. Modify 
+%the script to include \texttt{report("flu\_net5\_dt.tre", displaytrees, dotpdf, 
+%overwrite)}.
 %
-%\item Run the modified script.
+%\item Run the updated script.
 %
-%\item Now reexamine the reported file \textbf{``flu\_net5\_dt.tre''}. 
-
+%\item Now reexamine the reported files.  Recall that two files will be outputted 
+%from using this command \texttt{dotpdf}. \phyg has output an eps (on OSX) or 
+%pdf (on linux) file that can be viewed in a vector graphics program and a dot 
+%file, which can be viewed (and modified) in \textit{Graphviz}.
+%The file \textbf{"chel\_run1.dot"} \textbf{``flu\_net5\_dt.tre''}. 
+%
 %\item In Tutorial 0.1 we learned how to perform a local search on the graphs stored 
 %in memory. Let's do that here. Modify the script to include \texttt{swap(spr:3)}.
 %This command specifies that SPR refinement \citep{Dayhoff1969} is performed. 
@@ -726,7 +734,7 @@ networks leading to HTU18 and HTU20.
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 \subsection{Hardwired network: moving network edges}
-\label{subsec:netmove}
+\label{subsec:hardnetmove}
 
 So far, the tutorials have centered on `softwired' graphs. In this tutorial, we will 
 focus of `hardwired' graphs.
@@ -755,7 +763,7 @@ will not comment about them any further.
 
 \item We next \texttt{set} the \texttt{graphtype} of this analysis to \texttt{hardwired}. 
 
-\item When conducting a ``hardwired'' network analysis, there is no need to \texttt{set}
+\item When conducting a `hardwired' network analysis, there is no need to \texttt{set}
 a \texttt{graphfactor} or penalty cost. Unlike `softwired networks', which discussed, 
 monotonically reduces the network cost with each additional network edge, 
 the cost of `hardwired' networks monotonically increases with the addition of each 
@@ -786,7 +794,9 @@ different from when it is analyzed as a `softwired' network. The cost of the gra
 changes when it is diagnosed as a `hardwired' network. \phyg performed three 
 round of moves of network edges. We can see that \phyg did four full rounds of 
 moves, reduced the cost of the network from 18540 to 15611. The cost of the graph 
-decreased with each move. \\
+decreased with each move. Comparing the cost of the output graph to that found in 
+(Section \ref{subsec:softnetmove}), we can see that cost of the `softwired' graph is 
+14276.8125 while that of the `hardwired' graph is 15611.\\
 
 Let's examine the reported graph files. 
 
