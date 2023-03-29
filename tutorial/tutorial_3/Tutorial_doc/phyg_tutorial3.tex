@@ -311,10 +311,12 @@ will not comment about them any further.
 
 \item Unlike the previous script, here, we \texttt{set} the \texttt{graphfactor} to 
 \texttt{w15}. This penalty involves the calculation of the most parsimonious 
-display tree. A display tree is a tree created from a softwired graph by deleting 
-one of two of the network edges incident on network vertex. Because this penalty 
-has a higher time complexity to calculate the total network costs (than \texttt{w23} 
-and \texttt{nopenalty}), this may take significantly more time for larger datasets. 
+display tree. ``Softwired'' networks monotonically reduce the network cost 
+with each additional network edge. A display tree is a tree created from a 
+``softwired'' graph by deleting one of two of the network edges incident on 
+network vertex. Because this penalty has a higher time complexity to calculate 
+the total network costs (than \texttt{w23} and \texttt{nopenalty}), this may take 
+significantly more time for larger datasets. 
 
 \item In addition to importing the nucleotide sequence data files, we also
 read in the \texttt{newick} graph file \textbf{``flu\_net1.tre''} generated from the 
@@ -446,12 +448,12 @@ as the data files and previously reported graph files.
 \label{output2}
 \end{figure}
 
-\item Scroll through the output in the \textit{Terminal} window. Having \texttt{read}
-in the data files, they were then processed and the settings of \phyg were \texttt{set}. 
-The output for \texttt{netdel} looks different to that of \texttt{netadd}---the recursive 
-output is not show---as \texttt{netdel} is not dependent on the maximum number of 
-edges, as is the case with \texttt{netadd}. \phyg performed 2 rounds of deleting 
-network edges, but it could only delete one network edge.\\
+\item Scroll through the output in the \textit{Terminal} window (Figure \ref{output2}). 
+Having \texttt{read} in the data files, they were then processed and the settings of 
+\phyg were \texttt{set}. The output for \texttt{netdel} looks different to that of 
+\texttt{netadd}---the recursive output is not show---as \texttt{netdel} is not dependent 
+on the maximum number of edges, as is the case with \texttt{netadd}. \phyg performed 
+2 rounds of deleting network edges, but it could only delete one network edge.\\
 
 Let's examine the reported graph files. 
 
@@ -545,11 +547,11 @@ as the data files and previously reported graph files.
 \label{output3}
 \end{figure}
 
-\item Scroll through the output in the \textit{Terminal} window. Having \texttt{read}
-in the data files, they were then processed and the settings of \phyg were \texttt{set}. 
-The recursive output is shown. \phyg performed a single round of addition, followed
-by deletion operations of network edges. A single round is the default for 
-\texttt{netadddel}.\\
+\item Scroll through the output in the \textit{Terminal} window (Figure \ref{output3}). 
+Having \texttt{read} in the data files, they were then processed and the settings of 
+\phyg were \texttt{set}. The recursive output is shown. \phyg performed a single 
+round of addition, followed by deletion operations of network edges. A single 
+round is the default for \texttt{netadddel}.\\
 
 Let's examine the reported graph files. 
 
@@ -646,9 +648,9 @@ as the data files and previously reported graph files.
 \label{output4}
 \end{figure}
 
-\item Scroll through the output in the \textit{Terminal} window. Having \texttt{read}
-in the data files, they were then processed and the settings of \phyg were \texttt{set}. 
-\phyg performed three round of moves of network edges.\\
+\item Scroll through the output in the \textit{Terminal} window (Figure \ref{output4}). 
+Having \texttt{read} in the data files, they were then processed and the settings of 
+\phyg were \texttt{set}. \phyg performed three round of moves of network edges.\\
 
 Let's examine the reported graph files. 
 
@@ -657,7 +659,7 @@ ENewick file has four \textbf{\#}'s, representing the vertices (Figure
 \ref{tre5}). Comparing this graph to \textbf{``flu\_net1.tre''} (our input graph), we can 
 see that \phyg did three full rounds of moves, reduced the cost of the network from 
 14276.8125 to 13135.46875. A single graph was reported. With \texttt{netmove}
-the number of network edges/vertices is maintain between the input and output 
+the number of network edges/vertices is maintained between the input and output 
 graphs.
 
 \begin{figure}[H]
@@ -679,40 +681,112 @@ networks leading to HTU18 and HTU20.
 \label{eps5}
 \end{figure}
 
-\item In Tutorial 0.1 we learned how to perform a local search on the graphs stored 
-in memory. Let's do that here. Modify the script to include \texttt{swap(spr:3)}.
-This command specifies that SPR refinement \citep{Dayhoff1969} is performed. 
-Because we specify the optional argument \texttt{n}, the readdition of pruned graphs 
-will be within $2 * N$ edges of its original placement.
-
-\item Run the modified script.
-
-\item Now reexamine the reported file \textbf{``flu\_net5.tre''}. Notice that this 
-simple local search has reduced the cost of the initial best tree from 13135.46875
-to \hl{xxx}.
+%\item In Tutorial 0.1 we learned how to perform a local search on the graphs stored 
+%in memory. Let's do that here. Modify the script to include \texttt{swap(spr:3)}.
+%This command specifies that SPR refinement \citep{Dayhoff1969} is performed. 
+%Because we specify the optional argument \texttt{n}, the readdition of pruned graphs 
+%will be within $2 * N$ edges of its original placement.
+%
+%\item Run the modified script.
+%
+%\item Now reexamine the reported file \textbf{``flu\_net5.tre''}. Notice that this 
+%simple local search has reduced the cost of the initial best tree from 13135.46875
+%to \hl{xxx}.
 
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 \subsection{Hardwired network: moving network edges}
 \label{subsec:netmove}
 
-So far, all the tutorials have generated ``softwired'' graphs. Let's examine a network
-edit operation to a ``hardwired'' network. 
-What will happen
-if we change the settings for \texttt{graphtype} to \texttt{hardwired}? 
+So far, the tutorials have centered on ``softwired'' graphs. In this tutorial, we will 
+focus of ``hardwired'' graphs.
+
 \begin {enumerate}
 
-\item Modify the script changing \texttt{graphtype} to \texttt{hardwired}, comment out
-the line that sets the penalty cost, and adjust the reported output file names. 
+\item Open your text editor of choice and type the following:
+
+	\begin{quote}	
+	-\/-Refinements of hardwired networks using flu data sets using netmove\\
+	set(seed:1634561640)\\
+	set(outgroup:"1466\_H7N2\_Avian\_chicken\_pa\_1490921\_2002")\\
+	set(graphtype:hardwired)\\
+	read(nucleotide:"flu*.fas*", tcm:(2,1))\\
+	read(newick:"flu\_net1.tre")\\
+	refine(netmove, atrandom, steepest)\\
+	report("flu\_net6.tre", graphs, newick, overwrite)\\
+	report("flu\_net6\_gv.tre", dotpdf, graphs, overwrite)
+	\end{quote}
 	
+\item The script begins with a comment that describes the purpose of this 
+analysis.
+
+\item The next two lines are identical to that of \textbf{``flu\_net1.pg''}, so we 
+will not comment about them any further. 	
+
+\item We next \texttt{set} the \texttt{graphtype} of this analysis to \texttt{hardwired}. 
+
+\item When conducting a ``hardwired'' network analysis, there is no need to \texttt{set}
+a \texttt{graphfactor} or penalty cost. Unlike ``softwired networks'', which discussed, 
+monotonically reduces the network cost with each additional network edge, 
+the cost of ``hardwired'' networks monotonically increases with the addition of each 
+additional network edge. By extension, the number of network edges is kept constant
+with \texttt{netmove}, so there is no need to ascribe a penalty cost.
+
+\item In addition to importing the nucleotide sequence data files, we also read in 
+the \texttt{newick} graph file \textbf{``flu\_net1.tre''}.
+
+\item The argument \texttt{netmove} moves network edges on the input graphs 
+to all possible positions until no better cost graph is found. We also specify 
+\texttt{atrandom} and \texttt{steepest}.
+
 \item Rerun the script.
 
-\item Answer the following questions: 
-\subitem Does this change the number of resulting networks?
-\subitem How does increasing the number of operation rounds affected the 
-cost of the tree?
-\subitem How does this cost compare to that of the graphs from the previous tutorial?
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{output5.png}
+\caption{Output of the \textit{Terminal} window from running the script 
+\textbf{``flu\_net6.pg''}.}
+\label{output5}
+\end{figure}
 
+\item Scroll through the output in the \textit{Terminal} window (Figure \ref{output5}). 
+Having \texttt{read} in the data files, they were then processed and the settings of 
+\phyg were \texttt{set}. \phyg performed three round of moves of network edges.\\
+
+Let's examine the reported graph files. 
+
+\item Opening the file \textbf{``flu\_net6.tre''} in your preferred text editor. This 
+ENewick file has four \textbf{\#}'s, representing the vertices (Figure \ref{tre6}). 
+Comparing this graph to \textbf{``flu\_net1.tre''} (our input graph), we can 
+see that \phyg did four full rounds of moves, reduced the cost of the network from 
+18540 to 15611. A single graph was reported. With \texttt{netmove} the number of 
+network edges/vertices is maintained between the input and output graphs.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{tre6.png}
+\caption{Output file \textbf{``flu\_net6.tre''} in ENewick graph format.}
+\label{tre6}
+\end{figure}
+
+\item  Open the reported file \textbf{``flu\_net6\_gv.tre.eps''} in your preferred
+visualization program (Figure \ref{eps6}). The values associated with the taxon 
+names and HTUs are the branch lengths. Examining this file, we can see a four
+networks leading to HTU20 and HTU18.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{eps6.png}
+\caption{Output file \textbf{"flu\_net6\_gv.tre.eps"} in eps format.}
+\label{eps6}
+\end{figure}
+
+%\item Answer the following questions: 
+%\subitem Does this change the number of resulting networks?
+%\subitem How does increasing the number of operation rounds affected the 
+%cost of the tree?
+%\subitem How does this cost compare to that of the graphs from the previous tutorial?
+%
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 
