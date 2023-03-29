@@ -1257,8 +1257,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    -- churrently using childChild
    else if isIn1Out1 then
       -- trace ("InOut1 preorder") (
-      if isSingleParentIn1Out1 then error ("Parent node of indegree 1 outdegree 1 also indegree 1 outdegree 1 ")
-      else if localCharType == Add then
+      -- if isSingleParentIn1Out1 then error ("Parent node of indegree 1 outdegree 1 also indegree 1 outdegree 1 ")
+      -- else 
+      if localCharType == Add then
          childChar {rangeFinal = rangeFinal parentChar}
 
       else if localCharType == NonAdd then

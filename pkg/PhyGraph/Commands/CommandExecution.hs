@@ -771,8 +771,20 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 let inputDisplayVVList = fmap fth6 curGraphs
                     costList = fmap snd6 curGraphs
                     displayCostListList = fmap GO.getDisplayTreeCostList curGraphs
-                    displayInfoString = ("//DisplayTree costs : " ++ show (fmap (sum . fst) displayCostListList, displayCostListList))
-                    treeIndexStringList = fmap (((++ "\n") . ("//Canonical Tree " ++)) . show) [0..(length inputDisplayVVList - 1)]
+                    displayInfoString = if ("dot" `elem` commandList) ||  ("dotpdf" `elem` commandList)
+                        then
+                            ("//DisplayTree costs : " ++ show (fmap (sum . fst) displayCostListList, displayCostListList))
+                        else -- newick    
+                            let middle =  fmap bracketToCurly $ show (fmap (sum . fst) displayCostListList, displayCostListList)
+
+                            in 
+                            ("[DisplayTree costs : " ++ middle ++ "]")
+
+                    treeIndexStringList = if ("dot" `elem` commandList) ||  ("dotpdf" `elem` commandList)
+                        then
+                            fmap (((++ "\n") . ("//Canonical Tree " ++)) . show) [0..(length inputDisplayVVList - 1)]
+                        else -- newick
+                            fmap (((++ "]\n") . ("[Canonical Tree " ++)) . show) [0..(length inputDisplayVVList - 1)]
                     canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
                     blockStringList = unlines (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
                     -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
@@ -873,4 +885,6 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     trace ("Reporting " ++ show (length curGraphs) ++ " graph(s) at minimum cost " ++ show (minimum $ fmap snd6 curGraphs) ++"\n")
                     (graphString, outfileName, writeMode)
                 )
-
+            where bracketToCurly a = if a == '(' then '{'
+                                     else if a == ')' then '}'
+                                     else a

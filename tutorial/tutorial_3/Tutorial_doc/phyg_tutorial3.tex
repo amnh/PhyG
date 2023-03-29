@@ -320,8 +320,9 @@ significantly more time for larger datasets.
 
 \item In addition to importing the nucleotide sequence data files, we also
 read in the \texttt{newick} graph file \textbf{``flu\_net1.tre''} generated from the 
-previous tutorial. Reading in tree or graph files, rather than building them from 
-scratch, can be a useful starting point and can speed up analyses.
+previous tutorial (Section \ref{subsec:makinganetwork}). Reading in tree or graph 
+files, rather than building them from scratch, can be a useful starting point and 
+can speed up analyses.
 
 \item Having \texttt{read} in our data and graph files, we can now perform refinements 
 of the network. The command \texttt{refine} performs edit operations on network 
@@ -346,7 +347,7 @@ data files and previously reported graph files.
 
 \item Run the script.
 
-\begin{figure}[H]
+\begin{figure}
 \centering
 \includegraphics[width=\textwidth]{output1.png}
 \caption{Output of the \textit{Terminal} window from running the script 
@@ -407,7 +408,7 @@ substitution events that take place on a \textit{given} graph. \\
 Modify the script to include the following: 
 
 \begin{quote}
-report("flu\_net2\_ia.fas", ia, overwrite)
+report("flu\_net2\_ia.txt", ia, overwrite)
 \end{quote}
 
 This command will output an implied alignment for each reported graph, as well as 
@@ -416,8 +417,9 @@ that is readable by the program \textit{TNT}, you should modify the command
 replacing \texttt{ia} with the argument \texttt{tnt}.
 
 \begin{quote}
-report("flu\_net2\_ia.ss", tnt, overwrite)
+report("flu\_net2.ss", tnt, overwrite)
 \end{quote}
+
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
@@ -578,9 +580,10 @@ Let's examine the reported graph files.
 
 \item Opening the file \textbf{``flu\_net4.tre''} in your preferred text editor. This 
 ENewick file has eight \textbf{\#}'s, representing the reticulation events (Figure 
-\ref{tre4}). Comparing this graph to \textbf{``flu\_net1.tre''} (our input graph), we can 
-see that the deletion of one network edge, reduced the cost of the network from 
-14276.8125 to 13293.187. A single graph was reported.
+\ref{tre4}). Comparing this graph to \textbf{``flu\_net1.tre''} (our input graph from 
+Section \ref{subsec:makinganetwork}), we can see that the deletion of one network 
+edge, reduced the cost of the network from 14276.8125 to 13293.187. A single graph 
+was reported.
 
 \begin{figure}[H]
 \centering
@@ -618,12 +621,13 @@ Modify the script as follows:
 \subitem Does this change the number of resulting networks?
 \subitem How does increasing the number of operation rounds affected the 
 cost of the tree?
-\subitem How does this cost compare to that of the graphs from the previous tutorial?
+\subitem How does this cost compare to that of the graphs from the previous 
+tutorial (Section \ref{subsec:netdel})?
 
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 \subsection{Refining a softwired network: moving network edges}
-\label{subsec:netmove}
+\label{subsec:softnetmove}
 
 This tutorial focuses on moving network edges.
 
@@ -703,13 +707,18 @@ networks leading to HTU18 and HTU20.
 \label{eps5}
 \end{figure}
 
-%\item One of the output option for `softwired' networks is to report the `display' 
-%trees. Recall that a `display' tree or `tree-based network' is a tree created from 
-%a `softwired' graph by deleting one of two of the network edges/vertices.
-%
-%\item Run the modified script.
-%
-%\item Now reexamine the reported file \textbf{``flu\_net5\_dt.tre''}. 
+\item One of the output option for `softwired' networks is to report the `display' 
+trees. Recall that a `display' tree or `tree-based network' is a tree created from 
+a `softwired' graph by deleting one of two of the network edges/vertices. Modify 
+the script to include \texttt{report("flu\_net5\_dt.tre", displaytrees, newick, 
+overwrite)}.
+
+\item Run the updated script.
+
+\item Examine the reported file.  For now `display' trees can only be reported
+in newick format (as opposed to dotpdf and eps format---the error lies with \textit{dot}
+on OSX machines). This newick tree file, in parenthetical notation, can be viewed in 
+other programs like \textit{FigTree} or \textit{TreeView}.
 
 %\item In Tutorial 0.1 we learned how to perform a local search on the graphs stored 
 %in memory. Let's do that here. Modify the script to include \texttt{swap(spr:3)}.
@@ -726,7 +735,7 @@ networks leading to HTU18 and HTU20.
 \end{enumerate}
 %-------------------------------------------------------------------------------------------------------
 \subsection{Hardwired network: moving network edges}
-\label{subsec:netmove}
+\label{subsec:hardnetmove}
 
 So far, the tutorials have centered on `softwired' graphs. In this tutorial, we will 
 focus of `hardwired' graphs.
@@ -755,7 +764,7 @@ will not comment about them any further.
 
 \item We next \texttt{set} the \texttt{graphtype} of this analysis to \texttt{hardwired}. 
 
-\item When conducting a ``hardwired'' network analysis, there is no need to \texttt{set}
+\item When conducting a `hardwired' network analysis, there is no need to \texttt{set}
 a \texttt{graphfactor} or penalty cost. Unlike `softwired networks', which discussed, 
 monotonically reduces the network cost with each additional network edge, 
 the cost of `hardwired' networks monotonically increases with the addition of each 
@@ -786,7 +795,9 @@ different from when it is analyzed as a `softwired' network. The cost of the gra
 changes when it is diagnosed as a `hardwired' network. \phyg performed three 
 round of moves of network edges. We can see that \phyg did four full rounds of 
 moves, reduced the cost of the network from 18540 to 15611. The cost of the graph 
-decreased with each move. \\
+decreased with each move. Comparing the cost of the output graph to that found in 
+(Section \ref{subsec:softnetmove}), we can see that cost of the `softwired' graph is 
+14276.8125 while that of the `hardwired' graph is 15611.\\
 
 Let's examine the reported graph files. 
 
