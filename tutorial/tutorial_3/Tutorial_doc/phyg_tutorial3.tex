@@ -311,12 +311,12 @@ will not comment about them any further.
 
 \item Unlike the previous script, here, we \texttt{set} the \texttt{graphfactor} to 
 \texttt{w15}. This penalty involves the calculation of the most parsimonious 
-display tree. `Softwired' networks monotonically reduce the network cost 
-with each additional network edge. A display tree is a tree created from a 
-`softwired' graph by deleting one of two of the network edges incident on 
-network vertex. Because this penalty has a higher time complexity to calculate 
-the total network costs (than \texttt{w23} and \texttt{nopenalty}), this may take 
-significantly more time for larger datasets. 
+display tree. `Softwired' networks with no defined penalty, monotonically 
+reduce the network cost with each additional network edge. A display tree is 
+a tree created from a `softwired' graph by deleting one of two of the network 
+edges incident on each network vertex. Because this penalty has a higher 
+time complexity to calculate the total network costs (than \texttt{w23} and 
+\texttt{nopenalty}), this may take significantly more time for larger datasets. 
 
 \item In addition to importing the nucleotide sequence data files, we also
 read in the \texttt{newick} graph file \textbf{``flu\_net1.tre''} generated from the 
@@ -473,7 +473,7 @@ as the data files and previously reported graph files.
 \item Scroll through the output in the \textit{Terminal} window (Figure \ref{output2}). 
 Having \texttt{read} in the data files, they were then processed and the settings of 
 \phyg were \texttt{set}. The output for \texttt{netdel} looks different to that of 
-\texttt{netadd}---the recursive output is not show---as \texttt{netdel} is not dependent 
+\texttt{netadd}---the recursive output is not shown---as \texttt{netdel} is not dependent 
 on the maximum number of edges, as is the case with \texttt{netadd}. \phyg performed 
 2 rounds of deleting network edges, but it could only delete one network edge.\\
 
@@ -550,10 +550,10 @@ will not comment about them any further.
 refinements of the network. The argument \texttt{netadddel} consecutively 
 adds and then deletes network edges from input graphs until certain conditions
 are met. In this case, until either no improvement (graph cost) is found
-in each round or until the number of edges (in \texttt{maxnetedges:n}) is reached. 
-It does so until whichever condition comes first. The deletion of network edges 
-does not occur until the addition of network edges has satisfied these condition.
-We also specify that this edit operation be performed using \texttt{atrandom} 
+in a round or until the number of rounds of addition and deletions (in \texttt{rounds:n}) 
+is reached. The maximum number of edges is still specified by \texttt{maxnetedges:n} 
+within each round. We also specify that this edit operation be performed using 
+\texttt{atrandom} 
 and \texttt{steepest}.
 
 \item Save this file with the name \textbf{``flu\_net4.pg''} in the same directory 
@@ -606,7 +606,7 @@ networks leading to HTU22, HTU20, HTU14 and HTU24.
 
 \item In this tutorial we used the default setting for \texttt{netadddel}, which 
 included performing a single round of edit operations. What would happen 
-if we increase the number of rounds of netadddel operations that \phyg 
+if we increase the number of rounds of \texttt{netadddel} operations that \phyg 
 performs? \\
 
 Modify the script as follows:
@@ -697,8 +697,8 @@ of network edges/vertices is maintained between the input and output graphs.
 
 \item  Open the reported file \textbf{``flu\_net5\_gv.tre.eps''} in your preferred
 visualization program (Figure \ref{eps5}). The values associated with the taxon 
-names and HTUs are the branch lengths. Examining this file, we can see a four
-networks leading to HTU18 and HTU20.
+names and HTUs are the branch lengths. Examining this file, we can see four
+network edges leading to HTU18 and HTU20.
 
 \begin{figure}[H]
 \centering
@@ -766,7 +766,8 @@ will not comment about them any further.
 
 \item When conducting a `hardwired' network analysis, there is no need to \texttt{set}
 a \texttt{graphfactor} or penalty cost. Unlike `softwired networks', which discussed, 
-monotonically reduces the network cost with each additional network edge, 
+monotonically reduces the network cost with each additional network edge (when 
+there's no ascribed penalty), 
 the cost of `hardwired' networks monotonically increases with the addition of each 
 additional network edge. By extension, the number of network edges is kept constant
 with \texttt{netmove}, so there is no need to ascribe a penalty cost.
@@ -815,8 +816,8 @@ edges/vertices is maintained between the input and output graphs.
 
 \item  Open the reported file \textbf{``flu\_net6\_gv.tre.eps''} in your preferred
 visualization program (Figure \ref{eps6}). The values associated with the taxon 
-names and HTUs are the branch lengths. Examining this file, we can see a four
-networks leading to HTU20 and HTU18.
+names and HTUs are the branch lengths. Examining this file, we can see four
+network edges leading to HTU20 and HTU18.
 
 \begin{figure}[H]
 \centering
