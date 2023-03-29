@@ -464,14 +464,21 @@ convertDecoratedToSimpleGraph inDec =
     let decNodeList = LG.labNodes inDec
         newNodeLabels = fmap (vertName . snd) decNodeList
         simpleNodes = zip (fmap fst decNodeList) newNodeLabels
-        simpleEdgeList = (convertToSimpleEdge <$> LG.labEdges inDec)
+        labEdgeList = LG.labEdges inDec
+        edgeWeightList = filter (> 0.0) $ fmap (maxLength . thd3) labEdgeList
+        defaultWeight = if null edgeWeightList then Just 1.0
+                        else Nothing
+        simpleEdgeList = fmap (convertToSimpleEdge defaultWeight) labEdgeList
     in
     LG.mkGraph simpleNodes simpleEdgeList
 
 
 -- | convertToSimpleEdge takes a lables edge and relabels with 0.0
-convertToSimpleEdge :: LG.LEdge EdgeInfo -> LG.LEdge Double
-convertToSimpleEdge (a, b, c) = (a, b, midRangeLength c)
+convertToSimpleEdge :: Maybe VertexCost -> LG.LEdge EdgeInfo -> LG.LEdge Double
+convertToSimpleEdge defaultWeight (a, b, c) = 
+  if isNothing defaultWeight then 
+      (a, b, midRangeLength c)
+  else (a, b, fromJust defaultWeight)
 
 -- | graphCostFromNodes takes a Decorated graph and returns its cost by summing up the local costs
 --  of its nodes
