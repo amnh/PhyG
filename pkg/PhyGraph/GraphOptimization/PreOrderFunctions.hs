@@ -330,7 +330,7 @@ doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
         -- since root cannot have 2nd parent
         let rootLabel = fromJust $ LG.lab inGraph rootIndex
             nothingVertData = U.copyToNothing (vertData rootLabel)
-            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) nothingVertData inCharInfo True False False
+            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) nothingVertData nothingVertData inCharInfo True False False False
             rootChildren =LG.labDescendants inGraph (rootIndex, rootLabel)
 
             -- left / right to match post-order
@@ -358,8 +358,8 @@ updateIsolatedNode :: GlobalSettings -> AssignmentMethod -> Bool -> CharInfo -> 
 updateIsolatedNode inGS finalMethod staticIA inCharInfo (inNodeIndex, inNodeLabel) =
     -- root so final = preliminary
     let nothingVertData = U.copyToNothing (vertData inNodeLabel)
-        newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) nothingVertData inCharInfo True False False
-    in
+        newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) nothingVertData nothingVertData inCharInfo True False False False
+    in 
     (inNodeIndex, inNodeLabel {vertData = newVertData})
 
 -- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a list of updated nodes
@@ -408,6 +408,21 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             isIn1Out1 = (length firstChildren == 1) && (length firstParents == 1) -- softwired can happen, need to pass "grandparent" node to skip in 1 out 1
             isIn2Out1 = (length firstChildren == 1) && (length firstParents == 2) -- hardwired can happen, need to pass both parents
 
+            -- check if parent was in1out1--if so later just take parent final states
+            --- since created with node already
+            isSingleParentIn1Out1 = if length firstParents == 2 then False
+                                    else 
+                                        let inOutParent = LG.getInOutDegNoLabel inGraph $ fst $ head firstParents
+                                        in
+                                        if inOutParent == (1,1) then True
+                                        else False
+
+
+            -- childData for network indegree = 1 outdegree = 1 node
+            childData = if not isIn1Out1 then U.copyToNothing firstVertData
+                        else U.copyToJust $ vertData $ snd $ head firstChildren
+
+
 
             -- this OK with one or two children
             firstChildrenBV = fmap (bvLabel . snd) firstChildren
@@ -415,7 +430,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
               | length firstChildrenBV == 1 = [True]
               | head firstChildrenBV > (firstChildrenBV !! 1) = [False, True]
               | otherwise = [True, False]
-            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData inCharInfo isLeft isIn1Out1 isIn2Out1
+            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData childData inCharInfo isLeft isIn1Out1 isIn2Out1 isSingleParentIn1Out1
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
 
             -- check children if indegree == 2 then don't add to nodes to do if in there already
@@ -920,14 +935,16 @@ createFinalAssignmentOverBlocks :: GlobalSettings
                                 -> VertexBlockData
                                 -> VertexBlockData
                                 -> VertexBlockDataMaybe -- second parent if indegree 2 node
+                                -> VertexBlockDataMaybe -- child of vertex (childChild) if indegree=outdegree=1 node
                                 -> CharInfo
                                 -> Bool
                                 -> Bool
                                 -> Bool
+                                -> Bool
                                 -> VertexBlockData
-createFinalAssignmentOverBlocks inGS finalMethod staticIA childType childBlockData parentBlockData parent2BlockDataM charInfo isLeft isInOutDegree1 isIn2Out1 =
+createFinalAssignmentOverBlocks inGS finalMethod staticIA childType childBlockData parentBlockData parent2BlockDataM childChildBlockDataM charInfo isLeft isInOutDegree1 isIn2Out1 isSingleParentIn1Out1 =
    -- if root or leaf final assignment <- preliminary asssignment
-   V.zipWith3 (assignFinal inGS finalMethod staticIA childType isLeft charInfo isInOutDegree1 isIn2Out1) childBlockData parentBlockData parent2BlockDataM
+   V.zipWith4 (assignFinal inGS finalMethod staticIA childType isLeft charInfo isInOutDegree1 isIn2Out1 isSingleParentIn1Out1) childBlockData parentBlockData parent2BlockDataM childChildBlockDataM
 
 
 -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type
@@ -940,11 +957,13 @@ assignFinal :: GlobalSettings
             -> CharInfo
             -> Bool
             -> Bool
+            -> Bool
             -> V.Vector CharacterData
             -> V.Vector CharacterData
             -> V.Vector (Maybe CharacterData)
+            -> V.Vector (Maybe CharacterData)
             -> V.Vector CharacterData
-assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 = V.zipWith3 (setFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1)
+assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 isSingleParentIn1Out1 = V.zipWith4 (setFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 isSingleParentIn1Out1)
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type
 -- to create pre-order assignments
@@ -963,14 +982,16 @@ setFinal :: GlobalSettings
          -> CharInfo 
          -> Bool 
          -> Bool 
+         -> Bool 
          -> CharacterData 
          -> CharacterData 
          -> Maybe CharacterData 
+         -> Maybe CharacterData 
          -> CharacterData
-setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM =
+setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 isSingleParentIn1Out1 childChar parentChar parent2CharM childChildCharM =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
-       -- isTree = graphType inGS == Tree
+       isTree = graphType inGS == Tree
    in
    -- Three cases, Root, leaf, HTU
    -- trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
@@ -1006,8 +1027,8 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = finalAssignment'
                         , slimAlignment = slimGapped childChar
-                                          --if isTree then slimGapped childChar
-                                          --else mempty
+                                          -- if isTree then slimGapped childChar
+                                          -- else mempty
                         }
 
 
@@ -1017,8 +1038,8 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
          else childChar { wideFinal = finalAssignment'
                         , wideAlignment = wideGapped childChar
-                                          -- if isTree then wideGapped childChar
-                                          -- else mempty
+                                          --if isTree then wideGapped childChar
+                                          --else mempty
                         }
 
       else if localCharType == HugeSeq then
@@ -1027,8 +1048,8 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
          else childChar { hugeFinal = finalAssignment'
                         , hugeAlignment = hugeGapped childChar
-                                          -- if isTree then hugeGapped childChar
-                                          -- else mempty
+                                          --if isTree then hugeGapped childChar
+                                          --else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1061,16 +1082,19 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          let finalAlignment = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
              -- finalAssignment' = extractMedians finalAlignment
          in
-         -- traceNoLF ("TNFinal-Leaf") $
+         -- traceNoLF ("TNFinal-Leaf " ++ (show isSingleParentIn1Out1) ++ " ") $
          -- trace ("TNFinal-Leaf:" ++ (show (GV.length $ fst3  (slimAlignment parentChar), GV.length $ fst3 finalAlignment, isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "\n->" ++ (show finalAlignment)) $
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
-                        , slimAlignment = finalAlignment
+                        , slimAlignment = if not isSingleParentIn1Out1 then finalAlignment
+                                          else slimAlignment parentChar
                                           --if isTree then finalAlignment
                                           --else mempty
+
                         , slimIAPrelim  = finalAlignment
-                                          -- if isTree then finalAlignment
-                                          -- else mempty
+                                          --if isTree then finalAlignment
+                                          --else mempty
+
                         , slimIAFinal  =  extractMediansGapped finalAlignment
                                           --if isTree then extractMediansGapped $ finalAlignment
                                           --else mempty
@@ -1087,9 +1111,11 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
                         , wideAlignment = finalAlignment
                                           --if isTree then finalAlignment
                                           --else mempty
+
                         , wideIAPrelim =  finalAlignment
                                           --if isTree then finalAlignment
                                           --else mempty
+
                         , wideIAFinal =   extractMediansGapped finalAlignment
                                           --if isTree then extractMediansGapped $ finalAlignment
                                           --else mempty
@@ -1103,14 +1129,16 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
          else childChar { hugeFinal = extractMedians $ hugeGapped childChar -- finalAssignment'
                         , hugeAlignment = finalAlignment
-                                          -- if isTree then finalAlignment
-                                          -- else mempty
+                                          --if isTree then finalAlignment
+                                          --else mempty
+
                         , hugeIAPrelim =  finalAlignment
-                                          -- if isTree then finalAlignment
-                                          -- else mempty
+                                          --if isTree then finalAlignment
+                                          --else mempty
+
                         , hugeIAFinal =   extractMediansGapped finalAlignment
-                                          -- if isTree then extractMediansGapped $ finalAlignment
-                                          -- else mempty
+                                          --if isTree then extractMediansGapped $ finalAlignment
+                                          --else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1157,7 +1185,7 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         -- traceNoLF ("TNFinal-Tree") $
+         -- traceNoLF ("TNFinal-Tree "++ (show isSingleParentIn1Out1) ++ " ") $
          let finalGapped = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
 
              finalAssignmentDO = if finalMethod == DirectOptimization then
@@ -1174,11 +1202,12 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { slimFinal = finalAssignmentDO
-                        , slimAlignment = finalGapped
-                                         --if isTree then finalGapped
-                                         -- else mempty
+                        , slimAlignment = if not isSingleParentIn1Out1 then finalGapped
+                                          else slimAlignment parentChar
+                                          
+                                          --if isTree then finalGapped
+                                          --else mempty
                         }
-         --)
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalGapped = doPreOrderWithParentCheck isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
@@ -1196,7 +1225,7 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { wideFinal = finalAssignmentDO
                         , wideAlignment = finalGapped
-                                         --if isTree then finalGapped
+                                          --if isTree then finalGapped
                                           --else mempty
                         }
 
@@ -1216,18 +1245,20 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { hugeFinal = finalAssignmentDO
                         , hugeAlignment = finalGapped
-                                         --if isTree then finalGapped
-                                         -- else mempty
+                                          --if isTree then finalGapped
+                                          --else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
 
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
-   -- this doens't work--need to redo pass logic--perhaps by doing "grandparent"
+   -- this doens't work--need to redo pass logic--perhaps by doing "grandchild"
+   -- churrently using childChild
    else if isIn1Out1 then
       -- trace ("InOut1 preorder") (
-      if localCharType == Add then
+      if isSingleParentIn1Out1 then error ("Parent node of indegree 1 outdegree 1 also indegree 1 outdegree 1 ")
+      else if localCharType == Add then
          childChar {rangeFinal = rangeFinal parentChar}
 
       else if localCharType == NonAdd then
@@ -1250,33 +1281,56 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
+         {-
          --traceNoLF ("TNFinal-1/1") $
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) $
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
-                        , slimAlignment = slimAlignment parentChar
-                                          -- if isTree then slimAlignment parentChar -- finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
-                                          -- else mempty
+                        , slimAlignment = -- slimAlignment parentChar
+                                          if isTree then slimAlignment parentChar -- finalGappedO -- slimAlignment parentChar -- finalGappedO-- slimAlignment parentChar
+                                          else mempty
+
                         , slimGapped = slimGapped parentChar -- slimGapped' -- slimGapped parentChar -- finalGappedO --slimGapped parentChar
                         -- , slimIAPrelim = slimIAPrelim parentChar
-                        , slimIAFinal =  slimFinal parentChar
-                                        -- if isTree then slimFinal parentChar
-                                        --else mempty
+                        , slimIAFinal = -- slimFinal parentChar
+                                        if isTree then slimFinal parentChar
+                                        else mempty
                         }
-        -- )
+        -}
+         -- traceNoLF ("TNFinal-11 " ++ (show isSingleParentIn1Out1) ++ " ") $
+         let finalGapped = doPreOrderWithParentCheck True (slimAlignment parentChar) (slimGapped parentChar) (slimGapped $ fromJust childChildCharM)
+
+             finalAssignmentDO = if finalMethod == DirectOptimization then
+                                    let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
+                                        parentFinal = (parentFinalDC, mempty, mempty)
+                                        -- parentGapped = (slimGapped parentChar, mempty, mempty)
+                                        childGapped = (slimGapped $ fromJust childChildCharM, mempty, mempty)
+                                        finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal childGapped
+                                    in
+                                    extractMedians finalAssignmentDOGapped
+                                    -- really could/should be mempty since overwritten by IA later
+                                 else extractMedians finalGapped
+         in
+         --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
+         if staticIA then M.makeIAFinalCharacter finalMethod charInfo (fromJust childChildCharM) parentChar
+         else childChar { slimFinal = finalAssignmentDO
+                        , slimAlignment = finalGapped
+                                          --if isTree then finalGapped
+                                          --else mempty
+                        }
 
     else if (localCharType == WideSeq) || (localCharType == AminoSeq) then -- parentChar
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
          else childChar { wideFinal = wideFinal parentChar
-                        , wideAlignment = wideAlignment parentChar
-                                         -- if isTree then wideAlignment parentChar -- finalGappedO -- wideAlignment parentChar -- finalGappedO-- wideAlignment parentChar
-                                         -- else mempty
+                        , wideAlignment = --wideAlignment parentChar
+                                          if isTree then wideAlignment parentChar -- finalGappedO -- wideAlignment parentChar -- finalGappedO-- wideAlignment parentChar
+                                          else mempty
                         , wideGapped = wideGapped parentChar -- wideGapped' -- wideGapped parentChar -- finalGappedO --wideGapped parentChar
                         -- , wideIAPrelim = wideIAPrelim parentChar
-                        , wideIAFinal = wideFinal parentChar
-                                        -- if isTree then wideFinal parentChar
-                                        -- else mempty
+                        , wideIAFinal = --wideFinal parentChar
+                                        if isTree then wideFinal parentChar
+                                        else mempty
                         }
         -- )
 
@@ -1284,14 +1338,14 @@ setFinal _ finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 ch
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (hugeAlignment parentChar), (hugeGapped parentChar) ,(hugeGapped childChar)))) (
          if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
          else childChar { hugeFinal = hugeFinal parentChar
-                        , hugeAlignment = hugeAlignment parentChar
-                                          --if isTree then hugeAlignment parentChar -- finalGappedO -- hugeAlignment parentChar -- finalGappedO-- hugeAlignment parentChar
-                                          --else mempty
+                        , hugeAlignment = --hugeAlignment parentChar
+                                          if isTree then hugeAlignment parentChar -- finalGappedO -- hugeAlignment parentChar -- finalGappedO-- hugeAlignment parentChar
+                                          else mempty
                         , hugeGapped = hugeGapped parentChar -- hugeGapped' -- hugeGapped parentChar -- finalGappedO --hugeGapped parentChar
                         -- , hugeIAPrelim = hugeIAPrelim parentChar
-                        , hugeIAFinal = hugeFinal parentChar
-                                        --if isTree then hugeFinal parentChar
-                                        --else mempty
+                        , hugeIAFinal = --hugeFinal parentChar
+                                        if isTree then hugeFinal parentChar
+                                        else mempty
                         }
         -- )
 
