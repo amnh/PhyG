@@ -181,6 +181,7 @@ changePreamble' findString newString accumList inLineList =
 --also, reorder GenForest so smalles (num leaves) is either first or
 --last so can print small to large all the way so easier to read
 -- eps on OSX because ps gets cutt off for some reason and no pdf onOSX
+-- -O foir multiple graphs I htink
 printGraphVizDot :: String -> String -> IO ()
 printGraphVizDot graphDotString dotFile =
     if null graphDotString then error "No graph to report"
@@ -239,7 +240,7 @@ requireReoptimization gsOld gsNew
 -- | outputBlockTrees takes a PhyloGeneticTree and outputs BlockTrees
 outputBlockTrees :: [String] -> [VertexCost] -> Int -> (String , V.Vector [DecoratedGraph]) -> String
 outputBlockTrees commandList costList lOutgroupIndex (labelString, graphLV) =
-    let blockIndexStringList = fmap (((++ "\n") . ("Block " ++)) . show) [0..((V.length graphLV) - 1)]
+    let blockIndexStringList = fmap (((++ "\n") . ("//Block " ++)) . show) [0..((V.length graphLV) - 1)]
         blockStrings = unlines (makeBlockGraphStrings commandList costList lOutgroupIndex <$> zip blockIndexStringList (V.toList graphLV))
     in
     labelString ++ blockStrings
@@ -247,7 +248,7 @@ outputBlockTrees commandList costList lOutgroupIndex (labelString, graphLV) =
 -- | makeBlockGraphStrings makes individual block display trees--potentially multiple
 makeBlockGraphStrings :: [String] -> [VertexCost] -> Int -> (String ,[DecoratedGraph]) -> String
 makeBlockGraphStrings commandList costList lOutgroupIndex (labelString, graphL) =
-    let diplayIndexString =("Display Tree(s): " ++ show (length graphL) ++ "\n")
+    let diplayIndexString =("//Display Tree(s): " ++ show (length graphL) ++ "\n")
         displayString = (++ "\n") $ outputDisplayString commandList costList lOutgroupIndex graphL
     in
     labelString ++ diplayIndexString ++ displayString
