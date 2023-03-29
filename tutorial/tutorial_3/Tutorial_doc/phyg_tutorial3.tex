@@ -407,11 +407,12 @@ substitution events that take place on a \textit{given} graph. \\
 Modify the script to include the following: 
 
 \begin{quote}
-report("flu\_net2\_ia.fas", ia, overwrite)
+report("flu\_net2\_ia.ss", ia, overwrite)
 \end{quote}
 
 This command will output an implied alignment for each reported graph, as well as 
 for each block of imported data. 
+
 %Should you wish to output an implied alignment
 %that is readable by the program \textit{TNT}, you should modify the command  
 %replacing \texttt{ia} with the argument \texttt{tnt}.
@@ -705,20 +706,24 @@ networks leading to HTU18 and HTU20.
 \label{eps5}
 \end{figure}
 
-%\item One of the output option for `softwired' networks is to report the `display' 
-%trees. Recall that a `display' tree or `tree-based network' is a tree created from 
-%a `softwired' graph by deleting one of two of the network edges/vertices. Modify 
-%the script to include \texttt{report("flu\_net5\_dt.tre", displaytrees, dotpdf, 
-%overwrite)}.
-%
-%\item Run the updated script.
-%
-%\item Now reexamine the reported files.  Recall that two files will be outputted 
-%from using this command \texttt{dotpdf}. \phyg has output an eps (on OSX) or 
-%pdf (on linux) file that can be viewed in a vector graphics program and a dot 
-%file, which can be viewed (and modified) in \textit{Graphviz}.
-%The file \textbf{"chel\_run1.dot"} \textbf{``flu\_net5\_dt.tre''}. 
-%
+\item One of the output option for `softwired' networks is to report the `display' 
+trees. Recall that a `display' tree or `tree-based network' is a tree created from 
+a `softwired' graph by deleting one of two of the network edges/vertices. Modify 
+the script to include \texttt{report("flu\_net5\_dt.tre", displaytrees, newick, 
+overwrite)}.
+
+\item Run the updated script.
+
+\item Now examine the reported file.  For now `display' trees can only be reported
+in newick format (as opposed to dotpdf and eps format---the error lies with \textit{dot}
+on OSX machines). Note: the 
+
+Recall that two files will be outputted 
+from using this command \texttt{dotpdf}. \phyg has output an eps (on OSX) or 
+pdf (on linux) file that can be viewed in a vector graphics program and a dot 
+file, which can be viewed (and modified) in \textit{Graphviz}.
+The file \textbf{"chel\_run1.dot"} \textbf{``flu\_net5\_dt.tre''}. 
+
 %\item In Tutorial 0.1 we learned how to perform a local search on the graphs stored 
 %in memory. Let's do that here. Modify the script to include \texttt{swap(spr:3)}.
 %This command specifies that SPR refinement \citep{Dayhoff1969} is performed. 
