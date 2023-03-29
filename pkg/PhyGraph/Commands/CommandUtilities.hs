@@ -708,7 +708,7 @@ createDisplayTreeTNT inGS inData inGraph =
         charInfoVV = six6 inGraph
         numTaxa = V.length $ fst3 inData
         ccCodeInfo = getCharacterInfo charInfoVV
-        blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
+        blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
 
         -- create seprate processed data for each block
         blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
@@ -737,8 +737,6 @@ createDisplayTreeTNT inGS inData inGraph =
     in
     nameLengthString ++ "'\n" ++ show (sum charLengthList) ++ " " ++ show numTaxa ++ "\n"
                 ++ nameCharStringList ++ ";\n" ++ ccCodeString
-
-
 
 
 -- | pairListToStringList takes  alist of (String, Int) and a starting index and returns scope of charcter for leading comment
@@ -890,24 +888,25 @@ getBlockNames inCharInfoV =
 
 -- | getCharacterString returns a string of character states
 -- need to add splace between (large alphabets etc)
--- local alphabet for charactes where that is input.  MAytrix and additive are integers
+-- local alphabet for charactes where that is input.  Mattrix and additive are integers
 getCharacterString :: CharacterData -> CharInfo -> String
 getCharacterString inCharData inCharInfo =
     let inCharType = charType inCharInfo
         localAlphabet = if inCharType /= NonAdd then ST.toString <$> alphabet inCharInfo
                         else fmap ST.toString discreteAlphabet
+        alphSize =  S.rows $ costMatrix inCharInfo
     in
     let charString = case inCharType of
-                      x | x == NonAdd ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ stateBVPrelim inCharData
-                      x | x `elem` packedNonAddTypes   -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
+                      x | x == NonAdd ->    foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ stateBVPrelim inCharData
+                      x | x `elem` packedNonAddTypes   -> UV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
                       x | x == Add ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
                       x | x == Matrix ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
-                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ slimAlignment inCharData
-                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ wideAlignment inCharData
-                      x | x == HugeSeq           ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ hugeAlignment inCharData
-                      x | x == AlignedSlim       -> SV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
-                      x | x == AlignedWide       -> UV.foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedWidePrelim inCharData
-                      x | x == AlignedHuge       ->    foldMap (bitVectToCharStringTNT localAlphabet) $ snd3 $ alignedHugePrelim inCharData
+                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ slimAlignment inCharData
+                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ wideAlignment inCharData
+                      x | x == HugeSeq           ->    foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ hugeAlignment inCharData
+                      x | x == AlignedSlim       -> SV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
+                      x | x == AlignedWide       -> UV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedWidePrelim inCharData
+                      x | x == AlignedHuge       ->    foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedHugePrelim inCharData
                       _                                -> error ("Un-implemented data type " ++ show inCharType)
         allMissing = not (any (/= '-') charString)
     in
@@ -915,12 +914,12 @@ getCharacterString inCharData inCharInfo =
     else replicate (length charString) '?'
 
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
-bitVectToCharStringTNT ::  (FiniteBits b, Bits b) => Alphabet String -> b -> String
-bitVectToCharStringTNT localAlphabet bitValue =
-    let stateString = U.bitVectToCharState localAlphabet bitValue
-    in
-    if length stateString > 1 then "[" ++ filter (/=',') stateString ++ "]"
-    else stateString
+bitVectToCharStringTNT ::  (FiniteBits b, Bits b) => Int -> Alphabet String -> b -> String
+bitVectToCharStringTNT alphSize localAlphabet bitValue =
+   let stateString = U.bitVectToCharState localAlphabet bitValue
+   in
+   if popCount bitValue == alphSize then "?"
+   else stateString
 
 -- | Implied Alignment report functions
 
