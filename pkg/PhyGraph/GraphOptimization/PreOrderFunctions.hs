@@ -99,8 +99,21 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths _ rootInd
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
             -- also assignes unions for use in rearrangemenrts
-            -- should be ok for softwired--if done by display trees, and soft and hardwired with outdegree=1
-            preOrderBlockVect' = V.zipWith (makeIAUnionAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+            -- should be ok for softwired--if done by display trees-- hence th eprepass wiht contacted in1 out 1 vertices
+            softwiredUpdatedLeafIA = if graphType inGS /= SoftWired then preOrderBlockVect
+                                     else -- update leaf IA assignments based on cotracted edge  IAs
+                                        let -- get display trees for each data block-- takes first of potentially multiple
+                                            blockDisplayList = fmap (LG.contractIn1Out1Edges . V.head) blockCharacterDecoratedVV
+
+                                            -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
+
+                                            -- back port new leave IA fields to existing softwired graph
+                                            
+                                        in
+                                        preOrderBlockVect
+
+
+            preOrderBlockVect' = V.zipWith (makeIAUnionAssignments finalMethod rootIndex) softwiredUpdatedLeafIA inCharInfoVV
                                  -- if hasNonExact && (graphType inGS) == Tree then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
                                  -- else preOrderBlockVect
 
@@ -297,7 +310,7 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
 
         -- )
 
--- | doBlockTraversal' is a wrapper around doBlockTraversal fro seqParMap
+-- | doBlockTraversal' is a wrapper around doBlockTraversal fo seqParMap
 doBlockTraversal' :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> (V.Vector CharInfo, V.Vector DecoratedGraph) -> V.Vector DecoratedGraph
 doBlockTraversal' inGS finalMethod staticIA rootIndex (inCharInfoV, traversalDecoratedVect) =
     doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecoratedVect
