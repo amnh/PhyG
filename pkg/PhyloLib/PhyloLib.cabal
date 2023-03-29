@@ -86,6 +86,33 @@ if flag(test-osx)
 
 else
   ghc-options:
-    -fllvm
+    -- Sanity check warnings:
+    --   1. Fail on a warning
+    --   2. Include all warnings by default
+    --   3. Exclude the undesirable warnings
+    -- -Werror
+    -Weverything
+    -- Exclusions:
+    -feager-blackholing
+    -O2
+    -Wall
+    -Wno-all-missed-specialisations
+    -Wno-implicit-prelude
+    -Wno-missing-import-lists
+    -Wno-missing-kind-signatures
+    -Wno-missing-safe-haskell-mode
+    -Wno-monomorphism-restriction
+    -Wno-type-defaults
+    -Wno-unsafe
+    -fexcess-precision
+    -fexpose-all-unfoldings
+    -flate-specialise
+    -fmax-simplifier-iterations=16
+    -foptimal-applicative-do
+    -fspec-constr-count=8
+    -fspec-constr-keen
+    -fspecialize-aggressively
+    -fstatic-argument-transformation
+    -- -fllvm
 
 

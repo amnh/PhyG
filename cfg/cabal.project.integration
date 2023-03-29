@@ -17,7 +17,7 @@ packages:
 ---------------------------------------------------------------------------------
 
 executable-static: False
-with-compiler: ghc-9.4.2
+with-compiler: ghc-9.4.4
 
 
 ---------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ package PhyGraph
     benchmarks:        False
     documentation:     False
     tests:             False
-    flags: +SingleThreaded
+    flags: +SingleThreaded +test-osx
     optimization: 2
 
 
@@ -123,9 +123,4 @@ source-repository-package
   type: git
   location: https://github.com/recursion-ninja/bv-little
   tag: 4541d78545933f450af5c241a83e4b07a0e69dca
-
-source-repository-package
-  type: git
-  location: https://github.com/athas/fgl
-  tag: abdbad85bf54306b98734ade2ecfc3f0fd587af8
 

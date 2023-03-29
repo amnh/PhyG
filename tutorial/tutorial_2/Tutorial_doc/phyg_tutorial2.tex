@@ -33,7 +33,7 @@
 \newcommand{\phyg}{\texttt{PhyG} }
 \newcommand{\BigO}[1]{\ensuremath{\mathcal{O}\left(\,#1\,\right)}\xspace}
 
-\title{PhyG 0.1 Tutorials}
+\title{PhyG 0.2 Tutorials}
 
 \author{Louise M. Crowley}
 \makeindex
@@ -71,12 +71,12 @@ commands and associated arguments of \phyg can be found
 \subsection{Obtaining and Installing \phyg}
 \label{subsec:Installation}
 
-In this tutorial, you will learn how to obtain and install the \phyg binaries. \phyg 
-precompiled binaries, test data, and documentation in pdf format, are available 
+In this tutorial, you will learn how to obtain and install the \phyg binaries.
+Precompiled \phyg binaries, test data, and documentation in pdf format, are available 
 from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} website. 
 
 \begin{enumerate}
-\item Open a web browser, and navigate to the \phyg \href{https://github.com/amnh/PhyGraph}
+\item Open a web browser and navigate to the \phyg \href{https://github.com/amnh/PhyGraph}
 {GitHub} website. In the \emph{bin} directory, binaries are available for Mac OSX 
 computers with either Intel or M1 processors, and Linux (Intel) machines (see information 
 relating to Windows machine below).
@@ -113,14 +113,23 @@ following (\texttt{sudo} will require Admin password):
 	sudo mkdir -p /usr/local/bin
 	\end{quote}
 
+\item For users without administrative privileges for their computer, save
+this binary at your preferred location (for instance in `Applications') and refer to its absolute
+PATH when executing a script: 
 
-\item Move the \phyg binary from its current location to this location. For example 
+	\begin{quote}
+  	/Applications/phyg ~/Desktop/phygfiles/dec\_run1.pg
+	\end{quote}
+	
+see also below \ref{subsec:executing})
+	
+\item Move the \phyg binary from its current location to this location. For example, 
 typing the following will move the binary from its Desktop location into the user's 
 \$PATH:
 
 	\begin{quote}
 	sudo mv ~/Desktop/phyg /usr/local/bin
-	\end{quote}
+	\end{quote}	
 	
 \item For those users with Windows machines, a Windows Subsystem for Linux 
 (WSL) can be installed. This system will allow you to run the Linux binary directly 
@@ -133,32 +142,33 @@ The WSL, along with directions for installation, can be found
 \subsection{Making a \phyg script}
 \label{subsec:Scripts}
 
-\phyg analyses are conducted using a script, and can not be performed interactively. 
-A script is a simple text file containing a list of commands to be performed. In this 
-tutorial you will learn how to generate a script for execution by the program. \phyg 
+\phyg analyses are conducted using a script and cannot be performed interactively. 
+A script is a simple text file containing a list of commands to be performed. \phyg 
 scripts can be created and saved using any conventional text editor (such as 
 \textit{TextEdit}, \textit{TextWrangler}, \textit{BBEdit}, \textit{Emacs}, or \textit{NotePad}). 
 Do not use a word processing application like \emph{Microsoft Word} or \emph{Apple 
 Pages}, as these programs can introduce hidden characters in the file, which will be 
 interpreted by \phyg and can cause unpredictable parsing of the data. In this tutorial, 
-you will learn about the format of \phyg scripts and how to make them.
+you will learn about the format of \phyg scripts and how to generate one for execution 
+by the program.
 
 \begin{enumerate}
 
 \item Open your text editor of choice.
 
 \item Type the following:
-	
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	\end{quote}
 
+	\begin{quote}	
+	-\/-Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
+	\end{quote}
+	
 Note: the commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} 
 are executed at the beginning of program execution, irrespective of where they 
 appear in the command script. All other commands are executed in the order they 
@@ -171,35 +181,36 @@ lines. Comments can provide useful information to the reader to understand
 the purpose of the script. They can also be useful for testing purposes.
 
 \item Each command consists of a name, followed by a list of arguments or options 
-separated by commas and enclosed in parentheses. Commands and arguments are 
-case insensitive with the exception of filename specifications, which are always in 
+separated by commas, and enclosed in parentheses. Commands and arguments are 
+case insensitive, except for filename specifications, which are always in 
 double quotes (\textbf{"fileName"}). There are defaults for all options except 
 input graphs. The command, followed by open and closed parentheses `\texttt{()}',
 denotes default options, e.g. \texttt{build()} is the equivalent of \texttt{build(character, 
 replicates:10)}.
 
 \item In this script, the seed for the random number generator is \texttt{set} to 
-the integer value 73412305. By setting this value, you are guaranteed to reproduce 
+the integer value 1634561640. By setting this value, you are guaranteed to reproduce 
 a given search strategy each time the script is run. This value can be any number of 
 digits in length. Note: this seed value should not be mistaken for the initial random
 seed value, as chosen by the application (see Figure \ref{output1}).
 
-\item Next \texttt{set} the outgroup for the analysis to \emph{Limulus}. If the outgroup
+\item Next, the outgroup for the analysis is \texttt{set} to 
+\emph{Euphausiacea\_Euphausiidae\_Euphausia\_pacifica}. If the outgroup
 is not set, \phyg will sort the taxa alphabetically and choose the first taxon as the
 outgroup. Only a single taxon can be set as the outgroup of the analysis. Note: taxon 
-names can not have spaces, otherwise the names can be incorrectly interpreted by
+names cannot have spaces, otherwise the names can be incorrectly interpreted by
 the program.
 
 \item The command \texttt{read} imports file-based information, including data files, 
 tree and graph files. \texttt{read} commands must contain an input file. Supported 
 data formats include FASTA, FASTC and TNT files, and graph formats include Dot, 
-Enewick, Fenewick, and Newick. Filenames must include the any suffix (e.g. 
+Enewick, Fenewick, and Newick. Filenames must include the suffix (e.g. 
 .fas, .fasta, .fastc, .ss, .tre). Failure to include these suffices will result in the error 
 "File(s) not found in `read' command". The filename must match \textit{exactly}, 
 including capitalization.\\
 \\
 \texttt{read} also accepts wild cards. The user can use an asterisk (*) to represent 
-zero or more characters. For example, to read all the filenames with the extension .fas, 
+zero or more characters. For example, to read all the filenames with the extension.fas, 
 the user can simply type:
         
         \begin{quote}
@@ -214,41 +225,59 @@ Moreover, to capture all the filetypes beginning with fas, the user can type:
 
 This will read files ending in .fas, .fasta and .fastc. \phyg will attempt to recognize 
 the type of input and parse appropriately. Otherwise, the type of file can be 
-indicated. In this example, we indicate that the files "chel\_16S.fas" and 
-"chel\_cox1.fas" contain IUPAC \texttt{nucleotide} sequence data in fasta format.
+indicated. In this example, we indicate that the files "dec\_16S.fas" and 
+"dec\_12S.fas" contain IUPAC \texttt{nucleotide} sequence data in fasta format.
+
+\item In addition to reading in our nucleotide sequence files, we \texttt{read} in the
+file "Include\_dec22.txt". The data files "dec\_16S.fas" and "dec\_12S.fas" collectively 
+contain 117 taxa. For the purposes of this tutorial and expediency, we only \texttt{include} 
+a subset of these taxa. This file specifies the names of the terminal taxa to be included
+in the analysis. As can be seen in Figure \ref{include}, the taxa appear in the form of 
+a list, with a single taxon per line. Note: in contrast, the argument \texttt{exclude} 
+specifies a file containing the names of terminals to be excluded from the analysis.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\textwidth]{include.png}
+\caption{A simple text file with a list of the terminals to be included in the \phyg analysis.}
+\label{include}
+\end{figure}
+
+Rather than altering the original data files, we recommend using files such as these
+to select terminals for inclusion or exclusion in the analysis.
 
 \item Having read in our data, it is advisable to verify that the files were properly 
 parsed by checking the characters and terminals in the cross references and data 
-files. We will examine these files below (Section \ref{subsec:Inspecting}).
+files. We will examine these files below (Section \ref{subsec:inspecting}).
 
-\item Save this file with the name \textbf{run1.pg} in a directory \texttt{phygfiles} 
+\item Save this file with the name \textbf{dec22\_run1.pg} in a directory \texttt{phygfiles} 
 located on your Desktop.
 
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
 \subsection{Executing scripts}
-\label{subsec:Execution}
+\label{subsec:executing}
 
 In this tutorial you will learn how to execute a script using \texttt{PhyG}. 
 
 \begin{enumerate}
 
-\item Before we read the data, we will make sure that \phyg is working in the directory 
-containing the data files. The working directory tells the application where to look 
-for the files. In this way, whenever we tell \phyg to read a file, we don't need to 
-specify where is it located in the file system, we can simply use its name. To 
-begin, open a \textit{Terminal} window.
+\item Before we execute our script, we will make sure that \phyg is working in the 
+directory containing the data files. The working directory tells the application 
+where to look for the files. In this way, whenever we tell \phyg to read a file, 
+we don't need to specify where it is located in the file system, we can simply 
+use its name. To begin, open a \emph{Terminal} window.
         
-\item Change the directory to where the script \textbf{run1.pg} is located by using the 
-\texttt{cd} command, as in:
+\item Change to the directory where the script \textbf{dec22\_run1.pg} is located by 
+using the \texttt{cd} command, as in:
 		
 	\begin{quote}
 	cd ~/Desktop/phygfiles
 	\end{quote}
    
 \item By typing \texttt{ls} you will see that this directory contains the script 
-\textbf{run1.pg}.
+\textbf{dec22\_run1.pg}.
 
 \item The program is invoked from the command-line, as in:
 		
@@ -256,19 +285,19 @@ begin, open a \textit{Terminal} window.
 	phyg commandFile
 	\end{quote}
 	
-To run the script \textbf{run1.pg} type the following:
+To run the script \textbf{dec22\_run1.pg} type the following:
 		
 	\begin{quote}
-  	phyg run1.pg
+  	phyg dec22\_run1.pg
 	\end{quote}
 	
 This is equivalent to typing the following from any location on your computer:
 	
 	\begin{quote}
-  	phyg ~/Desktop/phygfiles/run1.pg
+  	phyg ~/Desktop/phygfiles/dec22\_run1.pg
 	\end{quote}
 
-Note: should you get the error ``phyg: command not found'' this indicated that 
+Note: should you get the error ``phyg: command not found'', this indicates that 
 \texttt{Phyg} is not in your path). 
 	
 \item To interrupt the analysis, press control-c. Interrupting the analysis cancels 
@@ -278,10 +307,10 @@ the execution of the last command requested by the user.
 
 %-------------------------------------------------------------------------------------------------------
 \subsection{Inspecting the data}
-\label{subsec:Inspecting}
+\label{subsec:inspecting}
 
 In this tutorial you will learn how to inspect data in both the terminal window and 
-in reported output files. Running the script will automatically generate an extensive, 
+in the reported output files. Running the script will automatically generate an extensive, 
 detailed output in the terminal window. It may also be desirable to inspect the 
 imported data in greater detail to ensure that the format and contents of the files 
 have been interpreted correctly. This practice helps avoid common errors, such 
@@ -294,19 +323,20 @@ produce error messages, and aborted jobs.
 (Figure \ref{output1}). \phyg will continue to output information to the screen 
 until the completion of the analysis. It is possible to scroll through this output, 
 even as the analysis continues to run. The output includes the landing page, 
-the name of the script, the random seed, whether the files were 
-correctly specified, the name of the input file(s), whether the terminals were 
-renamed, whether trees were selected, and a brief description of the content 
-for each loaded file. The current state of the analysis can be viewed here. Any 
-warnings and errors will also appear here. Upon completion of the analysis, the 
-results, including costs, the number of returned graphs, and information relating 
-wall-clock time, CPU time and CPU usage are also provided.
+the name of the script, the initial random seed, whether the files were correctly 
+specified, the name of the input file(s), whether the terminals were renamed, 
+the names of the included taxa, whether trees were selected, and a brief 
+description of the content for each loaded file. The current state of the analysis 
+can be viewed here. Any warnings and errors will also appear here. Upon 
+completion of the analysis, the results, including costs, the number of returned 
+graphs, and information relating wall-clock time, CPU time and CPU usage are 
+also provided.
 
-\begin{figure}
+\begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth]{output1.png}
-\caption{The \phyg output display in the \emph{Terminal} window at the beginning 
-of an analysis.}
+\includegraphics[width=0.8\textwidth]{output1.png}
+\caption{The \phyg output display in the \emph{Terminal} window for the analysis of 
+our script dec22\_run1.pg.}
 \label{output1}
 \end{figure}
 
@@ -317,17 +347,18 @@ interpreted and read in as nucleotide sequence data files by the program
 
 \item Let's reexamine our script:
 
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
+	\begin{quote}	
+	-\/-Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
 	\end{quote}
 	
-Having imported our data files, we next \texttt{report} a crossrefs and data file.
+Having imported our input files, we next \texttt{report} a crossrefs and data file.
 The command \texttt{report} outputs the results of the current analysis or loaded 
 data by directing it to a file. To redirect the output to a file, the file name (in quotes), 
 followed by a comma, must be included in the argument list of report. All arguments 
@@ -340,7 +371,7 @@ to the existing information. Many of the report options can be output in csv for
 which can subsequently be imported into spreadsheet applications like \textit{Excel} 
 or \textit{Numbers} for easy viewing. 
 
-\item Examine the reported file \textbf{"chel\_cr1.csv"}. The \texttt{crossrefs} 
+\item Examine the reported file \textbf{"dec22\_cr1.csv"}. The \texttt{crossrefs} 
 argument of the \texttt{report} command is a useful tool for visual representation 
 of the inputted data. This argument displays whether data are present or absent 
 for each terminal in each of the imported data files. This provides a comprehensive 
@@ -350,26 +381,28 @@ Figure \ref{crossrefs}). The argument will report a file with the terminals repr
 in rows, and the data files in columns. A plus sign ``+'' indicates that data for a given 
 terminal is present in the corresponding file; a minus sign ``-'' indicates that it is not.
 
-\item Open the csv file using  your spreadsheet program of choice (Figure \ref{crossrefs}). 
-The user is encouraged to report a crossrefs file having imported the data 
-into \texttt{PhyG}, especially when working with new datasets. 
+\item Open the csv file using  your spreadsheet program of choice (Figure 
+\ref{crossrefs}). The user is encouraged to report a crossrefs file having imported 
+the data into \texttt{PhyG}, especially when working with new datasets. 
 
-\begin{figure}
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.45\textwidth]{crossrefs1.png}\hfill
-\includegraphics[width=0.45\textwidth]{crossrefs2.png}
+\includegraphics[width=0.5\textwidth]{crossrefs1.png}\hskip -6ex
+\includegraphics[width=0.5\textwidth]{crossrefs2.png}
 \caption{Inspecting imported data. The figure shows two crossrefs files, which have 
-been imported into \emph{Excel}. The image on the left illustrates an inconsistency in the 
-naming of the taxon \emph{Thelichoris}. This was corrected in the image on the right.}
+been imported into \emph{Excel}. The image on the left illustrates an inconsistency 
+in the naming of the last taxon \emph{Stenopus\_hispidus}. The name was subsequently
+corrected in the "dec\_16S.fas" data file and the script was rerun. The new crossrefs 
+file is seen in the image on the right.}
 \label{crossrefs}
 \end{figure}
 	
-\item Examine the reported file \textbf{"chel\_data1.csv"}. This file is a summary 
+\item Examine the reported file \textbf{"dec22\_data1.csv"}. This file is a summary 
 of different aspects of the input data and terminals. This file summarizes 
 information relating to the input data (number of terminals, number of input files, 
 number of character blocks and the total number of characters). It also provides
 information relating to the terminal taxa included in the analysis, including the 
-names of the taxa, a list of the excluded taxa (if any), and whether any terminal 
+names of the taxa, a list of the excluded taxa (if any), and whether any terminals 
 were renamed. In this file you will also see information relating to 
 ``Index'', ``Block'', ``Name'', ``Type'', ``Activity'', ``Weight'', ``Prealigned'', ``Alphabet'', 
 ``TCM''. ``Index'' reports the character number in the overall dataset; ``Name'' the 
@@ -387,11 +420,11 @@ sequence elements and ``gap'' or insertion-deletion.
 \label{subsec:Building}
 
 Having imported and inspected our data, we are now ready to build the initial trees 
-or graphs. In this tutorial you will build a distance tree using nucleotide sequence 
-characters. The \texttt{build} command builds initial graphs. The arguments of build 
-specify the number of graphs to be generated, and whether the build is based on 
-distance or character methods. Distance methods are considerably faster, but 
-approximate in terms of character-based methods. 
+or graphs. The \texttt{build} command generates the initial graphs. The arguments 
+of \texttt{build} specify the number of graphs to be generated, and whether the \texttt{build} 
+is based on distance or character methods. Distance methods are considerably faster but 
+approximate in comparison to character-based methods. In this tutorial you will \texttt{build} a 
+distance tree using nucleotide sequence characters. 
 
 \begin{enumerate}
 
@@ -402,31 +435,34 @@ then constructed by performing random addition sequence distance Wagner
 builds, yielding multiple trees determined by the argument \texttt{replicates:n}. 
 This method has a time complexity of $\mathcal{O} \left( m*n^2 \right)$.
 
-\item We now want to examine the resulting trees. Trees are not reported as 
+\item We will want to examine the resulting trees. Trees are not reported as 
 output in the terminal window and must be directed to a file. Modify the script 
-to output tree files with \texttt{report("chel\_run1.tre", newick, graphs, overwrite)}.
+to output tree files with \texttt{report("dec22\_run1.tre", graphs, newick, overwrite)}.
 
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
+	\begin{quote}	
+	-\/-Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
 	build(distance, rdwag, replicates:100)\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
+	report("dec22\_run1.tre", graphs, newick, overwrite)
 	\end{quote}
 	
-\item Examine the reported file \textbf{"chel\_run1.tre"} in your preferred text editor. 
-\texttt{report(graph)} outputs a graph in a format specified by other arguments in the 
+\item Rerun the script.
+	
+\item Examine the reported file \textbf{"dec22\_run1.tre"} in your preferred text editor. 
+\texttt{report(graphs)} outputs a graph in a format specified by other arguments in the 
 command, in this case \texttt{newick}. \phyg will \texttt{overwrite} any existing trees in 
 this file. This newick tree file, in parenthetical notation, can be viewed in other programs 
 like \textit{FigTree} or \textit{TreeView}. The values associated with the taxon names and 
 HTUs are the branch lengths. The cost of the tree(s) can be found in square brackets, at 
 the end of each tree. Notice that the trees appear in order of cost in the file, with the most 
 optimal tree appearing last. In this analysis, \phyg returned 100 trees ranging in cost from 
-1005 to 1046 with the cost of the most optimal tree being 1005.
+3724 to 3844 with the cost of the most optimal tree being 3724.
 
 \end{enumerate}
 
@@ -442,29 +478,32 @@ This command proceeds by clipping parts of the given tree and attaching them in
 different positions. These algorithms employed in this branch-swapping include 
 `NNI', `SPR' and `TBR' refinement. The default of \texttt{swap} performs alternating 
 rounds of `SPR' and `TBR' refinement, swapping iteratively until a local optimum 
-is found, keeping 10 graphs per input graph.
+is found, keeping 10 graphs per input graph. In this tutorial you will perform a local
+search on the trees generated in the previous tutorial.
 
 \begin{enumerate}
 
-\item Modify the script to include \texttt{swap(alternate, keep:10)}. This command 
+\item Modify the script to include \texttt{swap(spr, keep:10)}. This command 
 specifies that alternating rounds of \texttt{spr} and \texttt{tbr} refinement are performed. 
 After each round \phyg will \texttt{keep} 10 graphs per input graph.
 
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
+	\begin{quote}	
+	--Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica\_NC\_016184")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
 	build(distance, rdwag, replicates:100)\\
-	swap(alternate, keep:10)\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
+	select(unique:10)\\
+	swap(spr, keep:5)\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
+	report("dec22\_run1.tre", graphs, newick, overwrite)
 	\end{quote}
 	
-\item Now reexamine the reported file \textbf{"chel\_run1.tre"}. Notice that this 
-simple local search has reduced the cost of the initial best tree from 1005 to 998.
+\item Now reexamine the reported file \textbf{"dec22\_run1.tre"}. Notice that this 
+simple local search has reduced the cost of the initial best tree from 3724 to 3719.
 
 \end{enumerate}
 
@@ -491,23 +530,25 @@ prior to reporting the results. The remaining trees are deleted from memory.
 optimal \emph{and} topologically unique at the end of an analysis. The default 
 setting of the \texttt{select()} does exactly that. Add \texttt{select()} to our script, 
 ensuring that \phyg will select the topologically unique trees of best cost upon 
-completion. For now we will comment out this command as we will only include 
+completion. For now, we will comment out this command as we will only include 
 a pool of topologically unique tree for the next stage of the analysis (Section 
 \ref{subsec:Fusing}).
 
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
-	select(unique)\\
-	swap(alternate, keep:10)\\
-	-\/-select()\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
+	\begin{quote}	
+	--Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica\_NC\_016184")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
+	build(distance, rdwag, replicates:1000)\\
+	select(unique:10)\\
+	swap(spr, keep:5)\\
+	fuse(tbr:20, keep:5)\\
+	select()\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
+	report("dec22\_run1.tre", graphs, newick, overwrite)
 	\end{quote}
 
 \end{enumerate}
@@ -531,25 +572,26 @@ causes the exchanged subgraphs to be tried at multiple positions (up to 9
 edges away from their initial positions. The number of returned graphs is 
 limited to 1.
 
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
-	select(unique)\\
-	swap(alternate, keep:10)\\
-	fuse(tbr:10, keep:1)\\
+	\begin{quote}	
+	--Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica\_NC\_016184")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
+	build(distance, rdwag, replicates:1000)\\
+	select(unique:10)\\
+	swap(spr, keep:5)\\
+	fuse(tbr:20, keep:5)\\
 	select()\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
+	report("dec22\_run1.tre", graphs, newick, overwrite)
 	\end{quote}
-
+	
 \item Uncomment the command \texttt{select()}.
 
-\item Reopen the reported tree file \texttt{"chel\_run1.tre"} using your text editor.
+\item Reopen the reported tree file \texttt{"dec22\_run1.tre"} using your text editor.
 You will see that the cost of the most optimal tree has not decreased any further 
 than 998. While the cost of the tree has not decreased any further, this gives us
 some confidence that the large tree space that we explored did not find any
@@ -573,21 +615,22 @@ session.
 
 \item Modify the script to include \texttt{report("fileName", ia)}.
 
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
-	select(unique)\\
-	swap(alternate, keep:10)\\
-	fuse(tbr:10, keep:1)\\
+	\begin{quote}	
+	--Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica\_NC\_016184")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
+	build(distance, rdwag, replicates:1000)\\
+	select(unique:10)\\
+	swap(spr, keep:5)\\
+	fuse(tbr:20, keep:5)\\
 	select()\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
-	report("chel\_ia1.fas", ia, overwrite)\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
+	report("dec22\_run1.tre", graphs, newick, overwrite)
+	report("dec22\_ia1.ss", tnt, overwrite)
 	\end{quote}
 	
 An implied alignment is output for each reported tree, as well as for each block of imported data.
@@ -597,7 +640,7 @@ program \emph{TNT}, they should adjust the command  replacing \texttt{ia} with t
 argument \texttt{tnt}.
 
 	\begin{quote}
-	report("chel\_ia1.ss", tnt, overwrite)\\
+	report("dec22\_ia1.ss", tnt, overwrite)\\
 	\end{quote}
 	
 \end{enumerate}
@@ -613,34 +656,34 @@ subsequently be displayed, edited, and printed using graphics software.
 
 \item In order to output pdf files the application \emph{dot} must be installed from 
 the \href{https://graphviz.org/download/}{Graphviz} website. \emph{dot} is a graph 
-description language and Graphviz an  open source graph visualization software. 
+description language and Graphviz an  open-source graph visualization software. 
 This program is well suited to representing graphs and networks.
 
 \item  The command \texttt{report("filename.dot", graphs, dotpdf, overwrite)} will 
 produce a file that can be read in \emph{Adobe Illustrator}, \emph{Apple Preview} 
 or any vectorial image edition program. Modify the script to include this command:
 
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
-	select(unique)\\
-	swap(alternate, keep:10)\\
-	fuse(tbr:10, keep:1)\\
+	\begin{quote}	
+	--Decapoda first analysis, nucleotide data\\
+	set(seed:1634561640)\\
+	set(outgroup:"Euphausiacea\_Euphausiidae\_Euphausia\_pacifica\_NC\_016184")\\
+	read(nucleotide:"dec\_12S.fas", tcm:(1,1))\\
+	read(nucleotide:"dec\_16S.fas", tcm:(1,1))\\
+	read(include:"Include\_dec22.txt")\\
+	build(distance, rdwag, replicates:1000)\\
+	select(unique:10)\\
+	swap(spr, keep:5)\\
+	fuse(tbr:20, keep:5)\\
 	select()\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
-	report("chel\_ia1.fas", ia, overwrite)\\
-	report("chel\_run1.dot", graphs, dotpdf, overwrite)\\
+	report("dec22\_cr1.csv", crossrefs, overwrite)\\
+	report("dec22\_data1.csv", data, overwrite)\\
+	report("dec22\_run1.tre", graphs, newick, overwrite)
+	report("dec22\_ia1.ss", tnt, overwrite)
 	\end{quote}
 	
 \item Notice that two files were outputted from using this command. \phyg has 
-output a ps (on OSX) or pdf (on linux) file that can be viewed in a vector graphics program and a dot 
-file, which can be viewed (and modified) in \emph{Graphviz}.
+output a \hl{ps} (on OSX) or pdf (on linux) file that can be viewed in a vector graphics 
+program and a dot file, which can be viewed (and modified) in \emph{Graphviz}.
 The file \textbf{"chel\_run1.dot"} 
 \end{enumerate}
 
@@ -680,8 +723,6 @@ The file \textbf{"chel\_run1.dot"}
 %            report (asciitrees)
 %            exit ()
 %        \end{verbatim}
-%        Can you guess what the command would be to output the asciitrees in a
-%        file?
 %
 %\end{enumerate}
 %
@@ -1025,29 +1066,36 @@ The file \textbf{"chel\_run1.dot"}
 %
 %\end{enumerate}
 %
-%\subsection{Using Search}
-%
-%\begin{enumerate}
-%    \item The \ phyg{search} command runs a mixture of:
-%        \begin{itemize}
-%            \item Randomized wagner builds
-%            \item TBR swapping
-%            \item Nixon's ratchet
-%            \item Exhaustive DO
-%            \item Tree fusing
-%        \end{itemize}
+\subsection{Using Search}
+\label{subsec:search}
+
+This command implements a default search strategy, performing a timed randomized 
+series of graph optimization methods including building, swapping, recombination 
+(fusing), simulated annealing and drifting, network edge addition/deletion/moving, 
+and Genetic Algorithm. The parameters and their order of implementation are 
+randomized for this search.
+
+\begin{enumerate}
+\item Create a new file using your text editor of choice.
+
+\item Type the following:
+	
+	\begin{quote}
+	-\/-Chel analysis using search\\
+	set(seed:73412305)\\
+	set(outgroup:"Limulus")\\
+	read(nucleotide:"chel\_16S.fas")\\
+	read(nucleotide:"chel\_cox1.fas")\\
+	search(minutes:5)\\
+	report("blah.csv", search, overwrite)
+	report("chel\_data2.csv", data, overwrite)\\
+	report("chel\_run2.tre", newick, graphs, overwrite)\\
+	\end{quote}
 %
 %    \item
 %        \ phyg{search} should be the first analysis option for both new and
 %        expert users. Let's start with a very small data set, so that we can get
 %        some meaningful results with a very small amount of time:
-%        \begin{verbatim}
-%            wipe ()
-%            read ("18s.fasta")
-%            search (max_time:0:0:1) 
-%            (* This will run a search for exactly 1 
-%            minute *)
-%        \end{verbatim}
 %
 %    \item
 %        After this command finishes, you should see a message on screen telling
@@ -1089,7 +1137,10 @@ The file \textbf{"chel\_run1.dot"}
 %            report ("search_18s.tree", trees)
 %        \end{verbatim}
 %
-%\end{enumerate}
+%\item Save this file with the name \textbf{run1\_search.pg} in a directory \texttt{phygfiles} 
+%located on your Desktop.
+
+\end{enumerate}
 %
 %\subsection{Calculating Supports: Jackknife}
 %This method calculates Jackknife support values for input graphs. This method specifies
@@ -1226,7 +1277,7 @@ The command \texttt{report(support)} labels the edges with bootstrap frequencies
 	report("chel\_run1\_gb.dot", support, dotpdf, overwrite)
         \end{quote}  
        
-\item Save this file in the same directory as your tree file, i.e. \texttt{run1}.
+\item Save this file in the same directory as your tree file, i.e., \texttt{run1}.
 We will name this file \texttt{run1\_GBs.pg}.
 
 \item Execute the script:
