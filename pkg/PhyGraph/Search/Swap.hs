@@ -966,7 +966,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
        -- graphTYpoe with IA field
        -- only uswe wqhere they exist
-       (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == Tree then (M.makeEdgeData True True, edgeJoinDelta True) 
+       (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == HardWired then (M.makeEdgeData True True, edgeJoinDelta True) 
                                                   else (M.makeEdgeData False True, edgeJoinDelta False)
 
        
@@ -1117,7 +1117,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
           
           -- graphTYpoe with IA field
           -- only uswe wqhere they exist
-          (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == Tree then (M.makeEdgeData True True, edgeJoinDelta True) 
+          (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == HardWired then (M.makeEdgeData True True, edgeJoinDelta True) 
                                                      else (M.makeEdgeData False True, edgeJoinDelta False)
 
           targetEdgeData = makeEdgeDataFunction splitGraph charInfoVV targetEdge

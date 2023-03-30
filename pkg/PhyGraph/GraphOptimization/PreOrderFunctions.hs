@@ -101,23 +101,28 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
             -- also assignes unions for use in rearrangemenrts
-            -- should be ok for softwired--if done by display trees-- hence th eprepass wiht contacted in1 out 1 vertices
+            -- update leaf IA assignments based on cotracted edge for softWired to make IAs
+            -- no need for trees--can't for hardWired
             softwiredUpdatedLeafIA = if graphType inGS /= SoftWired then preOrderBlockVect
-                                     else -- update leaf IA assignments based on cotracted edge  IAs
+                                     else 
                                         let -- get display trees for each data block-- takes first of potentially multiple
-                                            -- blockDisplayList = fmap (LG.contractIn1Out1Edges . V.head) blockCharacterDecoratedVV
+                                            contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
 
                                             -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
+                                            contractedBlockVect = V.fromList (PU.seqParMap PU.myStrategy (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
 
-                                            -- back port new leave IA fields to existing softwired graph
-                                            
+                                            -- update leaf IA fields with contracted IAs
+                                            maxLeafIndex = maximum $ LG.nodes inSimple
+                                            blockCharDecNewLeafIA = V.zipWith3 (updateLeafIABlock maxLeafIndex) preOrderBlockVect contractedBlockVect inCharInfoVV 
+
                                         in
                                         -- holder for now
-                                        preOrderBlockVect
+                                        blockCharDecNewLeafIA
 
 
-            preOrderBlockVect' = if hasNonExact && (graphType inGS == Tree ) then V.zipWith (makeIAUnionAssignments finalMethod rootIndex) softwiredUpdatedLeafIA inCharInfoVV
-                                 -- if hasNonExact && (graphType inGS) == Tree then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
+            preOrderBlockVect' = if hasNonExact && (graphType inGS /= HardWired ) then 
+                                        V.zipWith (makeIAUnionAssignments finalMethod rootIndex) softwiredUpdatedLeafIA inCharInfoVV
+
                                  else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
@@ -132,6 +137,16 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             -}
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
     -- )
+
+-- | updateLeafIABlock takes a graph, existing charcter info and updates IA fileds in leaves
+-- for IA post and preorder passes on softwored graphs that may have indegree=outdegree=1 vertices
+-- these nodes screw up the implied alignment algorithm
+updateLeafIABlock :: Int -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
+updateLeafIABlock maxLeafIndex origCharV newCharV charInfoV = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
+
+-- | ujpdates single charracter leaf IA assignments
+updateLeafIAChar :: Int -> DecoratedGraph -> DecoratedGraph -> CharInfo -> DecoratedGraph
+updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo = origCharGraph
 
 -- | makeIAUnionAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional post and pre order pass to assign IAand final fields in all sequece types slim/wide/huge
