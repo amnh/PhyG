@@ -117,8 +117,8 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
         writeNodeLabel
           | allTrees = writeNodeLabel'
           | writeNodeLabel' = writeNodeLabel'
-          | otherwise = trace "HTU labels are required for ENewick Output"
-                            True
+          | otherwise = -- trace "HTU labels are required for ENewick Output"
+                        True
 
         graphString = GFU.fglList2ForestEnhancedNewickString (fmap (LG.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString

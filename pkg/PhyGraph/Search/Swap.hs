@@ -963,10 +963,16 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
    let newEdgeList = [(u, originalConnectionOfPruned, 0.0),(originalConnectionOfPruned, v, 0.0),(originalConnectionOfPruned, prunedGraphRootIndex, 0.0)]
 
        charInfoVV = fmap thd3 $ thd3 inData
+
+       -- graphTYpoe with IA field
+       -- only uswe wqhere they exist
+       (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == Tree then (M.makeEdgeData True True, edgeJoinDelta True) 
+                                                  else (M.makeEdgeData False True, edgeJoinDelta False)
+
        
        -- set edge union creation type to IA-based, filtering gaps (should be linear)
        -- hence True True
-       targetEdgeData = M.makeEdgeData True True splitGraph charInfoVV targetEdge
+       targetEdgeData = makeEdgeDataFunction splitGraph charInfoVV targetEdge
        -- this for using DO for edge O(n^2)
        --targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
 
@@ -974,7 +980,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
        prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
 
        -- rejoin should always be DO based on edge and pruned root but can be different lengths (unless Static Approx)
-       sprReJoinCost = edgeJoinDelta (doIA swapParams) charInfoVV prunedRootVertexData targetEdgeData
+       sprReJoinCost = edgeJoinFunction charInfoVV prunedRootVertexData targetEdgeData
 
        sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u,v),(originalConnectionOfPruned, prunedGraphRootIndex)] splitGraphSimple
 
@@ -1069,10 +1075,11 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
             tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph' newSAParams targetEdge
    -- )
 
--- | edgeJoinDelta calculates heuristic cost for jopineing pair edges
+-- | edgeJoinDelta calculates heuristic cost for joining pair edges
+-- I a filed is faster--but has to be there and not for harwired
 edgeJoinDelta :: Bool -> V.Vector (V.Vector CharInfo) -> VertexBlockData -> VertexBlockData -> VertexCost
-edgeJoinDelta doIA charInfoVV edgeA edgeB =
-   if (not doIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks edgeA edgeB charInfoVV []
+edgeJoinDelta useIA charInfoVV edgeA edgeB =
+   if (not useIA) then V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks edgeA edgeB charInfoVV []
    else V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocksStaticIA edgeA edgeB charInfoVV []
 
 
@@ -1107,7 +1114,14 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
       -- get target edge data\
       -- always using IA for union, but filtering out gaps (doIA (not doIA))
       let charInfoVV = fmap thd3 $ thd3 inData
-          targetEdgeData = M.makeEdgeData True True splitGraph charInfoVV targetEdge
+          
+          -- graphTYpoe with IA field
+          -- only uswe wqhere they exist
+          (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == Tree then (M.makeEdgeData True True, edgeJoinDelta True) 
+                                                     else (M.makeEdgeData False True, edgeJoinDelta False)
+
+          targetEdgeData = makeEdgeDataFunction splitGraph charInfoVV targetEdge
+
       in
 
       -- logic for annealing/Drift  regular swap first
@@ -1117,8 +1131,9 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
             let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
                 
                 -- True True to use IA fields and filter gaps
-                rerootEdgeDataList = PU.seqParMap PU.myStrategy (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
-                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
+                rerootEdgeDataList = PU.seqParMap PU.myStrategy (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
+
+                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
 
                 -- check for possible better/equal graphs and verify
                 deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
@@ -1156,8 +1171,8 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
                 
                 -- True True to use IA fields and filter gaps
-                rerootEdgeDataList = PU.seqParMap PU.myStrategy (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
-                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
+                rerootEdgeDataList = PU.seqParMap PU.myStrategy (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
 
                 -- check for possible better/equal graphs and verify
                 deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
@@ -1194,8 +1209,8 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
                 
                 -- True True to use IA fields and filter gaps
-                rerootEdgeDataList = PU.seqParMap PU.myStrategy (M.makeEdgeData True True splitGraph charInfoVV) rerootEdgeList
-                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinDelta (doIA swapParams) charInfoVV targetEdgeData) rerootEdgeDataList
+                rerootEdgeDataList = PU.seqParMap PU.myStrategy (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
+                rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap PU.myStrategy (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
 
                 minDelta = if (not . null) rerootEdgeDeltaList then minimum $ rerootEdgeDeltaList
                            else infinity
