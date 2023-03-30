@@ -109,11 +109,11 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                                             contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
 
                                             -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
-                                            contractedBlockVect = V.fromList (PU.seqParMap PU.myStrategy (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
+                                            contractedBlockVect = (PU.seqParMap PU.myStrategy (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
 
                                             -- update leaf IA fields with contracted IAs
-                                            maxLeafIndex = maximum $ LG.nodes inSimple
-                                            blockCharDecNewLeafIA = V.zipWith3 (updateLeafIABlock maxLeafIndex) preOrderBlockVect contractedBlockVect inCharInfoVV 
+                                            maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
+                                            blockCharDecNewLeafIA = V.fromList $ PU.seqParMap PU.myStrategy (updateLeafIABlock' maxLeafIndex) (zip3 (V.toList preOrderBlockVect)contractedBlockVect (V.toList inCharInfoVV))
 
                                         in
                                         -- holder for now
@@ -121,7 +121,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
 
 
             preOrderBlockVect' = if hasNonExact && (graphType inGS /= HardWired ) then 
-                                        V.zipWith (makeIAUnionAssignments finalMethod rootIndex) softwiredUpdatedLeafIA inCharInfoVV
+                                        V.fromList $ PU.seqParMap PU.myStrategy  (makeIAUnionAssignments' finalMethod rootIndex) (zip (V.toList softwiredUpdatedLeafIA) (V.toList inCharInfoVV))
 
                                  else preOrderBlockVect
 
@@ -138,6 +138,10 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
     -- )
 
+-- | updateLeafIABlock' is a  triple argument to allow for parMap
+updateLeafIABlock' :: Int -> (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> V.Vector DecoratedGraph
+updateLeafIABlock' maxLeafIndex (origCharV, newCharV, charInfoV) = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
+
 -- | updateLeafIABlock takes a graph, existing charcter info and updates IA fileds in leaves
 -- for IA post and preorder passes on softwored graphs that may have indegree=outdegree=1 vertices
 -- these nodes screw up the implied alignment algorithm
@@ -145,8 +149,44 @@ updateLeafIABlock :: Int -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph -
 updateLeafIABlock maxLeafIndex origCharV newCharV charInfoV = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
 
 -- | ujpdates single charracter leaf IA assignments
+-- uses max net edge thing
 updateLeafIAChar :: Int -> DecoratedGraph -> DecoratedGraph -> CharInfo -> DecoratedGraph
-updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo = origCharGraph
+updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo = 
+    let origLeafVertexList = filter ((<= maxLeafIndex) .fst) $ LG.labNodes origCharGraph
+        originalNonLeafVertexList = filter ((> maxLeafIndex) .fst) $ LG.labNodes origCharGraph
+        newLeafVertexList = filter ((<= maxLeafIndex) .fst) $ LG.labNodes newCharGraph
+        updatedVertexList =  zipWith (updateIAFields charInfo) origLeafVertexList newLeafVertexList
+        origEdgeList = LG.labEdges origCharGraph
+    in
+    LG.mkGraph (updatedVertexList ++ originalNonLeafVertexList) origEdgeList
+
+-- | updateIAFields updates the IA filed in teh first node with that of second if its non-exact sequence character
+-- assumes single character trees
+updateIAFields :: CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) = 
+    --trace ("USF: Node " ++ (show origIndex) ++ " " ++ (show (V.length $ vertData origLabel, V.length $ vertData newLabel)) ++ " " ++ (show (fmap V.length $ vertData origLabel)) ++ " " ++ (show (fmap V.length $ vertData newLabel))) $
+    let characterType = charType charInfo
+        origChar = V.head $ V.head $ vertData origLabel
+        newChar = V.head $ V.head $ vertData newLabel
+    in
+    if characterType `notElem` nonExactCharacterTypes then origNode
+    else
+        let updatedChar = if characterType `elem` [SlimSeq, NucSeq] then
+                            origChar {slimAlignment = slimAlignment newChar}
+
+                          else if characterType `elem` [WideSeq, AminoSeq] then
+                            origChar {wideAlignment = wideAlignment newChar}
+
+                          else if characterType == HugeSeq then
+                            origChar {hugeAlignment = hugeAlignment newChar}
+
+                          else error ("Character type unimplemented : " ++ show characterType)
+        in
+        (origIndex, origLabel {vertData = V.singleton (V.singleton updatedChar)})
+
+-- | makeIAUnionAssignments' version of makeIAUnionAssignments allowing tuple for parMap
+makeIAUnionAssignments' :: AssignmentMethod -> Int -> (V.Vector DecoratedGraph, V.Vector CharInfo) -> V.Vector DecoratedGraph
+makeIAUnionAssignments' finalMethod rootIndex (a,b) = V.zipWith (makeCharacterIAUnion finalMethod rootIndex) a b
 
 -- | makeIAUnionAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional post and pre order pass to assign IAand final fields in all sequece types slim/wide/huge
