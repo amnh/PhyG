@@ -966,8 +966,8 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
        -- graphTYpoe with IA field
        -- only uswe wqhere they exist
-       (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == HardWired then (M.makeEdgeData False True, edgeJoinDelta True) 
-                                                  else (M.makeEdgeData True True, edgeJoinDelta False)
+       (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == HardWired then (M.makeEdgeData False True, edgeJoinDelta False) 
+                                                  else (M.makeEdgeData True True, edgeJoinDelta True)
 
        
        -- set edge union creation type to IA-based, filtering gaps (should be linear)
@@ -984,8 +984,16 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
        sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u,v),(originalConnectionOfPruned, prunedGraphRootIndex)] splitGraphSimple
 
-       -- here when needed
-       rediagnosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraph
+       -- here when needed--correct graph is issue in network 
+       -- swap can screw up time consistency and other issues
+       sprNewGraphChecked = if graphType inGS == Tree then sprNewGraph
+                            else if graphType inGS == HardWired then 
+                              if not (LG.isPhylogeneticGraph sprNewGraph) then LG.empty
+                              else GO.convertGeneralGraphToPhylogeneticGraph False sprNewGraph
+                            else if LG.isPhylogeneticGraph sprNewGraph then sprNewGraph
+                            else LG.empty
+
+       rediagnosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraphChecked
 
        -- Filter for bridge edges for TBR when needed
        edgesInPrunedGraph' = if (graphType inGS == Tree) || LG.isTree splitGraphSimple then edgesInPrunedGraph
@@ -1001,9 +1009,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
       -- SPR or no TBR rearrangements
       if ((swapType swapParams) == SPR) || ((length edgesInPrunedGraph) < 4) then
          if (sprReJoinCost + splitCost) <= curBestCost then
-            if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then ([], inSimAnnealParams)
-            -- not sure why this is needed for Harwired
-            else if (graphType inGS == HardWired) && (not $ LG.isPhylogeneticGraph sprNewGraph) then ([], inSimAnnealParams)
+            if LG.isEmpty sprNewGraphChecked then ([], inSimAnnealParams)
             else if snd6 rediagnosedSPRGraph <= curBestCost then ([rediagnosedSPRGraph], inSimAnnealParams)
             else ([], inSimAnnealParams)
          else ([], inSimAnnealParams)
@@ -1013,9 +1019,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
          -- do TBR stuff returning SPR results if heuristic better
          let sprResult = if (sprReJoinCost + splitCost) <= curBestCost + (sprReJoinCost * (dynamicEpsilon inGS)) then
-                           if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
-                           -- not sure why this is needed for Harwired
-                           else if (graphType inGS == HardWired) && (not $ LG.isPhylogeneticGraph sprNewGraph) then []
+                           if LG.isEmpty sprNewGraphChecked then []
                            else if snd6 rediagnosedSPRGraph <= curBestCost then [rediagnosedSPRGraph]
                            else []
                          else []
@@ -1036,9 +1040,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
    else
       -- check if spr better always return if so
       let sprResult = if (sprReJoinCost + splitCost) <= curBestCost then
-                        if (graphType inGS /= Tree) && ((not . LG.isGraphTimeConsistent) sprNewGraph)  then []
-                        -- not sure why this is needed for Harwired
-                        else if (graphType inGS == HardWired) && (not $ LG.isPhylogeneticGraph sprNewGraph) then []
+                        if LG.isEmpty sprNewGraphChecked then []
                         else if snd6 rediagnosedSPRGraph < curBestCost then [rediagnosedSPRGraph]
                         else []
                       else []
@@ -1117,8 +1119,8 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
           
           -- graphTYpoe with IA field
           -- only uswe wqhere they exist
-          (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == HardWired then (M.makeEdgeData False True, edgeJoinDelta True) 
-                                                     else (M.makeEdgeData True True, edgeJoinDelta False)
+          (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == HardWired then (M.makeEdgeData False True, edgeJoinDelta False) 
+                                                     else (M.makeEdgeData True True, edgeJoinDelta True)
 
           targetEdgeData = makeEdgeDataFunction splitGraph charInfoVV targetEdge
 

@@ -164,7 +164,7 @@ updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo =
 -- assumes single character trees
 updateIAFields :: CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
 updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) = 
-    --trace ("USF: Node " ++ (show origIndex) ++ " " ++ (show (V.length $ vertData origLabel, V.length $ vertData newLabel)) ++ " " ++ (show (fmap V.length $ vertData origLabel)) ++ " " ++ (show (fmap V.length $ vertData newLabel))) $
+    -- trace ("USF: Node " ++ (show origIndex) ++ " " ++ (show (V.length $ vertData origLabel, V.length $ vertData newLabel)) ++ " " ++ (show (fmap V.length $ vertData origLabel)) ++ " " ++ (show (fmap V.length $ vertData newLabel))) $
     let characterType = charType charInfo
         origChar = V.head $ V.head $ vertData origLabel
         newChar = V.head $ V.head $ vertData newLabel

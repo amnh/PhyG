@@ -540,3 +540,7 @@
 429) Sectorial based on final states?
 
 430) Output collapsed graphs
+
+431) Memory passing around leaf graph?
+	maybe just generate when nbeeded for full optimization?  
+	

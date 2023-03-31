@@ -823,13 +823,15 @@ insertNetEdge inGS inData leafGraph inPhyloGraph _ ((u,v, _), (u',v', _)) =
            -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph newSimple
                -- permissibale not catching timeconsistency issues with edges
            -- newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
-           -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newSimple
+           
 
-           newSimple' = LG.removeChainedNetworkNodes False newSimple
+           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph False newSimple
+
+           -- newSimple' = LG.removeChainedNetworkNodes False newSimple
 
 
            -- full two-pass optimization
-           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex (fromJust newSimple')
+           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple'
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
@@ -841,11 +843,11 @@ insertNetEdge inGS inData leafGraph inPhyloGraph _ ((u,v, _), (u',v', _)) =
        in
 
        -- remove these checks when working
-       if isNothing newSimple' then
+       if LG.isEmpty newSimple' then
          trace ("\tWarning: Chained network")
          emptyPhylogeneticGraph
 
-       else if ((not . LG.isGraphTimeConsistent) $ fromJust newSimple') then
+       else if (not . LG.isGraphTimeConsistent) newSimple' then
          trace ("\tWarning: Time consistency error")
          emptyPhylogeneticGraph
 
@@ -1707,7 +1709,7 @@ deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
           -- newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
           -- conversion as if input--see if affects length
-          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph "fail" newGraph
+          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph False newGraph
           -- newGraph'' = GO.contractIn1Out1EdgesRename newGraph
 
       in
