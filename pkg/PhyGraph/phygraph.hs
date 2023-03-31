@@ -43,7 +43,6 @@ import qualified Commands.ProcessCommands     as PC
 import qualified Commands.Verify              as V
 import qualified Data.CSV                     as CSV
 import qualified Data.List                    as L
-import           Data.Maybe
 import qualified Data.Text.Lazy               as Text
 import qualified Data.Text.Short              as ST
 import           Data.Time.Clock
