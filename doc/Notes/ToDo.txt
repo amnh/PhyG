@@ -543,4 +543,7 @@
 
 431) Memory passing around leaf graph?
 	maybe just generate when nbeeded for full optimization?  
+
+433) Need to get parallelization into bitPacking
+
 	
