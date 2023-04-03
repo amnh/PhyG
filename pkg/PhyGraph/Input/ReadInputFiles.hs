@@ -249,7 +249,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
 
                         else errorWithoutStackTrace ("Cannot determine file type for " ++ firstFile ++ " need to prepend type")
                     -- fasta
-                    else if firstOption `elem` ["fasta", "nucleotide", "aminoacid"] then
+                    else if firstOption `elem` ["fasta", "nucleotide", "aminoacid", "hugeseq"] then
                         let fastaData = FAC.getFastAText fileContents firstFile isPrealigned'
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
                         in
@@ -262,7 +262,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     --prealigned fasta
-                    else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid"] then
+                    else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid", "prehugeseq"] then
                         let fastaData = FAC.getFastAText fileContents firstFile True
                             fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption True tcmPair
                         in
