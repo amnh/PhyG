@@ -45,7 +45,6 @@ module Search.Build  ( buildGraph
 import qualified Commands.Verify                as VER
 import           Data.Char
 import qualified Data.List                      as L
-import           Data.Maybe
 import qualified Data.Text.Lazy                 as TL
 import qualified Data.Vector                    as V
 import           Debug.Trace
@@ -64,6 +63,7 @@ import qualified Utilities.DistanceUtilities    as DU
 import qualified Utilities.Distances            as DD
 import qualified Utilities.LocalGraph           as LG
 import qualified Utilities.Utilities            as U
+import           Data.Maybe
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
@@ -201,12 +201,13 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           contractedGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildren
           reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" contractedGraph -}
 
-          reconciledGraph = LG.removeChainedNetworkNodes True $ GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
+          -- chained was separate in past, now in convertGeneralGraphToPhylogeneticGraph
+          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph True reconciledGraphInitial
 
 
           -- this for non-convertable graphs
-          reconciledGraph' = if isNothing reconciledGraph then reconciledGraphInitial
-                             else if fromJust reconciledGraph /= LG.empty then fromJust reconciledGraph
+          reconciledGraph' = if LG.isEmpty reconciledGraph then reconciledGraphInitial
+                             else if reconciledGraph /= LG.empty then reconciledGraph
                              else reconciledGraphInitial
 
 
@@ -215,25 +216,25 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                            else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
 
           -- need this to fix up some graphs after other stuff chnaged
-          displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
+          displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
 
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
 
-          numNetNodes = length $ fth4 (LG.splitVertexList $ fromJust reconciledGraph)
+          numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
       in
-      if isNothing reconciledGraph && not returnTrees then
+      if LG.isEmpty reconciledGraph && not returnTrees then
         errorWithoutStackTrace "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
       -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
-      else if isJust reconciledGraph && not returnTrees then
+      else if (not $ LG.isEmpty reconciledGraph) && not returnTrees then
         trace ("Reconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees for softwired network")
-        [fromJust reconciledGraph]
+        [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
-         if isJust reconciledGraph then
+         if (not $ LG.isEmpty reconciledGraph) then
             trace ("\n\tReconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees")
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
-            (fromJust reconciledGraph) : displayGraphs
+            reconciledGraph : displayGraphs
          else
             trace "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds."
             displayGraphs

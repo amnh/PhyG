@@ -86,8 +86,10 @@ import qualified Utilities.Utilities         as U
 -- ie postorder--since those are traversal specific
 -- the character specific decorated graphs have appropriate post and pre-order assignments
 -- the traversal begins at the root (for a tree) and proceeds to leaves.
+
+-- Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
-preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths _ rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
+preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
     -- trace ("PR-OT pre: " ++ (show $ fmap V.length blockCharacterDecoratedVV)) (
     if LG.isEmpty inDecorated then error "Empty tree in preOrderTreeTraversal"
@@ -99,10 +101,29 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths _ rootInd
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
             -- also assignes unions for use in rearrangemenrts
-            -- should be ok for softwired--if done by display trees, and soft and hardwired with outdegree=1
-            preOrderBlockVect' = V.zipWith (makeIAUnionAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
-                                 -- if hasNonExact && (graphType inGS) == Tree then V.zipWith (makeIAAssignments finalMethod rootIndex) preOrderBlockVect inCharInfoVV
-                                 -- else preOrderBlockVect
+            -- update leaf IA assignments based on cotracted edge for softWired to make IAs
+            -- no need for trees--can't for hardWired
+            softwiredUpdatedLeafIA = if graphType inGS /= SoftWired then preOrderBlockVect
+                                     else 
+                                        let -- get display trees for each data block-- takes first of potentially multiple
+                                            contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
+
+                                            -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
+                                            contractedBlockVect = (PU.seqParMap PU.myStrategy (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
+
+                                            -- update leaf IA fields with contracted IAs
+                                            maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
+                                            blockCharDecNewLeafIA = V.fromList $ PU.seqParMap PU.myStrategy (updateLeafIABlock' maxLeafIndex) (zip3 (V.toList preOrderBlockVect)contractedBlockVect (V.toList inCharInfoVV))
+
+                                        in
+                                        -- holder for now
+                                        blockCharDecNewLeafIA
+
+
+            preOrderBlockVect' = if hasNonExact && (graphType inGS /= HardWired ) then 
+                                        V.fromList $ PU.seqParMap PU.myStrategy  (makeIAUnionAssignments' finalMethod rootIndex) (zip (V.toList softwiredUpdatedLeafIA) (V.toList inCharInfoVV))
+
+                                 else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
@@ -116,6 +137,56 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths _ rootInd
             -}
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
     -- )
+
+-- | updateLeafIABlock' is a  triple argument to allow for parMap
+updateLeafIABlock' :: Int -> (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> V.Vector DecoratedGraph
+updateLeafIABlock' maxLeafIndex (origCharV, newCharV, charInfoV) = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
+
+-- | updateLeafIABlock takes a graph, existing charcter info and updates IA fileds in leaves
+-- for IA post and preorder passes on softwored graphs that may have indegree=outdegree=1 vertices
+-- these nodes screw up the implied alignment algorithm
+updateLeafIABlock :: Int -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> V.Vector DecoratedGraph
+updateLeafIABlock maxLeafIndex origCharV newCharV charInfoV = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
+
+-- | ujpdates single charracter leaf IA assignments
+-- uses max net edge thing
+updateLeafIAChar :: Int -> DecoratedGraph -> DecoratedGraph -> CharInfo -> DecoratedGraph
+updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo = 
+    let origLeafVertexList = filter ((<= maxLeafIndex) .fst) $ LG.labNodes origCharGraph
+        originalNonLeafVertexList = filter ((> maxLeafIndex) .fst) $ LG.labNodes origCharGraph
+        newLeafVertexList = filter ((<= maxLeafIndex) .fst) $ LG.labNodes newCharGraph
+        updatedVertexList =  zipWith (updateIAFields charInfo) origLeafVertexList newLeafVertexList
+        origEdgeList = LG.labEdges origCharGraph
+    in
+    LG.mkGraph (updatedVertexList ++ originalNonLeafVertexList) origEdgeList
+
+-- | updateIAFields updates the IA filed in teh first node with that of second if its non-exact sequence character
+-- assumes single character trees
+updateIAFields :: CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) = 
+    -- trace ("USF: Node " ++ (show origIndex) ++ " " ++ (show (V.length $ vertData origLabel, V.length $ vertData newLabel)) ++ " " ++ (show (fmap V.length $ vertData origLabel)) ++ " " ++ (show (fmap V.length $ vertData newLabel))) $
+    let characterType = charType charInfo
+        origChar = V.head $ V.head $ vertData origLabel
+        newChar = V.head $ V.head $ vertData newLabel
+    in
+    if characterType `notElem` nonExactCharacterTypes then origNode
+    else
+        let updatedChar = if characterType `elem` [SlimSeq, NucSeq] then
+                            origChar {slimAlignment = slimAlignment newChar}
+
+                          else if characterType `elem` [WideSeq, AminoSeq] then
+                            origChar {wideAlignment = wideAlignment newChar}
+
+                          else if characterType == HugeSeq then
+                            origChar {hugeAlignment = hugeAlignment newChar}
+
+                          else error ("Character type unimplemented : " ++ show characterType)
+        in
+        (origIndex, origLabel {vertData = V.singleton (V.singleton updatedChar)})
+
+-- | makeIAUnionAssignments' version of makeIAUnionAssignments allowing tuple for parMap
+makeIAUnionAssignments' :: AssignmentMethod -> Int -> (V.Vector DecoratedGraph, V.Vector CharInfo) -> V.Vector DecoratedGraph
+makeIAUnionAssignments' finalMethod rootIndex (a,b) = V.zipWith (makeCharacterIAUnion finalMethod rootIndex) a b
 
 -- | makeIAUnionAssignments takes the vector of vector of character trees and (if) slim/wide/huge
 -- does an additional post and pre order pass to assign IAand final fields in all sequece types slim/wide/huge
@@ -297,7 +368,7 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
 
         -- )
 
--- | doBlockTraversal' is a wrapper around doBlockTraversal fro seqParMap
+-- | doBlockTraversal' is a wrapper around doBlockTraversal fo seqParMap
 doBlockTraversal' :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> (V.Vector CharInfo, V.Vector DecoratedGraph) -> V.Vector DecoratedGraph
 doBlockTraversal' inGS finalMethod staticIA rootIndex (inCharInfoV, traversalDecoratedVect) =
     doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecoratedVect
@@ -330,7 +401,7 @@ doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
         -- since root cannot have 2nd parent
         let rootLabel = fromJust $ LG.lab inGraph rootIndex
             nothingVertData = U.copyToNothing (vertData rootLabel)
-            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) nothingVertData nothingVertData inCharInfo True False False False
+            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) nothingVertData inCharInfo True False False 
             rootChildren =LG.labDescendants inGraph (rootIndex, rootLabel)
 
             -- left / right to match post-order
@@ -358,7 +429,7 @@ updateIsolatedNode :: GlobalSettings -> AssignmentMethod -> Bool -> CharInfo -> 
 updateIsolatedNode inGS finalMethod staticIA inCharInfo (inNodeIndex, inNodeLabel) =
     -- root so final = preliminary
     let nothingVertData = U.copyToNothing (vertData inNodeLabel)
-        newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) nothingVertData nothingVertData inCharInfo True False False False
+        newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) nothingVertData inCharInfo True False False 
     in 
     (inNodeIndex, inNodeLabel {vertData = newVertData})
 
@@ -408,29 +479,13 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             isIn1Out1 = (length firstChildren == 1) && (length firstParents == 1) -- softwired can happen, need to pass "grandparent" node to skip in 1 out 1
             isIn2Out1 = (length firstChildren == 1) && (length firstParents == 2) -- hardwired can happen, need to pass both parents
 
-            -- check if parent was in1out1--if so later just take parent final states
-            --- since created with node already
-            isSingleParentIn1Out1 = if length firstParents == 2 then False
-                                    else 
-                                        let inOutParent = LG.getInOutDegNoLabel inGraph $ fst $ head firstParents
-                                        in
-                                        if inOutParent == (1,1) then True
-                                        else False
-
-
-            -- childData for network indegree = 1 outdegree = 1 node
-            childData = if not isIn1Out1 then U.copyToNothing firstVertData
-                        else U.copyToJust $ vertData $ snd $ head firstChildren
-
-
-
             -- this OK with one or two children
             firstChildrenBV = fmap (bvLabel . snd) firstChildren
             firstChildrenIsLeft
               | length firstChildrenBV == 1 = [True]
               | head firstChildrenBV > (firstChildrenBV !! 1) = [False, True]
               | otherwise = [True, False]
-            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData childData inCharInfo isLeft isIn1Out1 isIn2Out1 isSingleParentIn1Out1
+            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData inCharInfo isLeft isIn1Out1 isIn2Out1 
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
 
             -- check children if indegree == 2 then don't add to nodes to do if in there already
@@ -935,16 +990,14 @@ createFinalAssignmentOverBlocks :: GlobalSettings
                                 -> VertexBlockData
                                 -> VertexBlockData
                                 -> VertexBlockDataMaybe -- second parent if indegree 2 node
-                                -> VertexBlockDataMaybe -- child of vertex (childChild) if indegree=outdegree=1 node
                                 -> CharInfo
                                 -> Bool
                                 -> Bool
                                 -> Bool
-                                -> Bool
                                 -> VertexBlockData
-createFinalAssignmentOverBlocks inGS finalMethod staticIA childType childBlockData parentBlockData parent2BlockDataM childChildBlockDataM charInfo isLeft isInOutDegree1 isIn2Out1 isSingleParentIn1Out1 =
+createFinalAssignmentOverBlocks inGS finalMethod staticIA childType childBlockData parentBlockData parent2BlockDataM charInfo isLeft isInOutDegree1 isIn2Out1  =
    -- if root or leaf final assignment <- preliminary asssignment
-   V.zipWith4 (assignFinal inGS finalMethod staticIA childType isLeft charInfo isInOutDegree1 isIn2Out1 isSingleParentIn1Out1) childBlockData parentBlockData parent2BlockDataM childChildBlockDataM
+   V.zipWith3 (assignFinal inGS finalMethod staticIA childType isLeft charInfo isInOutDegree1 isIn2Out1) childBlockData parentBlockData parent2BlockDataM
 
 
 -- | assignFinal takes a vertex type and single block of zip3 of child info, parent info, and character type
@@ -957,13 +1010,11 @@ assignFinal :: GlobalSettings
             -> CharInfo
             -> Bool
             -> Bool
-            -> Bool
             -> V.Vector CharacterData
             -> V.Vector CharacterData
             -> V.Vector (Maybe CharacterData)
-            -> V.Vector (Maybe CharacterData)
             -> V.Vector CharacterData
-assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 isSingleParentIn1Out1 = V.zipWith4 (setFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1 isSingleParentIn1Out1)
+assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1  = V.zipWith3 (setFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isIn2Out1)
 
 -- | setFinal takes a vertex type and single character of zip3 of child info, parent info, and character type
 -- to create pre-order assignments
@@ -981,14 +1032,12 @@ setFinal :: GlobalSettings
          -> Bool 
          -> CharInfo 
          -> Bool 
-         -> Bool 
-         -> Bool 
+         -> Bool
          -> CharacterData 
          -> CharacterData 
-         -> Maybe CharacterData 
          -> Maybe CharacterData 
          -> CharacterData
-setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 isSingleParentIn1Out1 childChar parentChar parent2CharM childChildCharM =
+setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM  =
    let localCharType = charType charInfo
        symbolCount = toEnum $ length $ costMatrix charInfo :: Int
        isTree = graphType inGS == Tree
@@ -1026,9 +1075,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          --traceNoLF ("TNFinal-Root") $
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = finalAssignment'
-                        , slimAlignment = slimGapped childChar
-                                          -- if isTree then slimGapped childChar
-                                          -- else mempty
+                        , slimAlignment = --slimGapped childChar
+                                          if isTree then slimGapped childChar
+                                          else mempty
                         }
 
 
@@ -1037,9 +1086,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
          else childChar { wideFinal = finalAssignment'
-                        , wideAlignment = wideGapped childChar
-                                          --if isTree then wideGapped childChar
-                                          --else mempty
+                        , wideAlignment = -- wideGapped childChar
+                                          if isTree then wideGapped childChar
+                                          else mempty
                         }
 
       else if localCharType == HugeSeq then
@@ -1047,9 +1096,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
          else childChar { hugeFinal = finalAssignment'
-                        , hugeAlignment = hugeGapped childChar
-                                          --if isTree then hugeGapped childChar
-                                          --else mempty
+                        , hugeAlignment = --hugeGapped childChar
+                                          if isTree then hugeGapped childChar
+                                          else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1080,45 +1129,40 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalAlignment = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
-             -- finalAssignment' = extractMedians finalAlignment
          in
          -- traceNoLF ("TNFinal-Leaf " ++ (show isSingleParentIn1Out1) ++ " ") $
-         -- trace ("TNFinal-Leaf:" ++ (show (GV.length $ fst3  (slimAlignment parentChar), GV.length $ fst3 finalAlignment, isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "\n->" ++ (show finalAlignment)) $
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
-                        , slimAlignment = if not isSingleParentIn1Out1 then finalAlignment
-                                          else slimAlignment parentChar
-                                          --if isTree then finalAlignment
-                                          --else mempty
+                        , slimAlignment = --slimAlignment parentChar
+                                          if isTree then finalAlignment
+                                          else mempty
 
-                        , slimIAPrelim  = finalAlignment
-                                          --if isTree then finalAlignment
-                                          --else mempty
+                        , slimIAPrelim  = --finalAlignment
+                                          if isTree then finalAlignment
+                                          else mempty
 
-                        , slimIAFinal  =  extractMediansGapped finalAlignment
-                                          --if isTree then extractMediansGapped $ finalAlignment
-                                          --else mempty
+                        , slimIAFinal  =  --extractMediansGapped finalAlignment
+                                          if isTree then extractMediansGapped $ finalAlignment
+                                          else mempty
                         }
          --)
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
          let finalAlignment = doPreOrderWithParentCheck isLeft (wideAlignment parentChar) (wideGapped parentChar) (wideGapped childChar)
-
-             -- finalAssignment' = extractMedians finalAlignment
          in
          if staticIA then childChar {wideIAFinal = extractMediansGapped $ wideIAPrelim childChar}
          else childChar { wideFinal = extractMedians $ wideGapped childChar -- finalAssignment'
-                        , wideAlignment = finalAlignment
-                                          --if isTree then finalAlignment
-                                          --else mempty
+                        , wideAlignment = --finalAlignment
+                                          if isTree then finalAlignment
+                                          else mempty
 
-                        , wideIAPrelim =  finalAlignment
-                                          --if isTree then finalAlignment
-                                          --else mempty
+                        , wideIAPrelim =  --finalAlignment
+                                          if isTree then finalAlignment
+                                          else mempty
 
-                        , wideIAFinal =   extractMediansGapped finalAlignment
-                                          --if isTree then extractMediansGapped $ finalAlignment
-                                          --else mempty
+                        , wideIAFinal =   --extractMediansGapped finalAlignment
+                                          if isTree then extractMediansGapped $ finalAlignment
+                                          else mempty
                         }
 
       else if localCharType == HugeSeq then
@@ -1128,17 +1172,17 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then childChar {hugeIAFinal = extractMediansGapped $ hugeIAPrelim childChar}
          else childChar { hugeFinal = extractMedians $ hugeGapped childChar -- finalAssignment'
-                        , hugeAlignment = finalAlignment
-                                          --if isTree then finalAlignment
-                                          --else mempty
+                        , hugeAlignment = --finalAlignment
+                                          if isTree then finalAlignment
+                                          else mempty
 
-                        , hugeIAPrelim =  finalAlignment
-                                          --if isTree then finalAlignment
-                                          --else mempty
+                        , hugeIAPrelim =  --finalAlignment
+                                          if isTree then finalAlignment
+                                          else mempty
 
-                        , hugeIAFinal =   extractMediansGapped finalAlignment
-                                          --if isTree then extractMediansGapped $ finalAlignment
-                                          --else mempty
+                        , hugeIAFinal =   --extractMediansGapped finalAlignment
+                                          if isTree then extractMediansGapped $ finalAlignment
+                                          else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1202,11 +1246,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { slimFinal = finalAssignmentDO
-                        , slimAlignment = if not isSingleParentIn1Out1 then finalGapped
-                                          else slimAlignment parentChar
-                                          
-                                          --if isTree then finalGapped
-                                          --else mempty
+                        , slimAlignment = --finalGapped
+                                          if isTree then finalGapped
+                                          else mempty
                         }
 
       else if (localCharType == WideSeq) || (localCharType == AminoSeq) then
@@ -1224,9 +1266,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { wideFinal = finalAssignmentDO
-                        , wideAlignment = finalGapped
-                                          --if isTree then finalGapped
-                                          --else mempty
+                        , wideAlignment = --finalGapped
+                                          if isTree then finalGapped
+                                          else mempty
                         }
 
       else if localCharType == HugeSeq then
@@ -1244,9 +1286,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { hugeFinal = finalAssignmentDO
-                        , hugeAlignment = finalGapped
-                                          --if isTree then finalGapped
-                                          --else mempty
+                        , hugeAlignment = --finalGapped
+                                          if isTree then finalGapped
+                                          else mempty
                         }
 
       else error ("Unrecognized/implemented character type: " ++ show localCharType)
@@ -1257,8 +1299,6 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    -- churrently using childChild
    else if isIn1Out1 then
       -- trace ("InOut1 preorder") (
-      -- if isSingleParentIn1Out1 then error ("Parent node of indegree 1 outdegree 1 also indegree 1 outdegree 1 ")
-      -- else 
       if localCharType == Add then
          childChar {rangeFinal = rangeFinal parentChar}
 
@@ -1282,7 +1322,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
-         {-
+         
          --traceNoLF ("TNFinal-1/1") $
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) $
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
@@ -1296,28 +1336,6 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         , slimIAFinal = -- slimFinal parentChar
                                         if isTree then slimFinal parentChar
                                         else mempty
-                        }
-        -}
-         -- traceNoLF ("TNFinal-11 " ++ (show isSingleParentIn1Out1) ++ " ") $
-         let finalGapped = doPreOrderWithParentCheck True (slimAlignment parentChar) (slimGapped parentChar) (slimGapped $ fromJust childChildCharM)
-
-             finalAssignmentDO = if finalMethod == DirectOptimization then
-                                    let parentFinalDC = M.makeDynamicCharacterFromSingleVector (slimFinal parentChar)
-                                        parentFinal = (parentFinalDC, mempty, mempty)
-                                        -- parentGapped = (slimGapped parentChar, mempty, mempty)
-                                        childGapped = (slimGapped $ fromJust childChildCharM, mempty, mempty)
-                                        finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal childGapped
-                                    in
-                                    extractMedians finalAssignmentDOGapped
-                                    -- really could/should be mempty since overwritten by IA later
-                                 else extractMedians finalGapped
-         in
-         --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
-         if staticIA then M.makeIAFinalCharacter finalMethod charInfo (fromJust childChildCharM) parentChar
-         else childChar { slimFinal = finalAssignmentDO
-                        , slimAlignment = finalGapped
-                                          --if isTree then finalGapped
-                                          --else mempty
                         }
 
     else if (localCharType == WideSeq) || (localCharType == AminoSeq) then -- parentChar

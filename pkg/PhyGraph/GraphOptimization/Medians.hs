@@ -747,7 +747,7 @@ getDynamicUnion :: Bool
                 -> MR.MetricRepresentation Word64
                 -> MR.MetricRepresentation BV.BitVector
                 -> CharacterData
-getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWideTCM thisHugeTCM
+getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWideTCM thisHugeTCM
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
   | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
   | thisType == HugeSeq           = newHugeCharacterData
@@ -756,7 +756,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
     blankCharacterData = emptyCharacter
 
     newSlimCharacterData =
-        let r  = if doIA then GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
+        let r  = if useIA then GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
                  else
                     let (_, (lG, _, rG)) = slimPairwiseDO thisSlimTCM (makeDynamicCharacterFromSingleVector $ slimFinal leftChar) (makeDynamicCharacterFromSingleVector $ slimFinal rightChar)
                     in
@@ -773,7 +773,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                                }
 
     newWideCharacterData =
-        let r  = if doIA then GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
+        let r  = if useIA then GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
                  else
                     let coefficient = MR.minInDelCost thisWideTCM
                         (_, (lG, _, rG)) = widePairwiseDO coefficient (MR.retreivePairwiseTCM thisWideTCM) (makeDynamicCharacterFromSingleVector $ wideFinal leftChar) (makeDynamicCharacterFromSingleVector $ wideFinal rightChar)
@@ -792,7 +792,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
                                }
 
     newHugeCharacterData =
-        let r  = if doIA then GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
+        let r  = if useIA then GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
                  else
                     let coefficient = MR.minInDelCost thisHugeTCM
                         (_, (lG, _, rG)) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM thisHugeTCM) (makeDynamicCharacterFromSingleVector $ hugeFinal leftChar) (makeDynamicCharacterFromSingleVector $ hugeFinal rightChar)
@@ -814,7 +814,7 @@ getDynamicUnion doIA filterGaps thisType leftChar rightChar thisSlimTCM thisWide
 -- | union2 takes the vectors of characters and applies union2Single to each character
 -- used for edge states in buikd and rearrangement
 union2 ::  Bool -> Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector CharacterData
-union2 doIA filterGaps = V.zipWith3 (union2Single doIA filterGaps)
+union2 useIA filterGaps = V.zipWith3 (union2Single useIA filterGaps)
 
 -- | union2Single takes character data and returns union character data
 -- union2Single assumes that the character vectors in the various states are the same length
@@ -822,7 +822,7 @@ union2 doIA filterGaps = V.zipWith3 (union2Single doIA filterGaps)
 -- used IAFinal states for dynamic characters
 -- used in heurstic graph build and rearrangement
 union2Single :: Bool -> Bool -> CharacterData -> CharacterData -> CharInfo -> CharacterData
-union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
+union2Single useIA filterGaps firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisMatrix  = costMatrix inCharInfo
         thisActive  = activity inCharInfo
@@ -847,18 +847,18 @@ union2Single doIA filterGaps firstVertChar secondVertChar inCharInfo =
         getPrealignedUnion thisType firstVertChar secondVertChar
 
     else if thisType `elem` nonExactCharacterTypes then
-        getDynamicUnion doIA filterGaps thisType firstVertChar secondVertChar thisSlimTCM thisWideTCM thisHugeTCM
+        getDynamicUnion useIA filterGaps thisType firstVertChar secondVertChar thisSlimTCM thisWideTCM thisHugeTCM
 
     else error ("Character type " ++ show thisType ++ " unrecognized/not implemented")
 
 -- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
 -- using IA assignments not so great for search deltas
 makeEdgeData :: Bool -> Bool -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.LEdge b -> VertexBlockData
-makeEdgeData doIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
+makeEdgeData useIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
    let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
    in
-   createEdgeUnionOverBlocks doIA filterGaps eNodeVertData vNodeVertData charInfoVV []
+   createEdgeUnionOverBlocks useIA filterGaps eNodeVertData vNodeVertData charInfoVV []
 
 -- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 -- The function takes data in blocks and block vector of char info and
@@ -872,7 +872,7 @@ createEdgeUnionOverBlocks :: Bool
                           -> V.Vector (V.Vector CharInfo)
                           -> [V.Vector CharacterData]
                           -> V.Vector (V.Vector CharacterData)
-createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockCharInfoVect curBlockData =
+createEdgeUnionOverBlocks useIA filterGaps leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
         --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
@@ -885,9 +885,9 @@ createEdgeUnionOverBlocks doIA filterGaps leftBlockData rightBlockData blockChar
             firstBlockMedian
               | (leftBlockLength == 0) = V.head rightBlockData
               | (rightBlockLength == 0) = V.head leftBlockData
-              | otherwise = union2 doIA filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+              | otherwise = union2 useIA filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
-        createEdgeUnionOverBlocks doIA filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+        createEdgeUnionOverBlocks useIA filterGaps (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 -- | getPreAligned2Median takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
 -- uses IA-type functions for slim/wide/huge

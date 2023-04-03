@@ -98,6 +98,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
 
                -- turn off union selection of rejoin--default to do both, union first
                joinType
+                 | graphType inGS == HardWired = JoinAll
                  | any ((=="joinall").fst) lcArgList = JoinAll
                  | any ((=="joinpruned").fst) lcArgList = JoinPruned
                  | any ((=="joinalternate").fst) lcArgList = JoinAlternate

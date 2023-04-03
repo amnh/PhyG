@@ -438,9 +438,38 @@ isPhylogeneticGraph inGraph =
         else if (not . null) (getIsolatedNodes inGraph) then False
         else if (not . null) (filter ((> 2) . length) indegreeList) then False
         else if (not . null) (filter ((> 2) . length) outdegreeList) then False
+        else if parentsInChain inGraph then False
         else if not (isGraphTimeConsistent inGraph) then False
         else True
 
+-- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
+parentsInChain :: (Eq a, Eq b,Show a) => Gr a b -> Bool
+parentsInChain inGraph =
+  if isEmpty inGraph then False
+  else
+      let (_, _, _, netVertexList) = splitVertexList inGraph
+          parentNetVertList = fmap (labParents inGraph . fst) netVertexList
+
+          -- get list of nodes that are transitively equal in age
+          concurrentList = mergeConcurrentNodeLists parentNetVertList []
+          concurrentPairList = concatMap getListPairs concurrentList
+
+          -- get pairs that violate concurrency
+          violatingConcurrentPairs = concatMap (concurrentViolatePair inGraph) concurrentPairList
+
+          -- get network nodes with violations
+          parentNodeViolateList = concatMap pairToList violatingConcurrentPairs
+          childNodeViolateList = concatMap (descendants inGraph) parentNodeViolateList
+          netNodeViolateList = filter (isNetworkNode inGraph) childNodeViolateList
+
+          netEdgesThatViolate = fmap toEdge $ inn inGraph $ head netNodeViolateList
+
+      in
+      if null violatingConcurrentPairs then False
+      else if null netNodeViolateList then True
+      else if null netEdgesThatViolate then True
+      else False
+    where pairToList (a,b) = [fst a, fst b]
 
 -- | descendants of unlabelled node
 descendants :: Gr a b -> Node -> [Node]

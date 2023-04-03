@@ -41,6 +41,7 @@ Portability :  portable (I hope)
 module Types.Types where
 
 import           Control.DeepSeq
+import           Control.Parallel.Strategies
 import           Data.Alphabet
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.InfList                as IL
@@ -159,6 +160,10 @@ data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot | NCMRoot
 data SoftWiredAlgorithm = Naive | ResolutionCache
     deriving stock (Show, Eq)
 
+data ParallelStrategy = R0 | RSeq | RPar | RDeepSeq
+    deriving stock (Show, Eq)
+
+
 -- | Method for makeing final seqeujnce charactert states assignment
 -- do an DO-based method--more exact but higher time complexity--single preorder
 -- pass but worst cae O(n^2) in seqeunce length
@@ -203,6 +208,14 @@ data SelectGraphType = Best | Unique | AtRandom | All
 data SupportMethod = Jackknife | Bootstrap | GoodmanBremer
     deriving stock (Show, Eq)
 
+-- | return parallel Strategy
+parStrategy :: (NFData b) => ParallelStrategy -> Strategy b
+parStrategy parStrat 
+    | parStrat == R0 = r0
+    | parStrat == RPar = rpar
+    | parStrat == RSeq = rseq
+    | parStrat == RDeepSeq = rdeepseq
+    | otherwise = rdeepseq
 
 data  GlobalSettings
     = GlobalSettings
@@ -239,6 +252,9 @@ data  GlobalSettings
                                    -- add/non add dat asets liker SNP genomic data
     , unionThreshold          :: Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhps) character Wagner build
                                     -- as described by Varon and Wheeler (2013) and set to 1.17 experimentally
+    , defaultParStrat          :: ParallelStrategy -- default parallel strategy 
+    , lowLevelParStrat         :: ParallelStrategy -- default parallel strategy 
+    , highLevelParStrat        :: ParallelStrategy -- default parallel strategy 
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -617,6 +633,9 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , multiTraverseCharacters = True
                                      , reportNaiveData = True
                                      , unionThreshold = 1.17
+                                     , defaultParStrat = RSeq    
+                                     , lowLevelParStrat = RSeq -- default parallel strategy 
+                                     , highLevelParStrat = RDeepSeq 
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

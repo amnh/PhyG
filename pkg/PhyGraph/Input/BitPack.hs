@@ -1535,7 +1535,7 @@ packNonAdditiveData :: GlobalSettings -> ProcessedData -> ProcessedData
 packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
     -- need to check if this blowws out memory on big data sets (e.g. genomic)
     let -- newBlockDataList = fmap (recodeNonAddCharacters inGS) (V.toList blockDataVect) -- parallel could be an option to save memory etc
-        newBlockDataList = PU.seqParMap PU.myStrategy    (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
+        newBlockDataList = PU.seqParMap PU.myStrategy (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
     in
     (nameVect, bvNameVect, V.fromList newBlockDataList)
 
