@@ -512,24 +512,28 @@ getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inG
 
                     -- SoftWired => delete edge -- could add net move if needed
                      else if graphType inGS == SoftWired then
-                        PU.seqParMap PU.myStrategy (updateDeleteTuple inGS inData (LG.extractLeafGraph $ thd6 inGraph) inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                        PU.seqParMap PU.myStrategy (updateDeleteTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
 
                     -- HardWired => move edge
                     else
-                        PU.seqParMap PU.myStrategy (updateMoveTuple inGS inData (LG.extractLeafGraph $ thd6 inGraph) inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                        PU.seqParMap PU.myStrategy (updateMoveTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
         in
         netTuples
 
 -- | updateDeleteTuple take a graph and and edge and delete a network edge (or retunrs tuple if not network)
 -- if this were a HardWWired graph--cost would always go down, so only applied to softwired graphs
-updateDeleteTuple :: GlobalSettings -> ProcessedData -> DecoratedGraph -> PhylogeneticGraph -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
-updateDeleteTuple inGS inData leafGraph inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
+updateDeleteTuple :: GlobalSettings 
+                  -> ProcessedData 
+                  -> PhylogeneticGraph 
+                  -> (Int, Int, NameBV, NameBV, VertexCost) 
+                  -> (Int, Int, NameBV, NameBV, VertexCost)
+updateDeleteTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
    let isNetworkEdge = LG.isNetworkEdge (fst6 inGraph) (inE, inV)
    in
    if not isNetworkEdge then inTuple
    else
       -- True to force full evalutation
-      let deleteCost = snd6 $ N.deleteNetEdge inGS inData leafGraph inGraph True (inE, inV)
+      let deleteCost = snd6 $ N.deleteNetEdge inGS inData inGraph True (inE, inV)
       in
       (inE, inV, inEBV, inVBV, min inCost deleteCost)
 
@@ -537,8 +541,12 @@ updateDeleteTuple inGS inData leafGraph inGraph inTuple@(inE, inV, inEBV, inVBV,
 -- | updateMoveTuple take a graph and and edge and moves a network edge (or returns tuple if not network)
 -- if this were a HardWWired graph--cost would always go down, so only applied to softwired graphs
     -- max bound because its a place holder for max num net edges
-updateMoveTuple :: GlobalSettings -> ProcessedData -> DecoratedGraph ->  PhylogeneticGraph -> (Int, Int, NameBV, NameBV, VertexCost) -> (Int, Int, NameBV, NameBV, VertexCost)
-updateMoveTuple inGS inData leafGraph inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
+updateMoveTuple :: GlobalSettings 
+                -> ProcessedData
+                ->  PhylogeneticGraph 
+                -> (Int, Int, NameBV, NameBV, VertexCost) 
+                -> (Int, Int, NameBV, NameBV, VertexCost)
+updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
    let isNetworkEdge = LG.isNetworkEdge (fst6 inGraph) (inE, inV)
    in
    if not isNetworkEdge then inTuple
@@ -549,7 +557,7 @@ updateMoveTuple inGS inData leafGraph inGraph inTuple@(inE, inV, inEBV, inVBV, i
           keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
           rSeed = 0
           saParams = Nothing
-          moveCost = minimum (snd6 <$> N.deleteOneNetAddAll inGS inData leafGraph (maxBound :: Int) keepNum steepest randomOrder inGraph [(inE, inV)] rSeed saParams)
+          moveCost = minimum (snd6 <$> N.deleteOneNetAddAll inGS inData (maxBound :: Int) keepNum steepest randomOrder inGraph [(inE, inV)] rSeed saParams)
       in
       (inE, inV, inEBV, inVBV, min inCost moveCost)
 
