@@ -112,6 +112,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             seqType
               | dataType == "nucleotide" = trace ("File " ++ dataName ++ " is nucleotide data.")  NucSeq
               | dataType == "aminoacid" = trace ("File " ++ dataName ++ " is aminoacid data.") AminoSeq
+              | dataType == "hugeseq" = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
               | dataType == "custom_alphabet" = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
               | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
                 ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
