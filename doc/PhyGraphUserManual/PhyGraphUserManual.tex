@@ -105,7 +105,7 @@
 
 \chapter{What is PhyG?}
 
-	\section{Introduction}
+\section{Introduction}
 	PhylogeneticGraph (\texttt{PhyG}) is a multi-platform program designed to produce phylogenetic 
 	graphs from input data and graphs via heuristic searching of general phylogenetic graph 
 	space. \texttt{PhyG} is the successor of \href{https://github.com/wardwheeler/POY5}{\textbf{POY}}
@@ -123,9 +123,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %QUICKSTART
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%		
-	\section{Quick Start}
+\section{Quick Start}
 	
-		\subsection{Requirements: software and hardware}
+	\subsection{Requirements: software and hardware}
 		\phyg is an open-source program that can be compiled for Mac OSX and Linux. Some 
 		utility programs (such as TextEdit for Mac, or Nano for Linux) can help in preparing 
 		\phyg scripts and formatting data files, while others (such as Adobe Acrobat and TreeView 
@@ -135,12 +135,12 @@
 		By default, \phyg is a multi-threaded application and will use the available resources of 
 		the computer during the analysis (see Execution in Parallel \ref{subsec:parallel}). 
 		
-		\subsection{Obtaining and Installing \phyg}
+	\subsection{Obtaining and Installing \phyg}
 		\phyg source code, precompiled binaries, test data, and documentation in pdf format, 
 		as well as tutorials, are available from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} 
 		website.
 
-		\subsubsection{Installing from the binaries}
+	\subsubsection{Installing from the binaries}
 		Download the \phyg binary from the \href{https://github.com/amnh/PhyGraph}{GitHub} 
 		website. Binaries are available for Mac OSX computers with either Intel or M1 processors, 
 		and Linux machines (see information relating to Windows machine below).
@@ -176,7 +176,7 @@
 		The WSL, along with directions for installation, can be found 
 		\href{https://learn.microsoft.com/en-us/windows/wsl/}{here}.
 	
-		\subsubsection{Compiling from the source}
+	\subsubsection{Compiling from the source}
 		For the majority of users, downloading the binaries will suffice. Should the user prefer to 
 		compile \phyg directly from the source, the source code can be downloaded 
 		from the \href{https://github.com/amnh/PhyGraph}{GitHub} website. \phyg is largely 
@@ -196,14 +196,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %OVERVIEW OF THE PROGRAM
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	 		
-	\section{Overview of program use}
-	
-		At present, \phyg is operated solely via command-line in a \textit{Terminal} window
-		and cannot be performed interactively. Commands are entered via a script file 
-		containing commands that specify input files, output files and formats, graph type 
-		and search parameters.
+\section{Overview of program use}
+	At present, \phyg is operated solely via command-line in a \textit{Terminal} window
+	and cannot be performed interactively. Commands are entered via a script file 
+	containing commands that specify input files, output files and formats, graph type 
+	and search parameters.
 		
-		\subsection{Executing Scripts}
+	\subsection{Executing Scripts}
 		The program is invoked from the command-line as in:\\
 		
 		\begin{quote}
@@ -211,7 +210,8 @@
 		\end{quote}
 
 		\noindent For example, typing the following in a \textit{Terminal} window will invoke 
-		\phyg to run the script \texttt{mol.pg}, which is located in the Desktop folder \texttt{phygfiles}:\\
+		\phyg to run the script \texttt{mol.pg}, which is located in the Desktop folder 
+		\texttt{phygfiles}:\\
 		
 		\begin{quote}
   		phyg Users/Ward/Desktop/phygfiles/mol.pg
@@ -270,19 +270,19 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %FORMATS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	\section{Input Data Formats} 
+\section{Input Data Formats} 
 	Any character names in input files are (for now) ignored and internal names are created
 	by appending the character number in its file to the filename as in "fileName:0".
 	Qualitative data, and prealigned data include their index in their input files and unaligned 
 	data are treated as a single character.
 		
-		\subsection{fasta}
+	\subsection{fasta}
 		Single character sequence input \citep{PearsonandLipman1988}.
 		
-		\subsection{fastc}
+	\subsection{fastc}
 		Multicharacter sequence input. \citep{WheelerandWashburn2019}.
 		
-		\subsection{\texttt{TNT}}
+	\subsection{\texttt{TNT}}
 		The TNT \citep{Goloboffetal2008} format is accepted here for specification of qualitative,
 		measurement, and prealigned molecular sequence data. \phyg does not parse all the
 		diversity of options that can be specified in \texttt{TNT} input files.\\
@@ -313,7 +313,7 @@
 %		can't have '.' in multichar state (or single for that matter)\\
 %		The inherent ordering of DNA and amino acid codes is alphabetical (e.g. A, C, G, T and `-').
 %	
-	\section{Input Graph Formats}
+\section{Input Graph Formats}
 	Graphs can be input in the graphviz \href{https://graphviz.org/}{``dot''} format Newick (as 		
 	interpreted by Gary Olsen, linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
 	{here}), Enhanced Newick \cite{Cardonaetal2008}, and Forest Enhanced Newick (defined by 
@@ -323,29 +323,33 @@
 	components are surrounded by `$<$' and '$>$'. As in $<$(A, (B,C)); (D,(E,F));$>$. 
 	Groups may be shared among ENewick components.
 	
-	\section{Output Graph Formats}
-	Graph outputs can be in either Graphviz `dot' or FEN formats. Dot files can be visualized in a variety of ways 
-	using Graphviz (e.g. dot, neanto, twopi) into pdf, jpg and a large variety of other formats. FEN outputs of 
-	single trees (ie forest with a single component) are rendered as enewick. Newick files can be visualized in a 
-	large number of programs (e.g. \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree}; 
+\section{Output Graph Formats}
+	Graph outputs can be in either Graphviz `dot' or FEN formats. Dot files can be visualized 
+	in a variety of ways using Graphviz (e.g. dot, neanto, twopi) into pdf, jpg and a large variety 
+	of other formats. FEN outputs of single trees (ie forest with a single component) are rendered 
+	as enewick. Newick files can be visualized in a 	large number of programs 
+	(e.g. \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree}; 
 	\href{http:/https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}
 	{Dendroscope}). 	
-	When FEN/Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, creating a new node as parent to that leaf
-	and redirecting the leaf's in-edges to that new node with a single edge connecting the new node to the leaf. PDFs of dot files can be generated directly (option \texttt{report}) or manually.  Example dot command line: 
+	When FEN/Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, 
+	creating a new node as parent to that leaf 	and redirecting the leaf's in-edges to that new 
+	node with a single edge connecting the new node to the leaf. PDFs of dot files can be 
+	generated directly (option \texttt{report}) or manually.  Example dot command line: 
 	
-		\begin{verbatim}
-			dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
-		\end{verbatim}
+	\begin{verbatim}
+		dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
+	\end{verbatim}
 		
 	Multiple ``dot'' graphs can be output in a single file. To create pdf and other formats the
 	commandline would be (these files are named and numbered automatically):
 	
-		\begin{verbatim}
-			dot -Tpdf -O myDotFile.dot
-		\end{verbatim}
+	\begin{verbatim}
+		dot -Tpdf -O myDotFile.dot
+	\end{verbatim}
 		
-	For some reason on OSX the `pdf' option does not seem to work. You can use `-Tps2' and that will generate 
-	a postscript file ($>$ blah.ps) that Preview can read and convert to pdf.
+	For some reason on OSX the `pdf' option does not seem to work. You can use `-Tps2' and 
+	that will generate 
+	a postscript file ($>$ filename.ps) that Preview can read and convert to pdf.
 	%what's -Tps2?	
 
 	
@@ -361,39 +365,58 @@
 	\subsection{Brief description}
 		\phyg interprets and executes scripts coming from an input file. A script is a list of 
 		commands, separated by any number of whitespace characters (spaces, tabs, or 
-		newlines). Each command consists of a name followed by a list of arguments 
-		separated by commas and enclosed in parentheses. Commands and arguments 
-		are case insensitive with the exception of filename specifications, which are always 
-		in double quotes (\texttt{"fileName"}). Arguments may be preceded or followed by 
-		options separated by a colon \texttt{`:'}, with no space before the option. Command 
-		arguments are order independent and can be entered from a file as stdin 
-		(\texttt{$<$ fileName}).
+		newlines). Each command consists of a name, followed by an argument or list of 
+		arguments separated by commas and enclosed in parentheses. Commands and 
+		arguments are case insensitive with the exception of filename specifications, which 
+		must match the filename \textit{exactly}, including suffixes and are always in double 
+		quotes (\texttt{``fileName''}). All commands, with the exception of \texttt{refine} 
+		(Section \ref{subsec:refine}) have default values, which are provided below.
+		
+		Most arguments are optional, with only a few requiring specification (e.g. the edit 
+		operation arguments of \texttt{refine}). Arguments can be followed by options 
+		separated by a colon \texttt{(``:'')}, with no space before the option. In this case 
+		they are considered labeled-value arguments. There are defaults for all arguments 
+		except input graphs. Some Parameters are given with options 
+		in a range `a to b' (a-b) with any value in the interval, or alternates `a or b' (a|b). The 
+		options parameters associated with 
+		
+		Wildcard expressions (such as `*' and `?') can be used for input files (data files and 
+		graph files (Section \ref{subsec:read}).
+			
+%		\begin{quote}
+%		command(argument, option:argument, option[:optional argument]...)
+%		\end{quote}
+%		\hl{is this structure above correct?}\\
+		
+		The following examples illustrate the structure of valid \phyg commands.	
 		
 		\begin{quote}
-		command(argument, option:argument, option[:optional argument]...)
-		\end{quote}
-	
-		\noindent Most of the arguments are optional, and there are only a few \phyg options
-		 that require specification. 	There are defaults for all options except input graphs. 
-		 \hl{Parameters are given with options in a range `a to b' (a-b) with any value in the interval, 
-		 or alternates `a or b' (a|b).} 
-		%\hl{reword this, confusing}
+		build(distance, replicates:30)
+		\end{quote}		
 		
-		\hl{Commands are standard commands that can affect the behavior of another command 
-		when included in its list of arguments. Therefore, certain commands can function as 
-		arguments of other commands. For example, the command \texttt{swap} specifies 
-		the method of branch swapping. This command is used to conduct a local search on 
-		a set of trees.} %In addition, \texttt{swap} functions as an argument for \texttt{build}
-		%specifying \hl{...}.
+		In this first example, the command \texttt{build} is followed by the arguments 
+		\texttt{distance} and \texttt{replicates:30}, enclosed in parentheses and separated 
+		by a comma. The second argument \texttt{replicates} is a labeled-value argument 
+		that contains the label (\texttt{replicates}) and a value (\texttt{30}) separated by a 
+		colon.
+				
+		\begin{quote}
+		swap(drift:3, acceptequal:2.0)
+		\end{quote}		
 
-		For input graphs, wildcards are allowed (i.e. `*' and `?').\\
-	
-	%\hl{Do you want a section on Notation within Command Structure?}
-	
+		In the second example, the command \texttt{swap} is followed by the arguments 
+		\texttt{drift} and \texttt{acceptequal}, enclosed in parentheses and separated 
+		by a comma. Both arguments are labeled-value arguments, each with different
+		ascribed values. The argument \texttt{drift} is XXX by an integer value (in this case
+		\texttt{3}, and the argument \texttt{acceptequal} is XXX by a real number or float
+		\texttt{2.0}.
+		
 	\subsection{Command order and processing}
 		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are executed at
 		the beginning of program execution, irrespective of where they appear in the command script. 
-		All other commands are executed in the order they are specified.
+		All other commands are executed in the order they are specified. \hl{Command arguments are order independent and can be entered from a file as 
+		stdin (\texttt{$<$ fileName})}.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %COMMAND REFERENCE
@@ -450,15 +473,16 @@ memory footprints.
 	
 \section{Memory Use}
 
-The amount of memory used during program execution can be reported by adding the runtime option ``-s'' as in
-\texttt{+RTS -s -RTS} to the command line (runtime options can be specified together as in \texttt{+RTS -NX -s -RTS}).  
-This will output several fields of data with the  ``in use'' field specifying the maximum amount of memory requested from the OS.  
-RTS options are described in detail at \url{https://downloads.haskell.org/ghc/latest/docs/users_guide/runtime_control.html}. 
+The amount of memory used during program execution can be reported by adding the 
+runtime option ``-s'' as in \texttt{+RTS -s -RTS} to the command line (runtime options can 
+be specified together as in \texttt{+RTS -NX -s -RTS}). This will output several fields of 
+data with the  ``in use'' field specifying the maximum amount of memory requested from 
+the OS. RTS options are described in detail at \url{https://downloads.haskell.org/ghc/latest/docs/users_guide/runtime_control.html}. 
 	
 \chapter*{Acknowledgments}
-	The authors would like to thank DARPA SIMPLEX N66001-15-C-4039, the Robert J. Kleberg Jr. and Helen C. 
-	Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum 
-	of Natural History for financial support. 
+	The authors would like to thank DARPA SIMPLEX N66001-15-C-4039, the Robert J. 
+	Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic 
+	Cancer Evolution'', and the American Museum of Natural History for financial support. 
 	
 	%\newpage
 	%\bibliography{big-refs-3.bib}
