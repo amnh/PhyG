@@ -1227,7 +1227,9 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
 get2WayGeneric :: (FiniteBits e, GV.Vector v e) => (e -> e -> (e, Word)) -> v e -> v e -> (v e, Word)
 get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
-   let len   = GV.length descendantLeftPrelim
+   let -- this should not be needed checking to see if works
+       len   = min (GV.length descendantLeftPrelim) (GV.length descendantRightPrelim) 
+       -- len   = GV.length descendantLeftPrelim
        vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (CUInt, Word)
        gen v = let med i = fst $ v V.! i in GV.generate len med
        add   = V.foldl' (\x e -> x + snd e) 0
