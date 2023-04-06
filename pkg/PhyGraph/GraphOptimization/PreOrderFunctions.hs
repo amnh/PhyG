@@ -40,6 +40,8 @@ module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
                                             , setFinalToPreliminaryStates
                                             , setPreliminaryToFinalStates
                                             , zero2Gap
+                                            , updateLeafIABlock
+                                            , makeIAUnionAssignments
                                             ) where
 
 import           Bio.DynamicCharacter

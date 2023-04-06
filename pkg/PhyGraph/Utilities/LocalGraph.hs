@@ -60,11 +60,10 @@ import qualified Data.List                           as L
 import qualified Data.Map                            as MAP
 import           Data.Maybe
 import qualified Data.Vector                         as V
-import           Debug.Trace
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
-
+-- import           Debug.Trace
 
 
 
@@ -252,7 +251,10 @@ removeChainedNetworkNodes showWarning inGraph =
         if null netVertexList then Just inGraph
         else if null chainedNodeList then Just inGraph
         else if null fixableChainedEdgeList then
-            trace ("Warning: Unfixable chained network nodes (both parent and child nodes are indegree > 1). Skipping graph")
+            let warningString = if showWarning then "Warning: Unfixable chained network nodes (both parent and child nodes are indegree > 1). Skipping graph"
+                                else ""
+            in
+            traceNoLF warningString
             Nothing
         else
             let warningString = if showWarning then "Warning: Chained network nodes (both parent and child nodes are indegree > 1), removing edges to tree node parents (this may affect graph cost)\n"
