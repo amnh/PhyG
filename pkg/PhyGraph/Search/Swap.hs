@@ -980,12 +980,9 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
        -- here when needed--correct graph is issue in network 
        -- swap can screw up time consistency and other issues
        sprNewGraphChecked = if graphType inGS == Tree then sprNewGraph
-                            else if graphType inGS == HardWired then 
-                              if not (LG.isPhylogeneticGraph sprNewGraph) then LG.empty
-                              else GO.convertGeneralGraphToPhylogeneticGraph False sprNewGraph
-                            else if LG.isPhylogeneticGraph sprNewGraph then sprNewGraph
-                            else LG.empty
-
+                            else if not (LG.isPhylogeneticGraph sprNewGraph) then LG.empty
+                            else sprNewGraph
+                            
        rediagnosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraphChecked
 
        -- Filter for bridge edges for TBR when needed

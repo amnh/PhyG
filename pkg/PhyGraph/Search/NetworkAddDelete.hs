@@ -808,8 +808,8 @@ insertNetEdge inGS inData inPhyloGraph _ ((u,v, _), (u',v', _)) =
                -- permissibale not catching timeconsistency issues with edges
            -- newSimple' = GO.makeGraphTimeConsistent "fail" newSimple
            
-
-           newSimple' = GO.convertGeneralGraphToPhylogeneticGraph False newSimple
+           -- this veeery slow
+           -- newSimple' = GO.convertGeneralGraphToPhylogeneticGraph False newSimple
 
            -- newSimple' = LG.removeChainedNetworkNodes False newSimple
 
@@ -817,7 +817,7 @@ insertNetEdge inGS inData inPhyloGraph _ ((u,v, _), (u',v', _)) =
            -- full two-pass optimization
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph
 
-           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple'
+           newPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
@@ -829,6 +829,10 @@ insertNetEdge inGS inData inPhyloGraph _ ((u,v, _), (u',v', _)) =
        in
 
        -- remove these checks when working
+       if not $ LG.isPhylogeneticGraph newSimple then
+         emptyPhylogeneticGraph
+       
+       {-
        if LG.isEmpty newSimple' then
          trace ("\tWarning: Chained network")
          emptyPhylogeneticGraph
@@ -836,6 +840,7 @@ insertNetEdge inGS inData inPhyloGraph _ ((u,v, _), (u',v', _)) =
        else if (not . LG.isGraphTimeConsistent) newSimple' then
          trace ("\tWarning: Time consistency error")
          emptyPhylogeneticGraph
+      -}
 
        {-
        else if LG.hasChainedNetworkNodes newSimple then
@@ -1704,8 +1709,8 @@ deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
           -- newGraph' = GO.contractIn1Out1EdgesRename newGraph
 
           -- conversion as if input--see if affects length
-          newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph False newGraph
-          -- newGraph'' = GO.contractIn1Out1EdgesRename newGraph
+          -- newGraph'' = GO.convertGeneralGraphToPhylogeneticGraph False newGraph
+          newGraph'' = GO.contractIn1Out1EdgesRename newGraph
 
       in
       -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolutoin cache issues)
