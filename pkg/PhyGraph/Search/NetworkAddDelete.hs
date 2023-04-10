@@ -1362,7 +1362,7 @@ deltaPenaltyAdjustment inGS inGraph modification =
    else if edgeCostModel == Wheeler2015Network then
       -- trace  ("DPW: In Wheeler2015Network") (
       let graphCost = snd6 inGraph -- this includes any existing penalties--would be better not to include
-          numBlocks = V.length $ fth6 inGraph
+          -- numBlocks = V.length $ fth6 inGraph
       in
       -- if (graphType inGS) == HardWired then 0.0
       -- trace ("DPA Value: " ++ (show $ graphCost / (fromIntegral $ numBlocks * 2 * ((2 * numLeaves) - 2))))
@@ -1538,7 +1538,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
            -- heuristicDelta = 0.0
 
            -- can treat as negative for delete
-           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+           -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
 
            -- full two-pass optimization
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph
