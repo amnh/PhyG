@@ -255,6 +255,7 @@ data  GlobalSettings
     , defaultParStrat          :: ParallelStrategy -- default parallel strategy 
     , lowLevelParStrat         :: ParallelStrategy -- default parallel strategy 
     , highLevelParStrat        :: ParallelStrategy -- default parallel strategy 
+    , useNetAddHeuristic       :: Bool --Netowrk addition heuristic--very coarse currently 
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -636,6 +637,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , defaultParStrat = RSeq    
                                      , lowLevelParStrat = RSeq -- default parallel strategy 
                                      , highLevelParStrat = RDeepSeq 
+                                     , useNetAddHeuristic = True
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

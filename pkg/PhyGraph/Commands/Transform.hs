@@ -182,6 +182,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
             nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
             charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
+        
 
         in
         if (length $ filter (== True) [toTree, toSoftWired, toHardWired]) > 1 then
@@ -364,7 +365,15 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   trace ("Changing uninoTHreshold factor to " ++ (show $ fromJust unionValue))
                   (inGS {dynamicEpsilon = (fromJust unionValue)}, origData, inData, inGraphList)
 
-
+            -- modify the use of Network Add heurisitcs in network optimization
+            else if (fst $ head lcArgList) == "usenetaddheuristic"  then
+            let localCriterion
+                  | ((snd $ head lcArgList) == "true") = True
+                  | ((snd $ head lcArgList) == "false") = False
+                  | otherwise = errorWithoutStackTrace ("Error in 'transform' command. UseNetAddHeuristic '" ++ (snd $ head lcArgList) ++ "' is not 'true' or 'false'")
+            in
+            trace ("UseNetAddHeuristic set to " ++ (snd $ head lcArgList))
+            (inGS {useNetAddHeuristic = localCriterion}, origData, inData, inGraphList)
 
             else error ("Transform type not implemented/recognized" ++ (show inArgs))
 

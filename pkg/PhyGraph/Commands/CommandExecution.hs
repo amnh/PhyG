@@ -675,6 +675,16 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             trace ("SoftwiredMethod " ++ show localMethod)
             (globalSettings {softWiredMethod = localMethod}, processedData, inSeedList)
 
+        -- modify the use of Network Add heurisitcs in network optimization
+        else if head commandList == "usenetaddheuristic"  then
+            let localCriterion
+                  | (head optionList == "true") = True
+                  | (head optionList == "false") = False
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. UseNetAddHeuristic '" ++ head optionList ++ "' is not 'true' or 'false'")
+            in
+            trace ("UseNetAddHeuristic set to " ++ head optionList)
+            (globalSettings {useNetAddHeuristic = localCriterion}, processedData, inSeedList)
+
         -- this not intended for users
         else if head commandList == "jointhreshold"  then
             let localValue = readMaybe (head optionList) :: Maybe Double

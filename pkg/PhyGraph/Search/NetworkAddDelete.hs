@@ -812,7 +812,9 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
 
            heuristicFactor = (heuristicDelta' + edgeAddDelta) / edgeAddDelta
 
-           metHeuristicThreshold = heuristicFactor < (2/3)
+           -- use or not Net add heuristics
+           metHeuristicThreshold = if useNetAddHeuristic inGS then heuristicFactor < (2/3)
+                                   else True
 
        in
 
@@ -827,7 +829,7 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
          -- let oldPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimple
          -- in
          -- trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete, snd6 oldPhyloGraph)) ++ "\nOrig\n" ++ (-- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         --trace ("INE: " ++ (show (heuristicDelta, heuristicDelta', edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), heuristicDelta' + edgeAddDelta + (snd6 inPhyloGraph), snd6 newPhyloGraph))) $
+         trace ("INE: " ++ (show (heuristicDelta, heuristicDelta', edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), heuristicDelta' + edgeAddDelta + (snd6 inPhyloGraph), snd6 newPhyloGraph))) $
          if metHeuristicThreshold then 
             if (snd6 newPhyloGraph <= snd6 inPhyloGraph) then newPhyloGraph
             else emptyPhylogeneticGraph
@@ -1535,7 +1537,8 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
            -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
            -- heuristicDelta = 0.0
 
-           -- edgeAddDelta = 0.0 -- deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+           -- can treat as negative for delete
+           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
 
            -- full two-pass optimization
            leafGraph = LG.extractLeafGraph $ thd6 inPhyloGraph

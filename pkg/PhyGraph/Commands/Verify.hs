@@ -126,7 +126,7 @@ selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 -- | setArgList contains valid 'set' arguments
     -- joinThreshold and dynamicEpsilon are not intended for users--but could be of course
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod", "usenetaddheuristic"]
 
 -- | refinement arguments
 supportArgList :: [String]
@@ -141,7 +141,7 @@ swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "a
 transformArgList :: [String]
 transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor",
     "graphssteepest", "jointhreshold", "multitraverse", "name", "outgroup", "softwiredmethod", "staticapprox", "tohardwired",
-    "tosoftwired", "totree", "type", "weight"]
+    "tosoftwired", "totree", "type", "usenetaddheuristic", "weight"]
 
 
 -- | verifyCommands takes a command list and tests whether the commands
