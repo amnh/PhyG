@@ -1272,7 +1272,7 @@ getCoevalConstraintEdges inGraph inNode =
        (edgeBeforeList, edgeAfterList)
 
 
--- | getGraphCoevalConstraints takes a greaph and returns coeval constraints based on network nodes
+-- | getGraphCoevalConstraints takes a graph and returns coeval constraints based on network nodes
 getGraphCoevalConstraints :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> [([LEdge b],[LEdge b])]
 getGraphCoevalConstraints inGraph =
    if isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"

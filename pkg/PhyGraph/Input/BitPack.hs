@@ -1535,7 +1535,7 @@ packNonAdditiveData :: GlobalSettings -> ProcessedData -> ProcessedData
 packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
     -- need to check if this blowws out memory on big data sets (e.g. genomic)
     let -- newBlockDataList = fmap (recodeNonAddCharacters inGS) (V.toList blockDataVect) -- parallel could be an option to save memory etc
-        newBlockDataList = PU.seqParMap PU.myStrategy (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
+        newBlockDataList = PU.seqParMap (parStrategy $ strictParStrat inGS) (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
     in
     (nameVect, bvNameVect, V.fromList newBlockDataList)
 
@@ -1580,14 +1580,14 @@ packNonAdd inGS inCharDataV charInfo =
             numNonAdd = minimum $ fmap length leafNonAddV
 
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
-            stateNumDataPairList = PU.seqParMap PU.myStrategy   (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
+            stateNumDataPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)   (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
 
             -- sort characters by states number (2, 4, 5, 8, 64, >64 -> 128)
             (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
 
             -- make new characters based on state size
             -- (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter inGS charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
-            (newStateCharListList, newCharInfoList) = unzip (PU.seqParMap PU.myStrategy  (makeStateNCharacterTuple inGS charInfo) (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]))
+            (newStateCharListList, newCharInfoList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS)  (makeStateNCharacterTuple inGS charInfo) (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]))
 
 
         in
@@ -1693,10 +1693,10 @@ recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
             taxCharBVLL = L.transpose charTaxBVLL
 
             -- get state index list for all characters (could be non sequential 0|2; A|T etc)
-            stateIndexLL = PU.seqParMap PU.myStrategy  getStateIndexList charTaxBVLL
+            stateIndexLL = PU.seqParMap (parStrategy $ strictParStrat inGS)  getStateIndexList charTaxBVLL
 
             -- convert data each taxon into packedWord64
-            packedDataL = PU.seqParMap PU.myStrategy  (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
+            packedDataL = PU.seqParMap (parStrategy $ strictParStrat inGS)  (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
 
             -- get noChange and Change cost for char type
             (lNoChangeCost, lChangeCost) = if stateNumber == 2 then bc2 inGS

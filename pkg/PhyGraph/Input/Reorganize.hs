@@ -278,7 +278,7 @@ combineDataByType inGS inData@(taxNames, taxBVNames, _) =
 -- | combineData creates for a block) lists of each data type and concats then creating new data and new char info
 combineData :: BlockData -> BlockData
 combineData (blockName, blockDataVV, charInfoV) =
-    let (newBlockDataLV, newCharInfoLV) = unzip (PU.seqParMap PU.myStrategy  (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
+    let (newBlockDataLV, newCharInfoLV) = unzip (PU.seqParMap PU.myStrategyRDS (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
     in
     (blockName, V.fromList newBlockDataLV, head newCharInfoLV)
 
@@ -449,7 +449,7 @@ getSameMatrixChars inCharsPairList testMatrix =
 -- from prealignedCharacterTypes
 removeConstantCharactersPrealigned :: ProcessedData -> ProcessedData
 removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
-    let newBlockData = V.fromList (PU.seqParMap PU.myStrategy   removeConstantBlockPrealigned (V.toList blockDataVect)) -- `using` PU.myParListChunkRDS)
+    let newBlockData = V.fromList (PU.seqParMap PU.myStrategyRDS  removeConstantBlockPrealigned (V.toList blockDataVect)) -- `using` PU.myParListChunkRDS)
     in
     (nameVect, bvNameVect, newBlockData)
 

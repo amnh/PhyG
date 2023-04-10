@@ -214,7 +214,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                       displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)
 
                       -- reoptimize as Trees
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs -- `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs -- `using` PU.myParListChunkRDS
                   in
                   (newGS, origData, inData, newPhylogeneticGraphList)
 
@@ -223,7 +223,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                if (graphType inGS == SoftWired) then (inGS, origData, inData, inGraphList)
                else
                   let newGS = inGS {graphType = SoftWired}
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
                   in
                   (newGS, origData, inData, newPhylogeneticGraphList)
 
@@ -233,14 +233,14 @@ transform inArgs inGS origData inData rSeed inGraphList =
                else
                   let newGS = inGS {graphType = HardWired, graphFactor = NoNetworkPenalty}
 
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList)  -- `using` PU.myParListChunkRDS
                   in
                   trace ("Changing GraphFactor to NoNetworkPenalty for HardWired graphs")
                   (newGS, origData, inData, newPhylogeneticGraphList)
 
             -- roll back to dynamic data from static approx
             else if toDynamic then
-               let newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+               let newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                in
                trace ("Transforming data to dynamic: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
                (inGS, origData, origData, newPhylogeneticGraphList)
@@ -248,7 +248,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             -- transform to static approx--using first Tree
             else if toStaticApprox then
                let newData = makeStaticApprox inGS False inData (head $ L.sortOn snd6 inGraphList)
-                   newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                   newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
 
                in
                trace ("Transforming data to staticApprox: " ++ (show $ minimum $ fmap snd6 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd6 newPhylogeneticGraphList))
@@ -259,7 +259,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             else if reWeight then
                let newOrigData = reWeightData (fromJust weightValue) charTypeList nameList origData
                    newData = reWeightData (fromJust weightValue) charTypeList nameList inData
-                   newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                   newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                in
                if isNothing weightValue then errorWithoutStackTrace ("Reweight value is not specified correcty. Must be a double (e.g. 1.2): " ++ (show  (snd $ head reweightBlock)))
                else
@@ -274,7 +274,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   let newMethod = if fromJust compressionValue == "true" then True
                                   else if fromJust compressionValue == "false" then False
                                   else errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph (inGS  {compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph (inGS  {compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                   in
                   if newMethod /=  compressResolutions inGS then
                      trace ("Changing compressResolutions method to " ++ (show newMethod))
@@ -297,7 +297,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                                   else if fromJust newGraphFactor == "w23" then Wheeler2023Network
                                   else if fromJust newGraphFactor == "pmdl" then PMDLGraph
                                   else errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " ++ (show (snd $ head changeGraphFactorBlock)))
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph (inGS  {graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph (inGS  {graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                   in
                   if newMethod /=  graphFactor inGS then
                      trace ("Changing graphFactor method to " ++ (show newMethod))
@@ -318,7 +318,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                   let newMethod = if fromJust multiTraverseValue == "true" then True
                                   else if fromJust multiTraverseValue == "false" then False
                                   else errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeMultiTraverseBlock)))
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph (inGS  {multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph (inGS  {multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                   in
                   if newMethod /=  multiTraverseCharacters inGS then
                      let lengthChangeString = if null inGraphList then ""
@@ -336,7 +336,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                                   else if fromJust newSoftwiredMethod == "exhaustive" then Naive
                                   else if fromJust newSoftwiredMethod == "resolutioncache" then ResolutionCache
                                   else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy   (T.multiTraverseFullyLabelGraph (inGS  {softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph (inGS  {softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst6 inGraphList) -- `using` PU.myParListChunkRDS
                       newMethodString = if newMethod == ResolutionCache then "ResolutionCache"
                                         else "Exhaustive"
                   in
@@ -351,7 +351,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                else
                   let newOutgroupName = TL.filter (/= '"') $ fromJust outgroupValue
                       newOutgroupIndex =  V.elemIndex newOutgroupName (fst3 origData)
-                      newPhylogeneticGraphList = PU.seqParMap PU.myStrategy  (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap (LG.rerootTree (fromJust newOutgroupIndex)) $ fmap fst6 inGraphList)
+                      newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraph inGS origData pruneEdges warnPruneEdges startVertex) (fmap (LG.rerootTree (fromJust newOutgroupIndex)) $ fmap fst6 inGraphList)
                   in
                   if isNothing newOutgroupIndex then errorWithoutStackTrace ("Outgoup name not found: " ++ (snd $ head reRootBlock))
                   else
@@ -447,7 +447,7 @@ makeStaticApprox inGS leavePrealigned inData inGraph =
           (nameV, nameBVV, blockDataV) = inData
 
           -- do each block in turn pulling and transforming data from inGraph
-          newBlockDataV = PU.seqParMap PU.myStrategy   (pullGraphBlockDataAndTransform leavePrealigned decGraph inData) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
+          newBlockDataV = PU.seqParMap (parStrategy $ strictParStrat inGS) (pullGraphBlockDataAndTransform leavePrealigned decGraph inData) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
 
           -- convert prealigned to non-additive if all 1's tcm
 
