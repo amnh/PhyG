@@ -126,7 +126,7 @@ selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 -- | setArgList contains valid 'set' arguments
     -- joinThreshold and dynamicEpsilon are not intended for users--but could be of course
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod", "usenetaddheuristic"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "defparstrat", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "lazyparstrat", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod", "strictparstrat", "usenetaddheuristic"]
 
 -- | refinement arguments
 supportArgList :: [String]

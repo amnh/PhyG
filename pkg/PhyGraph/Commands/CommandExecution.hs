@@ -685,7 +685,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             trace ("UseNetAddHeuristic set to " ++ head optionList)
             (globalSettings {useNetAddHeuristic = localCriterion}, processedData, inSeedList)
 
-        -- this not intended for users
+        -- these not intended for users
         else if head commandList == "jointhreshold"  then
             let localValue = readMaybe (head optionList) :: Maybe Double
             in
@@ -694,6 +694,40 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             else
                 trace ("JoinThreshold set to " ++ head optionList)
                 (globalSettings {unionThreshold = fromJust localValue}, processedData, inSeedList)
+
+        -- parallel strategy settings options
+        else if head commandList == "defparstat"  then
+            let localMethod
+                  | (head optionList == "r0") = R0
+                  | (head optionList == "rpar") = RPar
+                  | (head optionList == "rseq") = RSeq
+                  | (head optionList == "rdeepseq") = RDeepSeq
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. DefParStrat  '" ++ head optionList ++ "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
+            in
+            trace ("DefParStrat set to " ++ show localMethod)
+            (globalSettings {defaultParStrat = localMethod}, processedData, inSeedList)
+
+        else if head commandList == "lazyparstat"  then
+            let localMethod
+                  | (head optionList == "r0") = R0
+                  | (head optionList == "rpar") = RPar
+                  | (head optionList == "rseq") = RSeq
+                  | (head optionList == "rdeepseq") = RDeepSeq
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. LazyParStrat  '" ++ head optionList ++ "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
+            in
+            trace ("DefParStrat set to " ++ show localMethod)
+            (globalSettings {lazyParStrat = localMethod}, processedData, inSeedList)
+
+        else if head commandList == "strictparstat"  then
+            let localMethod
+                  | (head optionList == "r0") = R0
+                  | (head optionList == "rpar") = RPar
+                  | (head optionList == "rseq") = RSeq
+                  | (head optionList == "rdeepseq") = RDeepSeq
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. StrictParStrat  '" ++ head optionList ++ "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
+            in
+            trace ("StrictParStrat set to " ++ show localMethod)
+            (globalSettings {strictParStrat = localMethod}, processedData, inSeedList)
 
 
 
