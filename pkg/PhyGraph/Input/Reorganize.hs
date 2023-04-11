@@ -484,7 +484,6 @@ removeConstantCharsPrealigned :: V.Vector CharacterData -> CharInfo -> V.Vector 
 removeConstantCharsPrealigned singleChar charInfo =
     let inCharType = charType charInfo
     in
-
     -- dynamic characters don't do this
     if inCharType `notElem` prealignedCharacterTypes then singleChar
     else
@@ -519,7 +518,10 @@ getVariableChars inCharType singleChar =
         matrixVariable = fmap (filterConstantsV (V.fromList boolVar)) matrixV
         alSlimVariable = fmap (filterConstantsSV (V.fromList boolVar)) alSlimV
         alWideVariable = fmap (filterConstantsUV (V.fromList boolVar)) alWideV
-        alHugeVariable = fmap (filterConstantsV (V.fromList boolVar)) alHugeV
+
+        -- this is a hack-not sure why popCount etc don't work with HugeVector little endian BVs
+        -- these should be short seqs in general so no ral impact on effeciancy
+        alHugeVariable = alHugeV -- fmap (filterConstantsV (V.fromList boolVar)) alHugeV
 
         -- assign to propoer character fields
         outCharVect = V.zipWith (assignNewField inCharType) singleChar (V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable)
@@ -575,7 +577,7 @@ getVarVectBits inCharType stateVV curBoolList =
 
         in
         getVarVectBits inCharType (fmap GV.tail stateVV) (isVariable : curBoolList)
-
+        
 {-
 -- | checkIsVariableIdentity takes a generic vector and sees if all elements are identical
 checkIsVariableIdentity ::  (Eq a, GV.Vector v a) => a -> v a -> Bool
