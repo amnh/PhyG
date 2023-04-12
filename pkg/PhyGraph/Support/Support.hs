@@ -172,7 +172,7 @@ getResampleGraph :: GlobalSettings
                  -> Double
                  -> PhylogeneticGraph
 getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOptions jackFreq =
-   let resampledGraphList = PU.seqParMap PU.myStrategyHighLevel (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) -- `using` PU.myParListChunkRDS
+   let resampledGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) -- `using` PU.myParListChunkRDS
        -- create appropriate support graph >50% ?
        -- need to add args
        reconcileArgs = if graphType inGS == Tree then [("method","majority"), ("compare","identity"), ("edgelabel","true"), ("vertexlabel","true"), ("connect","true"), ("threshold","51"), ("outformat", "dot")]
@@ -512,11 +512,11 @@ getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inG
 
                     -- SoftWired => delete edge -- could add net move if needed
                      else if graphType inGS == SoftWired then
-                        PU.seqParMap PU.myStrategy (updateDeleteTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                        PU.seqParMap (parStrategy $ strictParStrat inGS) (updateDeleteTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
 
                     -- HardWired => move edge
                     else
-                        PU.seqParMap PU.myStrategy (updateMoveTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                        PU.seqParMap (parStrategy $ strictParStrat inGS) (updateMoveTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
         in
         netTuples
 
@@ -599,7 +599,7 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
 
 
             -- generate tuple lists for each break edge parallelized at this level
-            tupleListList = PU.seqParMap PU.myStrategyHighLevel (splitRejoinGB' inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) (zip randomIntegerListList breakEdgeList)  -- `using` PU.myParListChunkRDS
+            tupleListList = PU.seqParMap (parStrategy $ strictParStrat inGS) (splitRejoinGB' inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList) (zip randomIntegerListList breakEdgeList)  -- `using` PU.myParListChunkRDS
 
             -- merge tuple lists--should all be in same order
             newTupleList = mergeTupleLists (filter (not . null) tupleListList) []

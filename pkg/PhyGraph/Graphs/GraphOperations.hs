@@ -253,12 +253,13 @@ removeSisterSisterEdges correct inGraph =
 -- looks for violation of time between netork edges based on "before" and "after"
 -- tests of nodes that should be potentially same age
 -- removes second edge of second pair of two network edges in each case adn remakes graph
+-- strict paralle since will need each recursive run
 makeGraphTimeConsistent :: Bool -> SimpleGraph -> SimpleGraph
 makeGraphTimeConsistent correct inGraph
   | LG.isEmpty inGraph = LG.empty
   | LG.isTree inGraph = inGraph
   | otherwise = let coevalNodeConstraintList = LG.coevalNodePairs inGraph
-                    coevalNodeConstraintList' = PU.seqParMap PU.myStrategy  (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
+                    coevalNodeConstraintList' = PU.seqParMap PU.myStrategyRDS (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
                     coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
                     timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
                     newGraph = LG.delEdges timeOffendingEdgeList inGraph

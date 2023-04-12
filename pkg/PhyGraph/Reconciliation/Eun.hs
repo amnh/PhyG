@@ -145,7 +145,7 @@ makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList myVertex =
   if myVertex < nLeaves then [leafNodes V.! myVertex]
     else
       let myChildren = G.suc inGraph myVertex
-          myChildrenNodes = PU.seqParMap PU.myStrategy  (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
+          myChildrenNodes = PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
 
           rawBV = BV.or $ fmap (snd . head) myChildrenNodes
           myBV = if length myChildren /= 1 then rawBV
@@ -169,7 +169,7 @@ getNodesFromARoot inGraph nLeaves leafNodes rootVertex =
 
         -- recurse to children since assume only leaves can be labbeled with BV.BVs
         -- fmap becasue could be > 2 (as in at root)
-        rootChildNewNodes = PU.seqParMap PU.myStrategy  (makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList) rootChildVerts -- `using` PU.myParListChunkRDS
+        rootChildNewNodes = PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList) rootChildVerts -- `using` PU.myParListChunkRDS
 
         -- check if outdegree = 1
         rawBV = BV.or $ fmap (snd . head) rootChildNewNodes
@@ -423,7 +423,7 @@ makeEUN ::  (Eq b, NFData b) => [G.LNode a] -> [G.LEdge b] -> P.Gr a b -> P.Gr a
 makeEUN nodeList fullEdgeList fullGraph =
   let -- counterList = [0..(length fullEdgeList - 1)]
       -- requiredEdges = concat $ fmap (testEdge nodeList fullEdgeList) counterList
-      requiredEdges = PU.seqParMap PU.myStrategy   (testEdge fullGraph) fullEdgeList -- `using` PU.myParListChunkRDS
+      requiredEdges = PU.seqParMap PU.myStrategyRDS (testEdge fullGraph) fullEdgeList -- `using` PU.myParListChunkRDS
       newGraph = G.mkGraph nodeList (concat requiredEdges)
   in
   newGraph
@@ -466,7 +466,7 @@ reIndexAndAddLeavesEdges totallLeafSet (inputLeafList, inGraph) =
       -- create a map between inputLeafSet and totalLeafSet which is the canonical enumeration
       -- then add in local HTU nodes and for map as well
       -- trace ("Original graph: " ++ (showGraph inGraph)) (
-      let correspondanceList = PU.seqParMap PU.myStrategy   (getLeafLabelMatches inputLeafList) totallLeafSet -- `using` PU.myParListChunkRDS
+      let correspondanceList = PU.seqParMap PU.myStrategyRDS (getLeafLabelMatches inputLeafList) totallLeafSet -- `using` PU.myParListChunkRDS
           matchList = filter ((/=(-1)).fst) correspondanceList
           --remove order dependancey
           -- htuList = [(length inputLeafList)..(length inputLeafList + htuNumber - 1)]
@@ -559,7 +559,7 @@ combinable comparison bvList bvIn
   | comparison == "combinable" = -- combinable sensu Nelson 1979
     if null bvList then [bvIn]
     else
-      let intersectList = PU.seqParMap PU.myStrategy   (checkBitVectors bvIn) bvList -- `using` PU.myParListChunkRDS
+      let intersectList = PU.seqParMap PU.myStrategyRDS (checkBitVectors bvIn) bvList -- `using` PU.myParListChunkRDS
           isCombinable = L.foldl' (&&) True intersectList
       in
       [bvIn | isCombinable]
@@ -608,7 +608,7 @@ getThresholdNodes comparison thresholdInt numLeaves objectListList
           | comparison == "identity" = L.group $ L.sort (snd <$> concat objectListList)
           | otherwise = errorWithoutStackTrace ("Comparison method " ++ comparison ++ " unrecognized (combinable/identity)")
         uniqueList = zip indexList (fmap head objectGroupList)
-        frequencyList = PU.seqParMap PU.myStrategy   (((/ numGraphs) . fromIntegral) . length) objectGroupList  -- `using` PU.myParListChunkRDS
+        frequencyList = PU.seqParMap PU.myStrategyRDS (((/ numGraphs) . fromIntegral) . length) objectGroupList  -- `using` PU.myParListChunkRDS
         fullPairList = zip uniqueList frequencyList
         threshold = (fromIntegral thresholdInt / 100.0) :: Double
     in
@@ -628,7 +628,7 @@ getThresholdEdges thresholdInt numGraphsInput objectList
       numGraphs = fromIntegral numGraphsInput
       objectGroupList = L.group $ L.sort objectList
       uniqueList = fmap head objectGroupList
-      frequencyList = PU.seqParMap PU.myStrategy   (((/ numGraphs) . fromIntegral) . length) objectGroupList -- `using` PU.myParListChunkRDS
+      frequencyList = PU.seqParMap PU.myStrategyRDS (((/ numGraphs) . fromIntegral) . length) objectGroupList -- `using` PU.myParListChunkRDS
       fullPairList = zip uniqueList frequencyList
   in
   --trace ("There are " ++ (show numGraphsIn) ++ " to filter: " ++ (show uniqueList) ++ "\n" ++ (show $ fmap length objectGroupList) ++ " " ++ (show frequencyList))
@@ -665,7 +665,7 @@ verticesByPostorder inGraph leafNodes foundVertSet
     let vertexIndexList = S.toList foundVertSet
         vertexLabelList = fmap (fromJust . G.lab inGraph) vertexIndexList
         vertexList = zip vertexIndexList vertexLabelList
-        edgeList = PU.seqParMap PU.myStrategy   (verifyEdge vertexIndexList) (G.labEdges inGraph) -- `using` PU.myParListChunkRDS
+        edgeList = PU.seqParMap PU.myStrategyRDS (verifyEdge vertexIndexList) (G.labEdges inGraph) -- `using` PU.myParListChunkRDS
     in G.mkGraph vertexList (concat edgeList)
       | otherwise =
     let firstLeaf = fst $ head leafNodes
@@ -770,7 +770,7 @@ reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String
 reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) =
 
     let -- Reformat graphs with appropriate annotations, BV.BVs, etc
-        processedGraphs = PU.seqParMap PU.myStrategy   reAnnotateGraphs inputGraphList -- `using` PU.myParListChunkRDS
+        processedGraphs = PU.seqParMap PU.myStrategyRDS reAnnotateGraphs inputGraphList -- `using` PU.myParListChunkRDS
 
         -- Create lists of reindexed unique nodes and edges, identity by BV.BVs
         -- The drops to not reexamine leaves repeatedly
@@ -799,7 +799,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
         --
         (thresholdNodes', nodeFreqs) = getThresholdNodes compareMethod threshold numLeaves (fmap (drop numLeaves . G.labNodes) processedGraphs)
         thresholdNodes = leafNodes ++ thresholdNodes'
-        thresholdEdgesList = PU.seqParMap PU.myStrategy   (getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes) thresholdNodes  -- `using` PU.myParListChunkRDS
+        thresholdEdgesList = PU.seqParMap PU.myStrategyRDS (getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes) thresholdNodes  -- `using` PU.myParListChunkRDS
         thresholdEdges = L.nub $ concat thresholdEdgesList
         -- numPossibleEdges =  ((length thresholdNodes * length thresholdNodes) - length thresholdNodes) `div` 2
         thresholdConsensusGraph = G.mkGraph thresholdNodes thresholdEdges -- O(n^3)
