@@ -63,7 +63,7 @@ import           Data.Maybe
 import           GeneralUtilities
 import qualified Input.ReadInputFiles as RIF
 import           Types.Types
---import           Debug.Trace
+import           Debug.Trace
 
 -- | preprocessOptimalityCriteriaScripts takes a processed command list and
 -- processes for optimlity criteria that change tcms and such for
@@ -136,9 +136,19 @@ getCommandList  rawContents =
         let rawList = removeComments $ fmap (filter (/= ' ')) rawContents
             -- expand for read wildcards here--cretge a new, potentially longer list
             processedCommands = concatMap parseCommand rawList
+
+            reportCommands = filter ((== Report) . fst) processedCommands
+
+            reportGraphsArgs = filter (== "graphs") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+
         in
+        if null reportCommands || null reportGraphsArgs then
+            trace ("Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'") $
+            let addedReport = (Report, [("graphs",[]), ([], "_defaultGraph.dot_"), ("dotpdf",[])])
+            in 
+            processedCommands ++ [addedReport]
         --trace (show rawList)
-        processedCommands
+        else processedCommands
 
 
 -- | removeComments deletes anyhting on line (including line)
