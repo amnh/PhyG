@@ -116,7 +116,7 @@
 	cladograms and graphs. What sets \phyg apart from {\textbf{POY}, and other phylogenetic 
 	analysis programs, is the extension to broader classes of input data and phylogenetic graphs. 
 	The phylogenetic graph inputs and outputs of \texttt{PhyG} include trees, as well as other forms 
-	including forests and both soft- and hard-wired networks.
+	including forests and both softwired and hardwired networks.
 		
 	This is the initial version of documentation for the program.
 
@@ -263,7 +263,9 @@
 
 		\begin{quote}
 		phyg fileName +RTS -N1 
-		\end{quote}		
+		\end{quote}
+		
+		\noindent This is equivalent to executing the program sequentially.		
 		%possible to include and other options
 
 		
@@ -280,7 +282,9 @@
 		Single character sequence input \citep{PearsonandLipman1988}.
 		
 	\subsection{fastc}
-		Multicharacter sequence input. \citep{WheelerandWashburn2019}.
+		Fastc is a file format for multi-character sequence input \citep{WheelerandWashburn2019}.
+		Multi-character sequence elements are useful for the analysis of data types such as 
+		developmental, gene synteny and comparative linguistic data.
 		
 	\subsection{\texttt{TNT}}
 		The TNT \citep{Goloboffetal2008} format is accepted here for specification of qualitative,
@@ -337,22 +341,20 @@
 	generated directly (option \texttt{report}) or manually.  Example dot command line: 
 	
 	\begin{verbatim}
-		dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
+	dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
 	\end{verbatim}
 		
 	Multiple ``dot'' graphs can be output in a single file. To create pdf and other formats the
 	commandline would be (these files are named and numbered automatically):
 	
 	\begin{verbatim}
-		dot -Tpdf -O myDotFile.dot
+	dot -Tpdf -O myDotFile.dot
 	\end{verbatim}
 		
 	For some reason on OSX the `pdf' option does not seem to work. You can use `-Tps2' and 
 	that will generate 
 	a postscript file ($>$ filename.ps) that Preview can read and convert to pdf.
 	%what's -Tps2?	
-
-	
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %COMMANDS
@@ -366,55 +368,54 @@
 		\phyg interprets and executes scripts coming from an input file. A script is a list of 
 		commands, separated by any number of whitespace characters (spaces, tabs, or 
 		newlines). Each command consists of a name, followed by an argument or list of 
-		arguments separated by commas and enclosed in parentheses. Commands and 
-		arguments are case insensitive with the exception of filename specifications, which 
-		must match the filename \textit{exactly}, including suffixes and are always in double 
-		quotes (\texttt{``fileName''}). All commands, with the exception of \texttt{refine} 
-		(Section \ref{subsec:refine}) have default values, which are provided below.
+		arguments separated by commas \texttt{(``,'')} and enclosed in parentheses. 
+		Commands and arguments are case insensitive with the exception of filename 
+		specifications, which must match the filename \textit{exactly}, including suffixes 
+		and are always in double quotes (\texttt{``fileName''}). Most commands, with the 
+		exception of \texttt{read}, \texttt{reblock}, and \texttt{rename} have default values 
+		and are provided at the end of each command section below. If no arguments are 
+		specified, the command is executed under its default settings.
 		
-		Most arguments are optional, with only a few requiring specification (e.g. the edit 
-		operation arguments of \texttt{refine}). Arguments can be followed by options 
-		separated by a colon \texttt{(``:'')}, with no space before the option. In this case 
-		they are considered labeled-value arguments. There are defaults for all arguments 
-		except input graphs. Some Parameters are given with options 
-		in a range `a to b' (a-b) with any value in the interval, or alternates `a or b' (a|b). The 
-		options parameters associated with 
+		\phyg recognizes \hl{three} types of command arguments: primitive values, labeled 
+		arguments, and lists of arguments. Primitive values can be either an integer (e.g. 3), 
+		a real number or float (e.g. 2.0), a string (e.g. ``Chel.fas'') or a boolean (True|False).
+		Labeled arguments consist of identifiers (the label) and an argument, separated by
+		the colon \texttt{(``:'')} character, with no space before the identifier. Examples of 
+		identifiers include \texttt{majority}, \texttt{nopenalty}, \texttt{hardwired}, and 
+		\texttt{parsimony}. List of arguments are several arguments enclosed in parenthesis 
+		and separated by commas \texttt{(``,'')}. Most arguments are optional, with only a 
+		few requiring specification (see \texttt{read} \ref{subsec:read}, \texttt{reblock} 
+		\ref{subsec:reblock}, \hl{xxx}). \hl{Some argument labels are obligatory, most are 
+		optional.} When no arguments are specified, \phyg will use the defaults.
 		
-		Wildcard expressions (such as `*' and `?') can be used for input files (data files and 
-		graph files (Section \ref{subsec:read}).
-			
-%		\begin{quote}
-%		command(argument, option:argument, option[:optional argument]...)
-%		\end{quote}
-%		\hl{is this structure above correct?}\\
+		\hl{If something is optional should it be in [ ] below?}
 		
-		The following examples illustrate the structure of valid \phyg commands.	
+		The following examples illustrate the structure of valid \phyg commands. 
 		
-		\begin{quote}
-		build(distance, replicates:30)
-		\end{quote}		
-		
-		In this first example, the command \texttt{build} is followed by the arguments 
-		\texttt{distance} and \texttt{replicates:30}, enclosed in parentheses and separated 
-		by a comma. The second argument \texttt{replicates} is a labeled-value argument 
-		that contains the label (\texttt{replicates}) and a value (\texttt{30}) separated by a 
-		colon.
 				
 		\begin{quote}
-		swap(drift:3, acceptequal:2.0)
-		\end{quote}		
-
-		In the second example, the command \texttt{swap} is followed by the arguments 
-		\texttt{drift} and \texttt{acceptequal}, enclosed in parentheses and separated 
-		by a comma. Both arguments are labeled-value arguments, each with different
-		ascribed values. The argument \texttt{drift} is XXX by an integer value (in this case
-		\texttt{3}, and the argument \texttt{acceptequal} is XXX by a real number or float
-		\texttt{2.0}.
+		build()
+		\end{quote}
 		
+		\noindent In this simple example, the command \texttt{build} is followed by an open 
+		and closed parenthesis. As no arguments are specified, this is equivalent to  
+		\texttt{build(character, replicates:10)}, the default arguments of this command.
+		
+		
+		\begin{quote}
+		swap(alternate, acceptequal:2.0)
+		\end{quote}
+				
+		\noindent In the second example, the command \texttt{swap} is followed by the list 
+		of arguments that includes \texttt{alternate} and \texttt{acceptequal}, enclosed in 
+		parentheses and separated by a comma. The latter is a labeled-value argument, 
+		ascribed the float \texttt{2.0}.
+				
 	\subsection{Command order and processing}
-		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are executed at
-		the beginning of program execution, irrespective of where they appear in the command script. 
-		All other commands are executed in the order they are specified. \hl{Command arguments are order independent and can be entered from a file as 
+		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are 
+		executed at the beginning of program execution, irrespective of where they appear 
+		in the command script. All other commands are executed in the order they are specified. 
+		\hl{Command arguments are order independent and can be entered from a file as 
 		stdin (\texttt{$<$ fileName})}.
 
 
@@ -429,7 +430,7 @@
 \section{Example Script Files}
 	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), 
 	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
-	outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a soft-wired network, 
+	outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a softwired network, 
 	and 	reports a series of files with various information about the data and graphs.
 	
 		\begin{verbatim}

@@ -11,7 +11,7 @@
 		to be generated, and whether the build is based on \textit{distance} or \textit{character} 
 		methods. Most options, with the exception of \texttt{rdWag}, an $O(n^3)$ distance based 
 		option, are $O(n^2)$. Distance methods are considerably faster (lower constant 
-		factor), but approximate in terms of character-based methods. Refinement, in the form 
+		factor), but approximate, compared to character-based methods. Refinement, in the form 
 		of branch swapping (\texttt{none}, \texttt{otu}, \texttt{spr}, and \texttt{tbr}) can be 
 		specified within the command for distance builds. Refinement for character-based 
 		Wagner builds occurs after the \texttt{build} process through \texttt{swap} and other
@@ -29,7 +29,7 @@
 		according 	to the other options (e.g. \texttt{character, distance}). The resulting tree 
 		or \texttt{graph} is reconciled using the \texttt{eun} or \texttt{cun} commands. The 
 		reconciled graph is resolved into display trees via the \texttt{displayTrees}, \texttt{first}, 
-		and \texttt{atRandom} options. This option is especially useful for soft-wired network search. 
+		and \texttt{atRandom} options. This option is especially useful for softwired network search. 
 		Associated arguments of \texttt{block} include:
 				
 		\begin{description}
@@ -66,7 +66,7 @@
 		
 		\item [character] Performs random addition sequence Wagner \citep{Farris1970} builds 
 		($O(n^2)$) for tree construction. If the graphtype is specified as softwired or hardwired 
-		the resulting trees are rediagnosed as soft-wired graphs. This is 
+		the resulting trees are rediagnosed as softwired graphs. This is 
 		the default method for tree construction.
 		
 		\item [distance] Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used 
@@ -124,7 +124,6 @@
 		\texttt{build(character, replicates:10)}
 		
 	\begin{example}
-	
 		\item{\texttt{build(replicates:100)} \\
 		Builds 100 random addition sequence character Wagner builds.}
 		
@@ -152,7 +151,6 @@
 		performs OTU swapping on the WPGMA and 10 of the lowest cost random addition 
 		sequence Wagner trees. This distance search is performed on the `blocks' of data, 
 		as opposed to all of the data.}
-
 	\end{example}
 
 %---------------------------------------------
@@ -233,7 +231,7 @@
 %read
 %---------------------------------------------	
 \subsection{Read}
-	\label{subsec:read}
+\label{subsec:read}
 	\subsubsection{Syntax}
 		\texttt{read(option:"filename", option:"filename", ...)}
 			
@@ -248,7 +246,11 @@
 		options below. The options prepend 	the filename with a colon (`:') and will modify the 
 		processing of the input file. Prepending the file type prevents any ambiguity when the 
 		file is parsedThis command can also use wildcard expressions (`*', `?'), 
-		which can be useful when reading in multiple files of the same type.}
+		which can be useful when reading in multiple files of the same type.
+		
+		Modifiers are arguments that can affect the behavior of other arguments when included
+		in the list of arguments. These modifiers are used in association with the \texttt{read}
+		command. These arguments include \texttt{aminoacid}, \texttt{}, \texttt{}, \texttt{}, \texttt{}, 	}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
@@ -389,7 +391,8 @@
 		These settings include: activate (\texttt{[}) or deactivate (\texttt{]}); make additive/ordered 
 		(\texttt{+}) 	or non-additive/unordered (\texttt{-}); apply step-matrix costs (\texttt{(}) with 
 		scopes (e.g. \texttt{cc + 10 12;} and  \texttt{cc (.; costs 0 = 0/1 1 0/2 2 0/3 3 0/4 4 1/2 1 
-		1/3 2 1/4 3 2/3 1 2/4 2 3/4 1;}) including abbreviated scopes (\texttt{cc -.;}). %\hl{what about ) make additive or non-additive again?} 
+		1/3 2 1/4 3 2/3 1 2/4 2 3/4 1;}) including abbreviated scopes (\texttt{cc -.;}). 
+		%\hl{what about ) make additive or non-additive again?} 
 		There may 
 		be multiple character setting statements in a single line. Character settings must be 
 		followed by \texttt{proc/;} on its own line. \texttt{PhyG} will not process
@@ -454,12 +457,13 @@
 %reblock
 %---------------------------------------------
 \subsection{Reblock}
+\label{subsec:reblock}
 	\subsubsection{Syntax}
 		\texttt{reblock("newBlockName", "inputFile0", "inputFile1",...)}
 	
 	\begin{phygdescription}
 	{Assigns input data to ``blocks'' that will follow the same display tree when optimized
-	as ``soft-wired'' networks. By default, each input data file is assigned its own block with 
+	as ``softwired'' networks. By default, each input data file is assigned its own block with 
 	the name of the input file. The \texttt{block} command is used to reassign these data to 
 	new, combined blocks. Spaces are not allowed in block names and will produce 
 	\texttt{unrecognized block name} errors.} 
@@ -490,7 +494,7 @@
 		
 	\begin{phygdescription}
 		{Performs edit operations (addition, deletion, move) on network edges, and therefore
-		only applies to soft-wired and hard-wired graphs.}
+		only applies to softwired and hardwired graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
@@ -637,7 +641,7 @@
 		\item[diagnosis] Outputs graph diagnosis information such as vertex and states and edge 
 		statistics in csv format. 
 		
-		\item[displaytrees] Outputs graph information for soft-wired networks. The ``display'' trees 
+		\item[displaytrees] Outputs graph information for softwired networks. The ``display'' trees 
 		are output for each data block. 
 		
 		\item[graph] Outputs a graph in format specified by the other arguments in the command. 
@@ -790,7 +794,7 @@
 		\item[keep:n] Keeps up to $n$ graphs.
 		
 		\item[maxNetEdges:n] Limits maximum number of network edges to $n$. Only to be used if
-		soft-wired or hard-wired graphs.
+		softwired or hardwired graphs.
 		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
@@ -889,7 +893,7 @@
 	\subsubsection{Arguments}
 		\begin{description}
 %			\item[compressResolutions:True|False] %\hl{change to BOOL} 
-%			Determines whether soft-wired graph resolutions are ``compressed'' if multiple 
+%			Determines whether softwired graph resolutions are ``compressed'' if multiple 
 %			vertex assignments in alternate display trees are equal in subtree leaf set, only 
 %			the first lowest cost resolution is retained. This option can significantly reduce 
 %			the time to evaluate softwired graphs, but can increase the optimality score of 
@@ -905,17 +909,17 @@
 			are supported.
 			
 			\item[finalAssignment:DirectOptimization|DO|ImpliedAlignment|IA] Sets the method 
-			of determining the ``final'' sequence states. DirectOptimization (DO) uses soft-wire the DO 
+			of determining the ``final'' sequence states. DirectOptimization (DO) uses softwire the DO 
 			method to assign the final states, which is more time consuming than \texttt{ImpliedAlignment}. 
 			DO has an additional factor of potentially $O(n^2)$ in sequence length compared 
 			to the constant factor for IA due to additional graph traversals.
 			
-%			\item[graphFactor:nopenalty|W15|W23|PMDL] Sets the network penalty for a soft-wired network\\ 
+%			\item[graphFactor:nopenalty|W15|W23|PMDL] Sets the network penalty for a softwired network\\ 
 %			(\texttt{W15}),  (\texttt{W23}), or \texttt{PMDL} (for criterion = PMDL). W15 employs the
 %			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
 %			W15, but with the penalty applied to all blocks (more severe).
 			
-			\item[graphFactor:nopenalty|W15|W23] Sets the network penalty for a soft-wired network\\ 
+			\item[graphFactor:nopenalty|W15|W23] Sets the network penalty for a softwired network\\ 
 			\texttt{NoPenalty}, (\texttt{W15}),  or (\texttt{W23}). W15 employs the
 			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
 			W15, but with the penalty applied to all blocks (more severe).
@@ -925,7 +929,7 @@
 			The number is the minimum of the number of parallel threads and $n$ (default 10).
 			
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
-			hard-wired network, or soft-wired network. Forest are allowed by the network options.
+			hardwired network, or softwired network. Forest are allowed by the network options.
 			
 			%\item[modelcomplexity] \hl{details}
 			
@@ -974,7 +978,7 @@
 	\begin{example}
 		\item{\texttt{set(optimality:parsimony)}\\Sets the graph search optimality criterion to parsimony.}
 						
-%		\item{\texttt{set(compressResolutions:False)}\\Turns off soft-wired graph resolution compression.}
+%		\item{\texttt{set(compressResolutions:False)}\\Turns off softwired graph resolution compression.}
 	\end{example}
 
 %---------------------------------------------
@@ -1138,7 +1142,7 @@
 			uniformly at random for each input graph.
 			
 %			\item[compressResolutions:True|False] %\hl{change to BOOL} 
-%			Determines whether soft-wired graph 
+%			Determines whether softwired graph 
 %			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
 %			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
 %			This option can significantly reduce the time to evaluate softwired graphs, but can
