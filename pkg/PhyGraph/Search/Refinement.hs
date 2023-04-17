@@ -101,7 +101,10 @@ refineGraph inArgs inGS inData rSeed inGraphList =
       else if doGenAlg then
          geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
 
-      else error "No refinement operation specified"
+     -- genetic algorithm default
+      else 
+        geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+        -- error "No refinement operation specified"
 
 -- | geneticAlgorithmMaster takes arguments and performs genetic algorithm on input graphs
 -- the process follows several steps
