@@ -63,7 +63,7 @@ import qualified Data.Vector                         as V
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
--- import           Debug.Trace
+import           Debug.Trace
 
 
 
@@ -380,7 +380,7 @@ updateNodeLabel inGraph inNodeIndex newLabel =
 
 -- | sisterLabNodes returns list of nodes that are "sister" ie share same parent
 -- as input node
-sisterLabNodes :: (Eq a) => Gr a b -> LNode a -> [LNode a]
+sisterLabNodes :: (Show a, Eq a) => Gr a b -> LNode a -> [LNode a]
 sisterLabNodes inGraph inNode =
     if isEmpty inGraph then error "Empty graph in sisterLabNodes"
     else
@@ -478,16 +478,24 @@ descendants :: Gr a b -> Node -> [Node]
 descendants inGraph inNode = snd3 <$> G.out inGraph inNode
 
 -- | labDescendants labelled descendents of labelled node
-labDescendants :: (Eq a) => Gr a b -> LNode a -> [LNode a]
+labDescendants :: (Show a, Eq a) => Gr a b -> LNode a -> [LNode a]
 labDescendants inGraph inNode =
     let nodeList = snd3 <$> G.out inGraph (fst inNode)
         maybeLabelList = fmap (lab inGraph) nodeList
         hasNothing = Nothing `elem` maybeLabelList
-        labelList = fmap fromJust maybeLabelList
+        labelList = fmap fromJust $ filter isJust maybeLabelList
         labNodeList = zip nodeList labelList
     in
-    if hasNothing then error "Unlabeled nodes in labDescendants"
-    else labNodeList
+    -- if null labelList then 
+    --    trace ("Warning: Null labelled descendants in labDescendants" ++ " " ++ (show $ zip nodeList maybeLabelList)) 
+    --    labNodeList
+    -- else 
+    if hasNothing then 
+        trace ("Warning: Unlabeled nodes in labDescendants" ++ "\n" ++ (show $ zip nodeList maybeLabelList))
+        labNodeList
+        --error ("Unlabeled nodes in labDescendants" ++ "\n" ++ (show $ zip nodeList maybeLabelList))
+    else 
+    labNodeList
 
 -- | takes a graph and node and returns pair of inbound and noutbound labelled edges
 getInOutEdges :: Gr a b -> Node -> ([LEdge b], [LEdge b])
@@ -616,13 +624,17 @@ isNetworkLeaf :: Gr a b -> Node -> Bool
 isNetworkLeaf inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode == 0)
 
 
--- | - | isNetworkEdge checks if edge is network edge
+-- | isNetworkEdge checks if edge is network edge
 isNetworkEdge :: Gr a b -> Edge -> Bool
 isNetworkEdge inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg inGraph (snd inEdge) > 0)
 
--- | - | isNetworkLabEdge checks if edge is network edge
+-- | isNetworkLabEdge checks if edge is network edge
 isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool
 isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) && (G.outdeg inGraph (snd3 inEdge) > 0)
+
+-- | isIn1Out1 checks if node has indegree = 1 outdegree = 1
+isIn1Out1 :: Gr a b -> Node -> Bool
+isIn1Out1 inGraph inNode = (G.indeg inGraph inNode == 1) && (G.outdeg inGraph inNode == 1)
 
 -- | labNetEdges takes a graph and returns list of network labelled edges
 labNetEdges :: Gr a b -> [LEdge b]

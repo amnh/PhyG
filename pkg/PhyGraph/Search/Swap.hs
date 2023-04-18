@@ -1130,7 +1130,12 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                 -- check for possible better/equal graphs and verify
                 deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                 candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
-                candidateJoinedGraphList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+                candidateJoinedGraphList' = PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+
+                -- check for grap wierdness if network
+                candidateJoinedGraphList = if graphType inGS == Tree then candidateJoinedGraphList'
+                                           else filter LG.isPhylogeneticGraph candidateJoinedGraphList'
+
                 rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
 
                 -- for debugging

@@ -696,6 +696,7 @@ getNodeType inGraph inNode
   | LG.isTreeNode inGraph inNode = TreeNode
   | LG.isNetworkNode inGraph inNode = NetworkNode
   | LG.isRoot inGraph inNode = RootNode
+  | LG.isIn1Out1 inGraph inNode = In1Out1
   | otherwise = error ("Node type " ++ show inNode ++ " not Leaf, Tree, Network, or Root in graph\n" ++ GFU.showGraph inGraph)
 
 -- | copyIAFinalToPrelim takes a Decorated graph and copies
