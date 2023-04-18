@@ -110,7 +110,7 @@ refineArgList = fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees",
+reportArgList = ["append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees",
     "dot", "dotpdf", "graphs", "htulabels", "ia", "includemissing", "impliedalignment", "newick", "nobranchlengths", "nocollapse",
     "nohtulabels","overwrite", "pairdist", "reconcile", "search", "support", "tnt"] ++ reconcileArgList
 
