@@ -1317,18 +1317,8 @@ deltaPenaltyAdjustment inGS inGraph modification =
    --   0.0
 
    else if edgeCostModel == Wheeler2015Network then
-      -- trace  ("DPW: In Wheeler2015Network") (
-      let graphCost = snd6 inGraph -- this includes any existing penalties--would be better not to include
-          -- numBlocks = V.length $ fth6 inGraph
-      in
-      -- if (graphType inGS) == HardWired then 0.0
-      -- trace ("DPA Value: " ++ (show $ graphCost / (fromIntegral $ numBlocks * 2 * ((2 * numLeaves) - 2))))
-      -- else
-      -- graphCost / (fromIntegral $ numBlocks * 2 * ((2 * numLeaves) - 2))
-      -- this one--1/2 total edge number for factor
-      graphCost / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
-      -- )
-
+      (snd6 inGraph) / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
+      
    else if edgeCostModel == PMDLGraph then
       -- trace  ("DPW: In PMDLGraph") (
       if graphType inGS == Tree then
@@ -1353,7 +1343,11 @@ deltaPenaltyAdjustment inGS inGraph modification =
 
       else error ("Graph type not yet implemented: " ++ (show $ graphType inGS))
       -- )
+   else if edgeCostModel == Wheeler2023Network then
+      -- same as W15 for heuristic penalty for single edge
+      (snd6 inGraph)  / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
 
+   
    else error ("Network edge cost model not yet implemented: " ++ (show edgeCostModel))
    -- )
 
