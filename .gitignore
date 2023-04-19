@@ -293,7 +293,7 @@ log.out
 
 # Outputs from testing
 *.csv
-# *.tre
+*.tre
 *.tree
 *.eps
 *.ps
