@@ -437,6 +437,7 @@ isPhylogeneticGraph inGraph =
         in
         if hasDuplicateEdgesNub inGraph then False
         else if length (getRoots inGraph) /= 1 then False
+        else if outdeg inGraph (head $ getRoots inGraph) /= 2 then False
         else if (not . null) (getIsolatedNodes inGraph) then False
         else if (not . null) (filter ((> 2) . length) indegreeList) then False
         else if (not . null) (filter ((> 2) . length) outdegreeList) then False
@@ -1753,16 +1754,18 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
         -- outgroupInComponent = fmap (rerootIndex `elem`) componentList
         -- componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
         (_, inNewRoot, outNewRoot) = getInOutDeg inGraph (labelNode inGraph rerootIndex)
-        parentNewRootIn1Out1 = isIn1Out1 inGraph (head $ parents inGraph rerootIndex)
-        childNewRootIn1Out1 = if null $ descendants inGraph rerootIndex then False 
-                              else isIn1Out1 inGraph (head $ descendants inGraph rerootIndex)
+
+        -- these here for checking in1out1 edges on reroot
+        -- parentNewRootIn1Out1 = isIn1Out1 inGraph (head $ parents inGraph rerootIndex)
+        -- childNewRootIn1Out1 = if null $ descendants inGraph rerootIndex then False 
+        --                         else isIn1Out1 inGraph (head $ descendants inGraph rerootIndex)
 
     in
 
-   -- don't reroot on in=out=1 since same as it descendent edge
+    -- don't reroot on in=out=1 since same as it descendent edge
     if (inNewRoot == 1) && (outNewRoot == 1) then inGraph
 
-    else if parentNewRootIn1Out1 || childNewRootIn1Out1 then inGraph
+    -- else if parentNewRootIn1Out1 || childNewRootIn1Out1 then inGraph
    
     -- rerooting on root so no indegree edges
     -- this for wagner build reroots where can try to reroot on leaf not yet added
