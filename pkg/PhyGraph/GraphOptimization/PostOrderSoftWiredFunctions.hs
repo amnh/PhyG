@@ -260,11 +260,12 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
     else
         let -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
-            (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = if inGraphType == Tree then
-                                                                                                let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
-                                                                                                in
-                                                                                                (a, b, decGraph, displayTrees, charTrees, f)
-                                                                                              else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = 
+                if inGraphType == Tree then
+                    let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
+                    in
+                    (a, b, decGraph, displayTrees, charTrees, f)
+                else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
 
             -- purge double edges from display and character graphs
             -- this should not be happening--issue with postorder network resolutions data
@@ -284,7 +285,7 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
 
 -- | rerootBlockCharTrees' wrapper around rerootBlockCharTrees to allow for parMap
 rerootBlockCharTrees' ::GlobalSettings -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
-rerootBlockCharTrees' inGS rootIndex (blockDisplayTree, charTreeVect, charInfoVect) = rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect
+rerootBlockCharTrees' inGS rootIndex (blockDisplayTree, charTreeVect, charInfoVect) = rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect 
 
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
 -- with best character tree node assignment back ported to display tree
