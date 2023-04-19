@@ -78,11 +78,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
    else
       let -- getting values to be passed for graph diagnosis later
          numLeaves = V.length $ fst3 inData
-         -- leafGraph = T.makeSimpleLeafGraph inData
-         -- leafDecGraph = T.makeLeafGraph inData
-         -- leafGraphSoftWired = T.makeLeafGraphSoftWired inData
-         -- hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
-
+      
          curBest = minimum $ fmap snd6 inGraphList
 
          curBestGraph = head $ filter ((== curBest) . snd6) inGraphList

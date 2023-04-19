@@ -102,7 +102,7 @@ data Instruction = NotACommand | Build | Fuse | Read | Reblock | Refine | Rename
     deriving stock (Show, Eq, Ord)
 
 -- | Node variety
-data NodeType = RootNode | LeafNode | TreeNode | NetworkNode
+data NodeType = RootNode | LeafNode | TreeNode | NetworkNode | In1Out1
     deriving stock (Show, Eq)
 
 -- | Edge types

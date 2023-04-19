@@ -63,7 +63,7 @@ import qualified Data.Vector                         as V
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
--- import           Debug.Trace
+import           Debug.Trace
 
 
 
@@ -380,7 +380,7 @@ updateNodeLabel inGraph inNodeIndex newLabel =
 
 -- | sisterLabNodes returns list of nodes that are "sister" ie share same parent
 -- as input node
-sisterLabNodes :: (Eq a) => Gr a b -> LNode a -> [LNode a]
+sisterLabNodes :: (Show a, Eq a) => Gr a b -> LNode a -> [LNode a]
 sisterLabNodes inGraph inNode =
     if isEmpty inGraph then error "Empty graph in sisterLabNodes"
     else
@@ -478,7 +478,7 @@ descendants :: Gr a b -> Node -> [Node]
 descendants inGraph inNode = snd3 <$> G.out inGraph inNode
 
 -- | labDescendants labelled descendents of labelled node
-labDescendants :: (Eq a) => Gr a b -> LNode a -> [LNode a]
+labDescendants :: (Show a, Eq a) => Gr a b -> LNode a -> [LNode a]
 labDescendants inGraph inNode =
     let nodeList = snd3 <$> G.out inGraph (fst inNode)
         maybeLabelList = fmap (lab inGraph) nodeList
@@ -486,8 +486,16 @@ labDescendants inGraph inNode =
         labelList = fmap fromJust maybeLabelList
         labNodeList = zip nodeList labelList
     in
-    if hasNothing then error "Unlabeled nodes in labDescendants"
-    else labNodeList
+    -- if null labelList then 
+    --    trace ("Warning: Null labelled descendants in labDescendants" ++ " " ++ (show $ zip nodeList maybeLabelList)) 
+    --    labNodeList
+    -- else 
+    if hasNothing then 
+        error ("Unlabeled nodes in labDescendants" ++ "\n" ++ (show $ zip nodeList maybeLabelList))
+        --labNodeList
+        --error ("Unlabeled nodes in labDescendants" ++ "\n" ++ (show $ zip nodeList maybeLabelList))
+    else 
+        labNodeList
 
 -- | takes a graph and node and returns pair of inbound and noutbound labelled edges
 getInOutEdges :: Gr a b -> Node -> ([LEdge b], [LEdge b])
@@ -616,13 +624,17 @@ isNetworkLeaf :: Gr a b -> Node -> Bool
 isNetworkLeaf inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph inNode == 0)
 
 
--- | - | isNetworkEdge checks if edge is network edge
+-- | isNetworkEdge checks if edge is network edge
 isNetworkEdge :: Gr a b -> Edge -> Bool
 isNetworkEdge inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg inGraph (snd inEdge) > 0)
 
--- | - | isNetworkLabEdge checks if edge is network edge
+-- | isNetworkLabEdge checks if edge is network edge
 isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool
 isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) && (G.outdeg inGraph (snd3 inEdge) > 0)
+
+-- | isIn1Out1 checks if node has indegree = 1 outdegree = 1
+isIn1Out1 :: Gr a b -> Node -> Bool
+isIn1Out1 inGraph inNode = (G.indeg inGraph inNode == 1) && (G.outdeg inGraph inNode == 1)
 
 -- | labNetEdges takes a graph and returns list of network labelled edges
 labNetEdges :: Gr a b -> [LEdge b]
@@ -1728,18 +1740,12 @@ rerootTree rerootIndex inGraph =
 
 -- | rerootDisplayTree like reroot but inputs original root position instead of figuring it out.
 -- assumes graph is tree--not useable fo Wagner builds since they have multiple components while building
-rerootDisplayTree :: (Show a, Show b, Eq a, Eq b) => Node -> Node -> Gr a b -> Gr a b
+rerootDisplayTree :: (NFData a, Show a, Show b, Eq a, Eq b) => Node -> Node -> Gr a b -> Gr a b
 rerootDisplayTree orginalRootIndex rerootIndex inGraph =
   --trace ("In reroot Graph: " ++ show rerootIndex) (
   if isEmpty inGraph then inGraph
   else
     let -- componentList = components inGraph'
-
-        -- hack---remove when figured out
-        {-
-        inGraph = if inGraphType == SoftWired then inGraph' -- removeDuplicateEdges inGraph'
-                  else inGraph'
-        -}
 
         parentNewRootList = pre inGraph rerootIndex
         newRootOrigEdge = head $ inn inGraph rerootIndex
@@ -1747,38 +1753,21 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
         -- outgroupInComponent = fmap (rerootIndex `elem`) componentList
         -- componentWithOutgroup = filter ((== True).fst) $ zip outgroupInComponent componentList
         (_, inNewRoot, outNewRoot) = getInOutDeg inGraph (labelNode inGraph rerootIndex)
+        parentNewRootIn1Out1 = isIn1Out1 inGraph (head $ parents inGraph rerootIndex)
+        childNewRootIn1Out1 = if null $ descendants inGraph rerootIndex then False 
+                              else isIn1Out1 inGraph (head $ descendants inGraph rerootIndex)
 
-        {- Checks for valid trees
-        cyclicString = if cyclic inGraph then " Is cyclic "
-                          else  " Not cyclic "
-
-        parentInCharinString = if parentInChain inGraph then " Is Parent in Chain "
-                                  else " Not Parent in Chain "
-
-        duplicatedsEdgeString = if not (hasDuplicateEdge inGraph)  then " No duplicate edges "
-                                else
-                                  let dupEdgeList' = getDuplicateEdges inGraph
-                                  in (" Has duplicate edges: " ++ (show dupEdgeList'))
-        -}
     in
 
-    -- trace ("RRT In: " ++ cyclicString ++ parentInCharinString ++ duplicatedsEdgeString) (
+   -- don't reroot on in=out=1 since same as it descendent edge
+    if (inNewRoot == 1) && (outNewRoot == 1) then inGraph
 
-    -- check if cycle and exit if so
-    -- don't reroot on in=out=1 since same as it descendent edge
-    if (inNewRoot == 1) && (outNewRoot == 1) then
-      -- trace ("RRT: in 1 out 1")
-      inGraph
-
-    -- else if cyclic inGraph then empty -- inGraph
-
-
+    else if parentNewRootIn1Out1 || childNewRootIn1Out1 then inGraph
+   
     -- rerooting on root so no indegree edges
     -- this for wagner build reroots where can try to reroot on leaf not yet added
     else if null $ inn inGraph rerootIndex then inGraph -- error ("Rerooting on indegree 0 node " ++ (show rerootIndex) ++ "\n" ++ prettyIndices inGraph) -- empty
 
-
-    -- else if null componentWithOutgroup then inGraph  -- error ("Error rooting wierdness in rerootTree " ++ (show rerootIndex) ++ "\n" ++ prettyIndices inGraph) -- empty
 
     -- check if new outtaxon has a parent--shouldn't happen-but could if its an internal node reroot
     else if null parentNewRootList || (True `elem` parentRootList) then inGraph
@@ -1794,14 +1783,6 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
 
         in
 
-        {-
-        if numRoots == 0 then error ("No root in rerootDisplayTree: Attempting to reroot on edge to node " ++ (show (orginalRoot,rerootIndex)) ++ prettyIndices inGraph) --empty
-
-        -- check if outgroup in a multirooted component
-        -- if wagner build this is ok
-        -- else if numRoots > 1 then inGraph -- error ("Error: Attempting to reroot multi-rooted component") -- inGraph
-        else
-        -}
           --reroot graph safely automatically will only affect the component with the outgroup
           -- delete old root edge and create two new edges from oringal root node.
           -- keep orignl root node and delte/crete new edges when they are encounterd
@@ -1811,7 +1792,7 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
 
               --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
               newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " ++ (show $ length originalRootEdges)
-                ++ " root index: " ++ (show (orginalRoot, rerootIndex)) ++ "\nGraph:\n" ++ (prettyIndices inGraph))
+                ++ " root index: " ++ (show (orginalRoot, rerootIndex, fst $ head $ getRoots inGraph)) ++ "\nGraph:\n" ++ (prettyIndices inGraph))
                                  else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
               newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
@@ -1820,39 +1801,11 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
               -- get edges that need reversing
               newGraph' = preTraverseAndFlipEdgesTree orginalRootIndex [leftChildEdge,rightChildEdge] newGraph
 
-
-              {- Check for valid tree
-              cyclicString' = if cyclic newGraph' then " Is cyclic "
-                          else  " Not cyclic "
-
-              parentInCharinString'= if parentInChain newGraph' then " Is Parent in Chain "
-                                  else " Not Parent in Chain "
-
-              duplicatedsEdgeString' = if not (hasDuplicateEdge newGraph') then " No duplicate edges "
-                                       else let dupEdgeList' = getDuplicateEdges newGraph'
-                                            in
-                                            (" Has duplicate edges: " ++ (show dupEdgeList') ++ "\nDeleting " ++ (show $ fmap toEdge $ (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap toEdge $ newRootEdges))
-              -}
           in
-          --trace ("=")
-          --trace ("In " ++ (GFU.showGraph inGraph) ++ "\nNew " ++  (GFU.showGraph newGraph) ++ "\nNewNew "  ++  (GFU.showGraph newGraph'))
-
-          -- trace ("Deleting " ++ (show $ fmap toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap toEdge newRootEdges)
-          --   ++ "\nRRT Out: " ++ cyclicString' ++ parentInCharinString' ++ duplicatedsEdgeString') (
-
-          -- if cyclicString' == " Is cyclic " then inGraph
-          -- else if hasDuplicateEdge newGraph' then removeDuplicateEdges newGraph'
-          -- else
-          {-Cycle check
-          if cyclic newGraph' then
-            trace ("Orignal root: " ++ (show orginalRootIndex) ++ "New root: " ++ (show rerootIndex) ++ " Deleting " ++ (show $ fmap toEdge (newRootOrigEdge : originalRootEdges)) ++ "\nInserting " ++ (show $ fmap toEdge newRootEdges)
-              ++ "\nOrigGraph: " ++ (prettyIndices inGraph) ++ "\nNewGraph: " ++ (prettyIndices newGraph)++ "\nNewGraph': " ++ (prettyIndices newGraph'))
-            empty
-          else newGraph'-}
-          newGraph'
-          -- )
-          -- ) -- )
-
+          -- checks that new root has two edges
+          if (length $ out newGraph' orginalRootIndex) /= 2 then inGraph
+          else newGraph'
+          
 
 -- | preTraverseAndFlipEdgesTree traverses a tree from starting edge flipping in-edges since they should
 -- be out-edges

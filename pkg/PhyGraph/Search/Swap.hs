@@ -1130,7 +1130,12 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                 -- check for possible better/equal graphs and verify
                 deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                 candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
-                candidateJoinedGraphList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+                candidateJoinedGraphList' = PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+
+                -- check for grap wierdness if network
+                candidateJoinedGraphList = if graphType inGS == Tree then candidateJoinedGraphList'
+                                           else filter LG.isPhylogeneticGraph candidateJoinedGraphList'
+
                 rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
 
                 -- for debugging
@@ -1340,7 +1345,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
       -- these required for full optimization
       let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
           origGraph = inSplitGraph -- thd6 origPhyloGraph
-          leafGraph = if graphType inGS == SoftWired then POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
+          leafGraph = if graphType inGS == SoftWired then LG.extractLeafGraph origGraph -- POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
                       else LG.extractLeafGraph origGraph
           calcBranchLengths = False
 
@@ -1439,7 +1444,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
 
             -- create leaf graphs--but copy IA final to prelim
             leafGraph = if graphType inGS == SoftWired then
-                              GO.copyIAFinalToPrelim  $ POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
+                              GO.copyIAFinalToPrelim  $ LG.extractLeafGraph origGraph --POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
                          else GO.copyIAFinalToPrelim  $ LG.extractLeafGraph origGraph
             calcBranchLengths = False
 

@@ -140,9 +140,11 @@ getCommandList  rawContents =
             reportCommands = filter ((== Report) . fst) processedCommands
 
             reportGraphsArgs = filter (== "graphs") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+            reportNewickArgs = filter (== "newick") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+            reportDotArgs = filter (== "dot") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
 
         in
-        if null reportCommands || null reportGraphsArgs then
+        if null reportCommands || null (reportGraphsArgs ++ reportNewickArgs ++ reportDotArgs) then
             trace ("Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'") $
             let addedReport = (Report, [("graphs",[]), ([], "_defaultGraph.dot_"), ("dotpdf",[])])
             in 

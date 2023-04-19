@@ -268,7 +268,7 @@ postOrderIAUnion inGraph charInfo inNodeList =
                     postOrderIAUnion newGraph charInfo (tail inNodeList)
 
             -- two children
-            else
+            else if length childNodes == 2 then
                 let childIndices = fmap fst childNodes
                     childlabels = fmap (fromJust . LG.lab childTree) childIndices
                     childCharacters = fmap vertData childlabels
@@ -280,6 +280,8 @@ postOrderIAUnion inGraph charInfo inNodeList =
                 in
                 -- trace ("PostO2hildren: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal newCharacter) ++ " " ++ (show $ nodeType newLabel)) -- ++ " From: " ++ (show childlabels))
                 postOrderIAUnion newGraph charInfo (tail inNodeList)
+
+            else error ("No children in non-leaf node: " ++ (show nodeIndex) ++ "\n" ++ (LG.prettyIndices inGraph)) 
             -- )
     -- )
 
