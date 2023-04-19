@@ -191,10 +191,10 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
         -- Nothing for SimAnneal Params
          let (swappedGraphs, counter, _) = swapAll swapParams inGS inData randomIntListSwap inCounter (snd6 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor inSimAnnealParams
          in
-         -- trace ("SWAPSPRTBR: " ++ (show $ fmap LG.isPhylogeneticGraph $ fmap thd6 swappedGraphs)) (
+         
          if null swappedGraphs then ([inGraph], counter)
          else (swappedGraphs, counter)
-         -- )
+         
 
 
       -- simulated annealing/drifting acceptance does a steepest with SA acceptance
@@ -1455,7 +1455,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             -- this for multitravers in swap for softwired to turn off
             multiTraverse = if graphType inGS == Tree then multiTraverseCharacters inGS
                          else False
-                         
+
             -- create simple graph version of split for post order pass
             splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
 
