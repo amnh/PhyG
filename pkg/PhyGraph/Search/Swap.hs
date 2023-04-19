@@ -1101,7 +1101,14 @@ tbrJoin :: SwapParams
         -> ([PhylogeneticGraph], Maybe SAParams)
 tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
    -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
+   let hasNetEdges = if graphType inGS == Tree then False 
+                     else null $ filter ((== True) . LG.isNetworkLabEdge splitGraph) edgesInPrunedGraph
+   in
+
    if null edgesInPrunedGraph then ([], inSimAnnealParams)
+
+   else if hasNetEdges then ([], inSimAnnealParams)
+
    else
       -- get target edge data\
       -- always using IA for union, but filtering out gaps (doIA (not doIA))
