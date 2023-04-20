@@ -235,8 +235,8 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                doAll = any ((=="all").fst) lcArgList
 
                doSteepest
-                 | (not doSteepest' && not doAll) = True
-                 | (doSteepest' && doAll) = True
+                 | (not doSteepest' && not doAll) = False
+                 | (doSteepest' && doAll) = False
                  | doAll = False
                  | otherwise = doSteepest'
 
