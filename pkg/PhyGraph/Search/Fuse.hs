@@ -185,7 +185,7 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
 
                               GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ (filter (LG.isPhylogeneticGraph . fst6)) $ concat fusePairResult
 
-          pairScore = if (not . null) fusePairResult then
+          pairScore = if (not . null) bestResultList then
                         snd6 $ head bestResultList
                       else infinity
 
