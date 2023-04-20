@@ -194,7 +194,7 @@ moveAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated do
          annealingRounds = rounds $ fromJust inSimAnnealParams
          saPAramList = (U.generateUniqueRandList annealingRounds inSimAnnealParams) -- (replicate annealingRounds inPhyloGraphList)
 
-         (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ lazyParStrat inGS) (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
+         (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
 
       in
       (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
@@ -243,8 +243,12 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
                         else
                            permuteList rSeed $ LG.labNetEdges (thd6 firstPhyloGraph)
 
+          
+          newGraphList' =  concat $ PU.seqParMap (parStrategy $ strictParStrat inGS) (deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph rSeed inSimAnnealParams) (fmap LG.toEdge netEdgeList) 
 
-          newGraphList' =  deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph (fmap LG.toEdge netEdgeList) rSeed inSimAnnealParams
+          -- newGraphList' =  deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph (fmap LG.toEdge netEdgeList) rSeed inSimAnnealParams
+
+
           newGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList'
           newGraphCost = if (not . null) newGraphList' then snd6 $ head newGraphList
                          else infinity
@@ -1025,6 +1029,21 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
       let newCurSameBestList =  GO.selectGraphs Unique numToKeep 0.0 (-1) (curBestGraphList ++ newGraphList)
       in
       deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newCurSameBestList, currentCost) randIntList inSimAnnealParams (tail inPhyloGraphList)
+
+-- | deleteOneNetAddAll' wrapper on deleteOneNetAddAll to allow for parmap
+deleteOneNetAddAll'  :: GlobalSettings
+                      -> ProcessedData
+                      -> Int
+                      -> Int
+                      -> Bool
+                      -> Bool
+                      -> PhylogeneticGraph
+                      -> Int
+                      -> Maybe SAParams
+                      -> LG.Edge
+                      -> [PhylogeneticGraph]
+deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph rSeed inSimAnnealParams edgeToDelete = 
+   deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph [edgeToDelete] rSeed inSimAnnealParams 
 
 -- | deleteOneNetAddAll version deletes net edges in turn and readds-based on original cost
 -- but this cost in graph (really not correct) but allows logic of insert edge to function better
