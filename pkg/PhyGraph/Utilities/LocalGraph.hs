@@ -63,7 +63,7 @@ import qualified Data.Vector                         as V
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
-import           Debug.Trace
+--import           Debug.Trace
 
 
 
@@ -265,7 +265,7 @@ removeChainedNetworkNodes showWarning inGraph =
             Just newGraph'
 
 -- | getTreeEdgeParent gets the tree edge (as list) into a network node as opposed to the edge from a network parent
--- if both parents are netowrk nodes then returns []
+-- if both parents are network nodes then returns []
 getTreeEdgeParent :: Gr a b -> Node -> [Edge]
 getTreeEdgeParent inGraph inNode =
     let parentList = parents inGraph inNode
