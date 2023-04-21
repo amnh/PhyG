@@ -1103,16 +1103,16 @@ tbrJoin :: SwapParams
         -> ([PhylogeneticGraph], Maybe SAParams)
 tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
    -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
-   {-
+   
    -- this join is taken care of in SPR during alternate--if TBR alone could be missed
    let hasNetEdges = if graphType inGS == Tree then False 
                      --else LG.hasNetworkEdgeList splitGraph edgesInPrunedGraph
                      else null $ filter ((== True) . LG.isNetworkLabEdge splitGraph) edgesInPrunedGraph
    in
    if hasNetEdges then ([], inSimAnnealParams)
-   -}
+   
 
-   if null edgesInPrunedGraph then ([], inSimAnnealParams)
+   else if null edgesInPrunedGraph then ([], inSimAnnealParams)
 
    else
       -- get target edge data\
