@@ -178,12 +178,8 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
           fusePairResult = PU.seqParMap (parStrategy $ strictParStrat inGS) (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) (take numPairsToExamine leftRightList)
           -- fusePairResult = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (head leftRightList)
 
-          bestResultList = if graphType inGS == Tree then
-                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ concat fusePairResult
-                           else 
-                               --check didn't make weird network
-
-                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ (filter (LG.isPhylogeneticGraph . fst6)) $ concat fusePairResult
+          -- potential network wierdness checked in swap rejoin function
+          bestResultList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ concat fusePairResult
 
           pairScore = if (not . null) bestResultList then
                         snd6 $ head bestResultList

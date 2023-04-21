@@ -790,7 +790,7 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
            newNodeTwo = (numNodes + 1, TL.pack ("HTU" ++ (show $ numNodes + 1)))
            newEdgeList = [(u, fst newNodeOne, 0.0),(fst newNodeOne, v, 0.0),(u', fst newNodeTwo, 0.0),(fst newNodeTwo, v', 0.0),(fst newNodeOne, fst newNodeTwo, 0.0)]
            edgesToDelete = [(u,v), (u',v')]
-           newSimple = LG.insEdges newEdgeList $ LG.delEdges edgesToDelete $ LG.insNodes [newNodeOne, newNodeTwo] inSimple
+           newSimple =  LG.delEdges edgesToDelete $ LG.insEdges newEdgeList $ LG.insNodes [newNodeOne, newNodeTwo] inSimple
 
 
            -- do not prune other edges if now unused
@@ -820,14 +820,11 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
            metHeuristicThreshold = if useNetAddHeuristic inGS then heuristicFactor < (2/3)
                                    else True
 
-       in
-
-       -- remove these checks when working
-       if not $ LG.isPhylogeneticGraph newSimple then
-         emptyPhylogeneticGraph
+      in
+       -- remove these checks when working (ie no bad branches added)
+      if not $ LG.isPhylogeneticGraph newSimple then emptyPhylogeneticGraph
        
-
-       else
+      else
          -- need heuristics in here
          -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
          -- let oldPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimple

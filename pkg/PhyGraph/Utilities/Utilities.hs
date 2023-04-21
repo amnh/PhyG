@@ -111,6 +111,7 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
             in
             (newSimpleGraph, inC, newDecGraph, inD, inE, inF)
 
+
 -- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
 -- number of network nodes-assumes for now--single component gaph not forest
 -- first in pair is softwired complexity, second hardwired complexity

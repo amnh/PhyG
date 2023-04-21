@@ -985,6 +985,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                             
        rediagnosedSPRGraph = T.multiTraverseFullyLabelGraph inGS inData False False Nothing sprNewGraphChecked
 
+
        -- Filter for bridge edges for TBR when needed
        edgesInPrunedGraph' = if (graphType inGS == Tree) || LG.isTree splitGraphSimple then edgesInPrunedGraph
                              else fmap fst $ filter ((== True) . snd) $ zip edgesInPrunedGraph (fmap (LG.isBridge splitGraphSimple) (fmap LG.toEdge edgesInPrunedGraph))
@@ -1101,6 +1102,7 @@ tbrJoin :: SwapParams
         -> ([PhylogeneticGraph], Maybe SAParams)
 tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
    -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
+   -- this join is taken care of in SPR duroing alternate--if TBR alone could be missed
    let hasNetEdges = if graphType inGS == Tree then False 
                      else null $ filter ((== True) . LG.isNetworkLabEdge splitGraph) edgesInPrunedGraph
    in
