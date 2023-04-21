@@ -821,9 +821,8 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
                                    else True
 
       in
-       -- remove these checks when working
-      if not $ LG.isPhylogeneticGraph newSimple then
-         emptyPhylogeneticGraph
+       -- remove these checks when working (ie no bad branches added)
+      if not $ LG.isPhylogeneticGraph newSimple then emptyPhylogeneticGraph
        
       else
          -- need heuristics in here
@@ -833,10 +832,7 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
          -- trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete, snd6 oldPhyloGraph)) ++ "\nOrig\n" ++ (-- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
          -- trace ("INE: " ++ (show (heuristicDelta, heuristicDelta', edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), heuristicDelta' + edgeAddDelta + (snd6 inPhyloGraph), snd6 newPhyloGraph))) $
          if metHeuristicThreshold then 
-            if (GO.parentsInChainGraph . thd6) newPhyloGraph then emptyPhylogeneticGraph
-            else if (snd6 newPhyloGraph <= snd6 inPhyloGraph) then 
-               trace ("INE:" ++ (show (u,v,u',v', fst newNodeOne, fst newNodeTwo)) ++ "->" ++ (show $ fmap LG.toEdge newEdgeList) ++ "->" ++ (show edgesToDelete)) $
-               newPhyloGraph
+            if (snd6 newPhyloGraph <= snd6 inPhyloGraph) then newPhyloGraph
             else emptyPhylogeneticGraph
          else emptyPhylogeneticGraph
          -- )
