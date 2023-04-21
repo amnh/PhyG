@@ -1001,6 +1001,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
       if ((swapType swapParams) == SPR) || ((length edgesInPrunedGraph) < 4) then
          if (sprReJoinCost + splitCost) <= curBestCost then
             if LG.isEmpty sprNewGraphChecked then ([], inSimAnnealParams)
+            else if (graphType inGS /= Tree) && (GO.parentsInChainGraph . thd6) rediagnosedSPRGraph then ([], inSimAnnealParams)
             else if snd6 rediagnosedSPRGraph <= curBestCost then ([rediagnosedSPRGraph], inSimAnnealParams)
             else ([], inSimAnnealParams)
          else ([], inSimAnnealParams)
@@ -1102,14 +1103,16 @@ tbrJoin :: SwapParams
         -> ([PhylogeneticGraph], Maybe SAParams)
 tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
    -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
-   -- this join is taken care of in SPR duroing alternate--if TBR alone could be missed
+   {-
+   -- this join is taken care of in SPR during alternate--if TBR alone could be missed
    let hasNetEdges = if graphType inGS == Tree then False 
+                     --else LG.hasNetworkEdgeList splitGraph edgesInPrunedGraph
                      else null $ filter ((== True) . LG.isNetworkLabEdge splitGraph) edgesInPrunedGraph
    in
+   if hasNetEdges then ([], inSimAnnealParams)
+   -}
 
    if null edgesInPrunedGraph then ([], inSimAnnealParams)
-
-   else if hasNetEdges then ([], inSimAnnealParams)
 
    else
       -- get target edge data\
@@ -1145,7 +1148,11 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                 candidateJoinedGraphList = if graphType inGS == Tree then candidateJoinedGraphList'
                                            else filter LG.isPhylogeneticGraph candidateJoinedGraphList'
 
-                rediagnosedGraphList = filter ((<= curBestCost) . snd6) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
+                rediagnosedGraphList' = filter ((<= curBestCost) . snd6) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) candidateJoinedGraphList
+
+                -- filter out wierdness in net gaphs
+                rediagnosedGraphList = if graphType inGS == Tree then rediagnosedGraphList'
+                                       else filter (not . GO.parentsInChainGraph . thd6) $ rediagnosedGraphList'
 
                 -- for debugging
                 -- allRediagnosedList = PU.seqParMap PU.myStrategy (T.multiTraverseFullyLabelGraph inGS inData False False Nothing) (PU.seqParMap PU.myStrategy (rerootPrunedAndMakeGraph  splitGraphSimple  prunedGraphRootIndex originalConnectionOfPruned targetEdge) rerootEdgeList)
