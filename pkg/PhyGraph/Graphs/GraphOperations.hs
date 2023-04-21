@@ -71,6 +71,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , remakePhylogeneticGraph
                                , isPhylogeneticDecoratedGraph
                                , parentsInChainGraph
+                               , removeParentsInChain
                                ) where
 
 import           Bio.DynamicCharacter
@@ -123,8 +124,9 @@ parentsInChainGraph inGraph =
     let (_, _, _, netVertexList) = LG.splitVertexList inGraph
         parentChainList = fmap (parentsInChainVertex inGraph) $ fmap fst netVertexList
     in
-    if ((not . null) $ filter (== True) parentChainList) then traceNoLF ("NPDG+ ") $ ((not . null) $ filter (== True) parentChainList)
-    else  traceNoLF ("NPDG- ") $ (not . null) $ filter (== True) parentChainList
+    --if ((not . null) $ filter (== True) parentChainList) then traceNoLF ("NPDG+ ") $ ((not . null) $ filter (== True) parentChainList)
+    --else  traceNoLF ("NPDG- ") $ (not . null) $ filter (== True) parentChainList
+    (not . null) $ filter (== True) parentChainList
 
 -- | parentsInChainVertex checks for a network vertex if
 -- one parent is ancestor of other
@@ -142,8 +144,10 @@ parentsInChainVertex inGraph inNode =
     in
     if length parentNodes < 2 then False
     else if oneAncOther then True
-    else traceNoLF ("PCV:" ++ (printBinary firstBV) ++ " "  ++ (printBinary secondBV) ++ " " ++ (printBinary $ firstBV .&. secondBV)) False
- 
+    else 
+      --traceNoLF ("PCV:" ++ (show (firstBV, secondBV, firstBV .&. secondBV))) 
+        False
+
 
 -- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
 -- if an element is multiple times in firt list each will be removed
