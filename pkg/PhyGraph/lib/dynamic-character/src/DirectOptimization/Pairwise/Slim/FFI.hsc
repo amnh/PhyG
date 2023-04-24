@@ -181,38 +181,40 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
         -- Add two because the C code needs stupid gap prepended to each character.
         -- Forgetting to do this will eventually corrupt the heap memory
         let bufferLength = lesserLength + longerLength + 2
-        lesserBuffer <- allocCharacterBuffer bufferLength lesserLength lesserPtr
-        medianBuffer <- allocCharacterBuffer bufferLength            0   nullPtr
-        longerBuffer <- allocCharacterBuffer bufferLength longerLength longerPtr
+        lesserVector <- initializeCharacterBuffer bufferLength lesserLength lesserPtr
+        medianVector <- initializeCharacterBuffer bufferLength            0   nullPtr
+        longerVector <- initializeCharacterBuffer bufferLength longerLength longerPtr
         resultLength <- malloc :: IO (Ptr CSize)
         strategy     <- getAlignmentStrategy <$> peek costStruct
         let medianOpt = coerceEnum computeMedians
-        let !cost = case strategy of
+        cost <- case strategy of
                       Affine -> {-# SCC affine_undefined #-}
                         undefined -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
                       _      -> {-# SCC align2dFn_c #-}
-                        align2dFn_c
-                          lesserBuffer
-                          longerBuffer
-                          medianBuffer
-                          resultLength
-                          (ics bufferLength)
-                          (ics lesserLength)
-                          (ics longerLength)
-                          costStruct
-                          neverComputeOnlyGapped
-                          medianOpt
-                          (coerceEnum computeUnion)
+                          V.unsafeWith lesserVector $ \lesserBuffer ->
+                              V.unsafeWith medianVector $ \medianBuffer ->
+                                  V.unsafeWith longerVector $ \longerBuffer -> pure $ align2dFn_c
+                                        lesserBuffer
+                                        longerBuffer
+                                        medianBuffer
+                                        resultLength
+                                        (ics bufferLength)
+                                        (ics lesserLength)
+                                        (ics longerLength)
+                                        costStruct
+                                        neverComputeOnlyGapped
+                                        medianOpt
+                                        (coerceEnum computeUnion)
 
         alignedLength <- getAlignedLength resultLength
-        let g = buildResult bufferLength alignedLength
+        let g = finalizeCharacterBuffer bufferLength alignedLength
         --
         -- NOTE: Extremely important implementation detail!
         --
         -- The C FFI swaps the results somewhere, we swap back here:
-        alignedLesser <- {-# SCC alignedLesser #-} g longerBuffer
-        alignedMedian <- {-# SCC alignedMedian #-} g medianBuffer
-        alignedLonger <- {-# SCC alignedLonger #-} g lesserBuffer
+        let alignedLesser = {-# SCC alignedLesser #-} g longerVector
+        let alignedMedian = {-# SCC alignedMedian #-} g medianVector
+        let alignedLonger = {-# SCC alignedLonger #-} g lesserVector
         let alignmentCost    = fromIntegral cost
         let alignmentContext = (alignedLesser, alignedMedian, alignedLonger)
         pure $ {-# SCC ffi_result #-} (alignmentCost, alignmentContext)
