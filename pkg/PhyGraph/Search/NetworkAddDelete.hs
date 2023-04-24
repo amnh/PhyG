@@ -776,7 +776,6 @@ insertNetEdge :: GlobalSettings
               -> (LG.LEdge b, LG.LEdge b)
               -> PhylogeneticGraph
 insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
-   -- trace ("InsertEdge between: " ++ (show ((u,v), (u',v'))) )( -- ++ " into:\n " ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 inPhyloGraph)) (
    if LG.isEmpty $ thd6 inPhyloGraph then error "Empty input phylogenetic graph in insNetEdge"
 
    else
@@ -790,7 +789,7 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
            newNodeTwo = (numNodes + 1, TL.pack ("HTU" ++ (show $ numNodes + 1)))
            newEdgeList = [(u, fst newNodeOne, 0.0),(fst newNodeOne, v, 0.0),(u', fst newNodeTwo, 0.0),(fst newNodeTwo, v', 0.0),(fst newNodeOne, fst newNodeTwo, 0.0)]
            edgesToDelete = [(u,v), (u',v')]
-           newSimple = LG.insEdges newEdgeList $ LG.delEdges edgesToDelete $ LG.insNodes [newNodeOne, newNodeTwo] inSimple
+           newSimple =  LG.delEdges edgesToDelete $ LG.insEdges newEdgeList $ LG.insNodes [newNodeOne, newNodeTwo] inSimple
 
 
            -- do not prune other edges if now unused
@@ -820,25 +819,20 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
            metHeuristicThreshold = if useNetAddHeuristic inGS then heuristicFactor < (2/3)
                                    else True
 
-       in
-
+      in
        -- remove these checks when working
-       if not $ LG.isPhylogeneticGraph newSimple then
+      if not $ LG.isPhylogeneticGraph newSimple then
          emptyPhylogeneticGraph
        
-
-       else
-         -- need heuristics in here
-         -- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         -- let oldPhyloGraph = T.multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimple
-         -- in
-         -- trace ("INE: OK " ++ (show (numNodes, newNodeOne, newNodeTwo, newEdgeList, edgesToDelete, snd6 oldPhyloGraph)) ++ "\nOrig\n" ++ (-- if (heuristicDelta + edgeAddDelta) < 0 then newPhyloGraph
-         -- trace ("INE: " ++ (show (heuristicDelta, heuristicDelta', edgeAddDelta, snd6 inPhyloGraph)) ++ " -> " ++ (show (heuristicDelta + edgeAddDelta + (snd6 inPhyloGraph), heuristicDelta' + edgeAddDelta + (snd6 inPhyloGraph), snd6 newPhyloGraph))) $
+      else
          if metHeuristicThreshold then 
-            if (snd6 newPhyloGraph <= snd6 inPhyloGraph) then newPhyloGraph
+            if (GO.parentsInChainGraph . thd6) newPhyloGraph then emptyPhylogeneticGraph
+            else if (snd6 newPhyloGraph <= snd6 inPhyloGraph) then 
+               -- trace ("INE:" ++ (show (u,v,u',v', fst newNodeOne, fst newNodeTwo)) ++ "->" ++ (show $ fmap LG.toEdge newEdgeList) ++ "->" ++ (show edgesToDelete)) $
+               newPhyloGraph
             else emptyPhylogeneticGraph
          else emptyPhylogeneticGraph
-         -- )
+      
 
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds

@@ -77,7 +77,6 @@ import           Types.Types
 import qualified Utilities.Utilities            as U
 
 
-
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
 executeCommands :: GlobalSettings

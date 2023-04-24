@@ -69,6 +69,9 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , makeSimpleLeafGraph
                                , selectGraphs
                                , remakePhylogeneticGraph
+                               , isPhylogeneticDecoratedGraph
+                               , parentsInChainGraph
+                               , removeParentsInChain
                                ) where
 
 import           Bio.DynamicCharacter
@@ -91,6 +94,62 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
+
+-- | isPhylogeneticDecoratedGraph checks various issues to see if
+-- there is wierdness in graph
+isPhylogeneticDecoratedGraph :: DecoratedGraph -> Bool
+isPhylogeneticDecoratedGraph inGraph =
+    if LG.isEmpty inGraph then False
+    else
+        let nodeList = fmap fst $ LG.labNodes inGraph
+            indegreeList = fmap (LG.inn inGraph) nodeList
+            outdegreeList = fmap (LG.out inGraph) nodeList
+        in
+        if LG.hasDuplicateEdgesNub inGraph then False
+        else if length (LG.getRoots inGraph) /= 1 then False
+        else if LG.outdeg inGraph (head $ LG.getRoots inGraph) /= 2 then False
+        else if (not . null) (LG.getIsolatedNodes inGraph) then False
+        else if (not . null) (filter ((> 2) . length) indegreeList) then False
+        else if (not . null) (filter ((> 2) . length) outdegreeList) then False
+        else if parentsInChainGraph inGraph then False
+        else if not (LG.isGraphTimeConsistent inGraph) then False
+        else True
+
+-- | parentsInChainGraph checks all network vertices in graph to see if 
+-- parents in any network vertex is ancestor of other
+parentsInChainGraph :: DecoratedGraph -> Bool
+parentsInChainGraph inGraph = False 
+  {-
+  if LG.isEmpty inGraph then False
+  else
+    let (_, _, _, netVertexList) = LG.splitVertexList inGraph
+        parentChainList = fmap (parentsInChainVertex inGraph) $ fmap fst netVertexList
+    in
+    --if ((not . null) $ filter (== True) parentChainList) then traceNoLF ("NPDG+ ") $ ((not . null) $ filter (== True) parentChainList)
+    --else  traceNoLF ("NPDG- ") $ (not . null) $ filter (== True) parentChainList
+    (not . null) $ filter (== True) parentChainList
+  -}
+
+-- | parentsInChainVertex checks for a network vertex if
+-- one parent is ancestor of other
+-- retuens false if not net vertex
+parentsInChainVertex :: DecoratedGraph -> LG.Node -> Bool
+parentsInChainVertex inGraph inNode =
+  if LG.isEmpty inGraph then False
+  else
+    let parentNodes = LG.labParents inGraph inNode
+        firstParent = head parentNodes
+        secondParent = last parentNodes
+        firstBV = bvLabel $ snd firstParent
+        secondBV = bvLabel $ snd secondParent
+        oneAncOther = (firstBV .&. secondBV) `elem` [firstBV, secondBV]
+    in
+    if length parentNodes < 2 then False
+    else if oneAncOther then True
+    else 
+      --traceNoLF ("PCV:" ++ (show (firstBV, secondBV, firstBV .&. secondBV))) 
+        False
+
 
 -- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
 -- if an element is multiple times in firt list each will be removed

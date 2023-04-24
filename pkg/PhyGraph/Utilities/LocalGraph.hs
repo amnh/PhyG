@@ -63,7 +63,7 @@ import qualified Data.Vector                         as V
 import           GeneralUtilities
 import qualified ParallelUtilities                   as PU
 import           System.IO
-import           Debug.Trace
+--import           Debug.Trace
 
 
 
@@ -265,7 +265,7 @@ removeChainedNetworkNodes showWarning inGraph =
             Just newGraph'
 
 -- | getTreeEdgeParent gets the tree edge (as list) into a network node as opposed to the edge from a network parent
--- if both parents are netowrk nodes then returns []
+-- if both parents are network nodes then returns []
 getTreeEdgeParent :: Gr a b -> Node -> [Edge]
 getTreeEdgeParent inGraph inNode =
     let parentList = parents inGraph inNode
@@ -629,9 +629,17 @@ isNetworkLeaf inGraph inNode = (G.indeg inGraph inNode > 1) && (G.outdeg inGraph
 isNetworkEdge :: Gr a b -> Edge -> Bool
 isNetworkEdge inGraph inEdge = (G.indeg inGraph (snd inEdge) > 1) && (G.outdeg inGraph (snd inEdge) > 0)
 
+-- | hasNetworkEdgeList checks edge lisyt to see if any are network--short cicuuits 
+-- so faster than using filter and null
+hasNetworkEdgeList ::  Gr a b -> [LEdge b] -> Bool
+hasNetworkEdgeList inGraph edgeList =
+    if null edgeList then False
+    else if isNetworkLabEdge inGraph (head edgeList) then True
+    else hasNetworkEdgeList inGraph (tail edgeList)
+
 -- | isNetworkLabEdge checks if edge is network edge
 isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool
-isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) && (G.outdeg inGraph (snd3 inEdge) > 0)
+isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) 
 
 -- | isIn1Out1 checks if node has indegree = 1 outdegree = 1
 isIn1Out1 :: Gr a b -> Node -> Bool
