@@ -16,12 +16,13 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE BangPatterns             #-}
-{-# LANGUAGE DeriveGeneric            #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE Strict                   #-}
-{-# LANGUAGE StrictData               #-}
+{-# Language BangPatterns #-}
+{-# Language DeriveGeneric #-}
+{-# Language FlexibleContexts #-}
+{-# Language ForeignFunctionInterface #-}
+{-# Language ImportQualifiedPost #-}
+{-# Language Strict #-}
+{-# Language StrictData #-}
 
 module DirectOptimization.Pairwise.Slim.FFI
   ( DenseTransitionCostMatrix
@@ -31,9 +32,11 @@ module DirectOptimization.Pairwise.Slim.FFI
 
 import Bio.DynamicCharacter
 import Data.Coerce
+import Data.Functor (($>))
 import Data.TCM.Dense
-import           Data.Vector.Storable (Vector)
-import qualified Data.Vector.Storable as V
+import Data.Vector.Generic (basicUnsafeSlice)
+import Data.Vector.Storable (Vector)
+import Data.Vector.Storable qualified as V
 import DirectOptimization.Pairwise.Internal
 import Foreign
 import Foreign.C.Types
@@ -201,9 +204,8 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
                           medianOpt
                           (coerceEnum computeUnion)
 
-        alignedLength <- {-# SCC alignedLength #-} coerce <$> peek resultLength
-        free resultLength
-        let g = buildResult bufferLength (csi alignedLength)
+        alignedLength <- getAlignedLength resultLength
+        let g = buildResult bufferLength alignedLength
         --
         -- NOTE: Extremely important implementation detail!
         --
@@ -222,6 +224,8 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
         ics = coerce . (toEnum :: Int -> Word64)
         csi :: CSize -> Int
         csi = (fromEnum :: Word64 -> Int) . coerce 
+
+
 
 {-
 -- |
@@ -311,6 +315,29 @@ algn3d char1 char2 char3 mismatchCost openningGapCost indelCost denseTCMs = hand
 
 
 -- |
+-- Use in conjunction with 'finalizeCharacterBuffer' to marshall data across FFI.
+--
+-- /Should/ minimize number of, and maximize speed of copying operations.
+initializeCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
+initializeCharacterBuffer maxSize elemCount elements =
+    let e   = min maxSize elemCount
+        off = maxSize - e
+        vec = V.replicate maxSize 0
+    in  V.unsafeWith vec $ \ptr -> moveArray (advancePtr ptr off) elements e $> vec
+
+
+-- |
+-- Use in conjunction with 'finalizeCharacterBuffer' to marshall data across FFI.
+--
+-- /Should/ minimize number of, and maximize speed of copying operations.
+finalizeCharacterBuffer :: Int -> Int -> Vector CUInt -> Vector CUInt
+finalizeCharacterBuffer bufferLength alignedLength =
+    let e   = min bufferLength alignedLength
+        off = bufferLength - e
+    in  basicUnsafeSlice off e 
+
+
+-- |
 -- Allocates space for an align_io struct to be sent to C.
 allocCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Ptr CUInt)
 allocCharacterBuffer maxSize elemCount elements = do
@@ -322,13 +349,29 @@ allocCharacterBuffer maxSize elemCount elements = do
     pure buffer
 
 
+-- |
+-- Read and free the length of the resulting alignment.
+getAlignedLength :: Ptr CSize -> IO Int
+getAlignedLength lenRef =
+    let f = coerce :: CSize -> Word64
+    in  (fromEnum . f <$> peek lenRef) <* free lenRef
+
+
+buildResult :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
+buildResult bufferLength alignedLength alignedBuffer =
+    let e   = min bufferLength alignedLength
+        off = bufferLength - e
+        ref = advancePtr alignedBuffer off
+    in  (V.fromListN e <$> peekArray e ref) <* free alignedBuffer
+
+
+{-
 buildResult :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
 buildResult bufferLength alignedLength alignedBuffer = do
     let e   = min bufferLength alignedLength
     let off = bufferLength - e
     let ref = advancePtr alignedBuffer off
     (V.fromListN e <$> peekArray e ref) <* free alignedBuffer
-{-
     vector <- mallocArray alignedLength
     copyArray vector ref e
     free alignedBuffer
