@@ -202,6 +202,7 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
                           (coerceEnum computeUnion)
 
         alignedLength <- {-# SCC alignedLength #-} coerce <$> peek resultLength
+        free resultLength
         let g = buildResult bufferLength (csi alignedLength)
         --
         -- NOTE: Extremely important implementation detail!
@@ -325,13 +326,17 @@ buildResult :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
 buildResult bufferLength alignedLength alignedBuffer = do
     let e   = min bufferLength alignedLength
     let off = bufferLength - e
-    let ref = advancePtr alignedBuffer off 
+    let ref = advancePtr alignedBuffer off
+
+    V.fromListN e <$> peekArray e ref
+{-
     vector <- mallocArray alignedLength
     copyArray vector ref e
     free alignedBuffer
     fPtr   <- newConcForeignPtr vector (free vector)
     let res = V.unsafeFromForeignPtr0 fPtr e :: Vector CUInt
     pure res
+-}
 
 
 -- |
