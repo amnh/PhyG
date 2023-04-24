@@ -1103,9 +1103,11 @@ tbrJoin :: SwapParams
         -> LG.LEdge EdgeInfo
         -> ([PhylogeneticGraph], Maybe SAParams)
 tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
-   -- trace ("In tbrJoin: to " ++ (show $ LG.toEdge targetEdge)) (
+   
+   -- this is for networks stopping TBR rearrangements with there are nwetowrk edegs incolved in pruned part of graph
    let hasNetEdges = if graphType inGS == Tree then False 
                      else null $ filter ((== True) . LG.isNetworkLabEdge splitGraph) edgesInPrunedGraph
+
    in
 
    if null edgesInPrunedGraph then ([], inSimAnnealParams)
