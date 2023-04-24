@@ -118,8 +118,7 @@ isPhylogeneticDecoratedGraph inGraph =
 -- | parentsInChainGraph checks all network vertices in graph to see if 
 -- parents in any network vertex is ancestor of other
 parentsInChainGraph :: DecoratedGraph -> Bool
-parentsInChainGraph inGraph = False 
-  {-
+parentsInChainGraph inGraph = 
   if LG.isEmpty inGraph then False
   else
     let (_, _, _, netVertexList) = LG.splitVertexList inGraph
@@ -128,7 +127,7 @@ parentsInChainGraph inGraph = False
     --if ((not . null) $ filter (== True) parentChainList) then traceNoLF ("NPDG+ ") $ ((not . null) $ filter (== True) parentChainList)
     --else  traceNoLF ("NPDG- ") $ (not . null) $ filter (== True) parentChainList
     (not . null) $ filter (== True) parentChainList
-  -}
+  
 
 -- | parentsInChainVertex checks for a network vertex if
 -- one parent is ancestor of other

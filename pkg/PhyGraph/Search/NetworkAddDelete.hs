@@ -826,10 +826,9 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
        
       else
          if metHeuristicThreshold then 
-            if (GO.parentsInChainGraph . thd6) newPhyloGraph then emptyPhylogeneticGraph
-            else if (snd6 newPhyloGraph <= snd6 inPhyloGraph) then 
-               -- trace ("INE:" ++ (show (u,v,u',v', fst newNodeOne, fst newNodeTwo)) ++ "->" ++ (show $ fmap LG.toEdge newEdgeList) ++ "->" ++ (show edgesToDelete)) $
-               newPhyloGraph
+            -- if (GO.parentsInChainGraph . thd6) newPhyloGraph then emptyPhylogeneticGraph
+            -- else 
+            if (snd6 newPhyloGraph <= snd6 inPhyloGraph) then newPhyloGraph
             else emptyPhylogeneticGraph
          else emptyPhylogeneticGraph
       
