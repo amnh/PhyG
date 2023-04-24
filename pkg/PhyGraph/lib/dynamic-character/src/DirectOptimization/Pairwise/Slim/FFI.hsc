@@ -327,8 +327,7 @@ buildResult bufferLength alignedLength alignedBuffer = do
     let e   = min bufferLength alignedLength
     let off = bufferLength - e
     let ref = advancePtr alignedBuffer off
-
-    V.fromListN e <$> peekArray e ref
+    (V.fromListN e <$> peekArray e ref) <* free alignedBuffer
 {-
     vector <- mallocArray alignedLength
     copyArray vector ref e
