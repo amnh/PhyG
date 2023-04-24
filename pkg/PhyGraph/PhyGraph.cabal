@@ -195,14 +195,14 @@ Executable phyg
       -fspecialize-aggressively
       -fstatic-argument-transformation
       -fllvm
-      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm --nonmoving-gc"
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   else
     GHC-Options:
 --    "-with-rtsopts=-N"
 --    rts -AL8 was rejected  should be >= A
---    rts --nonmoving-gc causes large memory blow-ups
-      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm --nonmoving-gc"
+--    rts --nonmoving-gc causes large memory blow-ups on cluster
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   Build-Depends:
     PhyGraph:alphabet,
