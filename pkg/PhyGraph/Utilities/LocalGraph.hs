@@ -639,7 +639,7 @@ hasNetworkEdgeList inGraph edgeList =
 
 -- | isNetworkLabEdge checks if edge is network edge
 isNetworkLabEdge  :: Gr a b -> LEdge b -> Bool
-isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) && (G.outdeg inGraph (snd3 inEdge) > 0)
+isNetworkLabEdge  inGraph inEdge = (G.indeg inGraph (snd3 inEdge) > 1) 
 
 -- | isIn1Out1 checks if node has indegree = 1 outdegree = 1
 isIn1Out1 :: Gr a b -> Node -> Bool
