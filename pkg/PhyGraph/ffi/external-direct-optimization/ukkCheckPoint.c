@@ -82,10 +82,7 @@ CPType *CP(int ab, int ac, int d, int s)
     return getPtr(&myCPAllocInfo, ab, ac, d, s);
 }
 
-
-void printTraceBack();
-
-
+void printTraceBack( characters_t *inputs, characters_t *outputs );
 
 int best( int ab, int ac, int d, int wantState );
 
