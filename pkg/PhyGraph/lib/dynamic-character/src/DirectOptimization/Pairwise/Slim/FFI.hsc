@@ -324,8 +324,17 @@ initializeCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
 initializeCharacterBuffer maxSize elemCount elements =
     let e   = min maxSize elemCount
         off = maxSize - e
-        vec = V.replicate maxSize 0
-    in  V.unsafeWith vec $ \ptr -> moveArray (advancePtr ptr off) elements e $> vec
+        {-
+        Bind the vector creation within the monadic "do-block" scope to ensure
+        that no sharing of "vec" occurs between calls.
+
+        This operation is inherently unsafe, modifying the data of the underling
+        Ptr contained within the vector. However, this permits faster marshalling
+        across the FFI
+        -}
+    in  do  let vec = V.replicate maxSize 0
+            V.unsafeWith vec $ \ptr ->
+                moveArray (advancePtr ptr off) elements e $> vec
 
 
 -- |
