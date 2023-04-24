@@ -77,7 +77,6 @@ import           Types.Types
 import qualified Utilities.Utilities            as U
 
 
-
 -- | executeCommands reads input files and returns raw data
 -- need to close files after read
 executeCommands :: GlobalSettings
@@ -675,7 +674,17 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             trace ("SoftwiredMethod " ++ show localMethod)
             (globalSettings {softWiredMethod = localMethod}, processedData, inSeedList)
 
-        -- this not intended for users
+        -- modify the use of Network Add heurisitcs in network optimization
+        else if head commandList == "usenetaddheuristic"  then
+            let localCriterion
+                  | (head optionList == "true") = True
+                  | (head optionList == "false") = False
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. UseNetAddHeuristic '" ++ head optionList ++ "' is not 'true' or 'false'")
+            in
+            trace ("UseNetAddHeuristic set to " ++ head optionList)
+            (globalSettings {useNetAddHeuristic = localCriterion}, processedData, inSeedList)
+
+        -- these not intended for users
         else if head commandList == "jointhreshold"  then
             let localValue = readMaybe (head optionList) :: Maybe Double
             in
@@ -684,6 +693,40 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             else
                 trace ("JoinThreshold set to " ++ head optionList)
                 (globalSettings {unionThreshold = fromJust localValue}, processedData, inSeedList)
+
+        -- parallel strategy settings options
+        else if head commandList == "defparstat"  then
+            let localMethod
+                  | (head optionList == "r0") = R0
+                  | (head optionList == "rpar") = RPar
+                  | (head optionList == "rseq") = RSeq
+                  | (head optionList == "rdeepseq") = RDeepSeq
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. DefParStrat  '" ++ head optionList ++ "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
+            in
+            trace ("DefParStrat set to " ++ show localMethod)
+            (globalSettings {defaultParStrat = localMethod}, processedData, inSeedList)
+
+        else if head commandList == "lazyparstat"  then
+            let localMethod
+                  | (head optionList == "r0") = R0
+                  | (head optionList == "rpar") = RPar
+                  | (head optionList == "rseq") = RSeq
+                  | (head optionList == "rdeepseq") = RDeepSeq
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. LazyParStrat  '" ++ head optionList ++ "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
+            in
+            trace ("DefParStrat set to " ++ show localMethod)
+            (globalSettings {lazyParStrat = localMethod}, processedData, inSeedList)
+
+        else if head commandList == "strictparstat"  then
+            let localMethod
+                  | (head optionList == "r0") = R0
+                  | (head optionList == "rpar") = RPar
+                  | (head optionList == "rseq") = RSeq
+                  | (head optionList == "rdeepseq") = RDeepSeq
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. StrictParStrat  '" ++ head optionList ++ "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
+            in
+            trace ("StrictParStrat set to " ++ show localMethod)
+            (globalSettings {strictParStrat = localMethod}, processedData, inSeedList)
 
 
 
@@ -756,7 +799,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
             else if "diagnosis" `elem` commandList then
                 -- need to rediagnose if reportNaiveData
                 let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
-                                 else PU.seqParMap PU.myStrategy   (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                                 else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
                     dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0.. (length curGraphs' - 1)])
                 in
                 if null curGraphs then
@@ -771,8 +814,20 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 let inputDisplayVVList = fmap fth6 curGraphs
                     costList = fmap snd6 curGraphs
                     displayCostListList = fmap GO.getDisplayTreeCostList curGraphs
-                    displayInfoString = ("DisplayTree costs : " ++ show (fmap (sum . fst) displayCostListList, displayCostListList))
-                    treeIndexStringList = fmap (((++ "\n") . ("Canonical Tree " ++)) . show) [0..(length inputDisplayVVList - 1)]
+                    displayInfoString = if ("dot" `elem` commandList) ||  ("dotpdf" `elem` commandList)
+                        then
+                            ("//DisplayTree costs : " ++ show (fmap (sum . fst) displayCostListList, displayCostListList))
+                        else -- newick    
+                            let middle =  fmap bracketToCurly $ show (fmap (sum . fst) displayCostListList, displayCostListList)
+
+                            in 
+                            ("[DisplayTree costs : " ++ middle ++ "]")
+
+                    treeIndexStringList = if ("dot" `elem` commandList) ||  ("dotpdf" `elem` commandList)
+                        then
+                            fmap (((++ "\n") . ("//Canonical Tree " ++)) . show) [0..(length inputDisplayVVList - 1)]
+                        else -- newick
+                            fmap (((++ "]\n") . ("[Canonical Tree " ++)) . show) [0..(length inputDisplayVVList - 1)]
                     canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
                     blockStringList = unlines (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
                     -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
@@ -857,7 +912,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     ("No impliedAlgnments for TNT to report", outfileName, writeMode)
                 else
                     let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
-                                     else PU.seqParMap PU.myStrategy   (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                                     else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
                         tntContentList = zipWith (getTNTString globalSettings processedData) curGraphs' [0.. (length curGraphs' - 1)]
                     in
                     (concat tntContentList, outfileName, writeMode)
@@ -873,4 +928,6 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     trace ("Reporting " ++ show (length curGraphs) ++ " graph(s) at minimum cost " ++ show (minimum $ fmap snd6 curGraphs) ++"\n")
                     (graphString, outfileName, writeMode)
                 )
-
+            where bracketToCurly a = if a == '(' then '{'
+                                     else if a == ')' then '}'
+                                     else a

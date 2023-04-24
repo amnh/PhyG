@@ -98,9 +98,11 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
 
                -- turn off union selection of rejoin--default to do both, union first
                joinType
+                 | graphType inGS == HardWired = JoinAll
                  | any ((=="joinall").fst) lcArgList = JoinAll
                  | any ((=="joinpruned").fst) lcArgList = JoinPruned
-                 | otherwise = JoinAlternate
+                 | any ((=="joinalternate").fst) lcArgList = JoinAlternate
+                 | otherwise = JoinAll --others miss too much--need to refine unions
 
 
                -- randomize split graph and rejoin edges, defualt to randomize
@@ -146,7 +148,9 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
            in
 
            trace progressString (
-           let (newGraphList, counter) = let graphPairList = PU.seqParMap PU.myStrategyHighLevel  (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
+           let (newGraphList, counter) = let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
+
+                                             -- graphPairList = PU.seqParMap PU.myStrategyHighLevel  (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList) -- `using` PU.myParListChunkRDS
                                              (graphListList, counterList) = unzip graphPairList
                                          in (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
               in

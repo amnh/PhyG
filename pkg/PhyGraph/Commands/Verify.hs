@@ -91,8 +91,8 @@ netEdgeArgList = ["acceptequal", "acceptworse", "all",  "annealing", "atrandom",
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fastc", "fenewick", "include", "newick" , "nucleotide",
-                "preaminoacid", "prefasta", "prefastc", "prenucleotide", "rename", "tcm", "tnt"] -- "prealigned", "csv",
+readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fastc", "fenewick", "hugeseq", "include", "newick" , "nucleotide",
+                "preaminoacid", "prefasta", "prefastc", "prehugeseq", "prenucleotide", "rename", "tcm", "tnt"] -- "prealigned", "csv",
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
@@ -110,7 +110,7 @@ refineArgList = fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
-reportArgList = ["all", "append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees",
+reportArgList = ["append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees",
     "dot", "dotpdf", "graphs", "htulabels", "ia", "includemissing", "impliedalignment", "newick", "nobranchlengths", "nocollapse",
     "nohtulabels","overwrite", "pairdist", "reconcile", "search", "support", "tnt"] ++ reconcileArgList
 
@@ -126,7 +126,7 @@ selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 -- | setArgList contains valid 'set' arguments
     -- joinThreshold and dynamicEpsilon are not intended for users--but could be of course
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "defparstrat", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "lazyparstrat", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod", "strictparstrat", "usenetaddheuristic"]
 
 -- | refinement arguments
 supportArgList :: [String]
@@ -134,14 +134,14 @@ supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "
 
 -- | swapArgList is the list of valid swap arguments
 swapArgList :: [String]
-swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "inorder", "joinall", "joinpruned", "keep", "maxchanges",
+swapArgList = ["acceptequal", "acceptworse", "all", "alternate", "annealing", "atrandom", "drift", "ia", "inorder", "joinall", "joinpruned", "joinalternate", "keep", "maxchanges",
     "nni", "replicates", "returnmutated", "spr", "steepest", "steps", "tbr"]
 
 -- | transform arguments
 transformArgList :: [String]
 transformArgList = ["atrandom", "compressresolutions", "displaytrees", "dynamic", "dynamicepsilon", "first", "graphfactor",
     "graphssteepest", "jointhreshold", "multitraverse", "name", "outgroup", "softwiredmethod", "staticapprox", "tohardwired",
-    "tosoftwired", "totree", "type", "weight"]
+    "tosoftwired", "totree", "type", "usenetaddheuristic", "weight"]
 
 
 -- | verifyCommands takes a command list and tests whether the commands

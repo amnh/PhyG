@@ -136,14 +136,14 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
 
             -- diagnose post order as Tree
             staticIA = False
-            outgroupDiagnosedTreeList = PU.seqParMap PU.myStrategy  (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
+            outgroupDiagnosedTreeList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
 
             -- do rerooting of character trees
-            multiTraverseTreeList = PU.seqParMap PU.myStrategy  (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupDiagnosedTreeList
+            multiTraverseTreeList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupDiagnosedTreeList
 
             -- extract triple (relevent info)--sets if multitraverse (reroot characters) or not
-            multiTraverseTripleList = if (multiTraverseCharacters inGS == True)  then PU.seqParMap PU.myStrategy  (getTreeTriple rootIndex) multiTraverseTreeList
-                                      else PU.seqParMap PU.myStrategy  (getTreeTriple rootIndex) outgroupDiagnosedTreeList
+            multiTraverseTripleList = if (multiTraverseCharacters inGS == True)  then PU.seqParMap (parStrategy $ lazyParStrat inGS) (getTreeTriple rootIndex) multiTraverseTreeList
+                                      else PU.seqParMap (parStrategy $ lazyParStrat inGS) (getTreeTriple rootIndex) outgroupDiagnosedTreeList
 
             -- choose better vs currentBestTriple
             -- this can be folded for a list > 2
@@ -260,11 +260,12 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
     else
         let -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
-            (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = if inGraphType == Tree then
-                                                                                                let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
-                                                                                                in
-                                                                                                (a, b, decGraph, displayTrees, charTrees, f)
-                                                                                              else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = 
+                if inGraphType == Tree then
+                    let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
+                    in
+                    (a, b, decGraph, displayTrees, charTrees, f)
+                else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
 
             -- purge double edges from display and character graphs
             -- this should not be happening--issue with postorder network resolutions data
@@ -275,7 +276,7 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
             -- not sure if should be parallelized `using` PU.myParListChunkRDS
             -- (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees inGS rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS)
             -- This is slower than myParListChunkRDS
-            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap PU.myStrategy  (rerootBlockCharTrees' inGS rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
+            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootBlockCharTrees' inGS rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
 
             newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
@@ -284,7 +285,7 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
 
 -- | rerootBlockCharTrees' wrapper around rerootBlockCharTrees to allow for parMap
 rerootBlockCharTrees' ::GlobalSettings -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
-rerootBlockCharTrees' inGS rootIndex (blockDisplayTree, charTreeVect, charInfoVect) = rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect
+rerootBlockCharTrees' inGS rootIndex (blockDisplayTree, charTreeVect, charInfoVect) = rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect 
 
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
 -- with best character tree node assignment back ported to display tree
@@ -302,7 +303,7 @@ rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect =
             -- (rerootedCharTreeVect, rerootedCostVect) = unzip (zipWith (getCharTreeBestRoot rootIndex grandChildrenOfRoot) (V.toList charTreeVect) (V.toList charInfoVect)) `using` PU.myParListChunkRDS)
 
             -- unclear if faster than than myParListChunkRDS
-            (rerootedCharTreeVect, rerootedCostVect) = unzip (PU.seqParMap PU.myStrategy  (getCharTreeBestRoot' rootIndex grandChildrenOfRoot) (zip (V.toList charTreeVect) (V.toList charInfoVect)))
+            (rerootedCharTreeVect, rerootedCostVect) = unzip (PU.seqParMap (parStrategy $ lazyParStrat inGS) (getCharTreeBestRoot' rootIndex grandChildrenOfRoot) (zip (V.toList charTreeVect) (V.toList charInfoVect)))
 
             (updateBlockDisplayTree, updatedDisplayVect, blockCost) = if multiTraverseCharacters inGS == True then
                                                                         (backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect), V.fromList rerootedCharTreeVect, sum rerootedCostVect)
@@ -901,8 +902,8 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
 
                 -- get lowest cost display tree
                 staticIA = False
-                outgroupRootedList =  PU.seqParMap PU.myStrategy  (postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)) blockTreeList
-                multiTraverseTreeList = PU.seqParMap PU.myStrategy  (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupRootedList
+                outgroupRootedList =  PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)) blockTreeList
+                multiTraverseTreeList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupRootedList
                 lowestCostDisplayTree = head $ GO.selectGraphs Best 1 0.0 (-1) multiTraverseTreeList
 
                 -- now can do as input (below)
@@ -939,7 +940,7 @@ getW15NetPenalty startVertex inGraph =
             bestTreesEdgeList = L.nubBy LG.undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
             rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
                         else fromJust startVertex
-            blockPenaltyList = PU.seqParMap PU.myStrategy   (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+            blockPenaltyList = PU.seqParMap PU.myStrategy (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
 
             -- leaf list for normalization
             (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)

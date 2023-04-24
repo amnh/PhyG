@@ -177,9 +177,9 @@
 	\begin{description}
 		\item [all]  During branch swapping-type operations, all rearrangement are tried before choosing a new graph. 
 		
-		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
-		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
-		$n$ edges aware from their initial positions).
+%		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
+%		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
+%		$n$ edges aware from their initial positions).
 		
 		\item [atRandom] Chooses graphs to fuse uniformly at random when \texttt{pairs} is specified. 
 		
@@ -188,10 +188,9 @@
 		
 		\item [keep:n] Limits the number of returned graphs to $n$. 
 		
-		\item [nni] Causes the exchanged subgraphs to be tested at their initial positions as well as the 
-		two adjacent edges.
+		\item [none] \hl{add description}
 		
-		\item [notReciprocal] Turns off \texttt{reciprocal}.
+		\item [noReciprocal] Turns off \texttt{reciprocal}.
 		
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
@@ -241,9 +240,8 @@
 	\begin{phygdescription}
 		{Imports file-based information, including data files, tree and graph files. \texttt{read} 
 		commands must contain an input file. Supported data formats include FASTA, FASTC
-		and TNT files, and graph formats include Dot, Enewick, Fenewick, and Newick. 
-		Filenames must be included in quotes and, if multiple filenames are specified, 
-		separated by commas. Filenames must include the appropriate suffix (e.g. .fas, 
+		xand TNT files, and graph formats include Dot, Enewick, Fenewick, and Newick. 
+		Filenames must be included in quotes. Filenames must include the appropriate suffix (e.g. .fas, 
 		.ss, .mat). The exclusion of these suffixes will result in an error. The filename must
 		match exactly, including capitalization. \phyg will attempt to recognize the type of input
 		and parse appropriately. Otherwise, the type of file can be indicated, using one of the 
@@ -296,7 +294,7 @@
 		Taxa appear in the form of a list, with a single taxon per line. It is possible to specify 
 		terminals that have no data. This may be done in order to diagnose a large tree on 
 		partial data. If there are no data for a leaf taxon, a warning will be printed to \texttt{stderr}. 
-		Taxa not include in this list, but present in the inputted data files, will be excluded from 
+		Taxa not included in this list, but present in the inputted data files, will be excluded from 
 		the analysis. Compare with \texttt{exclude}.
 			
 		\item [newick:] Specifies that the file contains Newick format graph(s) as specified 
@@ -483,42 +481,6 @@
 	\end{example}
 
 %---------------------------------------------
-%rename
-%---------------------------------------------	
-\subsection{Rename}
-	\label{subsec:Rename}
-	\subsubsection{Syntax}
-		\texttt{rename("newName", "oldName1", "oldName2",...)}
-		
-	\begin{phygdescription}
-	{Replaces the name(s) of specified terminals. 
-	The command consists of a terminal identifier followed by a comma and then by either 
-	a string containing a pair (or pairs) of strings containing the names of items being renamed.
-	The first string (name) is assigned to taxa with the strings (names) that follow. This can be 
-	useful when combining data from different sources, such as GenBank, or in revising names 
-	to reflect taxonomic changes. Irrespective of where this command appears in the script file, 
-	\phyg will execute this command prior to importing the data files. Compare with the 
-	argument \texttt{rename} of the command \texttt{read} (Section \ref{subsec:Read}).
-	In the example below, the taxa ``b'' and ``c'' will be renamed to ``a''.
-
-	\begin{quote}
-	rename("a","b","c")
-	\end{quote}}
-	\end{phygdescription}
-	
-	\subsubsection{Arguments}
-		Taxon names to assign and be assigned.
-		
-	\subsubsection{Defaults}
-		None.
-		
-	\begin{example}
-	
-		\item{\texttt{rename("a","b","c")}\\ Renames ``b'' and ``c'' to ``a''. }
-				
-	\end{example}
-
-%---------------------------------------------
 %refine
 %---------------------------------------------		
 \subsection{Refine}
@@ -589,8 +551,9 @@
 			events for \texttt{geneticAlgorithm}. The higher the value, the less severe the penalty. The 
 			default is $n=1.0$.
 			
-			\item[stop:n] Causes the \texttt{geneticAlgorithm} to terminate after $n$ generations without improvement 
-			in graph cost.  Default is to only terminate when the number generations has been completed.
+			\item[stop:n] Causes the \texttt{geneticAlgorithm} to terminate after $n$ generations without 
+			improvement in graph cost.  Default is to only terminate when the number generations has 
+			been completed.
 
 			\end{description}
 		
@@ -599,6 +562,43 @@
 		\end{description}
 	
 	%add defaults and examples	
+%---------------------------------------------
+%rename
+%---------------------------------------------	
+\subsection{Rename}
+	\label{subsec:Rename}
+	\subsubsection{Syntax}
+		\texttt{rename("newName", "oldName1", "oldName2",...)}
+		
+	\begin{phygdescription}
+	{Replaces the name(s) of specified terminals. 
+	The command consists of a terminal identifier followed by a comma and then by either 
+	a string containing a pair (or pairs) of strings containing the names of items being renamed.
+	The first string (name) is assigned to taxa with the strings (names) that follow. This can be 
+	useful when combining data from different sources, such as GenBank, or in revising names 
+	to reflect taxonomic changes. Irrespective of where this command appears in the script file, 
+	\phyg will execute this command prior to importing the data files. Compare with the 
+	argument \texttt{rename} of the command \texttt{read} (Section \ref{subsec:Read}).
+	In the example below, the taxa ``b'' and ``c'' will be renamed to ``a''.
+
+	\begin{quote}
+	rename("a","b","c")
+	\end{quote}}
+	\end{phygdescription}
+	
+	\subsubsection{Arguments}
+		Taxon names to assign and be assigned.
+		
+	\subsubsection{Defaults}
+		None.
+		
+	\begin{example}
+	
+		\item{\texttt{rename("a","b","c")}\\ Renames ``b'' and ``c'' to ``a''. }
+				
+	\end{example}
+
+
 %---------------------------------------------
 %report
 %---------------------------------------------				
@@ -613,7 +613,7 @@
 		allows the user to output information concerning the characters and terminals, 
 		diagnosis, export static homology data, implied alignments, trees, graphs, dot files, 
 		as well as other miscellaneous arguments. By default, new information printed to 
-		a file if appended to the file. The option \texttt{overwrite} overrides the default and 
+		a file is appended to the file. The option \texttt{overwrite} overrides the default and 
 		rewrites the file. Many of the report options can be output in csv format,  which can
 		subsequently be imported into spreadsheet programs.}
 	\end{phygdescription}
@@ -654,7 +654,7 @@
 		\cite{Wheeler2012, Wheeler2022}. When \texttt{reconcile} is specified as a command 
 		option a series of other options may be specified to tailor the desired outputs:
 			\begin{description}
-			\item {Method:eun$\mid$cun$\mid$majority$\mid$strict$\mid$Adams\\Default:eun\\
+			\item [Method:eun$\mid$cun$\mid$majority$\mid$strict$\mid$Adams] 
 			This commands specifies the type of output graph. EUN is the Edge-Union-Network 
 			\citep{MiyagiandWheeler2019}, CUN the Cluster Union Network \citep{Baroni2005},
 			majority (with fraction specified by `threshold') specifies that a values between 0 and 
@@ -662,28 +662,35 @@
 			set this will be the Majority-Rule Consensus \citep{MargushandMcMorris1981}.
 			Strict requires all vertices be present to be included in the final graph. If all inputs are 
 			trees with the same leaf set this will be the Strict Consensus \citep{Schuhandpolhemus1980}. 
-			Adams denotes the Adams II consensus \citep{Adams1972}.}
+			Adams denotes the Adams II consensus \citep{Adams1972}.\\
+			Default:eun.
 							
-			\item{Compare:Combinable$\mid$identity\\Default:combinable\\Species how group 
+			\item [Compare:Combinable$\mid$identity] Specifies how group 
 			comparisons are to be made. Either by identical match [(A, (B,C))$\neq$(A,B,C)],
 			combinable sensu \cite{Nelson1979} [(A, (B,C)) consistent with (A,B,C)]. This option 
-			can be used to specify ``semi-strict'' consensus \citep{Bremer1990}.}
+			can be used to specify ``semi-strict'' consensus \citep{Bremer1990}.\\
+			Default:combinable.
 							
-			\item{Threshold:(0-100)\\Default:0\\Threshold must be an integer between 0 and 100 
+			\item [Threshold:(0-100)] Threshold must be an integer between 0 and 100 
 			and specifies the frequency of vertex or edge occurrence in input graphs to be included 
-			in the output graph. Affects the behavior of `eun' and` majority.'}
+			in the output graph. Affects the behavior of `eun' and` majority'.\\
+			Default:0.
 			
-			\item{Connect:True$\mid$False\\Default:True\\Specifies the output graph be connected 
-			(single component), potentially creating a root node and new edges labeled with ``0.0''.}
+			\item [Connect:True$\mid$False] Specifies the output graph be connected 
+			(single component), potentially creating a root node and new edges labeled with ``0.0''.\\
+			Default:True.
 			
-			\item{EdgeLabel:True$\mid$False\\Default:True\\Specifies the output graph have edges 
-			labeled with their frequency in input graphs.}
+			\item [EdgeLabel:True$\mid$False] Specifies the output graph have edges 
+			labeled with their frequency in input graphs. \\
+			Default:True.
 			
-			\item{VertexLabel:True$\mid$False\\Default:False\\Specifies the output graph have vertices 
-			labeled with their subtree leaf set.}
+			\item [VertexLabel:True$\mid$False] Specifies the output graph have vertices 
+			labeled with their subtree leaf set.\\
+			Default:False.
 	
-			\item{OutFormat:Dot$\mid$FENewick\\Default:Dot\\Specifies the output graph format 
-			as either Graphviz `dot' or FEN.}
+			\item [OutFormat:Dot$\mid$FENewick] Specifies the output graph format 
+			as either Graphviz `dot' or FEN. \\ 
+			Default:Dot.
 			\end{description}	
 				
 		\item[support] Outputs support graphs. Resampling graphs are independent of the 
@@ -738,7 +745,7 @@
 	
 	\begin{example}
 		\item{\texttt{run("readFiles.pg")}\\ Executes "readFiles.pg", which may contain multiple input 
-		files to be \texttt{read}}
+		files to be \texttt{read}.}
 		
 		\item{\texttt{run("searchCommands.pg")}\\ Executes "searchCommands.pg", which may 
 		contain commands defining a common search strategy (e.g. \texttt{build}).}
@@ -758,55 +765,64 @@
 		Algorithm. The parameters and order for this search are randomized. The arguments 
 		specify the number independent instances of search (\texttt{instances}, default 1), and duration 
 		(\texttt{days}, \texttt{hours}, \texttt{minutes}, and \texttt{seconds}; 
-		default 30 seconds). Successive rounds of search gather 
+		\hl{default 30 seconds}). Successive rounds of search gather 
 		any solutions from previous sequential or parallel rounds as well as any input graphs.
 		Since search methods may vary in how long they take, individual iterations may take 
 		longer that the specified duration.  By default, search strategies are chosen uniformly at random, 
-		if \texttt{Thompson} is specified, Thompson sampling \cite{Thompson1933,WheelerThompson} is used to modify 
-		the probabilities of search strategies over the search duration.
+		if \texttt{Thompson} is specified, Thompson sampling \cite{Thompson1933,WheelerThompson} 
+		is used to modify the probabilities of search strategies over the search duration.
 		
 		When performing a \texttt{search} it is important to set the amount of time, such that the 
 		program has a reasonable amount of time to perform a search. Therefore, it is important
-		to have some idea as to the length of time it would take to do a single round of searching.}
+		to have some idea as to the length of time it would take to do a single round of searching.
+		\hl{how reasonable is this expectation of the user?}}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
 	\begin{description}
-		\item[keep:n] Keeps up to $n$ graphs.
-		
 		\item[days:n] Adds $n$ 24 hour days to search time.
 		
 		\item[hours:n] Adds $n$ hours to search time.
 		
-		\item[maxNetEdges:n] Limits maximum number of network edges to $n$.
+		\item[instances:n] Specifies $n$ (potentially parallel) search instances.
+		
+		\item[keep:n] Keeps up to $n$ graphs.
+		
+		\item[maxNetEdges:n] Limits maximum number of network edges to $n$. Only to be used if
+		soft-wired or hard-wired graphs.
 		
 		\item[minutes:n] Adds $n$ minutes to search time.
 		
-		\item[seconds:n] Adds $n$ seconds to search time.
+		%\item[seconds:n] Adds $n$ seconds to search time.
 		
-		\item[instances:n] Specifies $n$ (potentially parallel) search instances.
+		\item[stop:n] Specifies that the search will be terminated after $n$ iterations without 
+		improving the best graph cost. Should this argument be used with a specific time strategy, 
+		whichever comes first, the search will end.
 		
-		\item[stop:n] Specifies that the search will be terminated after $n$ iterations without improving the best graph cost.
-		
-		\item[Thompson] Specifies that randomized choice of search option (e.g. Wagner Build, SPR, Genetic Algorithm) 
+		\item[Thompson] Specifies that randomized choice of search option (e.g. Wagner 
+		Build, SPR, Genetic Algorithm) 
 		employs Thompson sampling.
+		\begin{description}
+			\item[mFactor:n] Specifies the memory factor $n$ for Thompson sampling. Parameter
+			for linear and exponential.
 		
-		\item[mFactor:n] Species the memory factor $n$ for Thompson sampling.
+			\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, 
+			$m$.  Updating of search type, $\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} 
+			\theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  Thompson success is a function of whether 
+			a search was successful in reducing the graph cost and how long that search took to 
+			complete.
 		
-		\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, $m$.  Updating of search type, 
-		$\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  Thompson success
-		is a function of whether a search was successful in reducing the graph cost and how long that search took to complete.
-		
-		\item[exponential] Specifies that the Thompson memory is an exponential function of \texttt{mFactor}, $m$.  Updating of search type, 
-		$\theta^k$, probability for iteration $n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  Thompson success
-		is a function of whether a search was successful in reducing the graph cost and how long that search took to complete.
-		
-		%\hl{would it not be simpler to do a max\_time:FLOAT:FLOAT:FLOAT, or min\_time
-		%FLOAT:FLOAT:FLOAT like we had in poy? How useful are seconds?}
+			\item[exponential] Specifies that the Thompson memory is an exponential function of 
+			\texttt{mFactor}, $m$.  Updating of search type, $\theta^k$, probability for iteration 
+			$n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  
+			Thompson success is a function of whether a search was successful in reducing the graph 
+			cost and how long that search took to complete.
+		\end{description}	
+
 	\end{description}
 		
 	\subsubsection{Defaults}
-		\texttt{search()} Performs 1 instance of 30 seconds keeping up to 10 graph}.
+		\texttt{search()} Performs 1 instance of \hl{30 seconds} keeping up to 10 graph}.
 		
 	\begin{example}
 		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 search instance (in parallel if the 
@@ -833,7 +849,7 @@
 		\begin{description}
 			\item[all] Keeps all graphs.
 		
-			\item[best:n] Selects and keeps the graphs with the  best optimality value.
+			\item[best:n] Selects and keeps the graphs with the best optimality value.
 			
 			\item[atRandom] Keeps graphs chosen at random.
 			
@@ -872,12 +888,12 @@
 	\subsubsection{Arguments}
 		\begin{description}
 %			\item[compressResolutions:True|False] %\hl{change to BOOL} 
-%			Determines whether soft-wired graph 
-%			resolutions are ``compressed'' if multiple vertex assignments in alternate display 
-%			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
-%			This option can significantly reduce the time to evaluate softwired graphs, but can
-%			increase the optimality score of the graph.  Can be used in combination with
-%			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
+%			Determines whether soft-wired graph resolutions are ``compressed'' if multiple 
+%			vertex assignments in alternate display trees are equal in subtree leaf set, only 
+%			the first lowest cost resolution is retained. This option can significantly reduce 
+%			the time to evaluate softwired graphs, but can increase the optimality score of 
+%			the graph. This can be used in combination with \texttt{transform(compressResolutions:True)} 
+%			or \texttt{transform(softwiredMethod:\\Exhaustive)} 
 %			at a later stage to improve graph score.
 			
 %			\item[criterion:parsimony|mapa|pmdl] 
@@ -903,25 +919,27 @@
 			parsimony network penalty of \cite{Wheeler2015}. W23 sets the parsimony network penalty akin to
 			W15, but with the penalty applied to all blocks (more severe).
 			
-			\item[graphsSteepest:n] Sets the maximum number of graphs to be evaluated simultaneously during ``steepest'' descent 
-			in swapping and network add/delete operations. The number is the minimum of the number of parallel threads and $n$
-			(default 10).
+			\item[graphsSteepest:n] Sets the maximum number of graphs to be evaluated 
+			simultaneously during ``steepest'' descent in swapping and network add/delete operations. 
+			The number is the minimum of the number of parallel threads and $n$ (default 10).
 			
 			\item[graphType:tree|hardwired|softwired] Sets the phylogenetic graph type to tree, 
 			hard-wired network, or soft-wired network. Forest are allowed by the network options.
 			
 			%\item[modelcomplexity] \hl{details}
 			
-			\item[multiTraverse:True|False] Controls the multi-traverse character optimization option.  If True, 
-			character trees are traversed from each edge as in \citep{VaronandWheeler2012, VaronandWheeler2013, POY4, POY5},
-			but individually for each dynamic character. If False, then only outgroup-based traversals are performed
-			as in \citep{Wheeler1996, POY2, POY3}.  Option True (default) yields better (lower) optimality scores
-			at the cost of added execution time.
+			\item[multiTraverse:True|False] Controls the multi-traverse character optimization option. 
+			If True, character trees are traversed from each edge as in 
+			\citep{VaronandWheeler2012,VaronandWheeler2013, POY4, POY5}, but individually for 
+			each dynamic character. If False, then only outgroup-based traversals are performed as in 
+			\citep{Wheeler1996, POY2, POY3}.  	The default option True yields better (lower) optimality 
+			scores at the cost of added execution time.
 			
 			\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 			This name must appear in quotes. 
 			
-			\item[partitioncharacter:CHAR] Sets the character that is used to partition data. %\hl{The separator can be something else}
+			\item[partitioncharacter:CHAR] Sets the character that is used to partition data. 
+			%\hl{The separator can be something else}
 			
 %			\item[rootCost:noRootCost|W15|PMDL] 
 			\item[rootCost:noRootCost|W15] 
@@ -967,8 +985,8 @@
 		
 	\begin{phygdescription}
 		{Generates graphs supports via resampling \citep{Farrisetal1996} and Goodman-Bremer 
-		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing and Bootstrapping 
-		are the resampling methods that are implemented.}
+		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing, Bootstrapping and 
+		Goodman-Bremer supports are the resampling methods that are implemented.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
@@ -976,16 +994,19 @@
 			\item[buildonly] Performs very rapid, but not extensive graph searches for each 
 			resampling replicate.
 		
-			\item[bootstrap] Calculates Bootstrap support. The user can specify the 
-			number of iterations, using \texttt{replicates:n} (see below).
-			When reported (via \texttt{report(support)}) edges are labeled with the bootstrap frequencies.
+			\item[bootstrap] Calculates Bootstrap support. The user can specify the number of 
+			iterations, using \texttt{replicates:n} (see below). When reported (via \texttt{report(support)}) 
+			edges are labeled with the bootstrap frequencies.
 		
 			\item[goodmanbremer|gb[:spr|tbr]] Specifies that Goodman-Bremer support is 
 			calculated for input graphs. The method traverses the SPR or TBR neighborhood 
 			as optionally specified (TBR as default) to determine an upper bound on the NP-hard 
-			values (this is the method used in POY v2; \citealp{POY2} \textit{et seq.}). The number 
-			of alternate graphs to be examined can be specified (\textit{ie.} limited) by \texttt{gbsample:[n]}. 
-			When \texttt{gbsample:[n]} is specified, graphs are chosen uniformly at random.
+			values (this is the method used in POY v2; \citealp{POY2} \textit{et seq.}).
+			
+			\begin{description}
+			\item[gbsample:[n]] Specifies the number of alternate graphs to be examined (i.e., limited). 
+			When \texttt{gbsample:[n]} is specified, the graphs are chosen uniformly at random.
+			\end{description}
 		
 			\item[jackknife:[n]] Specifies that Jackknife resampling is performed with $n$ acceptance 
 			probability (default 0.6231 or $1 - e^{-1}$). When reported (via \texttt{report(support)}) 
@@ -1047,9 +1068,9 @@
 			
 			\begin{description}
 			
-			\item[acceptEqual] 
+			\item[acceptEqual] \hl{include description}
 			
-			\item[acceptWorse] 
+			\item[acceptWorse] \hl{include description}
 			
 			\item[maxChanges:n] Specifies that drifting graph changes are limited to $n$ (default 15).
 			
@@ -1061,18 +1082,19 @@
 		
 			\item[keep:n] Specifies that up to $n$ equally costly graphs are retained.
 		
-			\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} is performed.
+			\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} 
+			is performed.
 			
-			\item[softwiredMethod:ResolutionCache|Exhaustive] Specifies that the algorithm for softwired graphs 
-			is set to the ``Resolution Cache'' method of \cite{WheelerandWashburn2023} or ``exhaustive'' 
-			method of diagnosing all display trees as in \cite{Wheeler2015}.
+			\item[softwiredMethod:ResolutionCache|Exhaustive] Specifies that the algorithm for 
+			softwired graphs is set to the ``Resolution Cache'' method of \cite{WheelerandWashburn2023} 
+			or ``exhaustive'' method of diagnosing all display trees as in \cite{Wheeler2015}.
 		
-			\item[spr:[n]] Specifies that SPR refinement \citep{Dayhoff1969} is performed. If the optional 
-			argument $n$ is specified, readdition of pruned graphs will be within $2 * N$ edges of its original 
-			placement.
+			\item[spr:[n]] Specifies that SPR refinement \citep{Dayhoff1969} is performed. If the 
+			optional argument $n$ is specified, readdition of pruned graphs will be within $2 * N$ 
+			edges of its original placement.
 		
-			\item[steps:n] Specifies that $n$ (default 10) temperature steps are performed during simulated 
-			annealing (as specified by the \texttt{annealing}) option.
+			\item[steps:n] Specifies that $n$ (default 10) temperature steps are performed during 
+			simulated annealing (as specified by the \texttt{annealing}) option.
 		
 			\item[steepest] Specifies that refinement follows a greedy path, abandoning the neighborhood 
 			of the current graph when a better (lower cost) graph is found.
@@ -1083,7 +1105,7 @@
 		\end{description}	
 		
 		\subsubsection{Defaults}
-			\texttt{swap(spr, keep:1, steepest)}
+			\texttt{swap(alternate, hl{keep:1, steepest})}
 		
 		\begin{example}
 			\item{\texttt{swap()}\\Performs spr branch swapping on each current graph returning the single 
@@ -1120,8 +1142,8 @@
 %			trees are equal in subtree leaf set, only the first lowest cost resolution is retained.
 %			This option can significantly reduce the time to evaluate softwired graphs, but can
 %			increase the optimality score of the graph.  Can be used in combination with
-%			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:Exhaustive)} 
-%			at a later stage to improve graph score.
+%			\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:\\
+%			Exhaustive)} at a later stage to improve graph score.
 			
 			\item[displayTrees:[n]] When this option is specified, returns $n$ display trees for each graph 
 			determined by the optional argument If the number of display trees is not 

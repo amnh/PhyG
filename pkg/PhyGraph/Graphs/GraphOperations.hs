@@ -69,6 +69,9 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , makeSimpleLeafGraph
                                , selectGraphs
                                , remakePhylogeneticGraph
+                               , isPhylogeneticDecoratedGraph
+                               , parentsInChainGraph
+                               , removeParentsInChain
                                ) where
 
 import           Bio.DynamicCharacter
@@ -91,6 +94,60 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
+
+-- | isPhylogeneticDecoratedGraph checks various issues to see if
+-- there is wierdness in graph
+isPhylogeneticDecoratedGraph :: DecoratedGraph -> Bool
+isPhylogeneticDecoratedGraph inGraph =
+    if LG.isEmpty inGraph then False
+    else
+        let nodeList = fmap fst $ LG.labNodes inGraph
+            indegreeList = fmap (LG.inn inGraph) nodeList
+            outdegreeList = fmap (LG.out inGraph) nodeList
+        in
+        if LG.hasDuplicateEdgesNub inGraph then False
+        else if length (LG.getRoots inGraph) /= 1 then False
+        else if LG.outdeg inGraph (head $ LG.getRoots inGraph) /= 2 then False
+        else if (not . null) (LG.getIsolatedNodes inGraph) then False
+        else if (not . null) (filter ((> 2) . length) indegreeList) then False
+        else if (not . null) (filter ((> 2) . length) outdegreeList) then False
+        else if parentsInChainGraph inGraph then False
+        else if not (LG.isGraphTimeConsistent inGraph) then False
+        else True
+
+-- | parentsInChainGraph checks all network vertices in graph to see if 
+-- parents in any network vertex is ancestor of other
+parentsInChainGraph :: DecoratedGraph -> Bool
+parentsInChainGraph inGraph =
+  if LG.isEmpty inGraph then False
+  else
+    let (_, _, _, netVertexList) = LG.splitVertexList inGraph
+        parentChainList = fmap (parentsInChainVertex inGraph) $ fmap fst netVertexList
+    in
+    --if ((not . null) $ filter (== True) parentChainList) then traceNoLF ("NPDG+ ") $ ((not . null) $ filter (== True) parentChainList)
+    --else  traceNoLF ("NPDG- ") $ (not . null) $ filter (== True) parentChainList
+    (not . null) $ filter (== True) parentChainList
+
+-- | parentsInChainVertex checks for a network vertex if
+-- one parent is ancestor of other
+-- retuens false if not net vertex
+parentsInChainVertex :: DecoratedGraph -> LG.Node -> Bool
+parentsInChainVertex inGraph inNode =
+  if LG.isEmpty inGraph then False
+  else
+    let parentNodes = LG.labParents inGraph inNode
+        firstParent = head parentNodes
+        secondParent = last parentNodes
+        firstBV = bvLabel $ snd firstParent
+        secondBV = bvLabel $ snd secondParent
+        oneAncOther = (firstBV .&. secondBV) `elem` [firstBV, secondBV]
+    in
+    if length parentNodes < 2 then False
+    else if oneAncOther then True
+    else 
+      --traceNoLF ("PCV:" ++ (show (firstBV, secondBV, firstBV .&. secondBV))) 
+        False
+
 
 -- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
 -- if an element is multiple times in firt list each will be removed
@@ -117,8 +174,8 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
         writeNodeLabel
           | allTrees = writeNodeLabel'
           | writeNodeLabel' = writeNodeLabel'
-          | otherwise = trace "HTU labels are required for ENewick Output"
-                            True
+          | otherwise = -- trace "HTU labels are required for ENewick Output"
+                        True
 
         graphString = GFU.fglList2ForestEnhancedNewickString (fmap (LG.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString
@@ -136,8 +193,8 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
 --        arbitrary but deterministic
 --  4) contracts out any remaning indegree 1 outdegree 1 nodes and renames HTUs in order
 -- these tests can be screwed up by imporperly formated graphs comming in (self edges, chained network edge etc)
-convertGeneralGraphToPhylogeneticGraph :: String -> SimpleGraph -> SimpleGraph
-convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
+convertGeneralGraphToPhylogeneticGraph :: Bool -> SimpleGraph -> SimpleGraph
+convertGeneralGraphToPhylogeneticGraph correct inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let -- remove single "tail" edge from root with single child, replace child node with root
@@ -153,24 +210,25 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
         -- only wanted to EUN and CUN--but they do it
         -- reducedGraph = LG.transitiveReduceGraph noIn1Out1Graph
 
+        -- caused problems at one point
         -- laderization of indegree and outdegree edges
         ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
 
         -- time consistency (after those removed by transitrive reduction)
-        timeConsistentGraph = makeGraphTimeConsistent failCorrect ladderGraph
+        timeConsistentGraph = makeGraphTimeConsistent correct ladderGraph
 
         -- removes parent child network edges
-        -- noChainedGraph = LG.removeChainedNetworkNodes False timeConsistentGraph
+        noChainedGraph = LG.removeChainedNetworkNodes False timeConsistentGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
         -- but that looks at all nodes not just vertex
-        noParentChainGraph = removeParentsInChain failCorrect timeConsistentGraph -- $ fromJust noChainedGraph
+        noParentChainGraph = removeParentsInChain correct  $ fromJust noChainedGraph -- timeConsistentGraph --
 
-        -- deals tih nodes with all network children
+        -- deals the nodes with all network children
         noTreeEdgeGraph = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren noParentChainGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeSisterSisterEdges failCorrect noTreeEdgeGraph
+        noSisterSisterGraph = removeSisterSisterEdges correct noTreeEdgeGraph
 
         -- remove and new zero nodes
         finalGraph = LG.removeNonLeafOut0NodesAfterRoot noSisterSisterGraph
@@ -178,7 +236,7 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
     in
     if LG.isEmpty timeConsistentGraph then LG.empty
 
-    -- else if isNothing noChainedGraph then LG.empty
+    else if isNothing noChainedGraph then LG.empty
 
     else if LG.isEmpty noParentChainGraph then LG.empty
 
@@ -191,11 +249,11 @@ convertGeneralGraphToPhylogeneticGraph failCorrect inGraph =
     -- this final need to ladderize or recontract?
     else
       if finalGraph == inGraph then finalGraph
-      else convertGeneralGraphToPhylogeneticGraph failCorrect finalGraph
+      else convertGeneralGraphToPhylogeneticGraph correct finalGraph
 
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
-removeParentsInChain :: String -> SimpleGraph -> SimpleGraph
-removeParentsInChain failCorrect inGraph =
+removeParentsInChain :: Bool -> SimpleGraph -> SimpleGraph
+removeParentsInChain correct inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
       let (_, _, _, netVertexList) = LG.splitVertexList inGraph
@@ -208,7 +266,7 @@ removeParentsInChain failCorrect inGraph =
           -- get pairs that violate concurrency
           violatingConcurrentPairs = concatMap (LG.concurrentViolatePair inGraph) concurrentPairList
 
-          -- get netowrk nodes with violations
+          -- get network nodes with violations
           parentNodeViolateList = concatMap pairToList violatingConcurrentPairs
           childNodeViolateList = concatMap (LG.descendants inGraph) parentNodeViolateList
           netNodeViolateList = filter (LG.isNetworkNode inGraph) childNodeViolateList
@@ -219,19 +277,19 @@ removeParentsInChain failCorrect inGraph =
       if null violatingConcurrentPairs then inGraph
       else if null netNodeViolateList then error "Should be neNode that violate"
       else if null netEdgesThatViolate then error "Should be violating in edges"
-      else if failCorrect == "fail" then LG.empty
+      else if not correct then LG.empty
       else
         let edgeDeletedGraph = LG.delEdge (head netEdgesThatViolate) inGraph
             newGraph = contractIn1Out1EdgesRename edgeDeletedGraph
         in
         -- trace ("PIC")
-        removeParentsInChain failCorrect newGraph
+        removeParentsInChain correct newGraph
     where pairToList (a,b) = [fst a, fst b]
 
 -- | removeSisterSisterEdges takes a graph and recursively removes a single edge fomr where two network
 -- edges have the same two parents
-removeSisterSisterEdges :: String -> SimpleGraph -> SimpleGraph
-removeSisterSisterEdges failCorrect inGraph =
+removeSisterSisterEdges :: Bool -> SimpleGraph -> SimpleGraph
+removeSisterSisterEdges correct inGraph =
   if LG.isEmpty inGraph then LG.empty
   else
     let sisterSisterEdges = LG.getSisterSisterEdgeList inGraph
@@ -240,7 +298,7 @@ removeSisterSisterEdges failCorrect inGraph =
         newGraph' = contractIn1Out1EdgesRename newGraph
     in
     if null sisterSisterEdges then inGraph
-    else if failCorrect == "fail" then LG.empty
+    else if not correct then LG.empty
     else
       -- trace ("Sister")
       -- removeSisterSisterEdges
@@ -252,18 +310,19 @@ removeSisterSisterEdges failCorrect inGraph =
 -- looks for violation of time between netork edges based on "before" and "after"
 -- tests of nodes that should be potentially same age
 -- removes second edge of second pair of two network edges in each case adn remakes graph
-makeGraphTimeConsistent :: String -> SimpleGraph -> SimpleGraph
-makeGraphTimeConsistent failOut inGraph
+-- strict paralle since will need each recursive run
+makeGraphTimeConsistent :: Bool -> SimpleGraph -> SimpleGraph
+makeGraphTimeConsistent correct inGraph
   | LG.isEmpty inGraph = LG.empty
   | LG.isTree inGraph = inGraph
   | otherwise = let coevalNodeConstraintList = LG.coevalNodePairs inGraph
-                    coevalNodeConstraintList' = PU.seqParMap PU.myStrategy  (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
+                    coevalNodeConstraintList' = PU.seqParMap PU.myStrategyRDS (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
                     coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
                     timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
                     newGraph = LG.delEdges timeOffendingEdgeList inGraph
                 in
                 -- trace ("MGTC:" ++ (show timeOffendingEdgeList))
-                if (failOut == "fail") && (not . null) timeOffendingEdgeList then LG.empty
+                if (not correct) && (not . null) timeOffendingEdgeList then LG.empty
                 else contractIn1Out1EdgesRename newGraph
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
@@ -464,14 +523,21 @@ convertDecoratedToSimpleGraph inDec =
     let decNodeList = LG.labNodes inDec
         newNodeLabels = fmap (vertName . snd) decNodeList
         simpleNodes = zip (fmap fst decNodeList) newNodeLabels
-        simpleEdgeList = (convertToSimpleEdge <$> LG.labEdges inDec)
+        labEdgeList = LG.labEdges inDec
+        edgeWeightList = filter (> 0.0) $ fmap (maxLength . thd3) labEdgeList
+        defaultWeight = if null edgeWeightList then Just 1.0
+                        else Nothing
+        simpleEdgeList = fmap (convertToSimpleEdge defaultWeight) labEdgeList
     in
     LG.mkGraph simpleNodes simpleEdgeList
 
 
 -- | convertToSimpleEdge takes a lables edge and relabels with 0.0
-convertToSimpleEdge :: LG.LEdge EdgeInfo -> LG.LEdge Double
-convertToSimpleEdge (a, b, c) = (a, b, midRangeLength c)
+convertToSimpleEdge :: Maybe VertexCost -> LG.LEdge EdgeInfo -> LG.LEdge Double
+convertToSimpleEdge defaultWeight (a, b, c) = 
+  if isNothing defaultWeight then 
+      (a, b, midRangeLength c)
+  else (a, b, fromJust defaultWeight)
 
 -- | graphCostFromNodes takes a Decorated graph and returns its cost by summing up the local costs
 --  of its nodes
@@ -687,6 +753,7 @@ getNodeType inGraph inNode
   | LG.isTreeNode inGraph inNode = TreeNode
   | LG.isNetworkNode inGraph inNode = NetworkNode
   | LG.isRoot inGraph inNode = RootNode
+  | LG.isIn1Out1 inGraph inNode = In1Out1
   | otherwise = error ("Node type " ++ show inNode ++ " not Leaf, Tree, Network, or Root in graph\n" ++ GFU.showGraph inGraph)
 
 -- | copyIAFinalToPrelim takes a Decorated graph and copies

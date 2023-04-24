@@ -79,7 +79,7 @@ rasWagnerBuild inGS inData rSeed numReplicates =
       -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
-      PU.seqParMap PU.myStrategyHighLevel  (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
+      PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
       -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
 
 
@@ -146,7 +146,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
           -}
 
-          candidateEditList = PU.seqParMap PU.myStrategy  (addTaxonWagner numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
+          candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
           minDelta = minimum $ fmap fst4 candidateEditList
           (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
 

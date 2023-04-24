@@ -108,7 +108,7 @@ makeAdamsII leafNodeList inFGList
         inGraphNonLeafNodes = fmap (drop $ length leafNodeList) inGraphNodes
         newNodeListList = fmap (leafNodeList ++ ) inGraphNonLeafNodes
         inFGList' = mkGraphPair <$> zip  newNodeListList inGraphEdges
-        allTreesList = PU.seqParMap PU.myStrategy   isTree inFGList' -- `using` PU.myParListChunkRDS
+        allTreesList = PU.seqParMap PU.myStrategyRDS isTree inFGList' -- `using` PU.myParListChunkRDS
         allTrees = L.foldl1' (&&) allTreesList
     in
     if not allTrees then errorWithoutStackTrace ("Input graphs are not all trees in makeAdamsII: " ++ show allTreesList)

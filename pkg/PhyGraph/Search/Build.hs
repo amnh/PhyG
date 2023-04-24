@@ -45,7 +45,6 @@ module Search.Build  ( buildGraph
 import qualified Commands.Verify                as VER
 import           Data.Char
 import qualified Data.List                      as L
-import           Data.Maybe
 import qualified Data.Text.Lazy                 as TL
 import qualified Data.Vector                    as V
 import           Debug.Trace
@@ -64,6 +63,7 @@ import qualified Utilities.DistanceUtilities    as DU
 import qualified Utilities.Distances            as DD
 import qualified Utilities.LocalGraph           as LG
 import qualified Utilities.Utilities            as U
+import           Data.Maybe
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
@@ -130,7 +130,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                             trace ("Block building initial graph(s)") (
                             let simpleTreeOnly = True
                                 processedDataList = U.getProcessDataByBlock True inData
-                                distanceMatrixList = if buildDistance then PU.seqParMap PU.myStrategy DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
+                                distanceMatrixList = if buildDistance then PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList -- `using` PU.myParListChunkRDS
                                                      else replicate (length processedDataList) []
 
                                 blockTrees = concat (PU.seqParMap PU.myStrategyHighLevel (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList)) --  `using` PU.myParListChunkRDS)
@@ -201,10 +201,13 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           contractedGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildren
           reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" contractedGraph -}
 
-          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
+          -- chained was separate in past, now in convertGeneralGraphToPhylogeneticGraph
+          reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph True reconciledGraphInitial
+
 
           -- this for non-convertable graphs
-          reconciledGraph' = if reconciledGraph /= LG.empty then reconciledGraph
+          reconciledGraph' = if LG.isEmpty reconciledGraph then reconciledGraphInitial
+                             else if reconciledGraph /= LG.empty then reconciledGraph
                              else reconciledGraphInitial
 
 
@@ -213,22 +216,22 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                            else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
 
           -- need this to fix up some graphs after other stuff chnaged
-          displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph "correct") displayGraphs'
+          displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
 
           -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
 
           numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
       in
-      if reconciledGraph == LG.empty && not returnTrees then
+      if LG.isEmpty reconciledGraph && not returnTrees then
         errorWithoutStackTrace "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
       -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
-      else if returnGraph && not returnTrees then
+      else if (not $ LG.isEmpty reconciledGraph) && not returnTrees then
         trace ("Reconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees for softwired network")
         [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
-         if reconciledGraph /= LG.empty then
+         if (not $ LG.isEmpty reconciledGraph) then
             trace ("\n\tReconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees")
                 -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
             reconciledGraph : displayGraphs
@@ -354,7 +357,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
    let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0..(length leafNames - 1)]
        randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" randomizedAdditionSequences
        randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
-       randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategy (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
+       randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategyHighLevel (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
        charInfoVV = V.map thd3 $ thd3 inData
    in
