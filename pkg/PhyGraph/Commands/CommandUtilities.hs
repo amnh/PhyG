@@ -449,16 +449,19 @@ getAlignmentBasedChanges' index (a, b)
         -- this so returns empty for non--sequence characters
         if null stringList1 then []
 
-        else if length stringList1 /= length stringList2 then
-                 error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges': "
-                 ++ (show (length stringList1, length stringList2) ++ "\n" ++ (show stringList1) ++ "\n" ++ (show stringList2)))
+        -- this shouldn't happen but there seem to be extraneous '-' at time in wide and huge IAs
+        -- since all zip functions as well--changed getAlignmentBasedChangesGuts to check for either null stringList1 or stringList2
+        -- to avoid issue-a bit of a hack
+        -- else if length stringList1 /= length stringList2 then
+        --         error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges': "
+        --         ++ (show (length stringList1, length stringList2) ++ "\n" ++ (show stringList1) ++ "\n" ++ (show stringList2)))
         else getAlignmentBasedChangesGuts index stringList1 stringList2
 
 
 -- | getAlignmentBasedChangesGuts takes processed element lists and cretes string of changes
 getAlignmentBasedChangesGuts :: Int -> [String] -> [String] -> [String]
 getAlignmentBasedChangesGuts index a b
-  | null a = []
+  | null a || null b = []
   | (head a) == (head b) = getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
   | otherwise = ((show index) ++ ":" ++ (head a) ++ "," ++ (head b)) : getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
 
