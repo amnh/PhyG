@@ -882,7 +882,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 let dataString' = fmap showSearchFields $ reverse $ searchData globalSettings
                     -- reformat the "search" command fields a bit
                     dataString = processSearchFields dataString'
-                    sysInfoData = "System Info, OS: " ++ SI.os ++ ", Chip Arch: " ++ SI.arch ++ ", Compiler: " ++ SI.compilerName ++ " " ++ DV.showVersion SI.compilerVersion ++ ", Compile Date: " ++ "Mar 17 2023"
+                    sysInfoData = "System Info, OS: " ++ SI.os ++ ", Chip Arch: " ++ SI.arch ++ ", Compiler: " ++ SI.compilerName ++ " " ++ DV.showVersion SI.compilerVersion ++ ", Compile Date: " ++ (__DATE__ ++ " " ++ __TIME__)
                     cpuInfoString = if SI.os /= "linux" then "CPU Info, No /proc/cpuinfo on darwin"
                                     else
                                         let cpuInfoM = SIOU.unsafePerformIO SC.tryGetCPUs
