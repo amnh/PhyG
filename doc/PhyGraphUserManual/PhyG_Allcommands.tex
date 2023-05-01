@@ -3,8 +3,8 @@
 %---------------------------------------------
 \subsection{Build}
 	\subsubsection{Syntax}
-		\texttt{build(arg0, arg1:option, ...)}\\
-		%\texttt{build([argument list])} \hl{is this a simpler way to write it?}
+		%\texttt{build([arg0, arg1:option, ...)}\\
+		\texttt{build([argument list])}
 	
 	\begin{phygdescription}
 		{Builds initial graphs. The arguments of \texttt{build} specify the number of graphs 
@@ -34,19 +34,15 @@
 				
 		\begin{description}
 			\item[atRandom] When the option \texttt{block} is specified, this variable returns $n$ 
-			display trees as specified by \texttt{displayTrees[:n]}, where trees are produced by 
+			display trees as specified by the integer in \texttt{displayTrees[:INTEGER]}, where trees are produced by 
 			resolving network nodes uniformly at random. Compare with the \texttt{first} option, 
 			which takes the ``first'' $n$ display trees resolved in arbitrary, but consistent, order.
-
-			\item[block] Performs independent builds for each ``block'' of data.  These builds are combined
-			into a single graph via \texttt{EUN} or \texttt{CUN} and returned as a graph (\texttt{graph}) and/or
-			resolved display trees (\texttt{displaytrees})
 			
 			\item[cun] Reconciles \textbf {block} trees into a Cluster-Union-Network \citep{Baroni2005} 
 			before resolution into display trees via the \texttt{displayTrees} or \texttt{atRandom} 
 			options.
 	
-			\item[displayTrees[:n]] When the option \texttt{block} is specified, this variable 
+			\item[displayTrees[:INTEGER]] When the option \texttt{block} is specified, this variable 
 			returns $n$ display trees specified by this optional argument. If the number of 
 			display trees is not specified, up to $2^{63}$ may be returned.
 

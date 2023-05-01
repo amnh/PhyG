@@ -276,49 +276,33 @@
 	\subsection{fasta}
 		Single character sequence input \citep{PearsonandLipman1988}.
 		
+		add image of fasta
+		
 	\subsection{fastc}
 		Fastc is a file format for multi-character sequence input \citep{WheelerandWashburn2019}.
 		This format is derived from the fasta format and the custom alphabet format of 
 		 \href{https://github.com/wardwheeler/POY5}{\textbf{POY}} \citep{POY4,POY5}. 
 		 Multi-character sequence elements are useful for the analysis of data types such 
 		 as developmental, gene synteny and comparative linguistic data.
+		 
+		 add image of part of fasta
 		
 	\subsection{\texttt{TNT}}
 		The TNT \citep{Goloboffetal2008} format is accepted here for specification of 
 		qualitative, measurement, and prealigned molecular sequence data. \phyg can 
 		parse all of the basic character settings including activation/deactivation of 
 		characters, making characters additive/nonadditive, applying weight to characters, 
-		and step-matrix costs (see \href{http://phylo.wikidot.com/tnt-htm}{\textbf{TNT}}).
-		Ambiguities are not allowed. The characters `-' and `?' can be used to indicate
-		that characters or character states are missing or inapplicable.
-		
-		\phyg can also parse interleaved data files, continuous characters, and step matrices.
-		Continuous characters can only be in the format of integers or floats. Moreover, 
+		step-matrix costs, interleaved data files and continuous characters. Continuous 
+		characters can only be in the format of integers or floats. Moreover, 
 		they must be declared as ``additive'', otherwise, they will be treated as non-additive 
-		character states.
-		
-		\noindent \hl{[Notes to be fleshed out...]}\\
-		Do not support everything, interleave yes, cc code and costs yes, but one set of commands per line.
-		Costs A$>$B A$/$B syntax no spaces. Ambiguities not allowed.  Must specify all transformations manually.
-		')' sets to non-additive, if want additive then need to reset to additive after\\
-		character state designations single characters\\
-		continuous and other multicharacter states--can be read, ambiguities or ranges (unlike \texttt{TNT} for continuous) are 
-		in squarebraskets with period as in [X.Y]\\
-		%- ans ? are always missing/inapplicable.  
-		If DNA are not coded ACGT- => 01234 but left as letters,
-		then to include gaps as a 5th state, just include another character, such the letter 'O' that is not an IUPAC 
-		ambiguity code for DNA (or amino acids for that matter) as an additional state.  This can be used for 
-		matrix/Sankoff matrices as well.
-		Amino acid sequences would be processed in the same way.  Including gaps as information requires
-		an extra state (such as letter 'O').\\ 
-		multi-character state designations (letters, numbers, etc) must be in their own ``block'' with spaces 
-		between them.\\
-		%Continuous characters must be numbers only (float fine) and declared as ``additive'' by cccode 
-		%command, otherwise the number will be treated as non-additive character states. \\
-		nonAdd polymorphisms  are [X.Y]--unless  additive '-' for range\\
-		can't have '.' in multichar state (or single for that matter)\\
-		The inherent ordering of DNA and amino acid codes is alphabetical (e.g. A, C, G, T and `-').
-%	
+		character states (see \href{http://phylo.wikidot.com/tnt-htm}{\textbf{TNT}}).
+		The characters `-' and `?' can be used to indicate that characters or character 
+		states are missing or inapplicable. Only one set of ccode commands is allowed 
+		per line (e.g. to make everything additive: ccode +.;). Default values of step-matrix 
+		weights are not implemented, all step-matrix values must be individually specified. 
+		Ambiguities or ranges are denoted in square brackets (\texttt{[ ]}) with a period (e.g. [X.Y]). 
+		Continuous characters are denoted in square brackets with a dash or hyphen, as in [X-Y]).
+			
 \section{Input Graph Formats}
 	Graphs can be input in the graphviz \href{https://graphviz.org/}{``dot''} format Newick (as 		
 	interpreted by Gary Olsen, linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
@@ -382,7 +366,7 @@
 		arguments, and lists of arguments. Primitive values can be either an integer (e.g. 3), 
 		a real number or float (e.g. 2.0), a string (e.g. ``Chel.fas'') or a boolean (True|False).
 		Labeled arguments consist of identifiers (the label) and an argument, separated by
-		the colon \texttt{(``:'')} character, with no space before the identifier. Examples of 
+		the colon \texttt{(``:'')} character. Examples of 
 		identifiers include \texttt{majority}, \texttt{nopenalty}, \texttt{hardwired}, and 
 		\texttt{parsimony}. List of arguments are several arguments enclosed in parenthesis 
 		and separated by commas \texttt{(``,'')}. Most arguments are optional, with only a 
@@ -390,11 +374,8 @@
 		\ref{subsec:reblock}, \hl{xxx}). \hl{Some argument labels are obligatory, most are 
 		optional.} When no arguments are specified, \phyg will use the defaults.
 		
-		\hl{If something is optional should it be in [ ] below?}
-		
 		The following examples illustrate the structure of valid \phyg commands. 
-		
-				
+					
 		\begin{quote}
 		build()
 		\end{quote}
@@ -402,7 +383,6 @@
 		\noindent In this simple example, the command \texttt{build} is followed by an open 
 		and closed parenthesis. As no arguments are specified, this is equivalent to  
 		\texttt{build(character, replicates:10)}, the default arguments of this command.
-		
 		
 		\begin{quote}
 		swap(alternate, acceptequal:2.0)
@@ -412,14 +392,24 @@
 		of arguments that includes \texttt{alternate} and \texttt{acceptequal}, enclosed in 
 		parentheses and separated by a comma. The latter is a labeled-value argument, 
 		ascribed the float \texttt{2.0}.
+		
+		\begin{quote}
+		set(graphfactor:nopenalty) 
+		\end{quote}
+		
+		In this third and final example, the command \texttt{set} is followed by the labeled-
+		value argument \texttt{graphfactor} with the labeled-value \texttt{nopenalty}.
 				
 	\subsection{Command order and processing}
 		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are 
 		executed at the beginning of program execution, irrespective of where they appear 
 		in the command script. All other commands are executed in the order they are specified. 
-		\hl{Command arguments are order independent and can be entered from a file as 
-		stdin (\texttt{$<$ fileName})}.
-
+		
+	\subsection{Notation}
+		Commands are listed alphabetically in the next section. Commands are shown in 
+		\texttt{terminal} typeface. Optional items are enclosed in square brackets \textbf{([ ])}.
+		Primitive values are shown in \texttt{UPPERCASE}. 
+	
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %COMMAND REFERENCE
