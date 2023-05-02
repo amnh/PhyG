@@ -67,7 +67,7 @@ import qualified Utilities.Utilities      as U
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
 treeBanditList :: [String]
 treeBanditList = [
-                 "buildCharacter", "buildDistance", "buildSPR", "buildAlternate",
+                 "buildCharacter", "buildDistance", -- "buildSPR", "buildAlternate",
                  "swapSPR", "swapAlternate",
                  "fuse", "fuseSPR", "fuseTBR",
                  "driftSPR", "driftAlternate", "annealSPR", "annealAlternate",
