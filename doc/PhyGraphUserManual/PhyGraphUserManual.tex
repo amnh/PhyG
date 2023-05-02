@@ -34,7 +34,7 @@
 \newenvironment{example}{\subsubsection{Examples} \begin{itemize}}{\end{itemize}}
 \newenvironment{argument}{\subsection{Arguments}\begin{itemize}}{\end{itemize}}
 %\item [ ]
-
+    
 % We define a command environment for new command definitions, and store
 % whatever command we are dealing with in the @commandname macro. Inside a
 % command we can specify the defaults, the syntax, and the arguments to be used.
@@ -201,22 +201,26 @@
 	and search parameters.
 		
 	\subsection{Executing Scripts}
-		The program is invoked from the command-line as in:\\
+		The program is invoked from the command-line as in:
 		
 		\begin{quote}
 		phyg commandFile
 		\end{quote}
-
+		
+		\bigskip
+		
 		\noindent For example, typing the following in a \textit{Terminal} window will invoke 
 		\phyg to run the script \texttt{mol.pg}, which is located in the Desktop folder 
-		\texttt{phygfiles}:\\
+		\texttt{phygfiles}:
 		
 		\begin{quote}
   		phyg Users/Ward/Desktop/phygfiles/mol.pg
 		\end{quote}
-
+		
+		\bigskip
+		
 		\noindent 
-		This is the equivalent of typing the following from any location on your computer:\\
+		This is the equivalent of typing the following from any location on your computer:
 		
 		\begin{quote}
    		cd ("Users/Ward/Desktop/phygfiles")
@@ -272,20 +276,35 @@
 	by appending the character number in its file to the filename as in "fileName:0".
 	Qualitative data, and prealigned data include their index in their input files and unaligned 
 	data are treated as a single character.
+	
+	\phyg allows the user to comment out portions of a taxon name 
+	in the imported data file. This is achieved by inserting a dollar sign (``\$'') before the region 
+	of text that the user wishes to comment out. As an example, placing a ``\$'' before the 
+	GenBank information in the taxon name \texttt{Lingula\_anatina\$\_AB178773\_16S} 
+	will comment out this information and the taxon name will be read as 
+	\texttt{Lingula\_anatina} by the program.
 		
 	\subsection{fasta}
-		Single character sequence input \citep{PearsonandLipman1988}.
-		
-		add image of fasta
+		Single character sequence input \citep{PearsonandLipman1988} (see Figure \ref{fasta-c}).
 		
 	\subsection{fastc}
 		Fastc is a file format for multi-character sequence input \citep{WheelerandWashburn2019}.
 		This format is derived from the fasta format and the custom alphabet format of 
 		 \href{https://github.com/wardwheeler/POY5}{\textbf{POY}} \citep{POY4,POY5}. 
 		 Multi-character sequence elements are useful for the analysis of data types such 
-		 as developmental, gene synteny and comparative linguistic data.
+		 as developmental, gene synteny and comparative linguistic data (see Figure \ref{fasta-c}).
 		 
-		 add image of part of fasta
+		\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.45\textwidth]{fasta.png}
+		\includegraphics[width=0.45\textwidth]{fastc.png}
+		\caption{Fasta and Fastc file formats. The file \textbf{``chel\_cox1aln1.fasta''} 
+		represents a fasta file with a carat sign ('>') preceding taxon names and nucleotide  
+		sequence data following on a new line. The file \textbf{``woman.fastc''} is a fastc 
+		file, with a carat sign ('>') preceding taxon names and the linguistic data following 
+		on a new line.}
+		\label{fasta-c}
+		\end{figure}
 		
 	\subsection{\texttt{TNT}}
 		The TNT \citep{Goloboffetal2008} format is accepted here for specification of 
@@ -300,32 +319,52 @@
 		states are missing or inapplicable. Only one set of ccode commands is allowed 
 		per line (e.g. to make everything additive: ccode +.;). Default values of step-matrix 
 		weights are not implemented, all step-matrix values must be individually specified. 
-		Ambiguities or ranges are denoted in square brackets (\texttt{[ ]}) with a period (e.g. [X.Y]). 
-		Continuous characters are denoted in square brackets with a dash or hyphen, as in [X-Y]).
-			
+		Ambiguities or ranges are denoted in square brackets (\texttt{`[ ]'}) with a period, 
+		as in [X.Y]. Continuous characters are denoted in square brackets with a dash or 
+		hyphen, as in [X-Y].
+
 \section{Input Graph Formats}
-	Graphs can be input in the graphviz \href{https://graphviz.org/}{``dot''} format Newick (as 		
-	interpreted by Gary Olsen, linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
-	{here}), Enhanced Newick \cite{Cardonaetal2008}, and Forest Enhanced Newick (defined by 
-	\citealp{Wheeler2022}) formats.
-	Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for 
-	forests of components, each of which is represented by an ENewick string. The ENewick 
-	components are surrounded by `$<$' and '$>$'. As in $<$(A, (B,C)); (D,(E,F));$>$. 
-	Groups may be shared among ENewick components.
+	Graphs can be input in a number of formats, including newick, enhanced newick and 
+	dot. Newick tree file format is the parenthetical representation of trees as interpreted 
+	by Olsen (linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
+	{here}). Enhanced Newick \cite{Cardonaetal2008} is an extension of Newick file 
+	format, with the addition of tags (`\#') that indicate hybrid zones or reticulation events
+	in the phylogenetic network. \href{https://graphviz.org/}{Dot} is a graph description 
+	language and well suited to represent graphs and networks. 	
+	%and Forest Enhanced Newick (as defined by Wheeler, 2022 \cite{Wheeler2022}). 
+	%Forest Enhanced Newick (FEN) is a format based on Enhanced Newick (ENewick) for 
+	%forests of components, each of which is represented by an ENewick string. The ENewick 
+	%components are surrounded by `$<$' and '$>$'. As in $<$(A, (B,C)); (D,(E,F));$>$. 
+	%Groups may be shared among ENewick components.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{enewick.png}
+	\caption{The file \textbf{``flu\_net1.tre''} in Enhanced Newick (ENewick) graph format. The 
+	values associated with the taxon names and HTUs are branch lengths. The cost of the 
+	graph(s) can be found in square brackets at the end of each graph. A semi-colon follows
+	the cost of each graph.}
+	\label{enewick}
+	\end{figure}
 	
 \section{Output Graph Formats}
-	Graph outputs can be in either Graphviz `dot' or FEN formats. Dot files can be visualized 
-	in a variety of ways using Graphviz (e.g. dot, neanto, twopi) into pdf, jpg and a large variety 
-	of other formats. FEN outputs of single trees (ie forest with a single component) are rendered 
-	as enewick. Newick files can be visualized in a 	large number of programs 
-	(e.g. \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree}; 
-	\href{http:/https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}
-	{Dendroscope}). 	
-	When FEN/Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, 
+	Graph outputs can be in either newick, enewick, dot, and depending on the 
+	operating system, eps or pdf formats. Newick tree files can be viewed in other 
+	programs like \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree} or 	
+	\href{http:/https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}{Dendroscope}. 
+	Enewick files can only be viewed in a text editor. \phyg can output a dot file, 
+	along with an eps (on OSX) or pdf (on linux) file that can be viewed in a vector 
+	graphics program. The dot file can be viewed (and modified) in \textit{Graphviz}. 
+	Note: in order to output pdf files the application \textit{dot} must be installed from 
+	the \href{https://graphviz.org/download/}{Graphviz} website. Graphviz an open-source
+	graph visualization software. 	
+	
+	\hl{When Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, 
 	creating a new node as parent to that leaf 	and redirecting the leaf's in-edges to that new 
 	node with a single edge connecting the new node to the leaf. PDFs of dot files can be 
-	generated directly (option \texttt{report}) or manually.  Example dot command line: 
-	
+	generated directly (option \texttt{report}) or manually.  Example dot command line: }
+\\
+\hl{is this necessary anymore?}
 	\begin{verbatim}
 	dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
 	\end{verbatim}
