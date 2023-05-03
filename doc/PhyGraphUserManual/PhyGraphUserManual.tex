@@ -359,12 +359,9 @@
 	the \href{https://graphviz.org/download/}{Graphviz} website. Graphviz an open-source
 	graph visualization software. 	
 	
-	\hl{When Enewick files are output, leaf vertices are modified if they have indegree $>$ 1, 
-	creating a new node as parent to that leaf 	and redirecting the leaf's in-edges to that new 
-	node with a single edge connecting the new node to the leaf. PDFs of dot files can be 
-	generated directly (option \texttt{report}) or manually.  Example dot command line: }
-\\
-\hl{is this necessary anymore?}
+	PDFs of dot files can be generated directly (option \texttt{report}) or manually.  Example 
+	dot command line: }
+
 	\begin{verbatim}
 	dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
 	\end{verbatim}
@@ -376,7 +373,7 @@
 	dot -Tpdf -O myDotFile.dot
 	\end{verbatim}
 		
-	For some reason on OSX the `pdf' option does not seem to work. You can use `-Tps2' and 
+	On OSX the `pdf' option does not currently seem to work. You can use `-Tps2' and 
 	that will generate 
 	a postscript file ($>$ filename.ps) that Preview can read and convert to pdf.
 	%what's -Tps2?	
