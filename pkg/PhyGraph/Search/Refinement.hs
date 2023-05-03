@@ -252,7 +252,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                joinType
                  | any ((=="joinall").fst) lcArgList = JoinAll
                  | any ((=="joinpruned").fst) lcArgList = JoinPruned
-                 | otherwise = JoinAlternate
+                 | otherwise = JoinAll
 
                -- set implied alignment swapping
                doIA' = any ((=="ia").fst) lcArgList
