@@ -20,7 +20,6 @@
 \usepackage{amssymb}
 \usepackage[T1]{fontenc}
 \usepackage{url}
- 
 \usepackage[dvipsnames]{xcolor}
 \usepackage{color, soul}
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
@@ -30,29 +29,11 @@
 \setlength\itemindent{1cm}
 
 \newcommand{\phyg}{\texttt{PhyG} }
+\newcommand{\atsymbol}{@}
 \newenvironment{phygdescription}{\subsubsection{Description}}{}
 \newenvironment{example}{\subsubsection{Examples} \begin{itemize}}{\end{itemize}}
 \newenvironment{argument}{\subsection{Arguments}\begin{itemize}}{\end{itemize}}
 %\item [ ]
-    
-% We define a command environment for new command definitions, and store
-% whatever command we are dealing with in the @commandname macro. Inside a
-% command we can specify the defaults, the syntax, and the arguments to be used.
-  \newenvironment{command}[2]{
-	\def\tmpa{}
-	\def\tmpb{#2}
-	\def\@commandname{#1}
-	\subsection{#1}\index{general}{#1}
-	\ifx\tmpa\tmpb 
-	\label{comm:#1} 
-	\else 
-	\label{comm:#2} 
-	\fi}
-{}
-
-% Syntax definition. We use the name of the command as stored in @commandname
-\newcommand{\syntax}{\subsubsection{Syntax} \@commandname} 
-\newcommand{\atsymbol}{@}
 
 \begin{document}
 	%\firstpage{1}
@@ -115,8 +96,8 @@
 	\phyg can generate outputs in the form of implied alignments and graphical representations of 
 	cladograms and graphs. What sets \phyg apart from {\textbf{POY}, and other phylogenetic 
 	analysis programs, is the extension to broader classes of input data and phylogenetic graphs. 
-	The phylogenetic graph inputs and outputs of \texttt{PhyG} include trees, as well as other forms 
-	including forests and both softwired and hardwired networks.
+	The phylogenetic graph inputs and outputs of \texttt{PhyG} include trees, as well as softwired 
+	and hardwired networks.
 		
 	This is the initial version of documentation for the program.
 
@@ -262,6 +243,8 @@
 		phyg fileName +RTS -N1 
 		\end{quote}
 		
+		\smallskip
+		
 		\noindent This is equivalent to executing the program sequentially.		
 		%possible to include and other options
 
@@ -282,7 +265,12 @@
 	of text that the user wishes to comment out. As an example, placing a ``\$'' before the 
 	GenBank information in the taxon name \texttt{Lingula\_anatina\$\_AB178773\_16S} 
 	will comment out this information and the taxon name will be read as 
-	\texttt{Lingula\_anatina} by the program.
+	\texttt{Lingula\_anatina} by the program. This can be useful for housekeeping purposes, 
+	when it is desirable to maintain long verbose taxon names (such as catalog or GenBank 
+	accession numbers) associated with the original data files but avoid reporting these 
+	names on the graphs. Moreover, it allows the user to provide a single name for a terminal
+	in cases where the corresponding data are stored in different files under different terminal
+	names.
 		
 	\subsection{fasta}
 		Single character sequence input \citep{PearsonandLipman1988} (see Figure \ref{fasta-c}).
@@ -359,24 +347,28 @@
 	the \href{https://graphviz.org/download/}{Graphviz} website. Graphviz an open-source
 	graph visualization software. 	
 	
-	PDFs of dot files can be generated directly (option \texttt{report}) or manually.  Example 
-	dot command line: }
+	PDFs can also be generated directly from dot files. In a terminal, type the following: 
 
 	\begin{verbatim}
 	dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
 	\end{verbatim}
 		
-	Multiple ``dot'' graphs can be output in a single file. To create pdf and other formats the
+	Multiple `dot' graphs can be output in a single file. To create pdf and other formats the
 	commandline would be (these files are named and numbered automatically):
 	
 	\begin{verbatim}
 	dot -Tpdf -O myDotFile.dot
 	\end{verbatim}
 		
-	On OSX the `pdf' option does not currently seem to work. You can use `-Tps2' and 
-	that will generate 
-	a postscript file ($>$ filename.ps) that Preview can read and convert to pdf.
-	%what's -Tps2?	
+	On OSX the `pdf' option does not currently seem to work. In this case, type the 
+	following:
+
+	\begin{verbatim}
+	dot -Tps2 myDotFile.dot > myDotFile.ps
+	\end{verbatim}
+	
+	`-Tps2' will generate a postscript file that \textit{Preview} can read and 
+	convert to pdf.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %COMMANDS
@@ -398,17 +390,19 @@
 		and are provided at the end of each command section below. If no arguments are 
 		specified, the command is executed under its default settings.
 		
-		\phyg recognizes \hl{three} types of command arguments: primitive values, labeled 
-		arguments, and lists of arguments. Primitive values can be either an integer (e.g. 3), 
-		a real number or float (e.g. 2.0), a string (e.g. ``Chel.fas'') or a boolean (True|False).
-		Labeled arguments consist of identifiers (the label) and an argument, separated by
-		the colon \texttt{(``:'')} character. Examples of 
+		\phyg recognizes three types of command arguments: primitive values, label
+		(e.g. 3), a real number or float (e.g. 2.0), a string (e.g. ``Chel.fas'') or a boolean 
+		(True|False). Labeled arguments consist of an argument and an identifier 
+		(the label), separated by the colon \texttt{(``:'')} character. Examples of 
 		identifiers include \texttt{majority}, \texttt{nopenalty}, \texttt{hardwired}, and 
 		\texttt{parsimony}. List of arguments are several arguments enclosed in parenthesis 
 		and separated by commas \texttt{(``,'')}. Most arguments are optional, with only a 
-		few requiring specification (see \texttt{read} \ref{subsec:read}, \texttt{reblock} 
-		\ref{subsec:reblock}, \hl{xxx}). \hl{Some argument labels are obligatory, most are 
-		optional.} When no arguments are specified, \phyg will use the defaults.
+		few requiring specification, e.g. the build method of distance must be specified. 
+		%Some argument labels are obligatory, most are optional \hl{e.g. ?}. 
+		In cases where an argument 
+		%or label 
+		must be specified, \phyg will report a warning message in the output of the 
+		terminal window. When no arguments are specified, \phyg will use the defaults.
 		
 		The following examples illustrate the structure of valid \phyg commands. 
 					
@@ -417,24 +411,24 @@
 		\end{quote}
 		
 		\noindent In this simple example, the command \texttt{build} is followed by an open 
-		and closed parenthesis. As no arguments are specified, this is equivalent to  
-		\texttt{build(character, replicates:10)}, the default arguments of this command.
-		
+		and closed parenthesis. As no arguments are specified, \phyg will use the defaults, 
+		so this is equivalent to \texttt{build(character, replicates:10)}.	
+			
 		\begin{quote}
-		swap(alternate, acceptequal:2.0)
+		swap(drift:3, acceptequal:2.0)
 		\end{quote}
 				
 		\noindent In the second example, the command \texttt{swap} is followed by the list 
-		of arguments that includes \texttt{alternate} and \texttt{acceptequal}, enclosed in 
-		parentheses and separated by a comma. The latter is a labeled-value argument, 
-		ascribed the float \texttt{2.0}.
+		of arguments that includes \texttt{drift} and \texttt{acceptequal}, enclosed in 
+		parentheses and separated by a comma. Both of these are labeled-value arguments, 
+		ascribed an integer and a float, respectively.
 		
 		\begin{quote}
 		set(graphfactor:nopenalty) 
 		\end{quote}
 		
-		In this third and final example, the command \texttt{set} is followed by the labeled-
-		value argument \texttt{graphfactor} with the labeled-value \texttt{nopenalty}.
+		In this third and final example, the command \texttt{set} is followed by the 
+		labeled-value argument \texttt{graphfactor} with the label \texttt{nopenalty}.
 				
 	\subsection{Command order and processing}
 		The commands \texttt{read}, \texttt{rename}, \texttt{reblock}, and \texttt{set} are 

@@ -16,17 +16,16 @@
 		specified within the command for distance builds. Refinement for character-based 
 		Wagner builds occurs after the \texttt{build} process through \texttt{swap} and other
 		refinement commands. Given the large time burden, distance refinement is usually 
-		not time effective \citep{Wheeler2021}. \phyg does not replace trees previously 
+		not time effective \citep{Wheeler2021}. \phyg does not replace graphs previously 
 		stored in memory.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
 
 	\begin{description}
-
 		\item[block] Performs independent builds for each ``block'' of data. If this option 
 		is not specified, the builds are performed combining all the data. Builds are performed 
-		according 	to the other options (e.g. \texttt{character, distance}). The resulting tree 
+		according 	to the other options, i.e. \texttt{character} or \texttt{distance}. The resulting tree 
 		or \texttt{graph} is reconciled using the \texttt{eun} or \texttt{cun} commands. The 
 		reconciled graph is resolved into display trees via the \texttt{displayTrees}, \texttt{first}, 
 		and \texttt{atRandom} options. This option is especially useful for softwired network search. 
@@ -34,9 +33,10 @@
 				
 		\begin{description}
 			\item[atRandom] When the option \texttt{block} is specified, this variable returns $n$ 
-			display trees as specified by the integer in \texttt{displayTrees[:INTEGER]}, where trees are produced by 
-			resolving network nodes uniformly at random. Compare with the \texttt{first} option, 
-			which takes the ``first'' $n$ display trees resolved in arbitrary, but consistent, order.
+			display trees as specified by the integer in \texttt{displayTrees[:INTEGER]}, where 
+			trees are produced by resolving network nodes uniformly at random. Compare with 
+			the \texttt{first} option, which takes the ``first'' $n$ display trees resolved in arbitrary, 
+			but consistent, order.
 			
 			\item[cun] Reconciles \textbf {block} trees into a Cluster-Union-Network \citep{Baroni2005} 
 			before resolution into display trees via the \texttt{displayTrees} or \texttt{atRandom} 
@@ -68,15 +68,15 @@
 		\item [distance] Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used 
 		as a basis for distance tree construction. Specifies how the builds are refined (\texttt{none}, 
 		\texttt{otu}, \texttt{spr}, \texttt{tbr}), as well as how the tree is constructed (\texttt{dWag}, 
-		\texttt{nj}, \texttt{rdWag}, \texttt{wpgma}). Associated arguments of \texttt{distance} include:
-				
+		\texttt{nj}, \texttt{rdWag}, \texttt{wpgma}). Distance trees are subsequently rediagnosed 
+		as character trees and returned for further analysis. Associated arguments of \texttt{distance} 
+		include:
+					
 		\begin{description}
-			\item[best:n] Applies only to \texttt{rdWag}. Specifies the number of trees retained 
+			\item[best:INTEGER] Applies only to \texttt{rdWag}. Specifies the number of trees retained 
 			after 	\texttt{rdWag} builds, selecting the best trees in terms of distance cost. The 
 			options can be used to reduce the number of trees retained.  
-			This number, $n$, of distance trees are rediagnosed as character trees
-			and returned (limited by \texttt{return:m} below) for further analysis.
-			
+						
 			\item[dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the 
 			`best' taxon to 
 			add at each step, yielding a single tree. This method has a time complexity of $O(n^3)$.
@@ -84,22 +84,16 @@
 			\item[nj] Performs Neighbor-Joining distance build \citep{Saitou1987}, yielding a single 
 			tree. This method has a time complexity of $O(n^3)$.
 
-			\item[none] No refinement (\texttt{otu}, \texttt{spr}, \texttt{tbr})) is performed after 
+			\item[none] No refinement (\texttt{otu}, \texttt{spr}, \texttt{tbr}) is performed after 
 			distance builds. \texttt{none} is the default refinement method.
 						
 			\item[otu] Specifies that \texttt{otu} refinement \citep{Wheeler2021} is performed 
-			after distance 
-			builds.
+			after distance builds.
 			
 			\item[rdWag] Performs randoms addition sequence distance Wagner builds, 
 			yielding multiple trees determined by the argument \texttt{replicates:n}. This 
 			method has a time complexity of $O(m \times n^2)$.
 			
-			\item[return:n] Limits the number of Wagner trees returned for further analysis.  By default
-			all trees that are built (or limited by \texttt{best:m} in distance analysis) are returned.
-			Limiting the number of returned trees (as opposed to simply generating that number) can result in
-			a larger memory footprint.
-
 			\item[spr] Specifies that \texttt{spr} refinement \citep{Dayhoff1969} is performed 
 			after distance builds.
 
@@ -111,42 +105,49 @@
 			has a time complexity of $O(n^2)$.
 		\end{description}
 
-		\item [replicates:n] Applies to \texttt{rdWag} and \texttt{character}. Specifies the number of 
-		random addition sequences performed.
-	
+		\item [replicates:INTEGER] Applies to \texttt{rdWag} and \texttt{character}. Specifies the 
+		number (INTEGER) of random addition sequences performed.
+		
+		\item[return:INTEGER] Applies to \texttt{rdWag} and \texttt{character}. This limits the 
+			number of Wagner trees returned for further analysis. By default all graphs that 
+			are built are returned, unless limited by \texttt{best:INTEGER} in distance analysis. 
+			Limiting the number of returned trees (as opposed to simply generating that number) 
+			can result in a larger memory footprint.
 	\end{description}		
 
 	\subsubsection{Defaults}
-		\texttt{build(character, replicates:10)}
+		\texttt{build(character, replicates:10)} By default, \phyg will build 10 graphs using a random
+		addition of sequences for each of them.
 		
 	\begin{example}
 		\item{\texttt{build(replicates:100)} \\
-		Builds 100 random addition sequence character Wagner builds.}
+		Builds 100 graphs using a random addition sequence (the default) for each of them.}
 		
 		\item{\texttt{build(character, block, graph, cun, displaytrees:5, atrandom)}\\
 		Builds 10 (the default) random addition sequence character Wagner builds, for each 
 		block of data. The graph is reconciled into a Cluster-Union-Network, before resolution 
-		into the 5 display trees. The trees are produced by resolving the network nodes 
-		uniformly atRandom.}
+		into 5 display trees. The trees are produced by resolving the network nodes 
+		uniformly atrandom.}
 		
 		\item{\texttt{build(distance, rdWag, nj, wpgma)} \\ 
-		Builds a single `best' addition sequence distance Wagner build, a Neighbor-Joining tree, 
-		and a WPGMA tree. As the option \texttt{block} is not specified, the distance trees are 
-		built using all the data.}
+		Builds a single `best' random addition sequence distance Wagner build, a Neighbor-Joining 
+		tree, and a WPGMA tree. As the option \texttt{block} is not specified, the distance trees 
+		are built using all the data. A total of three trees is returned. }
 		
 		\item{\texttt{build(distance, dWag, replicates:1000, best:10)}\\
-		Builds 1000 distance Wagner builds and returns 10 of the lowest cost distance trees.}
+		Builds 1000 distance Wagner builds and returns 10 of the lowest cost distance trees.
+		The best trees are chosen arbitrarily, but the first 10 with the lowest cost.}
 	
 		\item{\texttt{build(distance, rdwag, block, eun, displaytrees:3)}\\
 		Builds 10 random addition sequence Wagner builds for each `block' of data. The graph 
 		is reconciled into a Edge-Union-Network, before resolution into the 3 display trees. 
 		The trees are produced by resolving the network nodes.}
 		
-		\item{\texttt{build(distance, block, rdWag, replicates:100, wpgma, best:10, otu)}\\
-		Builds 100 random addition sequence distance Wagner builds, a WPGMA tree, 
-		performs OTU swapping on the WPGMA and 10 of the lowest cost random addition 
-		sequence Wagner trees. This distance search is performed on the `blocks' of data, 
-		as opposed to all of the data.}
+		\item{\texttt{build(distance, block, rdWag, wpgma, replicates:100, best:10, otu)}\\
+		Builds 100 random addition sequence distance Wagner builds and a wpgma tree. 
+		OTU swapping is performed on the wpgma and 10 of the lowest cost random addition 
+		sequence Wagner trees. These distance searches, and subsequent refinements are 
+		performed on each block of data.}
 	\end{example}
 
 %---------------------------------------------
@@ -154,22 +155,25 @@
 %---------------------------------------------
 \subsection{Fuse}
 	\subsubsection{Syntax}
-		\texttt{fuse(option, option, ...)}
+		%\texttt{fuse(option, option, ...)}
+		\texttt{fuse([argument list])}
 		
 	\begin{phygdescription}
-		{Performs Tree Fusing \citep{goloboff1999, moilanen1999, moilanen2001}. \texttt{fuse} 
-		operates on a collection of graphs performing reciprocal graph recombination between 
-		pairs of graphs. Non-identical subgraphs with identical leaf sets are exchanged between 
-		graphs and the 	results evaluated. This process of exchange and evaluation continues 
-		until no new graphs are found.
-		This can be used in concert with other options to perform a Genetic Algorithm refinement
-		\citep{Holland1975}. The behavior of \texttt{fuse} can be modified by the use of options 
-		specifying SPR and TBR-like rearrangement of the combination process.}
+		{Performs Tree Fusing \citep{goloboff1999, moilanen1999, moilanen2001} on the graphs
+		in memory. \texttt{fuse} operates on a collection of graphs performing reciprocal graph 
+		recombination between pairs of graphs. Non-identical subgraphs with identical leaf sets 
+		are exchanged between graphs and the results evaluated. This process of exchange 
+		and evaluation continues until no new graphs are found. This can be used in concert 
+		with other options to perform a Genetic Algorithm refinement \citep{Holland1975}. The 
+		behavior of \texttt{fuse} can be modified by the use of options specifying SPR and 
+		TBR-like rearrangement of the combination process.}
 	\end{phygdescription}
 	
 	\subsubsection{Arguments}
+	
 	\begin{description}
-		\item [all]  During branch swapping-type operations, all rearrangement are tried before choosing a new graph. 
+		\item [all]  During branch swapping-type operations, all rearrangement are tried before 
+		choosing a new graph. 
 		
 %		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions including rerooting of 
 %		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
@@ -180,28 +184,29 @@
 		\item [best] Specifies the method for tree selection, which in this case returns the best graphs 
 		found during fuse operations.		
 		
-		\item [keep:n] Limits the number of returned graphs to $n$. 
+		\item [keep:INTEGER] Limits the number of returned graphs to the integer value specified. 
 		
-		\item [none] \hl{add description}
+		\item [none] No swapping is performed during the swap. This is the default.
 		
 		\item [noReciprocal] Turns off \texttt{reciprocal}.
 		
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
 		
-		\item [pairs[:n]] Limits the number of graphs to be fused to $n$ pairs (as oppose to $\binom{m}{2}$ for $m$ graphs).
+		\item [pairs[:INTEGER]] Limits the number of graphs to be fused to $n$ pairs (as oppose to 
+		$\binom{m}{2}$ for $m$ graphs).
 		
-		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the corresponding subgraph 
-		in the other.  Reciprocal causes exchange and evaluation or graphs in both directions--roughly doubling time and 
-		memory footprint.
+		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the 
+		corresponding subgraph in the other.  Reciprocal causes exchange and evaluation of graphs 
+		in both directions--roughly doubling time and memory footprint.
 		
-		\item [spr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
+		\item [spr[:INTEGER]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions).
 		
-		\item [steepest] During branch swapping-type operations, if a better graph is found, swapping shifts greedily to
-		that graph. 
+		\item [steepest] During branch swapping-type operations, if a better graph is found, swapping 
+		shifts greedily to that graph. This is the default if swapping is specified.
 		
-		\item [tbr[:n]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
+		\item [tbr[:INTEGER]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
 		$n$ edges aware from their initial positions) and with TBR-style rerooting of the exchanged 
 		components.
 		
@@ -210,17 +215,16 @@
 	\end{description}	
 	
 	\subsubsection{Defaults}
-		\texttt{fuse()} Keeps all the best graphs found, continues fusing until no new graphs are found. 
-		No branch swapping style rearrangements are performed.
-	
+		\texttt{fuse(best, none, reciprocal)} By default, \phyg keeps all the best graphs found, and 
+		continues fusing until no new graphs are found. No branch swapping style rearrangements 
+		are performed. The exchange and evaluation of graphs occurs in a reciprocal manner. 
+			
 	\begin{example}
-	
 		\item{\texttt{fuse(best, once)}\\Fuses input graphs and returns best graphs after a single round of 
 		fusing.}
 		
 		\item{\texttt{fuse(tbr, keep:10)} \\Fuses input graphs and preforms TBR-style replacement and 
 		rerooting of pruned components returning up to 10 best cost graphs.}
-		
 	\end{example}
 
 %---------------------------------------------
