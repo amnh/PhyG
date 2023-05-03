@@ -170,20 +170,22 @@ fusePairRecursive :: SwapParams
 fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore reciprocal resultList leftRightList =
    if null leftRightList then resultList
    else
-      let -- since done as a separate usually--except for search
-          numPairsToExamine = PU.getNumThreads -- min (graphsSteepest inGS) PU.getNumThreads
-
+      let {-
+          -- parallel here blows up memory
+          numPairsToExamine = min (graphsSteepest inGS) PU.getNumThreads
           
           -- paralleized high level
-          fusePairResult = PU.seqParMap (parStrategy $ strictParStrat inGS) (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) (take numPairsToExamine leftRightList)
-          -- fusePairResult = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (head leftRightList)
+          fusePairResult = concat $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) (take numPairsToExamine leftRightList)
+          -}
+
+          fusePairResult = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (head leftRightList)
 
           bestResultList = if graphType inGS == Tree then
-                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ concat fusePairResult
+                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1)  fusePairResult
                            else 
                                --check didn't make weird network
 
-                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ (filter (LG.isPhylogeneticGraph . fst6)) $ concat fusePairResult
+                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ (filter (LG.isPhylogeneticGraph . fst6)) fusePairResult
 
           pairScore = if (not . null) bestResultList then
                         snd6 $ head bestResultList
@@ -195,7 +197,9 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
                             else []
 
       in
-      bestResultList' ++ fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (drop numPairsToExamine leftRightList)
+      -- paralle removed due to memory blow-up
+      -- bestResultList' ++ fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (drop numPairsToExamine leftRightList)
+      bestResultList' ++ fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (tail leftRightList)
 
 -- | fusePair recombines a single pair of graphs
 -- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
