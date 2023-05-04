@@ -3,7 +3,6 @@
 %---------------------------------------------
 \subsection{Build}
 	\subsubsection{Syntax}
-		%\texttt{build([arg0, arg1:option, ...)}\\
 		\texttt{build([argument list])}
 	
 	\begin{phygdescription}
@@ -155,7 +154,6 @@
 %---------------------------------------------
 \subsection{Fuse}
 	\subsubsection{Syntax}
-		%\texttt{fuse(option, option, ...)}
 		\texttt{fuse([argument list])}
 		
 	\begin{phygdescription}
@@ -193,22 +191,22 @@
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
 		
-		\item [pairs[:INTEGER]] Limits the number of graphs to be fused to $n$ pairs (as oppose to 
-		$\binom{m}{2}$ for $m$ graphs).
+		\item [pairs:INTEGER] Limits the number of graphs to be fused to the number of pairs as 
+		specified by the INTEGER (as oppose to $\binom{m}{2}$ for $m$ graphs).
 		
 		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the 
 		corresponding subgraph in the other.  Reciprocal causes exchange and evaluation of graphs 
 		in both directions--roughly doubling time and memory footprint.
 		
-		\item [spr[:INTEGER]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
-		$n$ edges aware from their initial positions).
+		\item [spr[:INTEGER]] Causes the exchanged subgraphs to be tried at multiple positions (up to 
+		$n$ edges away from their initial positions, where $n$ equals the INTEGER value).
 		
 		\item [steepest] During branch swapping-type operations, if a better graph is found, swapping 
 		shifts greedily to that graph. This is the default if swapping is specified.
 		
-		\item [tbr[:INTEGER]] Causes the exchanged subgraphs to be tried at multiple positions (up to optional 
-		$n$ edges aware from their initial positions) and with TBR-style rerooting of the exchanged 
-		components.
+		\item [tbr[:INTEGER]] Causes the exchanged subgraphs to be tried at multiple positions (up to 
+		$n$ edges aware from their initial positions) where $n$ equals the INTEGER value. TBR-style 
+		rerooting of the exchanged components occurs.
 		
 		\item [unique] Specifies the method for tree selection, which in this case returns all unique 
 		graphs found during fuse operations.	
@@ -225,6 +223,11 @@
 		
 		\item{\texttt{fuse(tbr, keep:10)} \\Fuses input graphs and preforms TBR-style replacement and 
 		rerooting of pruned components returning up to 10 best cost graphs.}
+		
+		\item{\texttt{fuse(spr:3, pairs:5, unique)} \\Fuses input graphs and performs SPR-style swapping, 
+		with the exchange of subgraphs being tried at multiple positions up to 3 edges away from their 
+		initial position. The number of graph pairs to be fused is limited to 5. All unique trees found
+		during this operation are returned.}
 	\end{example}
 
 %---------------------------------------------
@@ -233,31 +236,46 @@
 \subsection{Read}
 \label{subsec:read}
 	\subsubsection{Syntax}
-		\texttt{read(option:"filename", option:"filename", ...)}
+		\texttt{read(argument list)}
 			
 	\begin{phygdescription}
-		{Imports file-based information, including data files, tree and graph files. \texttt{read} 
-		commands must contain an input file. Supported data formats include FASTA, FASTC
-		xand TNT files, and graph formats include Dot, Enewick, Fenewick, and Newick. 
-		Filenames must be included in quotes. Filenames must include the appropriate suffix (e.g. .fas, 
-		.ss, .mat). The exclusion of these suffixes will result in an error. The filename must
-		match exactly, including capitalization. \phyg will attempt to recognize the type of input
-		and parse appropriately. Otherwise, the type of file can be indicated, using one of the 
-		options below. The options prepend 	the filename with a colon (`:') and will modify the 
-		processing of the input file. Prepending the file type prevents any ambiguity when the 
-		file is parsedThis command can also use wildcard expressions (`*', `?'), 
-		which can be useful when reading in multiple files of the same type.
-		
-		Modifiers are arguments that can affect the behavior of other arguments when included
-		in the list of arguments. These modifiers are used in association with the \texttt{read}
-		command. These arguments include \texttt{aminoacid}, \texttt{}, \texttt{}, \texttt{}, \texttt{}, 	}
+		{Imports file-based information, including data files and graph files. \texttt{read} 
+		commands must contain an input file (\texttt{STRING}). Supported data formats 
+		include FASTA, FASTC and TNT files, and graph formats include Dot, Enewick, %Fenewick, 
+		and Newick. Filenames must be included in quotes. Filenames must include the 
+		appropriate suffix (e.g. .fas, .ss, .mat). The exclusion of these suffixes will result 
+		in an error. The filename must match exactly, including capitalization. \phyg will 
+		attempt to recognize the type of input and parse appropriately. Otherwise, the 
+		type of file can be explicitly indicated, using one of arguments below. The argument 
+		is followed by a colon (`:') and the data file name(s), enclosed in quotes, and 
+		separated by commas. It is possible to import more than one data file on the 
+		same input line of the command script, but only of the same data type. Prepending the file 
+		type prevents any ambiguity when the file is parsed. If the data type is not specified, 
+		it is important to verify that the data was interpreted properly (using the command 
+		\texttt{report("STRING", data)} or by checking the output display in the \textit{Terminal} 
+		window). \texttt{read} \texttt{read} can also use	wildcard expressions (`*' and `?'), 
+		which can be useful when reading in multiple files of the same type. For example, 
+		read(nucleotide:"*.fas*") imports all files of the FASTA format in the current directory 
+		(in this case this will include files that end in both .fas and .fasta). Reading in FASTA 
+		files of different data types, e.g. amino acid and nucleotide, will result in an error.
+		Terminal names should not have spaces in the imported data file, otherwise the 
+		names can be incorrectly interpreted by the program. } 
+
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
 	
 	\begin{description}
 		\item [aminoacid:] Specifies that the file contents are parsed as IUPAC coded amino 
-		acid data in fasta \citep{PearsonandLipman1988} format.
+		acid data in FASTA \citep{PearsonandLipman1988} format.
+
+		\begin{story}[Note]
+		\phyg recognizes the characters `\textbf{x}' as representing any IUPAC character in amino
+		acid data, and `\textbf{n}' as representing any nucleotide base in nucleotide sequence
+		data files. A question mark character (`\textbf{?}') represents either an `\textbf{x}'  or a 
+		gap character `\textbf{-}' in amino acid data or an `\textbf{n}' or a `\textbf{-}' nucleotide
+		sequence data.
+		\end{story}
 
 		\item [block:] Specifies that the file contains block %\hl{ref?} 
 		information. Each line contains 
@@ -272,6 +290,7 @@
 	
 		\item [dot:] Specifies that the file contains a graph in `dot' format for use with graph 
 		rendering software such as \href{https://en.wikipedia.org/wiki/Graphviz}{GraphViz}.
+
 			
 		\item [enewick:] Specifies that the file contains Enhanced Newick format graph(s) as
 		specified here \citep{Cardonaetal2008}. 
@@ -281,16 +300,16 @@
 		line. Thus, taxa not included in the list and present in input files, will be included in 
 		analysis. Compare with \texttt{include}.
 			
-		\item [fasta:] Ensures that file contents are parsed in fasta \citep{PearsonandLipman1988}
+		\item [fasta:] Ensures that file contents are parsed in FASTA \citep{PearsonandLipman1988}
 		format. This is used for single character sequences such as binary streams, IUPAC 
 		nucleotide and amino acid sequence data.
 			
-		\item [fastc:] Ensures that file contents are parsed in fastc \citep{WheelerandWashburn2019}
+		\item [fastc:] Ensures that file contents are parsed in FASTC \citep{WheelerandWashburn2019}
 		format. This is used for multi-character sequences such as gene synteny, developmental, 
 		or linguistic data.
 			
-		\item [fenewick:] Specifies that the file contains Forest Enhanced Newick format graph(s)  
-		specified \href{https://www.github.com/wardwheeler/euncon}{here} \citep{Wheeler2022}.
+%		\item [fenewick:] Specifies that the file contains Forest Enhanced Newick format graph(s)  
+%		specified \href{https://www.github.com/wardwheeler/euncon}{here} \citep{Wheeler2022}.
 			
 		\item [include:] Specifies the names of terminal taxa to be included in the analysis. 
 		Taxa appear in the form of a list, with a single taxon per line. It is possible to specify 
@@ -303,25 +322,28 @@
 		\href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}{here}.
 			
 		\item [nucleotide:] Ensures that file contents are parsed as IUPAC coded nucleotide data 
-		in fasta \citep{PearsonandLipman1988} format.
+		in FASTA \citep{PearsonandLipman1988} format.
 			
 		\item [preaminoacid:] Specifies that the file contents are parsed as IUPAC coded amino 
-		acid data in  prealigned fasta \citep{PearsonandLipman1988} format, leaving 
-		gap characters (``-'') in the sequences and alignment correspondences are not re-examined.
-		
-		\item [prefasta:] Specifies that the sequences are prealigned in a fasta format, leaving 
+		acid data in prealigned FASTA \citep{PearsonandLipman1988} format. Gap characters (``-'') 
+		in the sequences are maintained and alignment correspondences are not re-examined.
+		Prealigned amino acid sequence data \textit{must} be of the same length.
+	
+		\item [prefasta:] Specifies that the sequences are prealigned in a FASTA format, leaving 
 		gap characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
-		Prealigned fasta files \textbf{must} be of the same length.
+		Prefasta files can include any single character element such as nucleotide sequence data, 
+		binary data or \hl{XXX}. Prealigned FASTA files \textit{must} be of the same length. 
 			
-		\item [prefastc:] Specifies that the sequences are prealigned in a fastc format, leaving gap 
+		\item [prefastc:] Specifies that the sequences are prealigned in a FASTC format, leaving gap 
 		characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
-		Prealigned fastc files \textbf{must} be of the same length.			
+		Prealigned FASTC files \textit{must} be of the same length.			
 		
 		\item [prenucleotide:] Ensures that file contents are parsed as IUPAC coded nucleotide data 
-		in fasta \citep{PearsonandLipman1988} format, leaving 
-		gap characters (``-'') in the sequences and alignment correspondences are not re-examined.
+		in FASTA \citep{PearsonandLipman1988} format, leaving gap characters (``-'') in the sequences 
+		and alignment correspondences are not re-examined. Prealigned nucleotide sequence data 
+		\textit{must} be of the same length.
 		
 		\item [rename:] Replaces the name(s) of specified terminals in the file. This command allows 
 		for substituting taxon names and can help merge multiple datasets without modifying the 
@@ -332,7 +354,7 @@
 		will be renamed as Gloydius\_halys and the taxa Crotalus\_mutus, Scytale\_catenatus and 
 		Coluber\_crotalinus will be renamed as Lachesis\_muta.
 		
-		\begin{figure}
+		\begin{figure}[H]
 		\centering
 		\includegraphics[width=0.8\textwidth]{Rename_file.jpg}
 		\caption{Renaming text file containing the lists of terminal taxa to be renamed.}
@@ -342,9 +364,13 @@
 		The \texttt{rename} function can also be specified as a command, see \texttt{rename}
 		(Section \ref{subsec:Rename}).
 					 
-		\item [tcm:] This refers to a file containing a custom-alphabet matrix that specifies varying 
+		\item[STRING] Reads the file specified in the path included in the string argument. A path 
+		can be absolute or relative to the current working directory. The file type is recognized
+		automatically, but as mentioned previously, this should be confirmed.
+
+\item [tcm:] This refers to a file containing a custom-alphabet matrix that specifies varying 
 		costs among alphabet elements in a sequence. The elements in the alphabet can be letters, 
-		digits, or both. \\
+		digits, or both.
 		The \texttt{tcm} contains two parts: the first line of the file contains the alphabet elements 
 		separated by a space and the transformation cost matrix, which follows below. The dash 
 		character representing an insertion/deletion or indel character is not specified on the first 
@@ -353,9 +379,10 @@
 		The positions from left to right and top to bottom in this matrix correspond to the sequence 
 		of the elements as they are listed in the alphabet. An extra rightmost column and lowermost
 		row correspond to indel (gap) costs to and from alphabet elements. At present, this matrix 
-		must be symmetrical, but not necessarily metric. Non-metric tcm's can yield unexpected 
+		must be symmetrical, but not necessarily metric. Non-metric tcms can yield unexpected 
 		results. Transformation costs must be integers. If real values are desired, a character can 
 		be weighted with a floating point value factor. \\
+		
 		For a sequence with four elements alpha, beta, gamma and delta and an indel cost of 4 
 		for all insertion deletion transformations, a valid custom alphabet file is provided below:
 		\\
@@ -377,38 +404,36 @@
 		\item [tnt:] Ensures that file contents are parsed in TNT \citep{Goloboffetal2008} format. 
 		Not all TNT data commands are currently supported. To ensure that the file is correctly
 		parsed, the file must begin with \texttt{xread}, followed by an optional comment in single 
-		quotes ('this is a comment'), followed by the number of characters and taxa. The data 
-		follow on a new line. Taxon names are followed by state data. Data may be in multiple 
-		blocks (interleaved) or in sequential format. These interleaved blocks may consist of a 
-		series of single character states without spaces between them, or multiple (or single) 
-		character states (e.g. \texttt{alpha}) with space between the individual codings. Blocks 
-		must be of all one type (ie. single character codings without spaces, or multi-character 
+		quotes (`this is a comment'), followed by the number of characters and taxa. The data 
+		follow on a new line. Taxon names are followed by character state data. Data can be in 
+		multiple blocks (interleaved) or in sequential format. These interleaved blocks can consist 
+		of a series of single character states without spaces between them, or multiple (or single) 
+		character states (e.g. \textbf{alpha}) with space between the individual codings. Blocks 
+		must be of all one type (i.e. single character codings without spaces, or multi-character 
 		separated by spaces). The data block \textit{must} be followed by a single semicolon 
-		(``;'') 	on its own line.\\
+		(`;') on its own line.\\
 			
 		The character settings (i.e. \texttt{ccode} commands) follow the data block, beginning 
-		on a 	new line. These character settings always terminate with a semi-colon (\texttt{;}). 
-		These settings include: activate (\texttt{[}) or deactivate (\texttt{]}); make additive/ordered 
-		(\texttt{+}) 	or non-additive/unordered (\texttt{-}); apply step-matrix costs (\texttt{(}) with 
+		on a 	new line. These character settings always terminate with a semi-colon (`\texttt{;}'). 
+		These settings include: activate (`\texttt{[}') or deactivate (`\texttt{]}'); make additive/ordered 
+		(`\texttt{+}') or non-additive/unordered (`\texttt{-}'); apply step-matrix costs (`\texttt{(}') with 
 		scopes (e.g. \texttt{cc + 10 12;} and  \texttt{cc (.; costs 0 = 0/1 1 0/2 2 0/3 3 0/4 4 1/2 1 
-		1/3 2 1/4 3 2/3 1 2/4 2 3/4 1;}) including abbreviated scopes (\texttt{cc -.;}). 
-		%\hl{what about ) make additive or non-additive again?} 
-		There may 
+		1/3 2 1/4 3 2/3 1 2/4 2 3/4 1;}) including abbreviated scopes (`\texttt{cc -.;}'). There may 
 		be multiple character setting statements in a single line. Character settings must be 
 		followed by \texttt{proc/;} on its own line. \texttt{PhyG} will not process
-		any file contents that follow \texttt{proc/;}.
+		any file contents that follow \texttt{proc/;}.\\
 		  
 		 Additive/ordered character states must be numbers (integer or floating point). Ranges 
 		 for continuous characters are specified with a dash within square brackets (e.g. 
 		 \texttt{[1-2.1]}). Character state polymorphism are specified in square brackets without 
 		 spaces for single character states (e.g. \texttt{[03]}), and with spaces for multi-character 
-		 states. %(e.g. \hl{\texttt{[???}}).
+		 states.\\
 		  
 		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) 
 		 are treated as part of the character state specification. If the user wishes that dashes 
-		 be treated as missing data (`?'), the file must be edited to reflect this by replacing the 
+		 be treated as missing data, the file must be edited to reflect this by replacing the 
 		 dashes that are to be treated as missing data with question 
-		 marks (`?').
+		 marks (`?').\\
 		  
 		  Example file:
 		  	\begin{quote}
@@ -439,18 +464,21 @@
 	\end{description}	
 		
 	\subsubsection{Defaults}
-		\texttt{read("fileName")} reads data from fileName and attempts to recognize the 
+		\texttt{read("fileName")} reads data within the data file ``fileName'' and attempts to recognize the 
 		file type and parse accordingly. The assumed file type is printed to \texttt{stderr} for 
 		verification.
 		
 	\begin{example}
+		\item{read(nucleotide:"~/Desktop/phyg/metazoa.fas", tcm:"sg1t4.mat")}\\ Reads the
+		file \textbf{metazoa.fas} located in the path \textbf{~/Desktop/phyg/}, parsing it as 
+		nucleotide sequence data. The information in the transformation cost matrix 
+		\textbf{sg1t4.mat} is applied to this imported sequence data.
 		
 		\item{\texttt{read(prefasta:"myDnaSequenceFile.fas")}\\ Reads sequence data from 
 		``myDnaSequenceFile.fas'' as prealigned data.}
 		
 		\item{\texttt{read(rename:"myRenameFile")}\\ Reads a list of taxa and names to be 
 		assigned.} 
-		
 	\end{example}
 		
 %---------------------------------------------

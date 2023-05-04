@@ -3,7 +3,7 @@
 \usepackage{color}
 \usepackage{tabu}
 \usepackage{setspace}
-\usepackage{pdflscape}
+\usepackage{pdflscape} 
 \usepackage{graphicx}
 \usepackage {float}
 %\usepackage{subfigure}
@@ -25,6 +25,23 @@
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
 %\usepackage[nottoc,numbib]{tocbibind}
 \usepackage{tocloft}
+\usepackage[many]{tcolorbox}
+\usepackage{marginnote}
+\usepackage{lipsum}
+\tcbuselibrary{skins,breakable}
+\newtcolorbox{story}[1][]{
+  enhanced,
+  breakable,
+  pad at break=2mm,
+  left=2mm,right=2mm,
+  colback=white,colframe=black!50!red,
+  drop fuzzy midday shadow=black!50!red, 
+  width={0.95\textwidth}, 
+  frame hidden, 
+  segmentation hidden,
+  before=\par\vspace*{2mm},after=\par\bigskip,
+  title=#1}%
+
 
 \setlength\itemindent{1cm}
 
@@ -298,8 +315,9 @@
 		The TNT \citep{Goloboffetal2008} format is accepted here for specification of 
 		qualitative, measurement, and prealigned molecular sequence data. \phyg can 
 		parse all of the basic character settings including activation/deactivation of 
-		characters, making characters additive/nonadditive, applying weight to characters, 
-		step-matrix costs, interleaved data files and continuous characters. Continuous 
+		characters, making characters additive/non-additive, applying weight to characters, 
+		step-matrix costs, interleaved data files and continuous characters (see the argument
+		\texttt{tnt} in \ref{subsec:read}). Continuous 
 		characters can only be in the format of integers or floats. Moreover, 
 		they must be declared as ``additive'', otherwise, they will be treated as non-additive 
 		character states (see \href{http://phylo.wikidot.com/tnt-htm}{\textbf{TNT}}).
@@ -390,21 +408,28 @@
 		and are provided at the end of each command section below. If no arguments are 
 		specified, the command is executed under its default settings.
 		
-		\phyg recognizes three types of command arguments: primitive values, label
-		(e.g. 3), a real number or float (e.g. 2.0), a string (e.g. ``Chel.fas'') or a boolean 
-		(True|False). Labeled arguments consist of an argument and an identifier 
+		\phyg recognizes three types of command arguments: \textit{primitive values}, 
+		\textit{labeled values}, and \textit{lists of arguments}.\\
+		
+		\noindent \textbf{Primitive values} can either be an integer (\texttt{INTEGER}), 
+		a real number (\texttt{FLOAT}), a string (\texttt{STRING}) or a boolean (\texttt{BOOL)} 
+		i.e. True|False. \\
+		
+		\noindent \textbf{Labeled arguments} consist of an argument and an identifier 
 		(the label), separated by the colon \texttt{(``:'')} character. Examples of 
 		identifiers include \texttt{majority}, \texttt{nopenalty}, \texttt{hardwired}, and 
-		\texttt{parsimony}. List of arguments are several arguments enclosed in parenthesis 
+		\texttt{parsimony}. \\
+		
+		\noindent \textbf{List of arguments} are several arguments enclosed in parenthesis 
 		and separated by commas \texttt{(``,'')}. Most arguments are optional, with only a 
 		few requiring specification, e.g. the build method of distance must be specified. 
 		%Some argument labels are obligatory, most are optional \hl{e.g. ?}. 
 		In cases where an argument 
 		%or label 
 		must be specified, \phyg will report a warning message in the output of the 
-		terminal window. When no arguments are specified, \phyg will use the defaults.
+		terminal window. When no arguments are specified, \phyg will use the defaults.\\
 		
-		The following examples illustrate the structure of valid \phyg commands. 
+		\noindent The following examples illustrate the structure of valid \phyg commands. 
 					
 		\begin{quote}
 		build()
@@ -415,19 +440,28 @@
 		so this is equivalent to \texttt{build(character, replicates:10)}.	
 			
 		\begin{quote}
+		read(nucleotide:"chel-prealigned.fas", tcm:"sg1t4.mat")
+		\end{quote}		
+
+		\noindent In this second example, the command \texttt{read} reads data in the file
+		(\texttt{STRING}) "chel-prealigned.fas", parsing it as nucleotide sequence data. It also read the data 
+		in the file "sg1t1.mat", parsing it as a transformation cost matrix, with indel and 
+		substitution costs set to $1$.
+		
+		\begin{quote}
 		swap(drift:3, acceptequal:2.0)
 		\end{quote}
 				
-		\noindent In the second example, the command \texttt{swap} is followed by the list 
+		\noindent In the third example, the command \texttt{swap} is followed by the list 
 		of arguments that includes \texttt{drift} and \texttt{acceptequal}, enclosed in 
 		parentheses and separated by a comma. Both of these are labeled-value arguments, 
-		ascribed an integer and a float, respectively.
+		ascribed an \texttt{INTEGER} and a \texttt{FLOAT}, respectively.
 		
 		\begin{quote}
 		set(graphfactor:nopenalty) 
 		\end{quote}
 		
-		In this third and final example, the command \texttt{set} is followed by the 
+		\noindent In this fourth and final example, the command \texttt{set} is followed by the 
 		labeled-value argument \texttt{graphfactor} with the label \texttt{nopenalty}.
 				
 	\subsection{Command order and processing}
