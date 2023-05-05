@@ -695,7 +695,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                 (globalSettings {unionThreshold = fromJust localValue}, processedData, inSeedList)
 
         -- parallel strategy settings options
-        else if head commandList == "defparstat"  then
+        else if head commandList == "defparstrat"  then
             let localMethod
                   | (head optionList == "r0") = R0
                   | (head optionList == "rpar") = RPar
@@ -706,7 +706,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             trace ("DefParStrat set to " ++ show localMethod)
             (globalSettings {defaultParStrat = localMethod}, processedData, inSeedList)
 
-        else if head commandList == "lazyparstat"  then
+        else if head commandList == "lazyparstrat"  then
             let localMethod
                   | (head optionList == "r0") = R0
                   | (head optionList == "rpar") = RPar
@@ -714,10 +714,10 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                   | (head optionList == "rdeepseq") = RDeepSeq
                   | otherwise = errorWithoutStackTrace ("Error in 'set' command. LazyParStrat  '" ++ head optionList ++ "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
             in
-            trace ("DefParStrat set to " ++ show localMethod)
+            trace ("LazyParStrat set to " ++ show localMethod)
             (globalSettings {lazyParStrat = localMethod}, processedData, inSeedList)
 
-        else if head commandList == "strictparstat"  then
+        else if head commandList == "strictparstrat"  then
             let localMethod
                   | (head optionList == "r0") = R0
                   | (head optionList == "rpar") = RPar

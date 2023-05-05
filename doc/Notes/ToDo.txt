@@ -540,3 +540,8 @@
 430) Output collapsed graphs for pdf only as option
 
 434) Check sttaic approx for hugeseqs cost going down initially when it shoudl stay the same
+
+435) Warning irrelevant options
+
+436) Check packed costs versus unpacked versus POY
+

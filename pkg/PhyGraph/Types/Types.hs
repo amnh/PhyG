@@ -634,8 +634,8 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , multiTraverseCharacters = True
                                      , reportNaiveData = True
                                      , unionThreshold = 1.17
-                                     , defaultParStrat = RPar    
-                                     , lazyParStrat = R0 -- default parallel strategy 
+                                     , defaultParStrat = RSeq    
+                                     , lazyParStrat = RPar -- default parallel strategy 
                                      , strictParStrat = RDeepSeq -- high level--basically srtict evaluation
                                      , useNetAddHeuristic = True
                                      }

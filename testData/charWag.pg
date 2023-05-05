@@ -43,7 +43,13 @@ set(seed:1666899539)
 --build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
 --build(replicates:10, block, displayTrees:10, cun)
 
+set(multitraverse:false)
+
 build(replicates:10)
+fuse()
+swap()
+
+transform(multitraverse:true)
 swap()
 
 --search(hours:0, minutes:1, instances:2, Thompson:1, linear)

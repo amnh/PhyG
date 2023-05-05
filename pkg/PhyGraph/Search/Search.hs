@@ -433,7 +433,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              -- if already False--don't change
              transformMultiTraverse = if transformToStaticApproximation then False
                                       else if not (multiTraverseCharacters inGS') then False
-                                      else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.50), (False, 0.50)]
+                                      else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.66), (False, 0.34)]
 
              -- Can't do both static approx and multitraverse:False
              ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation then

@@ -476,12 +476,14 @@ getCompatibleNonIdenticalSplits :: Int
                                 -> Bool
                                 -> BV.BitVector
                                 -> Bool
-getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV =
+getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV = 
 
+   -- traceNoLF ("GCNIS: " ++ (show leftRightMatch) ++ " " ++ (show $ popCount leftPrunedGraphBV) ++ " ") $
    if not leftRightMatch then False
    else if popCount leftPrunedGraphBV < 3 then False
    else if popCount leftPrunedGraphBV > (numLeaves - 3) then False
    else True
+   
    {-
       -- check for pruned components non-identical
 
