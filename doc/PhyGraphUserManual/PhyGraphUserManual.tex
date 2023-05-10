@@ -25,23 +25,10 @@
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
 %\usepackage[nottoc,numbib]{tocbibind}
 \usepackage{tocloft}
-\usepackage[many]{tcolorbox}
+%\usepackage[many]{tcolorbox}
 \usepackage{marginnote}
 \usepackage{lipsum}
-\tcbuselibrary{skins,breakable}
-\newtcolorbox{story}[1][]{
-  enhanced,
-  breakable,
-  pad at break=2mm,
-  left=2mm,right=2mm,
-  colback=white,colframe=black!50!red,
-  drop fuzzy midday shadow=black!50!red, 
-  width={0.95\textwidth}, 
-  frame hidden, 
-  segmentation hidden,
-  before=\par\vspace*{2mm},after=\par\bigskip,
-  title=#1}%
-
+\usepackage[most]{tcolorbox}
 
 \setlength\itemindent{1cm}
 
@@ -233,17 +220,21 @@
 		and multiple processors). This script 	can also include references to other script files 
 		(Figure \ref{firstscript}).
 		
-		Scripts can be created using any conventional text editor such as TextEdit, TextWrangler, 
-		BBEdit, or Nano. Comments that describe the contents of the file and provide other useful 
-		annotations can be included. Comments are prepended with `-{}-' and can span multiple 
-		lines, provided each line begins with `-{}-'. 
+		Scripts can be created using any conventional text editor such as \textit{TextEdit}, 
+		\textit{TextWrangler}, \textit{BBEdit}, or \textit{Nano}. Do not use a word processing 
+		application like \textit{Microsoft Word} or \textit{Apple Pages}, as these programs 
+		can introduce hidden characters in the file, which will be interpreted by \phyg and 
+		can cause unpredictable parsing of the data. Comments that describe the contents 
+		of the file and provide other useful annotations can be included. Comments are 
+		prepended with `-{}-' and can span multiple lines, provided each line begins with `-{}-'. 
 
 		\begin{figure}[H]
 		\centering
 		\includegraphics[width=\textwidth]{First_run.jpg}
-		\caption{\phyg scripts. The headers in the scripts are comments, leading with `-{}-', which is 
-		ignored by \phyg. This first script ``First\_script.pg'' includes a reference to the second script
-		``Chel\_files.txt'', which includes a group of data files to be read by the program.}
+		\caption{\phyg scripts. The headers in the scripts are comments, leading with `-{}-', 
+		which is ignored by \phyg. This first script ``\textbf{First\_script.pg}'' includes a reference 
+		to the second script ``\textbf{Chel\_files.txt}'', which includes a group of data files to be 
+		read by the program.}
 		\label{firstscript}
 		\end{figure}
 	
@@ -271,42 +262,44 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Input Data Formats} 
 	\phyg can analyze a number different data types, including nucleotide 
-	(aligned and unaligned), Hennig86, and fastc formats.
-	Any character names in input files are (for now) ignored and internal names are created
-	by appending the character number in its file to the filename as in "fileName:0".
-	Qualitative data, and prealigned data include their index in their input files and unaligned 
-	data are treated as a single character.
+	(aligned and unaligned), Hennig86, and fastc formats. Any character names in 
+	input files are (for now) ignored and internal names are created by appending 
+	the character number in its file to the filename as in ``\textbf{fileName:0}''. 
+	Qualitative data, and prealigned data include their index in their input files and 
+	unaligned data are treated as a single character.
 	
 	\phyg allows the user to comment out portions of a taxon name 
-	in the imported data file. This is achieved by inserting a dollar sign (``\$'') before the region 
-	of text that the user wishes to comment out. As an example, placing a ``\$'' before the 
-	GenBank information in the taxon name \texttt{Lingula\_anatina\$\_AB178773\_16S} 
+	in the imported data file. This is achieved by inserting a dollar sign (`\$') before the region 
+	of text that the user wishes to comment out. As an example, placing a `\$' before the 
+	GenBank information in the taxon name \textbf{Lingula\_anatina\$\_AB178773\_16S} 
 	will comment out this information and the taxon name will be read as 
-	\texttt{Lingula\_anatina} by the program. This can be useful for housekeeping purposes, 
-	when it is desirable to maintain long verbose taxon names (such as catalog or GenBank 
+	\textbf{Lingula\_anatina} by the program. This can be useful for housekeeping purposes, 
+	when it is desirable to maintain long verbose taxon names (such as catalog or NCBI 
 	accession numbers) associated with the original data files but avoid reporting these 
 	names on the graphs. Moreover, it allows the user to provide a single name for a terminal
 	in cases where the corresponding data are stored in different files under different terminal
 	names.
 		
 	\subsection{fasta}
-		Single character sequence input \citep{PearsonandLipman1988} (see Figure \ref{fasta-c}).
+		Single character sequence input \citep{PearsonandLipman1988} (see Figure 
+		\ref{fasta-c}).
 		
 	\subsection{fastc}
 		Fastc is a file format for multi-character sequence input \citep{WheelerandWashburn2019}.
 		This format is derived from the fasta format and the custom alphabet format of 
 		 \href{https://github.com/wardwheeler/POY5}{\textbf{POY}} \citep{POY4,POY5}. 
 		 Multi-character sequence elements are useful for the analysis of data types such 
-		 as developmental, gene synteny and comparative linguistic data (see Figure \ref{fasta-c}).
+		 as developmental, gene synteny and comparative linguistic data (see Figure 
+		 \ref{fasta-c}).
 		 
 		\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.45\textwidth]{fasta.png}
-		\includegraphics[width=0.45\textwidth]{fastc.png}
-		\caption{Fasta and Fastc file formats. The file \textbf{``chel\_cox1aln1.fasta''} 
-		represents a fasta file with a carat sign ('>') preceding taxon names and nucleotide  
-		sequence data following on a new line. The file \textbf{``woman.fastc''} is a fastc 
-		file, with a carat sign ('>') preceding taxon names and the linguistic data following 
+		\includegraphics[width=0.48\textwidth]{fasta.png}
+		\includegraphics[width=0.48\textwidth]{fastc.png}
+		\caption{Fasta and Fastc file formats. The file ``\textbf{chel\_cox1aln1.fasta}'' 
+		represents a fasta file with a carat sign (`>') preceding taxon names and nucleotide  
+		sequence data following on a new line. The file ``\textbf{woman.fastc}'' is a fastc 
+		file, with a carat sign (`>') preceding taxon names and the linguistic data following 
 		on a new line.}
 		\label{fasta-c}
 		\end{figure}
@@ -316,16 +309,16 @@
 		qualitative, measurement, and prealigned molecular sequence data. \phyg can 
 		parse all of the basic character settings including activation/deactivation of 
 		characters, making characters additive/non-additive, applying weight to characters, 
-		step-matrix costs, interleaved data files and continuous characters (see the argument
-		\texttt{tnt} in \ref{subsec:read}). Continuous 
-		characters can only be in the format of integers or floats. Moreover, 
-		they must be declared as ``additive'', otherwise, they will be treated as non-additive 
-		character states (see \href{http://phylo.wikidot.com/tnt-htm}{\textbf{TNT}}).
+		step-matrix costs, interleaved data files and continuous characters (see the 
+		argument \texttt{tnt} in \ref{subsec:read}). Continuous characters can only be 
+		in the format of integers or floats. Moreover, they must be declared as ``additive'', 
+		otherwise, they will be treated as non-additive character states (see 
+		\href{http://phylo.wikidot.com/tnt-htm}{\textbf{TNT}}).
 		The characters `-' and `?' can be used to indicate that characters or character 
 		states are missing or inapplicable. Only one set of ccode commands is allowed 
 		per line (e.g. to make everything additive: ccode +.;). Default values of step-matrix 
 		weights are not implemented, all step-matrix values must be individually specified. 
-		Ambiguities or ranges are denoted in square brackets (\texttt{`[ ]'}) with a period, 
+		Ambiguities or ranges are denoted in square brackets (`\texttt{[ ]}') with a period, 
 		as in [X.Y]. Continuous characters are denoted in square brackets with a dash or 
 		hyphen, as in [X-Y].
 
@@ -343,7 +336,7 @@
 	%components are surrounded by `$<$' and '$>$'. As in $<$(A, (B,C)); (D,(E,F));$>$. 
 	%Groups may be shared among ENewick components.
 	
-	\begin{figure}[H]
+	\begin{figure}%[H]
 	\centering
 	\includegraphics[width=\textwidth]{enewick.png}
 	\caption{The file \textbf{``flu\_net1.tre''} in Enhanced Newick (ENewick) graph format. The 
@@ -354,6 +347,7 @@
 	\end{figure}
 	
 \section{Output Graph Formats}
+\label{sec:outputgraphs}
 	Graph outputs can be in either newick, enewick, dot, and depending on the 
 	operating system, eps or pdf formats. Newick tree files can be viewed in other 
 	programs like \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree} or 	
@@ -363,29 +357,31 @@
 	graphics program. The dot file can be viewed (and modified) in \textit{Graphviz}. 
 	Note: in order to output pdf files the application \textit{dot} must be installed from 
 	the \href{https://graphviz.org/download/}{Graphviz} website. Graphviz an open-source
-	graph visualization software. 	
+	graph visualization software. \\	
 	
-	PDFs can also be generated directly from dot files. In a terminal, type the following: 
+	\noindent PDFs can also be generated directly from dot files. In a \textit{Terminal}, 
+	type the following: 
 
-	\begin{verbatim}
+	\begin{quote}
 	dot -Tpdf myDotFile.dot $>$ myDotFile.pdf
-	\end{verbatim}
+	\end{quote}
 		
-	Multiple `dot' graphs can be output in a single file. To create pdf and other formats the
-	commandline would be (these files are named and numbered automatically):
+	\noindent Multiple `dot' graphs can be output in a single file. To create pdf and 
+	other formats the commandline would be (these files are named and numbered 
+	automatically):
 	
-	\begin{verbatim}
+	\begin{quote}
 	dot -Tpdf -O myDotFile.dot
-	\end{verbatim}
+	\end{quote}
 		
-	On OSX the `pdf' option does not currently seem to work. In this case, type the 
-	following:
+	\noindent In OSX the `pdf' option does not currently seem to work. In this case, 
+	type the following:
 
-	\begin{verbatim}
+	\begin{quote}
 	dot -Tps2 myDotFile.dot > myDotFile.ps
-	\end{verbatim}
+	\end{quote}
 	
-	`-Tps2' will generate a postscript file that \textit{Preview} can read and 
+	\noindent `-Tps2' will generate a postscript file that \textit{Preview} can read and 
 	convert to pdf.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -400,34 +396,33 @@
 		\phyg interprets and executes scripts coming from an input file. A script is a list of 
 		commands, separated by any number of whitespace characters (spaces, tabs, or 
 		newlines). Each command consists of a name, followed by an argument or list of 
-		arguments separated by commas \texttt{(``,'')} and enclosed in parentheses. 
+		arguments separated by commas (`\texttt{,}') and enclosed in parentheses. 
 		Commands and arguments are case insensitive with the exception of filename 
 		specifications, which must match the filename \textit{exactly}, including suffixes 
-		and are always in double quotes (\texttt{``fileName''}). Most commands, with the 
+		and are always in double quotes (``\textbf{fileName}''). Most commands, with the 
 		exception of \texttt{read}, \texttt{reblock}, and \texttt{rename} have default values 
 		and are provided at the end of each command section below. If no arguments are 
-		specified, the command is executed under its default settings.
+		specified, the command is executed under its default settings.\\
 		
-		\phyg recognizes three types of command arguments: \textit{primitive values}, 
+		\noindent \phyg recognizes three types of command arguments: \textit{primitive values}, 
 		\textit{labeled values}, and \textit{lists of arguments}.\\
 		
-		\noindent \textbf{Primitive values} can either be an integer (\texttt{INTEGER}), 
+		\noindent \textbf{Primitive values} can either be an integer (\texttt{INT}), 
 		a real number (\texttt{FLOAT}), a string (\texttt{STRING}) or a boolean (\texttt{BOOL)} 
 		i.e. True|False. \\
 		
 		\noindent \textbf{Labeled arguments} consist of an argument and an identifier 
-		(the label), separated by the colon \texttt{(``:'')} character. Examples of 
+		(the label), separated by the colon (`\texttt{:}') character. Examples of 
 		identifiers include \texttt{majority}, \texttt{nopenalty}, \texttt{hardwired}, and 
 		\texttt{parsimony}. \\
 		
 		\noindent \textbf{List of arguments} are several arguments enclosed in parenthesis 
-		and separated by commas \texttt{(``,'')}. Most arguments are optional, with only a 
+		and separated by commas (`\texttt{,}'). Most arguments are optional, with only a 
 		few requiring specification, e.g. the build method of distance must be specified. 
 		%Some argument labels are obligatory, most are optional \hl{e.g. ?}. 
-		In cases where an argument 
-		%or label 
-		must be specified, \phyg will report a warning message in the output of the 
-		terminal window. When no arguments are specified, \phyg will use the defaults.\\
+		In cases where an argument must be specified, \phyg will report a warning message 
+		in the output of the terminal window. When no arguments are specified, \phyg will 
+		use the default values.\\
 		
 		\noindent The following examples illustrate the structure of valid \phyg commands. 
 					
@@ -444,9 +439,9 @@
 		\end{quote}		
 
 		\noindent In this second example, the command \texttt{read} reads data in the file
-		(\texttt{STRING}) "chel-prealigned.fas", parsing it as nucleotide sequence data. It also read the data 
-		in the file "sg1t1.mat", parsing it as a transformation cost matrix, with indel and 
-		substitution costs set to $1$.
+		(\texttt{STRING}) ``\textbf{chel-prealigned.fas}'', parsing it as nucleotide sequence data. 
+		It also read the data in the file ``\textbf{sg1t1.mat}'', parsing it as a transformation cost matrix, 
+		with indel and substitution costs set to $1$.
 		
 		\begin{quote}
 		swap(drift:3, acceptequal:2.0)
@@ -471,7 +466,7 @@
 		
 	\subsection{Notation}
 		Commands are listed alphabetically in the next section. Commands are shown in 
-		\texttt{terminal} typeface. Optional items are enclosed in square brackets \textbf{([ ])}.
+		\texttt{terminal} typeface. Optional items are enclosed in square brackets (`\texttt{[ ]}').
 		Primitive values are shown in \texttt{UPPERCASE}. 
 	
 
