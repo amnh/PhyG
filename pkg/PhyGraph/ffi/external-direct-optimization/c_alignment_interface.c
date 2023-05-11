@@ -167,7 +167,7 @@ size_t cAlign2D
         memcpy( lesserInput, retLesserChar->array_head, allocationLen * sizeof(elem_t));
         memcpy( longerInput, retLongerChar->array_head, allocationLen * sizeof(elem_t));
         memcpy(outputMedian,    medianChar->array_head, allocationLen * sizeof(elem_t));
-        *outputLength = medianChar->len - 1; // Subtract 1 for the prepended gap
+        *outputLength = medianChar->len == 0 ? 0 : medianChar->len - 1; // Subtract 1 for the prepended gap
 
         // Free temporary buffers
         dyn_char_free( retLongerChar );

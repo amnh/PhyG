@@ -172,10 +172,10 @@ algn2d
   -> SlimDynamicCharacter         -- ^ First  dynamic character
   -> SlimDynamicCharacter         -- ^ Second dynamic character
   -> (Word, SlimDynamicCharacter) -- ^ The cost of the alignment
-algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPairwise denseTCMs
+algn2d computeUnion computeMedians denseTCMs = directOptimization useC $ lookupPairwise denseTCMs
   where
-    f :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
-    f lesser longer = {-# SCC f #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
+    useC :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
+    useC lesser longer = {-# SCC useC #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
         let lesserLength = V.length lesser
         let longerLength = V.length longer
         -- Add two because the C code needs stupid gap prepended to each character.
@@ -222,8 +222,10 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization f $ lookupPair
       where
         costStruct  = costMatrix2D denseTCMs
         neverComputeOnlyGapped = 0
+        {-# SCC ics #-}
         ics :: Int -> CSize
         ics = coerce . (toEnum :: Int -> Word64)
+        {-# SCC csi #-}
         csi :: CSize -> Int
         csi = (fromEnum :: Word64 -> Int) . coerce 
 
@@ -320,6 +322,7 @@ algn3d char1 char2 char3 mismatchCost openningGapCost indelCost denseTCMs = hand
 -- Use in conjunction with 'finalizeCharacterBuffer' to marshall data across FFI.
 --
 -- /Should/ minimize number of, and maximize speed of copying operations.
+{-# SCC initializeCharacterBuffer #-}
 initializeCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
 initializeCharacterBuffer maxSize elemCount elements =
     let e   = min maxSize elemCount
@@ -341,6 +344,7 @@ initializeCharacterBuffer maxSize elemCount elements =
 -- Use in conjunction with 'finalizeCharacterBuffer' to marshall data across FFI.
 --
 -- /Should/ minimize number of, and maximize speed of copying operations.
+{-# SCC finalizeCharacterBuffer #-}
 finalizeCharacterBuffer :: Int -> Int -> Vector CUInt -> Vector CUInt
 finalizeCharacterBuffer bufferLength alignedLength =
     let e   = min bufferLength alignedLength
@@ -350,6 +354,7 @@ finalizeCharacterBuffer bufferLength alignedLength =
 
 -- |
 -- Allocates space for an align_io struct to be sent to C.
+{-# SCC allocCharacterBuffer #-}
 allocCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Ptr CUInt)
 allocCharacterBuffer maxSize elemCount elements = do
     let e   = min maxSize elemCount
@@ -362,6 +367,7 @@ allocCharacterBuffer maxSize elemCount elements = do
 
 -- |
 -- Read and free the length of the resulting alignment.
+{-# SCC getAlignedLength #-}
 getAlignedLength :: Ptr CSize -> IO Int
 getAlignedLength lenRef =
     let f = coerce :: CSize -> Word64

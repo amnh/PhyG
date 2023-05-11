@@ -13,14 +13,16 @@
 -- behavior may result.
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# Language BangPatterns #-}
+{-# Language CPP #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language StrictData #-}
 
 #define SCREAM_ON_ACCESS 0
 #define USING_CONC 0
-#define USING_TVAR 0
 #define USING_IO   1
+#define USING_Lock 0
+#define USING_TVAR 0
 
 module Data.Hashable.Memoize
   ( memoize
@@ -30,6 +32,7 @@ module Data.Hashable.Memoize
 
 
 import Control.Concurrent.STM
+import Control.Concurrent.STM.TMVar
 import Control.Concurrent.STM.TVar
 import Control.DeepSeq
 import Control.Monad          (join)
@@ -47,6 +50,9 @@ import Data.HashTable.IO
 --import qualified Data.HashTable as CHT
 import Data.IORef
 import Prelude           hiding (lookup)
+#if USING_Lock == 1
+import GHC.Conc (unsafeIOToSTM)
+#endif
 import System.IO
 import System.IO.Unsafe
 
@@ -88,10 +94,12 @@ memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
 memoize =
 #if   USING_CONC == 1
     memoize_Conc
-#elif USING_TVAR == 1
-    memoize_TVar
 #elif USING_IO   == 1
     memoize_IO
+#elif USING_Lock == 1
+    memoize_Lock
+#elif USING_TVAR == 1
+    memoize_TVar
 #else
     error "No memoization option specified"
 #endif
@@ -128,9 +136,10 @@ memoize_Conc f = unsafePerformIO $ do
                   -- After performing the update side effects,
                   -- we return the value associated with the key
                   pure v
-#else
+#endif
 
 
+#if USING_IO == 1
 {-# NOINLINE memoize_IO #-}
 memoize_IO :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
 memoize_IO f = unsafePerformIO $ do
@@ -162,16 +171,55 @@ memoize_IO f = unsafePerformIO $ do
                   -- After performing the update side effects,
                   -- we return the value associated with the key
                   pure v
+#endif
 
 
-{-# NOINLINE memoize_TVar #-}
-memoize_TVar :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
-memoize_TVar f = unsafePerformIO $ do
+#if USING_Lock == 1
+data HashTableAccess k v = Access {-# UNPACK #-} Bool {-# UNPACK #-} (BasicHashTable k v)
+
+
+lockAccess :: HashTableAccess k v -> HashTableAccess k v
+lockAccess (Access _ table) = Access False table
+
+
+newHashTableAccess :: Int -> IO (TVar (HashTableAccess k v))
+newHashTableAccess = newTVarIO =<< fmap (HashTableAccess True ) (newSized initialSize :: IO (BasicHashTable a b))
+
+
+readHashTableAccess :: TVar (HashTableAccess k v) -> k -> IO (Maybe v)
+readHashTableAccess ref key =
+    let go = do
+            Access access table <- readTVarIO ref
+            if   not access
+            then go
+            else table `lookup` key
+    in  go
+
+
+takeHashTableAccess :: TVar (HashTableAccess k v) -> IO (BasicHashTable k v)
+takeHashTableAccess ref = atomically $ do
+    Access access table <- readTVar ref
+    check access
+    modifyTVar' ref lockAccess
+    pure table
+
+
+stowHashTableAccess :: TVar (HashTableAccess k v) -> BasicHashTable k v -> k -> v -> IO ()
+stowHashTableAccess ref table key val =
+    let val' = force val
+    in  do  insert table key val' -- Insert the key-value pair into the HashTable
+            atomically . writeTVar ref $ Access True table
+            pure val'
+
+  
+{-# NOINLINE memoize_Lock #-}
+memoize_Lock :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_Lock f = unsafePerformIO $ do
 
     let initialSize = 2 ^ (16 :: Word)
 
-    -- Create a TVar which holds the ST state and the HashTable
-    !htRef <- newTVarIO (newSized initialSize :: IO (BasicHashTable a b))
+    -- Create a TVar which holds the HashTable
+    !tabRef <- newHashTableAccess
     -- This is the returned closure of a memozized f
     -- The closure captures the "mutable" reference to the hashtable above
     -- through the TVar.
@@ -179,13 +227,47 @@ memoize_TVar f = unsafePerformIO $ do
     -- Once the mutable hashtable reference is escaped from the IO monad,
     -- this creates a new memoized reference to f.
     -- The technique should be safe for all pure functions, probably, I think.
-    pure $ \k -> unsafePerformIO $ do
+    pure $ \k -> unsafeDupablePerformIO $ do
         -- Read the TVar, we use IO since it is the outer monad
         -- and the documentation says that this doesn't perform a complete transaction,
         -- it just reads the current value from the TVar
-        ht <- join $ readTVarIO htRef
+        result <- readHashTableAccess tabRef k
+        -- Here we check if the memoized value exists
+        case result of
+          -- If the value exists return it
+          Just v  -> pure v
+          -- If the value doesn't exist:
+          Nothing ->
+            -- Perform the expensive calculation to determine the value
+            -- associated with the key, fully evaluated.
+            table <- takeHashTableAccess tabRef
+            stowHashTableAccess tabRef table k $ f v
+#endif
+
+
+#if USING_TVAR == 1
+{-# NOINLINE memoize_TVar #-}
+memoize_TVar :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_TVar f = unsafePerformIO $ do
+
+    let initialSize = 2 ^ (16 :: Word)
+
+    -- Create a TVar which holds the ST state and the HashTable
+    !htRef <- ((newSized initialSize) >>= newTVarIO) :: IO (TVar (BasicHashTable a b))
+    -- This is the returned closure of a memozized f
+    -- The closure captures the "mutable" reference to the hashtable above
+    -- through the TVar.
+    --
+    -- Once the mutable hashtable reference is escaped from the IO monad,
+    -- this creates a new memoized reference to f.
+    -- The technique should be safe for all pure functions, probably, I think.
+    pure $ \k -> unsafeDupablePerformIO $ do
+        -- Read the TVar, we use IO since it is the outer monad
+        -- and the documentation says that this doesn't perform a complete transaction,
+        -- it just reads the current value from the TVar
+--        ht <- readTVarIO htRef
         -- We use the HashTable to try and lookup the memoized value
-        result <- ht `lookup` k
+        result <- readTVarIO >>= (`lookup` k)
         -- Here we check if the memoized value exists
         case result of
           -- If the value exists return it
