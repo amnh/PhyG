@@ -176,6 +176,13 @@ memoize_IO f = unsafePerformIO $ do
 
 
 #if USING_LOCK == 1
+{-
+-=-=-=-=-=-=-=-
+    T O D O
+-=-=-=-=-=-=-=-
+Consider another implementation which only locks on *resize,*
+permitting truly concurrent reads and writes in all but an infintesimal number of cases.
+-}
 data HashTableAccess k v = Access {-# UNPACK #-} Bool {-# UNPACK #-} (BasicHashTable k v)
 
 
