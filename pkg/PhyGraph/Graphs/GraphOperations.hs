@@ -674,6 +674,7 @@ selectPhylogeneticGraph inArgs rSeed _ curGraphs =
                              (_, shuffledGraphs) = unzip $ L.sortOn fst $ zip randList curGraphs
                          in
                          take (fromJust numberToKeep) shuffledGraphs
+                         
                     -- default is all best and unique
                     else
                         uniqueBestGraphs
