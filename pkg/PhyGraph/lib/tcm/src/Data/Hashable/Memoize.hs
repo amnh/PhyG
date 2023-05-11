@@ -188,13 +188,12 @@ newHashTableAccess size = newTVarIO =<< fmap (Access True) (newSized size :: IO 
 
 
 readHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> IO (Maybe v)
-readHashTableAccess ref key =
-    let go = do
-            Access access table <- readTVarIO ref
-            if   not access
-            then go
-            else table `lookup` key
-    in  go
+readHashTableAccess ref key = do
+    t <- atomically $ do
+            Access access table <- readTVar ref
+            check access
+            pure table
+    t `lookup` key
 
 
 takeHashTableAccess :: TVar (HashTableAccess k v) -> IO (BasicHashTable k v)
