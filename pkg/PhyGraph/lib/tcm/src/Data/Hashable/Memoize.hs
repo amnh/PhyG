@@ -21,8 +21,8 @@
 
 #define SCREAM_ON_ACCESS 0
 #define USING_CONC 0
-#define USING_IO   1
-#define USING_LOCK 0
+#define USING_IO   0
+#define USING_LOCK 1
 #define USING_TVAR 0
 
 module Data.Hashable.Memoize
