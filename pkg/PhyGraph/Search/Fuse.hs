@@ -73,10 +73,10 @@ fuseAllGraphs :: SwapParams
               -> [PhylogeneticGraph]
               -> ([PhylogeneticGraph], Int)
 fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList =
-   if null inGraphList then ([], 0)
-   else if length inGraphList == 1 then (inGraphList, 0)
+   if null inGraphList then ([], counter)
+   else if length inGraphList == 1 then (inGraphList, counte)
    else
-      let -- getting values to be passed for graph diagnosis later
+      let -- getting values to be passed for graph diagnorsis later
          numLeaves = V.length $ fst3 inData
       
          curBest = minimum $ fmap snd6 inGraphList
