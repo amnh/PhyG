@@ -124,14 +124,14 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
 
       in
 
-      trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs with" ++ swapTypeString ++ " swapping") (
+      trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs with" ++ swapTypeString ++ " swapping") $
       if null newGraphList then (inGraphList, counter + 1)
       else if returnUnique then
          let uniqueList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList ++ newGraphList)
          in
          if fuseBest < curBest then
                -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
-               trace ("\n")
+               trace ("--ULR\n")
                fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
          else (uniqueList, counter + 1)
 
@@ -141,18 +141,19 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
 
          -- recursive rounds
          else
-            let allBestList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList ++ newGraphList)
+            -- need unique list to keep going
+            let allBestList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList ++ newGraphList)
             in
 
             -- found better
             if fuseBest < curBest then
                --trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
-               trace ("\n")
+               trace ("--BR\n")
                fuseAllGraphs swapParams inGS inData (drop 2  rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
 
             -- equal or worse cost just return--could keep finding equal
             else (allBestList, counter + 1)
-      )
+      
 
 -- | fusePairRecursive wraps around fusePair recursively traversing through fuse pairs as oppose
 -- to parMapping at once creating a large memory footprint
