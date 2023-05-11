@@ -148,7 +148,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
             -- found better
             if fuseBest < curBest then
                --trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 $ head bestSwapGraphList))
-               trace ("--BR\n")
+               trace ("\n")
                fuseAllGraphs swapParams inGS inData (drop 2  rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
 
             -- equal or worse cost just return--could keep finding equal
