@@ -15,13 +15,14 @@
 
 {-# Language BangPatterns #-}
 {-# Language CPP #-}
+{-# Language LambdaCase #-}
 {-# Language ScopedTypeVariables #-}
 {-# Language StrictData #-}
 
 #define SCREAM_ON_ACCESS 0
 #define USING_CONC 0
 #define USING_IO   1
-#define USING_Lock 0
+#define USING_LOCK 0
 #define USING_TVAR 0
 
 module Data.Hashable.Memoize
@@ -50,7 +51,7 @@ import Data.HashTable.IO
 --import qualified Data.HashTable as CHT
 import Data.IORef
 import Prelude           hiding (lookup)
-#if USING_Lock == 1
+#if USING_LOCK == 1
 import GHC.Conc (unsafeIOToSTM)
 #endif
 import System.IO
@@ -96,7 +97,7 @@ memoize =
     memoize_Conc
 #elif USING_IO   == 1
     memoize_IO
-#elif USING_Lock == 1
+#elif USING_LOCK == 1
     memoize_Lock
 #elif USING_TVAR == 1
     memoize_TVar
@@ -174,7 +175,7 @@ memoize_IO f = unsafePerformIO $ do
 #endif
 
 
-#if USING_Lock == 1
+#if USING_LOCK == 1
 data HashTableAccess k v = Access {-# UNPACK #-} Bool {-# UNPACK #-} (BasicHashTable k v)
 
 
@@ -183,10 +184,10 @@ lockAccess (Access _ table) = Access False table
 
 
 newHashTableAccess :: Int -> IO (TVar (HashTableAccess k v))
-newHashTableAccess = newTVarIO =<< fmap (HashTableAccess True ) (newSized initialSize :: IO (BasicHashTable a b))
+newHashTableAccess size = newTVarIO =<< fmap (Access True) (newSized size :: IO (BasicHashTable a b))
 
 
-readHashTableAccess :: TVar (HashTableAccess k v) -> k -> IO (Maybe v)
+readHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> IO (Maybe v)
 readHashTableAccess ref key =
     let go = do
             Access access table <- readTVarIO ref
@@ -204,12 +205,10 @@ takeHashTableAccess ref = atomically $ do
     pure table
 
 
-stowHashTableAccess :: TVar (HashTableAccess k v) -> BasicHashTable k v -> k -> v -> IO ()
-stowHashTableAccess ref table key val =
-    let val' = force val
-    in  do  insert table key val' -- Insert the key-value pair into the HashTable
-            atomically . writeTVar ref $ Access True table
-            pure val'
+giveHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
+giveHashTableAccess ref key val table = do
+    insert table key val
+    atomically . writeTVar ref $ Access True table
 
   
 {-# NOINLINE memoize_Lock #-}
@@ -219,7 +218,7 @@ memoize_Lock f = unsafePerformIO $ do
     let initialSize = 2 ^ (16 :: Word)
 
     -- Create a TVar which holds the HashTable
-    !tabRef <- newHashTableAccess
+    !tabRef <- newHashTableAccess initialSize
     -- This is the returned closure of a memozized f
     -- The closure captures the "mutable" reference to the hashtable above
     -- through the TVar.
@@ -228,20 +227,11 @@ memoize_Lock f = unsafePerformIO $ do
     -- this creates a new memoized reference to f.
     -- The technique should be safe for all pure functions, probably, I think.
     pure $ \k -> unsafeDupablePerformIO $ do
-        -- Read the TVar, we use IO since it is the outer monad
-        -- and the documentation says that this doesn't perform a complete transaction,
-        -- it just reads the current value from the TVar
-        result <- readHashTableAccess tabRef k
-        -- Here we check if the memoized value exists
-        case result of
-          -- If the value exists return it
-          Just v  -> pure v
-          -- If the value doesn't exist:
-          Nothing ->
-            -- Perform the expensive calculation to determine the value
-            -- associated with the key, fully evaluated.
-            table <- takeHashTableAccess tabRef
-            stowHashTableAccess tabRef table k $ f v
+        readHashTableAccess tabRef k >>= \case
+              Just v  -> pure v
+              Nothing ->
+                let v = force $ f k
+                in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
 #endif
 
 
