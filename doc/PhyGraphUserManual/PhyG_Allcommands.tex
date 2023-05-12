@@ -66,14 +66,10 @@
 		as a basis for distance tree construction. Specifies how the builds are refined (\texttt{none}, 
 		\texttt{otu}, \texttt{spr}, \texttt{tbr}), as well as how the tree is constructed (\texttt{dWag}, 
 		\texttt{nj}, \texttt{rdWag}, \texttt{wpgma}). Distance trees are subsequently rediagnosed 
-		as character trees and returned for further analysis {do we need to explain why?}. Associated arguments of \texttt{distance} 
+		as character trees and returned for further analysis \hl{do we need to explain why?}. Associated arguments of \texttt{distance} 
 		include:
 					
 		\begin{description}
-			\item[best:INT] Applies only to \texttt{rdWag}. Specifies the number of trees retained 
-			after 	\texttt{rdWag} builds, selecting the best trees in terms of distance cost. The 
-			options can be used to reduce the number of trees retained.  
-						
 			\item[dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the 
 			`best' taxon to 
 			add at each step, yielding a single tree. This method has a time complexity of $O(n^3)$.
@@ -84,17 +80,23 @@
 			\item[none] No refinement (\texttt{otu}, \texttt{spr}, \texttt{tbr}) is performed after 
 			distance builds. \texttt{none} is the default refinement method.
 						
-			\item[otu] Specifies that \texttt{otu} refinement \citep{Wheeler2021} is performed 
+			\item[otu] Specifies that OTU refinement \citep{Wheeler2021} is performed 
 			after distance builds.
 			
-			\item[rdWag] Performs randoms addition sequence distance Wagner builds, 
-			yielding multiple trees determined by the argument \texttt{replicates:n}. This 
-			method has a time complexity of $O(m \times n^2)$.
+			\item[rdWag] Performs randoms addition sequence distance Wagner builds 
+			\citep{Farris1972,Wheeler2021}, yielding multiple trees determined by the 
+			argument \texttt{replicates}. This method has a time complexity of $O(m \times n^2)$.
 			
-			\item[spr] Specifies that \texttt{spr} refinement \citep{Dayhoff1969} is performed 
+				\begin{description}
+				\item[best:INT] Applies only to \texttt{rdWag}. Specifies the number of trees retained 
+				after 	\texttt{rdWag} builds, selecting the best trees in terms of distance cost. The 
+				options can be used to reduce the number of trees retained.  
+				\end{description}
+			
+			\item[spr] Specifies that SPR refinement \citep{Dayhoff1969} is performed 
 			after distance builds.
 
-			\item[tbr] Specifies that \texttt{tbr} refinement \citep{Farris1988, swofford1990a} 
+			\item[tbr] Specifies that TBR refinement \citep{Farris1988, swofford1990a} 
 			is performed after distance builds.
 		
 			\item[wpgma] Performs Weighted Pair Group Method with Arithmetic Mean 
@@ -177,8 +179,6 @@
 %		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
 %		$n$ edges aware from their initial positions).
 		
-		\item [atRandom] Chooses graphs to fuse uniformly at random when \texttt{pairs} is specified. 
-		
 		\item [best] Specifies the method for tree selection, which in this case returns the best graphs 
 		found during fuse operations.		
 		
@@ -186,7 +186,7 @@
 		
 		\item [none] No swapping is performed during the swap. This is the default.
 		
-		\item [noReciprocal] Turns off \texttt{reciprocal}.
+		\item [noReciprocal] Turns off \texttt{reciprocal} (see below).
 		
 		\item [once] Performs a single round of fusing on input graphs and returns the resulting graphs. 
 		Alternatively (and by default) fusing continues recursively until no new graphs are found.
@@ -194,9 +194,14 @@
 		\item [pairs:INT] Limits the number of graphs to be fused to the number of pairs as 
 		specified by the integer value (as oppose to $\binom{m}{2}$ for $m$ graphs).
 		
+			\begin{description}
+			\item [atRandom] Chooses graphs to fuse uniformly at random when \texttt{pairs} is 
+			specified. 
+			\end{description}
+		
 		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the 
-		corresponding subgraph in the other.  Reciprocal causes exchange and evaluation of graphs 
-		in both directions--roughly doubling time and memory footprint.
+		corresponding subgraph in the other.  This argument results in the exchange and evaluation 
+		of graphs in both directions--roughly doubling time and memory footprint.
 		
 		\item [spr[:INT]] Causes the exchanged subgraphs to be tried at multiple positions (up to 
 		$n$ edges away from their initial positions, where $n$ equals the integer value).
