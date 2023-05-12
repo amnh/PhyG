@@ -478,65 +478,65 @@
 \section{Command Reference}
 	\input{PhyG_Allcommands.tex}
 
-\chapter{Program Usage}
-\section{Example Script Files}
-Tutorials are available for download on the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub}
-website. These tutorials provide guidance for using the program. Each tutorial contains a \phyg script 
-that includes detailed commentaries explaining the rationale behind each step of the analysis. The 
-command arguments will differ substantially depending on type, complexity, and size of the data set. 
-
-%	The following file (titled ``Example Script 1'') reads two input sequence files (net-I.fas and net-II.fas), 
-%	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
-%	outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a softwired network, 
-%	and 	reports a series of files with various information about the data and graphs.
+%\chapter{Program Usage}
+%\section{Example Script Files}
+%Tutorials are available for download on the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub}
+%website. These tutorials provide guidance for using the program. Each tutorial contains a \phyg script 
+%that includes detailed commentaries explaining the rationale behind each step of the analysis. The 
+%command arguments will differ substantially depending on type, complexity, and size of the data set. 
+%
+%%	The following file (titled ``Example Script 1'') reads two input sequence files (net-I.fas and net-II.fas), 
+%%	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
+%%	outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a softwired network, 
+%%	and 	reports a series of files with various information about the data and graphs.
+%%	
+%%		\begin{verbatim}
+%%			-- Example Script 1
+%%			read("net-I.fas")
+%%			--read("net-Ia.fas")
+%%			--read("net-IIa.fas")
+%%			read("net-II.fas")
+%%			--read("net-I.dot")
+%%			--read("net-I.tre")
+%%			--read("net-II.tre")
+%%			--read("net-II.dot")
+%%			read("net-I-II.dot")
+%%			set(outgroup:"zero")
+%%			set(graphtype:softwired)
+%%			report("net-test.tre", graphs, newick, overwrite)
+%%			report("net-test.dot", graphs, dot, overwrite)
+%%			report("net-test-data.csv", data, overwrite)
+%%			report("net-test-diag.csv", diagnosis, overwrite)
+%%			report("net-display.dot", displaytrees, dot, overwrite)
+%%			report("net-display.tre", displaytrees, newick, overwrite)
+%%		\end{verbatim}
 %	
-%		\begin{verbatim}
-%			-- Example Script 1
-%			read("net-I.fas")
-%			--read("net-Ia.fas")
-%			--read("net-IIa.fas")
-%			read("net-II.fas")
-%			--read("net-I.dot")
-%			--read("net-I.tre")
-%			--read("net-II.tre")
-%			--read("net-II.dot")
-%			read("net-I-II.dot")
-%			set(outgroup:"zero")
-%			set(graphtype:softwired)
-%			report("net-test.tre", graphs, newick, overwrite)
-%			report("net-test.dot", graphs, dot, overwrite)
-%			report("net-test-data.csv", data, overwrite)
-%			report("net-test-diag.csv", diagnosis, overwrite)
-%			report("net-display.dot", displaytrees, dot, overwrite)
-%			report("net-display.tre", displaytrees, newick, overwrite)
-%		\end{verbatim}
-	
-\section{Faster and Slower}
-Multiple options affect both the quality of results (better ot worse optimality score) and
-the overall execution time.  In general, the more time consuming options also have larger
-memory footprints.
-
-\subsection{Evaluation of Graphs}
-	\texttt{Multitraverse}\\
-	\texttt{CompressResolutions}\\
-	\texttt{SoftwiredMethod}\\
-
-\subsection{Search Options}
-	\texttt{steepest}\\
-	\texttt{Limiting number of network edges}\\
-	\texttt{Limiting number of graphs}
-	
-\section{Parallel Evaluation}
-	\texttt{+RTS -NX -RTS}
-	
-\section{Memory Use}
-
-The amount of memory used during program execution can be reported by adding the 
-runtime option ``-s'' as in \texttt{+RTS -s -RTS} to the command line (runtime options can 
-be specified together as in \texttt{+RTS -NX -s -RTS}). This will output several fields of 
-data with the  ``in use'' field specifying the maximum amount of memory requested from 
-the OS. RTS options are described in detail at \url{https://downloads.haskell.org/ghc/latest/docs/users_guide/runtime_control.html}. 
-	
+%\section{Faster and Slower}
+%Multiple options affect both the quality of results (better ot worse optimality score) and
+%the overall execution time.  In general, the more time consuming options also have larger
+%memory footprints.
+%
+%\subsection{Evaluation of Graphs}
+%	\texttt{Multitraverse}\\
+%	\texttt{CompressResolutions}\\
+%	\texttt{SoftwiredMethod}\\
+%
+%\subsection{Search Options}
+%	\texttt{steepest}\\
+%	\texttt{Limiting number of network edges}\\
+%	\texttt{Limiting number of graphs}
+%	
+%\section{Parallel Evaluation}
+%	\texttt{+RTS -NX -RTS}
+%	
+%\section{Memory Use}
+%
+%The amount of memory used during program execution can be reported by adding the 
+%runtime option ``-s'' as in \texttt{+RTS -s -RTS} to the command line (runtime options can 
+%be specified together as in \texttt{+RTS -NX -s -RTS}). This will output several fields of 
+%data with the  ``in use'' field specifying the maximum amount of memory requested from 
+%the OS. RTS options are described in detail at \url{https://downloads.haskell.org/ghc/latest/docs/users_guide/runtime_control.html}. 
+%	
 	% Optimize memory consumption--keep low number of graphs in initial searches, later keep 
 % a larger number to get others 
 %		\hl{(see email from WW 04-21-22)}
