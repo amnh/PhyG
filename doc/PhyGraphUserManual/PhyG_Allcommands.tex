@@ -708,7 +708,7 @@
 	\subsubsection{Arguments}
 	
 	\begin{description}
-		\item [STRING list]  %The first argument is the ``new name'' for the remainder of the following arguments.
+		\item [STRING list]  The first argument is the ``new name'' for the remainder of the following arguments.
 	\end{description}
 		
 	\subsubsection{Defaults}
@@ -931,10 +931,10 @@
 			\item [VertexLabel:BOOL] Specifies the output graph have vertices 
 			labeled with their subtree leaf set. The default value is FALSE.
 						
-		\item [Threshold:INT] \hl{Specifies the threshold value (between 0 and 100) 
-		and the frequency of vertex or edge occurrence in input graphs to be included 
-		in the output graph. Affects the behavior of `eun' and `majority'. The default value
-		is $0$.}		
+		\item [Threshold:INT] Specifies the threshold  (between 0 and 100) 
+		frequency of vertex or edge occurrence in input graphs to be included 
+		in the output graph. Affects the behavior of `eun,' `cun,' and `majority'. The default value
+		is $0$.
 		\end{description}	
 				
 		\item[search] Outputs search statistics in csv format. See Section 
@@ -948,7 +948,8 @@
 		`\textbf{defaultGraph}'. By default files are appended to the report, rather 
 		than overwritten. See \texttt{overwrite}.
 				
-		\item[support] Outputs support graphs (see Section \ref{subsec:support}). 
+		\item[support] Outputs support graphs (see Section \ref{subsec:support})
+		that have been previously calculated by the command \texttt{support}. 
 		Resampling graphs \citep{Farrisetal1996} are independent of the input graphs 
 		while Goodman-Bremer graphs \citep{Goodmanetal1982, bremer1994} are 
 		based on current graphs. Graphs can be output in multiple formats with the
@@ -961,7 +962,7 @@
 		later.
 		
 		\item[tnt] Outputs a file in TNT \citep{Goloboffetal2008} format (see 
-		\ref{subsec:TNT}).
+		\ref{subsec:TNT}) using \texttt{impliedAlignment} for unaligned sequences.
 				 
 	\end{description}			
 		
@@ -1030,7 +1031,7 @@
 		\texttt{search([argument list])}
 	
 	\begin{phygdescription}
-		{This command implements a default search strategy, performing a timed 
+		{This command implements a randomized search strategy, performing a timed 
 		 series of graph optimization methods including building, swapping, 
 		recombination (fusing), simulated annealing and drifting, network edge edits
 		(addition, deletion and moving), and Genetic Algorithm. The parameters and 
