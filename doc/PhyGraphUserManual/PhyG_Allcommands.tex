@@ -1254,8 +1254,8 @@
 
 			\item[w15] Employs the parsimony network penalty of \cite{Wheeler2015}.	
 		
-			\item[w23] Sets the parsimony network penalty of \cite{WhelerandWashburn2023}, which is more severe
-			but has a lower time complexity than W15..		
+			\item[w23] Sets the parsimony network penalty of \cite{WheelerandWashburn2023}, which is more severe
+			but has a lower time complexity than W15.
 			\end{description}
 			
 			
@@ -1396,6 +1396,8 @@
 		iterations, using \texttt{replicates}. The edges are labeled with the bootstrap 
 		frequencies when output via the command \texttt{report(support)}. Default replicate search is 100 random addition 
 		sequence distance-based Wagner builds and TBR branch swapping on the best distance tree.
+		If the graph type is softwired or hardwired, \texttt{netadd}, \texttt{maxnetedges:5}, \texttt{atrandom} are 
+		added. 
 		
 		\item[gb] Synonym of GoodmanBremer.
 			
@@ -1418,7 +1420,9 @@
 		\item[jackknife:[FLOAT]] Specifies that Jackknife resampling is performed with $n$ acceptance 
 		probability (default 0.6231 or $1 - e^{-1}$). When reported (via \texttt{report(support)}), 
 		edges are labeled with the jackknife frequencies. Default replicate search is 100 random addition 
-		sequence distance-based Wagner builds and TBR branch swapping on the best distance tree.
+		sequence distance-based Wagner builds and TBR branch swapping on the best distance tree.  
+		If the graph type is softwired or hardwired, \texttt{netadd}, \texttt{maxnetedges:5}, \texttt{atrandom} are 
+		added. 
 		
 		\item[replicates:[INT]] Specifies the number of resampling replicates, as indicated by the 
 		integer value, that are performed in resampling support for Jackknife and bootstrap methods. 
@@ -1427,7 +1431,7 @@
 		
 	\subsubsection{Defaults}
 		\texttt{support(goodmanBremer:TBR)} Calculates Goodman Bremer support values, 
-		and traverses the TBR neighborhood.
+		via traversing the TBR neighborhood.
 		
 
 		\begin{example}
@@ -1450,7 +1454,7 @@
 		group of algorithms referred to as branch swapping, that proceed by clipping
 		parts of the given tree and attaching them in different positions. These algorithms 
 		include `NNI' \citep{CaminandSokal1965, Robinson1971}, `SPR' \citep{Dayhoff1969}, 
-		and `TBR' \citep{Farris1988, swofford1990a} refinement.}
+		and `TBR' \citep{Farris1988, swofford1990a} refinement.  Default swapping trajectories ar randomized.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
@@ -1458,10 +1462,10 @@
 		\item[all] Turns off all preference strategies to make a join, simply trying all possible 
 		join positions for each pair of clades generated after a break. 
 		The refinement examines the entire rearrangement neighborhood of the current graph 
-		before retaining the best (lowest cost) solutions. This is a memory intensive refinement.
+		before retaining the best (lowest cost) solutions. This can be very memory intensive.
 
 		\item[alternate] Specifies that alternating rounds of \texttt{spr} \citep{Dayhoff1969} 
-		and \texttt{tbr} \citep{Farris1988, swofford1990a} refinement is performed.
+		and \texttt{tbr} \citep{Farris1988, swofford1990a} refinement are performed.
 		
 		\item[annealing[:INT]] Specifies the number of rounds of simulated annealing 
 		\citep{Metropolisetal1953,Kirkpatricketal1983,Cerny1985} optimization to be performed, 
@@ -1478,7 +1482,7 @@
 		
 		\item[atRandom] Swap neighborhoods are traversed in a randomized order (compare 
 		with \texttt{inorder}). 	This will result in different trajectories of the swap space being 
-		explored.
+		explored. This is the default.
 		
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
 		annealing \citep{goloboff1999} optimization that are performed, as indicated by the integer 
@@ -1503,7 +1507,7 @@
 			\end{description}
 		
 		\item[ia] Specifies that Implied Alignment \citep{Wheeler2003} assignment are used for 
-		branch swapping as opposed to full Direct Optimization for dynamic charters when the 
+		branch swapping as opposed to full Direct Optimization for dynamic characters when the 
 		graph type is \texttt{tree}.
 		
 		\item[inorder] Contra \texttt{atRandom}, swap neighborhoods are always traversed 
@@ -1515,10 +1519,10 @@
 		\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} 
 		is performed.
 		
-		\item[replicates:[INT]] \hl{...} Default 1.
+		\item[replicates:[INT]] Sets the number of randomized swap replicate trajectories. Default 1.
 		
 		\item[spr:[INT]] Specifies that SPR refinement \citep{Dayhoff1969} is performed. If an 
-		integer value is specified, the re-addition of pruned graphs will be within $2 * INT$ 
+		integer value is specified, the re-addition of pruned graphs will be within $INT$ 
 		edges of its original placement.
 		
 		\item[steepest] Specifies that refinement follows a greedy path, abandoning the 
@@ -1530,17 +1534,17 @@
 		\end{description}	
 		
 		\subsubsection{Defaults}
-			\texttt{swap(alternate, \hl{keep, steepest})}
+			\texttt{swap(alternate, keep:10, steepest)}
 		
 		\begin{example}
 			\item{\texttt{swap(tbr, all, keep:10)}\\Performs tbr branch swapping on each current graph 
-			returning up to 10 best rearrangements found for each graph after examining all graphs in 
+			returning up to 10 best graphs after examining all graphs in 
 			the rearrangement neighborhood.}
 			
-			\item{\texttt{swap(annealing:10, steps)}\\Performs alternating rounds of \texttt{spr} and 
+			\item{\texttt{swap(annealing:10, steps:10)}\\Performs alternating rounds of \texttt{spr} and 
 			\texttt{tbr} branch swapping (the default) on each current graph, specifying 10 rounds of
-			simulated annealing, with 10 temperature steps being performed during the
-			simulated annealing (the default number of steps).}
+			simulated annealing, with 10 temperature steps being performed for each
+			simulated annealing round (the default number of steps).}
 		\end{example}
 	
 %---------------------------------------------
@@ -1552,8 +1556,9 @@
 		\texttt{transform(argument list)}
 			
 	\begin{phygdescription}
-		{Transforms the properties of the imported characters from one type to another. It 
-		modifies the global setting during program execution (as opposed to \texttt{set}, 
+		{Transforms the properties of the imported characters, graphs, or general values 
+		from one value or type to another. It 
+		modifies the global settings during program execution (as opposed to \texttt{set}, 
 		which operates at the start of the analysis). This includes changes of graph type
 		(e.g. tree to softwired Network) and data types (e.g. dynamic to static 
 		approximation), among other operations.}
@@ -1571,9 +1576,10 @@
 %		\texttt{transform(compressResolutions:True)} or \texttt{transform(softwiredMethod:\\
 %		Exhaustive)} at a later stage to improve graph score.
 			
-		\item[displayTrees:[INT]] Specifies the output of display trees for each graph 
-		determined. The number of returned display trees is limited by the number specified
-		by the integer value, or by the default value (10). \hl{Used in concert with \texttt{toTree}.}
+		\item[displayTrees:[INT]] Specifies the number output of display trees for each graph. 
+		When \texttt{toTree} is specified. 
+		The number of returned display trees is limited by this
+		integer value, or by the default value (10). Used in concert with \texttt{toTree}.
 		
 			\begin{description}
 			\item[atRandom] Returns the number of display trees as specified by the integer in 
@@ -1605,19 +1611,16 @@
 
 			\item[w15] Employs the parsimony network penalty of \cite{Wheeler2015}.	
 		
-			\item[w23] Sets the parsimony network penalty akin to \texttt{w15}, but with the 
-			penalty applied to all blocks and is therefore more severe) \hl{ref}.		
+			\item[w23] Sets the parsimony network penalty of \cite{WheelerandWashburn2023}, which is more severe
+			but has a lower time complexity than W15.
+			
 			\end{description}
 			
-		\item[graphSteepest[:INT]] Changes the number or graphs evaluated \hl{in parallel} 
-		in a variety of procedures (e.g. swap, netmove) from the default (the larger of the 
-		number of parallel threads and 10).  This option can be used to exploit or limit use 
-		of parallel thread numbers.  
-		
-		\item[graphsSteepest:INT] Sets the maximum number of graphs to be evaluated 
-		simultaneously during `steepest' descent in swapping and network addition and 
-		deletion operation. \hl{The number is the minimum of the number of parallel threads 
-		and $n$ (default 10).}
+		\item[graphSteepest[:INT]] Changes the number or graphs simultaneously evaluated 
+		in a variety of procedures (e.g. swap, fuse, netmove) from the default (the larger of the 
+		number of parallel threads and INT).  This option can be used to exploit or limit use 
+		of parallel thread numbers.  Higher numbers will consume more memory and lower, less.
+		The default value is 10.  
 
 		\item[multiTraverse:BOOL] Controls the multi-traverse character optimization option. 
 		If \texttt{True}, character trees are traversed from each edge as in 
@@ -1627,7 +1630,7 @@
 		If \texttt{False}, only outgroup-based traversals are performed as in 
 		\citep{Wheeler1996, POY2, POY3}. 
 		
-		\item[name] \hl{...}
+		%\item[name] \hl{...}
 			
 		\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 		This name must appear in double quotes. If the outgroup is not set, the 
@@ -1636,15 +1639,18 @@
 		or \texttt{exclude}. Only a single taxon can be set as the outgroup of the analysis. 
 			
 		 \item[softwiredMethod:] Sets the algorithm for softwired graphs to the 
-		 `Exhaustive' method of diagnosing all display trees, as in \cite{Wheeler2015} or
+		 `Naive' method of diagnosing all display trees, as in \cite{Wheeler2015} or
 		 the `Resolution Cache' method of \cite{WheelerandWashburn2023}.
-		 \hl{explain}  
+
 				
 			\begin{description}
-			\item[Exhaustive] ...	
-			
-			\item[ResolutionCache] ...	
-			
+					\item[Naive] Determines the score of a softwired network by evaluating all display trees
+					(up to $2^m$ for $m$ network nodes) and summing the costs of the minimum cost display tree for each block
+					of data.  This can be extremely time consuming for graphs with large number of network nodes.
+					
+					\item[ResolutionCache] Uses the method of \citep{Wheelerand Washburn2023} to determine
+					softwired network costs in greatly reduced time.  This is the default.
+					
 			\end{description}
 			
 		\item[staticApprox] Converts non-aligned (`dynamic') sequence characters to their implied 
@@ -1660,11 +1666,12 @@
 		The number of display trees produced for each graph is controlled via the options 
 		\texttt{displayTrees:n}, \texttt{atRandom}, and \texttt{first}. 
 		
-		\item[type] \hl{...}
+		%\item[type] \hl{...}
 		
-		\item[usenetaddheuristic] \hl{...}
+		\item[usenetaddheuristic:Bool] Use a heuristic cost procedure for network addition that has lower time complexity,
+		but is approximate as opposed to evaluating each network solution via full graph traversal.
 		
-		\item[weight] \hl{...}
+		%\item[weight] 
 	\end{description}
 			
 	\subsubsection{Defaults}
