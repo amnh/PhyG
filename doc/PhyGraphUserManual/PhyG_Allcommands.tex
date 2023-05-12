@@ -1035,7 +1035,7 @@
 		 series of graph optimization methods including building, swapping, 
 		recombination (fusing), simulated annealing and drifting, network edge edits
 		(addition, deletion and moving), and Genetic Algorithm. The parameters and 
-		their order of implementation for this search are randomized. The arguments 
+		their order of implementation are randomized. The arguments 
 		associated with this command specify the duration and number of independent 
 		instances of the \texttt{search}. Successive rounds of \texttt{search} gather any 
 		solutions from previous sequential or parallel rounds, as well as any input graphs. 
@@ -1049,14 +1049,17 @@
 		such that the program has a reasonable amount of time to perform a search. 
 		Therefore, it is important to have some idea as to the length of time 
 		it would take to do a single round of searching.  Performing a simple search 
-		that included build, swap, fuse and Genetic Algorithm and calculating the 
-		amount of time for a single tree within this search would provide some 
+		that included build, swap, and network edits (if the graph search is for a 
+		network) calculating the 
+		amount of time for a single graph within this search provides some 
 		approximation as to the amount of time necessary to perform a thorough 
 		search. Obviously, this estimate is data and optimality criterion dependent. 
 		With this information, the user can then estimate the amount of time necessary 
 		to perform a thorough search (perhaps 10 times the amount of time it took to 
-		perform this simple search). The user should also allow some time for the program 
-		to collate and write the results to files.}
+		perform this simple search). 
+		%The user should also allow some time for the program 
+		%to collate and write the results to files.
+		}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -1068,10 +1071,12 @@
 		maximum total execution time for the search.
 		
 		\item[instances:INT] Specifies the number of (potentially parallel) search instances,
-		as indicated by the integer value.
+		as indicated by the integer value.  The overall search will terminate only when  
+		all instances have completed.
 		
-		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
-		integer value. \hl{when? at the end of each iteration or at the end?}.
+		\item[keep:INT] Limits the number of returned graphs (for the entirety of the command)  
+		to that as specified by the 
+		integer value.
 		
 		\item[maxNetEdges:INT] Limits the maximum number of network edges to that
 		specified by the integer value. This should only to be used if \texttt{graphtype}
@@ -1083,18 +1088,19 @@
 		\item[seconds:INT] Adds the number of seconds (as specified by the integer) to the 
 		maximum total execution time for the search.
 
-		\item[stop:INT] Specifies that the search will terminate after the number of iterations 
-		as indicated by the integer. Should this argument be used with a specific time strategy, 
-		the search will continue until the maximum execution time for the search has ended
-		or until the cost of the best graph fails to improve (whichever comes first).
+		\item[stop:INT] Causes a search instance to terminate after the number of iterations 
+		without graph optimality improvement. This argument is an adjunct to the specified time. 
+		The search iteration will continue until the maximum execution time for the search has ended
+		or until the cost of the best graph fails to improve after the specified integer (whichever comes first).
+		The overall search will terminate only when all instances have completed.
 		
 		\item[Thompson] Specifies that randomized choice of search option (e.g. Wagner 
-		Build, SPR, Genetic Algorithm) employs Thompson sampling. Put succinctly, this
+		Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. This
 		sampling method is a heuristic for timed search decision making.
 				
 			\begin{description}
 			\item[exponential] Specifies that the Thompson memory is an exponential function of 
-			\texttt{mFactor}, \hl{$m$}.  Updating of search type, $\theta^k$, probability for iteration 
+			\texttt{mFactor}, $m$.  Updating of search type, $\theta^k$, probability for iteration 
 			$n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  
 			Thompson success is a function of whether a search was successful in reducing the graph 
 			cost and how long that search took to complete.
@@ -1106,13 +1112,15 @@
 			complete.
 			
 			\item[mFactor:INT] Specifies the memory factor for Thompson sampling, as 
-			indicated by the integer value. This parameter is applied to both the \texttt{linear}
+			indicated by the integer value. The lower the value (down to 0), the shorter the memory
+			allowing for more rapid adjustment of search strategy probabilities.
+			This parameter is applied to both the \texttt{linear}
 			and \texttt{exponential} arguments of \texttt{Thompson}.
 			\end{description}
 	\end{description}		
 	
 	\subsubsection{Defaults}
-		\texttt{search(instances:1, sections:30, \hl{keep:10})} Under the default parameters, 
+		\texttt{search(instances:1, seconds:30, keep:10)} Under the default parameters, 
 		\phyg will perform 1 instance of a search for at most 30 seconds, keeping up to 10 graphs.
 		
 	\begin{example}
@@ -1124,7 +1132,7 @@
 		
 		\item{\texttt{search(days:3, thompson, linear, mfactor:5)}\\ This command will attempt
 		as many iterations of the randomized search strategy, employing Thompson sampling, 
-		with the mFactor value set to 5.}
+		with linear memory function and the mFactor value set to 5.}
 	\end{example}
 	
 %---------------------------------------------
