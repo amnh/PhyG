@@ -1265,7 +1265,7 @@
 		deletion operation. The number is the lower of the number of parallel threads 
 		and $n$ (default 10).  Setting this number to higher values can improve the use of parallel resources,
 		but at the cost of additional memory footprint.  Accordingly, reduction in this value can reduce
-		memory consumption.}
+		memory consumption.
 			
 		\item[graphType:] Sets the phylogenetic graph type. The program allows for the input, 
 		analysis of and output of a broad class of phylogenetic graphs. These include trees, 
@@ -1395,16 +1395,18 @@
 		
 		\item[bootstrap] Calculates Bootstrap support. The user can specify the number of 
 		iterations, using \texttt{replicates}. The edges are labeled with the bootstrap 
-		frequencies when output via the command \texttt{report(support)}.
+		frequencies when output via the command \texttt{report(support)}. Default replicate search is 100 random addition 
+		sequence distance-based Wagner builds and TBR branch swapping on the best distance tree.
 		
 		\item[gb] Synonym of GoodmanBremer.
 			
-		\item[goodmanbremer] Specifies that Goodman-Bremer support is 
+		\item[goodmanBremer] Specifies that Goodman-Bremer support is 
 		calculated for input graphs. 
 			
 			\begin{description}
 			\item[gbsample:[INT]] Specifies the number of alternate graphs to be examined (i.e. limited). 
-			The graphs are chosen uniformly at random.
+			The graphs are chosen uniformly at random.  This is used to reduce execution time of the Goodman-Bremer
+			support at a cost of potentially increased overestimates (higher upper bound values). 
 			
 			\item[spr] Traverses the SPR neighborhood to determine an upper-bound on 
 			the NP-hard values.
@@ -1415,11 +1417,12 @@
 			\end{description}
 		
 		\item[jackknife:[FLOAT]] Specifies that Jackknife resampling is performed with $n$ acceptance 
-		probability (default 0.6231 or $1 - e^{-1}$). When reported (via \texttt{report(support)}) 
-		edges are labeled with the jackknife frequencies.
+		probability (default 0.6231 or $1 - e^{-1}$). When reported (via \texttt{report(support)}), 
+		edges are labeled with the jackknife frequencies. Default replicate search is 100 random addition 
+		sequence distance-based Wagner builds and TBR branch swapping on the best distance tree.
 		
 		\item[replicates:[INT]] Specifies the number of resampling replicates, as indicated by the 
-		integer value, are performed in resampling support for Jackknife and bootstrap methods. 
+		integer value, that are performed in resampling support for Jackknife and bootstrap methods. 
 		The default is 100.
 		\end{description}	
 		
