@@ -58,7 +58,7 @@
 		\end{description}			
 		
 		\item [character] Performs random addition sequence Wagner \citep{Farris1970} builds 
-		($O(n^2)$) for tree construction. If the graphtype is specified as softwired or hardwired 
+		($O(n^2)$) for tree construction. If the graphtype is specified as softwired or hardwired, 
 		the resulting trees are rediagnosed as softwired graphs. This is 
 		the default method for tree construction.
 		
@@ -66,7 +66,7 @@
 		as a basis for distance tree construction. Specifies how the builds are refined (\texttt{none}, 
 		\texttt{otu}, \texttt{spr}, \texttt{tbr}), as well as how the tree is constructed (\texttt{dWag}, 
 		\texttt{nj}, \texttt{rdWag}, \texttt{wpgma}). Distance trees are subsequently rediagnosed 
-		as character trees and returned for further analysis. Associated arguments of \texttt{distance} 
+		as character trees and returned for further analysis {do we need to explain why?}. Associated arguments of \texttt{distance} 
 		include:
 					
 		\begin{description}
@@ -102,19 +102,21 @@
 			has a time complexity of $O(n^2)$.
 		\end{description}
 
-		\item [replicates:INT] Applies to \texttt{rdWag} and \texttt{character}. Specifies the 
-		number (INT) of random addition sequences performed.
+		\item [replicates:[INT]] Applies to \texttt{rdWag} and \texttt{character}. Specifies the 
+		number of random addition sequences to be performed, as indicated by the integer 
+		value. By default 10 random addition sequences are performed.
 		
-		\item[return:INT] Applies to \texttt{rdWag} and \texttt{character}. This limits the 
-			number of Wagner trees returned for further analysis. By default all graphs that 
-			are built are returned, unless limited by \texttt{best:INT} in distance analysis. 
-			Limiting the number of returned trees (as opposed to simply generating that number) 
-			can result in a larger memory footprint.
+		\item[return:[INT]] Applies to \texttt{rdWag} and \texttt{character}. This limits the 
+			number of Wagner trees returned for further analysis, to the value as specified 
+			by the integer. By default all graphs that are built are returned, unless limited 
+			by \texttt{best} in distance analysis. Limiting the number of returned trees 
+			(as opposed to simply generating that number) can result in a larger memory 
+			footprint.
 	\end{description}		
 
 	\subsubsection{Defaults}
-		\texttt{build(character, replicates:10)} By default, \phyg will build 10 graphs using a random
-		addition of sequences for each of them.
+		\texttt{build(character, replicates:10)} By default, \phyg will build 10 graphs using 
+		a random addition of sequences for each of them.
 		
 	\begin{example}
 		\item{\texttt{build(replicates:100)} \\
