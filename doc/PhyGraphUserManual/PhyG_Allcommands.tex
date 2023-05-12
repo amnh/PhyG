@@ -1140,7 +1140,7 @@
 %---------------------------------------------		
 \subsection{Select}
 	\subsubsection{Syntax}
-		\texttt{set([argument list])}
+		\texttt{select([argument list])}
 	
 	\begin{phygdescription}
 		{Specifies the method and number of graphs to be saved at any point during the 
@@ -1153,12 +1153,13 @@
 			\item[all] Specifies all the graphs are kept.
 		
 			\item[atRandom:[INT]] Randomly selects the graphs irrespective of cost. The 
-			number of chosen graphs can be specified with an integer value. \hl{This can 
-			be a useful tool for subsequent analyses involving simulations.}
+			number of chosen graphs can be specified with an integer value. This can 
+			be a useful tool for randomized searches and subsequent analyses where 
+			randomized sampling is desired.
 			
-			\item[best:[INT]] Selects the number of best or most optimal graphs. The 
+			\item[best:[INT]] Selects the number of best or lowest cost graphs. The 
 			number of returned graphs can be specified by the integer value. If the number 
-			of optimal trees exceeds the value of best, the subset of optimal trees are chosen 
+			of optimal graphs exceeds the value of best, the subset of optimal trees are chosen 
 			in an undefined but consistent order.
 							
 			\item[threshold:FLOAT] Keeps unique graphs up to fraction longer than shortest 
