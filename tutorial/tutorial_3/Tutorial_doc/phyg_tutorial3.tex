@@ -217,7 +217,7 @@ overwrite)} and \texttt{report("flu\_net1\_gv.tre", dotpdf, graphs, overwrite)}.
 	set(graphtype:softwired)\\
 	set(graphfactor:nopenalty)\\ 
 	read(nucleotide:"flu*.fas*", tcm:(2,1))\\
-	build(distance, rdwag, block, graph, graph, eun, replicates:1000)\\
+	build(distance, rdwag, block, graph, eun, replicates:1000)\\
 	report("flu\_net1\_data.csv", data, overwrite)\\
 	report("flu\_net1\_cr.csv", crossrefs, overwrite)\\
 	report("flu\_net1.tre", graphs, newick, overwrite)\\

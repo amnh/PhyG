@@ -202,7 +202,7 @@ the program.
 \item The command \texttt{read} imports file-based information, including data files, 
 tree and graph files. \texttt{read} commands must contain an input file. Supported 
 data formats include FASTA, FASTC and TNT files, and graph formats include Dot, 
-Enewick, Fenewick, and Newick. Filenames must include the any suffix (e.g. 
+Enewick, and Newick. Filenames must include the any suffix (e.g. 
 .fas, .fasta, .fastc, .ss, .tre). Failure to include these suffices will result in the error 
 "File(s) not found in `read' command". The filename must match \textit{exactly}, 
 including capitalization.\\
@@ -623,7 +623,7 @@ subsequently be displayed, edited, and printed using graphics software.
 
 \item In order to output pdf files the application \textit{dot} must be installed from 
 the \href{https://graphviz.org/download/}{Graphviz} website. \textit{dot} is a graph 
-description language and Graphviz an  open-source graph visualization software. 
+description language and Graphviz an open-source graph visualization software. 
 This program is well suited to representing graphs and networks.
 
 \item  The command \texttt{report("filename.dot", graphs, dotpdf, overwrite)} will 

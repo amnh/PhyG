@@ -133,6 +133,12 @@ Flag super-optimization
    Default:     False
    Manual:      True
 
+Flag SingleThreaded
+   Description: Disable multi-threading
+   Default:     False
+   Manual:      True
+  
+
 -- at command line "--enable-executable-static" for static binaries
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -171,8 +177,15 @@ Executable phyg
     -feager-blackholing
     -O2
     -rtsopts
-    -threaded
     -Wall
+
+  If !flag(SingleThreaded)
+    GHC-Options:
+      -threaded
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+  Else
+    GHC-Options:
+      "-with-rtsopts=-A64m -AL128M -H1024m -n4m"
 
   If os(darwin)
     GHC-Options:
@@ -183,7 +196,7 @@ Executable phyg
      -- -fllvm
 
   -- this since can't going on ghc-9.4.3/4 
-  if flag(super-optimization)
+  If flag(super-optimization)
     GHC-Options:
       -fexcess-precision
       -fexpose-all-unfoldings
@@ -195,14 +208,13 @@ Executable phyg
       -fspecialize-aggressively
       -fstatic-argument-transformation
       -fllvm
-      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
-  else
-    GHC-Options:
+--  Else
+--    GHC-Options:
 --    "-with-rtsopts=-N"
 --    rts -AL8 was rejected  should be >= A
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
-      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+--      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   Build-Depends:
     PhyGraph:alphabet,
