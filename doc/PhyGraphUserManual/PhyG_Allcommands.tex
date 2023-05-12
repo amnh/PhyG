@@ -1363,7 +1363,9 @@
 	\begin{phygdescription}
 		{Generates graph supports via resampling \citep{Farrisetal1996} and Goodman-Bremer 
 		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing, Bootstrapping and 
-		Goodman-Bremer supports are the resampling methods that are implemented.}
+		Goodman-Bremer supports are the resampling methods that are implemented. If
+		the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
+		for Goodman-Bremer are log likelihood ratios.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
@@ -1509,12 +1511,14 @@
 			\texttt{swap(alternate, \hl{keep, steepest})}
 		
 		\begin{example}
-			\item{\texttt{swap()}\\Performs spr branch swapping on each current graph returning the single 
-			best rearrangement found for each graph employing steepest descent.}
-			
 			\item{\texttt{swap(tbr, all, keep:10)}\\Performs tbr branch swapping on each current graph 
 			returning up to 10 best rearrangements found for each graph after examining all graphs in 
 			the rearrangement neighborhood.}
+			
+			\item{\texttt{swap(annealing:10, steps)}\\Performs alternating rounds of \texttt{spr} and 
+			\texttt{tbr} branch swapping (the default) on each current graph, specifying 10 rounds of
+			simulated annealing, with 10 temperature steps being performed during the
+			simulated annealing (the default number of steps).}
 		\end{example}
 	
 %---------------------------------------------
