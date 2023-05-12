@@ -259,7 +259,7 @@
 		is followed by a colon (`:') and the data file name(s), enclosed in quotes, and 
 		separated by commas. It is possible to import more than one data file on the 
 		same input line of the command script, but only of the same data type. Reading 
-		in files of different data types, e.g. amino acid and nucleotide, will result in an 
+		in files of different data types, e.g. amino acid and nucleotide in the same command, will result in an 
 		error. Prepending the file type prevents any ambiguity when the file is parsed
 		(e.g. \texttt{read(nucleotide:"Chel.fas")}). If the data type is not specified, it is 
 		important to verify that the data was interpreted properly (using the command 
@@ -277,7 +277,7 @@
 	
 	\begin{description}
 		\item [aminoacid:STRING] Specifies that the file contents are parsed as IUPAC coded amino 
-		acid data in FASTA \citep{PearsonandLipman1988} format.
+		acid data in FASTA \citep{PearsonandLipman1988} format.  Sequence gaps are removed.
 
 		\begin{tcolorbox}[enhanced,fit to height=3cm,
   		colback=JungleGreen!40!black!2!white,colframe=JungleGreen!70!black,title=Note,
@@ -313,11 +313,11 @@
 			
 		\item [fasta:STRING] Ensures that file contents are parsed in FASTA \citep{PearsonandLipman1988}
 		format. This is used for single character sequences such as binary streams, IUPAC 
-		nucleotide and amino acid sequence data.
+		nucleotide and amino acid sequence data.   Sequence gaps are removed.
 			
 		\item [fastc:STRING] Ensures that file contents are parsed in FASTC \citep{WheelerandWashburn2019}
 		format. This is used for multi-character sequences such as gene synteny, developmental, 
-		or linguistic data.
+		or linguistic data.   Sequence gaps are removed.
 			
 %		\item [fenewick:] Specifies that the file contains Forest Enhanced Newick format graph(s)  
 %		specified \href{https://www.github.com/wardwheeler/euncon}{here} \citep{Wheeler2022}.
@@ -333,14 +333,14 @@
 		\href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}{here}.
 			
 		\item [nucleotide:STRING] Ensures that file contents are parsed as IUPAC coded nucleotide data 
-		in FASTA \citep{PearsonandLipman1988} format.
+		in FASTA \citep{PearsonandLipman1988} format.   Sequence gaps are removed.
 		
 		\begin{tcolorbox}[enhanced,fit to height=3.5cm,
   		colback=JungleGreen!40!black!2!white,colframe=JungleGreen!70!black,title=Note,
   		drop fuzzy shadow]
-  		Sequences can be divided into smaller fragments using an assigned character. This 
-		character is chosen by the user (unlike in POY, where the pound sign (`\textbf{\#}') was 
-		used to partition datasets). Each fragment is treated as an individual character. When 
+  		Sequences can be divided into smaller fragments using an assigned character (default `\textbf{\#}'). This 
+		character can be chosen by the user (unlike in POY, where the pound sign (`\textbf{\#}') was 
+		the only character used to partition datasets). Each fragment is treated as an individual character. When 
 		partitioning the data in this way, the number of partitions must be the same across 
 		homologous sequences. The character should be set with the command 
 		\texttt{set:partitioncharacter} (see Section \ref{subsec:set}).
@@ -355,7 +355,7 @@
 		gap characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
 		Prefasta files can include any single character element such as nucleotide sequence data, 
-		binary data or \hl{XXX}. Prealigned FASTA files \textit{must} be of the same length. 
+		binary data or IUPAC amino acid sequences. Prealigned FASTA files \textit{must} be of the same length. 
 			
 		\item [prefastc:STRING] Specifies that the sequences are prealigned in a FASTC format, leaving gap 
 		characters (``-'') in the sequences and alignment correspondences are not re-examined. 
@@ -394,7 +394,7 @@
 		results. Transformation costs must be integers. If real values are desired, a character can 
 		be weighted with a floating point value factor. \\
 		
-		For a sequence with four elements alpha, beta, gamma and delta and an indel cost of 4 
+		For a sequence with four elements alpha, beta, gamma and delta and an indel cost of 5 
 		for all insertion deletion transformations, a valid custom alphabet file is provided below:
 		\\
 		\begin{equation*}
@@ -441,10 +441,12 @@
 		 states.\\
 		  
 		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) 
-		 are treated as part of the character state specification. If the user wishes that dashes 
-		 be treated as missing data, the file must be edited to reflect this by replacing the 
-		 dashes that are to be treated as missing data with question 
-		 marks (`?').\\
+		 are treated as part of the character state specification.
+		 %If the user wishes that dashes 
+		 %be treated as missing data, the file must be edited to reflect this by replacing the 
+		 %dashes that are to be treated as missing data with question 
+		 %marks (`?').
+		 \\
 		  
 		  Example file:
 		  	\begin{quote}
