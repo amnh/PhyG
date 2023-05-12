@@ -643,9 +643,9 @@
 	{Replaces the name(s) of specified terminals in the file. This command can be useful 
 	when combining data from different sources, such as GenBank, or in revising names 
 	to reflect taxonomic changes. It also allows for merging multiple datasets without 
-	modifying the original data file. The file contains a series of lines, each of which contains at 
-	least two strings---these strings equate to synonyms separated by spaces. The first string 
-	(input taxon name) will replace the second and all subsequent strings (taxon names) on 
+	modifying the original data file. The command arguments are (minimally)
+	two strings---these strings equate to synonyms separated by spaces. The first string 
+	will replace the second and all subsequent strings (taxon names) on 
 	that line. In the example given in Figure \ref{renamefile} the taxon Hydrus\_granulatus 
 	will be renamed as Acrochordus\_granulatus, the taxa Gloydius\_boehmei and Gloydius\_mogoi
 	will be renamed as Gloydius\_halys and the taxa Crotalus\_mutus, Scytale\_catenatus and 
@@ -666,7 +666,7 @@
 	\subsubsection{Arguments}
 	
 	\begin{description}
-		\item [STRING] \hl{Specifies that the taxon names to assign and be assigned}.
+		\item [STRING list]  %The first argument is the ``new name'' for the remainder of the following arguments.
 	\end{description}
 		
 	\subsubsection{Defaults}
@@ -693,8 +693,8 @@
 		allows the user to output information concerning the characters and terminals, 
 		diagnosis, export static homology data, implied alignments, trees, graphs, dot files, 
 		as well as other miscellaneous arguments. By default, new information printed to 
-		a file is appended to the file. The option \texttt{overwrite} overrides the default and 
-		rewrites the file. Many of the report options can be output in csv format,  which can
+		a file is appended to that file. The option \texttt{overwrite} overrides the default and 
+		rewrites the file. Many of the report options are output in csv format,  which can
 		subsequently be imported into spreadsheet programs like \textit{Excel} or 
 		\textit{Numbers} for easy viewing.}
 	\end{phygdescription}
@@ -706,7 +706,7 @@
 %		appended to the end of the file. Compare with the \texttt{overwrite} argument.
 %		By default, files are appended to the report, rather than overwritten. 
 
-		\item[ascii] Reports ASCII character representations of the reported trees.
+		\item[ascii] Reports ASCII character representations of the reported graphs.
 		This file can be viewed in any text editor.
 		
 %		\item[branchlengths] When reporting graphs, \phyg will report the branch 
@@ -772,7 +772,10 @@
 		\item[dotpdf] Outputs two files---a graph file in dot format, along with either
 		an eps (on OSX) or pdf (on Linux) (see also \texttt{dot}). The eps and pdf 
 		files can be read in \textit{Adobe Illustrator}, \textit{Apple Preview} or any 
-		vectorial image edition program.
+		vectorial image edition program.  By default, when \texttt{dotpdf} is specified,
+		edges are collapsed (contracted) if they have a minimum weight 
+		(length) of 0.
+		
 		
 		\item[graphs] Outputs a graph in the format specified by the other arguments 
 		in the command. These are either newick, enewick, ascii, dot, and depending 
@@ -784,7 +787,8 @@
 		\item[ia] Synonym of \texttt{impliedalignment}.
 		
 		\item[impliedalignment] Outputs the implied alignments of the specified 
-		set of characters in FASTA format. This argument is synonymous with 
+		set of characters in FASTA or FASTC (depending on sequence type) format. 
+		This argument is synonymous with 
 		the argument \texttt{ia}. By default, an implied alignment is reported for 
 		each block of input data. 
 		
@@ -794,7 +798,8 @@
 			for each block of input data, it will report a file with all the implied 
 			alignments concatenated into a single file.
 			
-			\item[includemissing] Outputs a fasta, including taxa in the implied
+			\item[includemissing] Outputs a fasta or (fastc depending on sequence type), 
+			including taxa in the implied
 			alignment, which are missing data for that particular block of data.
 			In this case, \phyg will print `?' characters for the missing taxon in 
 			this block of the implied alignment. This option interacts nicely with 
@@ -804,7 +809,7 @@
 			
 		\end{description}
 				
-		\item[newick] Outputs the trees in the Newick format, with the terminals
+		\item[newick] Outputs graphs in the E/Newick format, with the terminals
 		separated with commas, and trees separated with semicolons. Branch
 		lengths follow terminals, separated by a colon.
 		
@@ -814,12 +819,12 @@
 		and pdf files, branch lengths appear above the branches. In ASCII and 
 		dot files, branch lengths follow the terminal labels. The argument
 		\texttt{nobranchlengths} will override this default and branch lengths 
-		of reported graphs are not reported.
+		of graphs are not reported.
 		
 		\item[nocollapse] By default, if a dotpdf graph is specified, the zero-length
 		branches are collapsed. If ASCII, newick, enewick and dot are specified, 
 		the zero length branches are not collapsed by default.  If \texttt{nocollapse}
-		is specified, zero length branches are not collapsed for all output graphs.
+		is specified, zero length branches are not collapsed for output graphs.
 		
 		\item[nohtulabels] Labels of the HTUs are not included in the output files. 
 		This option can not be applied to enewick graph. Compare with the argument 
@@ -852,16 +857,18 @@
 			
 			\item [Connect:BOOL] Specifies that the output graph be connected 
 			(single component), potentially creating a root node and new edges labeled 
-			with ``0.0''. The default value is TRUE. \hl{no idea what this means} 
+			with ``0.0''. The default value is TRUE. This option will connect any forest elements
+			into a single graph.
 			
 			\item [Method:] Specifies the type of output graph. 
 			
 			\begin{description}
 				\item[cun] Graphs are reconciled using the Cluster Union Network 
-				\citep{Baroni2005} method.
+				\citep{Baroni2005} method. This argument can used in conjunction with 
+				\texttt{threshold}. 
 				
 				\item[eun] Graphs are reconciled using the Edge-Union-Network method of 
-				\citep{MiyagiandWheeler2019}. This argument is used in conjunction with 
+				\citep{MiyagiandWheeler2019}. This argument can used in conjunction with 
 				\texttt{threshold}. This is the default.
 				
 				\item[majority] Specifies that values between 0 and 100 of either vertices or 
