@@ -130,7 +130,7 @@ setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions
 
 -- | refinement arguments
 supportArgList :: [String]
-supportArgList = ["bootstrap", "jackknife", "goodmanbremer", "gb", "gbsample", "replicates", "buildonly", "atrandom"]
+supportArgList = ["atrandom","bootstrap", "buildonly", "gb", "gbsample", "goodmanbremer", "jackknife", "replicates", "spr", "tbr"]
 
 -- | swapArgList is the list of valid swap arguments
 swapArgList :: [String]

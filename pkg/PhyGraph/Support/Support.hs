@@ -74,10 +74,14 @@ supportGraph inArgs inGS inData rSeed inGraphList =
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'support': " ++ show inArgs)
      else
          let supportMeasure
-               | any ((=="Bootstrap").fst) lcArgList = Bootstrap
+               | any ((=="bootstrap").fst) lcArgList = Bootstrap
                | any ((=="jackknife").fst) lcArgList = Jackknife
                | any ((=="goodmanbremer").fst) lcArgList = GoodmanBremer
                | otherwise = GoodmanBremer
+
+             useSPR = any ((=="spr").fst) lcArgList 
+             useTBR = any ((=="spr").fst) lcArgList 
+
 
              onlyBuild = any ((=="buildonly").fst) lcArgList
 
@@ -97,11 +101,13 @@ supportGraph inArgs inGS inData rSeed inGraphList =
               | otherwise = readMaybe (snd $ head replicateList) :: Maybe Int
 
              goodBremList   = filter ((`elem` ["goodmanbremer", "gb"]).fst) lcArgList
+             {-
              goodBremMethod
               | length goodBremList > 1 =
                 errorWithoutStackTrace ("Multiple Goodman-Bremer method specifications in support command--can have only one (e.g. gb:tbr): " ++ show inArgs)
               | null (snd $ head goodBremList) = Just "tbr"
               | otherwise = Just $ snd $ head goodBremList
+              -}
 
              goodBremSampleList   = filter ((`elem` ["gbsample"]).fst) lcArgList
              goodBremSample
@@ -152,14 +158,19 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                                        trace ("Generating " ++ show thisMethod ++ " resampling support with " ++ show replicates ++ " replicates" ++ extraString)
                                        [getResampleGraph inGS inData rSeed thisMethod replicates buildOptions swapOptions jackFreq]
                                    else
-                                       let extraString = if  isJust gbSampleSize then " based on " ++ show (fromJust gbSampleSize) ++ " samples at random"
-                                                         else ""
+                                       let neighborhood = if useTBR then "tbr"
+                                                          else if useSPR then "spr"
+                                                          else "tbr"
+                                           extraString = if isJust gbSampleSize then 
+                                                " using " ++ neighborhood ++ " based on " ++ show (fromJust gbSampleSize) ++ " samples at random"
+                                                         else " using " ++ neighborhood
                                        in
                                        trace ("Generating Goodman-Bremer support" ++ extraString)
-                                       fmap (getGoodBremGraphs inGS inData rSeed (fromJust goodBremMethod) gbSampleSize gbRandomSample) inGraphList
+                                       fmap (getGoodBremGraphs inGS inData rSeed neighborhood gbSampleSize gbRandomSample) inGraphList
             in
 
             supportGraphList
+
 
 -- | getResampledGraphs performs resampling and search for Bootstrap and jackknife support
 getResampleGraph :: GlobalSettings
