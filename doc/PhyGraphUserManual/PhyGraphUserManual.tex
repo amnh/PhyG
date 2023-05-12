@@ -173,7 +173,8 @@
 		following:
 		
 		\begin{quote}
-		cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
+		%cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
+		cabal build PhyGraph:phyg --flags=super-optimization
 		\end{quote}
 		
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -181,7 +182,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	 		
 \section{Overview of program use}
 	At present, \phyg is operated solely via command-line in a \textit{Terminal} window
-	and cannot be performed interactively. Commands are entered via a script file 
+	and cannot be executed interactively. Commands are entered via a script file 
 	containing commands that specify input files, output files and formats, graph type 
 	and search parameters.
 		
@@ -199,7 +200,7 @@
 		\texttt{phygfiles}:
 		
 		\begin{quote}
-  		phyg Users/Ward/Desktop/phygfiles/mol.pg
+  		phyg /Users/Ward/Desktop/phygfiles/mol.pg
 		\end{quote}
 		
 		\bigskip
@@ -208,16 +209,12 @@
 		This is the equivalent of typing the following from any location on your computer:
 		
 		\begin{quote}
-   		cd ("Users/Ward/Desktop/phygfiles")
+   		cd ("/Users/Ward/Desktop/phygfiles")
 		\end{quote}
 			
 		\subsection{Creating and running \phyg scripts}
-		A script is a simple text file containing a list of commands to be performed. Running 
-		analyses using scripts allows for the entire analysis to proceed from the beginning to 
-		the end with one click of a button and may produce faster results as \phyg automatically 
-		optimizes the workflow of the analysis by considering the functional relationships 
-		among various tasks and efficiently distributing the jobs and resources (such as memory 
-		and multiple processors). This script 	can also include references to other script files 
+		A script is a simple text file containing a list of commands to be performed. 
+		This script can also include references to other script files 
 		(Figure \ref{firstscript}).
 		
 		Scripts can be created using any conventional text editor such as \textit{TextEdit}, 
@@ -225,8 +222,10 @@
 		application like \textit{Microsoft Word} or \textit{Apple Pages}, as these programs 
 		can introduce hidden characters in the file, which will be interpreted by \phyg and 
 		can cause unpredictable parsing of the data. Comments that describe the contents 
-		of the file and provide other useful annotations can be included. Comments are 
+		of the file and provide other useful annotations can be included. Comment lines are 
 		prepended with `-{}-' and can span multiple lines, provided each line begins with `-{}-'. 
+
+%Comemnt
 
 		\begin{figure}[H]
 		\centering
