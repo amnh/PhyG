@@ -545,13 +545,28 @@
 		
 	\begin{phygdescription}
 		{Performs Genetic Algorithm for any graph type. In addition, it performs edit operations 
-		(addition, deletion, and move) on network edges, and therefore only applies to softwired 
-		and hardwired graphs. }
+		(addition, deletion, and move) on network edges that only applies to softwired 
+		and hardwired graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
 		
 	\begin{description}
+		\item[acceptEqual[:FLOAT]] Specifies that equal cost graphs are accepted with the
+		probability as set by the FLOAT value. This argument can be applied to \texttt{drift}
+		and \texttt{annealing}.
+			
+		\item[acceptWorse[:FLOAT]] The acceptance of candidate graphs is determined by the 
+		probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost of the candidate graph, $c_b$ 
+		is the cost of the current best graph, and $wf$ is the values as specified by the float 
+		(default 1.0). This argument can be applied to \texttt{drift} 	and \texttt{annealing}.
+	
+
+		\item[all] Turns off all preference strategies to make network edits, by simply trying 
+		all possible edits to the graph. This is a memory intensive refinement.
+		The refinement examines the entire rearrangement neighborhood of the current graph 
+		before retaining the best (lowest cost) solutions.
+
 		\item[annealing[:INT]] Specifies the number of rounds (as specified by the integer 
 		value) of simulated annealing optimization \citep{Metropolisetal1953, 
 		Kirkpatricketal1983, Cerny1985}. This is performed in concert with \texttt{netAdd}, 
@@ -561,12 +576,16 @@
 		best graph, $k$ is the step number, and $k_{max}$ is the maximum number of 
 		steps (set by the \texttt{steps:m}, default 10).
 
-		\begin{description}
+			\begin{description}
 			\item[steps:INT] Specifies the number of temperature steps performed 
 			during simulated annealing (as specified by the \texttt{annealing}) option.
 			The default is 10.
-		\end{description}
+			\end{description}
 			
+		\item[atRandom] Network edit neighborhoods are traversed in a randomized order (compare 
+		with \texttt{inorder}). 	This will result in different trajectories of the network edit space being 
+		explored.
+
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
 		annealing optimization \citep{goloboff1999} are performed. This is done in concert 
 		with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance of candidate 
@@ -576,60 +595,83 @@
 		cost graphs are accepted with probability set by the \texttt{acceptEqual} option. 
 		\texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps to modify 
 		acceptance probabilities. The maximum number of graph changes is set by 
-		\texttt{maxChanges}
+		\texttt{maxChanges}.
 				
 		\item[ga] Synonym of GeneticAlgorithm.
 		
 		\item[geneticAlgorithm] Performs Genetic Algorithm \citep{Holland1975} refinement in 
-		concert with the options \texttt{generations}, \texttt{popsize}, \texttt{severity}, and 
-		\texttt{recombinations}. 
-			
+		concert with the following options.
+					
 			\begin{description}
 			\item[generations:[INT]] Specifies the number of generations (sequential iterations) for 
-			\texttt{geneticAlgorithm}. The default is10.
+			\texttt{ga}. The default is 10.
 
-			\item[popsize:[INT]] Specifies the population size for \texttt{geneticAlgorithm}. The default is 
+			\item[popsize:[INT]] Specifies the population size for \texttt{ga}. The default is 
 			20.
 			
 			\item[recombinations:[INT]] Specifies the number of recombination (fusing) events for 
-			\texttt{geneticAlgorithm}. The default is 100.
+			\texttt{ga}. The default is 100.
 			
-			\item[severity:[INT]] Specifies the severity of selection against sub-optimal graph solutions 
-			events for \texttt{geneticAlgorithm}. The higher the value, the less severe the penalty. The 
-			default is $n=1.0$.
+%			\item[severity:[FLOAT]] Specifies the severity of selection against sub-optimal graph solutions 
+%			events for \texttt{ga}. The higher the value, the less severe the penalty. The 
+%			default is 1.0.
 			
-			\item[stop:INT] Causes the \texttt{geneticAlgorithm} to terminate after $n$ generations without 
-			improvement in graph cost.  Default is to only terminate when the number generations has 
-			been completed.
+			\item[stop:INT] Causes the \texttt{ga} to terminate after the number of 
+			generations as specified by the integer value without improvement in graph 
+			cost.  Default is to only terminate when the number generations has been completed.
 			\end{description}
 		
+		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always traversed 
+		in the same undefined, but consistent order.
+
 		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
 		integer value. 
+		
+		\item[maxnetedges:INT] Specifies the maximum number of network edges, as indicated 
+		by the integer value.
 		
 		\item[netadd] Adds network edges to existing input graphs at all possible positions 
 		until no better cost graph is found.
 			
+		\item[netadddelete] Consecutively adds and then deletes network edges from 
+		input graphs until certain conditions are met.
+			
+			\begin{description}
+			\item[rounds:INT]  Specifies the number of combine network add and delete
+			edit operations.
+			\end{description}
+			
+		
 		\item[netdel] Deletes network edges from input graphs one at a time until no better 
 		cost 	graph is found.
 			
 		\item[netmove] Moves existing network edges in input graphs one at a time to new 
 		positions 	until no better cost graph is found.
+		
+	%	\item[returnmutated] 
+		
+		\item[steepest] Specifies that refinement follows a greedy path, abandoning the 
+		neighborhood of the current graph when a better (lower cost) graph is found. 
 	\end{description}
 
 	\subsubsection{Defaults}
-		\texttt{refine(annealing:1, steps:10, \hl{xxx})} By default, \phyg ... 
+		\texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, \phyg will
+		perform Genetic Algorithm refine, with its associated default options, if no other arguments
+		are specified.} 
 	
 	\begin{example}
-		\item{\texttt{fuse(best, once)}\\Fuses input graphs and returns best graphs after a single round of 
-		fusing.}
+		\item{\texttt{refine(netadddel, rounds:3, maxnetedges:5)}\\
+		 Consecutively adds and then deletes network edges from input graphs until 
+		 either no improvement (graph cost) is found in a round or until the number of 
+		 rounds of addition and deletions (in \texttt{rounds:n}) is reached. The maximum 
+		 number of edges is still specified by \texttt{maxnetedges:n} within each round.}
 		
-		\item{\texttt{fuse(tbr, keep:10)} \\Fuses input graphs and preforms TBR-style replacement and 
-		rerooting of pruned components returning up to 10 best cost graphs.}
-		
-		\item{\texttt{fuse(spr:3, pairs:5, unique)} \\Fuses input graphs and performs SPR-style swapping, 
-		with the exchange of subgraphs being tried at multiple positions up to 3 edges away from their 
-		initial position. The number of graph pairs to be fused is limited to 5. All unique trees found
-		during this operation are returned.}
+		\item{\texttt{refine(netmove, atrandom, steepest)} \\ Moves existing network 
+		edges in input graphs one at a time to new positions until there are no more 
+		improvements in the cost of the graph. This edit operation follows a greedy 
+		path, abandoning the neighborhood of the current graph when a better graph
+		of lower cost is found. During this operation, the network edit neighborhoods
+		are traversed at random. }
 	\end{example}
 %---------------------------------------------
 %rename
@@ -1389,10 +1431,10 @@
 	\subsubsection{Arguments}
 	\begin{description}
 		\item[all] Turns off all preference strategies to make a join, simply trying all possible 
-		join positions for each pair of clades generated after a break, in a randomized order. 
+		join positions for each pair of clades generated after a break. 
 		The refinement examines the entire rearrangement neighborhood of the current graph 
-		before retaining the best (lowest cost) solutions.
-		
+		before retaining the best (lowest cost) solutions. This is a memory intensive refinement.
+
 		\item[alternate] Specifies that alternating rounds of \texttt{spr} \citep{Dayhoff1969} 
 		and \texttt{tbr} \citep{Farris1988, swofford1990a} refinement is performed.
 		
@@ -1443,7 +1485,7 @@
 		in the same undefined, but consistent order.
 		
 		\item[keep:INT] Specifies the number of equally costly graphs to be retained, as
-		determined by the integer value.
+		determined by the integer value.		
 		
 		\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} 
 		is performed.
