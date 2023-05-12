@@ -220,7 +220,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
        bestBuildGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) buildGraphs
 
        -- if not a tree then try to add net edges
-       netAddArgs = [("netAdd", ""), ("keep", show (1 :: Int)), ("steepest", ""), ("atRandom", ""), ("maxnetedges",""5")]
+       netAddArgs = [("netAdd", ""), ("keep", show (1 :: Int)), ("steepest", ""), ("atRandom", ""), ("maxnetedges","5")]
        netGraphList = if graphType inGS == Tree then bestBuildGraphList
                       else R.netEdgeMaster netAddArgs inGS newData (randomIntegerList1 !! 2) bestBuildGraphList
 
