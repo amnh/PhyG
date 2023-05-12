@@ -235,7 +235,7 @@
 		
 		\item{\texttt{fuse(spr:3, pairs:5, unique)} \\Fuses input graphs and performs SPR-style swapping, 
 		with the exchange of subgraphs being tried at multiple positions up to 3 edges away from their 
-		initial position. The number of graph pairs to be fused is limited to 5. All unique trees found
+		initial position. The number of graph pairs to be fused is limited to 5. All unique graphs found
 		during this operation are returned.}
 	\end{example}
 
@@ -325,7 +325,7 @@
 			
 		\item [include:STRING] Specifies the names of terminal taxa to be included in the analysis. 
 		Taxa appear in the form of a list, with a single taxon per line. It is possible to specify 
-		terminals that have no data. This may be done in order to diagnose a large tree on 
+		terminals that have no data. This may be done in order to diagnose a large graph on 
 		partial data. If there are no data for a leaf taxon, a warning will be printed to \texttt{stderr}. 
 		Taxa not included in this list, but present in the inputted data files, will be excluded from 
 		the analysis. Compare with \texttt{exclude}.
@@ -852,7 +852,7 @@
 		\end{description}
 				
 		\item[newick] Outputs graphs in the E/Newick format, with the terminals
-		separated with commas, and trees separated with semicolons. Branch
+		separated with commas, and graphs separated with semicolons. Branch
 		lengths follow terminals, separated by a colon.
 		
 		\item[nobranchlengths] When reporting graphs, \phyg will by default 
@@ -914,12 +914,12 @@
 				\texttt{threshold}. This is the default.
 				
 				\item[majority] Specifies that values between 0 and 100 of either vertices or 
-				edges will be retained. If all inputs are trees with the same leaf set this will 
+				edges will be retained. If all inputs are graphs with the same leaf set this will 
 				be the Majority-Rule Consensus \citep{MargushandMcMorris1981}. This
 				argument is used in conjunction with \texttt{threshold}.
 
 				\item[strict] Strict requires all vertices be present to be included in the final graph. 
-				If all inputs are trees with the same leaf set this will be the Strict Consensus 
+				If all inputs are graphs with the same leaf set this will be the Strict Consensus 
 				\citep{Schuhandpolhemus1980}. 
 
 				\item[Adams] Adams denotes the Adams II consensus \citep{Adams1972}.
@@ -1159,7 +1159,7 @@
 			
 			\item[best:[INT]] Selects the number of best or lowest cost graphs. The 
 			number of returned graphs can be specified by the integer value. If the number 
-			of optimal graphs exceeds the value of best, the subset of optimal trees are chosen 
+			of optimal graphs exceeds the value of best, the subset of optimal graphs are chosen 
 			in an undefined but consistent order.
 							
 			\item[threshold:FLOAT] Keeps unique graphs up to fraction longer than shortest 
@@ -1191,7 +1191,7 @@
 	\begin{phygdescription}
 		{Changes the settings of \texttt{PhyG}. This command performs an array of functions
 		from specifying the seed of the random number generator, to selecting a terminal for
-		rooting output trees, to specifying  graph type, final assignment, and 	optimality 
+		rooting output graphs, to specifying  graph type, final assignment, and optimality 
 		criterion. All \texttt{set} commands are executed at the start of a run, irrespective of
 		where they appear in the script. The command \texttt{transform} is used to modify 
 		global settings during a run (see \texttt{transform} Section \ref{subsec:Transform}).
