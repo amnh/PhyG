@@ -544,9 +544,9 @@
 		\texttt{refine([argument list])}
 		
 	\begin{phygdescription}
-		{Performs edit operations (addition, deletion, and move) on network edges, and 
-		therefore only applies to softwired and hardwired graphs. This also includes
-		the use of Genetic Algorithm for any graph type.}
+		{Performs Genetic Algorithm for any graph type. In addition is performs edit operations 
+		(addition, deletion, and move) on network edges, and therefore only applies to softwired 
+		and hardwired graphs. }
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
@@ -586,13 +586,13 @@
 			
 			\begin{description}
 			\item[generations:[INT]] Specifies the number of generations (sequential iterations) for 
-			\texttt{geneticAlgorithm}. The default is $n=10$.
+			\texttt{geneticAlgorithm}. The default is10.
 
 			\item[popsize:[INT]] Specifies the population size for \texttt{geneticAlgorithm}. The default is 
-			$n=20$.
+			20.
 			
 			\item[recombinations:[INT]] Specifies the number of recombination (fusing) events for 
-			\texttt{geneticAlgorithm}. The default is $n=100$.
+			\texttt{geneticAlgorithm}. The default is 100.
 			
 			\item[severity:[INT]] Specifies the severity of selection against sub-optimal graph solutions 
 			events for \texttt{geneticAlgorithm}. The higher the value, the less severe the penalty. The 
