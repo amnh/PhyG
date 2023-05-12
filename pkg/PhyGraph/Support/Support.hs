@@ -142,7 +142,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                               0.6321
                            else fromJust jackFreq'
 
-                buildOptions = [("distance",""), ("replicates", show (100 :: Int)), ("best", show (1 :: Int)), ("rdwag", ""), ("dWag", "")] -- [("replicates", show 10), ("best", show 1)]
+                buildOptions = [("distance",""), ("replicates", show (100 :: Int)), ("best", show (1 :: Int)), ("rdwag", "")] -- [("replicates", show 10), ("best", show 1)]
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show (1 :: Int))]
                 supportGraphList = if thisMethod == Bootstrap || thisMethod == Jackknife then
@@ -209,7 +209,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
        bestBuildGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) buildGraphs
 
        -- if not a tree then try to add net edges
-       netAddArgs = [("netAdd", ""), ("keep", show (1 :: Int)), ("steepest", ""), ("atRandom", "")]
+       netAddArgs = [("netadd", ""), ("keep", show (1 :: Int)), ("steepest", ""), ("atrandom", ""),("maxnetedges","5")]
        netGraphList = if graphType inGS == Tree then bestBuildGraphList
                       else R.netEdgeMaster netAddArgs inGS newData (randomIntegerList1 !! 2) bestBuildGraphList
 
