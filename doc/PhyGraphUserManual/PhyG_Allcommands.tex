@@ -8,14 +8,14 @@
 	\begin{phygdescription}
 		{Builds initial graphs. The arguments of \texttt{build} specify the number of graphs 
 		to be generated, and whether the build is based on \textit{distance} or \textit{character} 
-		methods. Most options, with the exception of \texttt{rdWag}, an $O(n^3)$ distance based 
-		option, are $O(n^2)$. Distance methods are considerably faster (lower constant 
+		methods. Most options, with the exception of \texttt{dWag} and \texttt{nj}, $O(n^3)$ distance based 
+		options, are $O(n^2)$. Distance methods are considerably faster (lower constant 
 		factor), but approximate, compared to character-based methods. Refinement, in the form 
 		of branch swapping (\texttt{none}, \texttt{otu}, \texttt{spr}, and \texttt{tbr}) can be 
-		specified within the command for distance builds. Refinement for \hl{character-based 
-		Wagner builds} occurs after the \texttt{build} process through \texttt{swap} and other
-		refinement commands. Given the large time burden, distance refinement is usually 
-		not time effective \citep{Wheeler2021}. \phyg does not replace graphs previously 
+		specified within the command for distance builds. Refinement for character-based 
+		Wagner builds occurs after the \texttt{build} process through \texttt{swap} and other
+		refinement commands. Given the large time complexity, distance refinement is usually 
+		not worth the effort \citep{Wheeler2021}. \texttt{build} does not replace graphs previously 
 		stored in memory.}
 	\end{phygdescription}
 		
