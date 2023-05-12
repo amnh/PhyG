@@ -259,8 +259,8 @@
 		is followed by a colon (`:') and the data file name(s), enclosed in quotes, and 
 		separated by commas. It is possible to import more than one data file on the 
 		same input line of the command script, but only of the same data type. Reading 
-		in files of different data types, e.g. amino acid and nucleotide in the same command, will result in an 
-		error. Prepending the file type prevents any ambiguity when the file is parsed
+		in files of different data types, e.g. amino acid and nucleotide in the same command, 
+		will result in an error. Prepending the file type prevents any ambiguity when the file is parsed
 		(e.g. \texttt{read(nucleotide:"Chel.fas")}). If the data type is not specified, it is 
 		important to verify that the data was interpreted properly (using the command 
 		\texttt{report("STRING", data)} or by checking the output display in the 
@@ -289,15 +289,16 @@
 		sequence data.
 		\end{tcolorbox}
 
-		\item [block:STRING] Specifies that the string contains block %\hl{ref?} 
-		information. Each line contains 
+		\item [block:STRING] Specifies that the string contains block information. Each line contains 
 		the new block name followed by names of input files to be assigned to that data block. 
-		Blocks are initially named as the input file name with ``:0'' appended. In the examples, 
+		Blocks are initially named as the input file name with ``\#0'' appended. In the examples, 
 		data from files ``b'' and ``c'' will be assigned to block ``a''. There can be no spaces in 
-		file or block names.
+		file or block names. This argument is only intended for use with softwired networks.
+		Characters in the same block have the same display tree in a softwired network
+		\citep{WheelerandWashburn2023}.
 			
 			\begin{quote}
-			\texttt{"a" "b:0" "c:0"}
+			\texttt{"a" "b\#0" "c\#0"}
 			\end{quote}
 	
 		\item [dot:STRING] Specifies that the file contains a graph in `dot' format for use with graph 
@@ -379,9 +380,9 @@
 		can be absolute or relative to the current working directory. The file type is recognized
 		automatically, but as mentioned previously, this should be confirmed.
 
-		\item [tcm:STRING] This refers to a file containing a custom-alphabet matrix that specifies varying 
-		costs among alphabet elements in a sequence. The elements in the alphabet can be letters, 
-		digits, or both.
+		\item [tcm:STRING] This refers to a file containing a custom-alphabet matrix that 
+		specifies varying costs among alphabet elements in a sequence. The elements in 
+		the alphabet can be letters, digits, or both.
 		The \texttt{tcm} contains two parts: the first line of the file contains the alphabet elements 
 		separated by a space and the transformation cost matrix, which follows below. The dash 
 		character representing an insertion/deletion or indel character is not specified on the first 
@@ -440,8 +441,7 @@
 		 spaces for single character states (e.g. \texttt{[03]}), and with spaces for multi-character 
 		 states.\\
 		  
-		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) 
-		 are treated as part of the character state specification.
+		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) are treated as part of the character state specification.
 		 %If the user wishes that dashes 
 		 %be treated as missing data, the file must be edited to reflect this by replacing the 
 		 %dashes that are to be treated as missing data with question 
@@ -477,15 +477,16 @@
 	\end{description}	
 		
 	\subsubsection{Defaults}
-		\texttt{read("fileName")} reads data within the data file ``fileName'' and attempts to recognize the 
-		file type and parse accordingly. The assumed file type is printed to \texttt{stderr} for 
-		verification.
+		\texttt{read("fileName")} reads data within the data file ``fileName'' and attempts to 
+		recognize the file type and parse accordingly. The assumed file type is printed to 
+		\texttt{stderr} for verification.
 		
 	\begin{example}
-		\item{\texttt{read(nucleotide:"/Users/UserName/Desktop/phyg/metazoa.fas", tcm:"sg1t4.mat")}\\ Reads the
-		file ``\textbf{metazoa.fas}'' located in the path \textbf{/Users/UserName/Desktop/phyg/}, parsing it as 
-		nucleotide sequence data. The information in the transformation cost matrix 
-		\textbf{sg1t4.mat} is applied to this imported sequence data.}
+		\item{\texttt{read(nucleotide:"/Users/UserName/Desktop/phyg/metazoa.fas", 
+		tcm:"sg1t4.mat")}\\ Reads the file ``\textbf{metazoa.fas}'' located in the path 
+		\textbf{/Users/UserName/Desktop/phyg/}, parsing it as nucleotide sequence 
+		data. The information in the transformation cost matrix \textbf{sg1t4.mat} 
+		is applied to this imported sequence data.}
 		
 		\item{\texttt{read(prefasta:"myDnaSequenceFile.fas")}\\ Reads sequence data from 
 		``\textbf{myDnaSequenceFile.fas}'' as prealigned data.}
@@ -509,16 +510,16 @@
 		\texttt{reblock(STRING list)}
 	
 	\begin{phygdescription}
-		{Assigns input data to ``blocks'' that will follow the same display tree when optimized
-		as ``softwired'' networks. By default, each input data file is assigned its own block with 
-		the name of the input file. The \texttt{block} command is used to reassign these data to 
-		new, combined blocks. Spaces are not allowed in block names and will produce 
-		\texttt{unrecognized block name} errors.} 
+		{Assigns input data to `blocks' that will follow the same display tree when optimized
+		as `softwired' networks. By default, each input data file is assigned its own block with 
+		the name of the input file. The command \texttt{read(block)} (see Section \ref{subsec:read}) 
+		is used to reassign these data to new, combined blocks. Spaces are not allowed in 
+		block names and will produce `unrecognized block name' errors.} 
 	\end{phygdescription}
 	
 	\subsubsection{Arguments}
 	\begin{description}
-		\item [\hl{STRING list}] The first argument is the block to be created, the remainder 
+		\item [STRING list] The first argument is the block to be created, the remainder 
 		are the input data to be assigned to that block. Blocks are initially named as the input 
 		file name with `:0' appended. Blocks are reported using the \texttt{report(data)} command.
 	\end{description}
@@ -529,8 +530,8 @@
 	\begin{example}
 
 		\item{\texttt{reblock("a","b\#0","c\#0")}\\ Assigns input data from file ``\textbf{b}'' and 
-		``\textbf{c} to block ``\textbf{a}'', \hl{provided each of these files contain a single block 
-		of data. --if for instance a file was partitioned}}
+		``\textbf{c} to block ``\textbf{a}'', provided each of these files contain a single block 
+		of data.}
 	
 	\end{example}
 
@@ -543,9 +544,9 @@
 		\texttt{refine([argument list])}
 		
 	\begin{phygdescription}
-		{Performs edit operations (addition, deletion, move) on network edges, and 
-		therefore only applies to softwired and hardwired graphs. \hl{needs to be expanded 
-		to include GA, drift}}.
+		{Performs edit operations (addition, deletion, and move) on network edges, and 
+		therefore only applies to softwired and hardwired graphs. This also includes
+		the use of Genetic Algorithm for any graph type.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
