@@ -83,9 +83,10 @@
 			\item[otu] Specifies that OTU refinement \citep{Wheeler2021} is performed 
 			after distance builds.
 			
-			\item[rdWag] Performs randoms addition sequence distance Wagner builds 
+			\item[rdWag] Performs random addition sequence distance Wagner builds 
 			\citep{Farris1972,Wheeler2021}, yielding multiple trees determined by the 
-			argument \texttt{replicates}. This method has a time complexity of $O(m \times n^2)$.
+			argument \texttt{replicates}. This method has a time complexity of $O(m \times n^2)$
+			for $m$ replicates and $n$ taxa.
 			
 				\begin{description}
 				\item[best:INT] Applies only to \texttt{rdWag}. Specifies the number of trees retained 
@@ -137,7 +138,7 @@
 		
 		\item{\texttt{build(distance, dWag, replicates:1000, best:10)}\\
 		Builds 1000 distance Wagner builds and returns 10 of the lowest cost distance trees.
-		The best trees are chosen arbitrarily, but the first 10 with the lowest cost.}
+		The best trees are chosen arbitrarily, but consistently--the first 10 with the lowest cost.}
 	
 		\item{\texttt{build(distance, rdwag, block, eun, displaytrees:3)}\\
 		Builds 10 random addition sequence Wagner builds for each `block' of data. The graph 
@@ -146,7 +147,7 @@
 		
 		\item{\texttt{build(distance, block, rdWag, wpgma, replicates:100, best:10, otu)}\\
 		Builds 100 random addition sequence distance Wagner builds and a wpgma tree. 
-		OTU swapping is performed on the wpgma and 10 of the lowest cost random addition 
+		OTU swapping is performed on the 10 of the lowest cost random addition 
 		sequence Wagner trees. These distance searches, and subsequent refinements are 
 		performed on each block of data.}
 	\end{example}
