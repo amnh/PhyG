@@ -25,10 +25,10 @@
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
 %\usepackage[nottoc,numbib]{tocbibind}
 \usepackage{tocloft}
-%\usepackage[many]{tcolorbox}
+\usepackage[many]{tcolorbox}
 \usepackage{marginnote}
 \usepackage{lipsum}
-\usepackage[most]{tcolorbox}
+%\usepackage[most]{tcolorbox}
 
 \setlength\itemindent{1cm}
 
@@ -192,7 +192,7 @@
 		phyg commandFile
 		\end{quote}
 		
-		\bigskip
+		\smallskip
 		
 		\noindent For example, typing the following in a \textit{Terminal} window will invoke 
 		\phyg to run the script \texttt{mol.pg}, which is located in the Desktop folder 
@@ -239,7 +239,7 @@
 		\end{figure}
 	
 	\subsection{Execution in Parallel}
-		\label{subsec:parallel}
+	\label{subsec:parallel}
 		\phyg is a multi-threading application and will, by default, spawn as many jobs as there 
 		are cores in the machine and can be more efficient. Should the user wish to limit or 
 		specify the number of processors used by \phyg this can be achieved by including the 
@@ -251,8 +251,7 @@
 		phyg fileName +RTS -N1 
 		\end{quote}
 		
-		\smallskip
-		
+		\medskip
 		\noindent This is equivalent to executing the program sequentially.		
 		%possible to include and other options
 
@@ -305,6 +304,7 @@
 		\end{figure}
 		
 	\subsection{\texttt{TNT}}
+	\label{subsec:TNT}
 		The TNT \citep{Goloboffetal2008} format is accepted here for specification of 
 		qualitative, measurement, and prealigned molecular sequence data. \phyg can 
 		parse all of the basic character settings including activation/deactivation of 
@@ -391,7 +391,7 @@
 \chapter{PhyG Commands}
 
 \section{\phyg Command Structure}
-		
+		 
 	\subsection{Brief description}
 		\phyg interprets and executes scripts coming from an input file. A script is a list of 
 		commands, separated by any number of whitespace characters (spaces, tabs, or 
@@ -400,7 +400,7 @@
 		Commands and arguments are case insensitive with the exception of filename 
 		specifications, which must match the filename \textit{exactly}, including suffixes 
 		and are always in double quotes (``\textbf{fileName}''). Most commands, with the 
-		exception of \texttt{read}, \texttt{reblock}, and \texttt{rename} have default values 
+		exception of \texttt{reblock}, \texttt{rename} and \texttt{transform}, have default values 
 		and are provided at the end of each command section below. If no arguments are 
 		specified, the command is executed under its default settings.\\
 		
@@ -479,31 +479,36 @@
 
 \chapter{Program Usage}
 \section{Example Script Files}
-	The following file (titled ``Example Script 1'')reads two input sequence files (net-I.fas and net-II.fas), 
-	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
-	outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a softwired network, 
-	and 	reports a series of files with various information about the data and graphs.
-	
-		\begin{verbatim}
-			-- Example Script 1
-			read("net-I.fas")
-			--read("net-Ia.fas")
-			--read("net-IIa.fas")
-			read("net-II.fas")
-			--read("net-I.dot")
-			--read("net-I.tre")
-			--read("net-II.tre")
-			--read("net-II.dot")
-			read("net-I-II.dot")
-			set(outgroup:"zero")
-			set(graphtype:softwired)
-			report("net-test.tre", graphs, newick, overwrite)
-			report("net-test.dot", graphs, dot, overwrite)
-			report("net-test-data.csv", data, overwrite)
-			report("net-test-diag.csv", diagnosis, overwrite)
-			report("net-display.dot", displaytrees, dot, overwrite)
-			report("net-display.tre", displaytrees, newick, overwrite)
-		\end{verbatim}
+Tutorials are available for download on the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub}
+website. These tutorials provide guidance for using the program. Each tutorial contains a \phyg script 
+that includes detailed commentaries explaining the rationale behind each step of the analysis. The 
+command arguments will differ substantially depending on type, complexity, and size of the data set. 
+
+%	The following file (titled ``Example Script 1'') reads two input sequence files (net-I.fas and net-II.fas), 
+%	skips all 	the lines that begin with double dash (\texttt{--}), reads the graph file net-I-II.dot, sets the 
+%	outgroup to the taxon named ``zero,'' specifies the graph type for the analysis is a softwired network, 
+%	and 	reports a series of files with various information about the data and graphs.
+%	
+%		\begin{verbatim}
+%			-- Example Script 1
+%			read("net-I.fas")
+%			--read("net-Ia.fas")
+%			--read("net-IIa.fas")
+%			read("net-II.fas")
+%			--read("net-I.dot")
+%			--read("net-I.tre")
+%			--read("net-II.tre")
+%			--read("net-II.dot")
+%			read("net-I-II.dot")
+%			set(outgroup:"zero")
+%			set(graphtype:softwired)
+%			report("net-test.tre", graphs, newick, overwrite)
+%			report("net-test.dot", graphs, dot, overwrite)
+%			report("net-test-data.csv", data, overwrite)
+%			report("net-test-diag.csv", diagnosis, overwrite)
+%			report("net-display.dot", displaytrees, dot, overwrite)
+%			report("net-display.tre", displaytrees, newick, overwrite)
+%		\end{verbatim}
 	
 \section{Faster and Slower}
 Multiple options affect both the quality of results (better ot worse optimality score) and
