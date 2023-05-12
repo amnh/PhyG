@@ -66,7 +66,7 @@ directOptimization
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
   -> (Word, OpenDynamicCharacter v e)
-directOptimization alignmentFunction overlapλ = handleMissing generateAlignmentResult
+directOptimization alignmentλ overlapλ = handleMissing generateAlignmentResult
   where
     generateAlignmentResult lhs rhs =
       let -- Build a 'gap' state now that we know that we can access a non-empty sequence.
@@ -78,11 +78,17 @@ directOptimization alignmentFunction overlapλ = handleMissing generateAlignment
           lesserMeds = extractMediansGapped lesser
           longerMeds = extractMediansGapped longer
           ~(alignmentCost, ungappedAlignment) =
-              if      GV.length lesserMeds == 0
-              -- Neither character was Missing, but one or both are empty when gaps are removed
+              -- Conditionally invoke the true alignment function:
+              -- It is possible that neither *input* character was Missing,
+              -- but one or both are "empty" when gaps are removed!
+              -- In this case, a trivial alignment with the longer character 'Y'
+              -- is performed, resulting in a median sequence 'Z' where,
+              -- Zᵢ = σ(—,Yᵢ), ∀i [0, |Y| - 1].
+              -- Note that the longer character could also be empty (|Y| = 0).
+              if   GV.length lesserMeds == 0
               then alignmentWithAllGaps overlapλ longerMeds
               -- Both have some non-gap elements, perform string alignment
-              else alignmentFunction lesserMeds longerMeds
+              else alignmentλ lesserMeds longerMeds
           regappedAlignment = insertGaps gap gapsLesser gapsLonger ungappedAlignment
           transformation    = if swapped then transposeCharacter else id
           alignmentContext  = transformation regappedAlignment
@@ -105,9 +111,9 @@ directOptimizationFromDirectionMatrix
   -> OpenDynamicCharacter v e
   -> (Word, OpenDynamicCharacter v e)
 directOptimizationFromDirectionMatrix matrixGenerator overlapλ =
-    handleMissing $ directOptimization alignmentFunction overlapλ
+    handleMissing $ directOptimization alignmentλ overlapλ
   where
-    alignmentFunction lhs rhs =
+    alignmentλ lhs rhs =
         let gap = let tmp = rhs ! 0 in (tmp `xor` tmp) `setBit` 0
             (cost, traversalMatrix) = matrixGenerator gap overlapλ lhs rhs
         in  (cost, traceback gap overlapλ traversalMatrix lhs rhs)

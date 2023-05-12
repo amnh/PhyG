@@ -13,10 +13,11 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE ApplicativeDo              #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE Strict                     #-}
+{-# Language ApplicativeDo #-}
+{-# Language DerivingStrategies #-}
+{-# Language GeneralizedNewtypeDeriving #-}
+{-# Language ImportQualifiedPost #-}
+{-# Language Strict #-}
 
 module Bio.DynamicCharacter.HandleGaps
   ( GapSet()
@@ -25,19 +26,19 @@ module Bio.DynamicCharacter.HandleGaps
   , insertGaps
   ) where
 
-import           Bio.DynamicCharacter
-import           Control.Monad               (unless, when)
-import           Control.Monad.Loops         (whileM_)
-import           Control.Monad.ST
-import           Data.Bits
-import           Data.Foldable
-import           Data.IntMap.Strict          (IntMap, fromDistinctAscList, lookupMax, toAscList)
-import           Data.STRef
-import           Data.Semigroup
-import           Data.Vector.Generic         (Vector, (!))
-import qualified Data.Vector.Generic         as GV
-import qualified Data.Vector.Generic.Mutable as MGV
-import qualified Data.Vector.Unboxed.Mutable as MUV
+import Bio.DynamicCharacter
+import Control.Monad (unless, when)
+import Control.Monad.Loops (whileM_)
+import Control.Monad.ST
+import Data.Bits
+import Data.Foldable
+import Data.IntMap.Strict (IntMap, fromDistinctAscList, lookupMax, toAscList)
+import Data.STRef
+import Data.Semigroup
+import Data.Vector.Generic (Vector, (!))
+import Data.Vector.Generic qualified as GV
+import Data.Vector.Generic.Mutable qualified as MGV
+import Data.Vector.Unboxed.Mutable qualified as MUV
 
 
 -- |

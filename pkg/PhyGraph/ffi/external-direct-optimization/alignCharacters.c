@@ -4484,6 +4484,9 @@ algn_backtrace_2d ( const dyn_character_t *shorterChar
                 end -= l;
             }
             else {
+                if (!(*end & INSERT)) {
+                  fprintf(stdout, "INS = %x, END = %x, AND = %x \n", INSERT, *end, *end & INSERT);
+                }
                 assert (*end & INSERT);
                 new_item_for_ret_longerChar = INDEL_GAP;
                 prepend_an_element(ret_longerChar, new_item_for_ret_longerChar);

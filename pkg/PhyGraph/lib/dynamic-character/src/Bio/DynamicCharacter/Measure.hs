@@ -13,7 +13,7 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE Strict                #-}
+{-# Language Strict #-}
 
 module Bio.DynamicCharacter.Measure
   ( measureCharacters
@@ -24,7 +24,7 @@ import Bio.DynamicCharacter
 import Bio.DynamicCharacter.HandleGaps
 import Data.Bits
 import Data.Ord
-import Data.Vector.Generic             (Vector, basicLength)
+import Data.Vector.Generic (Vector, basicLength)
 
 
 -- |
