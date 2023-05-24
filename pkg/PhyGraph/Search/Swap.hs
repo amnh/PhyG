@@ -412,9 +412,10 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                 -- these conditions help to prevent recswapping endlessly on new graphs thatare not in buffers,
                 -- but have same cost
                 graphsToDo' = if length graphsToDo >= ((keepNum swapParams) - 1) then (tail inGraphList)
-                              else if length newCurSameBetterList == length curSameBetterList then (tail inGraphList)
+
+                              -- found nothing better that is new
                               else if length newCurSameBetterList >= ((keepNum swapParams) - 1) then (tail inGraphList)
-                              --else if (fmap fst6 newCurSameBetterList) ==  (fmap fst6 curSameBetterList) then (tail inGraphList)
+
                               else graphsToDo
 
             in
