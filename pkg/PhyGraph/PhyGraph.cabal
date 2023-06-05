@@ -215,12 +215,12 @@ Executable phyg
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
---  Else
---    GHC-Options:
+  Else
+    GHC-Options:
 --    "-with-rtsopts=-N"
 --    rts -AL8 was rejected  should be >= A
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
---      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   Build-Depends:
     PhyGraph:alphabet,
@@ -240,6 +240,7 @@ Executable phyg
     deepseq,
     directory,
     fgl >=5.8,
+    githash,
     graphviz   >=2999.20,
     hashable,
     inflist,

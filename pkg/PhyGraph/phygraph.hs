@@ -42,12 +42,14 @@ import qualified Commands.CommandExecution    as CE
 import qualified Commands.ProcessCommands     as PC
 import qualified Commands.Verify              as V
 import qualified Data.CSV                     as CSV
+import           Data.Either
 import qualified Data.List                    as L
 import qualified Data.Text.Lazy               as Text
 import qualified Data.Text.Short              as ST
 import           Data.Time.Clock
 import           Debug.Trace
 import           GeneralUtilities
+import qualified GitHash                      as GH
 import qualified GraphFormatUtilities         as GFU
 import qualified GraphOptimization.Traversals as T
 import qualified Graphs.GraphOperations       as GO
@@ -68,12 +70,20 @@ import qualified Utilities.Utilities          as U
 -- | main driver
 main :: IO ()
 main = do
+    -- get sompile and git hasjh info
     let compileDate = (__DATE__ ++ " " ++ __TIME__)
+    -- this here since got replaced somehow one time
     -- let compileDate = (__DATE__ ++ " " ++ __TIME__)
+    gitInfo <- GH.getGitInfo "/home/ward/home/PhyGraph"
+    let gitCommitHashString = GH.giHash $ head $ rights [gitInfo]
+    -- let gitErrorString = show $ head $ lefts [gitInfo]
+
+
+    -- splash info
     let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "\tunder the 3-Clause BSD License.\nCompiled " ++ compileDate
-    hPutStrLn stderr (splash ++ splash2 ++ splash3)
+    hPutStrLn stderr (splash ++ splash2 ++ splash3 ++ " Git commit: " ++ gitCommitHashString)
 
     -- Process arguments--a single file containing commands
     args <- getArgs
