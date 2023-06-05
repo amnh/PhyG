@@ -72,7 +72,7 @@ commands and associated arguments of \phyg can be found
 \label{subsec:Installation}
 
 In this tutorial, you will learn how to obtain and install the \phyg binaries.  
-Precompiled \phyg binaries, test data, and documentation in pdf format, are available 
+Precompiled \phyg binaries, test data, and documentation in pdf format are available 
 from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} website. 
 
 \begin{enumerate}
@@ -93,7 +93,7 @@ binary is located. Type the following:
 	\end{quote}
 
 \item With Mac OSX machines, right click on the binary, and select `open with 
-\textit{Terminal}', and click ``Open.'' The OSX has now marked the binary as `safe' 
+\textit{Terminal}', and click `Open'. The OSX has now marked the binary as `safe' 
 to open. In Linux machines, it is not necessary to mark executables as `safe'.
 
 \item The binary should either be moved into your \$PATH or referred to its 
@@ -121,7 +121,7 @@ absolute PATH when executing a script:
   	/Applications/phyg ~/Desktop/phygfiles/run1.pg
 	\end{quote}
 	
-see also below \ref{subsec:executing})
+See also below in Subsection \ref{subsec:executing}.
 	
 \item Move the \phyg binary from its current location to this location. For example 
 typing the following will move the binary from its Desktop location into the user's 
@@ -202,7 +202,7 @@ the program.
 \item The command \texttt{read} imports file-based information, including data files, 
 tree and graph files. \texttt{read} commands must contain an input file. Supported 
 data formats include FASTA, FASTC and TNT files, and graph formats include Dot, 
-Enewick, and Newick. Filenames must include the any suffix (e.g. 
+Enewick, and Newick. Filenames must include the suffix (e.g. 
 .fas, .fasta, .fastc, .ss, .tre). Failure to include these suffices will result in the error 
 "File(s) not found in `read' command". The filename must match \textit{exactly}, 
 including capitalization.\\
@@ -221,13 +221,13 @@ Moreover, to capture all the filetypes ending with fas, the user can type:
 	read(nucleotide:"*.fas*")\\
 	\end{quote}
 
-This will read files ending in .fas, .fasta and .fastc. \phyg will attempt to recognize 
+This will read files ending in .fas, .fasta, and .fastc. \phyg will attempt to recognize 
 the type of input and parse appropriately. Otherwise, the type of file can be 
 indicated. In this example, we indicate that the files "chel\_16S.fas" and 
 "chel\_cox1.fas" contain IUPAC \texttt{nucleotide} sequence data in fasta format.
 
 \item Having read in our data, it is advisable to verify that the files were properly 
-parsed by checking the characters and terminals in the cross references and data 
+parsed by checking the characters and terminals in the cross-references and data 
 files. We will examine these files below (Section \ref{subsec:Inspecting}).
 
 \item Save this file with the name \textbf{run1.pg} in a directory \textbf{phygfiles} 
@@ -279,7 +279,7 @@ This is equivalent to typing the following from any location on your computer:
 	\end{quote}
 
 Note: should you get the error ``phyg: command not found'' this indicated that 
-\texttt{Phyg} is not in your path). 
+\texttt{Phyg} is not in your path. 
 	
 \item To interrupt the analysis, press control-c. Interrupting the analysis cancels 
 the execution of the last command requested by the user. 
@@ -310,7 +310,7 @@ renamed, whether trees were selected, and a brief description of the content
 for each loaded file. The current state of the analysis can be viewed here. Any 
 warnings and errors will also appear here. Upon completion of the analysis, the 
 results, including costs, the number of returned graphs, and information relating 
-wall-clock time, CPU time and CPU usage are also provided.
+wall-clock time, CPU time, and CPU usage are also provided.
 
 \begin{figure}
 \centering
@@ -351,7 +351,7 @@ which can subsequently be imported into spreadsheet applications like \textit{Ex
 or \textit{Numbers} for easy viewing. 
 
 \item Examine the reported file \textbf{"chel\_cr1.csv"}. The \texttt{crossrefs} 
-argument of the \texttt{report} command is a useful tool for visual representation 
+argument of the \texttt{report} command is a useful tool for the visual representation 
 of the inputted data. This argument displays whether data are present or absent 
 for each terminal in each of the imported data files. This provides a comprehensive 
 visual overview of the completeness of the data. It will highlight missing data, as 
@@ -387,7 +387,7 @@ name of the character (by default based on its source data file); ``Type'' is th
 of character (e.g. Non-Additive, Matrix, Nucleotide Sequence), ``Activity'' whether
 the character is active (included in the analysis) or not (excluded), ``Weight'' is the 
 weight of the character, ``Prealigned''  denotes whether a sequence character 
-(e.g. amino acids) is to treated as prealigned or not, ``Alphabet'' the elements of 
+(e.g. amino acids) is to be treated as prealigned or not, ``Alphabet'' the elements of 
 a sequence character, ``TCM'' is the transition cost matrix specifying costs among 
 sequence elements and ``gap'' or insertion-deletion.
 \end{enumerate}
@@ -422,7 +422,7 @@ to output tree files with \texttt{report("chel\_run1.tre", newick, graphs, overw
 	set(outgroup:"Limulus")\\
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
+	build(distance, rdwag, replicates:50)\\
 	report("chel\_cr1.csv", crossrefs, overwrite)\\
 	report("chel\_data1.csv", data, overwrite)\\
 	report("chel\_run1.tre", newick, graphs, overwrite)\\
@@ -435,8 +435,8 @@ this file. This newick tree file, in parenthetical notation, can be viewed in ot
 like \textit{FigTree} or \textit{TreeView}. The values associated with the taxon names and 
 HTUs are the branch lengths. The cost of the tree(s) can be found in square brackets, at 
 the end of each tree. Notice that the trees appear in order of cost in the file, with the most 
-optimal tree appearing last. In this analysis, \phyg returned 100 trees ranging in cost from 
-1005 to 1046 with the cost of the most optimal tree being 1005.
+optimal tree appearing last. In this analysis, \phyg returned 50 trees ranging in cost from 
+1005 to 1044 with the cost of the most optimal tree being 1005.
 
 \end{enumerate}
 
@@ -466,7 +466,7 @@ After each round \phyg will \texttt{keep} 10 graphs per input graph.
 	set(outgroup:"Limulus")\\
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
+	build(distance, rdwag, replicates:50)\\
 	swap(alternate, keep:10)\\
 	report("chel\_cr1.csv", crossrefs, overwrite)\\
 	report("chel\_data1.csv", data, overwrite)\\
@@ -502,7 +502,7 @@ optimal \textit{and} topologically unique at the end of an analysis. The default
 setting of the \texttt{select()} does exactly that. Add \texttt{select()} to our script, 
 ensuring that \phyg will select the topologically unique trees of best cost upon 
 completion. For now we will comment out this command as we will only include 
-a pool of topologically unique tree for the next stage of the analysis (Section 
+a pool of topologically unique trees for the next stage of the analysis (Section 
 \ref{subsec:Fusing}).
 
 	\begin{quote}
@@ -511,7 +511,7 @@ a pool of topologically unique tree for the next stage of the analysis (Section
 	set(outgroup:"Limulus")\\
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
+	build(distance, rdwag, replicates:50)\\
 	select(unique)\\
 	swap(alternate, keep:10)\\
 	-\/-select()\\
@@ -541,13 +541,15 @@ causes the exchanged subgraphs to be tried at multiple positions (up to 9
 edges away from their initial positions. The number of returned graphs is 
 limited to 1.
 
+\item Uncomment the command \texttt{select()}.
+
 	\begin{quote}
 	-\/-Chel first analysis\\
 	set(seed:73412305)\\
 	set(outgroup:"Limulus")\\
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
+	build(distance, rdwag, replicates:50)\\
 	select(unique)\\
 	swap(alternate, keep:10)\\
 	fuse(tbr:10, keep:1)\\
@@ -556,8 +558,8 @@ limited to 1.
 	report("chel\_data1.csv", data, overwrite)\\
 	report("chel\_run1.tre", newick, graphs, overwrite)\\
 	\end{quote}
-
-\item Uncomment the command \texttt{select()}.
+	
+\item Rerun the analysis.
 
 \item Reopen the reported tree file \texttt{"chel\_run1.tre"} using your text editor.
 You will see that the cost of the most optimal tree has not decreased any further 
@@ -575,9 +577,10 @@ Another useful way to view the data is to \texttt{report} the implied alignment 
 molecular data currently loaded. An implied alignment is a representation of the 
 insertion, deletion and substitution events that take place on a \textit{given} tree, 
 represented as an alignment. Outputted implied alignments can be imported into 
-visualization program such as \textit{BioEdit} and \textit{Clustal}, as well as other 
-phylogenetic programs such as \textit{TNT}---this will be done during another lab 
-session. 
+visualization program such as \href{https://ormbunkar.se/aliview/#DOWNLOAD}{AliView}, 
+\href{https://thalljiscience.github.io/}{BioEdit} and \href{https://www.geneious.com}{Geneious}, 
+as well as other phylogenetic programs such as \textit{TNT}---this will be done during 
+another lab session. 
 
 \begin{enumerate}
 
@@ -589,7 +592,7 @@ session.
 	set(outgroup:"Limulus")\\
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
+	build(distance, rdwag, replicates:50)\\
 	select(unique)\\
 	swap(alternate, keep:10)\\
 	fuse(tbr:10, keep:1)\\
@@ -636,7 +639,7 @@ or any vectorial image edition program. Modify the script to include this comman
 	set(outgroup:"Limulus")\\
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:100)\\
+	build(distance, rdwag, replicates:50)\\
 	select(unique)\\
 	swap(alternate, keep:10)\\
 	fuse(tbr:10, keep:1)\\
@@ -649,392 +652,10 @@ or any vectorial image edition program. Modify the script to include this comman
 	\end{quote}
 	
 \item Notice that two files were outputted from using this command. \phyg has 
-output a \hl{ps} (on OSX) or pdf (on linux) file that can be viewed in a vector graphics program and a dot 
-file, which can be viewed (and modified) in \textit{Graphviz}.
-The file \textbf{"chel\_run1.dot"} 
+output a eps (on OSX) or pdf (on linux) file that can be viewed in a vector graphics 
+program and a dot file, which can be viewed (and modified) in \textit{Graphviz}.
 \end{enumerate}
 
-%\section{Loading and using Non-additive (Unordered, Fitch) characters}
-%
-%    \item
-%        In this tutorial we will not build new trees, we just want
-%        to show that the same \ phyg{read} command works to read both regular
-%        \textit{data} and \textit{trees}. To do this, we read from separate files, one
-%        containing the character matrix of non-additive characters, and the
-%        other containing the trees:
-%        \begin{verbatim}
-%            read ("1Fitch.ss", "1Fitch.tre")
-%        \end{verbatim}
-%
-%\section{Loading and using Additive characters}
-%
-%\begin{enumerate}
-%    \item Once more, we will repeat (more or less) what we did for Non-additive
-%        characters with Additive (Ordered, Wagner) characters. To do this, open
-%        the interactive console, and move to the exercises directory.
-%
-%    \item
-%        This time we will input the data contained in the '31' files:
-%        \begin{verbatim}
-%            read ("31.ss", "31.ss.tree")
-%        \end{verbatim}
-%
-%    \item 
-%        Here, we will use report not only to create the contents as
-%        before, but  also output the trees in human readable format to the
-%        screen. To do this, repeat these commands one by one, and observe the
-%        effect:
-%        \begin{verbatim}
-%            report ("Wagner_results.txt", data, diagnosis)
-%            report (trees:(total))
-%            report (asciitrees)
-%            exit ()
-%        \end{verbatim}
-%        Can you guess what the command would be to output the asciitrees in a
-%        file?
-%
-%\end{enumerate}
-%
-%\subsection{Loading a Direct Optimization Sequence}
-%
-%\begin{enumerate}
-%    \item 
-%        Again change to the
-%        exercises directory (Section~\ref{sec:loading_sankoff}), and read the
-%        files \ phyg{3.fasta} and \ phyg{5.fasta}. Both contain sequences in FASTA
-%        format:
-%        \begin{verbatim}
-%            read ("3.fasta", "5.fasta")
-%        \end{verbatim}
-%
-%    \item
-%        We will now construct 10  Wagner trees with the
-%        command \ phyg{build} (the default), then select the best unique trees resulting from
-%        the Wagner builds and report the trees in parenthetical notation:
-%        \begin{verbatim}
-%            build ()
-%            select ()
-%            report (trees:(total))
-%        \end{verbatim}
-%
-%    \item
-%        We are done for now with this tutorial. Close the
-%        interactive console:
-%        \begin{verbatim}
-%            exit ()
-%        \end{verbatim}
-%\end{enumerate}
-%
-%\subsection{Trees argument}
-%
-%\begin{enumerate}
-%    \item By default, from every starting tree, phyg will only store one
-%        resulting tree. That is, if you do:
-%        \begin{verbatim}
-%            build (1)
-%            swap ()
-%        \end{verbatim}
-%        You are guaranteed to end with one tree in memory. What about
-%        other trees of the same cost that could be found during the search? In
-%        order to increase the number of trees held in memory, after
-%        \ phyg{swap}, you can use the \ phyg{trees} argument:
-%        \begin{verbatim}
-%            use ("initial")
-%            select (best:1)
-%            report (treestats)
-%            swap (trees:10)
-%        \end{verbatim}
-%        Did you get more than one tree at the end?
-%
-%    \item 
-%        We can also keep suboptimal trees in memory by using the
-%        \ phyg{threshold} argument. This allow us to find trees that are at
-%        most some number of steps longer than the current optimum. For example,
-%        try the following:
-%        \begin{verbatim}
-%            use ("initial")
-%            select (best:1)
-%            swap (threshold:20, trees:10)
-%            report (treestats)
-%        \end{verbatim}
-%        How many trees did you get? What are the minimum and maximum lengths?
-%
-%    \item
-%        You can also provide a constraint file from an input file. Let's try
-%        that setup. First create the consensus file:
-%        \begin{verbatim}
-%            use ("initial")
-%            select (best:3)
-%            report ("constraint.txt", consensus)
-%        \end{verbatim}
-%        Now open the \ phyg{constraint.txt} file and delete the title at the
-%        beginning. We are ready to proceed with the swap:
-%        \begin{verbatim}
-%            swap (constraint:("constraint.txt"), timeout:10)
-%        \end{verbatim}
-%        Notice that this time we have also added a timeout of 10 minutes. The
-%        main difference between using the constraint file in this way with the
-%        automated constraint in the previous item is that the reported consensus
-%        tree collapse zero length branches.
-%
-%\subsection{Modifying your characters with transform}
-%
-%\begin{enumerate}
-%    \item 
-%        Your input characters can be modified in many ways, for example to 
-%        use a particular cost or
-%        weighting scheme, as well as to modify the type of character being
-%        analyzed. To begin this series of exercises, let's start with our
-%        typical data set:
-%        \begin{verbatim}
-%            read ("course.fasta")
-%        \end{verbatim}
-%
-%    \item
-%        Now we will report the cost matrix being used in the loaded characters:
-%        \begin{verbatim}
-%            report (data)
-%        \end{verbatim}
-%
-%    \item 
-%        You can see that by default phyg will give cost 2 to each indel, and 1 to
-%        every substitution (that's what the \ phyg{tcm:(1,2)} means). We can
-%        modify all the characters with the command \ phyg{transform}, as
-%        follows:
-%        \begin{verbatim}
-%            transform (tcm:(1,1))
-%        \end{verbatim}
-%        This will change will the characters for which a transformation cost
-%        matrix for an alignment is applicable. \ phyg{tcm:(1,1)} will assign
-%        cost 1 to every substitution and 1 to every indel. 
-%        Let's verify its effect:
-%        \begin{verbatim}
-%            report (data)
-%        \end{verbatim}
-%
-%    \item
-%        We can also assign a particular cost to opening a gap block. Not
-%        surprisingly the argument is \ phyg{gap\_opening}:
-%        \begin{verbatim}
-%            transform (tcm:(3,1), gap_opening:3)
-%            report (data)
-%        \end{verbatim}
-%        Can you see the effect in the \ phyg{data} report? It is time now to
-%        see the effect of the different parameters in the implied alignment.
-%
-%    \item
-%        First read again your input data and build a tree:
-%        \begin{verbatim}
-%            wipe ()
-%            read ("course.fasta")
-%            build (1)
-%        \end{verbatim}
-%
-%    \item 
-%        Now we write down the cost of the tree, and output the implied alignment
-%        in a file:
-%        \begin{verbatim}
-%            report (treestats, "1_2_ia.txt", implied_alignments)
-%        \end{verbatim}
-%
-%    \item
-%        Next we modify the cost regime to substitutions 1, indels 1, and report
-%        the new cost as well as the implied alignment:
-%        \begin{verbatim}
-%            transform (tcm:(1,1))
-%            report (treestats, "1_1_ia.txt", implied_alignments)
-%        \end{verbatim}
-%
-%    \item
-%        Finally we will do the same operations using a cost of 3 for
-%        substitutions, 1 for an individual gap, and 3 for gap opening:
-%        \begin{verbatim}
-%            transform (tcm:(3,1), gap_opening:3)
-%            report (treestats, "3_1_3_ia.txt", implied_alignments)
-%            wipe ()
-%        \end{verbatim}
-%
-%    \item
-%        Compare the costs and the implied alignments. What do you expect? what
-%        do you observe? Are the transformation cost matrices metric? Are your
-%        characters metric? 
-%
-%    \item 
-%        You can fix a particular scheme of indels using the command
-%        \ phyg{transform (static\_approx)}, which stands for ``static
-%        approximation''. A static approximation fixes a particular implied
-%        alignment for the best tree in memory, and creates a set of characters
-%        that match that particular alignment and resembles as much as possible
-%        the cost regime of choice. Here is example of this:
-%        \begin{verbatim}
-%            read ("course.fasta")
-%            build (1)
-%            transform (tcm:(1,1))
-%            report (data)
-%        \end{verbatim}
-%
-%    \item 
-%        We see that there are 8 molecular characters currently in memory.
-%        Before we continue, as we will play around with this initial set of
-%        characters and tree, we should store this initial state of the program:
-%        \begin{verbatim}
-%            store ("initial")
-%        \end{verbatim}
-%
-%    \item
-%        We can now check the implied alignment:
-%        \begin{verbatim}
-%            report (ia)
-%        \end{verbatim}
-%        Yes, \ phyg{ia} and \ phyg{implied\_alignment} are equivalent.
-%
-%    \item
-%        This alignment can now be fixed to use the resulting matrix as the
-%        characters:
-%        \begin{verbatim}
-%            transform (static_approx)
-%            report (data)
-%        \end{verbatim}
-%
-%    \item
-%        Observe that after the transform there are no molecular characters left.
-%        Instead, there are a number of non-additive characters.
-%
-%    \item
-%        What happens if we have the default cost regime? Let's roll back to the
-%        characters stored in ``initial'' and give this a try:
-%        \begin{verbatim}
-%            use ("initial")
-%            transform (tcm:(1,2))
-%            transform (static_approx)
-%            report (data)
-%        \end{verbatim}
-%        What can you observe?
-%
-%    \item
-%        Finally, let's check how the static approximation behaves if you have a
-%        gap opening parameter:
-%        \begin{verbatim}
-%            use ("initial")
-%            transform (tcm:(3,1), gap_opening:3)
-%            transform (static_approx)
-%            report (data)
-%        \end{verbatim}
-%        What is the main difference the you observe? How are indel blocks being
-%        treated?
-%
-%    \item
-%        Now we will learn how to \ phyg{transform} specific characters. Suppose
-%        that we would like to assign \ phyg{tcm:(2,1)} to the first fragment in
-%        course.fasta. We first check the name of the fragment:
-%        \begin{verbatim}
-%            use ("initial")
-%            report (data)
-%        \end{verbatim}
-%        You can see that the name of the first fragment is \ phyg{course.fasta:0}
-%        (the precise name may vary slightly in your computer). We can specify in
-%        the transform command which characters should be transformed in which
-%        way:
-%        \begin{verbatim}
-%            transform ((names:("couse.fasta:0"), tcm:(2,1)))
-%        \end{verbatim}
-%
-%    \item
-%        try to visually match the parenthesis and understand their effect. Here
-%        is another example, aimed at up-weighting static homology characters
-%        only:
-%        \begin{verbatim}
-%            transform ((static, weight:2))
-%        \end{verbatim}
-%        In this case instead of specifying characters by name, we do it by type.
-%        This command probably makes the syntax easier to understand. If you had
-%        troubles with the first one, try to understand the \ phyg{weight}
-%        example and go back to the \ phyg{tcm:(2,1)} case again.
-%
-%    \item
-%        To finish this section, we leave you a task: fix the alignment
-%        of the third and fourth fragments of the file course.fasta
-%        using cost 1 for substitutions and cost 1 for indels. Every
-%        other character should have the default cost regime of
-%        substitutions 1 and indels 2.
-%\end{enumerate}
-
-
-%\subsection{Perturbing trees for improved searches}
-%
-%\begin{enumerate}
-%    \item Perturbing the search space is a powerful search strategy. The
-%        fundamental concept is to modify the cost of the trees in such a way
-%        that we can find even better trees from already good ones, that is, from
-%        trees that are local optima. The \ phyg{perturb} command in phyg
-%        implements this kind of search strategy.
-%
-%    \item \ phyg{perturb} works in the following way: for $n$ iterations, phyg
-%        perturbs the characters using the arguments and options that we specify,
-%        searches for optimal trees in the altered character landscape, and
-%        finally searches the current best tree using the original characters.
-%
-%    \item The parsimony Ratchet is a classic powerful perturbation strategy in
-%        phylogenetic research. In phyg, the \ phyg{ratchet} argument within the
-%        \ phyg{perturb} command works by up-weighting a percentage of
-%        characters. The default settings of \ phyg{perturb ()} performs a
-%        ratchet in which 25\% of the characters are up-weighted by a factor of
-%        2.
-%
-%    \item
-%        Let us now perturb our data with the ratchet. First, we will read the
-%        data, and the trees stored in the fuse tutorial, to perturb them:
-%        \begin{verbatim}
-%            read ("course.fasta", "fuse_course.tree")
-%            perturb ()
-%        \end{verbatim}
-%
-%    \item
-%        How many iterations are performed by default? How many characters do you
-%        have in your analysis?
-%
-%    \item
-%        As you saw in the previous command, one problem we have is that the
-%        ratchet works on characters, and this data set has few of them: only 8.
-%        Our experience is that an excellent strategy is to apply the ratchet on
-%        the characters produced by the implied alignment, that is, on the static
-%        approximation.
-%
-%    \item To do this, we use the \ phyg{transform} command as an argument of
-%        the \ phyg{perturb} command:
-%        \begin{verbatim}
-%            perturb (transform (static_approx))
-%        \end{verbatim}
-%        which executes the following algorithm:
-%        \begin{itemize}
-%            \item For $5$ iterations
-%                \begin{itemize}
-%                    \item Run the parsimony ratchet
-%                    \item Transform back to the original dynamic homology
-%                        characters
-%                    \item Run a new search in the resulting tree
-%                    \item If the new tree is better, replace the original.
-%                \end{itemize}
-%        \end{itemize}
-%
-%    \item
-%        Now lets perform a ratchet with SPR and static approximation:
-%        \begin{verbatim}
-%            perturb (transform (static_approx), swap (spr))
-%        \end{verbatim}
-%
-%    \item 
-%        Alternatively, we can try to escape the local optima by perturbing the
-%        cost of the matrix employed by the dynamic homology characters:
-%        \begin{verbatim}
-%            perturb (transform (tcm:(1,1)))
-%        \end{verbatim}
-%        Can you describe what this command does? An important observation is
-%        that running five iterations of this command does not help at all. Can
-%        you see why?
-%
-%\end{enumerate}
-%
 \subsection{Using Search}
 \label{subsec:search}
 
@@ -1055,10 +676,10 @@ randomized for this search.
 	set(outgroup:"Limulus")\\
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
-	search(minutes:5)\\
-	report("blah.csv", search, overwrite)
+	search(minutes:20)\\
+	report("chel\_search2.csv", search, overwrite)
 	report("chel\_data2.csv", data, overwrite)\\
-	report("chel\_run2.tre", newick, graphs, overwrite)\\
+	report("chel\_search2.tre", newick, graphs, overwrite)\\
 	\end{quote}
 %
 %    \item
@@ -1072,156 +693,11 @@ randomized for this search.
 %        performed, how many times the best tree was found, and what its score
 %        is.
 %
-%    \item
-%        We can constraint the search some more. Suppose that we
-%        have, from previous searches, the impression that the best tree that we
-%        could find has cost 385, hen we can tell phyg that this should be the
-%        target cost for an expected number of hits:
-%        \begin{verbatim}
-%            wipe ()
-%            read ("18s.fasta")
-%            search (max_time:0:1:0, hits:5, target_cost:385)
-%        \end{verbatim}
-%        This command will now run for \textit{one hour} or until it has
-%        found 5 trees with cost 385 or less, whichever happens first.
-%
-%    \item
-%        If we have limited memory resources, we can now execute this search with
-%        a memory constraint, so that phyg will only store as many trees as it can
-%        fit in 256 MB or RAM, not more.
-%        \begin{verbatim}
-%            read ("18s.fasta")
-%            search (max_time:0:1:0, hits:5, target_cost:385, 
-%                memory:mb:256)
-%        \end{verbatim}
-%
-%    \item 
-%        So lets run a regular search for half an hour on the 18s data set, and
-%        see what results you get. We will store the resulting trees in the file
-%        18s.tree:
-%        \begin{verbatim}
-%            read ("18s.fasta")
-%            search (max_time:0:0:30, memory:mb:256)
-%            select ()
-%            report ("search_18s.tree", trees)
-%        \end{verbatim}
-%
 %\item Save this file with the name \textbf{run1\_search.pg} in a directory \texttt{phygfiles} 
 %located on your Desktop.
 
 \end{enumerate}
-%
-%\subsection{Calculating Supports: Jackknife}
-%This method calculates Jackknife support values for input graphs. This method specifies
-%that resampling is performed with $n$ acceptance probability (default 0.6231 or $1 - e^{-1}$). 
-%
-%\begin{enumerate}
-% 
-% \item Using your text editor of choice, make a new script to generate the 
-% Goodman-Bremer  support values for our newick tree from \textbf{run1.pg}.
-% 
-%         \begin{quote}
-%	-\/-Jackknifes for chel\_run1\\
-%	set(seed:73412305) \\
-%	set(outgroup:"Limulus") \\
-%	read(nucleotide:"chel\_16S.fas") \\
-%	read(nucleotide:"chel\_cox1.fas") \\
-%	read(newick:"chel\_run1.tre") \\
-%	support(jackknife:1000)\\
-%	report("chel\_run1\_jk.dot", support, dotpdf, overwrite)
-%        \end{quote}  
-%       
-%\item Save this file in the same directory as your tree file, i.e. \texttt{run1}.
-%We will name this file \texttt{run1\_JKs.pg}.
-%
-%\item Execute the script:
-%
-%	\begin{quote}
-%  	phyg run1\_JKs.pg
-%	\end{quote}
-%	
-%\item Examine the reported files. Jackknife values, represented as jackkife
-%frequencies are labelled over the branches.
 
-%\begin{enumerate}
-%  
-%  \item 
-%        The command \ phyg{calculate\_support (jackknife)} performs n pseudoreplicates independently, in each once a percentage of characters in selected at random, without replacement.  The frequency of occurrence of a clade is its jackknife support value.
-%        
-%        \item 
-%      Open the program documentation (in the help menu of the Graphic User Interface Window).  Go to the command reference chapter and find the \ phyg{calculate\_support} command.  Find the jackknife argument, and read its description and default values, and how to specify the number of pseudoreplicates inside calculate\_support. Then write a command to do just 50 pseudorplicates, using the default values of jackknife.
-%      
-%       \item 
-%      An important detail is that jackknife resamples the characters.  What you define as a characters is a biological question that you must resolve before running your analyses.  phyg does not calculate jackknife supports in any special way, it is just the case that the characters that you are using are not necessarily just the bases of your sequences, but the sequences themselves!
-%      
-%       \item 
-%      A common procedure used by many biologists is to fix an alignment and compute support values resampling the bases of that alignment.  Let us use this strategy and compare the support values for a pair of different alignments on the same tree.  To do this we will use a new report argument:
-%      
-%       \begin{verbatim}
-%        read ("course.fasta")
-%        transform (tcm:(1,1))
-%        store ("initial")
-%        search (max_time:0:0:1)
-%        select ()
-%        \end{verbatim}
-%
-%    \item We store the tree in a file so that then we 
-%            can report support values for it:
-%
-%    \begin{verbatim}
-%        report ("tree_for_support_values.tre", trees)
-%        transform (static_approx)
-%        report ("good_alignment.ss", phastwinclad)
-%        (* This commands output a NONA file that can 
-%        be read in many programs, most notably phyg *)
-%    \end{verbatim}
-%      
-%\item Now we will produce a different alignment and store it 
-%\begin{verbatim}
-%        use ("initial")
-%        build (1)
-%        transform (static_approx)
-%        report ("regular_alignment.ss", phastwinclad)
-%        \end{verbatim}      
-%
-%    \item
-%           We have just produced our two data sets that 
-%           we will use to calculate supports.  The second 
-%           data set is currently held in memory.
-%\begin{verbatim}
-%       calculate_support (jackknife: (resample:1000))
-%       read ("tree_for_support_values.tre")
-%       calculate_support (jackknife: (resample:1000))
-%       read ("tree_for_support_values.tre")
-%       (*We just stored the tree in a file to 
-%       compare the results later *)
-%        \end{verbatim} 
-%           
-%        \item Now we will compute the support values 
-%            using the first alignment
-%\begin{verbatim} 
-%    wipe ()
-%    read ("good_alignment.ss")
-%    calculate_support (jackknife: (resample:1000)
-%    read ("tree_for_support_values.tre")
-%    report ("good_alignment_supports.ps", 
-%        graphsupports:jackknife)
-%    \end{verbatim}     
-%        
-%        Compare the two trees (using an image edition program, nothing special
-%        is needed for Mac OS X, Linux, or Unix, but Windows computers may 
-%        need Ghostview or Adobe Illustrator):
-%        \begin{itemize}
-%            \item good\_alignment\_supports.ps.
-%            \item regular\_alignment\_supports.ps.
-%        \end{itemize}
-%        What did you notice? Where do you get better supports? Which would be a reasonable alignment from which to compute your support values? 
-%         
-%         \item 
-%         To calculate bootstrap support values, find the  \ phyg{bootstrap} argument in the \ phyg{calculate\_support} command documentation, and repeat the previous (Calculating Supports: Jackknife) excercise using good\_alignment.ss and regular\_alignment.ss files to generate bootstrap supports for the tree in tree\_for\_support\_values.tre, in eactly the same way.
-%       
-%          \end{enumerate}
-%
 \subsection{Calculating Supports: Goodman-Bremer}
 
 This method calculates Goodman-Bremer support values for input graphs. The 
@@ -1257,26 +733,7 @@ We will name this file \texttt{run1\_GBs.pg}.
 	
 \item Examine the reported files. Goodman-Bremer values are present
 over the branches.
-%       One way to do a search for Bremer supports is to constrain the search so that a particular clade is never allowed in the tree that is being visited.  This is exactly what \ phyg{calculate\_supports (bremer)} does.
-%       To test this command, first read the best tree that you could find from all the searches (e.g. after fusing and ratcheting). We will first generate a good tree for the bremer supports:
-%        Notice that this command is slow, as it performs a very intense search.  Ten trees are built and swapped on each branch.  If your original search was not powerful enough, this command may find shorter trees than your initial search. 
-%        When this command is finished, we are ready to report the support values for this tree.
-%        \begin{verbatim} 
-%         	   report (supports:bremer)
-%        \end{verbatim}  
-%          
-%          Another way to calculate Bremer supports is to not constrain the search at all, and from the trees visited, collect the information for the clades not present.  To do this we can use the \ phyg{visited} argument within swap.
-%          
-%          \begin{verbatim} 
-%            build (100)    
-%            swap (cisited:"for_bremer.txt")
-%            select (best:1)
-%            read ("tree_for_bremer.tre")
-%            report (supports:bremer:"for_bremer.txt")
-%                   \end{verbatim}  
-%
-%This strategy has several advantages.  First and foremost, it tends to yield tighter support values (lower).  Secondly, it is more efficient in the sense that the default technique has to repeat the search for every clade to collect the necessary information, while this strategy collects all the clades from the same strategy.  Finally, you can calculate Bremer support with your search strategy of choice.  You may cancel this Bremer search at any time and the necessary information will remain stored in the file and the best tree found in your overall search, which means that you will never recover negative Bremer support values. 
-%          
+         
 \end{enumerate}
 %\printindex
 
