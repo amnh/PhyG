@@ -61,6 +61,7 @@ import qualified ParallelUtilities            as PU
 import           System.CPUTime
 import           System.Environment
 import           System.IO
+import           System.Info
 import           Types.Types
 import qualified Utilities.Distances          as D
 import qualified Utilities.LocalGraph         as LG
@@ -74,7 +75,9 @@ main = do
     let compileDate = (__DATE__ ++ " " ++ __TIME__)
     -- this here since got replaced somehow one time
     -- let compileDate = (__DATE__ ++ " " ++ __TIME__)
-    gitInfo <- GH.getGitInfo "/home/ward/home/PhyGraph"
+
+    gitInfo <- if os /= "darwin" then GH.getGitInfo "/home/ward/home/PhyGraph"
+                                 else GH.getGitInfo "/Users/ward/home/PhyGraph"
     let gitCommitHashString = GH.giHash $ head $ rights [gitInfo]
     -- let gitErrorString = show $ head $ lefts [gitInfo]
 
