@@ -59,9 +59,10 @@ import qualified Input.ReadInputFiles         as RIF
 import qualified Input.Reorganize             as R
 import qualified ParallelUtilities            as PU
 import           System.CPUTime
+import           System.Directory
 import           System.Environment
 import           System.IO
-import           System.Info
+-- import           System.Info
 import           Types.Types
 import qualified Utilities.Distances          as D
 import qualified Utilities.LocalGraph         as LG
@@ -76,11 +77,13 @@ main = do
     -- this here since got replaced somehow one time
     -- let compileDate = (__DATE__ ++ " " ++ __TIME__)
 
-    gitInfo <- if os /= "darwin" then GH.getGitInfo "/home/ward/home/PhyGraph"
-                                 else GH.getGitInfo "/Users/ward/home/PhyGraph"
-    let gitCommitHashString = GH.giHash $ head $ rights [gitInfo]
-    -- let gitErrorString = show $ head $ lefts [gitInfo]
-
+    -- assumes compiling in git hub directory
+    currentDirectory <- getCurrentDirectory
+    gitHomeDirectory <- GH.getGitRoot currentDirectory
+    let gitRootDirectory =  head $ rights [gitHomeDirectory]
+    gitInfo <- GH.getGitInfo gitRootDirectory -- "/home/ward/home/PhyGraph"
+    let gitCommitHashString = if not $ null $ lefts [gitInfo] then " cannot determine git commit tag"
+                              else GH.giHash $ head $ rights [gitInfo]
 
     -- splash info
     let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History\n"
