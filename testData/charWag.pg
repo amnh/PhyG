@@ -1,7 +1,7 @@
 --read(fasta:"metazoa-aa-1.fas")
 read(fasta:"chel.fas")
 read(fasta:"chel-16.fas")
-set(criterion:NCM)
+--set(criterion:NCM)
 --read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
 --read(prefasta:"chel-prealigned.fas")
@@ -27,9 +27,11 @@ set(seed:1666899539)
 
 --set(dynamicEpsilon:0.0)
 
+set(useIA:False)
+
 -- For network testing
 --set (outgroup:"one")
--- set(graphtype:softwired)
+set(graphtype:hardwired)
 --Set(Compressresolutions:True)
 --set(graphFactor:NoPenalty)
 --set(rootcost:ml)
@@ -46,7 +48,8 @@ set(seed:1666899539)
 --set(multitraverse:false)
 
 build(replicates:10)
-fuse()
+refine(netadd, atrandom, maxnetedges:2)
+fuse(tbr)
 swap()
 
 

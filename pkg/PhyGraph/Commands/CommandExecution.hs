@@ -728,7 +728,17 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             trace ("StrictParStrat set to " ++ show localMethod)
             (globalSettings {strictParStrat = localMethod}, processedData, inSeedList)
 
+        -- modify the use of implied alkignemnt in heuristics
+        else if head commandList == "useia"  then
+            let localCriterion
+                  | (head optionList == "true") = True
+                  | (head optionList == "false") = False
+                  | otherwise = errorWithoutStackTrace ("Error in 'set' command. UseIA '" ++ head optionList ++ "' is not 'true' or 'false'")
+            in
+            trace ("UseIA set to " ++ head optionList)
+            (globalSettings {useIA = localCriterion}, processedData, inSeedList)
 
+        
 
 
         else trace ("Warning: Unrecognized/missing 'set' option in " ++ show argList) (globalSettings, processedData, inSeedList)

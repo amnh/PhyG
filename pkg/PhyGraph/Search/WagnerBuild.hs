@@ -114,7 +114,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        initialPostOrderTree = POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
        initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
 
-       wagnerTree = recursiveAddEdgesWagner (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
+       wagnerTree = recursiveAddEdgesWagner (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in
    -- trace ("Initial Tree:\n" ++ (LG.prettify initialTree) ++ "FDT at cost "++ (show $ snd6 initialFullyDecoratedTree) ++":\n"
    --    ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
@@ -125,8 +125,8 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
 -- this tested by null additin sequence list
 -- interface will change with correct final states--using post-order pass for now
-recursiveAddEdgesWagner :: V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
-recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, _, inDecGraph, _, _, charInfoVV) =
+recursiveAddEdgesWagner :: Bool -> V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
+recursiveAddEdgesWagner useIA additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, _, inDecGraph, _, _, charInfoVV) =
    -- all edges/ taxa in graph
    -- trace ("To go " ++ (show additionSequence) ++ " verts " ++ (show numVerts)) (
    if null additionSequence then inGraph
@@ -146,7 +146,7 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
           unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
           -}
 
-          candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
+          candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
           minDelta = minimum $ fmap fst4 candidateEditList
           (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
 
@@ -166,19 +166,20 @@ recursiveAddEdgesWagner additionSequence numLeaves numVerts inGS inData hasNonEx
       in
       if isNothing (LG.lab inDecGraph leafToAdd) then error "Missing label data for vertices"
       else
-         recursiveAddEdgesWagner (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
+         recursiveAddEdgesWagner useIA (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       -- )
 
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
 -- returns a tuple of the cost, node to add, edges to add, edge to delete
-addTaxonWagner ::  Int
+addTaxonWagner :: Bool
+               -> Int
                -> PhylogeneticGraph
                -> VertexBlockData
                -> Int
                -> LG.LEdge EdgeInfo
                -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
-addTaxonWagner numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData leafToAdd targetEdge =
+addTaxonWagner useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData leafToAdd targetEdge =
    let edge0 = (numVerts, leafToAdd, 0.0)
        edge1 = (fst3 targetEdge, numVerts, 0.0)
        edge2 = (numVerts, snd3 targetEdge, 0.0)
@@ -189,7 +190,7 @@ addTaxonWagner numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData l
        --newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
 
        -- heuristic delta
-       delta = getDelta leafToAddVertData targetEdge inDecGraph charInfoVV
+       delta = getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
 
    in
    (delta, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
@@ -198,15 +199,15 @@ addTaxonWagner numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData l
 
 -- | getDelta estimates the delta in tree cost by adding a leaf taxon in Wagner build
 -- must be DO for this--isolated leaves won't have IA
-getDelta :: VertexBlockData -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexCost
-getDelta leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
+getDelta :: Bool -> VertexBlockData -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexCost
+getDelta useIA leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
    let eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
 
        -- create edge union 'character' blockData
        -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
        -- edge union based on final IA assignments filtering gaps (True True)
-       edgeUnionVertData = M.createEdgeUnionOverBlocks True True eNodeVertData vNodeVertData charInfoVV []
+       edgeUnionVertData = M.createEdgeUnionOverBlocks useIA True eNodeVertData vNodeVertData charInfoVV []
 
    in
    -- trace ("GD: " ++ (show edgeUnionVertData)) (

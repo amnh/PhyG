@@ -436,7 +436,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                       else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.66), (False, 0.34)]
 
              -- Can't do both static approx and multitraverse:False
-             ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation then
+             ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation && (useIA inGS') then
                                                                             (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
                                                                         else if transformMultiTraverse then
                                                                             (TRANS.transform [("multitraverse","false")] inGS' inData' inData' 0 inGraphList', ",MultiTraverse:False")

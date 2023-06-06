@@ -252,10 +252,11 @@ data  GlobalSettings
                                    -- add/non add dat asets liker SNP genomic data
     , unionThreshold          :: Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhps) character Wagner build
                                     -- as described by Varon and Wheeler (2013) and set to 1.17 experimentally
-    , defaultParStrat          :: ParallelStrategy -- default parallel strategy 
-    , lazyParStrat         :: ParallelStrategy -- default parallel strategy to WHNF
-    , strictParStrat        :: ParallelStrategy -- default parallel strategy to Fully evaluate
-    , useNetAddHeuristic       :: Bool --Netowrk addition heuristic--very coarse currently 
+    , defaultParStrat         :: ParallelStrategy -- default parallel strategy 
+    , lazyParStrat            :: ParallelStrategy -- default parallel strategy to WHNF
+    , strictParStrat          :: ParallelStrategy -- default parallel strategy to Fully evaluate
+    , useNetAddHeuristic      :: Bool --Netowrk addition heuristic--very coarse currently 
+    , useIA                   :: Bool -- turn on/off IA everywhere can (mainly for internal testing)
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -638,6 +639,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , lazyParStrat = RPar -- default parallel strategy 
                                      , strictParStrat = RDeepSeq -- high level--basically srtict evaluation
                                      , useNetAddHeuristic = True
+                                     , useIA = True
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
