@@ -31,7 +31,7 @@ set(useIA:False)
 
 -- For network testing
 --set (outgroup:"one")
--- set(graphtype:softwired)
+set(graphtype:hardwired)
 --Set(Compressresolutions:True)
 --set(graphFactor:NoPenalty)
 --set(rootcost:ml)
@@ -48,7 +48,8 @@ set(useIA:False)
 --set(multitraverse:false)
 
 build(replicates:10)
-fuse()
+refine(netadd, atrandom, maxnetedges:2)
+fuse(tbr)
 swap()
 
 

@@ -224,7 +224,7 @@ fuseGraphs :: [Argument]
 fuseGraphs inArgs inGS inData rSeed inGraphList
   | null inGraphList = trace "Fusing--skipped: No graphs to fuse" []
   | length inGraphList == 1 = trace "Fusing--skipped: Need > 1 graphs to fuse" inGraphList
-  | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
+  -- | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
   | otherwise = trace ("Fusing " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd6 inGraphList)) (
 
      -- process args for fuse placement
