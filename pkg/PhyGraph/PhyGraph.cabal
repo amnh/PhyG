@@ -189,15 +189,18 @@ Executable phyg
 
   If os(darwin)
     GHC-Options:
+      -threaded
       -- problems getting llvm to function in OSX (can't find opt)
       -- -fllvm
   else
     GHC-Options:
-     -- -fllvm
+      -threaded
+      -fllvm
 
   -- this since can't going on ghc-9.4.3/4 
   If flag(super-optimization)
     GHC-Options:
+      -threaded
       -fexcess-precision
       -fexpose-all-unfoldings
       -flate-specialise
@@ -208,13 +211,16 @@ Executable phyg
       -fspecialize-aggressively
       -fstatic-argument-transformation
       -fllvm
+--    rts -AL8 was rejected  should be >= A
+--    rts --nonmoving-gc causes large memory blow-ups on cluster
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
---  Else
---    GHC-Options:
+  Else
+    GHC-Options:
 --    "-with-rtsopts=-N"
 --    rts -AL8 was rejected  should be >= A
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
---      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   Build-Depends:
     PhyGraph:alphabet,
@@ -234,6 +240,7 @@ Executable phyg
     deepseq,
     directory,
     fgl >=5.8,
+    githash,
     graphviz   >=2999.20,
     hashable,
     inflist,
