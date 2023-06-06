@@ -760,7 +760,7 @@ getNodeType inGraph inNode
 
 -- | copyIAFinalToPrelim takes a Decorated graph and copies
 -- the IA final fields to preliminary IA states--this for IA only optimization
--- inswapping and other operations.  Thi sis done becasue the "preliminary" IA states
+-- inswapping and other operations.  This is done because the "preliminary" IA states
 -- are only known after full post/pre traversals
 copyIAFinalToPrelim :: DecoratedGraph -> DecoratedGraph
 copyIAFinalToPrelim inGraph =
