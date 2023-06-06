@@ -81,7 +81,6 @@ main = do
     currentDirectory <- getCurrentDirectory
     gitHomeDirectory <- GH.getGitRoot currentDirectory
     let gitRootDirectory =  head $ rights [gitHomeDirectory]
-    hPutStrLn stderr ("Current directory is " ++ gitRootDirectory)
     gitInfo <- GH.getGitInfo gitRootDirectory -- "/home/ward/home/PhyGraph"
     let gitCommitHashString = if not $ null $ lefts [gitInfo] then " cannot determine git commit tag"
                               else GH.giHash $ head $ rights [gitInfo]
