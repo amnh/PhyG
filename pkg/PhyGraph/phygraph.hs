@@ -78,7 +78,8 @@ main = do
 
     gitInfo <- if os /= "darwin" then GH.getGitInfo "/home/ward/home/PhyGraph"
                                  else GH.getGitInfo "/Users/ward/home/PhyGraph"
-    let gitCommitHashString = GH.giHash $ head $ rights [gitInfo]
+    let gitCommitHashString = if not $ null $ lefts [gitInfo] then " cannot determine git commit tag"
+                              else GH.giHash $ head $ rights [gitInfo]
     -- let gitErrorString = show $ head $ lefts [gitInfo]
 
 
