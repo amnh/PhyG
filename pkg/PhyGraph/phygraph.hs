@@ -80,9 +80,9 @@ main = do
     -- assumes compiling in git hub directory
     currentDirectory <- getCurrentDirectory
     gitHomeDirectory <- GH.getGitRoot currentDirectory
-    let gitRootDirectory =  head $ rights [gitHomeDirectory]
+    let gitRootDirectory =  fromRight "Cannot determine git commit tag" gitHomeDirectory -- head $ rights [gitHomeDirectory]
     gitInfo <- GH.getGitInfo gitRootDirectory -- "/home/ward/home/PhyGraph"
-    let gitCommitHashString = if not $ null $ lefts [gitInfo] then " cannot determine git commit tag"
+    let gitCommitHashString = if not $ null $ lefts [gitInfo] then "Cannot determine git commit tag"
                               else GH.giHash $ head $ rights [gitInfo]
 
     -- splash info
