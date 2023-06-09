@@ -548,3 +548,5 @@
 437) Fix unions stuff
 
 438) loop end ot Thompson/Search
+
+439) Check if duplicate edges check is still needed PostOrderSoftWiredFunctions.hs l 272

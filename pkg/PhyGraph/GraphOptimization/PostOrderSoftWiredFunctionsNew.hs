@@ -809,7 +809,7 @@ createNodeCharacterTree nodeIndex nodeBlockCharData displayTree charIndex =
 
 -- | backPortBlockTreeNodesToCanonicalGraph takes block display trees (updated presumably) and ports the block tree node
 -- labels to the cononical Graph--very similar to backPortCharTreeNodesToBlockTree but character vector is not singleton
--- back po\rt is based on indices of block characters that may have fewer nodes than canonical in a
+-- back port is based on indices of block characters that may have fewer nodes than canonical in a
 -- split graph/ sub graph situation like in swap and fuse
 -- hence not all canonical nodes may be updated--left unchanged, so need to add back those unchanged
 backPortBlockTreeNodesToCanonicalGraph :: DecoratedGraph -> V.Vector DecoratedGraph -> DecoratedGraph
@@ -822,7 +822,10 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
         -- blockTreeNodeIndicesV = V.fromList $ V.head $ fmap (fmap fst) $ fmap LG.labNodes blockTreeVect
         blockTreeNodeIndicesV = V.fromList $ fmap fst $ LG.labNodes $ V.head blockTreeVect
 
+        --setting max index if things aren't all same length--that's the prob
         updatedCanonicalNodes = V.toList $ fmap (updateCanonicalNodes inCanonicalGraph blockTreeNodeLabelsVV) (V.zip blockTreeNodeIndicesV (V.fromList [0..(length blockTreeNodeIndicesV - 1)]))
+        --maxIndex = minimum $ fmap length blockTreeNodeLabelsVV
+        -- updatedCanonicalNodes = V.toList $ fmap (updateCanonicalNodes inCanonicalGraph blockTreeNodeLabelsVV) (V.zip blockTreeNodeIndicesV (V.fromList [0..(maxIndex- 1)]))
 
         -- add in nodes not in characters trees--can happen during swap split trees
         -- based on vertex index first field of node
@@ -854,7 +857,7 @@ updateCanonicalNodes canonicalGraph  blockNodeLabelVV (blockNodeIndex, vectIndex
        newLabel = canonicalLabel {bvLabel = canonicalBV, vertData = vertDataV, vertexCost = newVertCost, subGraphCost = newSubGraphCost}
 
    in
-   -- trace ("UCN:" ++ (show (blockNodeIndex, fmap fst canonicalNodeV)) ++ "\n" ++ (show (blockNodeIndex, vectIndex, length canonicalNodeV, length blockNodeLabelVV, fmap length blockNodeLabelVV)))
+   --trace ("UCN:" ++ (show (blockNodeIndex, vectIndex, fmap length blockNodeLabelVV)))
    (blockNodeIndex, newLabel)
 
 -- | orderedNodeMinus takes two lists of pairs where first pair is Int and

@@ -45,7 +45,7 @@ set(graphtype:hardwired)
 --build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
 --build(replicates:10, block, displayTrees:10, cun)
 
---set(multitraverse:false)
+set(multitraverse:false)
 
 build(replicates:10)
 refine(netadd, atrandom, maxnetedges:2)

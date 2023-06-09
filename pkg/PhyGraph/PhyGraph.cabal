@@ -179,26 +179,12 @@ Executable phyg
     -rtsopts
     -Wall
 
-  If !flag(SingleThreaded)
+  if !flag(SingleThreaded)
     GHC-Options:
       -threaded
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
-  Else
-    GHC-Options:
-      "-with-rtsopts=-A64m -AL128M -H1024m -n4m"
 
-  If os(darwin)
-    GHC-Options:
-      -threaded
-      -- problems getting llvm to function in OSX (can't find opt)
-      -- -fllvm
-  else
-    GHC-Options:
-      -threaded
-      -fllvm
-
-  -- this since can't going on ghc-9.4.3/4 
-  If flag(super-optimization)
+  elif flag(super-optimization)
     GHC-Options:
       -threaded
       -fexcess-precision
@@ -215,9 +201,16 @@ Executable phyg
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
-  Else
+  elif os(darwin)
     GHC-Options:
---    "-with-rtsopts=-N"
+      -threaded
+      -- problems getting llvm to function in OSX (can't find opt)
+      -- -fllvm
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+
+  else
+    GHC-Options:
+      -threaded
 --    rts -AL8 was rejected  should be >= A
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
