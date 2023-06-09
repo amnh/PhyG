@@ -679,6 +679,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
          let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph canonicalGraph traceBackDisplayTreeV
          in
          -- trace ("SPOT: " ++ (show rootIndex))
+         -- this is a hack due to missing nodes in some character trees--perhpas issue with postorder resolutions?
          if LG.isEmpty canonicalGraph then emptyPhylogeneticGraph
          else (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
@@ -696,7 +697,16 @@ traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex
       let -- get block resolution data from canonical graph
           nodeCanonicalLabel = fromJust $ LG.lab canonicalGraph nodeIndex
           nodeResolutionData = vertexResolutionData nodeCanonicalLabel
-          blockResolutionData = (nodeResolutionData V.! blockIndex) V.! fromJust resolutionIndex
+
+          -- hack checking for too high res index here
+          newIndex = if (fromJust resolutionIndex) < length (nodeResolutionData V.! blockIndex) then 
+                        fromJust resolutionIndex
+                     else 
+                        -- traceNoLF ("(" ++ (show (fromJust resolutionIndex, length (nodeResolutionData V.! blockIndex))) ++ ")")
+                        (length (nodeResolutionData V.! blockIndex)) - 1
+
+          -- blockResolutionData = (nodeResolutionData V.! blockIndex) V.! fromJust resolutionIndex
+          blockResolutionData = (nodeResolutionData V.! blockIndex) V.! newIndex
 
           -- update display tree and character tree nodes
           (newDisplayTree, newCharTreeV) = updateNodeBlockTrees nodeIndex (blockResolutionData, displayTree, charTreeV)
@@ -708,6 +718,7 @@ traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex
           childList = LG.descendants displayTree nodeIndex
 
       in
+      --trace ("TBB: " ++ (show (length childList, length nodeResolutionData, blockIndex, length (nodeResolutionData V.! blockIndex), fromJust resolutionIndex))) $
       if isNothing resolutionIndex then error ("Nothing resolution in traceBackBlock of node " ++ show nodeIndex ++ " with children " ++ show childList
          ++ LG.prettyIndices displayTree)
       else if length childList > 2 then error ("Node " ++ show nodeIndex ++ " with > 2 children: " ++ show childList)
@@ -836,7 +847,7 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
     in
     --trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
     if (not $ allSameLength blockTreeNodeLabelsVV) then 
-        trace ("BPTCG: " ++ (show (fmap length blockTreeNodeLabelsVV)))
+        -- trace ("BPTCG: " ++ (show (fmap length blockTreeNodeLabelsVV)))
         LG.empty
     else LG.mkGraph (updatedCanonicalNodes ++ unModifiedNodes) canonicalEdges
 
