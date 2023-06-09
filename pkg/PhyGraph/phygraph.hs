@@ -325,3 +325,4 @@ main = do
         ++ "\n\tCPU usage " ++ show (floor (100.0 * cpuUsage) :: Integer) ++ "%"
         )
 
+    
