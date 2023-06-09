@@ -179,10 +179,9 @@ Executable phyg
     -rtsopts
     -Wall
 
-  if !flag(SingleThreaded)
+  if flag(SingleThreaded)
     GHC-Options:
-      -threaded
-      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+      "-with-rtsopts= -A64m -AL128M -H1024m -n4m -qa -qm"
 
   elif flag(super-optimization)
     GHC-Options:
