@@ -181,7 +181,7 @@ Executable phyg
 
   if flag(SingleThreaded)
     GHC-Options:
-      "-with-rtsopts= -A64m -AL128M -H1024m -n4m -qa -qm"
+      "-with-rtsopts= -A64m -AL128M -H1024m -n4m"
 
   elif flag(super-optimization)
     GHC-Options:
