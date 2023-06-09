@@ -78,18 +78,20 @@ main = do
     -- let compileDate = (__DATE__ ++ " " ++ __TIME__)
 
     -- assumes compiling in git hub directory
+    {- Reads at run time --}
     currentDirectory <- getCurrentDirectory
     gitHomeDirectory <- GH.getGitRoot currentDirectory
     let gitRootDirectory =  fromRight "Cannot determine git commit tag" gitHomeDirectory -- head $ rights [gitHomeDirectory]
     gitInfo <- GH.getGitInfo gitRootDirectory -- "/home/ward/home/PhyGraph"
     let gitCommitHashString = if not $ null $ lefts [gitInfo] then "Cannot determine git commit tag"
                               else GH.giHash $ head $ rights [gitInfo]
+    
 
     -- splash info
     let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History\n"
     let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
     let splash3 = "\tunder the 3-Clause BSD License.\nCompiled " ++ compileDate
-    hPutStrLn stderr (splash ++ splash2 ++ splash3 ++ " Git commit: " ++ gitCommitHashString)
+    hPutStrLn stderr (splash ++ splash2 ++ splash3 ++ " Git commit: " ++ "2be51973dcfa797854c88a3edfaee95e5b9ec743") -- gitCommitHashString)
 
     -- Process arguments--a single file containing commands
     args <- getArgs
