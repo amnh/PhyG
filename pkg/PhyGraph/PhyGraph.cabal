@@ -183,7 +183,7 @@ Executable phyg
     GHC-Options:
       "-with-rtsopts= -A64m -AL128M -H1024m -n4m"
 
-  elif flag(super-optimization)
+  if flag(super-optimization)
     GHC-Options:
       -threaded
       -fexcess-precision
@@ -200,12 +200,12 @@ Executable phyg
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
-  elif os(darwin)
-    GHC-Options:
-      -threaded
-      -- problems getting llvm to function in OSX (can't find opt)
-      -- -fllvm
-      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+--  elif os(darwin)
+--    GHC-Options:
+--      -threaded
+--      -- problems getting llvm to function in OSX (can't find opt)
+--      -- -fllvm
+--      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   else
     GHC-Options:

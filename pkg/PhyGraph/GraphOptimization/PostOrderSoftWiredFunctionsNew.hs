@@ -835,7 +835,15 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
         -- update BV vector of unModified nodes?
     in
     --trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
-    LG.mkGraph (updatedCanonicalNodes ++ unModifiedNodes) canonicalEdges
+    if (not $ allSameLength blockTreeNodeLabelsVV) then 
+        trace ("BPTCG: " ++ (show (fmap length blockTreeNodeLabelsVV)))
+        LG.empty
+    else LG.mkGraph (updatedCanonicalNodes ++ unModifiedNodes) canonicalEdges
+
+    where allSameLength a = if V.null a then True
+                            else if length a == 1 then True
+                            else if (length $ V.head a) /= (length $ a V.! 1) then False
+                            else allSameLength (V.tail a)
 
 -- | updateCanonicalNodes takes a pair of block node index and vector of labels and
 -- assigns data to canonical node of same index
