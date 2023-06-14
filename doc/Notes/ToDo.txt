@@ -550,3 +550,10 @@
 438) loop end ot Thompson/Search
 
 439) Check if duplicate edges check is still needed PostOrderSoftWiredFunctions.hs l 272
+
+440) Post order traceback issue on unequal numbers of nodes in charcter trees
+		PostOrderSoftWiredFunctionsNew.hs l 850
+
+441) traceBackBlock PostOrderSoftWiredFunctionsNew.hs l 701
+	resolution index too large
+
