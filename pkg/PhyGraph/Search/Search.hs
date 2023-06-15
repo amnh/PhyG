@@ -125,6 +125,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
     where getMinGraphListCost a = minimum $ fmap snd6 a
 
 -- timeout wrapper for perform search
+-- works but always fails so never tretuns intermediate resuls
 searchForDurationTimeout :: GlobalSettings
                           -> ProcessedData
                           -> [[VertexCost]]
@@ -155,6 +156,7 @@ searchForDurationTimeout a b c d e f g h i j k l m n o p q = do
 -- so changed to crappier getCurrentTime in System.Timing to
 -- get wall clock-like ellapsed time
 -- addied time out to terminate when exceeeded time remaining.
+-- never teminates due to time
 searchForDuration :: GlobalSettings
                   -> ProcessedData
                   -> [[VertexCost]]
