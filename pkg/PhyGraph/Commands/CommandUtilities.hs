@@ -104,7 +104,8 @@ processSearchInstance inString =
             processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
             instanceStringList = processedSearchList ++ [LS.splitOn "," $ L.last tempList]
         in
-        (instanceStringList, searchBanditList)
+        if null iterationList then ([], [])
+        else (instanceStringList, searchBanditList)
         where concat4 a b c d = a ++ b ++ c ++ d
 
 -- | getBanditProbs parses bandit prob line for probabilities
