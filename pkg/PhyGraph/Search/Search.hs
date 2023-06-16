@@ -152,6 +152,8 @@ searchForDurationTimeout a b c d e f g h i j k l m n o p q = do
         pure q
 
 
+instance NFData  (IO (Maybe ([PhylogeneticGraph], [String]))) where rnf x = seq x ()
+
 -- this CPUtime is total over all threads--not wall clock
 -- so changed to crappier getCurrentTime in System.Timing to
 -- get wall clock-like ellapsed time
@@ -181,7 +183,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
        --let  -- this line to keep control of graph number
        let inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) inGraphList
        --result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
-       result <- timeout (fromIntegral $ toMicroseconds allotedSeconds) $ pure $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList) 
+       result <- force $ timeout (fromIntegral $ toMicroseconds allotedSeconds) $ pure $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList) 
        let result' = if isNothing result then 
                         trace ("Thread " ++ (show refIndex) ++ " terminated due to time " ++ show allotedSeconds)
                         (inGraphList, infoStringList)
