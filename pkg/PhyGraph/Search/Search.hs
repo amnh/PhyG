@@ -41,6 +41,7 @@ import qualified Commands.Transform       as TRANS
 import qualified Commands.Verify          as VER
 import           Control.Concurrent.Async
 import           Control.DeepSeq
+import           Control.Exception
 import           Data.Bifunctor           (bimap)
 import           Data.Char
 import           Data.Foldable
@@ -124,36 +125,10 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
     )
     where getMinGraphListCost a = minimum $ fmap snd6 a
 
--- timeout wrapper for perform search
--- works but always fails so never tretuns intermediate resuls
-searchForDurationTimeout :: GlobalSettings
-                          -> ProcessedData
-                          -> [[VertexCost]]
-                          -> Int
-                          -> Bool
-                          -> Int
-                          -> String
-                          -> [(String, Double)]
-                          -> Int
-                          -> Int
-                          -> CPUTime
-                          -> CPUTime
-                          -> Int
-                          -> Int
-                          -> Int
-                          -> [Int]
-                          -> ([PhylogeneticGraph], [String])
-                          -> IO ([PhylogeneticGraph], [String])
-searchForDurationTimeout a b c d e f g h i j k l m n o p q = do
-    result <- timeout (fromIntegral $ toMicroseconds l) $ searchForDuration a b c d e f g h i j k l m n o p q
-    if isJust result then pure $ fromJust result
-    else 
-        trace ("Thread " ++ (show o) ++ " terminated due to time") $
-        pure q
+-- unneeded
+-- instance NFData  (IO (Maybe ([PhylogeneticGraph], [String]))) where rnf x = seq x ()
 
-
-instance NFData  (IO (Maybe ([PhylogeneticGraph], [String]))) where rnf x = seq x ()
-
+-- $ toMicroseconds allotedSeconds
 -- this CPUtime is total over all threads--not wall clock
 -- so changed to crappier getCurrentTime in System.Timing to
 -- get wall clock-like ellapsed time
@@ -183,12 +158,13 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
        --let  -- this line to keep control of graph number
        let inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) inGraphList
        --result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
-       result <- force $ timeout (fromIntegral $ toMicroseconds allotedSeconds) $ pure $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList) 
+       result <- timeout (fromIntegral $ toMicroseconds allotedSeconds) $ evaluate $ force  $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList) 
+       
        let result' = if isNothing result then 
-                        trace ("Thread " ++ (show refIndex) ++ " terminated due to time " ++ show allotedSeconds)
+                        trace ("Thread " ++ (show refIndex) ++ " terminated due to time" ) -- ++ show allotedSeconds)
                         (inGraphList, infoStringList)
                      else 
-                        trace ("Thread " ++ (show refIndex) ++ " is OK "  ++ (show allotedSeconds) ++ " -> " ++ (show $ fromIntegral $ toMicroseconds allotedSeconds))
+                        --trace ("Thread " ++ (show refIndex) ++ " is OK "  ++ (show allotedSeconds) ++ " -> " ++ (show $ fromIntegral $ toMicroseconds allotedSeconds))
                         fromJust result
                                        
        pure result'
