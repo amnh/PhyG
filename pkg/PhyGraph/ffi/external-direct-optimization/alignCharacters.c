@@ -4486,6 +4486,15 @@ algn_backtrace_2d ( const dyn_character_t *shorterChar
             else {
                 if (!(*end & INSERT)) {
                   fprintf(stdout, "INS = %x, END = %x, AND = %x \n", INSERT, *end, *end & INSERT);
+                  fprintf(stdout, "beg = %p \n", beg);
+                  fprintf(stdout, "end = %p \n", end);
+                  fprintf(stdout, "st_shorterChar  = %d \n", st_shorterChar);
+                  fprintf(stdout, "st_longerChar   = %d \n", st_longerChar);
+                  fprintf(stdout, "idx_shorterChar = %d \n", idx_shorterChar);
+                  fprintf(stdout, "idx_longerChar  = %d \n", idx_longerChar);
+                  fprintf(stdout, "INS = %x, END = %x, AND = %x \n", INSERT, *end, *end & INSERT);
+                  fprintf(stdout, "INS = %x, END = %x, AND = %x \n", INSERT, *end, *end & INSERT);
+                  algn_print_bcktrck_2d( shorterChar, longerChar, alignMatrix );
                 }
                 assert (*end & INSERT);
                 new_item_for_ret_longerChar = INDEL_GAP;

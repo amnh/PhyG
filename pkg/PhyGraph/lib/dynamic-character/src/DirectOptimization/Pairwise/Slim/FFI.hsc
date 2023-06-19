@@ -31,6 +31,7 @@ module DirectOptimization.Pairwise.Slim.FFI
   ) where
 
 import Bio.DynamicCharacter
+import Control.Monad (when)
 import Data.Coerce
 import Data.Functor (($>))
 import Data.TCM.Dense
@@ -172,10 +173,18 @@ algn2d
   -> SlimDynamicCharacter         -- ^ First  dynamic character
   -> SlimDynamicCharacter         -- ^ Second dynamic character
   -> (Word, SlimDynamicCharacter) -- ^ The cost of the alignment
-algn2d computeUnion computeMedians denseTCMs = directOptimization useC $ lookupPairwise denseTCMs
+algn2d computeUnion computeMedians denseTCMs lhs rhs = directOptimization useC (lookupPairwise denseTCMs) lhs rhs
   where
     useC :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
     useC lesser longer = {-# SCC useC #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
+        let lesserErr = V.any (== 0) lesser
+        let longerErr = V.any (== 0) longer
+        when lesserErr $
+            putStrLn "Input error (lesser):\n" *> putStrLn (renderDynamicCharacter lhs) *> print lesser
+        when longerErr $
+            putStrLn "Input error (longer):\n" *> putStrLn (renderDynamicCharacter rhs) *> print longer
+
+
         let lesserLength = V.length lesser
         let longerLength = V.length longer
         -- Add two because the C code needs stupid gap prepended to each character.
