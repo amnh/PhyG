@@ -292,8 +292,8 @@ log.err
 log.out
 
 # Outputs from testing
-*.csv
-*.tre
+# *.csv
+# *.tre
 *.tree
 *.eps
 *.ps
