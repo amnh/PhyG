@@ -57,6 +57,7 @@ module Bio.DynamicCharacter
   , renderDynamicCharacter
   ) where
 
+import Bio.DynamicCharacter.Element
 import           Control.Monad.Primitive
 import           Control.Monad.ST
 import           Data.Alphabet
@@ -79,6 +80,7 @@ import           Foreign.C.Types
 import           Debug.Trace
 
 
+{-
 -- |
 -- Encoding for a dynamic character element with an alphabet size of /8/ or less.
 --
@@ -91,6 +93,7 @@ type SlimState = CUInt
 -- |
 -- Encoding for a dynamic character element with an alphabet size in the range [9, 64].
 type WideState = Word64
+-}
 
 
 -- |

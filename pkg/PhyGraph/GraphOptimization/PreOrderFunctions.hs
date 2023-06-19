@@ -1386,7 +1386,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
    -- )
 
 -- | doPreOrderWithParentCheck performs post order logic if parent non-zero--otherwise returns preliminary assignment
-doPreOrderWithParentCheck :: (FiniteBits e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e)
+doPreOrderWithParentCheck :: (FiniteBits e, Show e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e)
 doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
     if not $ GV.null $ extractMediansGapped alignmentParent then
             DOP.preOrderLogic isLeft alignmentParent gappedParent gappedChild

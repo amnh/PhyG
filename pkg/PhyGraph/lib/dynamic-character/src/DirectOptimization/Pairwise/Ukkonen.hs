@@ -62,6 +62,7 @@ import           DirectOptimization.Pairwise.Swapping
 ukkonenDO
   :: ( FiniteBits e
      , Ord (v e)
+     , Show e
      , Vector v e
      )
   => Word   -- ^ Coefficient value, representing the /minimum/ transition cost from a state to gap

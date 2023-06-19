@@ -56,6 +56,7 @@ import           DirectOptimization.Pairwise.Internal
 swappingDO
   :: ( FiniteBits e
      , Ord (v e)
+     , Show e
      , Vector v e
      )
   => TCMλ e

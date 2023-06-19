@@ -44,6 +44,8 @@ import qualified Data.Vector.Unboxed                   as UV
 import           DirectOptimization.Pairwise.Direction
 
 
+import Debug.Trace (trace)
+
 -- |
 -- A generalized function representation: the "overlap" between dynamic character
 -- elements, supplying the corresponding median and cost to align the two
@@ -97,6 +99,7 @@ directOptimizationFromDirectionMatrix
   :: ( FiniteBits e
      , Matrix m t Direction
      , Ord (v e)
+     , Show e
      , Vector v e
      )
   => (e -> TCMλ e -> v e -> v e -> (Word, m t Direction)) -- ^ Alignment matrix generator function
@@ -104,13 +107,29 @@ directOptimizationFromDirectionMatrix
   -> OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
   -> (Word, OpenDynamicCharacter v e)
-directOptimizationFromDirectionMatrix matrixGenerator overlapλ =
-    handleMissing $ directOptimization alignmentFunction overlapλ
-  where
-    alignmentFunction lhs rhs =
-        let gap = let tmp = rhs ! 0 in (tmp `xor` tmp) `setBit` 0
-            (cost, traversalMatrix) = matrixGenerator gap overlapλ lhs rhs
-        in  (cost, traceback gap overlapλ traversalMatrix lhs rhs)
+directOptimizationFromDirectionMatrix matrixGenerator overlapλ c1 c2 =
+    let alignmentFunction lhs rhs =
+            let gap = let tmp = rhs ! 0 in (tmp `xor` tmp) `setBit` 0
+                (cost, traversalMatrix) = matrixGenerator gap overlapλ lhs rhs
+            in  (cost, traceback gap overlapλ traversalMatrix lhs rhs)
+
+        renderComputation output@(cost, result) =
+            let tagged key = "\t" <> key <> ":\t"
+                taggedShow key val = tagged key <> show val
+                taggedChar key val = tagged key <> renderDynamicCharacter val <> "\n"
+                rendering = unlines
+                    [ "INPUT:"
+                    , "  directOptimization with ..."
+                    , taggedChar "Char (L)" c1
+                    , taggedChar "Char (R)" c2
+                    , "OUTPUT:"
+                    , "  Return"
+                    , taggedShow "Cost"   cost
+                    , taggedChar "Result" result
+                    ]
+            in  trace rendering output
+
+    in  renderComputation $ directOptimization alignmentFunction overlapλ c1 c2
 
 
 {-# SCC traceback #-}

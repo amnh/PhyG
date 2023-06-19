@@ -11,6 +11,23 @@ import Data.Bits
 import Data.STRef
 import Data.Vector.Generic (Vector)
 
+import Debug.Trace (trace)
+
+{-
+tr :: Show a => String -> a -> a
+tr key val = trace (key ": \t" <> show val) val
+
+
+trChar
+  :: ( FiniteBits a
+     , Show a
+     , Vector v a
+     )
+  => String
+  -> OpenDynamicCharacter v a
+  -> OpenDynamicCharacter v a
+trChar label char = trace (key ":\n\t" <> renderDynamicCharacter val <> "\n") val
+-}
 
 -- |
 -- Faithful translation of Algorithm 8 (Non-root Node Alignment) from the
@@ -22,15 +39,32 @@ import Data.Vector.Generic (Vector)
 {-# SPECIALISE preOrderLogic :: Bool -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter #-}
 preOrderLogic
   :: ( FiniteBits a
+     , Show a
      , Vector v a
      )
   => Bool
-  -> (v a, v a, v a) -- ^ Parent Final       Alignment
-  -> (v a, v a, v a) -- ^ Parent Preliminary Context
-  -> (v a, v a, v a) -- ^ Child  Preliminary Context
-  -> (v a, v a, v a) -- ^ Child  Final       Alignment
-preOrderLogic isLeftChild pAlignment pContext cContext = forceDynamicCharacter $ unsafeCharacterBuiltByST caLen f
+  -> OpenDynamicCharacter v a -- ^ Parent Final       Alignment
+  -> OpenDynamicCharacter v a -- ^ Parent Preliminary Context
+  -> OpenDynamicCharacter v a -- ^ Child  Preliminary Context
+  -> OpenDynamicCharacter v a -- ^ Child  Final       Alignment
+preOrderLogic isLeftChild pAlignment pContext cContext = renderComputation . forceDynamicCharacter $ unsafeCharacterBuiltByST caLen f
   where
+    renderComputation result =
+        let tagged key = "\t" <> key <> ":\t"
+            taggedShow key val = tagged key <> show val
+            taggedChar key val = tagged key <> renderDynamicCharacter val <> "\n"
+            rendering = unlines
+                [ "INPUT:"
+                , "  preOrderLogic with ..."
+                , taggedShow "isLeftChild" isLeftChild
+                , taggedChar "pAlignment"  pAlignment
+                , taggedChar "pContext"    pContext
+                , taggedChar "cContext"    cContext
+                , "OUTPUT:"
+                , taggedChar "return" result
+                ]
+        in  result -- trace rendering result
+
     ccLen   = fromEnum $ characterLength cContext
     caLen   = characterLength pAlignment
     indices = [ 0 .. fromEnum caLen - 1 ]

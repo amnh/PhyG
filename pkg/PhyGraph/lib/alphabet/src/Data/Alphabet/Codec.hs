@@ -12,9 +12,9 @@
 -- Works for any 'Bits' instance.
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE GADTs         #-}
-{-# LANGUAGE Strict        #-} 
-{-# LANGUAGE TypeOperators #-}
+-- {-# LANGUAGE GADTs         #-}
+{-# Language Strict #-} 
+-- {-# LANGUAGE TypeOperators #-}
 
 module Data.Alphabet.Codec
   ( decodeState

@@ -378,6 +378,7 @@ library dynamic-character
 
   Exposed-Modules:
     Bio.DynamicCharacter
+    Bio.DynamicCharacter.Element
     Bio.DynamicCharacter.Measure
     Bio.DynamicCharacter.HandleGaps
     DirectOptimization.Pairwise
