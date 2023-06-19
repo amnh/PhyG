@@ -41,6 +41,7 @@ import qualified Commands.Transform       as TRANS
 import qualified Commands.Verify          as VER
 import           Control.Concurrent.Async
 import           Control.DeepSeq
+import           Control.Exception
 import           Data.Bifunctor           (bimap)
 import           Data.Char
 import           Data.Foldable
@@ -56,6 +57,7 @@ import qualified Search.Refinement        as R
 import           System.IO
 import           System.Random
 import           System.Timing
+import           System.Timeout
 import           Text.Read
 import           Types.Types
 import qualified Utilities.Utilities      as U
@@ -123,9 +125,15 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
     )
     where getMinGraphListCost a = minimum $ fmap snd6 a
 
+-- unneeded
+-- instance NFData  (IO (Maybe ([PhylogeneticGraph], [String]))) where rnf x = seq x ()
+
+-- $ toMicroseconds allotedSeconds
 -- this CPUtime is total over all threads--not wall clock
 -- so changed to crappier getCurrentTime in System.Timing to
 -- get wall clock-like ellapsed time
+-- addied time out to terminate when exceeeded time remaining.
+-- never teminates due to time
 searchForDuration :: GlobalSettings
                   -> ProcessedData
                   -> [[VertexCost]]
@@ -146,11 +154,20 @@ searchForDuration :: GlobalSettings
                   -> IO ([PhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList (inGraphList, infoStringList) = do
    -- (elapsedSeconds, output) <- timeOpUT $
-   (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $
-       let  -- this line to keep control of graph number
-            inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) inGraphList
-            result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
-       in  pure result
+   (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $ do
+       --let  -- this line to keep control of graph number
+       let inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) inGraphList
+       --result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
+       result <- timeout (fromIntegral $ toMicroseconds allotedSeconds) $ evaluate $ force  $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList) 
+       
+       let result' = if isNothing result then 
+                        trace ("Thread " ++ (show refIndex) ++ " terminated due to time" ) -- ++ show allotedSeconds)
+                        (inGraphList, infoStringList)
+                     else 
+                        --trace ("Thread " ++ (show refIndex) ++ " is OK "  ++ (show allotedSeconds) ++ " -> " ++ (show $ fromIntegral $ toMicroseconds allotedSeconds))
+                        fromJust result
+                                       
+       pure result'
 
    -- update theta list based on performance
    let outTotalSeconds = timeSum inTotalSeconds elapsedSecondsCPU
@@ -165,7 +182,10 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       , "Ellapsed \t" <> show elapsedSeconds
                       , "Remaining\t" <> show remainingTime
                       ]
-   if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum
+
+   if (snd output) == infoStringList
+   then pure (inGraphList, infoStringList) 
+   else if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum 
    then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString ++ "," ++ thetaString ++ "," ++ "*"]) -- output with strings correctly added together
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
@@ -301,8 +321,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
         else errorWithoutStackTrace ("Thompson search option " ++ mFunction ++ " not recognized " ++ (show ["simple", "linear","exponential"]))
         -- )
 
-
--- | performSearch takes in put graphs and performs randomized build and search with time limit
+-- | performSearch takes input graphs and performs randomized build and search with time limit
 -- Thompson sampling and mFactor to pick strategy from updated theta success values
 -- the random calls return the tail of the input list to avoid long list access--can do vector since infinite
 performSearch :: GlobalSettings
