@@ -207,7 +207,8 @@ Executable phyg
 --      -- -fllvm
 --      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
-  if !flag(super-optimization) && !flag(SingleThreaded)
+--  if !flag(super-optimization) && !flag(SingleThreaded)
+  else
     GHC-Options:
       -threaded
 --    rts -AL8 was rejected  should be >= A
