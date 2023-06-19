@@ -882,6 +882,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                 --trace ("GCD:\n" ++ (show (slimFinal uCharacter, newU)) ++ "\n" ++ (show (slimFinal vCharacter, newV)) ++ "\nDO Cost:" ++ (show doCOST))
                                 zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
+                                
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
             maxCost = thisWeight * fromIntegral (sum maxDiff)

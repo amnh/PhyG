@@ -97,6 +97,11 @@ import qualified Utilities.LocalGraph        as LG
 makeDynamicCharacterFromSingleVector :: (GV.Vector v a) => v a -> (v a, v a, v a)
 makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' -> GV.imapM_ (\k v -> setAlign dc' k v v v) dc
 
+-- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
+-- and returns a dynamic character with only second of three tuple values set
+makeDynamicCharacterFromSingleVector2ndOnly :: (GV.Vector v a) => v a -> (v a, v a, v a)
+makeDynamicCharacterFromSingleVector2ndOnly dc = (GV.empty, dc, GV.empty)
+
 -- | median2 takes the vectors of characters and applies median2Single to each
 -- character
 -- for parallel fmap over all then parallelized by type and sequences
@@ -583,7 +588,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             slimIAUnionNoGapsLeft = extractMediansSingle $ slimIAUnion leftChar
             slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsRight)
+                thisSlimTCM (makeDynamicCharacterFromSingleVector2ndOnly slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector2ndOnly slimIAUnionNoGapsRight)
         in
         --trace ("GDOMU:" ++ show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
         blankCharacterData
@@ -602,7 +607,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             (cost, r)   = widePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsRight)
+                (makeDynamicCharacterFromSingleVector2ndOnly wideIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector2ndOnly wideIAUnionNoGapsRight)
         in  blankCharacterData
               { wideIAUnion    = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -619,7 +624,7 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
             (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsRight)
+                (makeDynamicCharacterFromSingleVector2ndOnly hugeIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector2ndOnly hugeIAUnionNoGapsRight)
         in blankCharacterData
               { hugeIAUnion = extractMedians r
               , localCostVect = V.singleton $ fromIntegral cost
@@ -657,7 +662,11 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
+                -- this is wrong--nbased on "gapped" states
+                -- (slimGapped leftChar) (slimGapped rightChar)
+                thisSlimTCM 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim leftChar) 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim rightChar)
         in  blankCharacterData
               { slimPrelim    = extractMedians r
               , slimGapped    = r
@@ -673,7 +682,8 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             (cost, r)   = widePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (wideGapped leftChar) (wideGapped rightChar)
+                (makeDynamicCharacterFromSingleVector2ndOnly $ widePrelim leftChar) 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ widePrelim rightChar)
         in  blankCharacterData
               { widePrelim    = extractMedians r
               , wideGapped    = r
@@ -689,7 +699,8 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (hugeGapped leftChar) (hugeGapped rightChar)
+                (makeDynamicCharacterFromSingleVector2ndOnly $ hugePrelim leftChar) 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ hugePrelim rightChar)
         in blankCharacterData
               { hugePrelim = extractMedians r
               , hugeGapped = r
@@ -758,7 +769,9 @@ getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWid
     newSlimCharacterData =
         let r  = if useIA then GV.zipWith (.|.) (slimIAFinal leftChar) (slimIAFinal rightChar)
                  else
-                    let (_, (lG, _, rG)) = slimPairwiseDO thisSlimTCM (makeDynamicCharacterFromSingleVector $ slimFinal leftChar) (makeDynamicCharacterFromSingleVector $ slimFinal rightChar)
+                    let (_, (lG, _, rG)) = slimPairwiseDO thisSlimTCM 
+                                            (makeDynamicCharacterFromSingleVector2ndOnly $ slimFinal leftChar) 
+                                            (makeDynamicCharacterFromSingleVector2ndOnly $ slimFinal rightChar)
                     in
                     GV.zipWith (.|.) lG rG
 
@@ -776,7 +789,9 @@ getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWid
         let r  = if useIA then GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
                  else
                     let coefficient = MR.minInDelCost thisWideTCM
-                        (_, (lG, _, rG)) = widePairwiseDO coefficient (MR.retreivePairwiseTCM thisWideTCM) (makeDynamicCharacterFromSingleVector $ wideFinal leftChar) (makeDynamicCharacterFromSingleVector $ wideFinal rightChar)
+                        (_, (lG, _, rG)) = widePairwiseDO coefficient (MR.retreivePairwiseTCM thisWideTCM) 
+                                            (makeDynamicCharacterFromSingleVector2ndOnly $ wideFinal leftChar) 
+                                            (makeDynamicCharacterFromSingleVector2ndOnly $ wideFinal rightChar)
                     in
                     GV.zipWith (.|.) lG rG
          -- r   = GV.zipWith (.|.) (wideIAFinal leftChar) (wideIAFinal rightChar)
@@ -795,7 +810,9 @@ getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWid
         let r  = if useIA then GV.zipWith (.|.) (hugeIAFinal leftChar) (hugeIAFinal rightChar)
                  else
                     let coefficient = MR.minInDelCost thisHugeTCM
-                        (_, (lG, _, rG)) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM thisHugeTCM) (makeDynamicCharacterFromSingleVector $ hugeFinal leftChar) (makeDynamicCharacterFromSingleVector $ hugeFinal rightChar)
+                        (_, (lG, _, rG)) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM thisHugeTCM) 
+                                            (makeDynamicCharacterFromSingleVector2ndOnly $ hugeFinal leftChar) 
+                                            (makeDynamicCharacterFromSingleVector2ndOnly $ hugeFinal rightChar)
                     in
                     GV.zipWith (.|.) lG rG
 
