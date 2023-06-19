@@ -1,11 +1,12 @@
 Cabal-Version: 3.8 
 Name:          PhyGraph
-Version:       0.1.0
+Version:       0.1.1
 Stability:     Alpha
 Build-Type:    Simple
 Tested-With:
-  GHC == 9.2.4
-  GHC == 9.4.2
+  GHC == 9.2.7
+  GHC == 9.4.5
+  GHC == 9.6.2
 
 
 Author:        Ward Wheeler <wheeler@amnh.org>
@@ -233,7 +234,7 @@ Executable phyg
     deepseq,
     directory,
     fgl >=5.8,
-    githash,
+    gitrev,
     graphviz   >=2999.20,
     hashable,
     inflist,
@@ -245,6 +246,7 @@ Executable phyg
     random-shuffle,
     sort,
     split,
+    template-haskell,
     text,
     text-short,
     time,
@@ -255,9 +257,21 @@ Executable phyg
     
   -- include the source files needed in src for github library
   -- this for local library files
-  HS-Source-Dirs: .
+  HS-Source-Dirs:
+    .
+    app
 
+  -- Apparently this is needed to compile with profiling, which is really stupid.                                                                                                                                   
+  -- It should only be in the modules which use TemplateHaskell, not all modules.                                                                                                                                   
+  -- I consider this a temporary hack to get things to compile with profiling.                                                                                                                                      
+  -- TODO: remove this in the future when cabal gets it's act together.                                                                                                                                             
+  Other-Extensions: TemplateHaskell
+
+  Autogen-Modules:
+    Paths_PhyGraph
+    
   Other-Modules:
+    Paths_PhyGraph
     Commands.CommandExecution
     Commands.CommandUtilities
     Commands.ProcessCommands
@@ -291,6 +305,8 @@ Executable phyg
     Search.Swap
     Search.SwapMaster
     Search.WagnerBuild
+    Software.Metadata
+    Software.Metadata.TimeStamp
     Support.Support
     System.Timing
     Types.DistanceTypes
