@@ -97,6 +97,11 @@ import qualified Utilities.LocalGraph        as LG
 makeDynamicCharacterFromSingleVector :: (GV.Vector v a) => v a -> (v a, v a, v a)
 makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' -> GV.imapM_ (\k v -> setAlign dc' k v v v) dc
 
+-- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
+-- and returns a dynamic character with only second of three tuple values set
+makeDynamicCharacterFromSingleVector2ndOnly :: (GV.Vector v a) => v a -> (v a, v a, v a)
+makeDynamicCharacterFromSingleVector2ndOnly dc = (GV.empty, dc, GV.empty)
+
 -- | median2 takes the vectors of characters and applies median2Single to each
 -- character
 -- for parallel fmap over all then parallelized by type and sequences
@@ -632,8 +637,72 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
 getDOMedianCharInfo :: CharInfo -> CharacterData -> CharacterData -> CharacterData
 getDOMedianCharInfo charInfo = getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
+
 -- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
 -- works on preliminary states
+getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
+  | null thisMatrix = error "Null cost matrix in getDOMedian"
+  | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
+  | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
+  | thisType == HugeSeq           = newHugeCharacterData
+  | otherwise = error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+  where
+    blankCharacterData = emptyCharacter
+
+    newSlimCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r)   = slimPairwiseDO
+                -- this is wrong--nbased on "gapped" states
+                -- (slimGapped leftChar) (slimGapped rightChar)
+                thisSlimTCM 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim leftChar) 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim rightChar)
+        in  blankCharacterData
+              { slimPrelim    = extractMedians r
+              , slimGapped    = r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
+              }
+
+    newWideCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            coefficient = MR.minInDelCost thisWideTCM
+            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
+            (cost, r)   = widePairwiseDO
+                coefficient
+                (MR.retreivePairwiseTCM thisWideTCM)
+                (makeDynamicCharacterFromSingleVector2ndOnly $ widePrelim leftChar) 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ widePrelim rightChar)
+        in  blankCharacterData
+              { widePrelim    = extractMedians r
+              , wideGapped    = r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost     = newCost
+              , globalCost    = subtreeCost
+              }
+
+    newHugeCharacterData =
+        let newCost     = thisWeight * fromIntegral cost
+            coefficient = MR.minInDelCost thisHugeTCM
+            subtreeCost = newCost + globalCost leftChar + globalCost rightChar
+            (cost, r)   = hugePairwiseDO
+                coefficient
+                (MR.retreivePairwiseTCM thisHugeTCM)
+                (makeDynamicCharacterFromSingleVector2ndOnly $ hugePrelim leftChar) 
+                (makeDynamicCharacterFromSingleVector2ndOnly $ hugePrelim rightChar)
+        in blankCharacterData
+              { hugePrelim = extractMedians r
+              , hugeGapped = r
+              , localCostVect = V.singleton $ fromIntegral cost
+              , localCost  = newCost
+              , globalCost = subtreeCost
+              }
+
+{- Original version on gapped states
+-- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
+-- works on gapped
 getDOMedian
   :: Double
   -> S.Matrix Int
@@ -697,6 +766,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
               , localCost  = newCost
               , globalCost = subtreeCost
               }
+-}
 
 -- | getPrealignedUnion calls appropriate pairwise function to create sequence union of final states
 -- for prealigned states
