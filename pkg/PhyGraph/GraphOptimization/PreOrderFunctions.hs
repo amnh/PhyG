@@ -1401,6 +1401,7 @@ doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
 --    3) apply appropriate get3way for the structure
 -- The final is then returned--with gaps to be filtered afterwards
 -- getDOFinal :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a) -> CharInfo -> v a
+-- this should be modified to use "prelim" states on final assignment.\
 getDOFinal :: CharInfo
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)

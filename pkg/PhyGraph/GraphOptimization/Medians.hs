@@ -89,7 +89,7 @@ import qualified Input.BitPack               as BP
 import qualified SymMatrix                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
---import           Debug.Trace
+import           Debug.Trace
 
 
 -- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
@@ -640,6 +640,16 @@ getDOMedianCharInfo charInfo = getDOMedian (weight charInfo) (costMatrix charInf
 
 -- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
 -- works on preliminary states
+getDOMedian
+  :: Double
+  -> S.Matrix Int
+  -> TCMD.DenseTransitionCostMatrix
+  -> MR.MetricRepresentation Word64
+  -> MR.MetricRepresentation BV.BitVector
+  -> CharType
+  -> CharacterData
+  -> CharacterData
+  -> CharacterData
 getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
   | null thisMatrix = error "Null cost matrix in getDOMedian"
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
@@ -658,7 +668,9 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
                 thisSlimTCM 
                 (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim leftChar) 
                 (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim rightChar)
-        in  blankCharacterData
+        in  
+            trace ("GDOM:" ++ (show $ fst3 r) ++ " v " ++ (show $ thd3 r) ++ "\n=> " ++ (show $ snd3 r)) $ 
+            blankCharacterData
               { slimPrelim    = extractMedians r
               , slimGapped    = r
               , localCostVect = V.singleton $ fromIntegral cost
