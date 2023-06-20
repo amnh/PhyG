@@ -123,7 +123,8 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                    selectedGraphList = take keepNum filteredGraphList
                in  (selectedGraphList, commentList ++ [[iterationHitString]])
     )
-    where getMinGraphListCost a = minimum $ fmap snd6 a
+    where getMinGraphListCost a = if (not $ null a) then minimum $ fmap snd6 a
+                                  else infinity
 
 -- unneeded
 -- instance NFData  (IO (Maybe ([PhylogeneticGraph], [String]))) where rnf x = seq x ()
@@ -429,7 +430,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              deltaString = if null inGraphList' then "10.0"
                            else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs))
 
-             currentBestString = show $ minimum $ fmap snd6 uniqueGraphs
+             currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd6 uniqueGraphs
+                                 else show infinity
 
              searchString = "," ++ buildString ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg buildArgs)
 
@@ -663,7 +665,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              deltaString = if null inGraphList' then "10.0,"
                            else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) -- ++ ","
 
-             currentBestString = show $ minimum $ fmap snd6 uniqueGraphs
+             currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd6 uniqueGraphs
+                                 else show infinity
 
              -- create string for search stats
              searchString = "," ++ searchBandit ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg searchArgs) ++ transformString ++ transString
