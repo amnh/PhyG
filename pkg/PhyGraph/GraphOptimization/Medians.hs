@@ -97,11 +97,6 @@ import qualified Utilities.LocalGraph        as LG
 makeDynamicCharacterFromSingleVector :: (GV.Vector v a) => v a -> (v a, v a, v a)
 makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' -> GV.imapM_ (\k v -> setAlign dc' k v v v) dc
 
--- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
--- and returns a dynamic character with only second of three tuple values set
-makeDynamicCharacterFromSingleVector2ndOnly :: (GV.Vector v a) => v a -> (v a, v a, v a)
-makeDynamicCharacterFromSingleVector2ndOnly dc = (GV.empty, dc, GV.empty)
-
 -- | median2 takes the vectors of characters and applies median2Single to each
 -- character
 -- for parallel fmap over all then parallelized by type and sequences
@@ -662,11 +657,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
         let newCost     = thisWeight * fromIntegral cost
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
-                -- this is wrong--nbased on "gapped" states
-                -- (slimGapped leftChar) (slimGapped rightChar)
-                thisSlimTCM 
-                (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim leftChar) 
-                (makeDynamicCharacterFromSingleVector2ndOnly $ slimPrelim rightChar)
+                thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
         in  blankCharacterData
               { slimPrelim    = extractMedians r
               , slimGapped    = r
@@ -682,8 +673,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             (cost, r)   = widePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
-                (makeDynamicCharacterFromSingleVector2ndOnly $ widePrelim leftChar) 
-                (makeDynamicCharacterFromSingleVector2ndOnly $ widePrelim rightChar)
+                (wideGapped leftChar) (wideGapped rightChar)
         in  blankCharacterData
               { widePrelim    = extractMedians r
               , wideGapped    = r
@@ -699,8 +689,7 @@ getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType l
             (cost, r)   = hugePairwiseDO
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
-                (makeDynamicCharacterFromSingleVector2ndOnly $ hugePrelim leftChar) 
-                (makeDynamicCharacterFromSingleVector2ndOnly $ hugePrelim rightChar)
+                (hugeGapped leftChar) (hugeGapped rightChar)
         in blankCharacterData
               { hugePrelim = extractMedians r
               , hugeGapped = r
