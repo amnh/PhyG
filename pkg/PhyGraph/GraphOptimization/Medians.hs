@@ -1226,7 +1226,7 @@ get2WayGeneric :: (FiniteBits e, GV.Vector v e) => (e -> e -> (e, Word)) -> v e 
 get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
    let -- this should not be needed some problems at times with IA
        -- len   = GV.length descendantLeftPrelim
-       len   = min (GV.length descendantLeftPrelim) (GV.length descendantRightPrelim) 
+       len   = min (GV.length descendantLeftPrelim) (GV.length descendantRightPrelim)
        vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (CUInt, Word)
        gen v = let med i = fst $ v V.! i in GV.generate len med
        add   = V.foldl' (\x e -> x + snd e) 0
@@ -1304,6 +1304,14 @@ generalSequenceDiff thisMatrix numStates uState vState =
     (minimum costOfPairs, maximum costOfPairs)
     -- )
 
-
-
-
+getWhatWardNeeds
+  :: ( FiniteBits e
+     , GV.Vector v e
+     )
+  => OpenDynamicCharacter v e
+  -> OpenDynamicCharacter v e
+getWhatWardNeeds prelimContext =
+   let lhs = extractMediansLeft prelimContext
+       med = extractMedians prelimContext
+       rhs = extractMediansRight prelimContext
+   in  (lhs, med, rhs)

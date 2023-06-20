@@ -106,7 +106,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             -- update leaf IA assignments based on cotracted edge for softWired to make IAs
             -- no need for trees--can't for hardWired
             softwiredUpdatedLeafIA = if graphType inGS /= SoftWired then preOrderBlockVect
-                                     else 
+                                     else
                                         let -- get display trees for each data block-- takes first of potentially multiple
                                             contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
 
@@ -122,7 +122,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                                         blockCharDecNewLeafIA
 
 
-            preOrderBlockVect' = if hasNonExact && (graphType inGS /= HardWired ) then 
+            preOrderBlockVect' = if hasNonExact && (graphType inGS /= HardWired ) then
                                         V.fromList $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeIAUnionAssignments' finalMethod rootIndex) (zip (V.toList softwiredUpdatedLeafIA) (V.toList inCharInfoVV))
 
                                  else preOrderBlockVect
@@ -153,7 +153,7 @@ updateLeafIABlock maxLeafIndex origCharV newCharV charInfoV = V.zipWith3 (update
 -- | ujpdates single charracter leaf IA assignments
 -- uses max net edge thing
 updateLeafIAChar :: Int -> DecoratedGraph -> DecoratedGraph -> CharInfo -> DecoratedGraph
-updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo = 
+updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo =
     let origLeafVertexList = filter ((<= maxLeafIndex) .fst) $ LG.labNodes origCharGraph
         originalNonLeafVertexList = filter ((> maxLeafIndex) .fst) $ LG.labNodes origCharGraph
         newLeafVertexList = filter ((<= maxLeafIndex) .fst) $ LG.labNodes newCharGraph
@@ -165,7 +165,7 @@ updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo =
 -- | updateIAFields updates the IA filed in teh first node with that of second if its non-exact sequence character
 -- assumes single character trees
 updateIAFields :: CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
-updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) = 
+updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) =
     -- trace ("USF: Node " ++ (show origIndex) ++ " " ++ (show (V.length $ vertData origLabel, V.length $ vertData newLabel)) ++ " " ++ (show (fmap V.length $ vertData origLabel)) ++ " " ++ (show (fmap V.length $ vertData newLabel))) $
     let characterType = charType charInfo
         origChar = V.head $ V.head $ vertData origLabel
@@ -281,7 +281,7 @@ postOrderIAUnion inGraph charInfo inNodeList =
                 -- trace ("PostO2hildren: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal newCharacter) ++ " " ++ (show $ nodeType newLabel)) -- ++ " From: " ++ (show childlabels))
                 postOrderIAUnion newGraph charInfo (tail inNodeList)
 
-            else error ("No children in non-leaf node: " ++ (show nodeIndex) ++ "\n" ++ (LG.prettyIndices inGraph)) 
+            else error ("No children in non-leaf node: " ++ (show nodeIndex) ++ "\n" ++ (LG.prettyIndices inGraph))
             -- )
     -- )
 
@@ -405,7 +405,7 @@ doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
         -- since root cannot have 2nd parent
         let rootLabel = fromJust $ LG.lab inGraph rootIndex
             nothingVertData = U.copyToNothing (vertData rootLabel)
-            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) nothingVertData inCharInfo True False False 
+            rootFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData rootLabel) (vertData rootLabel) nothingVertData inCharInfo True False False
             rootChildren =LG.labDescendants inGraph (rootIndex, rootLabel)
 
             -- left / right to match post-order
@@ -433,8 +433,8 @@ updateIsolatedNode :: GlobalSettings -> AssignmentMethod -> Bool -> CharInfo -> 
 updateIsolatedNode inGS finalMethod staticIA inCharInfo (inNodeIndex, inNodeLabel) =
     -- root so final = preliminary
     let nothingVertData = U.copyToNothing (vertData inNodeLabel)
-        newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) nothingVertData inCharInfo True False False 
-    in 
+        newVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA RootNode (vertData inNodeLabel) (vertData inNodeLabel) nothingVertData inCharInfo True False False
+    in
     (inNodeIndex, inNodeLabel {vertData = newVertData})
 
 -- | makeFinalAndChildren takes a graph, list of pairs of (labelled nodes,parent node) to make final assignment and a list of updated nodes
@@ -489,7 +489,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
               | length firstChildrenBV == 1 = [True]
               | head firstChildrenBV > (firstChildrenBV !! 1) = [False, True]
               | otherwise = [True, False]
-            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData inCharInfo isLeft isIn1Out1 isIn2Out1 
+            firstFinalVertData = createFinalAssignmentOverBlocks inGS finalMethod staticIA firstNodeType firstVertData firstParentVertData secondParentData inCharInfo isLeft isIn1Out1 isIn2Out1
             newFirstNode = (fst firstNode, firstLabel {vertData = firstFinalVertData})
 
             -- check children if indegree == 2 then don't add to nodes to do if in there already
@@ -882,7 +882,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                 --trace ("GCD:\n" ++ (show (slimFinal uCharacter, newU)) ++ "\n" ++ (show (slimFinal vCharacter, newV)) ++ "\nDO Cost:" ++ (show doCOST))
                                 zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
-                                
+
             (minDiff, maxDiff) = unzip minMaxDiffList
             minCost = thisWeight * fromIntegral (sum minDiff)
             maxCost = thisWeight * fromIntegral (sum maxDiff)
@@ -1030,17 +1030,17 @@ assignFinal inGS finalMethod staticIA childType isLeft charInfo isOutDegree1 isI
 -- performs preorder logic for exact characters
 -- staticIA flage is for IA and static only optimization used in IA heuriastics for DO
 -- no IA for networks--at least for now.Bool ->
-setFinal :: GlobalSettings 
-         -> AssignmentMethod 
-         -> Bool 
-         -> NodeType 
-         -> Bool 
-         -> CharInfo 
-         -> Bool 
+setFinal :: GlobalSettings
+         -> AssignmentMethod
          -> Bool
-         -> CharacterData 
-         -> CharacterData 
-         -> Maybe CharacterData 
+         -> NodeType
+         -> Bool
+         -> CharInfo
+         -> Bool
+         -> Bool
+         -> CharacterData
+         -> CharacterData
+         -> Maybe CharacterData
          -> CharacterData
 setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1 childChar parentChar parent2CharM  =
    let localCharType = charType charInfo
@@ -1327,7 +1327,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
-         
+
          --traceNoLF ("TNFinal-1/1") $
          -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) $
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
@@ -1697,4 +1697,3 @@ setPrelimToFinalCharacterData inChar =
 
                            , packedNonAddPrelim = (packedNonAddFinal inChar, packedNonAddFinal inChar, packedNonAddFinal inChar)
             }
-

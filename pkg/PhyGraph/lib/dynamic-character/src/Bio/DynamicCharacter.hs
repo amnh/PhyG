@@ -336,6 +336,8 @@ extractMediansSingle me
 
 -- |
 -- Extract the left child's /ungapped/ medians used to construct the dynamic character.
+--
+-- Output medians will /not/ contain "gap" or "nil" states
 {-# INLINEABLE extractMediansLeft #-}
 {-# SPECIALISE extractMediansLeft :: SlimDynamicCharacter -> SV.Vector SlimState #-}
 {-# SPECIALISE extractMediansLeft :: WideDynamicCharacter -> UV.Vector WideState #-}
@@ -344,12 +346,14 @@ extractMediansLeft :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> 
 extractMediansLeft (lc,_,_)
     | GV.null lc = lc
     | otherwise  =
-        let gap  = buildGap $ lc ! 0
-        in  GV.filter (/=gap) lc
+        let (# gap, nil #) = buildGapAndNil $ lc ! 0
+        in  GV.filter (\e -> e /= gap && e /= nil) lc
 
 
 -- |
 -- Extract the right child's /ungapped/ medians used to construct the dynamic character.
+--
+-- Output medians will /not/ contain "gap" or "nil" states
 {-# INLINEABLE extractMediansRight #-}
 {-# SPECIALISE extractMediansRight :: SlimDynamicCharacter -> SV.Vector SlimState #-}
 {-# SPECIALISE extractMediansRight :: WideDynamicCharacter -> UV.Vector WideState #-}
@@ -358,8 +362,8 @@ extractMediansRight :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e ->
 extractMediansRight (_,_,rc)
     | GV.null rc = rc
     | otherwise  =
-        let gap  = buildGap $ rc ! 0
-        in  GV.filter (/=gap) rc
+        let (# gap, nil #) = buildGapAndNil $ rc ! 0
+        in  GV.filter (\e -> e /= gap && e /= nil) rc
 
 
 -- |
