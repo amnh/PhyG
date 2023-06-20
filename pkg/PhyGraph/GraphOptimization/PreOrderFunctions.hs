@@ -1242,11 +1242,11 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         parentFinal = (parentFinalDC, mempty, mempty)
                                         -- parentGapped = (slimGapped parentChar, mempty, mempty)
                                         childGapped = (slimGapped childChar, mempty, mempty)
-                                        finalAssignmentDOGapped = fst3 $ getDOFinal charInfo parentFinal childGapped
+                                        finalAssignmentDONonGapped = fst3 $ getDOFinal charInfo parentFinal childGapped
                                     in
-                                    extractMedians finalAssignmentDOGapped
+                                    snd3 finalAssignmentDONonGapped
                                     -- really could/should be mempty since overwritten by IA later
-                                 else extractMedians finalGapped
+                                 else removeGapAndNil $ snd3 finalGapped
          in
          --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
@@ -1264,10 +1264,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         parentFinal = (mempty, parentFinalDC, mempty)
                                         --parentGapped = (mempty, wideGapped parentChar, mempty)
                                         childGapped = (mempty, wideGapped childChar, mempty)
-                                        finalAssignmentDOGapped = snd3 $ getDOFinal charInfo parentFinal childGapped
+                                        finalAssignmentDONonGapped = snd3 $ getDOFinal charInfo parentFinal childGapped
                                     in
-                                    extractMedians finalAssignmentDOGapped
-                                 else extractMedians finalGapped
+                                    snd3 finalAssignmentDONonGapped
+                                 else removeGapAndNil $ snd3 finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { wideFinal = finalAssignmentDO
@@ -1284,10 +1284,10 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         parentFinal = (mempty, mempty, parentFinalDC)
                                         -- parentGapped = (mempty, mempty, hugeGapped parentChar)
                                         childGapped = (mempty, mempty, hugeGapped childChar)
-                                        finalAssignmentDOGapped = thd3 $ getDOFinal charInfo parentFinal childGapped
+                                        finalAssignmentDONonGapped = thd3 $ getDOFinal charInfo parentFinal childGapped
                                     in
-                                     extractMedians finalAssignmentDOGapped
-                                 else extractMedians finalGapped
+                                     snd3 finalAssignmentDONonGapped
+                                 else removeGapAndNil $ snd3 finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { hugeFinal = finalAssignmentDO
@@ -1410,19 +1410,18 @@ getDOFinal charInfo parentFinal nodeGapped =
        parentNodeChar = (a,b,c)
 
        -- put "new" gaps into 2nd and thd gapped fields of appropriate seqeunce type
-       gappedFinal = makeGappedLeftRight charInfo parentNodeChar nodeGapped
+       nonGappedFinal = makeNonGappedLeftRight charInfo parentNodeChar nodeGapped
    in
-   gappedFinal
+   nonGappedFinal
 
 
--- | makeGappedLeftRight takes an alignment parent character and original node character and inserts "new" gaps into nodeCharcater
--- makeGappedLeftRight :: CharacterData -> CharacterData -> CharInfo -> CharacterData
--- makeGappedLeftRight gappedLeftRight nodeChar charInfo =
-makeGappedLeftRight :: CharInfo
+-- | makeNonGappedLeftRight takes an alignment parent character and original node character and inserts "new" gaps into nodeCharcater
+-- to line them up with parent, vreates 3-way median, and strips out gaps to retujrn final DO assignment
+makeNonGappedLeftRight :: CharInfo
                     -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
                     -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
                     -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
-makeGappedLeftRight charInfo gappedLeftRight nodeChar  =
+makeNonGappedLeftRight charInfo gappedLeftRight nodeChar  =
    let localCharType = charType charInfo
    in
    if localCharType `elem` [SlimSeq, NucSeq] then

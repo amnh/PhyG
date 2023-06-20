@@ -56,6 +56,7 @@ module GraphOptimization.Medians  ( median2
                                   , getDOMedian
                                   , getPreAligned2Median
                                   , getDOMedianCharInfo
+                                  , getNoGapPrelimContext
                                   , pairwiseDO
                                   , makeDynamicCharacterFromSingleVector
                                   , makeEdgeData
@@ -1250,14 +1251,14 @@ get2WayWideHuge whTCM = get2WayGeneric (MR.retreivePairwiseTCM whTCM)
 -- used as true final sequence assignments using M.createUngappedMedianSequence
 getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
 getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
-   let newFinal = SV.zipWith3 (local3WaySlim lSlimTCM) parentFinal descendantLeftPrelim descendantRightPrelim
+   let newFinal = removeGapAndNil $ SV.zipWith3 (local3WaySlim lSlimTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
 -- | getFinal3WayWideHuge like getFinal3WaySlim but for wide and huge characters
 getFinal3WayWideHuge :: (FiniteBits a, GV.Vector v a) => MR.MetricRepresentation a -> v a -> v a -> v a -> v a
 getFinal3WayWideHuge whTCM parentFinal descendantLeftPrelim descendantRightPrelim =
-   let newFinal = GV.zipWith3 (local3WayWideHuge whTCM) parentFinal descendantLeftPrelim descendantRightPrelim
+   let newFinal = removeGapAndNil $ GV.zipWith3 (local3WayWideHuge whTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
    newFinal
 
@@ -1304,13 +1305,15 @@ generalSequenceDiff thisMatrix numStates uState vState =
     (minimum costOfPairs, maximum costOfPairs)
     -- )
 
-getWhatWardNeeds
+
+-- | getNoGapPrelimContext takes gaps and nils out of left, median, and right of gapped structure
+getNoGapPrelimContext
   :: ( FiniteBits e
      , GV.Vector v e
      )
   => OpenDynamicCharacter v e
   -> OpenDynamicCharacter v e
-getWhatWardNeeds prelimContext =
+getNoGapPrelimContext prelimContext =
    let lhs = extractMediansLeft prelimContext
        med = extractMedians prelimContext
        rhs = extractMediansRight prelimContext
