@@ -80,7 +80,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
 
                -- set implied alignment swapping
                doIA' = any ((=="ia").fst) lcArgList
-               doIA = if (graphType inGS /= Tree) && doIA' then trace "\tIgnoring 'IA' swap option for non-Tree" False
+               doIA'' = if (graphType inGS /= Tree) && doIA' then trace "\tIgnoring 'IA' swap option for non-Tree" False
                       else doIA'
 
                --- steepest/all options
@@ -142,7 +142,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                                              , maxMoveEdgeDist = maxMoveEdgeDist
                                              , steepest = doSteepest
                                              , joinAlternate = False -- join prune alternates--turned off for now
-                                             , doIA = doIA
+                                             , doIA = doIA''
                                              , returnMutated = returnMutated 
                                              }
            in

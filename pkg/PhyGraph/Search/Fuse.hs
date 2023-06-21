@@ -330,9 +330,11 @@ recombineComponents :: SwapParams
                     -> VertexCost
                     -> [LG.LEdge EdgeInfo]
                     -> [PhylogeneticGraph]
-recombineComponents swapParams inGS inData curBetterCost overallBestCost splitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor originalSplitEdgeList =
+recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor originalSplitEdgeList =
    -- check and see if any reconnecting to do
    --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
+   let splitGraphCostPairList = filter ((not . LG.isEmpty) .fst) inSplitGraphCostPairList
+   in
    if null splitGraphCostPairList then []
    else
       -- top line to cover SPR HarWired bug
@@ -510,62 +512,64 @@ getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV =
 -- both components need to have HTU and edges reindexed to be in sync, oringal edge terminal node is also reindexed and returned for limit readd distance
 exchangePrunedGraphs :: Int -> ((DecoratedGraph, LG.Node, LG.Node, LG.Node), (DecoratedGraph, LG.Node, LG.Node, LG.Node), LG.Node) -> (DecoratedGraph, Int , Int, Int, Int)
 exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode) =
-   let (firstSplitGraph, firstGraphRootIndex, _, _) = firstGraphTuple
-       (secondSplitGraph, _, secondPrunedGraphRootIndex, _) = secondGraphTuple
-
-       -- get nodes and edges of firstBase
-       firstGraphRootLabel = fromJust $ LG.lab firstSplitGraph firstGraphRootIndex
-       firstGraphRootNode = (firstGraphRootIndex, firstGraphRootLabel)
-       (firstBaseGraphNodeList', firstBaseGraphEdgeList) = LG.nodesAndEdgesAfter firstSplitGraph [firstGraphRootNode]
-
-       --add in root nodes of partitions since not included in "nodesAfter" function
-       firstBaseGraphNodeList = firstGraphRootNode : firstBaseGraphNodeList'
-
-
-       -- get nodes and edges of second pruned
-       secondPrunedGraphRootLabel = fromJust $ LG.lab secondSplitGraph secondPrunedGraphRootIndex
-       secondPrunedGraphRootNode = (secondPrunedGraphRootIndex, secondPrunedGraphRootLabel)
-       secondPrunedParentNode = head $ LG.labParents secondSplitGraph secondPrunedGraphRootIndex
-       (secondPrunedGraphNodeList', secondPrunedGraphEdgeList') = LG.nodesAndEdgesAfter secondSplitGraph [secondPrunedGraphRootNode]
-
-       -- add root node of second pruned since not included in "nodesAfter" function
-       -- add in gandparent nodes of pruned and its edges to pruned graphs
-       secondPrunedGraphNodeList = [secondPrunedGraphRootNode, secondPrunedParentNode] ++ secondPrunedGraphNodeList'
-       secondPrunedGraphEdgeList = (head $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) : secondPrunedGraphEdgeList'
-
-       -- reindex base and pruned partitions (HTUs and edges) to get in sync and make combinable
-       -- 0 is dummy since won't be in base split
-       (baseGraphNodes, baseGraphEdges, numBaseHTUs, reindexedBreakEdgeNodeBase) = reindexSubGraph numLeaves 0 firstBaseGraphNodeList firstBaseGraphEdgeList breakEdgeNode
-       (prunedGraphNodes, prunedGraphEdges, _, _) = reindexSubGraph numLeaves numBaseHTUs secondPrunedGraphNodeList secondPrunedGraphEdgeList breakEdgeNode
-
-       -- should always be in base graph--should be in first (base) component--if not use original node
-       reindexedBreakEdgeNode = if (reindexedBreakEdgeNodeBase /= Nothing) then fromJust reindexedBreakEdgeNodeBase
-                                else breakEdgeNode
-
-
-       -- create and reindex new split graph
-       newSplitGraph = LG.mkGraph (baseGraphNodes ++ prunedGraphNodes) (baseGraphEdges ++ prunedGraphEdges)
-
-       -- get graph root Index, pruned root index, pruned root parent index
-       -- firstGraphRootIndex should not have changed in reindexing--same as numLeaves
-       prunedParentRootIndex = fst $ head $ (LG.getRoots newSplitGraph) L.\\ [firstGraphRootNode]
-       prunedRootIndex = head $ LG.descendants newSplitGraph prunedParentRootIndex
-
-   in
-   if (length $ LG.getRoots newSplitGraph) /= 2 then error ("Not 2 components in split graph: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
-   else if (length $ LG.descendants newSplitGraph prunedParentRootIndex) /= 1 then error ("Too many children of parentPrunedNode: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
-   else if (length $ LG.parents secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Parent number not equal to 1 in node "
-      ++ (show secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
-   else if (length $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Edge incedent tor pruned graph not equal to 1 in node "
-      ++ (show $ fmap LG.toEdge $  LG.inn secondSplitGraph secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
+   if LG.isEmpty (fst4 firstGraphTuple) || LG.isEmpty (fst4 secondGraphTuple) then error ("Empty graph input in exchangePrunedGraphs" ++ (show (LG.isEmpty (fst4 firstGraphTuple), LG.isEmpty (fst4 secondGraphTuple))))
    else
-     {-
-     } trace ("Nodes: " ++ (show (firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex)) ++ " First Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph firstSplitGraph)
-         ++ "\nSecond Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph)
-         ++ "\nNew split graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph)
-         )
-      -}
-      (newSplitGraph, firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex, reindexedBreakEdgeNode)
+      let (firstSplitGraph, firstGraphRootIndex, _, _) = firstGraphTuple
+          (secondSplitGraph, _, secondPrunedGraphRootIndex, _) = secondGraphTuple
+
+          -- get nodes and edges of firstBase
+          firstGraphRootLabel = fromJust $ LG.lab firstSplitGraph firstGraphRootIndex
+          firstGraphRootNode = (firstGraphRootIndex, firstGraphRootLabel)
+          (firstBaseGraphNodeList', firstBaseGraphEdgeList) = LG.nodesAndEdgesAfter firstSplitGraph [firstGraphRootNode]
+
+          --add in root nodes of partitions since not included in "nodesAfter" function
+          firstBaseGraphNodeList = firstGraphRootNode : firstBaseGraphNodeList'
+
+
+          -- get nodes and edges of second pruned
+          secondPrunedGraphRootLabel = fromJust $ LG.lab secondSplitGraph secondPrunedGraphRootIndex
+          secondPrunedGraphRootNode = (secondPrunedGraphRootIndex, secondPrunedGraphRootLabel)
+          secondPrunedParentNode = head $ LG.labParents secondSplitGraph secondPrunedGraphRootIndex
+          (secondPrunedGraphNodeList', secondPrunedGraphEdgeList') = LG.nodesAndEdgesAfter secondSplitGraph [secondPrunedGraphRootNode]
+
+          -- add root node of second pruned since not included in "nodesAfter" function
+          -- add in gandparent nodes of pruned and its edges to pruned graphs
+          secondPrunedGraphNodeList = [secondPrunedGraphRootNode, secondPrunedParentNode] ++ secondPrunedGraphNodeList'
+          secondPrunedGraphEdgeList = (head $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) : secondPrunedGraphEdgeList'
+
+          -- reindex base and pruned partitions (HTUs and edges) to get in sync and make combinable
+          -- 0 is dummy since won't be in base split
+          (baseGraphNodes, baseGraphEdges, numBaseHTUs, reindexedBreakEdgeNodeBase) = reindexSubGraph numLeaves 0 firstBaseGraphNodeList firstBaseGraphEdgeList breakEdgeNode
+          (prunedGraphNodes, prunedGraphEdges, _, _) = reindexSubGraph numLeaves numBaseHTUs secondPrunedGraphNodeList secondPrunedGraphEdgeList breakEdgeNode
+
+          -- should always be in base graph--should be in first (base) component--if not use original node
+          reindexedBreakEdgeNode = if (reindexedBreakEdgeNodeBase /= Nothing) then fromJust reindexedBreakEdgeNodeBase
+                                   else breakEdgeNode
+
+
+          -- create and reindex new split graph
+          newSplitGraph = LG.mkGraph (baseGraphNodes ++ prunedGraphNodes) (baseGraphEdges ++ prunedGraphEdges)
+
+          -- get graph root Index, pruned root index, pruned root parent index
+          -- firstGraphRootIndex should not have changed in reindexing--same as numLeaves
+          prunedParentRootIndex = fst $ head $ (LG.getRoots newSplitGraph) L.\\ [firstGraphRootNode]
+          prunedRootIndex = head $ LG.descendants newSplitGraph prunedParentRootIndex
+
+      in
+      if (length $ LG.getRoots newSplitGraph) /= 2 then error ("Not 2 components in split graph: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
+      else if (length $ LG.descendants newSplitGraph prunedParentRootIndex) /= 1 then error ("Too many children of parentPrunedNode: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
+      else if (length $ LG.parents secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Parent number not equal to 1 in node "
+         ++ (show secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
+      else if (length $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Edge incedent tor pruned graph not equal to 1 in node "
+         ++ (show $ fmap LG.toEdge $  LG.inn secondSplitGraph secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
+      else
+        {-
+        } trace ("Nodes: " ++ (show (firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex)) ++ " First Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph firstSplitGraph)
+            ++ "\nSecond Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph)
+            ++ "\nNew split graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph)
+            )
+         -}
+         (newSplitGraph, firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex, reindexedBreakEdgeNode)
 
 
 -- | reindexSubGraph reindexes the non-leaf nodes and edges of a subgraph to allow topological combination of subgraphs

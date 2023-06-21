@@ -55,6 +55,7 @@ module Bio.DynamicCharacter
   , unsafeCharacterBuiltByBufferedST
     -- * Rendering
   , renderDynamicCharacter
+  , removeGapAndNil
   ) where
 
 import           Control.Monad.Primitive
@@ -317,7 +318,7 @@ extractMedians (_,me,_)
     | GV.null me = me
     | otherwise  =
         let gap  = buildGap $ me ! 0
-        in  GV.filter (/=gap) me
+        in  GV.filter (/= gap)  me
 
 -- |
 -- Extract the /ungapped/ medians of a single field of a dynamic character.
@@ -336,6 +337,8 @@ extractMediansSingle me
 
 -- |
 -- Extract the left child's /ungapped/ medians used to construct the dynamic character.
+--
+-- Output medians will /not/ contain "gap" or "nil" states
 {-# INLINEABLE extractMediansLeft #-}
 {-# SPECIALISE extractMediansLeft :: SlimDynamicCharacter -> SV.Vector SlimState #-}
 {-# SPECIALISE extractMediansLeft :: WideDynamicCharacter -> UV.Vector WideState #-}
@@ -344,12 +347,30 @@ extractMediansLeft :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> 
 extractMediansLeft (lc,_,_)
     | GV.null lc = lc
     | otherwise  =
-        let nil  = buildNil $ lc ! 0
-        in  GV.filter (/=nil) lc
+        let (# gap, nil #) = buildGapAndNil $ lc ! 0
+        in  GV.filter (\e -> e /= gap && e /= nil) lc
+
+-- |
+-- Extract the  /ungapped/ medians used to construct the dynamic character.
+--
+-- Output medians will /not/ contain "gap" or "nil" states
+{-# INLINEABLE removeGapAndNil #-}
+{-# SPECIALISE removeGapAndNil :: SV.Vector SlimState -> SV.Vector SlimState #-}
+{-# SPECIALISE removeGapAndNil :: UV.Vector WideState -> UV.Vector WideState #-}
+{-# SPECIALISE removeGapAndNil :: V.Vector HugeState ->  V.Vector HugeState #-}
+removeGapAndNil :: (FiniteBits e, Vector v e) => v e -> v e
+removeGapAndNil rc
+    | GV.null rc = rc
+    | otherwise  =
+        let (# gap, nil #) = buildGapAndNil $ rc ! 0
+        in  GV.filter (\e -> e /= gap && e /= nil) rc
+
 
 
 -- |
 -- Extract the right child's /ungapped/ medians used to construct the dynamic character.
+--
+-- Output medians will /not/ contain "gap" or "nil" states
 {-# INLINEABLE extractMediansRight #-}
 {-# SPECIALISE extractMediansRight :: SlimDynamicCharacter -> SV.Vector SlimState #-}
 {-# SPECIALISE extractMediansRight :: WideDynamicCharacter -> UV.Vector WideState #-}
@@ -358,8 +379,8 @@ extractMediansRight :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e ->
 extractMediansRight (_,_,rc)
     | GV.null rc = rc
     | otherwise  =
-        let nil  = buildNil $ rc ! 0
-        in  GV.filter (/=nil) rc
+        let (# gap, nil #) = buildGapAndNil $ rc ! 0
+        in  GV.filter (\e -> e /= gap && e /= nil) rc
 
 
 -- |

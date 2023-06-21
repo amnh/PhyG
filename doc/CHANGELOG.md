@@ -7,12 +7,19 @@ PHAGE uses [Semantic Versioning (v2.0.0)][1].
 The changelog is available [on GitHub][2].
 
 
-## Unreleased
+## Unreleased (`v0.2.0`)
+
+### PhyGraph
 
   * Major codebase layout rearchitecting
 
+  * Corrected defect in median extraction from preliminary contexts
 
-## 0.1.0
+
+### PhyloLib
+
+
+## `v0.1.0`
 
   * Initial "alpha" state of PHAGE domain
 

@@ -681,7 +681,7 @@ insertNetEdgeRecursive :: GlobalSettings
                        -> Int
                        -> Bool
                        -> Bool
-                       ->  PhylogeneticGraph
+                       -> PhylogeneticGraph
                        -> Maybe VertexCost
                        -> Maybe SAParams
                        -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]

@@ -42,14 +42,13 @@ import qualified Commands.CommandExecution    as CE
 import qualified Commands.ProcessCommands     as PC
 import qualified Commands.Verify              as V
 import qualified Data.CSV                     as CSV
-import           Data.Either
 import qualified Data.List                    as L
 import qualified Data.Text.Lazy               as Text
 import qualified Data.Text.Short              as ST
 import           Data.Time.Clock
 import           Debug.Trace
 import           GeneralUtilities
-import qualified GitHash                      as GH
+import           Software.Metadata
 import qualified GraphFormatUtilities         as GFU
 import qualified GraphOptimization.Traversals as T
 import qualified Graphs.GraphOperations       as GO
@@ -59,7 +58,6 @@ import qualified Input.ReadInputFiles         as RIF
 import qualified Input.Reorganize             as R
 import qualified ParallelUtilities            as PU
 import           System.CPUTime
-import           System.Directory
 import           System.Environment
 import           System.IO
 -- import           System.Info
@@ -72,26 +70,15 @@ import qualified Utilities.Utilities          as U
 -- | main driver
 main :: IO ()
 main = do
-    -- get sompile and git hasjh info
-    let compileDate = (__DATE__ ++ " " ++ __TIME__)
-    -- this here since got replaced somehow one time
-    -- let compileDate = (__DATE__ ++ " " ++ __TIME__)
-
-    -- assumes compiling in git hub directory
-    {- Reads at run time --}
-    currentDirectory <- getCurrentDirectory
-    gitHomeDirectory <- GH.getGitRoot currentDirectory
-    let gitRootDirectory =  fromRight "Cannot determine git commit tag" gitHomeDirectory -- head $ rights [gitHomeDirectory]
-    gitInfo <- GH.getGitInfo gitRootDirectory -- "/home/ward/home/PhyGraph"
-    let gitCommitHashString = if not $ null $ lefts [gitInfo] then "Cannot determine git commit tag"
-                              else GH.giHash $ head $ rights [gitInfo]
-    
-
     -- splash info
-    let splash = "\nPhyG version " ++ pgVersion ++ "\nCopyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History\n"
-    let splash2 = "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be \nredistributed "
-    let splash3 = "\tunder the 3-Clause BSD License.\nCompiled " ++ compileDate
-    hPutStrLn stderr (splash ++ splash2 ++ splash3 ++ " Git commit: " ++ gitCommitHashString)
+    hPutStrLn stderr $ unlines
+        [ fullVersionInformation
+        , "Built at " <> timeOfCompilation
+        , ""
+        , "Copyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History"
+        , "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be"
+        , "redistributed under the 3-Clause BSD License."
+        ]
 
     -- Process arguments--a single file containing commands
     args <- getArgs
