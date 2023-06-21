@@ -653,7 +653,9 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
       in
       --trace ("SJG:" ++ (show (length edgesInBaseGraph, length unionEdgeList))) $
       -- regular swap
-      if isNothing inSimAnnealParams then
+      -- check on graph validity
+      if (LG.isEmpty splitGraph) then (curSameBetterList, inSimAnnealParams, 0)
+      else if isNothing inSimAnnealParams then
          -- only returns graphs if same of better else empty
          -- adds null o\r better graphs to reurn list
          if (not . null) newGraphList && (steepest swapParams) then (newGraphList', inSimAnnealParams, breakEdgeNumber)
@@ -1434,7 +1436,10 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
          ++ "\nOrig graph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph origGraph))
       -}
       -- trace ("reoptimizeSplitGraphFromVertex: " ++ (show splitGraphCost))
-      (fullSplitGraph, splitGraphCost)
+
+      -- check on graph validity
+      if (LG.isEmpty $ thd6 fullBaseGraph) ||  (LG.isEmpty $ thd6 fullPrunedGraph) then (LG.empty, infinity)
+      else (fullSplitGraph, splitGraphCost)
 
       -- )
 
@@ -1524,7 +1529,9 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
       in
       -- remove when working
       -- trace ("ROGFVIA split costs:" ++ (show (baseGraphCost, prunedGraphCost, localRootCost)) ++ " -> " ++ (show splitGraphCost)) (
-      if splitGraphCost == 0 then
+      -- check on graph validity
+      if (LG.isEmpty $ thd6 fullBaseGraph) ||  (LG.isEmpty $ thd6 fullPrunedGraph) then (LG.empty, infinity)
+      else if splitGraphCost == 0 then
          error ("Split costs:" ++ (show (baseGraphCost, prunedGraphCost)) ++ " -> " ++ (show splitGraphCost)
             ++ " Split graph simple:\n" ++ (LG.prettify splitGraphSimple)
             ++ "\nFull:\n" ++ (show inSplitGraph)

@@ -845,7 +845,8 @@ nodesAndEdgesBefore inGraph inNodeList = nodesAndEdgesBefore' inGraph ([],[]) in
 -- | getEdgeListAfter wrapper around nodesAndEdgesAfter to return only edges
 getEdgeListAfter :: (Eq a, Eq b,Show a) => (Gr a b, Node) -> [LEdge b]
 getEdgeListAfter (inGraph, inNode) =
-    snd $ nodesAndEdgesAfter inGraph [(inNode, fromJust $ lab inGraph inNode)]
+    if isEmpty inGraph then error "Input Graph is empty in getEdgeListAfter"
+    else snd $ nodesAndEdgesAfter inGraph [(inNode, fromJust $ lab inGraph inNode)]
 
 
 -- | nodesAndEdgesAfter' takes a graph and list of nodes to get list of nodes
