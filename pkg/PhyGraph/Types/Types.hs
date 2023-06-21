@@ -508,13 +508,28 @@ type SimpleGraph = LG.Gr NameText Double
 --        3) Decorated Graph with optimized vertex/Node data
 --        4) Vector of display trees for each data Block
 --                  root and vertex costs not updated in rerooting so cannot be trusted
---                  Each block can have multiple disdpaly trees so extra vector there
+--                  Each block can have multiple display trees so extra list there
 --        5) Vector of traversal foci for each character (Vector of Blocks -> Vector of Characters, a single tree for each character)
 --               vector is over blocks, then characters (could have have multiple for each character, but only single tracked here)
 --               only important for dynamic (ie non-exact) characters whose costs depend on traversal focus
 --               one graph per character
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [DecoratedGraph], V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
+
+
+-- | Type ReducedPhylogenticGraph is a graph 
+-- that has most of the information of a PhylogeneticGraph but does not have repeated 
+-- decorations.  The only lacking information is the traversal topologies of the charcter graphs (5th field of phylogenetic graph)
+-- the display tree field (4th) does not have decorations but only toplogy infomatin in form of SimpleGraph
+-- the purpose of the type is to remove the redundant decorations to 1/3 of what they are in PhylogeneticGraph
+--    Fields:
+--        1) "Simple" graph with fileds useful for outputting graphs
+--        2) Graph optimality value or cost
+--        3) Decorated Graph with optimized vertex/Node data
+--        4) Vector of display trees for each data Block as Simple Graphs
+--                  Each block can have multiple display trees so extra list there
+--        5) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
+type ReducedPhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [SimpleGraph],V.Vector (V.Vector CharInfo))
 
 
 -- | RawData type processed from input to be passed to characterData
