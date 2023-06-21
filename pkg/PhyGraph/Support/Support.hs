@@ -678,8 +678,7 @@ splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGr
       -- merge tuples
       newTupleList = mergeTupleLists rejoinTupleListList []
     in
-    if LG.isEmpty splitGraph then []
-    else newTupleList
+    newTupleList
 
 -- | rejoinGB rejoins split graph at specific edge, id SPR then that's it, if TBR reroot pruned subgraph
 -- splitGraph is SimpleGraph
@@ -812,8 +811,7 @@ getTBRSplitGraphs inGS splitGraph splitEdge =
           tbrGraphList = fmap (LG.insertDeleteEdges splitGraph) tbrEdits
 
       in
-      if LG.isEmpty splitGraph then tbrGraphList
-      else splitGraph : tbrGraphList
+      splitGraph : tbrGraphList
 
 -- | getTBREdits takes and edge and returns the list of edits to pruned subgraph
 -- as a pair of edges to add and those to delete
