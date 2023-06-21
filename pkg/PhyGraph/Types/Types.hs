@@ -662,6 +662,12 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
 emptyPhylogeneticGraph :: PhylogeneticGraph
 emptyPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty, V.empty)
 
+-- | emptyReducedPhylogeneticGraph specifies and empty phylogenetic graph
+-- important cost is infinity for filtering operations
+emptyReducedPhylogeneticGraph :: ReducedPhylogeneticGraph
+emptyReducedPhylogeneticGraph = (LG.empty, infinity, LG.empty, V.empty, V.empty)
+
+
 -- | emptycharacter useful for intialization and missing data
 emptyCharacter :: CharacterData
 emptyCharacter = CharacterData   { -- for non-additive

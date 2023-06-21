@@ -205,7 +205,7 @@ main = do
     -- Need to check data for equal in character number
     let naiveData = DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
 
-    -- Set reporting data for qualitative characaters to Naive data (usually but not is huge), empty if packed
+    -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
     let reportingData = if reportNaiveData partitionCharOptimalityGlobalSettings then
                              naiveData
                         else emptyProcessedData

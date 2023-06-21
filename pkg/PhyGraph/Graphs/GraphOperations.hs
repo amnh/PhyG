@@ -72,6 +72,8 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , isPhylogeneticDecoratedGraph
                                , parentsInChainGraph
                                , removeParentsInChain
+                               , convertPhylogeneticGraph2Reduced
+                               , convertReduced2PhylogeneticGraph
                                ) where
 
 import           Bio.DynamicCharacter
@@ -94,6 +96,36 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
+
+-- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
+convertPhylogeneticGraph2Reduced :: PhylogeneticGraph -> ReducedPhylogeneticGraph
+convertPhylogeneticGraph2Reduced inPhyloGraph@(a,b,c,displayTreeV,_,f) =
+  if inPhyloGraph == emptyPhylogeneticGraph then emptyReducedPhylogeneticGraph
+  else 
+    let newDisplayTreeV = fmap (fmap convertDecoratedToSimpleGraph) displayTreeV
+    in (a,b,c, newDisplayTreeV,f)
+
+-- | convertReduced2PhylogeneticGraph takes a reduced phylogenetic graph and returns a phylogenetiv graph
+convertReduced2PhylogeneticGraph :: ReducedPhylogeneticGraph -> PhylogeneticGraph 
+convertReduced2PhylogeneticGraph inReducedPhyloGraph@(a,b,canonicalGraph,displayTreeV,charInfoVV) =
+  if inReducedPhyloGraph == emptyReducedPhylogeneticGraph then emptyPhylogeneticGraph 
+  else 
+    let newDisplayTreeVL = fmap (getDecoratedDisplayTree canonicalGraph) $ V.zip displayTreeV $ V.fromList [0..(V.length charInfoVV - 1)]
+        newCharacterTreeVV = fmap getCharaterTree newDisplayTreeVL
+    in (a,b, canonicalGraph, newDisplayTreeVL, newCharacterTreeVV, charInfoVV)
+
+-- | getDecoratedDisplayTree takes a cononical graph and pair of list of display trees as ASimpleGraph and an index
+-- and creates a new display tree list from teh canonical infomation
+-- all display treelist nodes are assigned same decorations
+getDecoratedDisplayTree :: DecoratedGraph -> ([SimpleGraph], Int) -> [DecoratedGraph]
+getDecoratedDisplayTree inCanonicalGraph (inDisplayL, index) = []
+
+-- | getCharaterTree takes an input Decotate disply tree list and returns a vectopr of character trees
+-- based on teh first display tree in list
+getCharaterTree :: [DecoratedGraph] -> V.Vector DecoratedGraph
+getCharaterTree inDisplayL =
+  if null inDisplayL then error "Null display tree list in getCharaterTree"
+  else V.empty
 
 -- | isPhylogeneticDecoratedGraph checks various issues to see if
 -- there is wierdness in graph
