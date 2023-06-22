@@ -44,6 +44,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , showDecGraphs
                                , sortEdgeListByLength
                                , selectPhylogeneticGraph
+                               , selectGraphsFull
                                , getUniqueGraphs
                                , copyIAFinalToPrelim
                                , copyIAPrelimToFinal
@@ -74,6 +75,8 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , removeParentsInChain
                                , convertPhylogeneticGraph2Reduced
                                , convertReduced2PhylogeneticGraph
+                               , convertReduced2PhylogeneticGraphSimple
+                               , getDecoratedDisplayTreeList
                                ) where
 
 import           Bio.DynamicCharacter
@@ -104,6 +107,13 @@ convertPhylogeneticGraph2Reduced inPhyloGraph@(a,b,c,displayTreeV,_,f) =
   else 
     let newDisplayTreeV = fmap (fmap convertDecoratedToSimpleGraph) displayTreeV
     in (a,b,c, newDisplayTreeV,f)
+
+-- | convertReduced2PhylogeneticGraphSimple just adds in an empty fifth field
+convertReduced2PhylogeneticGraphSimple :: ReducedPhylogeneticGraph -> PhylogeneticGraph 
+convertReduced2PhylogeneticGraphSimple (a,b,c,d,f) =  
+  let newDisplayTreeV = fmap (fmap convertSimpleToDecoratedGraph) d
+  in
+  (a,b,c,newDisplayTreeV, mempty, f)
 
 -- | convertReduced2PhylogeneticGraph takes a reduced phylogenetic graph and returns a phylogenetiv graph
 convertReduced2PhylogeneticGraph :: ReducedPhylogeneticGraph -> PhylogeneticGraph 
@@ -691,9 +701,17 @@ showDecGraphs inDecVV =
     else
         concatMap concat (V.toList $ fmap ((V.toList . fmap LG.prettify) . fmap convertDecoratedToSimpleGraph) inDecVV)
 
--- | selectGraphs is a wrapper around selectPhylogeneticGraph with a better interface
-selectGraphs :: SelectGraphType -> Int -> Double -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-selectGraphs selectType numberToKeep threshold rSeed inGraphList
+-- | selectGraphs is a wrapper around selectGraphsFull for ReducedPhylogeneticGraph
+selectGraphs :: SelectGraphType -> Int -> Double -> Int -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
+selectGraphs selectType numberToKeep threshold rSeed inGraphList =
+  let fullPhyloGraphList = fmap convertReduced2PhylogeneticGraphSimple inGraphList
+      newFullGraphs = selectGraphsFull selectType numberToKeep threshold rSeed fullPhyloGraphList
+  in
+  fmap convertPhylogeneticGraph2Reduced newFullGraphs
+
+-- | selectGraphsFull is a wrapper around selectPhylogeneticGraph with a better interface
+selectGraphsFull :: SelectGraphType -> Int -> Double -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+selectGraphsFull selectType numberToKeep threshold rSeed inGraphList
   | null inGraphList = []
   | (selectType == AtRandom) && (rSeed == (-1)) = error "AtRandom selection without proper random seed value"
   | otherwise = let stringArgs

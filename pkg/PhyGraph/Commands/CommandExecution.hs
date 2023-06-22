@@ -86,12 +86,12 @@ executeCommands :: GlobalSettings
                 -> ProcessedData
                 -> ProcessedData
                 -> ProcessedData
-                -> [PhylogeneticGraph]
+                -> [ReducedPhylogeneticGraph]
                 -> [[VertexCost]]
                 -> [Int]
-                -> [PhylogeneticGraph]
+                -> [ReducedPhylogeneticGraph]
                 -> [Command]
-                -> IO ([PhylogeneticGraph], GlobalSettings, [Int], [PhylogeneticGraph])
+                -> IO ([ReducedPhylogeneticGraph], GlobalSettings, [Int], [ReducedPhylogeneticGraph])
 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList commandList = do
     if null commandList then return (curGraphs, globalSettings, seedList, supportGraphList)
     else do
@@ -112,6 +112,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
 
             executeCommands (globalSettings {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData (curGraphs ++ newGraphList) pairwiseDist (tail seedList) supportGraphList (tail commandList)
 
+        {-
         else if firstOption == Refine then do
             (elapsedSeconds, newGraphList) <- timeOp $ pure $ REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
 
@@ -208,7 +209,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let newSearchData = searchInfo : searchData globalSettings
 
             executeCommands (globalSettings {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
-
+        
         else if firstOption == Support then do
             (elapsedSeconds, newSupportGraphList) <- timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData (head seedList)  curGraphs
 
@@ -217,6 +218,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
 
             executeCommands (globalSettings {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist (tail seedList) (supportGraphList ++ newSupportGraphList) (tail commandList)
 
+        
         else if firstOption == Transform then do
             (elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) <- timeOp $ pure $ TRANS.transform firstArgs globalSettings origProcessedData processedData (head seedList) curGraphs
 
@@ -224,23 +226,23 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let newSearchData = searchInfo : searchData globalSettings
 
             executeCommands (newGS {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString newOrigData newProcessedData reportingData newGraphs pairwiseDist (tail seedList) supportGraphList (tail commandList)
-
+        -}
         else error ("Command " ++ show firstOption ++ " not recognized/implemented")
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
-makeSearchRecord :: Instruction -> [Argument] -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> Int -> String -> SearchData
+makeSearchRecord :: Instruction -> [Argument] -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph] -> Int -> String -> SearchData
 makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime comment =
     SearchData { instruction = firstOption
                , arguments = firstArgs
                , minGraphCostIn = if null curGraphs then infinity
-                                  else minimum $ fmap snd6 curGraphs
+                                  else minimum $ fmap snd5 curGraphs
                , maxGraphCostIn = if null curGraphs then infinity
-                                  else maximum $ fmap snd6 curGraphs
+                                  else maximum $ fmap snd5 curGraphs
                , numGraphsIn = length curGraphs
                , minGraphCostOut = if null newGraphList then infinity
-                                   else minimum $ fmap snd6 newGraphList
+                                   else minimum $ fmap snd5 newGraphList
                , maxGraphCostOut = if null newGraphList then infinity
-                                   else maximum $ fmap snd6 newGraphList
+                                   else maximum $ fmap snd5 newGraphList
                , numGraphsOut = length newGraphList
                , commentString = comment
                , duration = elapsedTime

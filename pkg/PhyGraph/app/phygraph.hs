@@ -264,12 +264,12 @@ main = do
     dataCPUTime <- getCPUTime
 
     -- Diagnose any input graphs
-    let inputGraphList = PU.seqParMap PU.myStrategy  (T.multiTraverseFullyLabelGraph initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    let inputGraphList = PU.seqParMap PU.myStrategy  (T.multiTraverseFullyLabelGraphReduced initialGlobalSettings optimizedData True True Nothing) (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime <- getCPUTime
     let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) = if null inputGraphList then (0, 0, infinity, infinity)
-                                                                else (fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime, length inputGraphList, minimum $ fmap snd6 inputGraphList, maximum $ fmap snd6 inputGraphList)
+                                                                else (fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime, length inputGraphList, minimum $ fmap snd5 inputGraphList, maximum $ fmap snd5 inputGraphList)
 
     let inputProcessingData   = emptySearchData {commentString = "Input and data processing", duration = fromIntegral dataCPUTime}
     let inputGraphProcessing  = emptySearchData {minGraphCostOut = minOutCost, maxGraphCostOut = maxOutCost, numGraphsOut = inGraphNumber, commentString = "Input graph processing", duration = inputGraphTime}

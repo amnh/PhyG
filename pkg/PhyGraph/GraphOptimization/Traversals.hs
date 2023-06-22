@@ -38,11 +38,15 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     , multiTraverseFullyLabelGraph
                                     , multiTraverseFullyLabelGraph'
                                     , multiTraverseFullyLabelSoftWired
+                                    , multiTraverseFullyLabelSoftWiredReduced
                                     , multiTraverseFullyLabelHardWired
+                                    , multiTraverseFullyLabelHardWiredReduced
                                     , checkUnusedEdgesPruneInfty
                                     , generalizedGraphPostOrderTraversal
                                     , updateGraphCostsComplexities
                                     , updatePhylogeneticGraphCost
+                                    , updatePhylogeneticGraphCostReduced
+                                    , multiTraverseFullyLabelGraphReduced
                                     ) where
 
 
@@ -58,6 +62,11 @@ import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
 import           Utilities.Utilities                           as U
 
+
+-- | multiTraverseFullyLabelGraphReduced wrapper to return ReducedPhylogeneticGraph
+multiTraverseFullyLabelGraphReduced :: GlobalSettings -> ProcessedData -> Bool -> Bool -> Maybe Int -> SimpleGraph -> ReducedPhylogeneticGraph
+multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex inGraph =
+    GO.convertPhylogeneticGraph2Reduced $ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph
@@ -87,8 +96,20 @@ multiTraverseFullyLabelGraph' :: GlobalSettings -> Bool -> Bool -> Maybe Int -> 
 multiTraverseFullyLabelGraph' inGS pruneEdges warnPruneEdges startVertex inData inGraph = multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
 
 
+-- | multiTraverseFullyLabelHardWiredReduced is a wrapper for ReducedPhylogeneticTrees
+multiTraverseFullyLabelHardWiredReduced :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> ReducedPhylogeneticGraph
+multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex inSimpleGraph = 
+    GO.convertPhylogeneticGraph2Reduced $ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph
+
+
 multiTraverseFullyLabelHardWired :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
 multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inSimpleGraph = multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph
+
+
+-- | multiTraverseFullyLabelSoftWiredReduced is a wrapper for ReducedPhylogeneticTrees
+multiTraverseFullyLabelSoftWiredReduced :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> ReducedPhylogeneticGraph
+multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph = 
+    GO.convertPhylogeneticGraph2Reduced $ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
 -- including traversal rootings-- does not reroot on network edges
@@ -325,3 +346,9 @@ updatePhylogeneticGraphCostList rootCost inGraphList =
 -- and returns Phylogenetic graph
 updatePhylogeneticGraphCost :: PhylogeneticGraph -> VertexCost -> PhylogeneticGraph
 updatePhylogeneticGraphCost (a, _, b, c, d, e) newCost = (a, newCost, b, c, d, e)
+
+-- | updatePhylogeneticGraphCost takes a ReducedPhylogeneticGraph and Double and replaces the cost (snd of 6 fields)
+-- and returns Phylogenetic graph
+updatePhylogeneticGraphCostReduced :: ReducedPhylogeneticGraph -> VertexCost -> ReducedPhylogeneticGraph
+updatePhylogeneticGraphCostReduced (a, _, b, c, e) newCost = (a, newCost, b, c, e)
+

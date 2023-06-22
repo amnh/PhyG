@@ -516,7 +516,6 @@ type SimpleGraph = LG.Gr NameText VertexCost
 --        6) Vector of Block Character Information (whihc is a Vector itself) required to properly optimize characters
 type PhylogeneticGraph = (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [DecoratedGraph], V.Vector (V.Vector DecoratedGraph), V.Vector (V.Vector CharInfo))
 
-
 -- | Type ReducedPhylogenticGraph is a graph 
 -- that has most of the information of a PhylogeneticGraph but does not have repeated 
 -- decorations.  The only lacking information is the traversal topologies of the charcter graphs (5th field of phylogenetic graph)
