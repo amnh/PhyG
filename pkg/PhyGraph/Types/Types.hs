@@ -106,7 +106,7 @@ data NodeType = RootNode | LeafNode | TreeNode | NetworkNode | In1Out1
     deriving stock (Show, Eq)
 
 -- | Edge types
-data EdgeType = NetworkEdge | TreeEdge | PendantEdge
+data EdgeType = NetworkEdge | TreeEdge | PendantEdge 
     deriving stock (Show, Eq, Ord)
 
 -- | Command type structure
@@ -493,7 +493,7 @@ type DecoratedGraph = LG.Gr VertexInfo EdgeInfo
 
 
 -- | type RawGraph is input graphs with leaf and edge labels
-type SimpleGraph = LG.Gr NameText Double
+type SimpleGraph = LG.Gr NameText VertexCost
 
 -- | Type phylogentic Graph is a graph with
 -- cost, optimality value,

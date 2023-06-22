@@ -110,22 +110,99 @@ convertReduced2PhylogeneticGraph :: ReducedPhylogeneticGraph -> PhylogeneticGrap
 convertReduced2PhylogeneticGraph inReducedPhyloGraph@(a,b,canonicalGraph,displayTreeV,charInfoVV) =
   if inReducedPhyloGraph == emptyReducedPhylogeneticGraph then emptyPhylogeneticGraph 
   else 
-    let newDisplayTreeVL = fmap (getDecoratedDisplayTree canonicalGraph) $ V.zip displayTreeV $ V.fromList [0..(V.length charInfoVV - 1)]
-        newCharacterTreeVV = fmap getCharaterTree newDisplayTreeVL
+    let newDisplayTreeVL = fmap (getDecoratedDisplayTreeList canonicalGraph) $ V.zip displayTreeV $ V.fromList [0..(V.length charInfoVV - 1)]
+        newCharacterTreeVV = fmap getCharacterTree $ V.zip (fmap head newDisplayTreeVL) (fmap V.length charInfoVV)
     in (a,b, canonicalGraph, newDisplayTreeVL, newCharacterTreeVV, charInfoVV)
 
--- | getDecoratedDisplayTree takes a cononical graph and pair of list of display trees as ASimpleGraph and an index
--- and creates a new display tree list from teh canonical infomation
--- all display treelist nodes are assigned same decorations
-getDecoratedDisplayTree :: DecoratedGraph -> ([SimpleGraph], Int) -> [DecoratedGraph]
-getDecoratedDisplayTree inCanonicalGraph (inDisplayL, index) = []
-
--- | getCharaterTree takes an input Decotate disply tree list and returns a vectopr of character trees
+-- | getCharacterTree takes an input Decotate disply tree list and returns a vectopr of character trees
 -- based on teh first display tree in list
-getCharaterTree :: [DecoratedGraph] -> V.Vector DecoratedGraph
-getCharaterTree inDisplayL =
-  if null inDisplayL then error "Null display tree list in getCharaterTree"
-  else V.empty
+getCharacterTree :: (DecoratedGraph, Int) -> V.Vector DecoratedGraph
+getCharacterTree (inDisplayTree, numCharTrees) =
+  if LG.isEmpty inDisplayTree then error "Empty display tree getCharaterTree"
+  else 
+    let displayNodeList = LG.labNodes inDisplayTree
+        displayEdgeList = LG.labEdges inDisplayTree
+        charNodeListList = fmap (makeCharacterNodes displayNodeList) [0.. numCharTrees - 1]
+    in
+    V.fromList $ zipWith LG.mkGraph charNodeListList (L.replicate numCharTrees displayEdgeList)
+
+-- | makeCharacterNodes makes character nodes from dispaly tree nodes 
+makeCharacterNodes :: [LG.LNode VertexInfo] -> Int -> [LG.LNode VertexInfo]
+makeCharacterNodes displayTreeNodeList charIndex =
+  if null displayTreeNodeList then error "Null node list in extractCharacterNodeInfo"
+  else  
+    fmap (extractCharNodeInfo charIndex) displayTreeNodeList
+
+-- | extractCharNodeInfo takes a charcter indfex and produces a node with newinfo of single block and single character
+extractCharNodeInfo :: Int -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+extractCharNodeInfo charIndex (a, cLabel) =
+  let charVertData = V.singleton $ V.singleton $ (V.head (vertData cLabel)) V.! charIndex
+      charVertexResolutionData = V.singleton $ V.singleton $ (V.head (vertexResolutionData cLabel)) V.! charIndex
+      newLabel = cLabel { vertData = charVertData
+                        , vertexResolutionData =  charVertexResolutionData}
+  in
+  (a, newLabel)
+
+-- | getDecoratedDisplayTreeList takes a cononical graph and pair of list of display trees as ASimpleGraph and an index
+-- and creates a new display tree list from the canonical infomation
+-- all display treelist nodes are assigned same decorations
+-- edge weights are not recalculated
+getDecoratedDisplayTreeList :: DecoratedGraph -> ([SimpleGraph], Int) -> [DecoratedGraph]
+getDecoratedDisplayTreeList inCanonicalGraph (inDisplayL, blockIndex) = 
+  if LG.isEmpty inCanonicalGraph then error "Empty canonical graph in getDecoratedDisplayTree"
+  else
+    -- get edges and nodes for canonical graph
+    let canNodList = LG.labNodes inCanonicalGraph
+        canEdgedList = LG.labEdges inCanonicalGraph
+        newNodeListList = fmap (makeDisplayNodes canNodList blockIndex) (fmap LG.nodes inDisplayL)
+        newDisplayEdgeList = fmap (makeDisplayEdges canEdgedList) inDisplayL
+    in
+    zipWith LG.mkGraph newNodeListList newDisplayEdgeList
+
+-- | makeDisplayNodes takes canincal node label data and pulls out specific block
+-- infomartion and cretes new nodes with single block data only
+-- assumes nodes have same indices
+makeDisplayNodes :: [LG.LNode VertexInfo] -> Int -> [LG.Node] -> [LG.LNode VertexInfo]
+makeDisplayNodes canonicalNodeList blockIndex inDisplayNodeList = 
+  if length canonicalNodeList /= length inDisplayNodeList then error "Canonical and display node lists are unequal in length"
+  else
+    fmap (extractBlockNodeInfo blockIndex) canonicalNodeList
+
+-- | extractBlockNodeInfo takes a single node and block inde and extracts block data to make a new, single block
+extractBlockNodeInfo :: Int -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+extractBlockNodeInfo blockIndex (a, cLabel) = 
+  let blockVertData = V.singleton $ (vertData cLabel) V.! blockIndex
+      blockVertexResolutionData = V.singleton $ (vertexResolutionData cLabel) V.! blockIndex
+      newLabel = cLabel { vertData = blockVertData
+                        , vertexResolutionData =  blockVertexResolutionData}
+  in
+  (a, newLabel)
+
+
+
+-- | makeDisplayEdges tcretes edges in display tree
+-- by taking corresponding edge in canonical tree
+-- edge weight info is not recalculated and is likely incorrect
+makeDisplayEdges :: [LG.LEdge EdgeInfo] -> SimpleGraph -> [LG.LEdge EdgeInfo]
+makeDisplayEdges canonicalEdgeList displayTree = 
+  let displayEdgeList = LG.labEdges displayTree
+  in fmap (copyLabelInfo canonicalEdgeList) displayEdgeList
+
+-- | copyLabelInfo finds corresponding edge (undirected) and takes relevant data from it to make new labelled edge
+copyLabelInfo :: [LG.LEdge EdgeInfo] -> LG.LEdge Double -> LG.LEdge EdgeInfo
+copyLabelInfo canonicalEdgeList displayEdge@(u,v,dl) =
+  if null canonicalEdgeList then error "Empty edge list in copyLabelInfo"
+  else 
+    let canonicalEdge = L.find (matchIndices displayEdge) canonicalEdgeList
+        newLabel = (thd3 $ fromJust canonicalEdge) { minLength      = dl
+                                                   , maxLength      = dl
+                                                   , midRangeLength = dl}
+    in
+    if isNothing canonicalEdge then error "Cannot find canonical edge in copyLabelInfo"
+    else (u,v, newLabel)
+    where matchIndices (a, b, _) (a', b', _) = if a == a' && b == b' then True
+                                                else if a == b' && b == a' then True
+                                                else False
 
 -- | isPhylogeneticDecoratedGraph checks various issues to see if
 -- there is wierdness in graph
