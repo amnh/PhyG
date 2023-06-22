@@ -178,8 +178,6 @@ extractBlockNodeInfo blockIndex (a, cLabel) =
   in
   (a, newLabel)
 
-
-
 -- | makeDisplayEdges tcretes edges in display tree
 -- by taking corresponding edge in canonical tree
 -- edge weight info is not recalculated and is likely incorrect
