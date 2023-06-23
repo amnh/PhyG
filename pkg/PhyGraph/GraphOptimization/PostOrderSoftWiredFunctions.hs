@@ -48,6 +48,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getW15NetPenalty
                                                       , getW15NetPenaltyFull
                                                       , getW23NetPenalty
+                                                      , getW23NetPenaltyReduced
                                                       , getW15RootCost
                                                       , getNetPenalty
                                                       , getNetPenaltyReduced
@@ -957,12 +958,41 @@ getW15NetPenalty startVertex inGraph =
         -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )))
         (sum $ blockPenaltyList) / divisor
 
+-- | getW23NetPenaltyReduced takes a ReducedPhylogeneticGraph tree and returns the network penalty of Wheeler and Washburn (2023)
+-- basic idea is new edge improvement must be better than average existing edge cost
+-- penalty for each added edge (unlike W15 which was on a block by block basis--and requires additional tree diagnoses)
+-- num extra edges/2 since actually add 2 new edges when one network edge
+-- requires resolution cache data structures
+getW23NetPenaltyReduced :: ReducedPhylogeneticGraph -> VertexCost
+getW23NetPenaltyReduced inGraph =
+    if LG.isEmpty $ thd5 inGraph then 0.0
+    else if LG.isTree $ fst5 inGraph then 0.0
+    else
+        let -- (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
+            bestTreeList =  V.toList $ fmap head $ fth5 inGraph
+            bestTreesEdgeList = L.nubBy LG.undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
+
+            -- leaf list for normalization
+            (_, leafList, _, _) = LG.splitVertexList (fst5 inGraph)
+            numLeaves = length leafList
+            numTreeEdges = 2.0 * (fromIntegral numLeaves) - 2.0
+            numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
+            -- divisor = numTreeEdges - numExtraEdges
+        in
+       --  trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
+        -- if divisor == 0.0 then infinity
+        -- else (sum blockPenaltyList) / divisor
+        -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
+        --else
+        (numExtraEdges * (snd5 inGraph)) / (2.0 * numTreeEdges)
+        -- )
+
 -- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler and Washburn (2023)
 -- basic idea is new edge improvement must be better than average existing edge cost
 -- penalty for each added edge (unlike W15 which was on a block by block basis--and requires additional tree diagnoses)
 -- num extra edges/2 since actually add 2 new edges when one network edge
 -- requires resolution cache data structures
-getW23NetPenalty ::PhylogeneticGraph -> VertexCost
+getW23NetPenalty :: PhylogeneticGraph -> VertexCost
 getW23NetPenalty inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
     else if LG.isTree $ fst6 inGraph then 0.0

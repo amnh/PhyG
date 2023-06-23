@@ -111,6 +111,12 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
             in
             (newSimpleGraph, inC, newDecGraph, inD, inE, inF)
 
+-- | collapseReducedGraph is a wrpper to collapseGraph
+collapseReducedGraph :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
+collapseReducedGraph (inSimple, inC, inDecorated, inD, inF) = 
+    let (newSimpleGraph, _, newDecGraph, _, _, _) = collapseGraph (inSimple, inC, inDecorated, mempty, mempty, inF)
+    in
+    (newSimpleGraph, inC, newDecGraph, inD, inF)
 
 -- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
 -- number of network nodes-assumes for now--single component gaph not forest

@@ -311,7 +311,7 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
 
 -- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
 -- updates NCM with roig data due to weights of bitpacking
-updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
 updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList =
     if optimalityCriterion inGS == Parsimony then inGraphList
 
@@ -325,7 +325,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                                  -- trace ("\t\tCannot update cost with original data--skipping")
                                  updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
                                else
-                                let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraph inGS reportingData False False Nothing) (fmap fst6 inGraphList)
+                                let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                 in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
         in updatedGraphList
 
@@ -337,10 +337,10 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
 
 
 -- | updatePhylogeneticGraphCostList is a list wrapper for updatePhylogeneticGraphCost
-updatePhylogeneticGraphCostList :: VertexCost -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+updatePhylogeneticGraphCostList :: VertexCost -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
 updatePhylogeneticGraphCostList rootCost inGraphList =
     fmap (updateCost rootCost) inGraphList
-    where updateCost z (a, oldCost, b, c, d, e) = (a, oldCost + z, b, c, d, e)
+    where updateCost z (a, oldCost, b, c, e) = (a, oldCost + z, b, c, e)
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph

@@ -44,6 +44,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , showDecGraphs
                                , sortEdgeListByLength
                                , selectPhylogeneticGraph
+                               , selectPhylogeneticGraphReduced
                                , selectGraphsFull
                                , getUniqueGraphs
                                , copyIAFinalToPrelim
@@ -109,7 +110,8 @@ convertPhylogeneticGraph2Reduced inPhyloGraph@(a,b,c,displayTreeV,_,f) =
     let newDisplayTreeV = fmap (fmap convertDecoratedToSimpleGraph) displayTreeV
     in (a,b,c, newDisplayTreeV,f)
 
--- | convertReduced2PhylogeneticGraphSimple just adds in an empty fifth field
+-- | convertReduced2PhylogeneticGraphSimple just adds in a correctly typed fifth field
+-- bit decorartions are not extractged
 convertReduced2PhylogeneticGraphSimple :: ReducedPhylogeneticGraph -> PhylogeneticGraph 
 convertReduced2PhylogeneticGraphSimple (a,b,c,d,f) =  
   let newDisplayTreeV = fmap (fmap convertSimpleToDecoratedGraph) d
@@ -744,6 +746,14 @@ selectGraphsFull selectType numberToKeep threshold rSeed inGraphList
                 take numberToKeep $ selectPhylogeneticGraph [stringArgs] rSeed [] inGraphList
 
 
+-- | selectPhylogeneticGraphReduced wrapper for ReducedPhylogeneticGraph
+-- inefficient in conversions
+selectPhylogeneticGraphReduced :: [Argument] -> Int -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
+selectPhylogeneticGraphReduced inArgs rSeed curGraphs =
+  let phylographList = fmap convertReduced2PhylogeneticGraph curGraphs
+      selectedPhylographs = selectPhylogeneticGraph inArgs rSeed [] phylographList 
+  in 
+  fmap convertPhylogeneticGraph2Reduced selectedPhylographs
 
 -- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
 -- and returns or filters that list based on options.

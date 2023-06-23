@@ -292,8 +292,8 @@ main = do
     let rediagnoseWithReportingdata = True
     let finalGraphList' = T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
 
-    let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd6 finalGraphList'
-    let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd6 finalGraphList'
+    let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd5 finalGraphList'
+    let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
 
 
     -- final results reporting to stderr
