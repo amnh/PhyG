@@ -55,6 +55,7 @@ module Bio.DynamicCharacter
   , unsafeCharacterBuiltByBufferedST
     -- * Rendering
   , renderDynamicCharacter
+  , removeGapAndNil
   ) where
 
 import           Control.Monad.Primitive
@@ -348,6 +349,22 @@ extractMediansLeft (lc,_,_)
     | otherwise  =
         let (# gap, nil #) = buildGapAndNil $ lc ! 0
         in  GV.filter (\e -> e /= gap && e /= nil) lc
+
+-- |
+-- Extract the  /ungapped/ medians used to construct the dynamic character.
+--
+-- Output medians will /not/ contain "gap" or "nil" states
+{-# INLINEABLE removeGapAndNil #-}
+{-# SPECIALISE removeGapAndNil :: SV.Vector SlimState -> SV.Vector SlimState #-}
+{-# SPECIALISE removeGapAndNil :: UV.Vector WideState -> UV.Vector WideState #-}
+{-# SPECIALISE removeGapAndNil :: V.Vector HugeState ->  V.Vector HugeState #-}
+removeGapAndNil :: (FiniteBits e, Vector v e) => v e -> v e
+removeGapAndNil rc
+    | GV.null rc = rc
+    | otherwise  =
+        let (# gap, nil #) = buildGapAndNil $ rc ! 0
+        in  GV.filter (\e -> e /= gap && e /= nil) rc
+
 
 
 -- |

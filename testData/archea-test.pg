@@ -8,7 +8,7 @@ read("archea_ssu_585_aln.fas")
 -- set optimization parameters
 --report("../data/Archea/Achea.csv", data, overwrite)
 --set(graphssteepest:100)
-build(distance, replicates:10, rdwag)
+build(distance, replicates:1, rdwag)
 
 --build(replicates:1)
 

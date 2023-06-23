@@ -680,7 +680,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
          in
          -- trace ("SPOT: " ++ (show rootIndex))
          -- this is a hack due to missing nodes in some character trees--perhpas issue with postorder resolutions?
-         if LG.isEmpty canonicalGraph then emptyPhylogeneticGraph
+         if LG.isEmpty newCanonicalGraph then emptyPhylogeneticGraph
          else (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) traceBackDisplayTreeV, traceBackCharTreeVV, f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
@@ -846,6 +846,8 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
         -- update BV vector of unModified nodes?
     in
     --trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
+
+    -- this is a hack if graph is imporper--not sure why htis happens yet
     if (not $ allSameLength blockTreeNodeLabelsVV) then 
         -- trace ("BPTCG: " ++ (show (fmap length blockTreeNodeLabelsVV)))
         LG.empty
