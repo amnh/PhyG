@@ -13,6 +13,16 @@ The changelog is available [on GitHub][2].
 
   * Major codebase layout rearchitecting
 
+  * Added command line options
+
+    - `--credits` To list financial and technical contributors
+
+    - `--license` Emits the license under which the software is distributed
+
+    - `--splash` A nice ASCII art title "splash screen"
+
+    - `--version` Outputs the software version, commit hash, and compilation timestamp
+
   * Corrected defect in median extraction from preliminary contexts
 
 
