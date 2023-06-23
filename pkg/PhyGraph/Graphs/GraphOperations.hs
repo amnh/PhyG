@@ -66,6 +66,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , getNodeType
                                , getDisplayTreeCostList
                                , phylogeneticGraphListMinus
+                               , reducedphylogeneticGraphListMinus
                                , makeLeafGraph
                                , makeSimpleLeafGraph
                                , selectGraphs
@@ -267,13 +268,31 @@ parentsInChainVertex inGraph inNode =
         False
 
 
+
+
+-- | ReducedphylogeneticGraphListMinus subtracts teh secoind argiument list from first
+-- if an element is multiple times in firt list each will be removed
+-- equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
+-- does not take cost into account--or edge weight--only topology.
+-- result like (minuendList - subtrahendList)
+reducedphylogeneticGraphListMinus :: [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
+reducedphylogeneticGraphListMinus minuendList subtrahendList
+  | null minuendList = []
+  | null subtrahendList = minuendList
+  | otherwise = let minuendSimpleStringList = fmap (LG.prettyIndices . fst5) minuendList
+                    subtrahendSinpleStringList = fmap (LG.prettyIndices . fst5) subtrahendList
+                    inSubtrahendList = fmap (`elem` subtrahendSinpleStringList) minuendSimpleStringList
+                    differenceList = fmap fst $ filter (not . snd) $ zip minuendList inSubtrahendList
+                in
+                differenceList
+
 -- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
 -- if an element is multiple times in firt list each will be removed
 -- equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
 -- does not take cost into account--or edge weight--only topology.
 -- result like (minuendList - subtrahendList)
 phylogeneticGraphListMinus :: [PhylogeneticGraph] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-phylogeneticGraphListMinus minuendList subtrahendList
+phylogeneticGraphListMinus minuendList subtrahendList 
   | null minuendList = []
   | null subtrahendList = minuendList
   | otherwise = let minuendSimpleStringList = fmap (LG.prettyIndices . fst6) minuendList

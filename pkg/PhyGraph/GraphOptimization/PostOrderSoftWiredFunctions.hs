@@ -50,6 +50,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getW23NetPenalty
                                                       , getW15RootCost
                                                       , getNetPenalty
+                                                      , getNetPenaltyReduced
                                                       ) where
 
 import           Data.Bits
@@ -861,6 +862,11 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
               | otherwise = medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
         in
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
+
+-- | getNetPenaltyReduced returns appropriate network penalty for a reduced graph
+getNetPenaltyReduced :: GlobalSettings -> ProcessedData -> ReducedPhylogeneticGraph -> VertexCost
+getNetPenaltyReduced  inGS inData inGraph =
+    getNetPenalty inGS inData (GO.convertReduced2PhylogeneticGraph inGraph)
 
 -- | getNetPenalty returns appropriate network penalty
 getNetPenalty :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> VertexCost
