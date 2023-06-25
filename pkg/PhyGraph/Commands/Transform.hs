@@ -191,7 +191,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             errorWithoutStackTrace ("Multiple staticApprox/Dynamic transform commands--can only have one : " ++ (show inArgs))
         else if atRandom && chooseFirst then
             errorWithoutStackTrace ("Multiple display tree choice commands in transform (first, atRandom)--can only have one : " ++ (show inArgs))
-        else if (toTree || toSoftWired || toHardWired) && (toDynamic || toDynamic) then
+        else if (toTree || toSoftWired || toHardWired) && (toDynamic || toStaticApprox) then
             errorWithoutStackTrace ("Multiple transform operations in transform (e.g. toTree, staticApprox)--can only have one at a time: " ++ (show inArgs))
         else
             let pruneEdges = False
