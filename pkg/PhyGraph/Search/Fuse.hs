@@ -54,6 +54,8 @@ import qualified Search.Swap                                   as S
 import           Types.Types
 import qualified Utilities.LocalGraph                          as LG
 
+-- In general, needs simolification and refactoring
+
 -- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 -- later--could limit by options making random choices for fusing
 -- keeps results according to options (best, unique, etc)
@@ -206,6 +208,7 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
 -- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
 -- pruned subgraphs with the same leaf complement (as recorded by the subtree root node bit vector field)
 -- spr-like and tbr-like readds can be performed as with options
+-- needs simolification and refactoring
 fusePair :: SwapParams 
          -> GlobalSettings
          -> ProcessedData
