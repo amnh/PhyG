@@ -1106,7 +1106,7 @@ tbrJoin :: SwapParams
         -> ([ReducedPhylogeneticGraph], Maybe SAParams)
 tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge =
    
-   -- this is for networks stopping TBR rearrangements with there are nwetowrk edegs incolved in pruned part of graph
+   -- this is for networks stopping TBR rearrangements with there are network edegs involved in pruned part of graph
    let hasNetEdges = if graphType inGS == Tree then False 
                      else null $ filter ((== True) . LG.isNetworkLabEdge splitGraph) edgesInPrunedGraph
 
@@ -1209,7 +1209,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
          -- simulated annealing/Drift stuff
          -- based on steepest type swapping
-         else
+      else
             -- trace ("TBR SA/Drift") (
             let -- to not overload paralle threads
                 {-  This not so efficient is swapping in single graphs so leaving it be
