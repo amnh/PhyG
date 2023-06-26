@@ -34,43 +34,61 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE CPP #-}
+{-# Language CPP #-}
+{-# Language ImportQualifiedPost #-}
 
 module Main (main) where
 
-import qualified Commands.CommandExecution    as CE
-import qualified Commands.ProcessCommands     as PC
-import qualified Commands.Verify              as V
-import qualified Data.CSV                     as CSV
-import qualified Data.List                    as L
-import qualified Data.Text.Lazy               as Text
-import qualified Data.Text.Short              as ST
-import           Data.Time.Clock
-import           Debug.Trace
-import           GeneralUtilities
-import           Software.Metadata
-import qualified GraphFormatUtilities         as GFU
-import qualified GraphOptimization.Traversals as T
-import qualified Graphs.GraphOperations       as GO
-import qualified Input.BitPack                as BP
-import qualified Input.DataTransformation     as DT
-import qualified Input.ReadInputFiles         as RIF
-import qualified Input.Reorganize             as R
-import qualified ParallelUtilities            as PU
-import           System.CPUTime
-import           System.Environment
-import           System.IO
--- import           System.Info
-import           Types.Types
-import qualified Utilities.Distances          as D
-import qualified Utilities.LocalGraph         as LG
-import qualified Utilities.Utilities          as U
--- import           GHC.Stats
+import CommandLineOptions
+import Commands.CommandExecution qualified as CE
+import Commands.ProcessCommands qualified as PC
+import Commands.Verify qualified as V
+import Data.CSV qualified as CSV
+import Data.List qualified as L
+--import Data.Either (either)
+import Data.Text.Lazy qualified as Text
+import Data.Text.Short qualified as ST
+import Data.Time.Clock
+import Debug.Trace
+import GeneralUtilities
+import GraphFormatUtilities qualified as GFU
+import GraphOptimization.Traversals qualified as T
+import Graphs.GraphOperations qualified as GO
+import Input.BitPack qualified as BP
+import Input.DataTransformation qualified as DT
+import Input.ReadInputFiles qualified as RIF
+import Input.Reorganize qualified as R
+import ParallelUtilities qualified as PU
+import System.CPUTime
+import System.IO
+import Types.Types
+import Utilities.Distances qualified as D
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
 
--- | main driver
+-- import System.Info
+-- import GHC.Stats
+
+
+{- |
+Main entry point
+-}
 main :: IO ()
 main = do
-    -- splash info
+    hSetEncoding stdout utf8
+    hSetEncoding stderr utf8
+    opts <- getArgsCLI <$> parseCommandLineOptions
+    either printInformationDisplay performSearch opts
+
+
+{- |
+Perform pyhlogenetic search using the supplied input file.
+-}
+performSearch :: FilePath -> IO ()
+performSearch inputFilePath = do
+{-
+Some or all of this old preamble can probably be omitted now:
+
     hPutStrLn stderr $ unlines
         [ fullVersionInformation
         , "Built at " <> timeOfCompilation
@@ -79,13 +97,9 @@ main = do
         , "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be"
         , "redistributed under the 3-Clause BSD License."
         ]
+-}
 
-    -- Process arguments--a single file containing commands
-    args <- getArgs
-
-    if length args /= 1 then errorWithoutStackTrace "\nProgram requires a single argument--the name of command script file.\n\n"
-    else hPutStr stderr "\nCommand script file: "
-    hPutStrLn stderr $ head args
+    hPutStr stderr $ "\nCommand script file: '" <> inputFilePath <> "'"
 
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
@@ -96,7 +110,7 @@ main = do
     let seedList = randomIntList timeD
 
     -- Process commands to get list of actions
-    commandContents <- readFile $ head args
+    commandContents <- readFile inputFilePath
 
     -- Process run commands to create one list of things to do
     commandContents' <- PC.expandRunCommands [] (lines commandContents)
@@ -313,5 +327,3 @@ main = do
         ++ "\n\tCPU time " ++ show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0) ++ " second(s)"
         ++ "\n\tCPU usage " ++ show (floor (100.0 * cpuUsage) :: Integer) ++ "%"
         )
-
-    
