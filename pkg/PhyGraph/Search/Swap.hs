@@ -283,8 +283,9 @@ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBett
          -- check if found additional
          else if tbrBestCost == sprBestCost then
             let bestTBRGraphs = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) tbrGraphs
-                newTBRGraphs = bestTBRGraphs `GO.reducedphylogeneticGraphListMinus` sprGraphs 
+                newTBRGraphs = bestTBRGraphs `GO.reducedphylogeneticGraphListMinus` (sprGraphs ++ curSameBetterList)
             in
+            
             if (not . null) newTBRGraphs && (length bestTBRGraphs < keepNum swapParams) then
                swapAll swapParams inGS inData (drop 3 randomIntListSwap) tbrCounter tbrBestCost tbrGraphs newTBRGraphs numLeaves netPenaltyFactor tbrSAPArams
 
@@ -437,8 +438,11 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
 
          -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
          else
+            let newBestGraph = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (newGraphList ++ curSameBetterList)
+                graphsToDo  = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1)  $ (newGraphList ++ (tail inGraphList)) `GO.reducedphylogeneticGraphListMinus` curSameBetterList
+            in
             -- traceNoLF ("[" ++ (show $ length (newGraphList ++ (tail inGraphList))) ++ "]")
-            swapAll' swapParams inGS inData randomIntListSwap (counter + 1) curBestCost (newGraphList ++ curSameBetterList) (newGraphList ++ (tail inGraphList))  numLeaves netPenaltyFactor breakEdgeNumber newSAParams
+            swapAll' swapParams inGS inData randomIntListSwap (counter + 1) curBestCost newBestGraph graphsToDo numLeaves netPenaltyFactor breakEdgeNumber newSAParams
 
       --)
 
