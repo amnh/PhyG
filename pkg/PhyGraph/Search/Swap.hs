@@ -1347,6 +1347,7 @@ getTBREdgeEditsSimple inGraph prunedGraphRootIndex rerootEdge =
 -- if doIA is TRUE then call function that onl;y optimizes the IA assignments on the "original graph" after split.
 -- this keeps teh IA chracters in sync across the two graphs
 -- NB uses PhylogeneticGraph internally
+-- This should return infinity for split graph cost if either component is emptyGraph
 reoptimizeSplitGraphFromVertex :: GlobalSettings
                                -> ProcessedData
                                -> Bool

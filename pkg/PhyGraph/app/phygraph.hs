@@ -98,7 +98,6 @@ Some or all of this old preamble can probably be omitted now:
         , "redistributed under the 3-Clause BSD License."
         ]
 -}
-
     hPutStr stderr $ "\nCommand script file: '" <> inputFilePath <> "'"
 
     -- System time for Random seed
