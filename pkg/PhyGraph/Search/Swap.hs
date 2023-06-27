@@ -1375,8 +1375,8 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
           calcBranchLengths = False
 
           -- this for multitravers in swap for softwired to turn off
-          multiTraverse = if graphType inGS == Tree then multiTraverseCharacters inGS
-                         else False
+          multiTraverse = if graphType inGS /= HardWired then multiTraverseCharacters inGS
+                          else False
 
           -- create simple graph version of split for post order pass
           splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
@@ -1440,7 +1440,8 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
          ++ "\nOrig graph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph origGraph))
       -}
       -- trace ("reoptimizeSplitGraphFromVertex: " ++ (show splitGraphCost))
-      (fullSplitGraph, splitGraphCost)
+      if prunedCost == infinity || (snd6 fullBaseGraph) == infinity then (LG.empty, infinity)
+      else (fullSplitGraph, splitGraphCost)
 
       -- )
 
