@@ -656,8 +656,12 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
           newGraphList' = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) newGraphList
       in
       --trace ("SJG:" ++ (show (length edgesInBaseGraph, length unionEdgeList))) $
+
+      --check for malformed network split--do nothing if malformed
+      if splitCost == infinity then ([], inSimAnnealParams, breakEdgeNumber)
+
       -- regular swap
-      if isNothing inSimAnnealParams then
+      else if isNothing inSimAnnealParams then
          -- only returns graphs if same of better else empty
          -- adds null o\r better graphs to reurn list
          if (not . null) newGraphList && (steepest swapParams) then (newGraphList', inSimAnnealParams, breakEdgeNumber)
@@ -1532,7 +1536,8 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
       in
       -- remove when working
       -- trace ("ROGFVIA split costs:" ++ (show (baseGraphCost, prunedGraphCost, localRootCost)) ++ " -> " ++ (show splitGraphCost)) (
-      if splitGraphCost == 0 then
+      if prunedGraphCost == infinity || baseGraphCost == infinity then (LG.empty, infinity)
+      else if splitGraphCost == 0 then
          error ("Split costs:" ++ (show (baseGraphCost, prunedGraphCost)) ++ " -> " ++ (show splitGraphCost)
             ++ " Split graph simple:\n" ++ (LG.prettify splitGraphSimple)
             ++ "\nFull:\n" ++ (show inSplitGraph)
