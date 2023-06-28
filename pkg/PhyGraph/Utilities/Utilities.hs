@@ -72,8 +72,8 @@ import qualified Utilities.LocalGraph        as LG
 -- done recusively until no minLength == zero edges so edges renumbered properly
 -- network edges, pendant edges and root edges, are not collapsed
 -- this wierd thype is to allow for polymorphism in graph type--basiclly a general phylogenetic graph
-collapseGraph :: (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)) 
-                 -> (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))
+collapseGraph :: GenPhyloGraph a b 
+                 -> GenPhyloGraph a b
 collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
     if LG.isEmpty inSimple then inPhylograph
     else

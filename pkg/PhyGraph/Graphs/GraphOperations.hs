@@ -741,8 +741,8 @@ selectGraphsFull :: SelectGraphType
                  -> Int 
                  -> Double 
                  -> Int 
-                 -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))] 
-                 -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))]
+                 -> [GenPhyloGraph a b] 
+                 -> [GenPhyloGraph a b]
 -- selectGraphsFull :: SelectGraphType -> Int -> Double -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
 selectGraphsFull selectType numberToKeep threshold rSeed inGraphList
   | null inGraphList = []
@@ -773,8 +773,8 @@ selectPhylogeneticGraphReduced inArgs rSeed curGraphs =
 selectPhylogeneticGraph :: [Argument] 
                         -> Int 
                         -> [String] 
-                        -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))] 
-                        -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))]
+                        -> [GenPhyloGraph a b] 
+                        -> [GenPhyloGraph a b]
 selectPhylogeneticGraph inArgs rSeed _ curGraphs =
     if null curGraphs then []
     else
@@ -852,8 +852,8 @@ selectPhylogeneticGraph inArgs rSeed _ curGraphs =
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
 -- maybe chnge to nub LG.pretify graphList?
 getUniqueGraphs :: Bool 
-                -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))] 
-                -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))]
+                -> [GenPhyloGraph a b] 
+                -> [GenPhyloGraph a b]
 getUniqueGraphs removeZeroEdges inGraphList =
   if null inGraphList then []
   else
@@ -868,14 +868,14 @@ getUniqueGraphs removeZeroEdges inGraphList =
 -- need to add a collapse function for compare as well
 -- takes pairs of (noCollapsed, collapsed) phylogenetic graphs,
 -- make strings based on collapsed and returns not collpased
-getUniqueGraphs'' :: [((SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)), (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)))] 
-                  -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))]
+getUniqueGraphs'' :: [(GenPhyloGraph a b, GenPhyloGraph a b)] 
+                  -> [GenPhyloGraph a b]
 getUniqueGraphs'' = nubGraph []
 
 -- | isNovelGraph  checks if a graph is in list of existing graphs
 -- uses colapsed representation
-isNovelGraph :: [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))] 
-             -> (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)) 
+isNovelGraph :: [GenPhyloGraph a b] 
+             -> GenPhyloGraph a b 
              -> Bool
 isNovelGraph graphList testGraph =
   null graphList || (let collapsedInGraph = (LG.prettyIndices . fst6 . U.collapseGraph) testGraph
@@ -889,9 +889,9 @@ isNovelGraph graphList testGraph =
 -- String prettyIndices w/0 HTU names and branch lengths
 -- arbitrarily rooted on 0 for oonsistency
 --reversed to keep original order in case sorted on length
-nubGraph :: [((SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)), (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)), String)] 
-         -> [((SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)), (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)))] 
-         -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))]
+nubGraph :: [(GenPhyloGraph a b, GenPhyloGraph a b, String)] 
+         -> [(GenPhyloGraph a b, GenPhyloGraph a b)] 
+         -> [GenPhyloGraph a b]
 nubGraph curList inList =
   if null inList then reverse $ fmap fst3 curList
   else
@@ -911,9 +911,9 @@ nubGraph curList inList =
     -- )
 
 -- | getUniqueGraphs takes each pair of non-zero edges and compares them--if equal not added to list
-getUniqueGraphs' :: [([LG.LEdge EdgeInfo], (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)))] 
-                 -> [([LG.LEdge EdgeInfo], (SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo)))]  
-                 -> [(SimpleGraph, VertexCost, DecoratedGraph, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))]
+getUniqueGraphs' :: [([LG.LEdge EdgeInfo], GenPhyloGraph a b)] 
+                 -> [([LG.LEdge EdgeInfo], GenPhyloGraph a b)]  
+                 -> [GenPhyloGraph a b]
 getUniqueGraphs' inGraphPairList currentUniquePairs =
     if null inGraphPairList then fmap snd currentUniquePairs
     else
