@@ -332,6 +332,7 @@ Executable phyg
     Software.License
     Software.Metadata
     Software.Metadata.TimeStamp
+    Software.Preamble
     Software.SplashImage
     Support.Support
     System.Timing
