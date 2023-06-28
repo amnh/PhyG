@@ -1,9 +1,9 @@
-Phylogenetic Haskell Analytic Graph Engine (PHAGE)
-==================================================
+Phylogenetic Haskell Analytic Network Engine (PHANE)
+====================================================
 
 # Changelog
 
-PHAGE uses [Semantic Versioning (v2.0.0)][1].
+PHANE uses [Semantic Versioning (v2.0.0)][1].
 The changelog is available [on GitHub][2].
 
 
@@ -31,8 +31,8 @@ The changelog is available [on GitHub][2].
 
 ## `v0.1.0`
 
-  * Initial "alpha" state of PHAGE domain
+  * Initial "alpha" state of PHANE domain
 
 
 [1]: https://semver.org/spec/v2.0.0.html
-[2]: https://github.com/wardwheeler/PhyGraph/blob/main/doc/CHANGELOG.md
+[2]: https://github.com/wardwheeler/PhyGraph/blob/main/doc/Changelog.md

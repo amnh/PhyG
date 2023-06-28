@@ -61,7 +61,7 @@ nameExpansion = fromString . getNameExpansion
 Name of the larger software project.
 -}
 projectName :: AbreviatedName
-projectName = "PHAGE" `AbbreviationOf` "Phylogenetic Haskell Analytic Graph Engine"
+projectName = "PHANE" `AbbreviationOf` "Phylogenetic Haskell Analytic Network Engine"
 
 
 {- |

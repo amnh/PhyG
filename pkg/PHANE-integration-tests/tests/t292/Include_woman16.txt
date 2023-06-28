@@ -1,0 +1,16 @@
+AlbanianTosk
+Yiddish
+ArmenianWestern
+EasternFrisianSaterland
+KolschColognian
+AncientIonicGreek
+SanskritVedic
+Irish
+Assamese
+OldPrussian
+Scots
+Faroese
+Danish
+Icelandic
+Cornish
+Manx

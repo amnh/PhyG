@@ -1,10 +1,10 @@
 ---------------------------------------------------------------------------------
--- Domain of PHAGE packages
---   * PHAGE-integration-tests
+-- Domain of PHANE packages
+--   * PHANE-integration-tests
 ---------------------------------------------------------------------------------
 
 packages:
-    pkg/PHAGE-integration-tests
+    pkg/PHANE-integration-tests
     pkg/PhyGraph
     pkg/PhyloLib
     pkg/*/*.cabal
@@ -79,7 +79,7 @@ package *
 
 
 -- Applies to *only* the specified package!
-package PHAGE-integration-tests
+package PHANE-integration-tests
     benchmarks:        False
     documentation:     False
     tests:             False

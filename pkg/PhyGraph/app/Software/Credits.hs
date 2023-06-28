@@ -38,7 +38,7 @@ contributors =
 
 
 {- |
-List of authors who have contributed to the PHAGE project.
+List of authors who have contributed to the PHANE project.
 -}
 authorsList :: Q Builder
 authorsList =
@@ -61,7 +61,7 @@ authorsList =
 
 
 {- |
-List of funding sources which have contributed to PHAGE project.
+List of funding sources which have contributed to PHANE project.
 -}
 fundingList :: Q Builder
 fundingList =
