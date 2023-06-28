@@ -46,6 +46,8 @@ import Commands.Verify qualified as V
 import Data.CSV qualified as CSV
 import Data.List qualified as L
 --import Data.Either (either)
+import Data.Text.IO qualified as TIO
+import Data.Text.Builder.Linear
 import Data.Text.Lazy qualified as Text
 import Data.Text.Short qualified as ST
 import Data.Time.Clock
@@ -59,6 +61,7 @@ import Input.DataTransformation qualified as DT
 import Input.ReadInputFiles qualified as RIF
 import Input.Reorganize qualified as R
 import ParallelUtilities qualified as PU
+import Software.Preamble
 import System.CPUTime
 import System.IO
 import Types.Types
@@ -82,23 +85,12 @@ main = do
 
 
 {- |
-Perform pyhlogenetic search using the supplied input file.
+Perform phylogenetic search using the supplied input file.
 -}
 performSearch :: FilePath -> IO ()
 performSearch inputFilePath = do
-{-
-Some or all of this old preamble can probably be omitted now:
-
-    hPutStrLn stderr $ unlines
-        [ fullVersionInformation
-        , "Built at " <> timeOfCompilation
-        , ""
-        , "Copyright(C) 2022-2023 Ward Wheeler and The American Museum of Natural History"
-        , "PhyG comes with ABSOLUTELY NO WARRANTY; This is free software, and may be"
-        , "redistributed under the 3-Clause BSD License."
-        ]
--}
-
+    printProgramPreamble
+  
     hPutStr stderr $ "\nCommand script file: '" <> inputFilePath <> "'"
 
     -- System time for Random seed
@@ -327,3 +319,7 @@ Some or all of this old preamble can probably be omitted now:
         ++ "\n\tCPU time " ++ show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0) ++ " second(s)"
         ++ "\n\tCPU usage " ++ show (floor (100.0 * cpuUsage) :: Integer) ++ "%"
         )
+
+
+printProgramPreamble :: IO ()
+printProgramPreamble = preambleText >>= TIO.hPutStrLn stderr . runBuilder 
