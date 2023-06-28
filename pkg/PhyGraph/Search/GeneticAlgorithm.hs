@@ -72,8 +72,8 @@ geneticAlgorithm :: GlobalSettings
                  -> Int
                  -> Int
                  -> Int
-                 -> [PhylogeneticGraph]
-                 -> ([PhylogeneticGraph], Int)
+                 -> [ReducedPhylogeneticGraph]
+                 -> ([ReducedPhylogeneticGraph], Int)
 geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
     if null inGraphList then ([], 0)
     else if generationCounter == generations then  (inGraphList, generationCounter)
@@ -131,16 +131,16 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             -- selection of graphs population
             -- unique sorted on cost so getting unique with lowest cost
             selectedGraphs = GO.selectGraphs Unique popSize 0.0 (-1) recombinedGraphList
-            newCost = snd6 $ head selectedGraphs
+            newCost = snd5 $ head selectedGraphs
 
         in
         {-
-        trace ("\tGA " ++ (show $ snd6 $ head initialEliteList) ++ " -> " ++ (show newCost) ++ "\nInGraphs " ++ (show $ L.sort $ fmap snd6 inGraphList)
-            ++ "\nMutated " ++ (show $  L.sort $ fmap snd6 mutatedGraphList)
-            ++ "\nRecombined " ++ recombineSwap ++ " " ++ (show $  L.sort $ fmap snd6 recombinedGraphList)) (
+        trace ("\tGA " ++ (show $ snd5 $ head initialEliteList) ++ " -> " ++ (show newCost) ++ "\nInGraphs " ++ (show $ L.sort $ fmap snd5 inGraphList)
+            ++ "\nMutated " ++ (show $  L.sort $ fmap snd5 mutatedGraphList)
+            ++ "\nRecombined " ++ recombineSwap ++ " " ++ (show $  L.sort $ fmap snd5 recombinedGraphList)) (
         -}
         -- if new graphs better cost then take those
-        if newCost < (snd6 $ head initialEliteList) then
+        if newCost < (snd5 $ head initialEliteList) then
             geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations 0 stopNum selectedGraphs
 
         -- if new graphs not better then add in elites to ensure monotonic decrease in cost
@@ -151,9 +151,9 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
         )
 
 -- | mutateGraph mutates a graph using drift functionality
-mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
 mutateGraph inGS inData maxNetEdges rSeed inGraph =
-    if LG.isEmpty (fst6 inGraph) then error "Empty graph in mutateGraph"
+    if LG.isEmpty (fst5 inGraph) then error "Empty graph in mutateGraph"
     else
         let joinType = JoinAll -- keep selection of rejoins based on all possibilities
             atRandom = True -- randomize split and rejoin edge orders
@@ -203,7 +203,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         in
 
         -- only swap mutation stuff for tree
-        if graphType inGS == Tree || (LG.isTree (fst6 inGraph) && netEditType /= "netadd") then
+        if graphType inGS == Tree || (LG.isTree (fst5 inGraph) && netEditType /= "netadd") then
             -- trace ("1")
             let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph][(randList, inSimAnnealParams, inGraph)]
             in

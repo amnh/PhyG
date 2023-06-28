@@ -390,9 +390,9 @@ executeRenameReblockCommands thisInStruction curPairs commandList  =
 
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices
-getGraphDiagnosis :: GlobalSettings -> ProcessedData -> (PhylogeneticGraph, Int) -> [[String]]
+getGraphDiagnosis :: GlobalSettings -> ProcessedData -> (ReducedPhylogeneticGraph, Int) -> [[String]]
 getGraphDiagnosis _ inData (inGraph, graphIndex) =
-    let decGraph = thd6 inGraph
+    let decGraph = thd5 inGraph
     in
     if LG.isEmpty decGraph then []
     else
@@ -405,10 +405,10 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
             vertexTitle = ["Vertex Character State Information"]
             -- topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
             topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Final State"]
-            vertexInfoList =  concatMap (getVertexCharInfo useDO (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
+            vertexInfoList =  concatMap (getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
 
             -- this using IA fields to get changes
-            vertexInfoListChanges =  concatMap (getVertexCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph)) vertexList
+            vertexInfoListChanges =  concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
 
             -- Edge length information
             edgeTitle = [[" "],["Edge Weight/Length Information"]]
@@ -417,7 +417,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
             vertexChangeTitle = [[" "],["Vertex Character Changes"], ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Parent Final State", "Node Final State", "Sequence Changes (position, parent final state, node final state)"]]
 
-            vertexParentStateList =  fmap ((:[]) . last) (concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst6 inGraph) (six6 inGraph) (V.fromList vertexList)) vertexList)
+            vertexParentStateList =  fmap ((:[]) . last) (concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)) vertexList)
             vertexStateList = fmap (drop 9) vertexInfoListChanges
 
             -- process to change to lines of individual changes--basically a transpose
@@ -634,6 +634,7 @@ getEdgeInfo inEdge =
 -- | getTNTStrings returns as a single String the implied alignments of all sequence characters
 -- softwired use display trees, hardWired transform to softwired then proceed with display trees
 -- key to keep cost matrices and weights
+-- Usews Phylogenetic graph to noit repeat functions for display and charcter trees
 getTNTString :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Int -> String
 getTNTString inGS inData inGraph graphNumber =
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create TNT data for in getTNTString"
@@ -690,7 +691,7 @@ getTNTString inGS inData inGraph graphNumber =
                 warnPruneEdges = False
                 startVertex = Nothing
 
-                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph)
+                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
 
                 middleStuffString = createDisplayTreeTNT inGS inData newGraph
 
@@ -933,13 +934,14 @@ getImpliedAlignmentString :: GlobalSettings
                           -> Bool 
                           -> Bool 
                           -> ProcessedData 
-                          -> PhylogeneticGraph 
+                          -> ReducedPhylogeneticGraph 
                           -> Int 
                           -> String
-getImpliedAlignmentString inGS includeMissing concatSeqs inData inGraph graphNumber =
-    if LG.isEmpty (fst6 inGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
+getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph graphNumber =
+    if LG.isEmpty (fst5 inReducedGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
     else
         let headerString = "Implied Alignments for Graph " ++ show graphNumber ++ "\n"
+            inGraph = GO.convertReduced2PhylogeneticGraph inReducedGraph
         in
         if graphType inGS == Tree then
             if not concatSeqs then headerString ++ getTreeIAString includeMissing inGraph

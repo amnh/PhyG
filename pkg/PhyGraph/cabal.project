@@ -21,8 +21,7 @@ allow-newer:
 preferences:
     aeson          >= 2.0,
     bytestring     >= 0.11,
-    text           >= 2.0
-
+    text           >= 2.0,
 
 with-compiler: ghc-9.4.5
 

@@ -124,6 +124,16 @@
 			and the program exits.}
 		
 	\end{enumerate} 
+
+	\section{Order of execution operations}
+		\begin{enumerate}
+			\item{Script file is input}
+			\item{Script file is expanded if script contains \texttt{run} commands}
+			\item{Script file is reordered to place \texttt{set} commands first, \texttt{read} commands second, other commands are in their input order and follow}
+			\item{Data are input}
+			\item{Any graphs are input}
+			\item{Other commands in order}
+		\end{enumerate}
 	
 	\section{Data Structures}
 	Most important (at least global) structures and definitions are contained in Module Types.Types.  Not all types are discussed here--just 

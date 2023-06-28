@@ -71,7 +71,9 @@ import qualified Utilities.LocalGraph        as LG
 -- assumes all indexing is the same between the simple and decorated graph
 -- done recusively until no minLength == zero edges so edges renumbered properly
 -- network edges, pendant edges and root edges, are not collapsed
-collapseGraph :: PhylogeneticGraph -> PhylogeneticGraph
+-- this wierd thype is to allow for polymorphism in graph type--basiclly a general phylogenetic graph
+collapseGraph :: GenPhyloGraph a b 
+                 -> GenPhyloGraph a b
 collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
     if LG.isEmpty inSimple then inPhylograph
     else
@@ -111,6 +113,12 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
             in
             (newSimpleGraph, inC, newDecGraph, inD, inE, inF)
 
+-- | collapseReducedGraph is a wrpper to collapseGraph
+collapseReducedGraph :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
+collapseReducedGraph (inSimple, inC, inDecorated, inD, inF) = 
+    let (newSimpleGraph, _, newDecGraph, _, _, _) = collapseGraph (inSimple, inC, inDecorated, mempty, mempty, inF)
+    in
+    (newSimpleGraph, inC, newDecGraph, inD, inF)
 
 -- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
 -- number of network nodes-assumes for now--single component gaph not forest

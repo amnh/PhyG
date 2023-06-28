@@ -61,7 +61,7 @@ import qualified Utilities.LocalGraph           as LG
 -- "High level" paralleization used for overall graphs contruction
 
 -- | driver for overall support
-supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+supportGraph :: [Argument] -> GlobalSettings -> ProcessedData -> Int -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
 supportGraph inArgs inGS inData rSeed inGraphList =
    if null inGraphList then error "No graphs input to calculate support"
    else
@@ -181,7 +181,7 @@ getResampleGraph :: GlobalSettings
                  -> [(String, String)]
                  -> [(String, String)]
                  -> Double
-                 -> PhylogeneticGraph
+                 -> ReducedPhylogeneticGraph
 getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOptions jackFreq =
    let resampledGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq) (take replicates $ randomIntList rSeed) -- `using` PU.myParListChunkRDS
        -- create appropriate support graph >50% ?
@@ -189,12 +189,12 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
        reconcileArgs = if graphType inGS == Tree then [("method","majority"), ("compare","identity"), ("edgelabel","true"), ("vertexlabel","true"), ("connect","true"), ("threshold","51"), ("outformat", "dot")]
                        else [("method","eun"), ("compare","identity"), ("edgelabel","true"),  ("vertexlabel","true"), ("connect","true"), ("threshold","51"),("outformat", "dot")]
          -- majority ruke consensus if no args
-       (_, reconciledGraph) = REC.makeReconcileGraph VER.reconcileArgList reconcileArgs (fmap fst6 resampledGraphList)
+       (_, reconciledGraph) = REC.makeReconcileGraph VER.reconcileArgList reconcileArgs (fmap fst5 resampledGraphList)
    in
    -- trace ("GRG: \n" ++ reconciledGraphString) (
    -- generate resampled graph
    -- can't really relabel  easily wihtout bv and maybe not necessary anyway--node numebrs inconsistent
-  (reconciledGraph, infinity, LG.empty, V.empty, V.empty, V.empty)
+  (reconciledGraph, infinity, LG.empty, V.empty, V.empty)
    -- )
 
 -- | makeResampledDataAndGraph takes paramters, resmaples data and find a graph based on search parameters
@@ -206,7 +206,7 @@ makeResampledDataAndGraph :: GlobalSettings
                           -> [(String, String)]
                           -> Double
                           -> Int
-                          -> PhylogeneticGraph
+                          -> ReducedPhylogeneticGraph
 makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq rSeed =
    let randomIntegerList1 = randomIntList rSeed
        -- create resampled data
@@ -229,7 +229,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
                        else R.swapMaster swapOptions inGS newData (randomIntegerList1 !! 3) netGraphList
    in
    -- no data in there
-   if (V.null . thd3) newData then emptyPhylogeneticGraph
+   if (V.null . thd3) newData then emptyReducedPhylogeneticGraph
    else head swapGraphList
 
 -- | resampleData perfoms a single randomized data resampling
@@ -447,17 +447,17 @@ resampleBlockJackknife sampleFreq rSeed inData@(nameText, charDataVV, charInfoV)
 -- sample based on SPR-- 4n^2 - 26n - 42 for TBR 8n^3 for now
 -- this will only examine bridge edges for networks, networkedge values willl be doen via net delete
 -- MAPs for each graph?
-getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> String -> Maybe Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+getGoodBremGraphs :: GlobalSettings -> ProcessedData -> Int -> String -> Maybe Int -> Bool -> ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
 getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
-   if LG.isEmpty (fst6 inGraph) then error "Null graph in getGoodBremGraphs" -- maybe should be error?
+   if LG.isEmpty (fst5 inGraph) then error "Null graph in getGoodBremGraphs" -- maybe should be error?
    else
       -- create list of edges for input graph and a structure with egde node indices and bitvector values
       -- requires index BV of each node
       {-
-      let egdeList = LG.edges (fst6 inGraph)
+      let egdeList = LG.edges (fst5 inGraph)
 
           -- graph node list
-          nodeList = LG.labNodes (thd6 inGraph)
+          nodeList = LG.labNodes (thd5 inGraph)
           nodeIndexBVPairList = fmap makeindexBVPair nodeList
 
           -- list of vectors for contant time access via index = fst (a, bv)
@@ -472,22 +472,22 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
           -- traverse neighborhood (and net edge removal) keeping min cost without edges
           supportEdgeTupleList = getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom tupleList inGraph
 
-          simpleGBGraph = LG.mkGraph (LG.labNodes $ fst6 inGraph) (fmap (tupleToSimpleEdge (snd6 inGraph)) supportEdgeTupleList)
+          simpleGBGraph = LG.mkGraph (LG.labNodes $ fst5 inGraph) (fmap (tupleToSimpleEdge (snd5 inGraph)) supportEdgeTupleList)
       in
       -- trace ("GGBG: " ++ (show $ length tupleList) ++ " -> " ++ (show $ length supportEdgeTupleList))
-      (simpleGBGraph, snd6 inGraph, thd6 inGraph, fth6 inGraph, fft6 inGraph, six6 inGraph)
+      (simpleGBGraph, snd5 inGraph, thd5 inGraph, fth5 inGraph, fft5 inGraph)
 
       where tupleToSimpleEdge d (a,b, _, _, c) = (a, b, c - d)
 
 -- | getGraphTupleList takes a graph and cost (maybe initialized to infinity) returns tuple list
-getGraphTupleList :: PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
+getGraphTupleList :: ReducedPhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
 getGraphTupleList inGraph =
-   if LG.isEmpty (fst6 inGraph) then error "Null graph in getGraphTupleList"
+   if LG.isEmpty (fst5 inGraph) then error "Null graph in getGraphTupleList"
    else
-      let egdeList = LG.edges (fst6 inGraph)
+      let egdeList = LG.edges (fst5 inGraph)
 
           -- graph node list
-          nodeList = LG.labNodes (thd6 inGraph)
+          nodeList = LG.labNodes (thd5 inGraph)
           nodeIndexBVPairList = fmap makeindexBVPair nodeList
 
           -- list of vectors for contant time access via index = fst (a, bv)
@@ -510,14 +510,14 @@ getGBTuples :: GlobalSettings
             -> Maybe Int
             -> Bool
             -> [(Int, Int, NameBV, NameBV, VertexCost)]
-            -> PhylogeneticGraph
+            -> ReducedPhylogeneticGraph
             -> [(Int, Int, NameBV, NameBV, VertexCost)]
 getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
     -- traverse swap (SPR/TBR) neighborhood optimizing each graph fully
     let swapTuples = performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph
 
         -- network edge support if not Tree
-        netTuples = if (graphType inGS == Tree) || LG.isTree (fst6 inGraph) then
+        netTuples = if (graphType inGS == Tree) || LG.isTree (fst5 inGraph) then
                         -- swap only for Tree-do nothing
                         swapTuples
 
@@ -535,16 +535,16 @@ getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inG
 -- if this were a HardWWired graph--cost would always go down, so only applied to softwired graphs
 updateDeleteTuple :: GlobalSettings 
                   -> ProcessedData 
-                  -> PhylogeneticGraph 
+                  -> ReducedPhylogeneticGraph 
                   -> (Int, Int, NameBV, NameBV, VertexCost) 
                   -> (Int, Int, NameBV, NameBV, VertexCost)
 updateDeleteTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
-   let isNetworkEdge = LG.isNetworkEdge (fst6 inGraph) (inE, inV)
+   let isNetworkEdge = LG.isNetworkEdge (fst5 inGraph) (inE, inV)
    in
    if not isNetworkEdge then inTuple
    else
       -- True to force full evalutation
-      let deleteCost = snd6 $ N.deleteNetEdge inGS inData inGraph True (inE, inV)
+      let deleteCost = snd5 $ N.deleteNetEdge inGS inData inGraph True (inE, inV)
       in
       (inE, inV, inEBV, inVBV, min inCost deleteCost)
 
@@ -554,11 +554,11 @@ updateDeleteTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
     -- max bound because its a place holder for max num net edges
 updateMoveTuple :: GlobalSettings 
                 -> ProcessedData
-                ->  PhylogeneticGraph 
+                ->  ReducedPhylogeneticGraph 
                 -> (Int, Int, NameBV, NameBV, VertexCost) 
                 -> (Int, Int, NameBV, NameBV, VertexCost)
 updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
-   let isNetworkEdge = LG.isNetworkEdge (fst6 inGraph) (inE, inV)
+   let isNetworkEdge = LG.isNetworkEdge (fst5 inGraph) (inE, inV)
    in
    if not isNetworkEdge then inTuple
    else
@@ -568,7 +568,7 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
           keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
           rSeed = 0
           saParams = Nothing
-          moveCost = minimum (snd6 <$> N.deleteOneNetAddAll inGS inData (maxBound :: Int) keepNum steepest randomOrder inGraph [(inE, inV)] rSeed saParams)
+          moveCost = minimum (snd5 <$> N.deleteOneNetAddAll inGS inData (maxBound :: Int) keepNum steepest randomOrder inGraph [(inE, inV)] rSeed saParams)
       in
       (inE, inV, inEBV, inVBV, min inCost moveCost)
 
@@ -584,13 +584,13 @@ performGBSwap   :: GlobalSettings
                 -> Maybe Int
                 -> Bool
                 -> [(Int, Int, NameBV, NameBV, VertexCost)]
-                -> PhylogeneticGraph
+                -> ReducedPhylogeneticGraph
                 -> [(Int, Int, NameBV, NameBV, VertexCost)]
 performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
-    if LG.isEmpty (fst6 inGraph) then error "Null graph in performGBSwap"
+    if LG.isEmpty (fst5 inGraph) then error "Null graph in performGBSwap"
     else
         let -- work with simple graph
-            inSimple = fst6 inGraph
+            inSimple = fst5 inGraph
             (firstRootIndex, _) = head $ LG.getRoots inSimple
 
             -- determine edges to break on--'bridge' edges only for network
@@ -604,7 +604,7 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
 
             -- integerized critical value for prob accept
             -- based on approx (leaves - netnodes)^2 or (leaves - netnodes)^3
-            (_, leafList, _, netVertList) = LG.splitVertexList (fst6 inGraph)
+            (_, leafList, _, netVertList) = LG.splitVertexList (fst5 inGraph)
             intProbAccept = if swapType == "spr" then floor ((1000.0 * fromIntegral (fromJust sampleSize)) / ((2.0 * fromIntegral (length leafList - length netVertList)) ** 2) :: Double)
                             else floor ((1000.0 * fromIntegral (fromJust sampleSize)) / ((2.0 * fromIntegral (length leafList - length netVertList)) ** 3) :: Double)
 
@@ -707,12 +707,12 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
              warnPruneEdges = False
              startVertex = Nothing
              newPhylogeneticGraph
-               | (graphType inGS == Tree) || LG.isTree newGraph = T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
-               | (not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph = T.multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex newGraph
-               | otherwise = emptyPhylogeneticGraph
+               | (graphType inGS == Tree) || LG.isTree newGraph = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
+               | (not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
+               | otherwise = emptyReducedPhylogeneticGraph
          in
          -- return original
-         if newPhylogeneticGraph == emptyPhylogeneticGraph then rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
+         if newPhylogeneticGraph == emptyReducedPhylogeneticGraph then rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList (tail splitGraphList) originalBreakEdge (tail randIntList) edgeToInvade
 
          -- update tuple list based on new graph
          else
@@ -750,13 +750,13 @@ makeGraphEdgeTuples nodeBVVect graphCost edgeList =
 -- | getLowerGBEdgeCost take a list of edge tuples of (uIndex,vINdex,uBV, vBV, graph cost) from the graph
 -- whose supports are being calculated and a new graph and updates the edge cost (GB value) if that edge
 -- is NOT present in the graph taking the minimum of the original GB value and the new graph cost
-getLowerGBEdgeCost :: [(Int, Int, NameBV, NameBV, VertexCost)] -> PhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
+getLowerGBEdgeCost :: [(Int, Int, NameBV, NameBV, VertexCost)] -> ReducedPhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
 getLowerGBEdgeCost edgeTupleList inGraph =
-   if LG.isEmpty (fst6 inGraph) || null edgeTupleList then error "Empty graph or null edge tuple list in getLowerGBEdgeCost"
+   if LG.isEmpty (fst5 inGraph) || null edgeTupleList then error "Empty graph or null edge tuple list in getLowerGBEdgeCost"
    else
       let inGraphTupleList = getGraphTupleList inGraph
       in
-      fmap (updateEdgeTuple (snd6 inGraph) inGraphTupleList) edgeTupleList
+      fmap (updateEdgeTuple (snd5 inGraph) inGraphTupleList) edgeTupleList
 
 
 -- | updateEdgeTuple checks is edge is NOT in input graph edge tuple list and if not takes minimum

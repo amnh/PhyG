@@ -86,12 +86,12 @@ executeCommands :: GlobalSettings
                 -> ProcessedData
                 -> ProcessedData
                 -> ProcessedData
-                -> [PhylogeneticGraph]
+                -> [ReducedPhylogeneticGraph]
                 -> [[VertexCost]]
                 -> [Int]
-                -> [PhylogeneticGraph]
+                -> [ReducedPhylogeneticGraph]
                 -> [Command]
-                -> IO ([PhylogeneticGraph], GlobalSettings, [Int], [PhylogeneticGraph])
+                -> IO ([ReducedPhylogeneticGraph], GlobalSettings, [Int], [ReducedPhylogeneticGraph])
 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList commandList = do
     if null commandList then return (curGraphs, globalSettings, seedList, supportGraphList)
     else do
@@ -142,13 +142,13 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                   | otherwise = False
 
             let curGraphs' = if not collapse then curGraphs
-                             else fmap U.collapseGraph curGraphs
+                             else fmap U.collapseReducedGraph curGraphs
 
             -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
             -- reporting collapsed
             -- reverse sorting graphs by cost
             let rediagnoseWithReportingData = optimalityCriterion globalSettings == NCM && U.has4864PackedChars (thd3 processedData)
-                graphsWithUpdatedCosts = L.sortOn (Data.Ord.Down . snd6) (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
+                graphsWithUpdatedCosts = L.sortOn (Data.Ord.Down . snd5) (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
                 reportStuff@(reportString, outFile, writeMode) = reportCommand globalSettings firstArgs excludeRename numInputFiles crossReferenceString reportingData graphsWithUpdatedCosts supportGraphList pairwiseDist
 
             if null reportString then do
@@ -178,7 +178,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             executeCommands (globalSettings {searchData = newSearchData})  excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData (fst output) pairwiseDist (tail seedList) supportGraphList (tail commandList)
 
         else if firstOption == Select then do
-            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraph firstArgs (head seedList) VER.selectArgList curGraphs
+            (elapsedSeconds, newGraphList) <- timeOp $ pure $ GO.selectPhylogeneticGraphReduced firstArgs (head seedList) curGraphs
 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
@@ -193,7 +193,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             -- if set changes graph aspects--may nned to reoptimize
             let (newGlobalSettings, newProcessedData, seedList') = setCommand firstArgs globalSettings origProcessedData processedData seedList
                 newGraphList = if not (requireReoptimization globalSettings newGlobalSettings) then curGraphs
-                               else trace "Reoptimizing gaphs" fmap (TRAV.multiTraverseFullyLabelGraph newGlobalSettings newProcessedData True True Nothing) (fmap fst6 curGraphs)
+                               else trace "Reoptimizing gaphs" fmap (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) (fmap fst5 curGraphs)
 
                 searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList 0 "No Comment"
                 newSearchData = searchInfo : searchData newGlobalSettings
@@ -208,7 +208,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let newSearchData = searchInfo : searchData globalSettings
 
             executeCommands (globalSettings {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
-
+        
         else if firstOption == Support then do
             (elapsedSeconds, newSupportGraphList) <- timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData (head seedList)  curGraphs
 
@@ -217,6 +217,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
 
             executeCommands (globalSettings {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist (tail seedList) (supportGraphList ++ newSupportGraphList) (tail commandList)
 
+        
         else if firstOption == Transform then do
             (elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) <- timeOp $ pure $ TRANS.transform firstArgs globalSettings origProcessedData processedData (head seedList) curGraphs
 
@@ -224,23 +225,23 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let newSearchData = searchInfo : searchData globalSettings
 
             executeCommands (newGS {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString newOrigData newProcessedData reportingData newGraphs pairwiseDist (tail seedList) supportGraphList (tail commandList)
-
+        
         else error ("Command " ++ show firstOption ++ " not recognized/implemented")
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
-makeSearchRecord :: Instruction -> [Argument] -> [PhylogeneticGraph] -> [PhylogeneticGraph] -> Int -> String -> SearchData
+makeSearchRecord :: Instruction -> [Argument] -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph] -> Int -> String -> SearchData
 makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime comment =
     SearchData { instruction = firstOption
                , arguments = firstArgs
                , minGraphCostIn = if null curGraphs then infinity
-                                  else minimum $ fmap snd6 curGraphs
+                                  else minimum $ fmap snd5 curGraphs
                , maxGraphCostIn = if null curGraphs then infinity
-                                  else maximum $ fmap snd6 curGraphs
+                                  else maximum $ fmap snd5 curGraphs
                , numGraphsIn = length curGraphs
                , minGraphCostOut = if null newGraphList then infinity
-                                   else minimum $ fmap snd6 newGraphList
+                                   else minimum $ fmap snd5 newGraphList
                , maxGraphCostOut = if null newGraphList then infinity
-                                   else maximum $ fmap snd6 newGraphList
+                                   else maximum $ fmap snd5 newGraphList
                , numGraphsOut = length newGraphList
                , commentString = comment
                , duration = elapsedTime
@@ -756,8 +757,8 @@ reportCommand :: GlobalSettings
               -> Int
               -> String
               -> ProcessedData
-              -> [PhylogeneticGraph]
-              -> [PhylogeneticGraph]
+              -> [ReducedPhylogeneticGraph]
+              -> [ReducedPhylogeneticGraph]
               -> [[VertexCost]]
               -> (String, String, String)
 reportCommand globalSettings argList excludeRename numInputFiles crossReferenceString processedData curGraphs supportGraphs pairwiseDistanceMatrix =
@@ -809,21 +810,22 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
             else if "diagnosis" `elem` commandList then
                 -- need to rediagnose if reportNaiveData
                 let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
-                                 else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                                 else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
                     dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0.. (length curGraphs' - 1)])
                 in
                 if null curGraphs then
                     trace "No graphs to diagnose"
                     ("No graphs to diagnose", outfileName, writeMode)
                 else
-                    trace ("Diagnosing " ++ show (length curGraphs) ++ " graphs at minimum cost " ++ show (minimum $ fmap snd6 curGraphs))
+                    trace ("Diagnosing " ++ show (length curGraphs) ++ " graphs at minimum cost " ++ show (minimum $ fmap snd5 curGraphs))
                     (dataString, outfileName, writeMode)
 
             else if "displaytrees" `elem` commandList then
                 -- need to specify -O option for multiple graphs
-                let inputDisplayVVList = fmap fth6 curGraphs
-                    costList = fmap snd6 curGraphs
-                    displayCostListList = fmap GO.getDisplayTreeCostList curGraphs
+                let rediagnodesGraphs =  fmap (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
+                    inputDisplayVVList = fmap fth6 rediagnodesGraphs
+                    costList = fmap snd5 curGraphs
+                    displayCostListList = fmap GO.getDisplayTreeCostList rediagnodesGraphs
                     displayInfoString = if ("dot" `elem` commandList) ||  ("dotpdf" `elem` commandList)
                         then
                             ("//DisplayTree costs : " ++ show (fmap (sum . fst) displayCostListList, displayCostListList))
@@ -852,13 +854,13 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
             else if "graphs" `elem` commandList then
             --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                 let
-                    graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                    graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
                 in
                 if null curGraphs then
                     trace "No graphs to report"
                     ("No graphs to report", outfileName, writeMode)
                 else
-                    trace ("Reporting " ++ show (length curGraphs) ++ " graph(s) at minimum cost " ++ show (minimum $ fmap snd6 curGraphs))
+                    trace ("Reporting " ++ show (length curGraphs) ++ " graph(s) at minimum cost " ++ show (minimum $ fmap snd5 curGraphs))
                     (graphString, outfileName, writeMode)
 
             else if "ia" `elem` commandList || "impliedalignment" `elem` commandList then
@@ -880,7 +882,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 (nameData ++ dataString, outfileName, writeMode)
 
             else if "reconcile" `elem` commandList then
-                let (reconcileString, _) = R.makeReconcileGraph VER.reconcileArgList argList (fmap fst6 curGraphs)
+                let (reconcileString, _) = R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
                 in
                 if null curGraphs then
                     trace "No graphs to reconcile"
@@ -905,9 +907,9 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 (baseData ++ CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
 
             else if "support" `elem` commandList then
-                let graphString = outputGraphStringSimple commandList (outgroupIndex globalSettings) (fmap fst6 supportGraphs) (fmap snd6 supportGraphs)
+                let graphString = outputGraphStringSimple commandList (outgroupIndex globalSettings) (fmap fst5 supportGraphs) (fmap snd5 supportGraphs)
                 in
-                -- trace ("Rep Sup: " ++ (LG.prettify $ fst6 $ head supportGraphs)) (
+                -- trace ("Rep Sup: " ++ (LG.prettify $ fst5 $ head supportGraphs)) (
                 if null supportGraphs then
                     trace "\tNo support graphs to report"
                     ([], outfileName, writeMode)
@@ -921,21 +923,21 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     trace "No graphs to create implied alignments for TNT output"
                     ("No impliedAlgnments for TNT to report", outfileName, writeMode)
                 else
-                    let curGraphs' = if not (reportNaiveData globalSettings) then curGraphs
-                                     else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst6 curGraphs)
+                    let curGraphs' = if not (reportNaiveData globalSettings) then (fmap GO.convertReduced2PhylogeneticGraph curGraphs)
+                                     else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
                         tntContentList = zipWith (getTNTString globalSettings processedData) curGraphs' [0.. (length curGraphs' - 1)]
                     in
                     (concat tntContentList, outfileName, writeMode)
 
             else
                 trace ("\nWarning: Unrecognized/missing report option in " ++ show commandList ++ " defaulting to 'graphs'") (
-                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
                 in
                 if null curGraphs then
                     trace "No graphs to report"
                     ("No graphs to report", outfileName, writeMode)
                 else
-                    trace ("Reporting " ++ show (length curGraphs) ++ " graph(s) at minimum cost " ++ show (minimum $ fmap snd6 curGraphs) ++"\n")
+                    trace ("Reporting " ++ show (length curGraphs) ++ " graph(s) at minimum cost " ++ show (minimum $ fmap snd5 curGraphs) ++"\n")
                     (graphString, outfileName, writeMode)
                 )
             where bracketToCurly a = if a == '(' then '{'

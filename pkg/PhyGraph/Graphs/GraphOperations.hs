@@ -44,6 +44,8 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , showDecGraphs
                                , sortEdgeListByLength
                                , selectPhylogeneticGraph
+                               , selectPhylogeneticGraphReduced
+                               , selectGraphsFull
                                , getUniqueGraphs
                                , copyIAFinalToPrelim
                                , copyIAPrelimToFinal
@@ -65,6 +67,7 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , getNodeType
                                , getDisplayTreeCostList
                                , phylogeneticGraphListMinus
+                               , reducedphylogeneticGraphListMinus
                                , makeLeafGraph
                                , makeSimpleLeafGraph
                                , selectGraphs
@@ -72,6 +75,10 @@ module Graphs.GraphOperations (  ladderizeGraph
                                , isPhylogeneticDecoratedGraph
                                , parentsInChainGraph
                                , removeParentsInChain
+                               , convertPhylogeneticGraph2Reduced
+                               , convertReduced2PhylogeneticGraph
+                               , convertReduced2PhylogeneticGraphSimple
+                               , getDecoratedDisplayTreeList
                                ) where
 
 import           Bio.DynamicCharacter
@@ -94,6 +101,119 @@ import           Text.Read
 import           Types.Types
 import qualified Utilities.LocalGraph        as LG
 import qualified Utilities.Utilities         as U
+
+-- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
+convertPhylogeneticGraph2Reduced :: PhylogeneticGraph -> ReducedPhylogeneticGraph
+convertPhylogeneticGraph2Reduced inPhyloGraph@(a,b,c,displayTreeV,_,f) =
+  if inPhyloGraph == emptyPhylogeneticGraph then emptyReducedPhylogeneticGraph
+  else 
+    let newDisplayTreeV = fmap (fmap convertDecoratedToSimpleGraph) displayTreeV
+    in (a,b,c, newDisplayTreeV,f)
+
+-- | convertReduced2PhylogeneticGraphSimple just adds in a correctly typed fifth field
+-- bit decorartions are not extractged
+convertReduced2PhylogeneticGraphSimple :: ReducedPhylogeneticGraph -> PhylogeneticGraph 
+convertReduced2PhylogeneticGraphSimple (a,b,c,d,f) =  
+  let newDisplayTreeV = fmap (fmap convertSimpleToDecoratedGraph) d
+  in
+  (a,b,c,newDisplayTreeV, mempty, f)
+
+-- | convertReduced2PhylogeneticGraph takes a reduced phylogenetic graph and returns a phylogenetiv graph
+convertReduced2PhylogeneticGraph :: ReducedPhylogeneticGraph -> PhylogeneticGraph 
+convertReduced2PhylogeneticGraph inReducedPhyloGraph@(a,b,canonicalGraph,displayTreeV,charInfoVV) =
+  if inReducedPhyloGraph == emptyReducedPhylogeneticGraph then emptyPhylogeneticGraph 
+  else 
+    let newDisplayTreeVL = fmap (getDecoratedDisplayTreeList canonicalGraph) $ V.zip displayTreeV $ V.fromList [0..(V.length charInfoVV - 1)]
+        newCharacterTreeVV = fmap getCharacterTree $ V.zip (fmap head newDisplayTreeVL) (fmap V.length charInfoVV)
+    in (a,b, canonicalGraph, newDisplayTreeVL, newCharacterTreeVV, charInfoVV)
+
+-- | getCharacterTree takes an input Decotate disply tree list and returns a vectopr of character trees
+-- based on teh first display tree in list
+getCharacterTree :: (DecoratedGraph, Int) -> V.Vector DecoratedGraph
+getCharacterTree (inDisplayTree, numCharTrees) =
+  if LG.isEmpty inDisplayTree then error "Empty display tree getCharaterTree"
+  else 
+    let displayNodeList = LG.labNodes inDisplayTree
+        displayEdgeList = LG.labEdges inDisplayTree
+        charNodeListList = fmap (makeCharacterNodes displayNodeList) [0.. numCharTrees - 1]
+    in
+    V.fromList $ zipWith LG.mkGraph charNodeListList (L.replicate numCharTrees displayEdgeList)
+
+-- | makeCharacterNodes makes character nodes from dispaly tree nodes 
+makeCharacterNodes :: [LG.LNode VertexInfo] -> Int -> [LG.LNode VertexInfo]
+makeCharacterNodes displayTreeNodeList charIndex =
+  if null displayTreeNodeList then error "Null node list in extractCharacterNodeInfo"
+  else  
+    fmap (extractCharNodeInfo charIndex) displayTreeNodeList
+
+-- | extractCharNodeInfo takes a charcter indfex and produces a node with newinfo of single block and single character
+extractCharNodeInfo :: Int -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+extractCharNodeInfo charIndex (a, cLabel) =
+  let charVertData = V.singleton $ V.singleton $ (V.head (vertData cLabel)) V.! charIndex
+      charVertexResolutionData = V.singleton $ V.singleton $ (V.head (vertexResolutionData cLabel)) V.! charIndex
+      newLabel = cLabel { vertData = charVertData
+                        , vertexResolutionData =  charVertexResolutionData}
+  in
+  (a, newLabel)
+
+-- | getDecoratedDisplayTreeList takes a cononical graph and pair of list of display trees as ASimpleGraph and an index
+-- and creates a new display tree list from the canonical infomation
+-- all display treelist nodes are assigned same decorations
+-- edge weights are not recalculated
+getDecoratedDisplayTreeList :: DecoratedGraph -> ([SimpleGraph], Int) -> [DecoratedGraph]
+getDecoratedDisplayTreeList inCanonicalGraph (inDisplayL, blockIndex) = 
+  if LG.isEmpty inCanonicalGraph then error "Empty canonical graph in getDecoratedDisplayTree"
+  else
+    -- get edges and nodes for canonical graph
+    let canNodList = LG.labNodes inCanonicalGraph
+        canEdgedList = LG.labEdges inCanonicalGraph
+        newNodeListList = fmap (makeDisplayNodes canNodList blockIndex) (fmap LG.nodes inDisplayL)
+        newDisplayEdgeList = fmap (makeDisplayEdges canEdgedList) inDisplayL
+    in
+    zipWith LG.mkGraph newNodeListList newDisplayEdgeList
+
+-- | makeDisplayNodes takes canincal node label data and pulls out specific block
+-- infomartion and cretes new nodes with single block data only
+-- assumes nodes have same indices
+makeDisplayNodes :: [LG.LNode VertexInfo] -> Int -> [LG.Node] -> [LG.LNode VertexInfo]
+makeDisplayNodes canonicalNodeList blockIndex inDisplayNodeList = 
+  if length canonicalNodeList /= length inDisplayNodeList then error "Canonical and display node lists are unequal in length"
+  else
+    fmap (extractBlockNodeInfo blockIndex) canonicalNodeList
+
+-- | extractBlockNodeInfo takes a single node and block inde and extracts block data to make a new, single block
+extractBlockNodeInfo :: Int -> LG.LNode VertexInfo -> LG.LNode VertexInfo
+extractBlockNodeInfo blockIndex (a, cLabel) = 
+  let blockVertData = V.singleton $ (vertData cLabel) V.! blockIndex
+      blockVertexResolutionData = V.singleton $ (vertexResolutionData cLabel) V.! blockIndex
+      newLabel = cLabel { vertData = blockVertData
+                        , vertexResolutionData =  blockVertexResolutionData}
+  in
+  (a, newLabel)
+
+-- | makeDisplayEdges tcretes edges in display tree
+-- by taking corresponding edge in canonical tree
+-- edge weight info is not recalculated and is likely incorrect
+makeDisplayEdges :: [LG.LEdge EdgeInfo] -> SimpleGraph -> [LG.LEdge EdgeInfo]
+makeDisplayEdges canonicalEdgeList displayTree = 
+  let displayEdgeList = LG.labEdges displayTree
+  in fmap (copyLabelInfo canonicalEdgeList) displayEdgeList
+
+-- | copyLabelInfo finds corresponding edge (undirected) and takes relevant data from it to make new labelled edge
+copyLabelInfo :: [LG.LEdge EdgeInfo] -> LG.LEdge Double -> LG.LEdge EdgeInfo
+copyLabelInfo canonicalEdgeList displayEdge@(u,v,dl) =
+  if null canonicalEdgeList then error "Empty edge list in copyLabelInfo"
+  else 
+    let canonicalEdge = L.find (matchIndices displayEdge) canonicalEdgeList
+        newLabel = (thd3 $ fromJust canonicalEdge) { minLength      = dl
+                                                   , maxLength      = dl
+                                                   , midRangeLength = dl}
+    in
+    if isNothing canonicalEdge then error "Cannot find canonical edge in copyLabelInfo"
+    else (u,v, newLabel)
+    where matchIndices (a, b, _) (a', b', _) = if a == a' && b == b' then True
+                                                else if a == b' && b == a' then True
+                                                else False
 
 -- | isPhylogeneticDecoratedGraph checks various issues to see if
 -- there is wierdness in graph
@@ -150,13 +270,31 @@ parentsInChainVertex inGraph inNode =
         False
 
 
+
+
+-- | ReducedphylogeneticGraphListMinus subtracts teh secoind argiument list from first
+-- if an element is multiple times in firt list each will be removed
+-- equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
+-- does not take cost into account--or edge weight--only topology.
+-- result like (minuendList - subtrahendList)
+reducedphylogeneticGraphListMinus :: [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
+reducedphylogeneticGraphListMinus minuendList subtrahendList
+  | null minuendList = []
+  | null subtrahendList = minuendList
+  | otherwise = let minuendSimpleStringList = fmap (LG.prettyIndices . fst5) minuendList
+                    subtrahendSinpleStringList = fmap (LG.prettyIndices . fst5) subtrahendList
+                    inSubtrahendList = fmap (`elem` subtrahendSinpleStringList) minuendSimpleStringList
+                    differenceList = fmap fst $ filter (not . snd) $ zip minuendList inSubtrahendList
+                in
+                differenceList
+
 -- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
 -- if an element is multiple times in firt list each will be removed
 -- equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
 -- does not take cost into account--or edge weight--only topology.
 -- result like (minuendList - subtrahendList)
 phylogeneticGraphListMinus :: [PhylogeneticGraph] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-phylogeneticGraphListMinus minuendList subtrahendList
+phylogeneticGraphListMinus minuendList subtrahendList 
   | null minuendList = []
   | null subtrahendList = minuendList
   | otherwise = let minuendSimpleStringList = fmap (LG.prettyIndices . fst6) minuendList
@@ -584,9 +722,29 @@ showDecGraphs inDecVV =
     else
         concatMap concat (V.toList $ fmap ((V.toList . fmap LG.prettify) . fmap convertDecoratedToSimpleGraph) inDecVV)
 
--- | selectGraphs is a wrapper around selectPhylogeneticGraph with a better interface
-selectGraphs :: SelectGraphType -> Int -> Double -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
-selectGraphs selectType numberToKeep threshold rSeed inGraphList
+-- | selectGraphs is a wrapper around selectGraphsFull for ReducedPhylogeneticGraph
+selectGraphs :: SelectGraphType -> Int -> Double -> Int -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
+selectGraphs selectType numberToKeep threshold rSeed inGraphList =
+  let fullPhyloGraphList = fmap convertReduced2GenPhyloGraph inGraphList
+      newFullGraphs = selectGraphsFull selectType numberToKeep threshold rSeed fullPhyloGraphList
+  in
+  fmap convertGenPhyloGraph2Reduced newFullGraphs
+  where convertReduced2GenPhyloGraph (a,b,c,d,f) = (a,b,c,d, mempty,f)
+        convertGenPhyloGraph2Reduced (a,b,c,d, _,f) = (a,b,c,d,f)
+
+
+-- Basically a Phylogenetic Graph with abstract graph types--can't seem to get a type with this to compile
+-- (SimpleGraph, VertexCost, LG.Gr a b, V.Vector [LG.Gr a b], V.Vector (V.Vector (LG.Gr a b)), V.Vector (V.Vector CharInfo))
+
+-- | selectGraphsFull is a wrapper around selectPhylogeneticGraph with a better interface
+selectGraphsFull :: SelectGraphType 
+                 -> Int 
+                 -> Double 
+                 -> Int 
+                 -> [GenPhyloGraph a b] 
+                 -> [GenPhyloGraph a b]
+-- selectGraphsFull :: SelectGraphType -> Int -> Double -> Int -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+selectGraphsFull selectType numberToKeep threshold rSeed inGraphList
   | null inGraphList = []
   | (selectType == AtRandom) && (rSeed == (-1)) = error "AtRandom selection without proper random seed value"
   | otherwise = let stringArgs
@@ -600,11 +758,23 @@ selectGraphs selectType numberToKeep threshold rSeed inGraphList
                 take numberToKeep $ selectPhylogeneticGraph [stringArgs] rSeed [] inGraphList
 
 
+-- | selectPhylogeneticGraphReduced wrapper for ReducedPhylogeneticGraph
+-- inefficient in conversions
+selectPhylogeneticGraphReduced :: [Argument] -> Int -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
+selectPhylogeneticGraphReduced inArgs rSeed curGraphs =
+  let phylographList = fmap convertReduced2PhylogeneticGraph curGraphs
+      selectedPhylographs = selectPhylogeneticGraph inArgs rSeed [] phylographList 
+  in 
+  fmap convertPhylogeneticGraph2Reduced selectedPhylographs
 
 -- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
 -- and returns or filters that list based on options.
 -- uses selectListCostPairs in GeneralUtilities
-selectPhylogeneticGraph :: [Argument] -> Int -> [String] -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+selectPhylogeneticGraph :: [Argument] 
+                        -> Int 
+                        -> [String] 
+                        -> [GenPhyloGraph a b] 
+                        -> [GenPhyloGraph a b]
 selectPhylogeneticGraph inArgs rSeed _ curGraphs =
     if null curGraphs then []
     else
@@ -681,7 +851,9 @@ selectPhylogeneticGraph inArgs rSeed _ curGraphs =
 
 -- | getUniqueGraphs takes each pair of non-zero edges and conpares them--if equal not added to list
 -- maybe chnge to nub LG.pretify graphList?
-getUniqueGraphs :: Bool -> [PhylogeneticGraph] -> [PhylogeneticGraph]
+getUniqueGraphs :: Bool 
+                -> [GenPhyloGraph a b] 
+                -> [GenPhyloGraph a b]
 getUniqueGraphs removeZeroEdges inGraphList =
   if null inGraphList then []
   else
@@ -696,12 +868,15 @@ getUniqueGraphs removeZeroEdges inGraphList =
 -- need to add a collapse function for compare as well
 -- takes pairs of (noCollapsed, collapsed) phylogenetic graphs,
 -- make strings based on collapsed and returns not collpased
-getUniqueGraphs'' :: [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph]
+getUniqueGraphs'' :: [(GenPhyloGraph a b, GenPhyloGraph a b)] 
+                  -> [GenPhyloGraph a b]
 getUniqueGraphs'' = nubGraph []
 
 -- | isNovelGraph  checks if a graph is in list of existing graphs
 -- uses colapsed representation
-isNovelGraph :: [PhylogeneticGraph] -> PhylogeneticGraph -> Bool
+isNovelGraph :: [GenPhyloGraph a b] 
+             -> GenPhyloGraph a b 
+             -> Bool
 isNovelGraph graphList testGraph =
   null graphList || (let collapsedInGraph = (LG.prettyIndices . fst6 . U.collapseGraph) testGraph
                          collapseGraphList = fmap (LG.prettyIndices . fst6 . U.collapseGraph) graphList
@@ -714,7 +889,9 @@ isNovelGraph graphList testGraph =
 -- String prettyIndices w/0 HTU names and branch lengths
 -- arbitrarily rooted on 0 for oonsistency
 --reversed to keep original order in case sorted on length
-nubGraph :: [(PhylogeneticGraph, PhylogeneticGraph, String)] -> [(PhylogeneticGraph, PhylogeneticGraph)] -> [PhylogeneticGraph]
+nubGraph :: [(GenPhyloGraph a b, GenPhyloGraph a b, String)] 
+         -> [(GenPhyloGraph a b, GenPhyloGraph a b)] 
+         -> [GenPhyloGraph a b]
 nubGraph curList inList =
   if null inList then reverse $ fmap fst3 curList
   else
@@ -734,7 +911,9 @@ nubGraph curList inList =
     -- )
 
 -- | getUniqueGraphs takes each pair of non-zero edges and compares them--if equal not added to list
-getUniqueGraphs' :: [([LG.LEdge EdgeInfo], PhylogeneticGraph)] -> [([LG.LEdge EdgeInfo], PhylogeneticGraph)]  -> [PhylogeneticGraph]
+getUniqueGraphs' :: [([LG.LEdge EdgeInfo], GenPhyloGraph a b)] 
+                 -> [([LG.LEdge EdgeInfo], GenPhyloGraph a b)]  
+                 -> [GenPhyloGraph a b]
 getUniqueGraphs' inGraphPairList currentUniquePairs =
     if null inGraphPairList then fmap snd currentUniquePairs
     else

@@ -48,8 +48,10 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getW15NetPenalty
                                                       , getW15NetPenaltyFull
                                                       , getW23NetPenalty
+                                                      , getW23NetPenaltyReduced
                                                       , getW15RootCost
                                                       , getNetPenalty
+                                                      , getNetPenaltyReduced
                                                       ) where
 
 import           Data.Bits
@@ -150,7 +152,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
             newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
 
             -- save best overall dysplay trees for later use in penalty phase
-            newBestTreeList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList ++ currentBestTreeList)
+            newBestTreeList = GO.selectGraphsFull Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList ++ currentBestTreeList)
         in
         -- trace ("GBDCBL: " ++ (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
         getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
@@ -862,6 +864,11 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
         in
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
+-- | getNetPenaltyReduced returns appropriate network penalty for a reduced graph
+getNetPenaltyReduced :: GlobalSettings -> ProcessedData -> ReducedPhylogeneticGraph -> VertexCost
+getNetPenaltyReduced  inGS inData inGraph =
+    getNetPenalty inGS inData (GO.convertReduced2PhylogeneticGraph inGraph)
+
 -- | getNetPenalty returns appropriate network penalty
 getNetPenalty :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> VertexCost
 getNetPenalty inGS inData inGraph =
@@ -904,7 +911,7 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                 staticIA = False
                 outgroupRootedList =  PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)) blockTreeList
                 multiTraverseTreeList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupRootedList
-                lowestCostDisplayTree = head $ GO.selectGraphs Best 1 0.0 (-1) multiTraverseTreeList
+                lowestCostDisplayTree = head $ GO.selectGraphsFull Best 1 0.0 (-1) multiTraverseTreeList
 
                 -- now can do as input (below)
                 lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree
@@ -951,12 +958,41 @@ getW15NetPenalty startVertex inGraph =
         -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )))
         (sum $ blockPenaltyList) / divisor
 
+-- | getW23NetPenaltyReduced takes a ReducedPhylogeneticGraph tree and returns the network penalty of Wheeler and Washburn (2023)
+-- basic idea is new edge improvement must be better than average existing edge cost
+-- penalty for each added edge (unlike W15 which was on a block by block basis--and requires additional tree diagnoses)
+-- num extra edges/2 since actually add 2 new edges when one network edge
+-- requires resolution cache data structures
+getW23NetPenaltyReduced :: ReducedPhylogeneticGraph -> VertexCost
+getW23NetPenaltyReduced inGraph =
+    if LG.isEmpty $ thd5 inGraph then 0.0
+    else if LG.isTree $ fst5 inGraph then 0.0
+    else
+        let -- (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
+            bestTreeList =  V.toList $ fmap head $ fth5 inGraph
+            bestTreesEdgeList = L.nubBy LG.undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
+
+            -- leaf list for normalization
+            (_, leafList, _, _) = LG.splitVertexList (fst5 inGraph)
+            numLeaves = length leafList
+            numTreeEdges = 2.0 * (fromIntegral numLeaves) - 2.0
+            numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
+            -- divisor = numTreeEdges - numExtraEdges
+        in
+       --  trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
+        -- if divisor == 0.0 then infinity
+        -- else (sum blockPenaltyList) / divisor
+        -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
+        --else
+        (numExtraEdges * (snd5 inGraph)) / (2.0 * numTreeEdges)
+        -- )
+
 -- | getW23NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler and Washburn (2023)
 -- basic idea is new edge improvement must be better than average existing edge cost
 -- penalty for each added edge (unlike W15 which was on a block by block basis--and requires additional tree diagnoses)
 -- num extra edges/2 since actually add 2 new edges when one network edge
 -- requires resolution cache data structures
-getW23NetPenalty ::PhylogeneticGraph -> VertexCost
+getW23NetPenalty :: PhylogeneticGraph -> VertexCost
 getW23NetPenalty inGraph =
     if LG.isEmpty $ thd6 inGraph then 0.0
     else if LG.isTree $ fst6 inGraph then 0.0

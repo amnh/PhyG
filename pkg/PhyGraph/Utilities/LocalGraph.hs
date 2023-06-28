@@ -857,7 +857,7 @@ getEdgeListAfter (inGraph, inNode) =
 -- filter operators basically for networks so not retrace paths
 nodesAndEdgesAfter' :: (Eq a, Eq b, Show a) => Gr a b -> ([LNode a], [LEdge b]) -> [LNode a] -> ([LNode a], [LEdge b])
 nodesAndEdgesAfter' inGraph curResults@(curNodes, curEdges) inNodeList
-  | G.isEmpty inGraph = error "Input Graph is empty in nodesAndEdgesAfter"
+  | G.isEmpty inGraph = error "Input Graph is empty in nodesAndEdgesAfter'"
   | null inNodeList = curResults
   | otherwise =
     let fromEdgeList = filter (`notElem` curEdges) $ out inGraph (fst $ head inNodeList)

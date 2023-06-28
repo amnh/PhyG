@@ -63,8 +63,8 @@ swapMaster :: [Argument]
             -> GlobalSettings
             -> ProcessedData
             -> Int
-            -> [PhylogeneticGraph]
-            -> [PhylogeneticGraph]
+            -> [ReducedPhylogeneticGraph]
+            -> [ReducedPhylogeneticGraph]
 swapMaster = SM.swapMaster
 
 
@@ -73,8 +73,8 @@ refineGraph :: [Argument]
             -> GlobalSettings 
             -> ProcessedData 
             -> Int 
-            -> [PhylogeneticGraph] 
-            -> [PhylogeneticGraph]
+            -> [ReducedPhylogeneticGraph] 
+            -> [ReducedPhylogeneticGraph]
 refineGraph inArgs inGS inData rSeed inGraphList =
    if null inGraphList then errorWithoutStackTrace "No graphs input to refine"
    else
@@ -122,18 +122,18 @@ geneticAlgorithmMaster :: [Argument]
                        -> GlobalSettings 
                        -> ProcessedData 
                        -> Int 
-                       -> [PhylogeneticGraph] 
-                       -> [PhylogeneticGraph]
+                       -> [ReducedPhylogeneticGraph] 
+                       -> [ReducedPhylogeneticGraph]
 geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace "No graphs to undergo Genetic Algorithm" []
    else
-      trace ("Genetic Algorithm operating on population of " ++ show (length inGraphList) ++ " input graph(s) with cost range ("++ show (minimum $ fmap snd6 inGraphList) ++ "," ++ show (maximum $ fmap snd6 inGraphList) ++ ")") (
+      trace ("Genetic Algorithm operating on population of " ++ show (length inGraphList) ++ " input graph(s) with cost range ("++ show (minimum $ fmap snd5 inGraphList) ++ "," ++ show (maximum $ fmap snd5 inGraphList) ++ ")") (
 
       -- process args
       let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
           (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) 0 stopNum inGraphList
       in
-      trace ("\tGenetic Algorithm: " ++ show (length newGraphList) ++ " resulting graphs with cost range (" ++ show (minimum $ fmap snd6 newGraphList) ++ "," ++ show (maximum $ fmap snd6 newGraphList) ++ ")" ++ " after " ++ show generationCounter ++ " generation(s)")
+      trace ("\tGenetic Algorithm: " ++ show (length newGraphList) ++ " resulting graphs with cost range (" ++ show (minimum $ fmap snd5 newGraphList) ++ "," ++ show (maximum $ fmap snd5 newGraphList) ++ ")" ++ " after " ++ show generationCounter ++ " generation(s)")
       newGraphList
       )
 
@@ -219,13 +219,13 @@ fuseGraphs :: [Argument]
            -> GlobalSettings 
            -> ProcessedData 
            -> Int 
-           -> [PhylogeneticGraph] 
-           -> [PhylogeneticGraph]
+           -> [ReducedPhylogeneticGraph] 
+           -> [ReducedPhylogeneticGraph]
 fuseGraphs inArgs inGS inData rSeed inGraphList
   | null inGraphList = trace "Fusing--skipped: No graphs to fuse" []
   | length inGraphList == 1 = trace "Fusing--skipped: Need > 1 graphs to fuse" inGraphList
   -- | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
-  | otherwise = trace ("Fusing " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd6 inGraphList)) (
+  | otherwise = trace ("Fusing " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList)) (
 
      -- process args for fuse placement
            let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
@@ -292,7 +292,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
            let (newGraphList, counterFuse) = F.fuseAllGraphs swapParams inGS inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
 
            in
-           trace ("\tAfter fusing: " ++ show (length newGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd6 newGraphList) ++ " after fuse rounds (total): " ++ show counterFuse)
+           trace ("\tAfter fusing: " ++ show (length newGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 newGraphList) ++ " after fuse rounds (total): " ++ show counterFuse)
            newGraphList
       )
 
@@ -345,8 +345,8 @@ netEdgeMaster :: [Argument]
               -> GlobalSettings 
               -> ProcessedData 
               -> Int 
-              -> [PhylogeneticGraph] 
-              -> [PhylogeneticGraph]
+              -> [ReducedPhylogeneticGraph] 
+              -> [ReducedPhylogeneticGraph]
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace "No graphs to edit network edges" []
    else if graphType inGS == Tree then trace "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired" inGraphList
@@ -439,13 +439,13 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                   | otherwise = " move "
                                             in
                                             if method (fromJust simAnnealParams) == SimAnneal then
-                                               "Simulated Annealing (Network edge" ++ editString ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
+                                               "Simulated Annealing (Network edge" ++ editString ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
                                             else
-                                               "Drifting (Network edge" ++ editString ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
-                 | doNetDelete = ("Network edge delete on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd6 inGraphList))
-                 | doNetAdd = ("Network edge add on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " and maximum " ++ show (fromJust maxRounds) ++ " rounds")
-                 | doAddDelete = ("Network edge add/delete on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd6 inGraphList)  ++ " and maximum " ++ show (fromJust maxRounds) ++ " rounds")
-                 | doMove = ("Network edge move on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd6 inGraphList))
+                                               "Drifting (Network edge" ++ editString ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
+                 | doNetDelete = ("Network edge delete on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList))
+                 | doNetAdd = ("Network edge add on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " and maximum " ++ show (fromJust maxRounds) ++ " rounds")
+                 | doAddDelete = ("Network edge add/delete on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList)  ++ " and maximum " ++ show (fromJust maxRounds) ++ " rounds")
+                 | doMove = ("Network edge move on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList))
                  | otherwise = ""
 
             in
@@ -508,7 +508,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             let resultGraphList = if null newGraphList''' then inGraphList
                                   else GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) newGraphList'''
             in
-            trace ("\tAfter network edge add/delete/move: " ++ show (length resultGraphList) ++ " resulting graphs at cost " ++ show (minimum $ fmap snd6 resultGraphList) ++ " with add/delete/move rounds (total): " ++ show counterAdd ++ " Add, "
+            trace ("\tAfter network edge add/delete/move: " ++ show (length resultGraphList) ++ " resulting graphs at cost " ++ show (minimum $ fmap snd5 resultGraphList) ++ " with add/delete/move rounds (total): " ++ show counterAdd ++ " Add, "
             ++ show counterDelete ++ " Delete, " ++ show counterMove ++ " Move, " ++ show counterAddDelete ++ " AddDelete")
             resultGraphList
             )
