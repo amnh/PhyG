@@ -333,17 +333,17 @@
 		\item [newick:STRING] Specifies that the file contains Newick format graph(s) as specified 
 		\href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}{here}.
 			
-		\item [nucleotide:STRING] Ensures that file contents are parsed as IUPAC coded nucleotide data 
-		in FASTA \citep{PearsonandLipman1988} format.   Sequence gaps are removed.
+		\item [nucleotide:STRING] Ensures that file contents are parsed as IUPAC coded nucleotide 
+		data in FASTA \citep{PearsonandLipman1988} format. Sequence gaps are removed.
 		
 		\begin{tcolorbox}[enhanced,fit to height=3.5cm,
   		colback=JungleGreen!40!black!2!white,colframe=JungleGreen!70!black,title=Note,
   		drop fuzzy shadow]
-  		Sequences can be divided into smaller fragments using an assigned character (default `\textbf{\#}'). This 
-		character can be chosen by the user (unlike in POY, where the pound sign (`\textbf{\#}') was 
-		the only character used to partition datasets). Each fragment is treated as an individual character. When 
-		partitioning the data in this way, the number of partitions must be the same across 
-		homologous sequences. The character should be set with the command 
+  		Sequences can be divided into smaller fragments using an assigned character (default 
+		`\textbf{\#}'). This character can be chosen by the user (unlike in POY, where the pound sign 
+		(`\textbf{\#}') was the only character used to partition datasets). Each fragment is treated as 
+		an individual character. When partitioning the data in this way, the number of partitions must 
+		be the same across homologous sequences. The character should be set with the command 
 		\texttt{set:partitioncharacter} (see Section \ref{subsec:set}).
 		\end{tcolorbox}
 			
@@ -441,7 +441,8 @@
 		 spaces for single character states (e.g. \texttt{[03]}), and with spaces for multi-character 
 		 states.\\
 		  
-		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) are treated as part of the character state specification.
+		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) are treated as part of the character 
+		 state specification.
 		 %If the user wishes that dashes 
 		 %be treated as missing data, the file must be edited to reflect this by replacing the 
 		 %dashes that are to be treated as missing data with question 
@@ -744,24 +745,24 @@
 	\subsubsection{Arguments}
 	\begin{description}
 		
-%		\item[append] When reporting data or graphs to a file, this information is 
-%		appended to the end of the file. Compare with the \texttt{overwrite} argument.
-%		By default, files are appended to the report, rather than overwritten. 
+		\item[append] When reporting data or graphs to a file, this information is 
+		appended to the end of the file. Compare with the \texttt{overwrite} argument.
+		By default, files are appended to the report, rather than overwritten. 
 
 		\item[ascii] Reports ASCII character representations of the reported graphs.
 		This file can be viewed in any text editor.
 		
-%		\item[branchlengths] When reporting graphs, \phyg will report the branch 
-%		lengths of these graphs. In newick and enewick files, branch lengths 
-%		follow the terminal names, separated by a colon. In eps and pdf files, 
-%		branch lengths appear above the branches. In ASCII and dot files, branch 
-%		lengths follow the terminal labels. Compare with \texttt{nobranchlengths}. 
-%		This is the default. \hl{is this okay?}
+		\item[branchlengths] When reporting graphs, \phyg will report the branch 
+		lengths of these graphs. In newick and enewick files, branch lengths 
+		follow the terminal names, separated by a colon. In eps and pdf files, 
+		branch lengths appear above the branches. In ASCII and dot files, branch 
+		lengths follow the terminal labels. Compare with \texttt{nobranchlengths}. 
+		This is the default. \hl{is this okay?}
 
-%		\item[collapse] Specifies that zero length branches are collapsed. Compare 
-%		with the \texttt{nocollapse} argument. If a dotpdf graph is specified, the 
-%		branches are collapsed by default. If ASCII, newick, enewick and dot are 
-%		specified, the zero length branches are not collapsed by default.  		
+		\item[collapse] Specifies that zero length branches are collapsed. Compare 
+		with the \texttt{nocollapse} argument. If a dotpdf graph is specified, the 
+		branches are collapsed by default. If ASCII, newick, enewick and dot are 
+		specified, the zero length branches are not collapsed by default.  		
 		
 		\item[crossrefs] Reports whether data are present or absent for each terminal 
 		in each of the imported data files. The argument will report a table with terminals 
@@ -818,7 +819,6 @@
 		edges are collapsed (contracted) if they have a minimum weight 
 		(length) of 0.
 		
-		
 		\item[graphs] Outputs a graph in the format specified by the other arguments 
 		in the command. These are either newick, enewick, ascii, dot, and depending 
 		on the operating system, eps (on OSX) or pdf (on Linux) formats.
@@ -864,9 +864,10 @@
 		of graphs are not reported.
 		
 		\item[nocollapse] By default, if a dotpdf graph is specified, the zero-length
-		branches are collapsed. If ASCII, newick, enewick and dot are specified, 
-		the zero length branches are not collapsed by default.  If \texttt{nocollapse}
-		is specified, zero length branches are not collapsed for output graphs.
+		branches are collapsed. Compare with the \texttt{collapse} argument. If 
+		ASCII, newick, enewick and dot are specified, the zero length branches are 
+		not collapsed by default.  If \texttt{nocollapse} is specified, zero length branches 
+		are not collapsed for output graphs.
 		
 		\item[nohtulabels] Labels of the HTUs are not included in the output files. 
 		This option can not be applied to enewick graph. Compare with the argument 
@@ -1073,10 +1074,6 @@
 		\item[instances:INT] Specifies the number of (potentially parallel) search instances,
 		as indicated by the integer value.  The overall search will terminate only when  
 		all instances have completed.
-		
-		\item[keep:INT] Limits the number of returned graphs (for the entirety of the command)  
-		to that as specified by the 
-		integer value.
 		
 		\item[maxNetEdges:INT] Limits the maximum number of network edges to that
 		specified by the integer value. This should only to be used if \texttt{graphtype}
