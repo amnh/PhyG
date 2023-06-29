@@ -196,7 +196,7 @@ Executable phyg
     GHC-Options:
       "-with-rtsopts= -A64m -AL128M -H1024m -n4m"
 
-  elif flag(super-optimization)
+  if flag(super-optimization)
     GHC-Options:
       -threaded
       -fexcess-precision
