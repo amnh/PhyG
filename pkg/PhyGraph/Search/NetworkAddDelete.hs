@@ -233,6 +233,8 @@ moveAllNetEdges' :: GlobalSettings
                  -> ([ReducedPhylogeneticGraph], Int)
 moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList =
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
+   else if LG.isEmpty $ fst5 $ head inPhyloGraphList then 
+      moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams (tail inPhyloGraphList)
    else
       let firstPhyloGraph = head inPhyloGraphList
           currentCost = min curBestGraphCost (snd5 firstPhyloGraph)
@@ -253,13 +255,6 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
           newGraphCost = if (not . null) newGraphList' then snd5 $ head newGraphList
                          else infinity
       in
-
-      -- if graph is a tree no edges to delete
-      {-
-      if LG.isTree (fst5 firstPhyloGraph) then
-         trace ("\tGraph in move network edges is tree--skipping")
-         moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstPhyloGraph : curBestGraphList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
-      -}
 
       -- if graph is a tree no edges to delete
       if null netEdgeList then trace ("\t\tGraph in move has no network edges to move--skipping") (inPhyloGraphList, counter)
@@ -897,6 +892,8 @@ deleteAllNetEdges' :: GlobalSettings
 deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList =
    -- trace ("In deleteAllNetEdges " ++ (show $ length inPhyloGraphList)) (
    if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
+   else if LG.isEmpty (fst5 $ head inPhyloGraphList) then 
+      deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams (tail inPhyloGraphList)
    else
       let currentCost = min curBestGraphCost (snd5 $ head inPhyloGraphList)
 

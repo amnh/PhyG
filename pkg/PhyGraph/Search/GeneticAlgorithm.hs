@@ -203,7 +203,7 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
         in
 
         -- only swap mutation stuff for tree
-        if graphType inGS == Tree || (LG.isTree (fst5 inGraph) && netEditType /= "netadd") then
+        if graphType inGS == Tree || netEditType `notElem`  ["netAdd", "netDelete", "netAddDelete", "netMove"] then
             -- trace ("1")
             let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph][(randList, inSimAnnealParams, inGraph)]
             in
