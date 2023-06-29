@@ -208,7 +208,7 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
-      -fllvm
+--      -fllvm
 --    rts -AL8 was rejected  should be >= A
 --    rts --nonmoving-gc causes large memory blow-ups on cluster
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
