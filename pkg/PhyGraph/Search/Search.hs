@@ -353,7 +353,10 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           searchBandit = chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
 
           -- common build arguments including block and distance
-          buildMethod  = chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.8), ("block", 0.2)]
+          --    Tree does not use block--doesn't work very well for tree building
+          buildMethod  = if (graphType inGS' /= Tree) then chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.8), ("block", 0.2)]
+                         else "unitary"
+
           buildType = if searchBandit == "buildCharacter" then "character"
                       else if searchBandit == "buildDistance" then "distance"
                       else chooseElementAtRandomPair (randDoubleVect V.! 11) [("distance", 0.5), ("character", 0.5)]
