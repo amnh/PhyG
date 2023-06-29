@@ -20,7 +20,12 @@ Extra-Doc-Files:
   README.md
 
 
-library
+Flag test-osx
+  Description: Apply extremely agressive and extremely time consuming optimization but no llvm
+    Default:     False
+    Manual:      True
+
+Library
 
   default-language:
     Haskell2010
@@ -53,39 +58,19 @@ library
     SymMatrix
     SymMatrixSeq
 
-flag test-osx
-  Description: Apply extremely agressive and extremely time consuming optimization but no llvm
-   Default:     False
-   Manual:      True
-
-GHC-Options:
-      -feager-blackholing
-      -O2
-      -Wall
-      -Wno-all-missed-specialisations
-      -Wno-implicit-prelude
-      -Wno-missing-import-lists
-      -Wno-missing-kind-signatures
-      -Wno-missing-safe-haskell-mode
-      -Wno-monomorphism-restriction
-      -Wno-type-defaults
-      -Wno-unsafe
-      -fexcess-precision
-      -fexpose-all-unfoldings
-      -flate-specialise
-      -fmax-simplifier-iterations=16
-      -foptimal-applicative-do
-      -fspec-constr-count=8
-      -fspec-constr-keen
-      -fspecialize-aggressively
-      -fstatic-argument-transformation
-
-if flag(test-osx)
-    GHC-Options:
-      -- -fllvm
-
-else
   ghc-options:
+    -feager-blackholing
+    -O2
+    -fexcess-precision
+    -fexpose-all-unfoldings
+    -flate-specialise
+    -fmax-simplifier-iterations=16
+    -foptimal-applicative-do
+    -fspec-constr-count=8
+    -fspec-constr-keen
+    -fspecialize-aggressively
+    -fstatic-argument-transformation
+
     -- Sanity check warnings:
     --   1. Fail on a warning
     --   2. Include all warnings by default
@@ -104,15 +89,7 @@ else
     -Wno-monomorphism-restriction
     -Wno-type-defaults
     -Wno-unsafe
-    -fexcess-precision
-    -fexpose-all-unfoldings
-    -flate-specialise
-    -fmax-simplifier-iterations=16
-    -foptimal-applicative-do
-    -fspec-constr-count=8
-    -fspec-constr-keen
-    -fspecialize-aggressively
-    -fstatic-argument-transformation
-    -- -fllvm
 
-
+  if flag(test-osx)
+    ghc-options:
+--      -fllvm

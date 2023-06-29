@@ -8,15 +8,15 @@ read("archea_ssu_585_aln.fas")
 -- set optimization parameters
 --report("../data/Archea/Achea.csv", data, overwrite)
 --set(graphssteepest:100)
-build(distance, replicates:1, rdwag)
+--build(distance, replicates:1, rdwag)
 
 --build(replicates:1)
 
 --transform(staticApprox)
 
-report("archea-test-10.dot", graphs, dotpdf, overwrite, nobranchlengths)
+--report("archea-test-10.dot", graphs, dotpdf, overwrite, nocollapse)
 --read("../graphs/Archea-test-build.dot")
-
+read("archea-test-10.dot")
 --search(hours:200, instances:10)
 
 --fuse(tbr)
@@ -26,5 +26,5 @@ report("archea-test-10.dot", graphs, dotpdf, overwrite, nobranchlengths)
 --select(best)
 --transform(multitraverse:false)
 --transform(staticApprox)
---report("../graphs/Archea-test.dot", graphs, dotpdf, overwrite)
+report("archea-test-out.dot", graphs, dotpdf, overwrite, nocollapse)
 report("archea-test-search.csv", search, overwrite)

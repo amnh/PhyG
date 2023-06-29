@@ -62,7 +62,7 @@ import           Utilities.Utilities                           as U
 
 -- | rasWagnerBuild generates a series of random addition sequences and then calls wagnerTreeBuild to construct them.
 -- Does not filter by best, unique etc.  That happens with the select() command specified separately.
-rasWagnerBuild :: GlobalSettings -> ProcessedData -> Int -> Int -> [PhylogeneticGraph]
+rasWagnerBuild :: GlobalSettings -> ProcessedData -> Int -> Int -> [ReducedPhylogeneticGraph]
 rasWagnerBuild inGS inData rSeed numReplicates =
    if numReplicates == 0 then []
    else
@@ -84,9 +84,9 @@ rasWagnerBuild inGS inData rSeed numReplicates =
 
 
 -- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallation--(zipWith not doing so well?)
-wagnerTreeBuild' :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> (V.Vector Int, Int) -> PhylogeneticGraph
+wagnerTreeBuild' :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> (V.Vector Int, Int) -> ReducedPhylogeneticGraph
 wagnerTreeBuild' inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars (additionSequence, replicateIndex) =
-   wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex
+   GO.convertPhylogeneticGraph2Reduced $ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex
 
 -- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition)
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network

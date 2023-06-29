@@ -848,7 +848,7 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
     --trace ("BPTCG: " ++ (show (fmap fst unModifiedNodes)))
 
     -- this is a hack if graph is imporper--not sure why htis happens yet
-    if (not $ allSameLength blockTreeNodeLabelsVV) then 
+    if (V.null blockTreeVect) || (not $ allSameLength blockTreeNodeLabelsVV) then 
         -- trace ("BPTCG: " ++ (show (fmap length blockTreeNodeLabelsVV)))
         LG.empty
     else LG.mkGraph (updatedCanonicalNodes ++ unModifiedNodes) canonicalEdges

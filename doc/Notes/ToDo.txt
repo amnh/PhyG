@@ -559,3 +559,8 @@
 
 442) search timing on cputime
 
+443) test report writability (folders etc)
+
+444) Make sure support fully parallelized
+
+445) check for malfomed networks in support and LG.nodesAndEdgesAfter  check on split graph

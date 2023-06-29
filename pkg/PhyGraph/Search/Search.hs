@@ -89,7 +89,7 @@ uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
 uncurry3' f (a, b, c) = force <$> f a b c
 
 -- | search timed randomized search returns graph list and comment list with info String for each search instance
-search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [PhylogeneticGraph] -> IO ([PhylogeneticGraph], [[String]])
+search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [ReducedPhylogeneticGraph] -> IO ([ReducedPhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList =
    let (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) = getSearchParams inArgs
 
@@ -123,11 +123,11 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                    selectedGraphList = take keepNum filteredGraphList
                in  (selectedGraphList, commentList ++ [[iterationHitString]])
     )
-    where getMinGraphListCost a = if (not $ null a) then minimum $ fmap snd6 a
+    where getMinGraphListCost a = if (not $ null a) then minimum $ fmap snd5 a
                                   else infinity
 
 -- unneeded
--- instance NFData  (IO (Maybe ([PhylogeneticGraph], [String]))) where rnf x = seq x ()
+-- instance NFData  (IO (Maybe ([ReducedPhylogeneticGraph], [String]))) where rnf x = seq x ()
 
 -- $ toMicroseconds allotedSeconds
 -- this CPUtime is total over all threads--not wall clock
@@ -151,8 +151,8 @@ searchForDuration :: GlobalSettings
                   -> Int
                   -> Int
                   -> [Int]
-                  -> ([PhylogeneticGraph], [String])
-                  -> IO ([PhylogeneticGraph], [String])
+                  -> ([ReducedPhylogeneticGraph], [String])
+                  -> IO ([ReducedPhylogeneticGraph], [String])
 searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction thetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList (inGraphList, infoStringList) = do
    -- (elapsedSeconds, output) <- timeOpUT $
    (elapsedSeconds, elapsedSecondsCPU, output) <- timeOpCPUWall $ do
@@ -334,8 +334,8 @@ performSearch :: GlobalSettings
                -> Int
                -> Int
                -> CPUTime
-               -> ([PhylogeneticGraph], [String])
-               -> ([PhylogeneticGraph], [String])
+               -> ([ReducedPhylogeneticGraph], [String])
+               -> ([ReducedPhylogeneticGraph], [String])
 performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rSeed inTime (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let -- set up log for sample
@@ -428,9 +428,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
              -- string of delta cost of graphs
              deltaString = if null inGraphList' then "10.0"
-                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs))
+                           else show ((minimum $ fmap snd5 inGraphList') - (minimum $ fmap snd5 uniqueGraphs))
 
-             currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd6 uniqueGraphs
+             currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd5 uniqueGraphs
                                  else show infinity
 
              searchString = "," ++ buildString ++ "," ++ deltaString ++ "," ++ currentBestString ++ "," ++ (show $ toSeconds inTime) ++ "," ++ (L.intercalate "," $ fmap showArg buildArgs)
@@ -663,9 +663,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
              -- string of delta and cost of graphs
              deltaString = if null inGraphList' then "10.0,"
-                           else show ((minimum $ fmap snd6 inGraphList') - (minimum $ fmap snd6 uniqueGraphs)) -- ++ ","
+                           else show ((minimum $ fmap snd5 inGraphList') - (minimum $ fmap snd5 uniqueGraphs)) -- ++ ","
 
-             currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd6 uniqueGraphs
+             currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd5 uniqueGraphs
                                  else show infinity
 
              -- create string for search stats

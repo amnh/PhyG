@@ -187,7 +187,7 @@ Executable phyg
     phygraph.hs
 
   GHC-Options:
-    -feager-blackholing
+--     -feager-blackholing  may be causing paralel loop errors 
     -O2
     -rtsopts
     -Wall
@@ -196,7 +196,7 @@ Executable phyg
     GHC-Options:
       "-with-rtsopts= -A64m -AL128M -H1024m -n4m"
 
-  if flag(super-optimization)
+  elif flag(super-optimization)
     GHC-Options:
       -threaded
       -fexcess-precision

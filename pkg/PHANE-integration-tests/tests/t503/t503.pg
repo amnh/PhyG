@@ -1,0 +1,16 @@
+--softwired, fuse(), inputting Hennig86 files with all character settings included
+set(seed:1634561640)
+set(graphtype:softwired)
+set(graphfactor:nopenalty)
+read(rename: "woman_rename.txt")
+--woman_allchars.ss includes cc+, cc-, continuous, ?, [ ], /N 
+read(tnt: "woman_allchars.ss")
+read(tnt: "woman_step.ss")
+read(include:"Include_woman16.txt")
+read(newick:"t496.tre")
+fuse()
+swap()
+report("t503.csv", data, overwrite)
+report("t503.tre", graphs, newick, overwrite)
+report("t503_gv.tre", dotpdf, graphs, overwrite)
+report("t503_dt.tre", displaytrees, graphs, overwrite)

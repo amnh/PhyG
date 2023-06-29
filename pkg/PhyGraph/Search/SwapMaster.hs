@@ -55,8 +55,8 @@ swapMaster ::  [Argument]
            -> GlobalSettings
            -> ProcessedData 
            -> Int 
-           -> [PhylogeneticGraph] 
-           -> [PhylogeneticGraph]
+           -> [ReducedPhylogeneticGraph] 
+           -> [ReducedPhylogeneticGraph]
 swapMaster inArgs inGS inData rSeed inGraphListInput =
    if null inGraphListInput then trace "No graphs to swap" []
    -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
@@ -130,9 +130,9 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
 
                progressString
-                 | (not doAnnealing && not doDrift) = ("Swapping " ++ show (length inGraphListInput) ++ " input graph(s) with " ++ show replicates ++ " trajectories at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs per input graph")
-                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs")
-                 | otherwise = "Drifting (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd6 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
+                 | (not doAnnealing && not doDrift) = ("Swapping " ++ show (length inGraphListInput) ++ " input graph(s) with " ++ show replicates ++ " trajectories at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs per input graph")
+                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs")
+                 | otherwise = "Drifting (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
 
                -- populate SwapParams structure
                localSwapParams = SwapParams {  swapType = swapType
@@ -161,9 +161,9 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                                     else ""
 
                   endString
-                    | (not doAnnealing && not doDrift) = ("\n\tAfter swap: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType)
-                    | method (fromJust simAnnealParams) == SimAnneal = ("\n\tAfter Simulated Annealing: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType)
-                    | otherwise = "\n\tAfter Drifting: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd6 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType
+                    | (not doAnnealing && not doDrift) = ("\n\tAfter swap: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType)
+                    | method (fromJust simAnnealParams) == SimAnneal = ("\n\tAfter Simulated Annealing: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType)
+                    | otherwise = "\n\tAfter Drifting: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType
 
               in
               trace (endString ++ fullBuffWarning)
