@@ -1,0 +1,19 @@
+"Input data contained:"
+,"17 terminal taxa"
+,"2 input data files"
+,"2 character blocks"
+,"2 total characters"
+
+"Terminal taxa:"
+" ","Alentus","Amblypygid","Americhernus","Aportus","Artemia","Centruoides","Chanbria","Gea","Hadrurus","Hypochilus"
+" ","Limulus","Mastigoproctus","Pauroctonus","Rhiphicephalus","Thelichoris","Thermobius","Vonones"
+
+"Excluded taxa:"
+" ","None"
+
+"Renamed taxa:","New Name","Original Name"
+" ","None","None"
+
+"Index","Block","Name","Type","Activity","Weight","Prealigned","Alphabet","TCM"
+"0","chel-prealigned.fas#0","chel-prealigned.fas#0","NucSeq","active","1.0","unaligned","-,A,C,G,T","[[0],[4,0],[1,4,0],[4,1,4,0],[4,4,4,4,0]]"
+"1","chel_cox1aln.fasta#0","chel_cox1aln.fasta#0","NucSeq","active","1.0","unaligned","-,A,C,G,T","[[0],[1,0],[1,1,0],[1,1,1,0],[2,2,2,2,0]]"

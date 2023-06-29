@@ -20,7 +20,7 @@ import System.FilePath (normalise)
 
 
 {- |
-The text of the software license under which the PHAGE tool is distributed.
+The text of the software license under which the PHANE tool is distributed.
 -}
 licenseText :: ExpQ
 licenseText =

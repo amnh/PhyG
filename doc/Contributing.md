@@ -7,7 +7,7 @@ We want you working on things you're excited about.
 
 Here are some important resources:
 
-  * [Documentation](https://github.com/amnh/PhyGraph/tree/master/doc) tells you how to get started with PHAGE or PhyG, and
+  * [Documentation](https://github.com/amnh/PhyGraph/tree/master/doc) tells you how to get started with PHANE or PhyG, and
   * [GitHub Issues](https://github.com/amnh/PhyGraph/issues) is our project management space.
 
 ## Testing
