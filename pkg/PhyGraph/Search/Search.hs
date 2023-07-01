@@ -64,7 +64,8 @@ import qualified Utilities.Utilities      as U
 
 
 
--- Add non reroot thing liike IA for faster
+-- Add multitraverse liike IA for faster
+-- Added noreciprocal and graphsteepest=1 for fuse to reduce memory footprint
 
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
 treeBanditList :: [String]
@@ -585,24 +586,27 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "fuse" then
                                             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                                             let -- fuse arguments
-                                                fuseArgs = [("none",""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                inGSgs1 = inGS {graphsSteepest = 1}
+                                                fuseArgs = [("none",""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal","")]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData(randIntList !! 1) inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGSgs1 inData(randIntList !! 1) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseSPR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("spr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                inGSgs1 = inGS {graphsSteepest = 1}
+                                                fuseArgs = [("spr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal","")]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (randIntList !! 1) inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGSgs1 inData (randIntList !! 1) inGraphList, fuseArgs)
 
                                           else if searchBandit == "fuseTBR" then
                                             let -- fuse arguments
-                                                fuseArgs = [("tbr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep)]
+                                                inGSgs1 = inGS {graphsSteepest = 1}
+                                                fuseArgs = [("tbr", ""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal","")]
                                             in
                                             -- perform search
-                                            (R.fuseGraphs fuseArgs inGS inData (randIntList !! 1) inGraphList, fuseArgs)
+                                            (R.fuseGraphs fuseArgs inGSgs1 inData (randIntList !! 1) inGraphList, fuseArgs)
 
                                           else if searchBandit == "networkAdd" then
                                             let -- network add args
