@@ -103,7 +103,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             recombineSwap = getRandomElement (seedList !! 4) [None, NNI, SPR] --  these take too long, "tbr", "alternate"]
 
             -- options to join via union choices or all in fuse
-            joinType =  getRandomElement (seedList !! 6) [JoinPruned, JoinAll ]
+            joinType =  getRandomElement (seedList !! 6) [JoinAlternate, JoinAll ]
 
             doSteepest = True
             returnBest = False

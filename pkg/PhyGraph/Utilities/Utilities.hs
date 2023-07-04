@@ -71,7 +71,7 @@ import qualified Utilities.LocalGraph        as LG
 -- assumes all indexing is the same between the simple and decorated graph
 -- done recusively until no minLength == zero edges so edges renumbered properly
 -- network edges, pendant edges and root edges, are not collapsed
--- this wierd thype is to allow for polymorphism in graph type--basiclly a general phylogenetic graph
+-- this wierd thype is to allow for polymorphism in graph type--basically a general phylogenetic graph
 collapseGraph :: GenPhyloGraph a b 
                  -> GenPhyloGraph a b
 collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =

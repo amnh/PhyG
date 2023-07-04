@@ -28,12 +28,12 @@ set(seed:1666899539)
 
 --set(dynamicEpsilon:0.0)
 
-set(useIA:False)
+--set(useIA:False)
 
 -- For network testing
 --set (outgroup:"one")
 --set(graphtype:hardwired)
-set(graphtype:softwired)
+--set(graphtype:softwired)
 --Set(Compressresolutions:True)
 --set(graphFactor:NoPenalty)
 --set(rootcost:ml)
@@ -49,9 +49,11 @@ build(replicates:10)
 
 --set(multitraverse:false)
 
+fuse(tbr)
+
 --search(minutes:1)
 --build(replicates:10)
-refine(netadd, atrandom, maxnetedges:5)
+--refine(netadd, atrandom, maxnetedges:5)
 --fuse(tbr)
 --swap()
 
@@ -64,7 +66,7 @@ refine(netadd, atrandom, maxnetedges:5)
 select(best)
 report("test0-data.csv", data, overwrite)
 report("test0-crossrefs.csv", crossrefs, overwrite)
-report("test0-serach.csv", search, overwrite)
+report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)
 report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse)
 --report("test0-wag.tre", overwrite, graphs, newick, nohtulabels, nobraNCHLENGTHS, collapse)
