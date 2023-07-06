@@ -164,7 +164,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
        
        let result' = if isNothing result then 
                         trace ("Thread " ++ (show refIndex) ++ " terminated due to time" ) -- ++ show allotedSeconds)
-                        (inGraphList, infoStringList)
+                        (inGraphList, infoStringList ++ [",Final Values,,,,," ++ "*"])
                      else 
                         --trace ("Thread " ++ (show refIndex) ++ " is OK "  ++ (show allotedSeconds) ++ " -> " ++ (show $ fromIntegral $ toMicroseconds allotedSeconds))
                         fromJust result
@@ -185,7 +185,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       , "Remaining\t" <> show remainingTime
                       ]
 
-   if (snd output) == infoStringList
+   if (snd output) == infoStringList 
    then pure (inGraphList, infoStringList) 
    else if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum 
    then pure (fst output, infoStringList ++ (snd output) ++ [finalTimeString ++ "," ++ thetaString ++ "," ++ "*"]) -- output with strings correctly added together
