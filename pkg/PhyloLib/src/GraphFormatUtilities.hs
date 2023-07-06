@@ -761,7 +761,7 @@ modifyInDegGT1HTU origGraph nodeIndex htuNodes
 --    parent gets a node with the name label and no children
 modifyFGLForEnewick :: P.Gr T.Text Double -> P.Gr T.Text Double
 modifyFGLForEnewick inGraph =
-  if G.isEmpty inGraph then error "Empty graph to modify in modifyFGLForEnewick"
+  if G.isEmpty inGraph then G.empty
   else
     let (_, leafNodes, nonLeafNodes) = splitVertexList inGraph
 
@@ -786,7 +786,7 @@ modifyFGLForEnewick inGraph =
 -- these are not issues for dot files
 fgl2FEN :: Bool -> Bool -> P.Gr T.Text Double -> T.Text
 fgl2FEN writeEdgeWeight writeNodeLable inFGLGraph =
-  if G.isEmpty inFGLGraph then error "Empty graph to convert in fgl2FEN"
+  if G.isEmpty inFGLGraph then T.empty
   else
     -- Modify greaph for enewick stuff (leaves -> indegree 1, 'split' network nodes)
     --trace ("Original:\n" <> showGraph inFGLGraph) (
@@ -813,7 +813,7 @@ fglList2ForestEnhancedNewickString :: [P.Gr T.Text Double] -> Bool -> Bool -> St
 fglList2ForestEnhancedNewickString inFGLList writeEdgeWeight writeNodeLable =
   if null inFGLList then "\n"
   else
-    let forestTextList = (`T.append` T.singleton '\n') <$> parmap rdeepseq (fgl2FEN writeEdgeWeight writeNodeLable) inFGLList
+    let forestTextList = (`T.append` T.singleton '\n') <$> parmap rdeepseq (fgl2FEN writeEdgeWeight writeNodeLable) (filter (not . G.isEmpty) inFGLList)
         forestListString = T.unpack $ T.concat forestTextList
     in
     forestListString
@@ -821,7 +821,7 @@ fglList2ForestEnhancedNewickString inFGLList writeEdgeWeight writeNodeLable =
 -- | component2Newick take a graph and root and creates enhanced newick from that root
 component2Newick :: (Show a) => P.Gr T.Text a -> Bool -> Bool -> G.LNode T.Text -> T.Text
 component2Newick fglGraph writeEdgeWeight writeNodeLable (index, label) =
-  if G.isEmpty fglGraph then error "Empty graph to convert in component2Newick"
+  if G.isEmpty fglGraph then T.empty
   else
     -- start with root (no in edge weight) issue at root not seeing multiple components properly
     let -- preorder traversal
@@ -1019,26 +1019,29 @@ convertGraphToStrictText inGraph =
 -- | fgl2DotString takes an FGL graph and returns a String 
 fgl2DotString :: (GV.Labellable a, GV.Labellable b) => P.Gr a b -> String
 fgl2DotString inGraph =
-  T.unpack $ GVP.renderDot $ GVP.toDot $ GV.graphToDot GV.quickParams inGraph
+  if G.isEmpty inGraph then []
+  else T.unpack $ GVP.renderDot $ GVP.toDot $ GV.graphToDot GV.quickParams inGraph
 
 -- | modifyVertexEdgeLabels keeps or removes vertex and edge labels
 modifyVertexEdgeLabels :: (Show b) => Bool -> Bool -> P.Gr String b -> P.Gr String String
 modifyVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
-  let inLabNodes = G.labNodes inGraph
-      degOutList = G.outdeg inGraph <$> G.nodes inGraph
-      nodeOutList = zip  degOutList inLabNodes
-      leafNodeList    = snd <$> filter ((== 0) . fst) nodeOutList
-      nonLeafNodeList = snd <$> filter ((>  0) . fst) nodeOutList
-      newNonLeafNodes = if keepVertexLabel then nonLeafNodeList
-                        else zip (fmap fst nonLeafNodeList) (replicate (length nonLeafNodeList) "")
-      inLabEdges = G.labEdges inGraph
-      inEdges = fmap G.toEdge inLabEdges
-      newEdges = if keepEdgeLabel then fmap showLabel inLabEdges
-                 else fmap (`G.toLEdge` "") inEdges
-  in G.mkGraph (leafNodeList <> newNonLeafNodes) newEdges
-    where
-      showLabel :: Show c => (a, b, c) -> (a, b, String)
-      showLabel (e, u, l) = (e, u, show l)
+  if G.isEmpty inGraph then G.empty
+  else 
+      let inLabNodes = G.labNodes inGraph
+          degOutList = G.outdeg inGraph <$> G.nodes inGraph
+          nodeOutList = zip  degOutList inLabNodes
+          leafNodeList    = snd <$> filter ((== 0) . fst) nodeOutList
+          nonLeafNodeList = snd <$> filter ((>  0) . fst) nodeOutList
+          newNonLeafNodes = if keepVertexLabel then nonLeafNodeList
+                            else zip (fmap fst nonLeafNodeList) (replicate (length nonLeafNodeList) "")
+          inLabEdges = G.labEdges inGraph
+          inEdges = fmap G.toEdge inLabEdges
+          newEdges = if keepEdgeLabel then fmap showLabel inLabEdges
+                     else fmap (`G.toLEdge` "") inEdges
+      in G.mkGraph (leafNodeList <> newNonLeafNodes) newEdges
+        where
+          showLabel :: Show c => (a, b, c) -> (a, b, String)
+          showLabel (e, u, l) = (e, u, show l)
 
 -- | relabelLeaf takes list of pairs and if current leaf label
 -- is snd in a pair, it replaces the label with the first of the pair

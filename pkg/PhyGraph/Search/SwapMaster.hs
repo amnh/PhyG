@@ -131,8 +131,8 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
 
                progressString
                  | (not doAnnealing && not doDrift) = ("Swapping " ++ show (length inGraphListInput) ++ " input graph(s) with " ++ show replicates ++ " trajectories at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs per input graph")
-                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs")
-                 | otherwise = "Drifting (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
+                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs")
+                 | otherwise = "Drifting (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds with " ++ show (driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
 
                -- populate SwapParams structure
                localSwapParams = SwapParams {  swapType = swapType

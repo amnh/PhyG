@@ -326,6 +326,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
 -- | performSearch takes input graphs and performs randomized build and search with time limit
 -- Thompson sampling and mFactor to pick strategy from updated theta success values
 -- the random calls return the tail of the input list to avoid long list access--can do vector since infinite
+-- if no input graphs then do a unitary distance build to get a quick start
 performSearch :: GlobalSettings
                -> ProcessedData
                -> [[VertexCost]]
@@ -351,11 +352,13 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           randDoubleVect = V.fromList $ take 20 randDoubleList
 
           -- choose search type from list with frequencies as input from searchForDuration
-          searchBandit = chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
+          searchBandit = if null inGraphList' then  "buildDistance"
+                         else chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
 
           -- common build arguments including block and distance
           --    Tree does not use block--doesn't work very well for tree building
-          buildMethod  = if (graphType inGS' /= Tree) then chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.8), ("block", 0.2)]
+          buildMethod  = if null inGraphList' then "unitary"
+                         else if (graphType inGS' /= Tree) then chooseElementAtRandomPair (randDoubleVect V.! 10) [("unitary", 0.8), ("block", 0.2)]
                          else "unitary"
 
           buildType = if searchBandit == "buildCharacter" then "character"
@@ -395,7 +398,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           annealArgs = [("annealing", ""),("steps", tempSteps)]
 
           -- common fuse options
-          fusePairs = chooseElementAtRandomPair (randDoubleVect V.! 5) [("20", 0.45), ("40", 0.45), ("100", 0.1)]
+          fusePairs = chooseElementAtRandomPair (randDoubleVect V.! 5) [("10", 0.45), ("20", 0.45), ("40", 0.1)]
           fuseKeep = 2 * keepNum
 
           -- network edit options
@@ -411,7 +414,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           popSize           = chooseElementAtRandomPair (randDoubleVect V.! 6)  [("10", 0.50), ("20", 0.25), ("40", 0.25)]
           generations       = chooseElementAtRandomPair (randDoubleVect V.! 7)  [("1", 1.0)] -- , "2" , "4"]
           severity          = chooseElementAtRandomPair (randDoubleVect V.! 8)  [("0.0", 0.33), ("1.0", 0.34), ("2.0", 0.33)]
-          recombinations    = chooseElementAtRandomPair (randDoubleVect V.! 9)  [("20", 0.45), ("40", 0.45), ("100", 0.1)]
+          recombinations    = chooseElementAtRandomPair (randDoubleVect V.! 9)  [("10", 0.45), ("20", 0.45), ("40", 0.1)]
 
           gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations), ("stop", "2")]
 
@@ -429,6 +432,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
              buildString = if searchBandit `elem` ["buildCharacter", "buildDistance"] then searchBandit
                            else if buildType == "character" then "buildCharacter"
                            else "buildDistance"
+                           
 
              -- string of delta cost of graphs
              deltaString = if null inGraphList' then "10.0"
@@ -534,6 +538,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                             -- search
                                             (R.swapMaster swapArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
 
+                                          -- drift only best graphs
                                           else if searchBandit == "driftSPR" then
                                             let -- swap args
                                                 swapType = "spr"
@@ -543,8 +548,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapArgs)
 
+                                          -- drift only best graphs
                                           else if searchBandit == "driftAlternate" then
                                             let -- swap args
                                                 swapType = "alternate"
@@ -554,8 +560,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs ++ driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapDriftArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapDriftArgs)
 
+                                          -- anneal only best graphs
                                           else if searchBandit == "annealSPR" then
                                             let -- swap args
                                                 swapType = "spr"
@@ -565,8 +572,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapAnnealArgs)
 
+                                          -- anneal only best graphs
                                           else if searchBandit == "annealAlternate" then
                                             let -- swap args
                                                 swapType = "alternate"
@@ -576,7 +584,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs ++ annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapAnnealArgs)
 
                                           else if searchBandit == "geneticAlgorithm" then
                                             -- args from above
