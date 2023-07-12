@@ -6,8 +6,6 @@
 packages:
     pkg/PHANE-integration-tests
     pkg/PhyGraph
-    pkg/PhyloLib
-    pkg/*/*.cabal
 
 
 ---------------------------------------------------------------------------------
