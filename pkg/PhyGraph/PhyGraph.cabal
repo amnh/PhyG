@@ -16,15 +16,15 @@ License-File:  LICENSE
 
 
 Maintainer:    Ward Wheeler <wheeler@amnh.org>
-Homepage:      https:ithub.com/wardwheeler/PhyGraph#readme
-Bug-Reports:   https:ithub.com/wardwheeler/PhyGraph/issues
+Homepage:      https:github.com/wardwheeler/PhyGraph#readme
+Bug-Reports:   https:github.com/wardwheeler/PhyGraph/issues
 
 
 Data-Files:
   doc/Authors.md
   doc/Funding.md
   doc/LICENSE
-   
+
 
 Extra-Doc-Files:
   doc/Authors.md
@@ -141,6 +141,9 @@ Common static-build-flags
 --      -static-libgcc
 
 
+-- at command line "--enable-executable-static" for static binaries
+
+
 Flag super-optimization
    Description: Apply extremely agressive and extremely time consuming optimization passes
    Default:     False
@@ -151,8 +154,6 @@ Flag SingleThreaded
    Default:     False
    Manual:      True
 
-
--- at command line "--enable-executable-static" for static binaries
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 --
@@ -187,7 +188,7 @@ Executable phyg
     phygraph.hs
 
   GHC-Options:
---     -feager-blackholing  may be causing paralel loop errors 
+--     -feager-blackholing  may be causing paralel loop errors
     -O2
     -rtsopts
     -Wall
@@ -232,7 +233,7 @@ Executable phyg
     PhyGraph:alphabet,
     PhyGraph:dynamic-character,
     PhyGraph:tcm,
-    PhyloLib,
+    PHANE-PhyloLib,
     array,
     async,
     base >= 4.10,
@@ -245,7 +246,7 @@ Executable phyg
     cpuinfo,
     deepseq,
     directory,
-    filepath >= 1.4.100,         
+    filepath >= 1.4.100,
     fgl >=5.8,
     foldl,
     gitrev,
@@ -256,7 +257,7 @@ Executable phyg
     MissingH >= 1.4.3,
     mmark,
     modern-uri,
-    optparse-applicative,         
+    optparse-applicative,
     parallel,
     prettyprinter,
     process,

@@ -79,13 +79,7 @@ package phygraph
 packages: .
 
 
-source-repository-package
-    type: git
-    location: https://github.com/recursion-ninja/bv-little
-    tag: 4541d78545933f450af5c241a83e4b07a0e69dca
-
-
-source-repository-package -- head
+source-repository-package 
     type:     git
-    location: git@github.com:wardwheeler/PhyGraph.git
-    subdir:   pkg/PhyloLib
+    location: git@github.com:amnh/PHANE
+    subdir:   pkg/PHANE-PhyloLib
