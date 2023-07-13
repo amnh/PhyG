@@ -1,3 +1,1 @@
-# PhyGraph
-
-The `PhyGraph` package exposes the `phyg` executable and the `PhyGraph` library.
+../../doc/ReadMe/PhyG.md
