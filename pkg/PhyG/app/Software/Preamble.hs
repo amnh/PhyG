@@ -15,6 +15,7 @@ import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.String (IsString(fromString))
 import Data.Text.Builder.Linear
+import Data.Text (Text)
 import Data.Text qualified as T
 import Software.License
 import Software.Metadata
@@ -34,10 +35,13 @@ preambleText =
             ]
 
 
+fullLicenseText :: Text
+fullLicenseText = $(licenseText)
+
+
 getLicenseLine :: Word -> Builder
 getLicenseLine lineNum =
-    let fullLicenseText = $(licenseText)
-        n = fromEnum lineNum
+    let n = fromEnum lineNum
     in  fromText . head . drop (n - 1) . take n $ T.lines fullLicenseText
 
 

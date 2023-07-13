@@ -188,11 +188,11 @@ Executable phyg
     -rtsopts
     -Wall
 
-  if flag(SingleThreaded)
+  If flag(SingleThreaded)
     GHC-Options:
       "-with-rtsopts= -A64m -AL128M -H1024m -n4m"
 
-  if flag(super-optimization)
+  If flag(super-optimization)
     GHC-Options:
       -threaded
       -fexcess-precision
@@ -217,7 +217,7 @@ Executable phyg
 --      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
 --  if !flag(super-optimization) && !flag(SingleThreaded)
-  else
+  Else
     GHC-Options:
       -threaded
 --    rts -AL8 was rejected  should be >= A
@@ -351,7 +351,7 @@ Executable phyg
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
-library alphabet
+Library alphabet
 
   Import:
     language-specs
@@ -395,7 +395,7 @@ library alphabet
 -- Provides various metrics for scoring static characters and
 -- performing string alignment on dynamic characters.
 
-library dynamic-character
+Library dynamic-character
 
   Import:
     ffi-build-info,
@@ -442,7 +442,7 @@ library dynamic-character
 -- for the discrete metric (non-additive) and the L1 norm (additive) TCMs &
 -- SCMs. Exposes a memoized binding for sparsely indexed, large TCMs.
 
-library tcm
+Library tcm
 
   Import:
     ffi-build-info,
@@ -559,7 +559,7 @@ library tcm
 -- Defines custom data structures for special use cases, more abstract functions
 -- that base provides, and re-exported correcting to deficient libraries.
 
-library utility
+Library utility
 
   Import:
     language-specs
@@ -588,7 +588,6 @@ library utility
     Build-Depends:
       integer-gmp            >= 1.0.2     && < 2.0
 
-
   Exposed-Modules:
     Data.List.Utility
     Data.Matrix.NotStupid
@@ -602,7 +601,7 @@ library utility
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
-test-suite test-dynamic-character
+Test-Suite test-dynamic-character
 
   Import:
     language-specs
