@@ -29,7 +29,7 @@ import Data.Foldable (toList)
 import Data.String
 import Data.Version (showVersion)
 import Development.GitRev (gitCommitCount, gitHash)
-import Paths_PhyGraph (version)
+import Paths_PhyG (version)
 import Software.Metadata.TimeStamp (compilationTimeStamp)
 
 

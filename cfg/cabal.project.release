@@ -5,17 +5,14 @@
 
 packages:
     pkg/PHANE-integration-tests
-    pkg/PhyGraph
-    pkg/PhyloLib
-    pkg/*/*.cabal
-
+    pkg/PhyG
 
 ---------------------------------------------------------------------------------
 -- Build decisions
 --  * Compiler versions
 ---------------------------------------------------------------------------------
 
-with-compiler: ghc-9.4.2
+with-compiler: ghc-9.4.5
 
 
 ---------------------------------------------------------------------------------

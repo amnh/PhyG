@@ -1,7 +1,7 @@
 ---------------------------------------------------------------------------------
 -- Dependency specifications
 ---------------------------------------------------------------------------------
- 
+
 allow-newer:
     aeson,
     base,
@@ -19,12 +19,12 @@ allow-newer:
     th-abstraction
 
 preferences:
-    aeson          >= 2.0,
-    bytestring     >= 0.11,
-    text           >= 2.0,
-
-with-compiler: ghc-9.4.5
-
+    aeson >= 2.1.0.0,
+    bytestring >= 0.12.0.0,
+    filepath >= 1.4.100.0,
+    mtl >= 2.3.1,
+    text >= 2.0.1,
+    unordered-containers >= 0.2.18.0,
 
 ---------------------------------------------------------------------------------
 -- Output paths
@@ -79,7 +79,7 @@ package phygraph
 packages: .
 
 
-source-repository-package 
+source-repository-package
     type:     git
     location: git@github.com:amnh/PHANE
     subdir:   pkg/PHANE-PhyloLib

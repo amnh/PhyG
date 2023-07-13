@@ -14,7 +14,7 @@ import Data.Text.IO (readFile)
 import Instances.TH.Lift ()
 import Language.Haskell.TH hiding (Inline)
 import Language.Haskell.TH.Syntax hiding (Inline)
-import Paths_PhyGraph (getDataFileName)
+import Paths_PhyG (getDataFileName)
 import Prelude hiding (lines, readFile)
 import System.FilePath (normalise)
 

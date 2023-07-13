@@ -4,8 +4,7 @@
 ---------------------------------------------------------------------------------
 
 packages:
-    pkg/PHANE-integration-tests
-    pkg/PhyGraph
+    pkg/PhyG
 
 
 ---------------------------------------------------------------------------------
@@ -117,7 +116,8 @@ preferences:
     bytestring     >= 0.11.3,
     text           >= 2.0,
 
+
 source-repository-package
     type:     git
-    location: git@github.com:amnh/PHANE
+    location: git@github.com:AMNH/PHANE
     subdir:   pkg/PHANE-PhyloLib

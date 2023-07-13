@@ -1,5 +1,5 @@
 Cabal-Version: 3.8
-Name:          PhyGraph
+Name:          PhyG
 Version:       0.1.2
 Stability:     Alpha
 Build-Type:    Simple
@@ -8,23 +8,19 @@ Tested-With:
   GHC == 9.4.5
   GHC == 9.6.2
 
-
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     (c) 2015-2022 Ward Wheeler
 License:       BSD-3-Clause
 License-File:  LICENSE
 
-
 Maintainer:    Ward Wheeler <wheeler@amnh.org>
-Homepage:      https:github.com/wardwheeler/PhyGraph#readme
-Bug-Reports:   https:github.com/wardwheeler/PhyGraph/issues
-
+Homepage:      https://github.com/AMNH/PhyG#readme
+Bug-Reports:   https://github.com/AMNH/PhyG/issues
 
 Data-Files:
   doc/Authors.md
   doc/Funding.md
   doc/LICENSE
-
 
 Extra-Doc-Files:
   doc/Authors.md
@@ -32,7 +28,6 @@ Extra-Doc-Files:
   doc/Funding.md
   doc/LICENSE
   README.md
-
 
 Extra-Source-Files:
   doc/Authors.md
@@ -230,9 +225,9 @@ Executable phyg
       "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
 
   Build-Depends:
-    PhyGraph:alphabet,
-    PhyGraph:dynamic-character,
-    PhyGraph:tcm,
+    PhyG:alphabet,
+    PhyG:dynamic-character,
+    PhyG:tcm,
     PHANE-PhyloLib,
     array,
     async,
@@ -289,10 +284,10 @@ Executable phyg
   Other-Extensions: TemplateHaskell
 
   Autogen-Modules:
-    Paths_PhyGraph
+    Paths_PhyG
 
   Other-Modules:
-    Paths_PhyGraph
+    Paths_PhyG
     CommandLineOptions
     CommandLineOptions.Display
     CommandLineOptions.Types
@@ -365,7 +360,7 @@ library alphabet
     lib/alphabet/src
 
   Build-Depends:
-    PhyGraph:utility,
+    PhyG:utility,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     binary                   >= 0.8       && < 1.0,
@@ -410,9 +405,9 @@ library dynamic-character
     lib/dynamic-character/src
 
   Build-Depends:
-    PhyGraph:alphabet,
-    PhyGraph:tcm,
-    PhyGraph:utility,
+    PhyG:alphabet,
+    PhyG:tcm,
+    PhyG:utility,
     base                     >= 4.11      && < 5.0,
     bv-little,
     containers               >= 0.6.2     && < 1.0,
@@ -457,7 +452,7 @@ library tcm
     lib/tcm/src
 
   Build-Depends:
-    PhyGraph:utility,
+    PhyG:utility,
     binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
@@ -622,9 +617,9 @@ test-suite test-dynamic-character
     lib/dynamic-character/test
 
   Build-Depends:
-    PhyGraph:alphabet,
-    PhyGraph:dynamic-character,
-    PhyGraph:tcm,
+    PhyG:alphabet,
+    PhyG:dynamic-character,
+    PhyG:tcm,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
     containers               >= 0.6.2     && < 1.0,
@@ -670,9 +665,9 @@ test-suite test-dynamic-character
 --    lib/dynamic-character/test
 --
 --  Build-Depends:
---    PhyGraph:alphabet,
---    PhyGraph:dynamic-character,
---    PhyGraph:tcm,
+--    PhyG:alphabet,
+--    PhyG:dynamic-character,
+--    PhyG:tcm,
 --    base                     >= 4.11      && < 5.0,
 --    bimap                    >= 0.3       && < 1.0,
 --    containers               >= 0.6.2     && < 1.0,
