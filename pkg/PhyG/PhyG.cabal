@@ -11,7 +11,7 @@ Tested-With:
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     (c) 2015-2022 Ward Wheeler
 License:       BSD-3-Clause
-License-File:  LICENSE
+License-File:  doc/LICENSE
 
 Maintainer:    Ward Wheeler <wheeler@amnh.org>
 Homepage:      https://github.com/AMNH/PhyG#readme
