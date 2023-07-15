@@ -1,30 +1,19 @@
------------------------------------------------------------------------------
--- |
--- Module      :  Data.Alphabet.Internal
--- Copyright   :  (c) 2015-2021 Ward Wheeler
--- License     :  BSD-style
---
--- Maintainer  :  wheeler@amnh.org
--- Stability   :  provisional
--- Portability :  portable
---
--- We must ensure that missing and gap are appropriately
--- code as "-" & "?", respectively, before this module is used, i.e., as output
--- from either parsers or in unification step.
---
------------------------------------------------------------------------------
+{- |
+We must ensure that missing and gap are appropriately code as "-" & "?", respectively,
+before this module is used, i.e., as output from either parsers or in unification step.
+-}
 
-{-# LANGUAGE BangPatterns       #-}
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TypeFamilies       #-}
-{-# LANGUAGE TypeOperators      #-}
+{-# Language BangPatterns       #-}
+{-# Language DeriveAnyClass     #-}
+{-# Language DeriveDataTypeable #-}
+{-# Language DeriveFunctor      #-}
+{-# Language DeriveGeneric      #-}
+{-# Language DerivingStrategies #-}
+{-# Language FlexibleContexts   #-}
+{-# Language FlexibleInstances  #-}
+{-# Language OverloadedStrings  #-}
+{-# Language TypeFamilies       #-}
+{-# Language TypeOperators      #-}
 
 module Data.Alphabet.Internal
   ( Alphabet(..)
@@ -44,48 +33,49 @@ module Data.Alphabet.Internal
   , getSubsetIndices
   ) where
 
-import           Control.Arrow
-import           Control.DeepSeq                     (NFData)
-import           Control.Monad.State.Strict
-import           Control.Monad
-import           Data.Bifunctor                      (bimap)
-import           Data.Binary                         (Binary)
-import           Data.Bits
-import           Data.Data
-import           Data.Foldable
-import           Data.IntSet                         (IntSet)
-import qualified Data.IntSet                         as Int
-import           Data.Key
-import           Data.List                           (elemIndex, intercalate, sort)
-import           Data.List.NonEmpty                  (NonEmpty(..), unzip)
-import qualified Data.List.NonEmpty                  as NE
-import qualified Data.Map                            as Map
-import           Data.Matrix.NotStupid               (Matrix, matrix)
-import           Data.Maybe
-import           Data.Monoid
-import           Data.Ord
-import           Data.Semigroup.Foldable
-import           Data.Set                            (Set)
-import qualified Data.Set                            as Set
-import           Data.String
-import           Data.Text.Short                     (ShortText)
-import qualified Data.Vector                         as V
-import           Data.Vector.NonEmpty                (Vector)
-import qualified Data.Vector.NonEmpty                as NEV
-import           Data.Word
-import           GHC.Exts                            (IsList(fromList), Item)
-import           GHC.Generics                        (Generic)
-import           Numeric.Natural
-import           Prelude                             hiding (lookup, unzip, zip)
-import           Test.QuickCheck
+import Control.Arrow
+import Control.DeepSeq (NFData)
+import Control.Monad.State.Strict
+import Control.Monad
+import Data.Bifunctor (bimap)
+import Data.Binary (Binary)
+import Data.Bits
+import Data.Data
+import Data.Foldable
+import Data.IntSet (IntSet)
+import Data.IntSet qualified as Int
+import Data.Key
+import Data.List (elemIndex, intercalate, sort)
+import Data.List.NonEmpty (NonEmpty(..), unzip)
+import Data.List.NonEmpty qualified as NE
+import Data.Map qualified as Map
+import Data.Matrix.NotStupid (Matrix, matrix)
+import Data.Maybe
+import Data.Monoid
+import Data.Ord
+import Data.Semigroup.Foldable
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.String
+import Data.Text.Short (ShortText)
+import Data.Vector qualified as V
+import Data.Vector.NonEmpty (Vector)
+import Data.Vector.NonEmpty qualified as NEV
+import Data.Word
+import GHC.Exts (IsList(fromList), Item)
+import GHC.Generics (Generic)
+import Numeric.Natural
+import Prelude hiding (lookup, unzip, zip)
+import Test.QuickCheck
 --import           Test.QuickCheck.Arbitrary.Instances ()
 
 
--- |
--- The index of the vector where the gap state is stored.
---
--- /NOTE:/ This index value is very important for many gap-related operations,
--- both internally for the 'Alphabet' module/linbrary and externally in general.
+{- |
+The index of the vector where the gap state is stored.
+
+/NOTE:/ This index value is very important for many gap-related operations,
+both internally for the 'Alphabet' module/linbrary and externally in general.
+-}
 gapIndex :: Int
 gapIndex = 0
 

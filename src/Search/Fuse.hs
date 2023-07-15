@@ -102,8 +102,8 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                  if (graphType inGS) == Tree then fst $ IL.head (graphComplexityList inGS)
                                  else if (graphType inGS) == SoftWired then fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
                                  else if (graphType inGS) == HardWired then snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
-                                 else error ("Graph type " ++ (show $ graphType inGS) ++ " is not yet implemented in fuseAllGraphs")
-                             else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                                 else error ("Graph type " <> (show $ graphType inGS) <> " is not yet implemented in fuseAllGraphs")
+                             else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
          inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
 
 
@@ -122,34 +122,34 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                     else infinity
 
          swapTypeString = if swapType swapParams == None then "out"
-                          else " " ++ (show $ swapType swapParams)
+                          else " " <> (show $ swapType swapParams)
 
       in
 
-      trace ("\tFusing " ++ (show $ length graphPairList) ++ randString ++ " graph pairs with" ++ swapTypeString ++ " swapping") $
+      trace ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping") $
       if null newGraphList then (inGraphList, counter + 1)
       else if returnUnique then
-         let uniqueList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList ++ newGraphList)
+         let uniqueList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
          in
          if fuseBest < curBest then
-               -- trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
+               -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
                trace ("\n")
                fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
          else (uniqueList, counter + 1)
 
       else -- return best
          -- only do one round of fusing
-         if singleRound then (GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList ++ newGraphList), counter + 1)
+         if singleRound then (GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList), counter + 1)
 
          -- recursive rounds
          else
             -- need unique list to keep going
-            let allBestList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList ++ newGraphList)
+            let allBestList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
             in
 
             -- found better
             if fuseBest < curBest then
-               --trace ("\t->" ++ (show fuseBest)) --  ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
+               --trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
                trace ("\n")
                fuseAllGraphs swapParams inGS inData (drop 2  rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
 
@@ -201,8 +201,8 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
 
       in
       -- paralle removed due to memory blow-up
-      bestResultList' ++ fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (drop numPairsToExamine leftRightList)
-      --bestResultList' ++ fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (tail leftRightList)
+      bestResultList' <> fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (drop numPairsToExamine leftRightList)
+      --bestResultList' <> fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (tail leftRightList)
 
 -- | fusePair recombines a single pair of graphs
 -- this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
@@ -300,7 +300,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
           -- get "best" fused graphs from leftRight and rightLeft
           bestFusedGraphs = if reciprocal then
-                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (leftRightFusedGraphList ++ rightLeftFusedGraphList)
+                              GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (leftRightFusedGraphList <> rightLeftFusedGraphList)
                             else
                               GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) leftRightFusedGraphList
 
@@ -309,9 +309,9 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
       if null leftValidTupleList then []
       else
          {-
-         trace ("FP: " ++ (show (length leftValidTupleList, length rightValidTupleList)) ++ " num (Left,Right) " ++ (show (length leftSplitTupleList, length rightSplitTupleList))
-            ++ "\nLeftRight splitCost " ++ (show $ fmap snd leftRightOptimizedSplitGraphCostList)
-            ++ "\nrightLeft splitCost " ++ (show $ fmap snd rightLeftOptimizedSplitGraphCostList))
+         trace ("FP: " <> (show (length leftValidTupleList, length rightValidTupleList)) <> " num (Left,Right) " <> (show (length leftSplitTupleList, length rightSplitTupleList))
+            <> "\nLeftRight splitCost " <> (show $ fmap snd leftRightOptimizedSplitGraphCostList)
+            <> "\nrightLeft splitCost " <> (show $ fmap snd rightLeftOptimizedSplitGraphCostList))
          -}
          bestFusedGraphs
       where first4of6 (a, b, c, d, _, _) = (a, b, c, d)
@@ -335,7 +335,7 @@ recombineComponents :: SwapParams
                     -> [ReducedPhylogeneticGraph]
 recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor originalSplitEdgeList =
    -- check and see if any reconnecting to do
-   --trace ("RecombineComponents " ++ (show $ length splitGraphCostPairList)) (
+   --trace ("RecombineComponents " <> (show $ length splitGraphCostPairList)) (
    let splitGraphCostPairList = filter ((not . LG.isEmpty) .fst) inSplitGraphCostPairList
    in
    if null splitGraphCostPairList then []
@@ -425,10 +425,10 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
 
           newRecursiveBestCost = min recursiveBestCost firstBestCost
 
-          progressString = if firstBestCost < recursiveBestCost then ("\t->" ++ (show newRecursiveBestCost)) else ""
+          progressString = if firstBestCost < recursiveBestCost then ("\t->" <> (show newRecursiveBestCost)) else ""
       in
       traceNoLF progressString (
-      firstRejoinResult ++ rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
+      firstRejoinResult <> rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
       )
 
 
@@ -442,7 +442,7 @@ getNetworkPentaltyFactor inGS inData graphCost inGraph =
                                 else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                                 else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple inGraph)
                                 else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenaltyReduced inGraph
-                                else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                                else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
         in
         inGraphNetPenalty / graphCost
 
@@ -462,10 +462,10 @@ getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph, origSiteEdge) =
 
           -- origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
       in
-      -- trace ("GBGE: " ++ (show $ length baseMatchList))
-      -- trace ("GBGE sub: " ++ (show $ origEdge `elem` (fmap LG.toEdge edgesInSubGraph)) ++ " base: " ++ (show $ origEdge `elem` (fmap LG.toEdge baseGraphEdges)) ++ " total: " ++ (show $ origEdge `elem` (fmap LG.toEdge $ LG.labEdges inGraph)) ++ "\n" ++ (show origEdge) ++ " sub " ++ (show $ fmap LG.toEdge edgesInSubGraph) ++ " base " ++ (show $ fmap LG.toEdge baseGraphEdges) ++ "\nTotal " ++ (show $ fmap LG.toEdge $ LG.labEdges inGraph))
+      -- trace ("GBGE: " <> (show $ length baseMatchList))
+      -- trace ("GBGE sub: " <> (show $ origEdge `elem` (fmap LG.toEdge edgesInSubGraph)) <> " base: " <> (show $ origEdge `elem` (fmap LG.toEdge baseGraphEdges)) <> " total: " <> (show $ origEdge `elem` (fmap LG.toEdge $ LG.labEdges inGraph)) <> "\n" <> (show origEdge) <> " sub " <> (show $ fmap LG.toEdge edgesInSubGraph) <> " base " <> (show $ fmap LG.toEdge baseGraphEdges) <> "\nTotal " <> (show $ fmap LG.toEdge $ LG.labEdges inGraph))
 
-      baseMatchList ++ (baseGraphEdges L.\\ baseMatchList)
+      baseMatchList <> (baseGraphEdges L.\\ baseMatchList)
 
       where edgeMatch (a, b, _) (e, v, _) = if e == a then True
                                             else if e == b then True
@@ -484,7 +484,7 @@ getCompatibleNonIdenticalSplits :: Int
                                 -> Bool
 getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV = 
 
-   -- traceNoLF ("GCNIS: " ++ (show leftRightMatch) ++ " " ++ (show $ popCount leftPrunedGraphBV) ++ " ") $
+   -- traceNoLF ("GCNIS: " <> (show leftRightMatch) <> " " <> (show $ popCount leftPrunedGraphBV) <> " ") $
    if not leftRightMatch then False
    else if popCount leftPrunedGraphBV < 3 then False
    else if popCount leftPrunedGraphBV > (numLeaves - 3) then False
@@ -515,7 +515,7 @@ getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV =
 -- both components need to have HTU and edges reindexed to be in sync, oringal edge terminal node is also reindexed and returned for limit readd distance
 exchangePrunedGraphs :: Int -> ((DecoratedGraph, LG.Node, LG.Node, LG.Node), (DecoratedGraph, LG.Node, LG.Node, LG.Node), LG.Node) -> (DecoratedGraph, Int , Int, Int, Int)
 exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode) =
-   if LG.isEmpty (fst4 firstGraphTuple) || LG.isEmpty (fst4 secondGraphTuple) then error ("Empty graph input in exchangePrunedGraphs" ++ (show (LG.isEmpty (fst4 firstGraphTuple), LG.isEmpty (fst4 secondGraphTuple))))
+   if LG.isEmpty (fst4 firstGraphTuple) || LG.isEmpty (fst4 secondGraphTuple) then error ("Empty graph input in exchangePrunedGraphs" <> (show (LG.isEmpty (fst4 firstGraphTuple), LG.isEmpty (fst4 secondGraphTuple))))
    else
       let (firstSplitGraph, firstGraphRootIndex, _, _) = firstGraphTuple
           (secondSplitGraph, _, secondPrunedGraphRootIndex, _) = secondGraphTuple
@@ -537,7 +537,7 @@ exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode
 
           -- add root node of second pruned since not included in "nodesAfter" function
           -- add in gandparent nodes of pruned and its edges to pruned graphs
-          secondPrunedGraphNodeList = [secondPrunedGraphRootNode, secondPrunedParentNode] ++ secondPrunedGraphNodeList'
+          secondPrunedGraphNodeList = [secondPrunedGraphRootNode, secondPrunedParentNode] <> secondPrunedGraphNodeList'
           secondPrunedGraphEdgeList = (head $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) : secondPrunedGraphEdgeList'
 
           -- reindex base and pruned partitions (HTUs and edges) to get in sync and make combinable
@@ -551,7 +551,7 @@ exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode
 
 
           -- create and reindex new split graph
-          newSplitGraph = LG.mkGraph (baseGraphNodes ++ prunedGraphNodes) (baseGraphEdges ++ prunedGraphEdges)
+          newSplitGraph = LG.mkGraph (baseGraphNodes <> prunedGraphNodes) (baseGraphEdges <> prunedGraphEdges)
 
           -- get graph root Index, pruned root index, pruned root parent index
           -- firstGraphRootIndex should not have changed in reindexing--same as numLeaves
@@ -559,17 +559,17 @@ exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode
           prunedRootIndex = head $ LG.descendants newSplitGraph prunedParentRootIndex
 
       in
-      if (length $ LG.getRoots newSplitGraph) /= 2 then error ("Not 2 components in split graph: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
-      else if (length $ LG.descendants newSplitGraph prunedParentRootIndex) /= 1 then error ("Too many children of parentPrunedNode: " ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
+      if (length $ LG.getRoots newSplitGraph) /= 2 then error ("Not 2 components in split graph: " <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
+      else if (length $ LG.descendants newSplitGraph prunedParentRootIndex) /= 1 then error ("Too many children of parentPrunedNode: " <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph))
       else if (length $ LG.parents secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Parent number not equal to 1 in node "
-         ++ (show secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
+         <> (show secondPrunedGraphRootIndex) <> " of second graph\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
       else if (length $ LG.inn secondSplitGraph secondPrunedGraphRootIndex) /= 1 then error ("Edge incedent tor pruned graph not equal to 1 in node "
-         ++ (show $ fmap LG.toEdge $  LG.inn secondSplitGraph secondPrunedGraphRootIndex) ++ " of second graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
+         <> (show $ fmap LG.toEdge $  LG.inn secondSplitGraph secondPrunedGraphRootIndex) <> " of second graph\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph))
       else
         {-
-        } trace ("Nodes: " ++ (show (firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex)) ++ " First Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph firstSplitGraph)
-            ++ "\nSecond Graph\n:" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph)
-            ++ "\nNew split graph\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph)
+        } trace ("Nodes: " <> (show (firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex)) <> " First Graph\n:" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph firstSplitGraph)
+            <> "\nSecond Graph\n:" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph)
+            <> "\nNew split graph\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph)
             )
          -}
          (newSplitGraph, firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex, reindexedBreakEdgeNode)
@@ -589,10 +589,10 @@ reindexSubGraph numLeaves offset nodeList edgeList origBreakEdge =
           newBreakEdge = MAP.lookup origBreakEdge indexMap
       in
       {-
-      if newBreakEdge == Nothing then error  ("Map index for break edge node not found: " ++ (show origBreakEdge) ++ " in Map " ++ (show $ MAP.toList indexMap))
+      if newBreakEdge == Nothing then error  ("Map index for break edge node not found: " <> (show origBreakEdge) <> " in Map " <> (show $ MAP.toList indexMap))
       else
       -}
-         -- trace ("RISG:" ++ (show (fmap fst nodeList, fmap fst newNodeList, numLeaves)) ++ " map " ++ (show $ MAP.toList indexMap))
+         -- trace ("RISG:" <> (show (fmap fst nodeList, fmap fst newNodeList, numLeaves)) <> " map " <> (show $ MAP.toList indexMap))
          (newNodeList, newEdgeList, 1 + (maximum $ fmap fst newNodeList) - numLeaves, newBreakEdge)
 
 -- | reIndexEdge takes a map and a labelled edge and returns new indices same label edge based on map
@@ -601,7 +601,7 @@ reIndexEdge indexMap (u,v,l) =
    let u' = MAP.lookup u indexMap
        v' = MAP.lookup v indexMap
    in
-   if u' == Nothing || v' == Nothing then error ("Error in map lookup in reindexEdge: " ++ show (u,v))
+   if u' == Nothing || v' == Nothing then error ("Error in map lookup in reindexEdge: " <> show (u,v))
    else (fromJust u', fromJust v', l)
 
 
@@ -612,7 +612,7 @@ getPairList numLeaves counter nodeList =
    if null nodeList then []
    else
       let (firstIndex, firstLabel) = head nodeList
-          newLabel = firstLabel {vertName = TL.pack ("HTU" ++ (show $ counter + numLeaves))}
+          newLabel = firstLabel {vertName = TL.pack ("HTU" <> (show $ counter + numLeaves))}
       in
       if firstIndex < numLeaves then (head nodeList, (firstIndex, firstIndex)) : getPairList numLeaves counter (tail nodeList)
       else ((counter + numLeaves, newLabel) , (firstIndex, (counter + numLeaves))) : getPairList numLeaves (counter + 1) (tail nodeList)

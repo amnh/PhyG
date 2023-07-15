@@ -109,7 +109,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
     in
-    -- trace ("NPOSW: " ++ (show $ fmap bvLabel $ fmap snd $  LG.labNodes newCononicalGraph) ++ "\nDisplay :" ++ (show $ fmap bvLabel $ fmap snd $  LG.labNodes $ V.head displayTreeVect))
+    -- trace ("NPOSW: " <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes newCononicalGraph) <> "\nDisplay :" <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes $ V.head displayTreeVect))
     postOrderPhyloGraph
 
 -- | getBestDisplayCharBlockList takes a Tree gets best rootings, compares to input list if there is one and takes better
@@ -125,10 +125,10 @@ getBestDisplayCharBlockList :: GlobalSettings
                             -> ([(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)], [PhylogeneticGraph])
 getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentBestTriple currentBestTreeList displayTreeList =
     if null displayTreeList then
-        -- trace ("\tExamined " ++ (show treeCounter) ++ " display trees")
+        -- trace ("\tExamined " <> (show treeCounter) <> " display trees")
         (currentBestTriple, currentBestTreeList)
     else
-        -- trace ("GBDCBL Trees: " ++ (show $ length displayTreeList)) (
+        -- trace ("GBDCBL Trees: " <> (show $ length displayTreeList)) (
         -- take first graph
         let -- get number of threads for parallel evaluation of display trees
             -- can set +RTS -N1 if CPUTime is off
@@ -152,9 +152,9 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
             newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
 
             -- save best overall dysplay trees for later use in penalty phase
-            newBestTreeList = GO.selectGraphsFull Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList ++ currentBestTreeList)
+            newBestTreeList = GO.selectGraphsFull Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList <> currentBestTreeList)
         in
-        -- trace ("GBDCBL: " ++ (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
+        -- trace ("GBDCBL: " <> (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
         getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
         -- )
 
@@ -222,7 +222,7 @@ postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVe
                 localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
                 currentRootEdges = LG.out inSimpleGraph rootIndex
             in
-            error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ LG.prettify inSimpleGraph)
+            error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> LG.prettify inSimpleGraph)
         else
             newSoftWired
 
@@ -282,7 +282,7 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
 
             newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
-        -- trace ("GDBRS:" ++ (show (b, sum blockCostV)))
+        -- trace ("GDBRS:" <> (show (b, sum blockCostV)))
         (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
 
 -- | rerootBlockCharTrees' wrapper around rerootBlockCharTrees to allow for parMap
@@ -347,16 +347,16 @@ rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
     if null nodesToRoot then (bestGraph, bestCost)
     else
         let firstRerootIndex = head nodesToRoot
-            nextReroots = (LG.descendants inGraph firstRerootIndex) ++ tail nodesToRoot
+            nextReroots = (LG.descendants inGraph firstRerootIndex) <> tail nodesToRoot
             newGraph = rerootAndDiagnoseTree rootIndex firstRerootIndex charInfo inGraph
             newGraphCost = ((subGraphCost . snd) $ LG.labelNode newGraph rootIndex)
             (bestGraph', bestCost') = if newGraphCost < bestCost then (newGraph, newGraphCost)
                                       else (bestGraph, bestCost)
         in
         -- if LG.isEmpty newGraph then rerootCharacterTree' rootIndex (tail nodesToRoot) charInfo bestCost bestGraph inGraph
-        -- trace ("RRCT:" ++ (show (rootIndex, firstRerootIndex, bestCost, newGraphCost)))
+        -- trace ("RRCT:" <> (show (rootIndex, firstRerootIndex, bestCost, newGraphCost)))
         --else
-        -- trace ("RRCT: " ++ (show (newGraphCost, bestCost)))
+        -- trace ("RRCT: " <> (show (newGraphCost, bestCost)))
         rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph
 
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
@@ -375,7 +375,7 @@ rerootAndDiagnoseTree rootIndex newRerootIndex charInfo inGraph =
 -- check for out-degree 1 since can be resolved form diplay trees
 reOptimizeCharacterNodes :: CharInfo -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
 reOptimizeCharacterNodes charInfo inGraph oldNodeList =
-  -- trace ("RON:" ++ (show $ fmap fst oldNodeList)) (
+  -- trace ("RON:" <> (show $ fmap fst oldNodeList)) (
   if null oldNodeList then inGraph
   else
     let curNode@(curNodeIndex, curNodeLabel) = head oldNodeList
@@ -386,21 +386,21 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
     -- make sure that nodes are optimized in correct order so that nodes are only reoptimized using updated children
     -- this should really not have to happen--order should be determined a priori
     -}
-    --if LG.isLeaf inGraph curNodeIndex then trace ("Should not be a leaf in reoptimize nodes: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren) ++ "\nGraph:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) inGraph
+    --if LG.isLeaf inGraph curNodeIndex then trace ("Should not be a leaf in reoptimize nodes: " <> (show curNodeIndex) <> " children " <> (show nodeChildren) <> "\nGraph:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph)) inGraph
     --else
 
     if not $ null foundCurChildern then
-      -- trace ("Current node " ++ (show curNodeIndex) ++ " has children " ++ (show nodeChildren) ++ " in optimize list (optimization order error)" ++ (show $ fmap fst $ tail oldNodeList))
-      reOptimizeCharacterNodes charInfo inGraph (tail oldNodeList ++ [curNode])
+      -- trace ("Current node " <> (show curNodeIndex) <> " has children " <> (show nodeChildren) <> " in optimize list (optimization order error)" <> (show $ fmap fst $ tail oldNodeList))
+      reOptimizeCharacterNodes charInfo inGraph (tail oldNodeList <> [curNode])
 
     -- somehow root before others -- remove if not needed after debug
     --else if LG.isRoot inGraph curNodeIndex && length oldNodeList > 1 then
-    --    error ("Root first :" ++ (show $ fmap fst oldNodeList) ++ "RC " ++ show (LG.descendants inGraph curNodeIndex)) -- ++ "\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
-        --reOptimizeNodes localGraphType charInfoVectVect inGraph ((tail oldNodeList) ++ [curNode])
-    else if length nodeChildren > 2 then error ("Node has >2 children: " ++ (show nodeChildren))
+    --    error ("Root first :" <> (show $ fmap fst oldNodeList) <> "RC " <> show (LG.descendants inGraph curNodeIndex)) -- <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
+        --reOptimizeNodes localGraphType charInfoVectVect inGraph ((tail oldNodeList) <> [curNode])
+    else if length nodeChildren > 2 then error ("Node has >2 children: " <> (show nodeChildren))
     else
 
-        -- trace ("RON: " ++ (show curNodeIndex) ++ " children " ++ (show nodeChildren)) (
+        -- trace ("RON: " <> (show curNodeIndex) <> " children " <> (show nodeChildren)) (
         let leftChild = head nodeChildren
             rightChild = last nodeChildren
 
@@ -426,10 +426,10 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
                                          }
 
             -- this to add back edges deleted with nodes (undocumented but sensible in fgl)
-            replacementEdges = LG.inn inGraph curNodeIndex ++ LG.out inGraph curNodeIndex
+            replacementEdges = LG.inn inGraph curNodeIndex <> LG.out inGraph curNodeIndex
             newGraph = LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph
          in
-         --trace ("New vertexCost " ++ show newCost) --  ++ " lcn " ++ (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
+         --trace ("New vertexCost " <> show newCost) --  <> " lcn " <> (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
          reOptimizeCharacterNodes charInfo newGraph (tail oldNodeList)
 
 
@@ -486,7 +486,7 @@ divideDecoratedGraphByBlockAndCharacterTree inGraph =
         blockGraphList = fmap (pullBlock inGraph) [0.. (numBlocks - 1)]
         characterGraphList = fmap makeCharacterGraph blockGraphList
     in
-    -- trace ("DDGBCT: Blocks " ++ (show numBlocks) ++ " Characters " ++ (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph) ++ "\n" ++ (show characterGraphList))
+    -- trace ("DDGBCT: Blocks " <> (show numBlocks) <> " Characters " <> (show $ fmap length $ vertData $ snd $ head $ LG.labNodes inGraph) <> "\n" <> (show characterGraphList))
     (V.fromList (fmap (:[]) blockGraphList), V.fromList characterGraphList)
 
 -- | pullBlocks take a DecoratedGraph and creates a newDecorated graph with
@@ -508,7 +508,7 @@ makeBlockNodeLabels blockIndex inVertexInfo =
       newVertexCost = V.sum $ fmap localCost newVertexData
       newsubGraphCost = V.sum $ fmap globalCost newVertexData
   in
-  -- trace ("MBD " ++ (show $ length newVertexData) ++ " from " ++ (show $ length (vertData inVertexInfo)))
+  -- trace ("MBD " <> (show $ length newVertexData) <> " from " <> (show $ length (vertData inVertexInfo)))
   inVertexInfo { vertData     = V.singleton newVertexData
                , vertexCost   = newVertexCost
                , subGraphCost = newsubGraphCost
@@ -537,7 +537,7 @@ makeLeafGraphSoftWired inGS inData@(nameVect, bvNameVect, blocDataVect) =
 -- | makeLeafVertexSoftWired makes a single unconnected vertex for a leaf in a Soft-wired graph
 makeLeafVertexSoftWired :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
 makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
-    --trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
+    --trace ("Making leaf " <> (show localIndex) <> " Data " <> (show $ length inData) <> " " <> (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData
         thisData = V.map (V.! localIndex) centralData
         thisBVLabel = bvNameVect V.! localIndex
@@ -565,7 +565,7 @@ makeLeafVertexSoftWired nameVect bvNameVect inData localIndex =
                                 , subGraphCost = 0.0
                                 }
         in
-        -- trace ("MVSW" ++ (show (localIndex, vertexResolutionData newVertex)))
+        -- trace ("MVSW" <> (show (localIndex, vertexResolutionData newVertex)))
         (localIndex, newVertex)
         -- )
 
@@ -613,9 +613,9 @@ makeCharacterGraph inBlockGraph =
                              -- missing data
                              else [pullCharacter True inBlockGraph 0]
     in
-    if V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error ("Number of blocks /= 1 in makeCharacterGraph :" ++ (show $ V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph)))
+    if V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph) /= 1 then error ("Number of blocks /= 1 in makeCharacterGraph :" <> (show $ V.length (vertData $ snd $ head $ LG.labNodes inBlockGraph)))
     else
-      -- trace ("Chars: " ++ show numCharacters)
+      -- trace ("Chars: " <> show numCharacters)
       V.fromList characterGraphList
 
 -- | pullCharacter takes a DecoratedGraph with a single block and
@@ -636,7 +636,7 @@ pullCharacter isMissing inBlockGraph characterIndex =
 -- isMIssingChar seems to be extraneous--not sure whey it was there.
 makeCharacterLabels :: Bool -> Int -> VertexInfo -> VertexInfo
 makeCharacterLabels isMissing characterIndex inVertexInfo =
-  -- trace ("MCl in:" ++ (show inVertexInfo) ++ " " ++ (show characterIndex)) (
+  -- trace ("MCl in:" <> (show inVertexInfo) <> " " <> (show characterIndex)) (
   let -- isMissingChar = (V.length $ (vertData inVertexInfo) V.! characterIndex) == 0
       newVertexData = V.head (vertData inVertexInfo) V.! characterIndex
       (newVertexCost, newSubGraphCost) = if isMissing then (0, 0)
@@ -645,8 +645,8 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
       -- newVertexCost = localCost newVertexData
       -- newSubGraphCost = globalCost newVertexData
   in
-  -- trace ("MCL " ++ (show $ V.length $ vertData inVertexInfo) ++ " " ++ (show $ fmap  V.length $ vertData inVertexInfo) ) (
-  -- trace ("MCL: " ++ (show isMissing) ++ " CI: " ++ (show characterIndex) ++ " " ++ (show $ V.length $ (vertData inVertexInfo) V.! characterIndex))
+  -- trace ("MCL " <> (show $ V.length $ vertData inVertexInfo) <> " " <> (show $ fmap  V.length $ vertData inVertexInfo) ) (
+  -- trace ("MCL: " <> (show isMissing) <> " CI: " <> (show characterIndex) <> " " <> (show $ V.length $ (vertData inVertexInfo) V.! characterIndex))
   inVertexInfo { vertData     = if not isMissing then V.singleton $ V.singleton newVertexData
                                 -- if not isMissing && not isMissingChar then V.singleton $ V.singleton newVertexData
                                 else V.singleton $ V.singleton emptyCharacter --V.empty
@@ -675,13 +675,13 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex
             -}
             newTree = postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
         in
-        -- trace ("It Begins at " ++ (show $ fmap fst $ LG.getRoots inGraph) ++ "\n" ++ show inGraph) (
+        -- trace ("It Begins at " <> (show $ fmap fst $ LG.getRoots inGraph) <> "\n" <> show inGraph) (
         if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex) then
             let localRootList = fst <$> LG.getRoots inGraph
                 localRootEdges = concatMap (LG.out inGraph) localRootList
                 currentRootEdges = LG.out inGraph rootIndex
             in
-            error ("Index "  ++ show rootIndex ++ " with edges " ++ show currentRootEdges ++ " not root in graph:" ++ show localRootList ++ " edges:" ++ show localRootEdges ++ "\n" ++ GFU.showGraph inGraph)
+            error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> GFU.showGraph inGraph)
         else newTree
         -- )
 
@@ -694,10 +694,10 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
         in
-        if isNothing nodeLabel then error ("Null label for node " ++ show curNode)
+        if isNothing nodeLabel then error ("Null label for node " <> show curNode)
         else
             -- checks for node already in graph--either leaf or pre-optimized node in Hardwired
-            -- trace ("In graph :" ++ (show curNode) ++ " " ++ (show nodeLabel))
+            -- trace ("In graph :" <> (show curNode) <> " " <> (show nodeLabel))
             (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
 
     -- Need to make node
@@ -715,8 +715,8 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
 
         in
 
-        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
-        else if null nodeChildren then error ("Leaf not in graph in postDecorateTree node " ++ show curNode ++ "\n" ++ LG.prettify simpleGraph)
+        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify simpleGraph)
+        else if null nodeChildren then error ("Leaf not in graph in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify simpleGraph)
 
         -- out-degree 1 should not happen with Tree but will with HardWired graph
         else if length nodeChildren == 1 then
@@ -729,7 +729,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
                                         , children = V.fromList nodeChildren
                                         , nodeType = GO.getNodeType simpleGraph curNode
-                                        , vertName = T.pack $ "HTU" ++ show curNode
+                                        , vertName = T.pack $ "HTU" <> show curNode
                                         , vertData = childVertexData
                                         -- this not used for Hardwired or Tree
                                         , vertexResolutionData = mempty
@@ -749,7 +749,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
 
             in
             -- th curnode == root index for pruned subtrees
-            -- trace ("New vertex:" ++ (show newVertex) ++ " at cost " ++ (show newCost)) (
+            -- trace ("New vertex:" <> (show newVertex) <> " at cost " <> (show newCost)) (
             -- Do we need to PO.divideDecoratedGraphByBlockAndCharacterTree if not root?  probbaly not
 
             --if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
@@ -773,7 +773,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                                         , parents = V.fromList $ LG.parents simpleGraph curNode
                                         , children = V.fromList nodeChildren
                                         , nodeType = GO.getNodeType simpleGraph curNode
-                                        , vertName = T.pack $ "HTU" ++ show curNode
+                                        , vertName = T.pack $ "HTU" <> show curNode
                                         , vertData = V.map (V.map fst) newCharData
                                         , vertexResolutionData = mempty
                                         , vertexCost = newCost
@@ -804,7 +804,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                     -- updatedDisplayVect = V.zipWith NEW.backPortBlockTreeNodesToCanonicalGraph (fmap head newDisplayVect) newCharTreeVV
                     -- updatedCanonicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph newGraph updatedDisplayVect
                 in
-                -- trace ("PDT End: " ++ (show (subGraphCost newVertex, localCostSum)))
+                -- trace ("PDT End: " <> (show (subGraphCost newVertex, localCostSum)))
                 -- (LG.removeDuplicateEdges simpleGraph, localCostSum, LG.removeDuplicateEdges newGraph, fmap (fmap LG.removeDuplicateEdges) newDisplayVect, fmap (fmap LG.removeDuplicateEdges) newCharTreeVV, blockCharInfo)
                 -- (simpleGraph, localCostSum, updatedCanonicalGraph, fmap (:[]) updatedDisplayVect, newCharTreeVV, blockCharInfo)
                 (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
@@ -849,7 +849,7 @@ generalCreateVertexDataOverBlocks :: (V.Vector CharacterData -> V.Vector Charact
                                   -> V.Vector (V.Vector (CharacterData, VertexCost))
 generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData then
-        --trace ("Blocks: " ++ (show $ length curBlockData) ++ " Chars  B0: " ++ (show $ V.map snd $ head curBlockData))
+        --trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
         V.fromList $ reverse curBlockData
     else
         let leftBlockLength = length $ V.head leftBlockData
@@ -876,7 +876,7 @@ getNetPenalty inGS inData inGraph =
     else if (graphFactor inGS) == NoNetworkPenalty then 0.0
     else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenaltyFull Nothing inGS inData  Nothing inGraph
     else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty inGraph
-    else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+    else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
@@ -917,10 +917,10 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                 lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree
                 lowestCostEdgesFlipped = fmap LG.flipEdge lowestCostEdgeList
                 blockEdgeList = fmap LG.edges blockTreeList
-                numBlockExtraEdgesList = fmap length $ fmap (L.\\ (lowestCostEdgeList ++ lowestCostEdgesFlipped)) blockEdgeList
+                numBlockExtraEdgesList = fmap length $ fmap (L.\\ (lowestCostEdgeList <> lowestCostEdgesFlipped)) blockEdgeList
                 blockPenalty = sum $ zipWith (*) blockCostList (fmap fromIntegral numBlockExtraEdgesList)
             in
-            -- trace ("GW15N: " ++ (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves') - 4.0))))
+            -- trace ("GW15N: " <> (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves') - 4.0))))
             blockPenalty / (4.0 * (fromIntegral numLeaves') - 4.0)
 
         else
@@ -928,10 +928,10 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                 lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree
                 lowestCostEdgesFlipped = fmap LG.flipEdge lowestCostEdgeList
                 blockEdgeList = fmap LG.edges blockTreeList
-                numBlockExtraEdgesList = fmap length $ fmap (L.\\ (lowestCostEdgeList ++ lowestCostEdgesFlipped)) blockEdgeList
+                numBlockExtraEdgesList = fmap length $ fmap (L.\\ (lowestCostEdgeList <> lowestCostEdgesFlipped)) blockEdgeList
                 blockPenalty = sum $ zipWith (*) blockCostList (fmap fromIntegral numBlockExtraEdgesList)
             in
-            -- trace ("GW15N: " ++ (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0))))
+            -- trace ("GW15N: " <> (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0))))
             blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0)
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
@@ -955,7 +955,7 @@ getW15NetPenalty startVertex inGraph =
             numTreeEdges = 4.0 * (fromIntegral numLeaves) - 4.0
             divisor = numTreeEdges
         in
-        -- trace ("W15:" ++ (show ((sum $ blockPenaltyList) / divisor )))
+        -- trace ("W15:" <> (show ((sum $ blockPenaltyList) / divisor )))
         (sum $ blockPenaltyList) / divisor
 
 -- | getW23NetPenaltyReduced takes a ReducedPhylogeneticGraph tree and returns the network penalty of Wheeler and Washburn (2023)
@@ -979,7 +979,7 @@ getW23NetPenaltyReduced inGraph =
             numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
             -- divisor = numTreeEdges - numExtraEdges
         in
-       --  trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
+       --  trace ("W23:" <> (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) <> " from " <> (show (numTreeEdges, numExtraEdges))) (
         -- if divisor == 0.0 then infinity
         -- else (sum blockPenaltyList) / divisor
         -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
@@ -1008,7 +1008,7 @@ getW23NetPenalty inGraph =
             numExtraEdges = ((fromIntegral $ length bestTreesEdgeList) - numTreeEdges) / 2.0
             -- divisor = numTreeEdges - numExtraEdges
         in
-       --  trace ("W23:" ++ (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) ++ " from " ++ (show (numTreeEdges, numExtraEdges))) (
+       --  trace ("W23:" <> (show ((numExtraEdges * (snd6 inGraph)) / (2.0 * numTreeEdges))) <> " from " <> (show (numTreeEdges, numExtraEdges))) (
         -- if divisor == 0.0 then infinity
         -- else (sum blockPenaltyList) / divisor
         -- else (numExtraEdges * (sum blockPenaltyList)) / divisor
@@ -1026,6 +1026,6 @@ getBlockW2015 treeEdgeList rootIndex blockTreeList =
             numExtraEdges = length $ LG.undirectedEdgeMinus blockTreeEdgeList treeEdgeList
             blockCost = subGraphCost $ fromJust $ LG.lab (head blockTreeList) rootIndex
         in
-        -- trace ("GBW: " ++ (show (numExtraEdges, blockCost, blockTreeEdgeList)) ++ "\n" ++ (show $ fmap (subGraphCost . snd) $ LG.labNodes (head blockTreeList)))
+        -- trace ("GBW: " <> (show (numExtraEdges, blockCost, blockTreeEdgeList)) <> "\n" <> (show $ fmap (subGraphCost . snd) $ LG.labNodes (head blockTreeList)))
         blockCost * (fromIntegral numExtraEdges)
 

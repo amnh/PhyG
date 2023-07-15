@@ -90,10 +90,10 @@ generateDefaultMatrix inAlph rowCount indelCost substitutionCost
   | rowCount == length inAlph = []
   | otherwise = let firstPart = if rowCount < (length inAlph - 1) then replicate rowCount substitutionCost
                                 else replicate rowCount indelCost
-                    thirdPart = if rowCount < (length inAlph - 1) then replicate (length inAlph - rowCount - 1 - 1) substitutionCost ++ [indelCost]
+                    thirdPart = if rowCount < (length inAlph - 1) then replicate (length inAlph - rowCount - 1 - 1) substitutionCost <> [indelCost]
                                 else []
                 in
-                (firstPart ++ [0] ++ thirdPart) : generateDefaultMatrix inAlph (rowCount + 1) indelCost substitutionCost
+                (firstPart <> [0] <> thirdPart) : generateDefaultMatrix inAlph (rowCount + 1) indelCost substitutionCost
 
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
@@ -110,17 +110,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             sequenceData = getAlphabet [] $ foldMap snd inData
 
             seqType
-              | dataType == "nucleotide" = trace ("File " ++ dataName ++ " is nucleotide data.")  NucSeq
-              | dataType == "aminoacid" = trace ("File " ++ dataName ++ " is aminoacid data.") AminoSeq
-              | dataType == "hugeseq" = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
-              | dataType == "custom_alphabet" = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
-              | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
-                ++ " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
-              | (sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData) = trace ("Assuming file " ++ dataName
-                ++ " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
-              | length sequenceData <=  8 = trace ("File " ++ dataName ++ " is small alphabet data.") SlimSeq
-              | length sequenceData <= 64 = trace ("File " ++ dataName ++ " is wide alphabet data.") WideSeq
-              | otherwise = trace ("File " ++ dataName ++ " is large alphabet data.") HugeSeq
+              | dataType == "nucleotide" = trace ("File " <> dataName <> " is nucleotide data.")  NucSeq
+              | dataType == "aminoacid" = trace ("File " <> dataName <> " is aminoacid data.") AminoSeq
+              | dataType == "hugeseq" = trace ("File " <> dataName <> " is large alphabet data.") HugeSeq
+              | dataType == "custom_alphabet" = trace ("File " <> dataName <> " is large alphabet data.") HugeSeq
+              | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = trace ("Assuming file " <> dataName
+                <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
+              | (sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData) = trace ("Assuming file " <> dataName
+                <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
+              | length sequenceData <=  8 = trace ("File " <> dataName <> " is small alphabet data.") SlimSeq
+              | length sequenceData <= 64 = trace ("File " <> dataName <> " is wide alphabet data.") WideSeq
+              | otherwise = trace ("File " <> dataName <> " is large alphabet data.") HugeSeq
 
             seqAlphabet = fromSymbols seqSymbols
 
@@ -195,19 +195,19 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
                                     , slimTCM    = localDenseCostMatrix
                                     , wideTCM    = localWideTCM
                                     , hugeTCM    = localHugeTCM
-                                    , name = T.pack (filter (/= ' ') dataName ++ "#0")
+                                    , name = T.pack (filter (/= ' ') dataName <> "#0")
                                     , alphabet = thisAlphabet
                                     , prealigned = isPrealigned
-                                    , origInfo = V.singleton (T.pack (filter (/= ' ') dataName ++ "#0"), alignedSeqType, thisAlphabet)
+                                    , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                                     }
         in
         --trace ("GFCI: " <> (show localHugeTCM)) (
-        --trace ("FCI " ++ (show $ length thisAlphabet) ++ " alpha size" ++ show thisAlphabet) (
+        --trace ("FCI " <> (show $ length thisAlphabet) <> " alpha size" <> show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM then
-            trace ("Warning: no tcm file specified for use with fasta/c file : " ++ dataName ++ ". Using default, all 1 diagonal 0 cost matrix.")
+            trace ("Warning: no tcm file specified for use with fasta/c file : " <> dataName <> ". Using default, all 1 diagonal 0 cost matrix.")
             defaultSeqCharInfo
         else
-            trace ("Processing TCM data for file : "  ++ dataName)
+            trace ("Processing TCM data for file : "  <> dataName)
             defaultSeqCharInfo
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
@@ -240,8 +240,8 @@ getSequenceAphabet :: [ST.ShortText]  -> [ST.ShortText] -> [ST.ShortText]
 getSequenceAphabet newAlph inStates =
     if null inStates then
         -- removes indel gap from alphabet if present and then (re) adds at end
-        -- (filter (/= (ST.singleton '-')) $ sort $ nub newAlph) ++ [ST.singleton '-']
-        L.sort (L.nub newAlph) ++ [ST.singleton '-']
+        -- (filter (/= (ST.singleton '-')) $ sort $ nub newAlph) <> [ST.singleton '-']
+        L.sort (L.nub newAlph) <> [ST.singleton '-']
     else
         let firstState = ST.toString $ head inStates
         in
@@ -251,7 +251,7 @@ getSequenceAphabet newAlph inStates =
         else -- ambiguity
             let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
             in
-            getSequenceAphabet (newAmbigStates ++ newAlph) (tail inStates)
+            getSequenceAphabet (newAmbigStates <> newAlph) (tail inStates)
 
 
 -- | getFastcCharInfo get alphabet , names etc from processed fasta data
@@ -264,7 +264,7 @@ getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]], Do
 getFastcCharInfo inData dataName isPrealigned localTCM =
     if null inData then error "Empty inData in getFastcCharInfo"
     else
-        --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " ++ dataName)
+        --if null $ fst localTCM then errorWithoutStackTrace ("Must specify a tcm file with fastc data for fie : " <> dataName)
         let symbolsFound
               | not $ null $ fst3 localTCM = fst3 localTCM
               | otherwise = getSequenceAphabet [] $ concatMap snd inData
@@ -297,7 +297,7 @@ getFastA fileContents' fileName isPreligned =
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
-            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
             else pairData
 
 -- | getFastAText processes fasta file
@@ -317,7 +317,7 @@ getFastAText fileContents' fileName isPreligned =
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
             -- tail because initial split will an empty text
-            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
             else pairData
 
 
@@ -334,10 +334,10 @@ getRawDataPairsFastA isPreligned inTextList =
             firtDataSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstData)
             firstDataNoGapsSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstDataNoGaps)
         in
-        --trace (T.unpack firstName ++ "\n"  ++ T.unpack firstData) (
-        -- trace ("FA " ++ (show firtDataSTList)) (
+        --trace (T.unpack firstName <> "\n"  <> T.unpack firstData) (
+        -- trace ("FA " <> (show firtDataSTList)) (
         if isPreligned then
-            -- trace ("GRDPF: " ++ (show isPreligned))
+            -- trace ("GRDPF: " <> (show isPreligned))
             (firstName, firtDataSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
         else (firstName, firstDataNoGapsSTList) : getRawDataPairsFastA isPreligned (tail inTextList)
         -- )
@@ -351,15 +351,15 @@ getFastC fileContents' fileName isPreligned =
     else
         let fileContentLines = filter (not.null) $ stripString <$> lines fileContents'
         in
-        if null fileContentLines then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
-            ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+        if null fileContentLines then errorWithoutStackTrace ("File " <> show fileName <> " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+            <> "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
         -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
         --  because of latexIPA encodings using ';'(and '$')
         else
             let fileContents = unlines $ filter ((/=';').head) fileContentLines
             in
-            if null fileContents then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
-                ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+            if null fileContents then errorWithoutStackTrace ("File " <> show fileName <> " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+                <> "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
             else if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
                 let terminalSplits = T.split (=='>') $ T.pack fileContents
@@ -367,7 +367,7 @@ getFastC fileContents' fileName isPreligned =
                     (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
                 in
                 -- tail because initial split will an empty text
-                if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
                 else pairData
 
 -- | getFastCText processes fasta file
@@ -379,15 +379,15 @@ getFastCText fileContents' fileName isPreligned =
     else
         let fileContentLines = filter (not . T.null) $ fmap T.strip (T.lines fileContents')
         in
-        if null fileContentLines then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
-            ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+        if null fileContentLines then errorWithoutStackTrace ("File " <> show fileName <> " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+            <> "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
         -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
         --  because of latexIPA encodings using ';'(and '$')
         else
             let fileContents = T.unlines $ filter ((/=';') . T.head) fileContentLines
             in
-            if T.null fileContents then errorWithoutStackTrace ("File " ++ show fileName ++ " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
-                ++ "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
+            if T.null fileContents then errorWithoutStackTrace ("File " <> show fileName <> " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
+                <> "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
             else if T.head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
                 let terminalSplits = T.split (=='>') fileContents
@@ -395,7 +395,7 @@ getFastCText fileContents' fileName isPreligned =
                     (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
                 in
                 -- tail because initial split will an empty text
-                if hasDupTerminals then errorWithoutStackTrace ("\tInput file " ++ fileName ++ " has duplicate terminals: " ++ show dupList)
+                if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
                 else pairData
 
 -- | recodeFASTCAmbiguities take list of TermData and scans for ambiguous groups staring with '['' and ending with ']
@@ -417,7 +417,7 @@ concatAmbig fileName inList =
         let firstGroup = ST.toString $ head inList
         in
         -- not ambiguity group
-        -- trace (firstGroup ++ show inList) (
+        -- trace (firstGroup <> show inList) (
         if null firstGroup then concatAmbig fileName (tail inList)
         else if head firstGroup /= '[' then head inList : concatAmbig fileName (tail inList)
         else
@@ -430,7 +430,7 @@ concatAmbig fileName inList =
 -- | getRestAmbiguityGroup takes a list of ShorText and keeps added them until one is found with ']'
 getRestAmbiguityGroup :: String -> [ST.ShortText] -> [ST.ShortText]
 getRestAmbiguityGroup fileName inList =
-    if null inList then errorWithoutStackTrace ("\n\n'Read' command error: fastc file " ++ fileName ++ " with unterminated ambiguity specification ']'")
+    if null inList then errorWithoutStackTrace ("\n\n'Read' command error: fastc file " <> fileName <> " with unterminated ambiguity specification ']'")
     else
         let firstGroup = ST.toString $ head inList
         in
@@ -450,7 +450,7 @@ getRawDataPairsFastC isPreligned inTextList =
             firstDataNoGaps = filter (/= T.pack "-") firstData
         in
         --trace (show firstData) (
-        -- trace (T.unpack firstName ++ "\n"  ++ (T.unpack $ T.intercalate (T.pack " ") firstData)) (
+        -- trace (T.unpack firstName <> "\n"  <> (T.unpack $ T.intercalate (T.pack " ") firstData)) (
         if isPreligned then (firstName, fmap (ST.fromText . T.toStrict) firstData) : getRawDataPairsFastC isPreligned (tail inTextList)
         else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC isPreligned (tail inTextList)
 

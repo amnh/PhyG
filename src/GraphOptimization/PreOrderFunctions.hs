@@ -92,11 +92,11 @@ import qualified Utilities.Utilities         as U
 -- Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
-    --trace ("PreO: " ++ (show finalMethod) ++ " " ++ (show $ fmap (fmap charType) inCharInfoVV)) (
-    -- trace ("PR-OT pre: " ++ (show $ fmap V.length blockCharacterDecoratedVV)) (
+    --trace ("PreO: " <> (show finalMethod) <> " " <> (show $ fmap (fmap charType) inCharInfoVV)) (
+    -- trace ("PR-OT pre: " <> (show $ fmap V.length blockCharacterDecoratedVV)) (
     if LG.isEmpty inDecorated then emptyPhylogeneticGraph  -- error "Empty tree in preOrderTreeTraversal"
     else
-        -- trace ("In PreOrder\n" ++ "Simple:\n" ++ (LG.prettify inSimple) ++ "Decorated:\n" ++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) ++ "\n" ++ (GFU.showGraph inDecorated)) (
+        -- trace ("In PreOrder\n" <> "Simple:\n" <> (LG.prettify inSimple) <> "Decorated:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) <> "\n" <> (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
         let preOrderBlockVect = V.fromList (PU.seqParMap (parStrategy $ lazyParStrat inGS) (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV)))  -- `using` PU.myParListChunkRDS)
 
@@ -129,13 +129,13 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
-        if null blockCharacterDecoratedVV then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " ++ show rootIndex ++ " This can be caused if the graphType not set correctly: " ++ show (graphType inGS))
+        if null blockCharacterDecoratedVV then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " <> show rootIndex <> " This can be caused if the graphType not set correctly: " <> show (graphType inGS))
         else
             {-
             let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
                 blockPre = GO.showDecGraphs preOrderBlockVect
             in
-            trace ("BlockPost:\n" ++ blockPost ++ "BlockPre:\n" ++ blockPre ++ "After Preorder\n" ++  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
+            trace ("BlockPost:\n" <> blockPost <> "BlockPre:\n" <> blockPre <> "After Preorder\n" <>  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
             -}
             (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
     -- )
@@ -160,13 +160,13 @@ updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo =
         updatedVertexList =  zipWith (updateIAFields charInfo) origLeafVertexList newLeafVertexList
         origEdgeList = LG.labEdges origCharGraph
     in
-    LG.mkGraph (updatedVertexList ++ originalNonLeafVertexList) origEdgeList
+    LG.mkGraph (updatedVertexList <> originalNonLeafVertexList) origEdgeList
 
 -- | updateIAFields updates the IA filed in teh first node with that of second if its non-exact sequence character
 -- assumes single character trees
 updateIAFields :: CharInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo -> LG.LNode VertexInfo
 updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) =
-    -- trace ("USF: Node " ++ (show origIndex) ++ " " ++ (show (V.length $ vertData origLabel, V.length $ vertData newLabel)) ++ " " ++ (show (fmap V.length $ vertData origLabel)) ++ " " ++ (show (fmap V.length $ vertData newLabel))) $
+    -- trace ("USF: Node " <> (show origIndex) <> " " <> (show (V.length $ vertData origLabel, V.length $ vertData newLabel)) <> " " <> (show (fmap V.length $ vertData origLabel)) <> " " <> (show (fmap V.length $ vertData newLabel))) $
     let characterType = charType charInfo
         origChar = V.head $ V.head $ vertData origLabel
         newChar = V.head $ V.head $ vertData newLabel
@@ -182,7 +182,7 @@ updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) =
                           else if characterType == HugeSeq then
                             origChar {hugeAlignment = hugeAlignment newChar}
 
-                          else error ("Character type unimplemented : " ++ show characterType)
+                          else error ("Character type unimplemented : " <> show characterType)
         in
         (origIndex, origLabel {vertData = V.singleton (V.singleton updatedChar)})
 
@@ -207,8 +207,8 @@ makeCharacterIAUnion finalMethod rootIndex inGraph charInfo =
         let postOrderIATree = postOrderIAUnion inGraph charInfo [(rootIndex, fromJust $ LG.lab inGraph rootIndex)]
             preOrderIATree = preOrderIA postOrderIATree rootIndex finalMethod charInfo $ zip [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)] [(rootIndex, fromJust $ LG.lab postOrderIATree rootIndex)]
         in
-        -- trace ("MCIAU:" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree rootIndex) ++ "\n" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree 0)
-        --    ++ "\nAfter preorder:\t" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree rootIndex) ++ "\n" ++ (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree 0))
+        -- trace ("MCIAU:" <> (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree rootIndex) <> "\n" <> (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab postOrderIATree 0)
+        --    <> "\nAfter preorder:\t" <> (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree rootIndex) <> "\n" <> (U.getUnionFieldsNode $ vertData $ fromJust $ LG.lab preOrderIATree 0))
         preOrderIATree
 
 -- | postOrderIAUnion performs a post-order IA pass assigning leaf preliminary states
@@ -237,7 +237,7 @@ postOrderIAUnion inGraph charInfo inNodeList =
             -- set leaf union fields to preliminary or IA fields
             let newCharacter = M.makeIAUnionPrelimLeaf charInfo inCharacter
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter), nodeType = nodeType'}
-                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
             in
             postOrderIAUnion newGraph charInfo (tail inNodeList)
 
@@ -246,9 +246,9 @@ postOrderIAUnion inGraph charInfo inNodeList =
             let childNodes = LG.labDescendants inGraph inNode
                 childTree = postOrderIAUnion inGraph charInfo childNodes
             in
-            --trace ("Children: " ++ (show  $ fmap fst childNodes)) (
+            --trace ("Children: " <> (show  $ fmap fst childNodes)) (
 
-            if length childNodes > 2 then error ("Too many children in postOrderIA: " ++ show (length childNodes))
+            if length childNodes > 2 then error ("Too many children in postOrderIA: " <> show (length childNodes))
 
             -- in 1 out 1 vertex
             else if length childNodes == 1 then
@@ -257,14 +257,14 @@ postOrderIAUnion inGraph charInfo inNodeList =
                     childCharacter = V.head $ V.head $ vertData childLabel
                 in
                 -- sanity checks
-                if isNothing (LG.lab childTree (fst $ head childNodes)) then error ("No label for node: " ++ show (fst $ head childNodes))
+                if isNothing (LG.lab childTree (fst $ head childNodes)) then error ("No label for node: " <> show (fst $ head childNodes))
                 else if V.null $ vertData childLabel then error "Null vertData in postOrderIA"
                 else if V.null $ V.head $ vertData childLabel then error "Null head vertData data in postOrderIA"
                 else
                     let newLabel = nodeLabel  {vertData = V.singleton (V.singleton childCharacter), nodeType = nodeType'}
-                        newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
+                        newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                     in
-                    -- trace ("PostO1Child: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal childCharacter))
+                    -- trace ("PostO1Child: " <> (show nodeIndex) <> " " <> (show $ slimFinal childCharacter))
                     postOrderIAUnion newGraph charInfo (tail inNodeList)
 
             -- two children
@@ -276,12 +276,12 @@ postOrderIAUnion inGraph charInfo inNodeList =
                     rightChar = V.head $ V.head $ last childCharacters
                     newCharacter = M.makeIAPrelimCharacter charInfo inCharacter leftChar rightChar
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter), nodeType = nodeType'}
-                    newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
+                    newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                 in
-                -- trace ("PostO2hildren: " ++ (show nodeIndex) ++ " " ++ (show $ slimFinal newCharacter) ++ " " ++ (show $ nodeType newLabel)) -- ++ " From: " ++ (show childlabels))
+                -- trace ("PostO2hildren: " <> (show nodeIndex) <> " " <> (show $ slimFinal newCharacter) <> " " <> (show $ nodeType newLabel)) -- <> " From: " <> (show childlabels))
                 postOrderIAUnion newGraph charInfo (tail inNodeList)
 
-            else error ("No children in non-leaf node: " ++ (show nodeIndex) ++ "\n" ++ (LG.prettyIndices inGraph))
+            else error ("No children in non-leaf node: " <> (show nodeIndex) <> "\n" <> (LG.prettyIndices inGraph))
             -- )
     -- )
 
@@ -303,11 +303,11 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
             parentCharacter = V.head $ V.head $ vertData parentNodeLabel
             childNodes = LG.labDescendants inGraph inNode
         in
-        --trace ("PreIA Node:" ++ (show nodeIndex) ++ " " ++ (show $ nodeType nodeLabel) ++ " " ++ (show (fmap fst $ fmap fst inNodePairList,fmap fst $ fmap snd inNodePairList))) (
+        --trace ("PreIA Node:" <> (show nodeIndex) <> " " <> (show $ nodeType nodeLabel) <> " " <> (show (fmap fst $ fmap fst inNodePairList,fmap fst $ fmap snd inNodePairList))) (
         -- checking sanity of data
         if V.null $ vertData nodeLabel then error "Null vertData in preOrderIA"
         else if V.null $ V.head $ vertData nodeLabel then error "Null vertData data in preOrderIA"
-        else if length childNodes > 2 then error ("Too many children in preOrderIA: " ++ show (length childNodes))
+        else if length childNodes > 2 then error ("Too many children in preOrderIA: " <> show (length childNodes))
 
         -- leaf done in post-order
         else if nodeType nodeLabel == LeafNode then preOrderIA inGraph rootIndex finalMethod charInfo (tail inNodePairList)
@@ -326,14 +326,14 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
                      inCharacter { hugeIAFinal = extractMediansGapped $ hugeIAPrelim inCharacter'
                                  , hugeFinal = extractMedians $ hugeGapped inCharacter'
                                  }
-                  | otherwise = inCharacter -- error ("Unrecognized character type " ++ show characterType)
+                  | otherwise = inCharacter -- error ("Unrecognized character type " <> show characterType)
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
-                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
-            -- trace ("PreIARoot: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter))
-            preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+            -- trace ("PreIARoot: " <> (show nodeIndex) <> " IAFinal: " <> (show $ slimIAFinal newCharacter) <> " Final: " <> (show $ slimFinal newCharacter))
+            preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList <> zip childNodes parentNodeList)
 
         -- single child, take parent final assignments, but keep postorder assignments
         else if length childNodes == 1 then
@@ -350,25 +350,25 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
                         inCharacter { hugeFinal = hugeFinal parentCharacter
                                     , hugeIAFinal = hugeIAFinal parentCharacter
                                     }
-                      | otherwise = inCharacter -- error ("Unrecognized character type " ++ show characterType)
+                      | otherwise = inCharacter -- error ("Unrecognized character type " <> show characterType)
 
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter)}
-                    newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                    newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                     parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
                 in
-                -- trace ("PreIANet: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal newCharacter) ++ " Final: " ++ (show $ slimFinal newCharacter))
-                preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+                -- trace ("PreIANet: " <> (show nodeIndex) <> " IAFinal: " <> (show $ slimIAFinal newCharacter) <> " Final: " <> (show $ slimFinal newCharacter))
+                preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList <> zip childNodes parentNodeList)
 
         -- 2 children, make 3-way
         else
             let finalCharacter = M.makeIAFinalCharacter finalMethod charInfo inCharacter parentCharacter -- leftChar rightChar
 
                 newLabel = nodeLabel  {vertData = V.singleton (V.singleton finalCharacter)}
-                newGraph = LG.insEdges (inNodeEdges ++ outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
+                newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex inGraph
                 parentNodeList = replicate (length childNodes) (nodeIndex, newLabel)
             in
-            -- trace ("PreIATree: " ++ (show nodeIndex) ++ " IAFinal: " ++ (show $ slimIAFinal finalCharacter) ++ " Final: " ++ (show $ slimFinal finalCharacter))
-            preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList ++ zip childNodes parentNodeList)
+            -- trace ("PreIATree: " <> (show nodeIndex) <> " IAFinal: " <> (show $ slimIAFinal finalCharacter) <> " Final: " <> (show $ slimFinal finalCharacter))
+            preOrderIA newGraph rootIndex finalMethod charInfo (tail inNodePairList <> zip childNodes parentNodeList)
 
         -- )
 
@@ -381,7 +381,7 @@ doBlockTraversal' inGS finalMethod staticIA rootIndex (inCharInfoV, traversalDec
 -- could be moved up preOrderTreeTraversal, but like this for legibility
 doBlockTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> V.Vector CharInfo -> V.Vector DecoratedGraph -> V.Vector DecoratedGraph
 doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecoratedVect =
-    --trace ("BlockT:" ++ (show $ fmap charType inCharInfoV))
+    --trace ("BlockT:" <> (show $ fmap charType inCharInfoV))
     V.zipWith (doCharacterTraversal inGS finalMethod staticIA rootIndex) inCharInfoV traversalDecoratedVect
 
 -- | doCharacterTraversal performs preorder traversal on single character tree
@@ -390,7 +390,7 @@ doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecora
 doCharacterTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> CharInfo -> DecoratedGraph -> DecoratedGraph
 doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
     -- find root--index should = number of leaves
-    --trace ("charT:" ++ (show $ charType inCharInfo)) (
+    --trace ("charT:" <> (show $ charType inCharInfo)) (
     let -- this is a hack--remve after fixed
         --inGraph = LG.removeDuplicateEdges inGraph'
 
@@ -399,7 +399,7 @@ doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
         inEdgeList = LG.labEdges inGraph
     in
     -- remove these two lines if working
-    -- if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" ++ show (rootIndex, length leafVertexList))
+    -- if rootIndex /=  length leafVertexList then error ("Root index not =  number leaves in doCharacterTraversal" <> show (rootIndex, length leafVertexList))
     -- else
         -- root vertex, repeat of label info to avoid problem with zero length zip later, second info ignored for root
         -- since root cannot have 2nd parent
@@ -423,7 +423,7 @@ doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph =
         in
         -- hope this is the most efficient way since all nodes have been remade
         -- trace (U.prettyPrintVertexInfo $ snd newRootNode)
-        LG.mkGraph (upDatedNodes ++ updatedIsolateNodes) inEdgeList
+        LG.mkGraph (upDatedNodes <> updatedIsolateNodes) inEdgeList
         --)
 
 -- | updateIsolatedNode updates the final states of an isolated node as if it were a root with final=preliminary
@@ -450,7 +450,7 @@ makeFinalAndChildren :: GlobalSettings
                      -> CharInfo
                      -> [LG.LNode VertexInfo]
 makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNodes inCharInfo =
-    --trace ("mFAC:" ++ (show $ charType inCharInfo)) (
+    --trace ("mFAC:" <> (show $ charType inCharInfo)) (
     if null nodesToUpdate then updatedNodes
     else
         let (firstNode, firstParent, isLeft) = head nodesToUpdate
@@ -461,7 +461,7 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
                             else
                                 -- not issue if hardwired I don't think
-                                if graphType inGS /= HardWired then trace ("NetNode:" ++ show (LG.getInOutDeg inGraph firstNode) ++ " DuplicateEdges (?): " ++ show (LG.getDuplicateEdges inGraph)) NetworkNode
+                                if graphType inGS /= HardWired then trace ("NetNode:" <> show (LG.getInOutDeg inGraph firstNode) <> " DuplicateEdges (?): " <> show (LG.getDuplicateEdges inGraph)) NetworkNode
                                 else NetworkNode
             firstVertData = vertData firstLabel
 
@@ -500,9 +500,9 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
 
         in
         -- trace (U.prettyPrintVertexInfo $ snd newFirstNode)
-        -- makeFinalAndChildren inGS finalMethod staticIA inGraph (childrenPairs ++ tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
+        -- makeFinalAndChildren inGS finalMethod staticIA inGraph (childrenPairs <> tail nodesToUpdate) (newFirstNode : updatedNodes) inCharInfo
         -- childrenPair after nodess to do for hardWired to ensure both parent done before child
-        makeFinalAndChildren inGS finalMethod staticIA inGraph (tail nodesToUpdate ++ childrenTriple') (newFirstNode : updatedNodes) inCharInfo
+        makeFinalAndChildren inGS finalMethod staticIA inGraph (tail nodesToUpdate <> childrenTriple') (newFirstNode : updatedNodes) inCharInfo
         --)
 
 -- | indeg2NotInNodeList checcks a node agains a list by index (fst) if node is indegree 2 and
@@ -525,7 +525,7 @@ indeg2NotInNodeList inGraph checkNodeList (childNode@(childIndex, _), _, _)
 -- optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
 assignPreorderStatesAndEdges :: GlobalSettings -> AssignmentMethod -> Bool -> Int -> V.Vector (V.Vector DecoratedGraph) -> Bool -> V.Vector (V.Vector CharInfo) -> DecoratedGraph  -> DecoratedGraph
 assignPreorderStatesAndEdges inGS finalMethd calculateBranchEdges rootIndex preOrderBlockTreeVV useMap inCharInfoVV inGraph =
-    --trace ("aPSAE:" ++ (show $ fmap (fmap charType) inCharInfoVV)) (
+    --trace ("aPSAE:" <> (show $ fmap (fmap charType) inCharInfoVV)) (
     if LG.isEmpty inGraph then error "Empty graph in assignPreorderStatesAndEdges"
     else
         -- trace ("In assign") (
@@ -575,7 +575,7 @@ updateVertexBlock nodeIndex = V.zipWith3 (updatePreorderCharacter nodeIndex)
 -- need to care for issues of missing data
 updatePreorderCharacter :: Int -> DecoratedGraph -> CharacterData -> CharInfo -> CharacterData
 updatePreorderCharacter nodeIndex preOrderTree postOrderCharacter charInfo =
-    --trace ("N:" ++ (show nodeIndex) ++ " B:" ++ (show blockIndex) ++ " C:" ++ (show characterIndex) ++ "\n" ++ (show $ vertData $ fromJust $ LG.lab preOrderTree nodeIndex)) (
+    --trace ("N:" <> (show nodeIndex) <> " B:" <> (show blockIndex) <> " C:" <> (show characterIndex) <> "\n" <> (show $ vertData $ fromJust $ LG.lab preOrderTree nodeIndex)) (
     let maybePreOrderNodeLabel = LG.lab preOrderTree nodeIndex
         preOrderVertData = vertData $ fromJust maybePreOrderNodeLabel
         preOrderCharacterData
@@ -586,7 +586,7 @@ updatePreorderCharacter nodeIndex preOrderTree postOrderCharacter charInfo =
     in
     -- this can heppen in naked parent node of prunned subGraph in branch swapping
     if isNothing maybePreOrderNodeLabel then emptyCharacter
-            -- error ("Nothing node label in updatePreorderCharacter node: " ++ show nodeIndex)
+            -- error ("Nothing node label in updatePreorderCharacter node: " <> show nodeIndex)
     else
         updateCharacter postOrderCharacter preOrderCharacterData (charType charInfo)
     --)
@@ -650,7 +650,7 @@ updateCharacter postOrderCharacter preOrderCharacter localCharType
                       , hugeIAUnion = hugeIAUnion preOrderCharacter
                       }
 
-  | otherwise = error ("Character type unimplemented : " ++ show localCharType)
+  | otherwise = error ("Character type unimplemented : " <> show localCharType)
 
 -- | updateEdgeInfoSoftWired gets edge weights via block trees as opposed to canonical graph
 -- this because not all edges present in all block/display trees
@@ -710,7 +710,7 @@ getEdgeCharacterWeightSoftWired finalMethod uNode vNode rootIndex inCharInfo (no
 -- | getEdgeVerts returns vertex labels if edge in vect or if a virtual edge including root
 getEdgeVerts :: Int -> Int -> Int -> V.Vector (LG.LNode VertexInfo) -> V.Vector (LG.LEdge EdgeInfo) -> Maybe (VertexInfo, VertexInfo)
 getEdgeVerts uNode vNode rootIndex nodeVect edgeVect =
-    -- trace ("GEV:" ++ (show (uNode, vNode, rootIndex) ++ " nodes " ++ (show $ fmap fst nodeVect) ++ " edges " ++ (show $ fmap LG.toEdge edgeVect))) (
+    -- trace ("GEV:" <> (show (uNode, vNode, rootIndex) <> " nodes " <> (show $ fmap fst nodeVect) <> " edges " <> (show $ fmap LG.toEdge edgeVect))) (
 
     --hack or display edge check I'm not sure--not all edges are in all display trees
     if (uNode >= V.length nodeVect) || (vNode >= V.length nodeVect) then Nothing
@@ -771,7 +771,7 @@ getEdgeWeight :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> V.Vector (L
 getEdgeWeight finalMethod inCharInfoVV nodeVector (uNode, vNode) =
     if V.null nodeVector then error "Empty node list in getEdgeWeight"
     else
-        -- trace ("GEW: " ++ (show $ fmap fst nodeVector) ++ " " ++ (show (uNode, vNode))) (
+        -- trace ("GEW: " <> (show $ fmap fst nodeVector) <> " " <> (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeVector V.! uNode
             vNodeInfo = vertData $ snd $ nodeVector V.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
@@ -791,7 +791,7 @@ getEdgeWeightMap :: AssignmentMethod -> V.Vector (V.Vector CharInfo) -> MAP.Map 
 getEdgeWeightMap finalMethod inCharInfoVV nodeMap (uNode, vNode) =
     if MAP.null nodeMap then error "Empty node map in getEdgeWeight"
     else
-        -- trace ("GEWM: " ++ (show $ MAP.toList nodeMap) ++ " " ++ (show (uNode, vNode))) (
+        -- trace ("GEWM: " <> (show $ MAP.toList nodeMap) <> " " <> (show (uNode, vNode))) (
         let uNodeInfo = vertData $ snd $ nodeMap MAP.! uNode
             vNodeInfo = vertData $ snd $ nodeMap MAP.! vNode
             blockCostPairs = V.zipWith3 (getBlockCostPairsFinal finalMethod) uNodeInfo vNodeInfo inCharInfoVV
@@ -879,7 +879,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {slimGapped = uFinal}) (vCharacter {slimGapped = vFinal})
                                     (newU, _, newV) = slimGapped newEdgeCharacter
                                 in
-                                --trace ("GCD:\n" ++ (show (slimFinal uCharacter, newU)) ++ "\n" ++ (show (slimFinal vCharacter, newV)) ++ "\nDO Cost:" ++ (show doCOST))
+                                --trace ("GCD:\n" <> (show (slimFinal uCharacter, newU)) <> "\n" <> (show (slimFinal vCharacter, newV)) <> "\nDO Cost:" <> (show doCOST))
                                 zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList $ slimIAFinal uCharacter) (GV.toList $ slimIAFinal vCharacter)
 
@@ -887,7 +887,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
             minCost = thisWeight * fromIntegral (sum minDiff)
             maxCost = thisWeight * fromIntegral (sum maxDiff)
         in
-        --trace ("MMDL: " ++ (show minCost) ++ " " ++ (show maxCost))
+        --trace ("MMDL: " <> (show minCost) <> " " <> (show maxCost))
         (minCost, maxCost)
 
 
@@ -898,7 +898,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {wideGapped = uFinal}) (vCharacter {wideGapped = vFinal})
                                     (newU, _, newV) = wideGapped newEdgeCharacter
                                 in
-                                --trace ("GCD:\n" ++ (show m) ++ "\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                --trace ("GCD:\n" <> (show m) <> "\n" <> (show (uFinal, newU)) <> "\n" <> (show (vFinal, newV)))
                                 zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else GV.toList $ GV.zipWith (M.generalSequenceDiff thisMatrix (length thisMatrix))  (wideIAFinal uCharacter) (wideIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
@@ -914,7 +914,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                     newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {hugeGapped = uFinal}) (vCharacter {hugeGapped = vFinal})
                                     (newU, _, newV) = hugeGapped newEdgeCharacter
                                 in
-                                -- trace ("GCD:\n" ++ (show (uFinal, newU)) ++ "\n" ++ (show (vFinal, newV)))
+                                -- trace ("GCD:\n" <> (show (uFinal, newU)) <> "\n" <> (show (vFinal, newV)))
                                 zipWith  (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
                              else GV.toList $ GV.zipWith (M.generalSequenceDiff thisMatrix (length thisMatrix)) (hugeIAFinal uCharacter) (hugeIAFinal vCharacter)
             (minDiff, maxDiff) = unzip minMaxDiffList
@@ -923,7 +923,7 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         in
         (minCost, maxCost)
 
-    else error ("Character type not recognized/unimplemented : " ++ show thisCharType)
+    else error ("Character type not recognized/unimplemented : " <> show thisCharType)
     where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b)
           equalAndSingleState a b = (a == b) && (popCount a == 1)
 
@@ -978,7 +978,7 @@ minMaxMatrixDiff localCostMatrix uStatesV vStatesV =
     if (not . null) costList then (minimum costList, maximum costList)
     else (-1, -1)
     -}
-    -- trace ("MMD: " ++ (show (statePairs,cartesianPairs)))
+    -- trace ("MMD: " <> (show (statePairs,cartesianPairs)))
     (minimum costList, maximum costList)
 
 
@@ -1048,7 +1048,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
        isTree = graphType inGS == Tree
    in
    -- Three cases, Root, leaf, HTU
-   -- trace ("set final:" ++ (show (finalMethod, staticIA)) ++ " " ++ (show childType) ++ " " ++ (show isLeft) ++ " " ++ (show isIn1Out1) ++ " " ++ (show isIn2Out1)) (
+   -- trace ("set final:" <> (show (finalMethod, staticIA)) <> " " <> (show childType) <> " " <> (show isLeft) <> " " <> (show isIn1Out1) <> " " <> (show isIn2Out1)) (
    if childType == RootNode then
 
       if localCharType == Add then
@@ -1076,7 +1076,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalAssignment' = extractMedians $ slimGapped childChar
          in
-         -- trace ("TNFinal-Root: " ++ (show finalAssignment') ++ " " ++ (show (GV.length finalAssignment', slimGapped childChar))) $
+         -- trace ("TNFinal-Root: " <> (show finalAssignment') <> " " <> (show (GV.length finalAssignment', slimGapped childChar))) $
          --traceNoLF ("TNFinal-Root") $
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = finalAssignment'
@@ -1106,7 +1106,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                           else mempty
                         }
 
-      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+      else error ("Unrecognized/implemented character type: " <> show localCharType)
 
    else if childType == LeafNode then
       -- since leaf no neeed to precess final alignment fields for sequence characters
@@ -1135,7 +1135,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
          let finalAlignment = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
          in
-         -- traceNoLF ("TNFinal-Leaf " ++ (show isSingleParentIn1Out1) ++ " ") $
+         -- traceNoLF ("TNFinal-Leaf " <> (show isSingleParentIn1Out1) <> " ") $
          if staticIA then childChar {slimIAFinal = extractMediansGapped $ slimIAPrelim childChar}
          else childChar { slimFinal = extractMedians $ slimGapped childChar -- finalAssignment'
                         , slimAlignment = --slimAlignment parentChar
@@ -1190,7 +1190,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                           else mempty
                         }
 
-      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+      else error ("Unrecognized/implemented character type: " <> show localCharType)
 
    else if childType == TreeNode && not isIn1Out1 then
 
@@ -1234,7 +1234,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
-         -- traceNoLF ("TNFinal-Tree "++ (show isSingleParentIn1Out1) ++ " ") $
+         -- traceNoLF ("TNFinal-Tree " <> (show isSingleParentIn1Out1) <> " ") $
          let finalGapped = doPreOrderWithParentCheck isLeft (slimAlignment parentChar) (slimGapped parentChar) (slimGapped childChar)
 
              finalAssignmentDO = if finalMethod == DirectOptimization then
@@ -1248,7 +1248,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                     -- really could/should be mempty since overwritten by IA later
                                  else removeGapAndNil $ snd3 finalGapped
          in
-         --trace ("TNFinal-Tree:" ++ (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) ++ "->" ++ (show finalGapped)) (
+         --trace ("TNFinal-Tree:" <> (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) <> "->" <> (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { slimFinal = finalAssignmentDO
                         , slimAlignment = --finalGapped
@@ -1296,7 +1296,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                           else mempty
                         }
 
-      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+      else error ("Unrecognized/implemented character type: " <> show localCharType)
 
    -- display tree indegree=outdegree=1
    -- since display trees here--indegree should be one as well
@@ -1329,7 +1329,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then -- parentChar
 
          --traceNoLF ("TNFinal-1/1") $
-         -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) $
+         -- trace ("TNFinal-1/1:" <> (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) $
          if staticIA then childChar { slimIAFinal = slimIAFinal parentChar}
          else childChar { slimFinal = slimFinal parentChar
                         , slimAlignment = -- slimAlignment parentChar
@@ -1344,7 +1344,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         }
 
     else if (localCharType == WideSeq) || (localCharType == AminoSeq) then -- parentChar
-         -- trace ("TNFinal-1/1:" ++ (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
+         -- trace ("TNFinal-1/1:" <> (show (isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar)))) (
          if staticIA then childChar { wideIAFinal = wideIAFinal parentChar}
          else childChar { wideFinal = wideFinal parentChar
                         , wideAlignment = --wideAlignment parentChar
@@ -1359,7 +1359,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         -- )
 
     else if localCharType == HugeSeq  then -- parentChar
-         -- trace ("TNFinal-1/1:" ++ (show (isLeft, (hugeAlignment parentChar), (hugeGapped parentChar) ,(hugeGapped childChar)))) (
+         -- trace ("TNFinal-1/1:" <> (show (isLeft, (hugeAlignment parentChar), (hugeGapped parentChar) ,(hugeGapped childChar)))) (
          if staticIA then childChar { hugeIAFinal = hugeIAFinal parentChar}
          else childChar { hugeFinal = hugeFinal parentChar
                         , hugeAlignment = --hugeAlignment parentChar
@@ -1373,17 +1373,17 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                         }
         -- )
 
-      else error ("Unrecognized/implemented character type: " ++ show localCharType)
+      else error ("Unrecognized/implemented character type: " <> show localCharType)
       -- )
 
       --for Hardwired graphs
    else if isIn2Out1 then
         if isNothing parent2CharM then error "Nothing parent2char in setFinal"
         else
-            -- trace ("SF: " ++ "makeing 3-way final")
+            -- trace ("SF: " <> "makeing 3-way final")
             TW.threeMedianFinal charInfo parentChar (fromJust parent2CharM) childChar
 
-   else error ("Node type should not be here (pre-order on tree node only): " ++ show  childType)
+   else error ("Node type should not be here (pre-order on tree node only): " <> show  childType)
    -- )
 
 -- | doPreOrderWithParentCheck performs post order logic if parent non-zero--otherwise returns preliminary assignment
@@ -1442,7 +1442,7 @@ makeNonGappedLeftRight charInfo gappedLeftRight nodeChar  =
       in
       (mempty, mempty, M.makeDynamicCharacterFromSingleVector newFinalGapped)
 
-   else error ("Unrecognized character type: " ++ show localCharType)
+   else error ("Unrecognized character type: " <> show localCharType)
 
 
 
@@ -1483,19 +1483,19 @@ makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
    -- trace (show inData) (
    -- Rule 1
    if interNodeParent == Just parentFinal then
-      -- trace ("R1 " ++ show parentFinal)
+      -- trace ("R1 " <> show parentFinal)
       parentFinal
    -- Rule 2
    else if isJust ((leftChild `intervalUnion` rightChild) `intervalIntersection` parentFinal) then
       let xFactor = ((leftChild `intervalUnion` rightChild) `intervalUnion` nodePrelim) `intervalIntersection` parentFinal
       in
-      if isNothing xFactor then error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (nodePrelim, leftChild, rightChild, parentFinal))
+      if isNothing xFactor then error ("I don't think this should happen in makeAdditiveCharacterFinal" <> show (nodePrelim, leftChild, rightChild, parentFinal))
       else
          if isJust (fromJust xFactor `intervalIntersection` nodePrelim) then
-            -- trace ("R2a " ++ show (fromJust xFactor))
+            -- trace ("R2a " <> show (fromJust xFactor))
             fromJust xFactor
          else
-            -- trace ("Rb " ++ show (lciClosest (fromJust xFactor) nodePrelim))
+            -- trace ("Rb " <> show (lciClosest (fromJust xFactor) nodePrelim))
             lciClosest (fromJust xFactor) nodePrelim
 
    -- Rule 3
@@ -1504,7 +1504,7 @@ makeAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
           closestPtoA = stateFirstClosestToSecond nodePrelim parentFinal
           closestULRtoA = stateFirstClosestToSecond unionLR parentFinal
       in
-      -- trace ("R3 " ++ show (min closestPtoA closestULRtoA, max closestPtoA closestULRtoA))
+      -- trace ("R3 " <> show (min closestPtoA closestULRtoA, max closestPtoA closestULRtoA))
       (min closestPtoA closestULRtoA, max closestPtoA closestULRtoA)
    -- )
 
@@ -1516,11 +1516,11 @@ stateFirstClosestToSecond (a,b) (x,y) =
    let distASecond
          | x > b = x - a
          | y < a = a - y
-         | otherwise = error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
+         | otherwise = error ("I don't think this should happen in makeAdditiveCharacterFinal" <> show (a,b,x,y))
        distBSecond
          | x > b = x - b
          | y < a = b - y
-         | otherwise = error ("I don't think this should happen in makeAdditiveCharacterFinal" ++ show (a,b,x,y))
+         | otherwise = error ("I don't think this should happen in makeAdditiveCharacterFinal" <> show (a,b,x,y))
    in
    if distASecond <= distBSecond then a
    else b
@@ -1532,7 +1532,7 @@ lciClosest :: (Int, Int) -> (Int, Int) -> (Int, Int)
 lciClosest (a,b) (x,y)
   | x > b = (a,x)
   | y < a = (y,b)
-  | otherwise = error ("I don't think this should happen in lciClosest" ++ show (a,b,x,y))
+  | otherwise = error ("I don't think this should happen in lciClosest" <> show (a,b,x,y))
 
  -- | intervalIntersection is bit-analogue intersection for additive character operations
  -- takes two intervals and returnas range intersection
@@ -1560,13 +1560,13 @@ makeNonAdditiveCharacterFinal nodePrelim leftChild rightChild parentFinal =
    -- From Wheeler (2012) after Fitch (1971)
    -- trace (show inData) (
    if BV.isZeroVector (complement nodePrelim .&. parentFinal) then
-      --trace ("R1 " ++ show parentFinal)
+      --trace ("R1 " <> show parentFinal)
       parentFinal
    else if BV.isZeroVector (leftChild .&. rightChild) then
-      --trace ("R2 " ++ show (nodePrelim .|. parentFinal))
+      --trace ("R2 " <> show (nodePrelim .|. parentFinal))
       nodePrelim .|. parentFinal
    else
-      -- trace ("R3 " ++ show (nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)))
+      -- trace ("R3 " <> show (nodePrelim .|.  (leftChild .&. parentFinal) .|. (rightChild .&. parentFinal)))
       nodePrelim .|. (parentFinal .&. (leftChild .|. rightChild))
    -- )
 
@@ -1615,7 +1615,7 @@ nonMinCostStatesToMaxCost stateIndexList tripleVect =
    let minStateCost = V.minimum $ fmap fst3 tripleVect
        result = V.zipWith (modifyStateCost minStateCost) tripleVect stateIndexList
    in
-   -- trace ((show stateIndexList) ++ " " ++ (show $ V.zip tripleVect stateIndexList))
+   -- trace ((show stateIndexList) <> " " <> (show $ V.zip tripleVect stateIndexList))
    result
       where
          modifyStateCost d (a,b,c) e = if a == d then (e,b,c)

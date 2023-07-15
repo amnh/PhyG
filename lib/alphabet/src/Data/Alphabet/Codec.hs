@@ -1,37 +1,28 @@
------------------------------------------------------------------------------
--- |
--- Module      :  Data.Alphabet.Codec
--- Copyright   :  (c) 2015-2021 Ward Wheeler
--- License     :  BSD-style
---
--- Maintainer  :  wheeler@amnh.org
--- Stability   :  provisional
--- Portability :  portable
---
--- Facilitates encoding and decoding symbols from an 'Alphabet' into a bit-state.
--- Works for any 'Bits' instance.
------------------------------------------------------------------------------
+{- |
+Facilitates encoding and decoding symbols from an 'Alphabet' into a bit-state.
+Works for any 'Bits' instance.
+-}
 
-{-# LANGUAGE GADTs         #-}
-{-# LANGUAGE Strict        #-} 
-{-# LANGUAGE TypeOperators #-}
+{-# Language GADTs         #-}
+{-# Language Strict        #-} 
+{-# Language TypeOperators #-}
 
 module Data.Alphabet.Codec
   ( decodeState
   , encodeState
   ) where
 
-import           Data.Alphabet.Internal
-import           Data.Bits
-import           Data.Foldable
-import           Data.List.NonEmpty          (NonEmpty)
-import           Data.Set                    (Set)
-import qualified Data.Set                    as Set
-import           Data.Text.Short             (ShortText)
-import qualified Data.Vector                 as V
-import           Data.Word
-import           Foreign.C.Types
-import           GHC.Exts                    (IsList(fromList), Item)
+import Data.Alphabet.Internal
+import Data.Bits
+import Data.Foldable
+import Data.List.NonEmpty (NonEmpty)
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.Text.Short (ShortText)
+import Data.Vector qualified as V
+import Data.Word
+import Foreign.C.Types
+import GHC.Exts (IsList(fromList), Item)
 
 
 {-# INLINEABLE encodeState #-}

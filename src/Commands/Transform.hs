@@ -80,12 +80,12 @@ transform inArgs inGS origData inData rSeed inGraphList =
        checkCommandList = checkCommandArgs "transform" fstArgList VER.transformArgList
    in
    -- check for valid command options
-   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'transform': " ++ show inArgs)
+   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'transform': " <> show inArgs)
    else
         let displayBlock = filter ((=="displaytrees").fst) lcArgList
             numDisplayTrees
                | length displayBlock > 1 =
-                  errorWithoutStackTrace ("Multiple displayTree number specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple displayTree number specifications in transform--can have only one: " <> show inArgs)
                | null displayBlock = Just 10
                | null (snd $ head displayBlock) = Just 10
                | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
@@ -111,7 +111,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             reweightBlock = filter ((=="weight").fst) lcArgList
             weightValue
                | length reweightBlock > 1 =
-                  errorWithoutStackTrace ("Multiple weight specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple weight specifications in transform--can have only one: " <> show inArgs)
                | null reweightBlock = Just 1.0
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
@@ -119,7 +119,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeCompressionBlock = filter ((=="compressresolutions").fst) lcArgList
             compressionValue
                | length changeCompressionBlock > 1 =
-                  errorWithoutStackTrace ("Multiple compressResolutions specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple compressResolutions specifications in transform--can have only one: " <> show inArgs)
                | null changeCompressionBlock = Just $ fmap toLower $ show $ compressResolutions inGS
                | null (snd $ head changeCompressionBlock) = Just $ fmap toLower $ show $ compressResolutions inGS
                | otherwise = readMaybe (show $ snd $ head changeCompressionBlock) :: Maybe String
@@ -127,7 +127,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
             epsilonValue
                | length changeEpsilonBlock > 1 =
-                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in transform--can have only one: " <> show inArgs)
                | null changeEpsilonBlock = Just $ dynamicEpsilon inGS
                | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS
                | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
@@ -135,7 +135,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeGraphFactorBlock = filter ((=="graphfactor").fst) lcArgList
             newGraphFactor
                | length changeGraphFactorBlock > 1 =
-                  errorWithoutStackTrace ("Multiple graphFactor specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple graphFactor specifications in transform--can have only one: " <> show inArgs)
                | null changeGraphFactorBlock = Just $ fmap toLower $ show $ graphFactor inGS
                | null (snd $ head changeGraphFactorBlock) = Just $ fmap toLower $ show $ graphFactor inGS
                | otherwise = readMaybe (show $ snd $ head changeGraphFactorBlock) :: Maybe String
@@ -143,7 +143,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeGraphsSteepestBlock = filter ((=="graphssteepest").fst) lcArgList
             newGraphsSteepest
                | length changeGraphsSteepestBlock > 1 =
-                  errorWithoutStackTrace ("Multiple graphsSteepest specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple graphsSteepest specifications in transform--can have only one: " <> show inArgs)
                | null changeGraphsSteepestBlock = Just $ graphsSteepest inGS
                | null (snd $ head changeGraphsSteepestBlock) = Just $ graphsSteepest inGS
                | otherwise = readMaybe (snd $ head changeGraphsSteepestBlock) :: Maybe Int
@@ -151,7 +151,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeMultiTraverseBlock = filter ((=="multitraverse").fst) lcArgList
             multiTraverseValue
                | length changeMultiTraverseBlock > 1 =
-                  errorWithoutStackTrace ("Multiple multiTraverse specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple multiTraverse specifications in transform--can have only one: " <> show inArgs)
                | null changeMultiTraverseBlock = Just $ fmap toLower $ show $ multiTraverseCharacters inGS
                | null (snd $ head changeMultiTraverseBlock) = Just $ fmap toLower $ show $ multiTraverseCharacters inGS
                | otherwise = readMaybe (show $ snd $ head changeMultiTraverseBlock) :: Maybe String
@@ -159,7 +159,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeSoftwiredMethodBlock = filter ((=="softwiredmethod").fst) lcArgList
             newSoftwiredMethod
                | length changeSoftwiredMethodBlock > 1 =
-                  errorWithoutStackTrace ("Multiple softwiredMethod specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple softwiredMethod specifications in transform--can have only one: " <> show inArgs)
                | null changeSoftwiredMethodBlock = Just $ fmap toLower $ show $ softWiredMethod inGS
                | null (snd $ head changeSoftwiredMethodBlock) = Just $ fmap toLower $ show $ softWiredMethod inGS
                | otherwise = readMaybe (show $ snd $ head changeSoftwiredMethodBlock) :: Maybe String
@@ -167,7 +167,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             reRootBlock = filter ((=="outgroup").fst) lcArgList
             outgroupValue
                | length reRootBlock > 1 =
-                  errorWithoutStackTrace ("Multiple outgroup specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple outgroup specifications in transform--can have only one: " <> show inArgs)
                | null reRootBlock = Just $ outGroupName inGS
                | null (snd $ head reRootBlock) = Just $ outGroupName inGS
                | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
@@ -175,7 +175,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             changeUnionBlock = filter ((=="jointhreshold").fst) lcArgList
             unionValue
                | length changeUnionBlock > 1 =
-                  errorWithoutStackTrace ("Multiple joinThreshold specifications in transform--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple joinThreshold specifications in transform--can have only one: " <> show inArgs)
                | null changeUnionBlock = Just $ unionThreshold inGS
                | null (snd $ head changeUnionBlock) = Just $ unionThreshold inGS
                | otherwise = readMaybe (snd $ head changeUnionBlock) :: Maybe Double
@@ -186,13 +186,13 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
         in
         if (length $ filter (== True) [toTree, toSoftWired, toHardWired]) > 1 then
-            errorWithoutStackTrace ("Multiple graph transform commands--can only have one : " ++ (show inArgs))
+            errorWithoutStackTrace ("Multiple graph transform commands--can only have one : " <> (show inArgs))
         else if toStaticApprox && toDynamic then
-            errorWithoutStackTrace ("Multiple staticApprox/Dynamic transform commands--can only have one : " ++ (show inArgs))
+            errorWithoutStackTrace ("Multiple staticApprox/Dynamic transform commands--can only have one : " <> (show inArgs))
         else if atRandom && chooseFirst then
-            errorWithoutStackTrace ("Multiple display tree choice commands in transform (first, atRandom)--can only have one : " ++ (show inArgs))
+            errorWithoutStackTrace ("Multiple display tree choice commands in transform (first, atRandom)--can only have one : " <> (show inArgs))
         else if (toTree || toSoftWired || toHardWired) && (toDynamic || toStaticApprox) then
-            errorWithoutStackTrace ("Multiple transform operations in transform (e.g. toTree, staticApprox)--can only have one at a time: " ++ (show inArgs))
+            errorWithoutStackTrace ("Multiple transform operations in transform (e.g. toTree, staticApprox)--can only have one at a time: " <> (show inArgs))
         else
             let pruneEdges = False
                 warnPruneEdges = False
@@ -242,7 +242,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
             else if toDynamic then
                let newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                in
-               trace ("Transforming data to dynamic: " ++ (show $ minimum $ fmap snd5 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
+               trace ("Transforming data to dynamic: " <> (show $ minimum $ fmap snd5 inGraphList) <> " -> " <> (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
                (inGS, origData, origData, newPhylogeneticGraphList)
 
             -- transform to static approx--using first Tree
@@ -251,7 +251,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                    newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
 
                in
-               trace ("Transforming data to staticApprox: " ++ (show $ minimum $ fmap snd5 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
+               trace ("Transforming data to staticApprox: " <> (show $ minimum $ fmap snd5 inGraphList) <> " -> " <> (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
                (inGS, origData, newData, newPhylogeneticGraphList)
 
             -- change weight values in charInfo and reoptimize
@@ -261,108 +261,108 @@ transform inArgs inGS origData inData rSeed inGraphList =
                    newData = reWeightData (fromJust weightValue) charTypeList nameList inData
                    newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                in
-               if isNothing weightValue then errorWithoutStackTrace ("Reweight value is not specified correcty. Must be a double (e.g. 1.2): " ++ (show  (snd $ head reweightBlock)))
+               if isNothing weightValue then errorWithoutStackTrace ("Reweight value is not specified correcty. Must be a double (e.g. 1.2): " <> (show  (snd $ head reweightBlock)))
                else
-                  trace ("Reweighting types " ++ (show charTypeList) ++ " and/or characters " ++ (L.intercalate ", " $ fmap TL.unpack nameList) ++ " to " ++ (show $ fromJust weightValue)
-                  ++ "\n\tReoptimizing graphs")
+                  trace ("Reweighting types " <> (show charTypeList) <> " and/or characters " <> (L.intercalate ", " $ fmap TL.unpack nameList) <> " to " <> (show $ fromJust weightValue)
+                  <> "\n\tReoptimizing graphs")
                   (inGS, newOrigData, newData, newPhylogeneticGraphList)
 
             -- changes the softwired optimization algorithm--this really for experimental use
             else if changeCompressionResolutions then
-               if isNothing compressionValue then errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeCompressionBlock)))
+               if isNothing compressionValue then errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " <> (show (snd $ head changeCompressionBlock)))
                else
                   let newMethod = if fromJust compressionValue == "true" then True
                                   else if fromJust compressionValue == "false" then False
-                                  else errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                                  else errorWithoutStackTrace ("CompressResolutions value is not specified correcty. Must be either 'True' or 'False': " <> (show (snd $ head changeSoftwiredMethodBlock)))
                       newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced (inGS  {compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                   in
                   if newMethod /=  compressResolutions inGS then
-                     trace ("Changing compressResolutions method to " ++ (show newMethod))
+                     trace ("Changing compressResolutions method to " <> (show newMethod))
                      (inGS {compressResolutions = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {compressResolutions = newMethod}, origData, inData, inGraphList)
 
             -- changes dynamicEpsilon error check factor
             else if changeEpsilon then
-               if isNothing epsilonValue then errorWithoutStackTrace ("DynamicEpsilon value is not specified correcty. Must be a double (e.g. 0.02): " ++ (show (snd $ head changeEpsilonBlock)))
+               if isNothing epsilonValue then errorWithoutStackTrace ("DynamicEpsilon value is not specified correcty. Must be a double (e.g. 0.02): " <> (show (snd $ head changeEpsilonBlock)))
                else
-                  trace ("Changing dynamicEpsilon factor to " ++ (show $ fromJust epsilonValue))
+                  trace ("Changing dynamicEpsilon factor to " <> (show $ fromJust epsilonValue))
                   (inGS {dynamicEpsilon = 1.0 + ((fromJust epsilonValue) * (fractionDynamic inGS))}, origData, inData, inGraphList)
 
             -- changes the softwired optimization algorithm--this really for experimental use
             else if changeGraphFactor then
-               if isNothing newGraphFactor then errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " ++ (show (snd $ head changeGraphFactorBlock)))
+               if isNothing newGraphFactor then errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " <> (show (snd $ head changeGraphFactorBlock)))
                else
                   let newMethod = if fromJust newGraphFactor == "nopenalty" then NoNetworkPenalty
                                   else if fromJust newGraphFactor == "w15" then Wheeler2015Network
                                   else if fromJust newGraphFactor == "w23" then Wheeler2023Network
                                   else if fromJust newGraphFactor == "pmdl" then PMDLGraph
-                                  else errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " ++ (show (snd $ head changeGraphFactorBlock)))
+                                  else errorWithoutStackTrace ("GraphFactor value is not specified correcty. Must be either 'NoPenalty', 'W15'. 'W23', or 'PMDL': " <> (show (snd $ head changeGraphFactorBlock)))
                       newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced (inGS  {graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                   in
                   if newMethod /=  graphFactor inGS then
-                     trace ("Changing graphFactor method to " ++ (show newMethod))
+                     trace ("Changing graphFactor method to " <> (show newMethod))
                      (inGS {graphFactor = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {graphFactor = newMethod}, origData, inData, inGraphList)
 
             -- changes graphsSteepest -- maximum number of graphs evaluated in paralell at each "steepest" phse in swpa dn netadd/delete
             else if changeGraphsSteepest then
-               if isNothing newGraphsSteepest then errorWithoutStackTrace ("GraphsSteepest value is not specified correcty. Must be an Integer (e.g. 5): " ++ (show (snd $ head changeGraphsSteepestBlock)))
+               if isNothing newGraphsSteepest then errorWithoutStackTrace ("GraphsSteepest value is not specified correcty. Must be an Integer (e.g. 5): " <> (show (snd $ head changeGraphsSteepestBlock)))
                else
-                  trace ("Changing GraphsSteepest factor to " ++ (show $ fromJust newGraphsSteepest))
+                  trace ("Changing GraphsSteepest factor to " <> (show $ fromJust newGraphsSteepest))
                   (inGS {graphsSteepest = fromJust newGraphsSteepest}, origData, inData, inGraphList)
 
             -- changes the multiTraverse behavior for all graphs
             else if changeMultiTraverse then
-               if isNothing multiTraverseValue then errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeMultiTraverseBlock)))
+               if isNothing multiTraverseValue then errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " <> (show (snd $ head changeMultiTraverseBlock)))
                else
                   let newMethod = if fromJust multiTraverseValue == "true" then True
                                   else if fromJust multiTraverseValue == "false" then False
-                                  else errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " ++ (show (snd $ head changeMultiTraverseBlock)))
+                                  else errorWithoutStackTrace ("MultiTraverse value is not specified correcty. Must be either 'True' or 'False': " <> (show (snd $ head changeMultiTraverseBlock)))
                       newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced (inGS  {multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                   in
                   if newMethod /=  multiTraverseCharacters inGS then
                      let lengthChangeString = if null inGraphList then ""
-                                              else (":" ++ (show $ minimum $ fmap snd5 inGraphList) ++ " -> " ++ (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
+                                              else (":" <> (show $ minimum $ fmap snd5 inGraphList) <> " -> " <> (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
                      in
-                     trace ("Changing multiTraverse to " ++ (show newMethod) ++ lengthChangeString)
+                     trace ("Changing multiTraverse to " <> (show newMethod) <> lengthChangeString)
                      (inGS {multiTraverseCharacters = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {multiTraverseCharacters = newMethod}, origData, inData, inGraphList)
 
             -- changes the softwired optimization algorithm--this really for experimental use
             else if changeSoftwiredMethod then
-               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Exhaustive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+               if isNothing newSoftwiredMethod then errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Exhaustive' or 'ResolutionCache': " <> (show (snd $ head changeSoftwiredMethodBlock)))
                else
                   let newMethod = if fromJust newSoftwiredMethod == "naive" then Naive
                                   else if fromJust newSoftwiredMethod == "exhaustive" then Naive
                                   else if fromJust newSoftwiredMethod == "resolutioncache" then ResolutionCache
-                                  else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " ++ (show (snd $ head changeSoftwiredMethodBlock)))
+                                  else errorWithoutStackTrace ("SoftwiredMethod value is not specified correcty. Must be either 'Naive' or 'ResolutionCache': " <> (show (snd $ head changeSoftwiredMethodBlock)))
                       newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced (inGS  {softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                       newMethodString = if newMethod == ResolutionCache then "ResolutionCache"
                                         else "Exhaustive"
                   in
                   if newMethod /=  softWiredMethod inGS then
-                     trace ("Changing softwired optimization method to " ++ newMethodString)
+                     trace ("Changing softwired optimization method to " <> newMethodString)
                      (inGS {softWiredMethod = newMethod}, origData, inData, newPhylogeneticGraphList)
                   else (inGS {softWiredMethod = newMethod}, origData, inData, inGraphList)
 
             -- changes outgroup
             else if reRoot then
-               if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " ++ (snd $ head reRootBlock))
+               if isNothing outgroupValue then errorWithoutStackTrace ("Outgroup is not specified correctly. Must be a string (e.g. \"Name\"): " <> (snd $ head reRootBlock))
                else
                   let newOutgroupName = TL.filter (/= '"') $ fromJust outgroupValue
                       newOutgroupIndex =  V.elemIndex newOutgroupName (fst3 origData)
                       newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS origData pruneEdges warnPruneEdges startVertex) (fmap (LG.rerootTree (fromJust newOutgroupIndex)) $ fmap fst5 inGraphList)
                   in
-                  if isNothing newOutgroupIndex then errorWithoutStackTrace ("Outgoup name not found: " ++ (snd $ head reRootBlock))
+                  if isNothing newOutgroupIndex then errorWithoutStackTrace ("Outgoup name not found: " <> (snd $ head reRootBlock))
                   else
-                     trace ("Changing outgroup to " ++ (TL.unpack newOutgroupName))
+                     trace ("Changing outgroup to " <> (TL.unpack newOutgroupName))
                      (inGS {outgroupIndex = fromJust newOutgroupIndex, outGroupName = newOutgroupName}, origData, inData, newPhylogeneticGraphList)
 
             -- changes unionThreshold error check factor
             else if changeUnionThreshold then
-               if isNothing unionValue then errorWithoutStackTrace ("UninThreshold value is not specified correcty. Must be a double (e.g. 1.17): " ++ (show (snd $ head changeUnionBlock)))
+               if isNothing unionValue then errorWithoutStackTrace ("UninThreshold value is not specified correcty. Must be a double (e.g. 1.17): " <> (show (snd $ head changeUnionBlock)))
                else
-                  trace ("Changing uninoTHreshold factor to " ++ (show $ fromJust unionValue))
+                  trace ("Changing uninoTHreshold factor to " <> (show $ fromJust unionValue))
                   (inGS {dynamicEpsilon = (fromJust unionValue)}, origData, inData, inGraphList)
 
             -- modify the use of Network Add heurisitcs in network optimization
@@ -370,12 +370,12 @@ transform inArgs inGS origData inData rSeed inGraphList =
             let localCriterion
                   | ((snd $ head lcArgList) == "true") = True
                   | ((snd $ head lcArgList) == "false") = False
-                  | otherwise = errorWithoutStackTrace ("Error in 'transform' command. UseNetAddHeuristic '" ++ (snd $ head lcArgList) ++ "' is not 'true' or 'false'")
+                  | otherwise = errorWithoutStackTrace ("Error in 'transform' command. UseNetAddHeuristic '" <> (snd $ head lcArgList) <> "' is not 'true' or 'false'")
             in
-            trace ("UseNetAddHeuristic set to " ++ (snd $ head lcArgList))
+            trace ("UseNetAddHeuristic set to " <> (snd $ head lcArgList))
             (inGS {useNetAddHeuristic = localCriterion}, origData, inData, inGraphList)
 
-            else error ("Transform type not implemented/recognized" ++ (show inArgs))
+            else error ("Transform type not implemented/recognized" <> (show inArgs))
 
 -- | reWeightData sets weights to new values based on
 reWeightData :: Double -> [String] -> [NameText] -> ProcessedData -> ProcessedData
@@ -391,7 +391,7 @@ stringToType inString =
    if null inString then []
    else
       let inVal = fmap C.toLower inString
-          typeList = if inVal == "all" then exactCharacterTypes ++ sequenceCharacterTypes
+          typeList = if inVal == "all" then exactCharacterTypes <> sequenceCharacterTypes
                      else if inVal == "prealigned" then prealignedCharacterTypes
                      else if inVal `elem` ["nonexact", "dynamic"] then nonExactCharacterTypes
                      else if inVal == "nonadditive" then [NonAdd, Packed2, Packed4, Packed5, Packed8, Packed64]
@@ -406,7 +406,7 @@ stringToType inString =
                      else if inVal == "packed64" then [Packed64]
                      else if inVal `elem` ["static", "exact", "qualitative"] then exactCharacterTypes
 
-                     else errorWithoutStackTrace ("Error in transform : Unrecognized character type '" ++ inString ++ "'")
+                     else errorWithoutStackTrace ("Error in transform : Unrecognized character type '" <> inString <> "'")
       in
       typeList
 
@@ -422,12 +422,12 @@ reweightCharacterData ::  Double -> [CharType] -> [NameText] -> CharInfo -> Char
 reweightCharacterData weightValue charTypeList charNameList charInfo =
    let wildCardMatchCharName = filter (== True) $ fmap (textMatchWildcards (name charInfo)) charNameList
    in
-   -- trace ("RWC Wildcards: " ++ (show $ fmap (textMatchWildcards (name charInfo)) charNameList)) (
+   -- trace ("RWC Wildcards: " <> (show $ fmap (textMatchWildcards (name charInfo)) charNameList)) (
    if null wildCardMatchCharName && (charType charInfo) `notElem` charTypeList then
-      -- trace ("RWC not : " ++ (show $ name charInfo) ++ " of " ++ (show charNameList) ++ " " ++ (show $ charType charInfo) ++ " of " ++ (show charTypeList))
+      -- trace ("RWC not : " <> (show $ name charInfo) <> " of " <> (show charNameList) <> " " <> (show $ charType charInfo) <> " of " <> (show charTypeList))
       charInfo
    else
-      -- trace ("RWC: " ++ (show $ name charInfo) ++ " " ++ (show $ charType charInfo))
+      -- trace ("RWC: " <> (show $ name charInfo) <> " " <> (show $ charType charInfo))
       charInfo {weight = weightValue}
    -- )
 
@@ -457,11 +457,11 @@ makeStaticApprox inGS leavePrealigned inData inGraph =
           -- bit pack any new non-additive characters
           newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
       in
-      -- trace ("MSA:" ++ (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
+      -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
       if leavePrealigned then (nameV, nameBVV, V.fromList newBlockDataV)
       else newProcessedData'
 
-   else trace ("Static Approx not yet implemented for graph type :" ++ (show $ graphType inGS) ++ " skipping") inData
+   else trace ("Static Approx not yet implemented for graph type :" <> (show $ graphType inGS) <> " skipping") inData
 
 
 -- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls
@@ -479,7 +479,7 @@ pullGraphBlockDataAndTransform leavePrealigned inDecGraph  (_, _, blockCharInfoV
 
        (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData leavePrealigned (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData
    in
-   -- trace ("PGDT: " ++ show charLengthV)
+   -- trace ("PGDT: " <> show charLengthV)
    (fst3 $ blockCharInfoV V.! blockIndex, V.fromList transformedLeafBlockData, head transformedBlockInfo)
 
 
@@ -510,14 +510,14 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
        (inCostMatrixType, gapCost) = R.getRecodingType inCostMatrix
 
    in
-   -- trace ("TC:" ++ (show alphSize) ++ " " ++ (show $ alphabet inCharInfo)) (
-   --trace ("TC:" ++ (show charLength) ++ " " ++ (show (GV.length $ snd3 $ slimAlignment inCharData, GV.length $ snd3 $ wideAlignment inCharData, GV.length $ snd3 $ hugeAlignment inCharData))) (
+   -- trace ("TC:" <> (show alphSize) <> " " <> (show $ alphabet inCharInfo)) (
+   --trace ("TC:" <> (show charLength) <> " " <> (show (GV.length $ snd3 $ slimAlignment inCharData, GV.length $ snd3 $ wideAlignment inCharData, GV.length $ snd3 $ hugeAlignment inCharData))) (
    if inCharType `elem` exactCharacterTypes then (inCharData, inCharInfo)
 
    else if inCharType `elem` prealignedCharacterTypes then (inCharData, inCharInfo)
 
    else
-      -- trace ("TC: " ++ inCostMatrixType) (
+      -- trace ("TC: " <> inCostMatrixType) (
       -- different types--vector wrangling
       -- missing data fields set if no implied alignment ie missing data
       if inCharType `elem` [SlimSeq, NucSeq] then
@@ -531,7 +531,7 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
              newPrelimBV = R.convert2BV 32 impliedAlignChar
              newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
          in
-         -- trace ("TC-Slim:" ++ (show $ GV.length $ snd3 $ slimAlignment inCharData) ++ " " ++ (show $ snd3 $ impliedAlignChar)) (
+         -- trace ("TC-Slim:" <> (show $ GV.length $ snd3 $ slimAlignment inCharData) <> " " <> (show $ snd3 $ impliedAlignChar)) (
 
          if leavePrealigned then
             (inCharData {alignedSlimPrelim = impliedAlignChar}, inCharInfo {charType =  AlignedSlim})
@@ -590,7 +590,7 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
             (inCharData {alignedHugePrelim = impliedAlignChar}, inCharInfo {charType =  AlignedHuge})
 
       else
-         error ("Unrecognized character type in transformCharacter: " ++ (show inCharType))
+         error ("Unrecognized character type in transformCharacter: " <> (show inCharType))
       -- )
 
 -- | addGaps2BV adds gap characters 0 = nonGap, 1 = Gap to Vector
@@ -599,12 +599,12 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
 -- since this only for leaves assume inM good for all
 addGaps2BV :: Int -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
 addGaps2BV gapCost (_, inM, _) =
-   -- trace ("AG2BV: " ++ (show inM)) (
+   -- trace ("AG2BV: " <> (show inM)) (
    let gapChar = BV.fromNumber (BV.dimension $ V.head inM) (1 :: Int)
        noGap = L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) (1 :: Int)
        hasGap =  L.replicate (gapCost - 1) $ BV.fromNumber (BV.dimension $ V.head inM) (2 :: Int)
        gapCharV = createGapChars inM gapChar [] noGap hasGap
-       outM = inM V.++ gapCharV
+       outM = inM <> gapCharV
    in
    (outM, outM, outM)
    -- )
@@ -616,6 +616,6 @@ createGapChars :: V.Vector BV.BitVector -> BV.BitVector -> [BV.BitVector] -> [BV
 createGapChars origBVV gapCharacter newCharL noGapL hasGapL =
    if V.null origBVV then V.fromList newCharL
    else
-      if V.head origBVV == gapCharacter then createGapChars (V.tail origBVV) gapCharacter (hasGapL ++ newCharL) noGapL hasGapL
-      else createGapChars (V.tail origBVV) gapCharacter (noGapL ++ newCharL) noGapL hasGapL
+      if V.head origBVV == gapCharacter then createGapChars (V.tail origBVV) gapCharacter (hasGapL <> newCharL) noGapL hasGapL
+      else createGapChars (V.tail origBVV) gapCharacter (noGapL <> newCharL) noGapL hasGapL
 

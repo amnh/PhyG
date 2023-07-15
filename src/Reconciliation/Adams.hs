@@ -84,7 +84,7 @@ getAdamsIIPair inGraphVectA inGraphVectB =
             vertexLeafSetList = map (map getLeafSetFromNodeName . V.toList) curVertexSets
             potentialVertexSets = map (map getSecond . V.toList) curVertexSets
         in
-        if not sameLeafSet then errorWithoutStackTrace ("Leaf sets of input graphs do not match"  ++ show leafSets)
+        if not sameLeafSet then errorWithoutStackTrace ("Leaf sets of input graphs do not match"  <> show leafSets)
         else
           --return processed when have all nodes
             let allAdamsNodes = makeAdamsNodes [rootNode] "root" rootLUB leavesPlaced (zip potentialVertexSets vertexLeafSetList) --curVertexSets vertexLeafSetList
@@ -106,18 +106,18 @@ makeAdamsII leafNodeList inFGList
     let inGraphNodes = fmap G.labNodes inFGList
         inGraphEdges = fmap G.labEdges inFGList
         inGraphNonLeafNodes = fmap (drop $ length leafNodeList) inGraphNodes
-        newNodeListList = fmap (leafNodeList ++ ) inGraphNonLeafNodes
+        newNodeListList = fmap (leafNodeList <> ) inGraphNonLeafNodes
         inFGList' = mkGraphPair <$> zip  newNodeListList inGraphEdges
         allTreesList = PU.seqParMap PU.myStrategyRDS isTree inFGList' -- `using` PU.myParListChunkRDS
         allTrees = L.foldl1' (&&) allTreesList
     in
-    if not allTrees then errorWithoutStackTrace ("Input graphs are not all trees in makeAdamsII: " ++ show allTreesList)
+    if not allTrees then errorWithoutStackTrace ("Input graphs are not all trees in makeAdamsII: " <> show allTreesList)
     else if not (leafSetConstant [] inFGList) then errorWithoutStackTrace "Input leaf sets not constant in makeAdamsII"
     else
       let inPGVList = fmap fgl2PGV inFGList' -- paralle problem with NFData seqParMap myStrategy fgl2PGV inFGList
           adamsPGV = L.foldl1' getAdamsIIPair inPGVList
       in
-      -- trace ("\nAdams: " ++ show adamsPGV)
+      -- trace ("\nAdams: " <> show adamsPGV)
       pgv2FGL adamsPGV
 
 -- | fgl2PGVEdge takes an fgl Labeled edge (e,u,label)
@@ -273,7 +273,7 @@ getVertType nDesc nAnc
   | nDesc == 0 = Leaf
   | nAnc == 1 = Tree
   | nAnc > 2 = Network
-  | otherwise = error ("Screwey node: indegree " ++ show nDesc ++ " outdegree " ++ show nAnc)
+  | otherwise = error ("Screwey node: indegree " <> show nDesc <> " outdegree " <> show nAnc)
 
 -- | getVertNum takes a list of vertex names and teh complete list and
 -- returns a list of the indices (integers) of the names
@@ -284,7 +284,7 @@ getVertNum nameList vertexNameList =
         let firstVertName = head vertexNameList
             vertNum = L.elemIndex firstVertName nameList
         in
-        if isNothing vertNum then error ("Error in vertex name index: " ++ show firstVertName ++ " in " ++ show nameList)
+        if isNothing vertNum then error ("Error in vertex name index: " <> show firstVertName <> " in " <> show nameList)
         else
             fromJust vertNum : getVertNum nameList (tail vertexNameList)
 
@@ -320,14 +320,14 @@ genForestToPhyloGraphVect inGen inPhyVect nameList =
         in
         genForestToPhyloGraphVect (V.tail inGen)
             (V.snoc curVertVect (inVertexName, descNumList, ancNumList, vertType),
-            curEdgeVect V.++ newEdgeVect) nameList
+            curEdgeVect <> newEdgeVect) nameList
 
 -- | getNamesFromGenPhyNet extracts names from vertices in order found
 -- leaves are first, then internal, root last
 getNamesFromGenPhyNet :: GenPhyNet  -> [String]
 getNamesFromGenPhyNet inNet =
-    L.sort (getLeafNamesFromGenPhyNet inNet) ++ getNonLeafNonRootNamesFromGenPhyNet inNet
-        ++ getRootNamesFromGenPhyNet inNet
+    L.sort (getLeafNamesFromGenPhyNet inNet) <> getNonLeafNonRootNamesFromGenPhyNet inNet
+        <> getRootNamesFromGenPhyNet inNet
 
 -- | getShortestList takes list and length and list of lists and return
 -- shortest list
@@ -416,9 +416,9 @@ makeAdamsNodes inAdamsTree parentName inLUBList placedTaxa bothLeafLists = --inT
                 newLUB =  [L.sort x | x <- newLUBpre, not (null x)] --had "map sort $" was this "sort" necessary?  for List intersection?
                 newNode = (lub2TreeRep curLUB, map lub2TreeRep newLUB, [parentName])
             in
-            --trace ("New LUBs " ++ show newLUB ++ " newNode " ++ show newNode)
+            --trace ("New LUBs " <> show newLUB <> " newNode " <> show newNode)
             makeAdamsNodes (newNode : inAdamsTree) (lub2TreeRep curLUB) (tail inLUBList)
-                placedTaxa bothLeafLists ++ --inTreeVertexLists vertexLeafSetList) ++
+                placedTaxa bothLeafLists <> --inTreeVertexLists vertexLeafSetList) <>
                 makeAdamsNodes [] (lub2TreeRep curLUB) newLUB placedTaxa bothLeafLists --inTreeVertexLists vertexLeafSetList)
 
 -- | getLeafSetFromNodeName takes String name of node and returns sorted list of leaf
@@ -441,9 +441,9 @@ lub2TreeRep inStringList
   | null inStringList = error "Null input in lub2TreeRep"
   | length inStringList == 1 = head inStringList
   | otherwise =
-    let inside = init $ concatMap (++ ",") inStringList
+    let inside = init $ concatMap (<> ",") inStringList
     in
-    ( '(' : inside ) ++ ")"
+    ( '(' : inside ) <> ")"
 
 -- | getDecendantLeafList iputs a vertex and returns leaf set (as list of
 -- leaf names as strings) descdended from
@@ -459,8 +459,8 @@ getDecendantLeafList inVertexList inGraphVect =
             curVertName : getDecendantLeafList (tail inVertexList) inGraphVect
         else
             getDecendantLeafList [head descVertList] inGraphVect
-                ++ getDecendantLeafList (tail descVertList) inGraphVect
-                ++ getDecendantLeafList (tail inVertexList) inGraphVect
+                <> getDecendantLeafList (tail descVertList) inGraphVect
+                <> getDecendantLeafList (tail inVertexList) inGraphVect
 
 -- | getSplitLeafList takes a node and returns a list of list of descendent leaves
 getSplitLeafList :: [Int] -> PhyloGraphVect -> [[String]]
@@ -494,7 +494,7 @@ lub2 s1 s2
   | otherwise =
     let intersectFirst = L.intersect (head s1) (head s2) : lub2 [head s1] (tail s2)
     in
-    intersectFirst ++ lub2 (tail s1) s2
+    intersectFirst <> lub2 (tail s1) s2
 
 -- | leastUpperBound takes list of list vertex leaf descendants (as Strings)
 -- and returns LUB of Adams II (1972) consensus

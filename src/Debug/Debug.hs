@@ -45,46 +45,46 @@ import qualified Data.Vector as V
 debugZip :: [a] -> [b] -> [(a,b)]
 debugZip la lb
   | not isDebug = zip la lb
-  | length la /= length lb = error ("Zip arguments not equal in length: " ++ show (length la, length lb))
-  | null la = error ("First list null in debugZip " ++ show (length la, length lb))
-  | null lb = error ("Second list null in debugZip " ++ show (length la, length lb))
+  | length la /= length lb = error ("Zip arguments not equal in length: " <> show (length la, length lb))
+  | null la = error ("First list null in debugZip " <> show (length la, length lb))
+  | null lb = error ("Second list null in debugZip " <> show (length la, length lb))
   | otherwise = zip la lb
 
 
 debugZip3 :: [a] -> [b] -> [c] -> [(a,b,c)]
 debugZip3 la lb lc
   | not isDebug = zip3 la lb lc
-  | (length la /= length lb) || (length la /= length lc) || (length lb /= length lc) = error ("Zip3 arguments not equal in length: " ++ show (length la, length lb, length lc))
-  | null la = error ("First list null in debugZip3 " ++ show (length la, length lb, length lc))
-  | null lb = error ("Second list null in debugZip3 " ++ show (length la, length lb, length lc))
-  | null lc = error ("Third list null in debugZip3 " ++ show (length la, length lb, length lc))
+  | (length la /= length lb) || (length la /= length lc) || (length lb /= length lc) = error ("Zip3 arguments not equal in length: " <> show (length la, length lb, length lc))
+  | null la = error ("First list null in debugZip3 " <> show (length la, length lb, length lc))
+  | null lb = error ("Second list null in debugZip3 " <> show (length la, length lb, length lc))
+  | null lc = error ("Third list null in debugZip3 " <> show (length la, length lb, length lc))
   | otherwise = zip3 la lb  lc
 
 debugVectorZip :: V.Vector a -> V.Vector b -> V.Vector (a,b)
 debugVectorZip la lb
   | not isDebug = V.zip la lb
-  | V.length la /= V.length lb = error ("Zip arguments not equal in length: " ++ show (V.length la, V.length lb))
-  | V.null la = error ("First vector null in debugZip " ++ show (V.length la, V.length lb))
-  | V.null lb = error ("Second vector null in debugZip " ++ show (V.length la, V.length lb))
+  | V.length la /= V.length lb = error ("Zip arguments not equal in length: " <> show (V.length la, V.length lb))
+  | V.null la = error ("First vector null in debugZip " <> show (V.length la, V.length lb))
+  | V.null lb = error ("Second vector null in debugZip " <> show (V.length la, V.length lb))
   | otherwise = V.zip la lb
 
 
 debugVectorZip3 :: V.Vector a -> V.Vector b -> V.Vector c -> V.Vector (a,b,c)
 debugVectorZip3 la lb lc
   | not isDebug = V.zip3 la lb lc
-  | (V.length la /= V.length lb) || (V.length la /= V.length lc) || (V.length lb /= V.length lc) = error ("Zip3 arguments not equal in length: " ++ show (V.length la, V.length lb, V.length lc))
-  | V.null la = error ("First vector null in debugZip3 " ++ show (V.length la, V.length lb, V.length lc))
-  | V.null lb = error ("Second vector null in debugZip3 " ++ show (V.length la, V.length lb, V.length lc))
-  | V.null lc = error ("Third vector null in debugZip3 " ++ show (V.length la, V.length lb, V.length lc))
+  | (V.length la /= V.length lb) || (V.length la /= V.length lc) || (V.length lb /= V.length lc) = error ("Zip3 arguments not equal in length: " <> show (V.length la, V.length lb, V.length lc))
+  | V.null la = error ("First vector null in debugZip3 " <> show (V.length la, V.length lb, V.length lc))
+  | V.null lb = error ("Second vector null in debugZip3 " <> show (V.length la, V.length lb, V.length lc))
+  | V.null lc = error ("Third vector null in debugZip3 " <> show (V.length la, V.length lb, V.length lc))
   | otherwise = V.zip3 la lb  lc
 
 debugVectorZip4 :: V.Vector a -> V.Vector b -> V.Vector c -> V.Vector d -> V.Vector (a,b,c,d)
 debugVectorZip4 la lb lc ld
   | not isDebug = V.zip4 la lb lc ld
-  | (V.length la /= V.length lb) || (V.length la /= V.length lc) || (V.length la /= V.length ld) || (V.length lb /= V.length lc) || (V.length lb /= V.length ld) || (V.length lc /= V.length ld) = error ("Zip3 arguments not equal in length: " ++ show (V.length la, V.length lb, V.length lc, V.length ld))
-  | V.null la = error ("First vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))
-  | V.null lb = error ("Second vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))
-  | V.null lc = error ("Third vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))
-  | V.null ld = error ("Fourth vector null in debugZip4 " ++ show (V.length la, V.length lb, V.length lc, V.length ld))
+  | (V.length la /= V.length lb) || (V.length la /= V.length lc) || (V.length la /= V.length ld) || (V.length lb /= V.length lc) || (V.length lb /= V.length ld) || (V.length lc /= V.length ld) = error ("Zip3 arguments not equal in length: " <> show (V.length la, V.length lb, V.length lc, V.length ld))
+  | V.null la = error ("First vector null in debugZip4 " <> show (V.length la, V.length lb, V.length lc, V.length ld))
+  | V.null lb = error ("Second vector null in debugZip4 " <> show (V.length la, V.length lb, V.length lc, V.length ld))
+  | V.null lc = error ("Third vector null in debugZip4 " <> show (V.length la, V.length lb, V.length lc, V.length ld))
+  | V.null ld = error ("Fourth vector null in debugZip4 " <> show (V.length la, V.length lb, V.length lc, V.length ld))
   | otherwise = V.zip4 la lb  lc ld
 

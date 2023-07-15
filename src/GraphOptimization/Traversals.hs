@@ -81,14 +81,14 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
     if null networkVertexList then
         let leafGraph = GO.makeLeafGraph inData
         in multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
-    else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n\tNetwork vertices: " ++ (show $ fmap fst networkVertexList) ++ "\n" ++ (LG.prettify inGraph))
+    else errorWithoutStackTrace ("Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n\tNetwork vertices: " <> (show $ fmap fst networkVertexList) <> "\n" <> (LG.prettify inGraph))
   | graphType inGS == SoftWired =
     let leafGraph = POSW.makeLeafGraphSoftWired inGS inData
     in multiTraverseFullyLabelSoftWired  inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
   | graphType inGS == HardWired =
     let leafGraph = GO.makeLeafGraph inData
     in multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inGraph
-  | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " ++ show (graphType inGS))
+  | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " <> show (graphType inGS))
 
 
 -- |multiTraverseFullyLabelGraph' maps to multiTraverseFullyLabelGraph with differnet order of arguments used by report IA and tnt output
@@ -134,8 +134,8 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
             unlabelledNodes = filter ((== Nothing) .snd) $ (zip (fmap fst coninicalNodes) nodeLabels)
             -}
         in
-        --trace ("MTFLS:\n" ++ (show $ thd6 postOrderGraph))
-        -- trace ("MTFLS: " ++ (show $ fmap fst unlabelledNodes))
+        --trace ("MTFLS:\n" <> (show $ thd6 postOrderGraph))
+        -- trace ("MTFLS: " <> (show $ fmap fst unlabelledNodes))
         checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum
@@ -167,7 +167,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
     let postOrderFunction = if (graphType inGS) == Tree then POSW.postOrderTreeTraversal
                          else if (graphType inGS) == SoftWired then POSW.postOrderSoftWiredTraversal
                          else if (graphType inGS) == HardWired then POSW.postOrderTreeTraversal
-                         else error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                         else error ("Graph type not implemented: " <> (show $ graphType inGS))
 
         -- first traversal on outgroup root
         outgroupRooted = postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
@@ -192,7 +192,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
                               else if (graphType inGS == SoftWired) then [POSW.getDisplayBasedRerootSoftWired inGS SoftWired (head startVertexList) outgroupRooted]
                               else if (graphType inGS == Tree) then [POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted]
-                              else error ("Graph type not implemented: " ++ (show $ graphType inGS))
+                              else error ("Graph type not implemented: " <> (show $ graphType inGS))
 
 
         -- remove if tree reroot code pans out
@@ -210,14 +210,14 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         localRootCost = rootComplexity inGS
                         {-if (rootCost inGS) == NoRootCost then 0.0
                         else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inGS outgroupRooted
-                        else error ("Root cost type " ++ (show $ rootCost inGS) ++ " is not yet implemented")
+                        else error ("Root cost type " <> (show $ rootCost inGS) <> " is not yet implemented")
                         -}
         -}
 
     in
-    -- trace ("GPOT length: " ++ (show $ fmap snd6 recursiveRerootList) ++ " " ++ (show $ graphType inGS)) (
-    -- trace ("TRAV:" ++ (show startVertex) ++ " " ++ (show sequenceChars) ++ " " ++ (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments))
-    --    ++ "\nTraversal root costs: " ++ (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts recursiveRerootList', getTraversalCosts graphWithBestAssignments))) (
+    -- trace ("GPOT length: " <> (show $ fmap snd6 recursiveRerootList) <> " " <> (show $ graphType inGS)) (
+    -- trace ("TRAV:" <> (show startVertex) <> " " <> (show sequenceChars) <> " " <> (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments))
+    --    <> "\nTraversal root costs: " <> (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts recursiveRerootList', getTraversalCosts graphWithBestAssignments))) (
 
     -- only static characters
     if sequenceChars == 0 then
@@ -231,7 +231,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData startVertex outgroupRooted
                              else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty outgroupRooted
 
-                             else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                             else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
             staticOnlyGraph = if (graphType inGS) == SoftWired then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
                               else outgroupRooted
@@ -239,7 +239,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
             staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost  staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
                                else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
         in
-        -- trace ("Only static: " ++ (snd6 staticOnlyGraph'))
+        -- trace ("Only static: " <> (snd6 staticOnlyGraph'))
         (staticOnlyGraph', head startVertexList)
 
     -- single sequence (prealigned, dynamic) only (ie no static)
@@ -249,13 +249,13 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                  else if (graphFactor inGS) == NoNetworkPenalty then replicate (length finalizedPostOrderGraphList) 0.0
                                  else if (graphFactor inGS) == Wheeler2015Network then fmap (POSW.getW15NetPenaltyFull Nothing inGS inData  startVertex) finalizedPostOrderGraphList
                                  else if (graphFactor inGS) == Wheeler2023Network then fmap POSW.getW23NetPenalty finalizedPostOrderGraphList
-                                 else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                                 else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
             newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
 
             finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
         in
-        -- trace ("GPOT-1: " ++ (show (snd6 finalizedPostOrderGraph)))
+        -- trace ("GPOT-1: " <> (show (snd6 finalizedPostOrderGraph)))
         (finalizedPostOrderGraph, head startVertexList)
 
     -- multiple dynamic characters--checks for best root for each character
@@ -266,11 +266,11 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                              else if (graphFactor inGS) == NoNetworkPenalty then 0.0
                              else if (graphFactor inGS) == Wheeler2015Network then POSW.getW15NetPenaltyFull Nothing inGS inData  startVertex graphWithBestAssignments
                              else if (graphFactor inGS) == Wheeler2023Network then POSW.getW23NetPenalty graphWithBestAssignments
-                             else error ("Network penalty type " ++ (show $ graphFactor inGS) ++ " is not yet implemented")
+                             else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
             graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
         in
-        -- trace ("GPOT-2: " ++ (show (penaltyFactor + (snd6 graphWithBestAssignments))))
+        -- trace ("GPOT-2: " <> (show (penaltyFactor + (snd6 graphWithBestAssignments))))
         (graphWithBestAssignments', head startVertexList)
 
     -- )
@@ -304,7 +304,7 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
             contractedSimple = GO.contractIn1Out1EdgesRename newSimpleGraph
         in
         if warnPruneEdges then
-            trace ("Pruning " ++ (show $ length unusedEdges) ++ " unused edges and reoptimizing graph")
+            trace ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
             multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
         else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
@@ -333,7 +333,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
         -- trace ("\tFinalizing graph cost with model and root complexities")
         updatePhylogeneticGraphCostList ((rootComplexity inGS) + (modelComplexity inGS)) inGraphList
 
-    else error ("Optimality criterion not recognized/implemented: " ++ (show $ optimalityCriterion inGS))
+    else error ("Optimality criterion not recognized/implemented: " <> (show $ optimalityCriterion inGS))
 
 
 -- | updatePhylogeneticGraphCostList is a list wrapper for updatePhylogeneticGraphCost

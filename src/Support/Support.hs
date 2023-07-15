@@ -71,7 +71,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
           checkCommandList = checkCommandArgs "support" fstArgList VER.supportArgList
      in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'support': " ++ show inArgs)
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'support': " <> show inArgs)
      else
          let supportMeasure
                | any ((=="bootstrap").fst) lcArgList = Bootstrap
@@ -88,7 +88,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
              jackList   = filter ((=="jackknife").fst) lcArgList
              jackFreq'
               | length jackList > 1 =
-                errorWithoutStackTrace ("Multiple jackknife sampling frequency specifications in support command--can have only one (e.g. jackknife:0.62): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple jackknife sampling frequency specifications in support command--can have only one (e.g. jackknife:0.62): " <> show inArgs)
               | null jackList = Just 0.6321 -- 1- 1/e
               | null (snd $ head jackList) = Just 0.6321
               | otherwise = readMaybe (snd $ head jackList) :: Maybe Double
@@ -96,7 +96,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
              replicateList   = filter ((=="replicates").fst) lcArgList
              replicates'
               | length replicateList > 1 =
-                errorWithoutStackTrace ("Multiple resampling replicate specifications in support command--can have only one (e.g. replicates:100): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple resampling replicate specifications in support command--can have only one (e.g. replicates:100): " <> show inArgs)
               | null replicateList = Just 100
               | otherwise = readMaybe (snd $ head replicateList) :: Maybe Int
 
@@ -104,7 +104,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
              {-
              goodBremMethod
               | length goodBremList > 1 =
-                errorWithoutStackTrace ("Multiple Goodman-Bremer method specifications in support command--can have only one (e.g. gb:tbr): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple Goodman-Bremer method specifications in support command--can have only one (e.g. gb:tbr): " <> show inArgs)
               | null (snd $ head goodBremList) = Just "tbr"
               | otherwise = Just $ snd $ head goodBremList
               -}
@@ -112,15 +112,15 @@ supportGraph inArgs inGS inData rSeed inGraphList =
              goodBremSampleList   = filter ((`elem` ["gbsample"]).fst) lcArgList
              goodBremSample
               | length goodBremSampleList > 1 =
-                errorWithoutStackTrace ("Multiple Goodman-Bremer sample specifications in support command--can have only one (e.g. gbsample:1000): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple Goodman-Bremer sample specifications in support command--can have only one (e.g. gbsample:1000): " <> show inArgs)
               | null goodBremSampleList = Just (maxBound :: Int)
               | otherwise = readMaybe (snd $ head goodBremSampleList) :: Maybe Int
 
          in
-         if isNothing jackFreq' then errorWithoutStackTrace ("Jacknife frequency not a float (e.g. jackknife:0.5) in support: " ++ show (snd $ head jackList))
-         else if isNothing replicates' then errorWithoutStackTrace ("Resampling replicates specification not a string (e.g. replicates:100) in support: " ++ show (snd $ head replicateList))
-         --else if isNothing goodBremMethod then errorWithoutStackTrace ("Goodman-Bremer method specification not a string (e.g. goodmanBremer:SPR) in support: " ++ (show (snd $ head goodBremList)) ++ (show lcArgList))
-         else if isNothing goodBremSample then errorWithoutStackTrace ("Goodman-Bremer sample specification not an integer (e.g. gbsample:1000) in support: " ++ show (snd $ head goodBremSampleList))
+         if isNothing jackFreq' then errorWithoutStackTrace ("Jacknife frequency not a float (e.g. jackknife:0.5) in support: " <> show (snd $ head jackList))
+         else if isNothing replicates' then errorWithoutStackTrace ("Resampling replicates specification not a string (e.g. replicates:100) in support: " <> show (snd $ head replicateList))
+         --else if isNothing goodBremMethod then errorWithoutStackTrace ("Goodman-Bremer method specification not a string (e.g. goodmanBremer:SPR) in support: " <> (show (snd $ head goodBremList)) <> (show lcArgList))
+         else if isNothing goodBremSample then errorWithoutStackTrace ("Goodman-Bremer sample specification not an integer (e.g. gbsample:1000) in support: " <> show (snd $ head goodBremSampleList))
 
          else
             let thisMethod
@@ -152,20 +152,20 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                 swapOptions = if onlyBuild then []
                               else [("tbr", ""), ("steepest", ""), ("keep", show (1 :: Int))]
                 supportGraphList = if thisMethod == Bootstrap || thisMethod == Jackknife then
-                                       let extraString = if  thisMethod == Jackknife then " with delete fraction  " ++ show (1 - jackFreq)
+                                       let extraString = if  thisMethod == Jackknife then " with delete fraction  " <> show (1 - jackFreq)
                                                          else ""
                                        in
-                                       trace ("Generating " ++ show thisMethod ++ " resampling support with " ++ show replicates ++ " replicates" ++ extraString)
+                                       trace ("Generating " <> show thisMethod <> " resampling support with " <> show replicates <> " replicates" <> extraString)
                                        [getResampleGraph inGS inData rSeed thisMethod replicates buildOptions swapOptions jackFreq]
                                    else
                                        let neighborhood = if useTBR then "tbr"
                                                           else if useSPR then "spr"
                                                           else "tbr"
                                            extraString = if isJust gbSampleSize then 
-                                                " using " ++ neighborhood ++ " based on " ++ show (fromJust gbSampleSize) ++ " samples at random"
-                                                         else " using " ++ neighborhood
+                                                " using " <> neighborhood <> " based on " <> show (fromJust gbSampleSize) <> " samples at random"
+                                                         else " using " <> neighborhood
                                        in
-                                       trace ("Generating Goodman-Bremer support" ++ extraString)
+                                       trace ("Generating Goodman-Bremer support" <> extraString)
                                        fmap (getGoodBremGraphs inGS inData rSeed neighborhood gbSampleSize gbRandomSample) inGraphList
             in
 
@@ -191,7 +191,7 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
          -- majority ruke consensus if no args
        (_, reconciledGraph) = REC.makeReconcileGraph VER.reconcileArgList reconcileArgs (fmap fst5 resampledGraphList)
    in
-   -- trace ("GRG: \n" ++ reconciledGraphString) (
+   -- trace ("GRG: \n" <> reconciledGraphString) (
    -- generate resampled graph
    -- can't really relabel  easily wihtout bv and maybe not necessary anyway--node numebrs inconsistent
   (reconciledGraph, infinity, LG.empty, V.empty, V.empty)
@@ -284,7 +284,7 @@ makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharD
           dynCharIndices   = fmap (randIndex numDynamicChars) (take numDynamicChars randIntList)
 
       in
-      -- trace ("MSPVB: " ++ (show $ length dynCharIndices) ++ " " ++ (show dynCharIndices)) (
+      -- trace ("MSPVB: " <> (show $ length dynCharIndices) <> " " <> (show dynCharIndices)) (
       -- resample dynamic characters
          -- straight resample
       let resampleDynamicChars    = V.map (dynamicCharsV V.!) (V.fromList dynCharIndices)
@@ -296,7 +296,7 @@ makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharD
 
       in
       -- cons the vectors for chrater data and character info
-      (resampleStaticChars V.++ resampleDynamicChars, staticCharsInfoV V.++ resmapleDynamicCharInfo)
+      (resampleStaticChars <> resampleDynamicChars, staticCharsInfoV <> resmapleDynamicCharInfo)
       -- )
       where randIndex a b  = snd $  divMod (abs b) a
 
@@ -315,7 +315,7 @@ subSampleStatic randIntList inCharData inCharInfo =
          | inCharType == Add = V.length a2
          | inCharType == NonAdd = V.length na2
          | inCharType == Matrix = V.length m1
-         | otherwise = error ("Dynamic character in subSampleStatic: " ++ show inCharType)
+         | otherwise = error ("Dynamic character in subSampleStatic: " <> show inCharType)
 
        -- get character indices based on number "subcharacters"
        staticCharIndices = V.fromList $ fmap (randIndex charLength) (take charLength randIntList)
@@ -323,7 +323,7 @@ subSampleStatic randIntList inCharData inCharInfo =
 
 
    in
-   -- trace ("SSS:" ++ (show $ V.length staticCharIndices) ++ " " ++ (show staticCharIndices)) (
+   -- trace ("SSS:" <> (show $ V.length staticCharIndices) <> " " <> (show staticCharIndices)) (
    if inCharType == Add then
          inCharData {rangePrelim = (V.map (a1 V.!) staticCharIndices, V.map (a2 V.!) staticCharIndices, V.map (a3 V.!) staticCharIndices)}
 
@@ -336,7 +336,7 @@ subSampleStatic randIntList inCharData inCharInfo =
    else if inCharType == Matrix then
          inCharData {matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
 
-   else error ("Incorrect character type in subSampleStatic: " ++ show inCharType)
+   else error ("Incorrect character type in subSampleStatic: " <> show inCharType)
    -- )
    where randIndex a b  = snd $  divMod (abs b) a
 
@@ -349,10 +349,10 @@ subSampleStatic randIntList inCharData inCharInfo =
 makeSampledVect ::  (GV.Vector v a) => [Bool] -> [a] -> v a -> v a
 makeSampledVect boolList accumList inVect  =
    if GV.null inVect then
-    -- trace ("MSV R: " ++ (show $ length accumList))
+    -- trace ("MSV R: " <> (show $ length accumList))
     GV.fromList accumList
    else
-      -- trace ("MSV: " ++ (show $ head boolList)) (
+      -- trace ("MSV: " <> (show $ head boolList)) (
       if head boolList then makeSampledVect (tail boolList) (GV.head inVect : accumList) (GV.tail inVect)
 
       else makeSampledVect (tail boolList) accumList (GV.tail inVect)
@@ -387,7 +387,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
          if firstCharType == Add then
             let newCharData = firstCharData {rangePrelim = (makeSampledVect fullBoolList [] a1, makeSampledVect fullBoolList [] a2, makeSampledVect fullBoolList [] a3)}
             in
-            -- trace ("Length Add: " ++ (show $ V.length $ snd3 $ rangePrelim newCharData)) (
+            -- trace ("Length Add: " <> (show $ V.length $ snd3 $ rangePrelim newCharData)) (
             if V.null (makeSampledVect fullBoolList [] a2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList (V.tail inCharInfoVect) (V.tail inCharDataVect)
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
             -- )
@@ -395,7 +395,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
          else if firstCharType == NonAdd then
             let newCharData = firstCharData {stateBVPrelim = (makeSampledVect fullBoolList [] na1, makeSampledVect fullBoolList [] na2, makeSampledVect fullBoolList [] na3)}
             in
-            -- trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
+            -- trace ("Length NonAdd: " <> (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
             if V.null (makeSampledVect fullBoolList [] na2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList (V.tail inCharInfoVect)  (V.tail inCharDataVect)
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
             -- )
@@ -403,7 +403,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
          else if firstCharType `elem` packedNonAddTypes then
             let newCharData = firstCharData {packedNonAddPrelim = (makeSampledVect fullBoolList [] pa1, makeSampledVect fullBoolList [] pa2, makeSampledVect fullBoolList [] pa3)}
             in
-            -- trace ("Length NonAdd: " ++ (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
+            -- trace ("Length NonAdd: " <> (show $ V.length $ snd3 $ stateBVPrelim newCharData))  (
             if GV.null (makeSampledVect fullBoolList [] pa2) then makeSampledPairVect fullBoolList (tail boolList) accumCharDataList accumCharInfoList (GV.tail inCharInfoVect)  (GV.tail inCharDataVect)
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (GV.tail inCharInfoVect) (GV.tail inCharDataVect)
             -- )
@@ -415,7 +415,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
             else makeSampledPairVect fullBoolList (tail boolList) (newCharData : accumCharDataList) (firstCharInfo : accumCharInfoList) (V.tail inCharInfoVect) (V.tail inCharDataVect)
 
 
-         else error ("Incorrect character type in makeSampledPairVect: " ++ show firstCharType)
+         else error ("Incorrect character type in makeSampledPairVect: " <> show firstCharType)
 
 -- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
 resampleBlockJackknife :: Double -> Int -> BlockData -> BlockData
@@ -430,7 +430,7 @@ resampleBlockJackknife sampleFreq rSeed inData@(nameText, charDataVV, charInfoV)
 
 
       in
-      -- trace ("RB length " ++ (show $ V.length charInfoV) ++ " -> " ++ (show $ V.length $ V.head newCharInfoV) ) (
+      -- trace ("RB length " <> (show $ V.length charInfoV) <> " -> " <> (show $ V.length $ V.head newCharInfoV) ) (
       if V.length (V.head newCharInfoV) > 0 then (nameText, newCharDataVV, V.head newCharInfoV)
       else resampleBlockJackknife sampleFreq (head randomIntegerList1) inData
       -- )
@@ -438,7 +438,7 @@ resampleBlockJackknife sampleFreq rSeed inData@(nameText, charDataVV, charInfoV)
    where randAccept b a = let (_, randVal) = divMod (abs a) 1000
                               critVal = floor (1000 * b)
                            in
-                           -- trace ("RA : " ++ (show (b,a, randVal, critVal, randVal < critVal)))
+                           -- trace ("RA : " <> (show (b,a, randVal, critVal, randVal < critVal)))
                            randVal < critVal
 
 -- | getGoodBremGraphs performs Goodman-Bremer support
@@ -474,7 +474,7 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
 
           simpleGBGraph = LG.mkGraph (LG.labNodes $ fst5 inGraph) (fmap (tupleToSimpleEdge (snd5 inGraph)) supportEdgeTupleList)
       in
-      -- trace ("GGBG: " ++ (show $ length tupleList) ++ " -> " ++ (show $ length supportEdgeTupleList))
+      -- trace ("GGBG: " <> (show $ length tupleList) <> " -> " <> (show $ length supportEdgeTupleList))
       (simpleGBGraph, snd5 inGraph, thd5 inGraph, fth5 inGraph, fft5 inGraph)
 
       where tupleToSimpleEdge d (a,b, _, _, c) = (a, b, c - d)
@@ -615,7 +615,7 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
             -- merge tuple lists--should all be in same order
             newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
         in
-        -- trace ("PGBS:" ++ (show $ fmap length tupleListList) ++ " -> " ++ (show $ length newTupleList))
+        -- trace ("PGBS:" <> (show $ fmap length tupleListList) <> " -> " <> (show $ length newTupleList))
         newTupleList
 
 
@@ -658,7 +658,7 @@ splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGr
       -- get edges in base graph to be invaded (ie not in pruned graph)
       prunedGraphRootNode = (prunedGraphRootIndex, fromJust $ LG.lab splitGraph prunedGraphRootIndex)
       (prunedSubTreeNodes, prunedSubTreeEdges) = LG.nodesAndEdgesAfter splitGraph [prunedGraphRootNode]
-      edgesNotToInvade = (LG.toEdge breakEdge : edgeDeleteList) ++ fmap LG.toEdge prunedSubTreeEdges
+      edgesNotToInvade = (LG.toEdge breakEdge : edgeDeleteList) <> fmap LG.toEdge prunedSubTreeEdges
       edgesToInvade = filter (LG.notMatchEdgeIndices edgesNotToInvade) originalBreakEdgeList
 
       -- rejoin, evaluate, get better tuple
@@ -743,7 +743,7 @@ chooseBetterTuple (aE, aV, aEBV, aVBV, aCost) (_, _, _, _, bCost) = (aE, aV, aEB
 -- this for edge comparisons for Goodman-Bremer and other optimality-type support
 makeGraphEdgeTuples :: V.Vector (Int, NameBV) -> VertexCost -> [(Int, Int)] -> [(Int, Int, NameBV, NameBV, VertexCost)]
 makeGraphEdgeTuples nodeBVVect graphCost edgeList =
-   -- trace ("MET: " ++ (show $ V.length nodeBVVect))
+   -- trace ("MET: " <> (show $ V.length nodeBVVect))
    fmap (make5Tuple nodeBVVect graphCost) edgeList
    where make5Tuple nv c (a, b) = (a, b, snd (nv V.! a), snd (nv V.! b), c)
 
@@ -822,7 +822,7 @@ getTBRSplitGraphs inGS splitGraph splitEdge =
 -- modified from function in swap to be more general and operate on SimpleGraphs as are used here
 getTBREdits :: (Eq a, Eq b) => LG.Gr a b -> LG.LNode a -> [LG.LEdge b] -> LG.Edge -> ([LG.LEdge b],[LG.Edge])
 getTBREdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
-   --trace ("Gettiung TBR Edits for " ++ (show rerootEdge)) (
+   --trace ("Gettiung TBR Edits for " <> (show rerootEdge)) (
    let prunedGraphRootIndex = fst prunedGraphRootNode
        originalRootEdgeNodes = LG.descendants inGraph prunedGraphRootIndex
        originalRootEdges = LG.out inGraph prunedGraphRootIndex
@@ -855,7 +855,7 @@ getTBREdits inGraph prunedGraphRootNode edgesInPrunedSubGraph rerootEdge =
       -- add new root edges
       -- and new edge on old root--but need orientation
       -- flip edges from new root to old (delete and add list)
-      --trace ("\n\nIn Graph:\n"++ (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) ++ "\nTBR Edits: " ++ (show (rerootEdge, prunedGraphRootIndex, fmap LG.toEdge flippedEdges))
-      --   ++ "\nEdges to add: " ++ (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges ++ newRootEdges)) ++ "\nEdges to delete: " ++ (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip ++ originalRootEdges))))
-      (newEdgeOnOldRoot : (flippedEdges ++ newRootEdges), rerootEdge : fmap LG.toEdge (edgesToFlip ++ originalRootEdges))
+      --trace ("\n\nIn Graph:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph) <> "\nTBR Edits: " <> (show (rerootEdge, prunedGraphRootIndex, fmap LG.toEdge flippedEdges))
+      --   <> "\nEdges to add: " <> (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges <> newRootEdges)) <> "\nEdges to delete: " <> (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip <> originalRootEdges))))
+      (newEdgeOnOldRoot : (flippedEdges <> newRootEdges), rerootEdge : fmap LG.toEdge (edgesToFlip <> originalRootEdges))
       -- )

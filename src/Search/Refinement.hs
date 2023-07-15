@@ -84,7 +84,7 @@ refineGraph inArgs inGS inData rSeed inGraphList =
           checkCommandList = checkCommandArgs "refineGraph" fstArgList VER.refineArgList
      in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " <> show inArgs)
      else
       let doNetAdd = any ((== "netadd") . fst) lcArgList
           doNetDel = any ((== "netdel") . fst) lcArgList || any ((== "netdelete") . fst) lcArgList
@@ -127,13 +127,13 @@ geneticAlgorithmMaster :: [Argument]
 geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then trace "No graphs to undergo Genetic Algorithm" []
    else
-      trace ("Genetic Algorithm operating on population of " ++ show (length inGraphList) ++ " input graph(s) with cost range ("++ show (minimum $ fmap snd5 inGraphList) ++ "," ++ show (maximum $ fmap snd5 inGraphList) ++ ")") (
+      trace ("Genetic Algorithm operating on population of " <> show (length inGraphList) <> " input graph(s) with cost range (" <> show (minimum $ fmap snd5 inGraphList) <> "," <> show (maximum $ fmap snd5 inGraphList) <> ")") (
 
       -- process args
       let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
           (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) 0 stopNum inGraphList
       in
-      trace ("\tGenetic Algorithm: " ++ show (length newGraphList) ++ " resulting graphs with cost range (" ++ show (minimum $ fmap snd5 newGraphList) ++ "," ++ show (maximum $ fmap snd5 newGraphList) ++ ")" ++ " after " ++ show generationCounter ++ " generation(s)")
+      trace ("\tGenetic Algorithm: " <> show (length newGraphList) <> " resulting graphs with cost range (" <> show (minimum $ fmap snd5 newGraphList) <> "," <> show (maximum $ fmap snd5 newGraphList) <> ")" <> " after " <> show generationCounter <> " generation(s)")
       newGraphList
       )
 
@@ -147,54 +147,54 @@ getGeneticAlgParams inArgs =
           checkCommandList = checkCommandArgs "geneticalgorithm" fstArgList VER.geneticAlgorithmArgList
       in
       -- check for valid command options
-      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " ++ show inArgs)
+      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " <> show inArgs)
       else
          let keepList = filter ((== "keep") . fst) lcArgList
              keepNum
               | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " <> show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
              popSizeList = filter ((== "popsize") . fst) lcArgList
              popSize
               | length popSizeList > 1 =
-                errorWithoutStackTrace ("Multiple 'popsize' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'popsize' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
               | null popSizeList = Just 20
               | otherwise = readMaybe (snd $ head popSizeList) :: Maybe Int
 
              generationsList = filter ((== "generations") . fst) lcArgList
              generations
               | length generationsList > 1 =
-                errorWithoutStackTrace ("Multiple 'generations' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'generations' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
               | null generationsList = Just 5
               | otherwise = readMaybe (snd $ head generationsList) :: Maybe Int
 
              severityList = filter ((== "severity") . fst) lcArgList
              severity
               | length severityList > 1 =
-                errorWithoutStackTrace ("Multiple 'severity' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'severity' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
               | null severityList = Just 1.0
               | otherwise = readMaybe (snd $ head severityList) :: Maybe Double
 
              recombinationsList = filter ((== "recombinations") . fst) lcArgList
              recombinations
               | length recombinationsList > 1 =
-                errorWithoutStackTrace ("Multiple 'recombinations' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'recombinations' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
               | null recombinationsList = Just 100
               | otherwise = readMaybe (snd $ head recombinationsList) :: Maybe Int
 
              maxNetEdgesList = filter ((== "maxnetedges") . fst) lcArgList
              maxNetEdges
               | length maxNetEdgesList > 1 =
-                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in genetic algorithm command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
               | null maxNetEdgesList = Just 10
               | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
 
              stopList = filter ((== "stop") . fst) lcArgList
              stopNum
                 | length stopList > 1 =
-                  errorWithoutStackTrace ("Multiple 'stop' number specifications in search command--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple 'stop' number specifications in search command--can have only one: " <> show inArgs)
                 | null stopList = Just (maxBound :: Int)
                 | otherwise = readMaybe (snd $ head stopList) :: Maybe Int
 
@@ -204,12 +204,12 @@ getGeneticAlgParams inArgs =
          in
 
          --check arguments
-         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in Genetic Algorithm: "  ++ show (head keepList))
-         else if isNothing popSize then errorWithoutStackTrace ("PopSize specification not an integer in Genetic Algorithm: "  ++ show (head popSizeList))
-         else if isNothing generations then errorWithoutStackTrace ("Generations specification not an integer in Genetic Algorithm: "  ++ show (head generationsList))
-         else if isNothing severity then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head severityList))
-         else if isNothing recombinations then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  ++ show (head recombinationsList))
-         else if isNothing stopNum then errorWithoutStackTrace ("Stop specification not an integer or not found in Genetic Algorithm (e.g. stop:10) "  ++ show (head stopList))
+         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in Genetic Algorithm: "  <> show (head keepList))
+         else if isNothing popSize then errorWithoutStackTrace ("PopSize specification not an integer in Genetic Algorithm: "  <> show (head popSizeList))
+         else if isNothing generations then errorWithoutStackTrace ("Generations specification not an integer in Genetic Algorithm: "  <> show (head generationsList))
+         else if isNothing severity then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  <> show (head severityList))
+         else if isNothing recombinations then errorWithoutStackTrace ("Severity factor specification not an integer in Genetic Algorithm: "  <> show (head recombinationsList))
+         else if isNothing stopNum then errorWithoutStackTrace ("Stop specification not an integer or not found in Genetic Algorithm (e.g. stop:10) "  <> show (head stopList))
          else
             (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, fromJust stopNum)
 
@@ -225,7 +225,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
   | null inGraphList = trace "Fusing--skipped: No graphs to fuse" []
   | length inGraphList == 1 = trace "Fusing--skipped: Need > 1 graphs to fuse" inGraphList
   -- | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
-  | otherwise = trace ("Fusing " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList)) (
+  | otherwise = trace ("Fusing " <> show (length inGraphList) <> " input graph(s) with minimum cost " <> show (minimum $ fmap snd5 inGraphList)) (
 
      -- process args for fuse placement
            let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
@@ -292,7 +292,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
            let (newGraphList, counterFuse) = F.fuseAllGraphs swapParams inGS inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
 
            in
-           trace ("\tAfter fusing: " ++ show (length newGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 newGraphList) ++ " after fuse rounds (total): " ++ show counterFuse)
+           trace ("\tAfter fusing: " <> show (length newGraphList) <> " resulting graphs with minimum cost " <> show (minimum $ fmap snd5 newGraphList) <> " after fuse rounds (total): " <> show counterFuse)
            newGraphList
       )
 
@@ -306,12 +306,12 @@ getFuseGraphParams inArgs =
         checkCommandList = checkCommandArgs "fuse" fstArgList VER.fuseArgList
      in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'fuse': " ++ show inArgs)
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'fuse': " <> show inArgs)
      else
          let keepList = filter ((== "keep") . fst) lcArgList
              keepNum
               | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " <> show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
@@ -319,23 +319,23 @@ getFuseGraphParams inArgs =
              moveLimitList = filter (not . null) (snd <$> filter ((`notElem` ["keep", "pairs"]) . fst) lcArgList)
              maxMoveEdgeDist
               | length moveLimitList > 1 =
-                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " <> show inArgs)
               | null moveLimitList = Just ((maxBound :: Int) `div` 3)
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
 
              pairList = filter ((== "pairs") . fst) lcArgList
              fusePairs
               | length pairList > 1 =
-                errorWithoutStackTrace ("Multiple 'pair' number specifications in fuse command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'pair' number specifications in fuse command--can have only one: " <> show inArgs)
               | null pairList = Just (maxBound :: Int)
               | otherwise = readMaybe (snd $ head pairList) :: Maybe Int
 
         in
 
         --check arguments
-        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
-        else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  ++ show (head moveLimitList))
-        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in fuse: "  ++ show (head pairList))
+        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  <> show (head keepList))
+        else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  <> show (head moveLimitList))
+        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in fuse: "  <> show (head pairList))
 
         else
             (keepNum, maxMoveEdgeDist, fusePairs, lcArgList)
@@ -439,13 +439,13 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                   | otherwise = " move "
                                             in
                                             if method (fromJust simAnnealParams) == SimAnneal then
-                                               "Simulated Annealing (Network edge" ++ editString ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
+                                               "Simulated Annealing (Network edge" <> editString <> show (rounds $ fromJust simAnnealParams) <> " rounds " <> show (length inGraphList) <> " with " <> show (numberSteps $ fromJust simAnnealParams) <> " cooling steps " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs"
                                             else
-                                               "Drifting (Network edge" ++ editString ++ show (rounds $ fromJust simAnnealParams) ++ " rounds " ++ show (length inGraphList) ++ " with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
-                 | doNetDelete = ("Network edge delete on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList))
-                 | doNetAdd = ("Network edge add on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " and maximum " ++ show (fromJust maxRounds) ++ " rounds")
-                 | doAddDelete = ("Network edge add/delete on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList)  ++ " and maximum " ++ show (fromJust maxRounds) ++ " rounds")
-                 | doMove = ("Network edge move on " ++ show (length inGraphList) ++ " input graph(s) with minimum cost "++ show (minimum $ fmap snd5 inGraphList))
+                                               "Drifting (Network edge" <> editString <> show (rounds $ fromJust simAnnealParams) <> " rounds " <> show (length inGraphList) <> " with " <> show (numberSteps $ fromJust simAnnealParams) <> " cooling steps " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs"
+                 | doNetDelete = ("Network edge delete on " <> show (length inGraphList) <> " input graph(s) with minimum cost " <> show (minimum $ fmap snd5 inGraphList))
+                 | doNetAdd = ("Network edge add on " <> show (length inGraphList) <> " input graph(s) with minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " and maximum " <> show (fromJust maxRounds) <> " rounds")
+                 | doAddDelete = ("Network edge add/delete on " <> show (length inGraphList) <> " input graph(s) with minimum cost " <> show (minimum $ fmap snd5 inGraphList)  <> " and maximum " <> show (fromJust maxRounds) <> " rounds")
+                 | doMove = ("Network edge move on " <> show (length inGraphList) <> " input graph(s) with minimum cost " <> show (minimum $ fmap snd5 inGraphList))
                  | otherwise = ""
 
             in
@@ -508,8 +508,8 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
             let resultGraphList = if null newGraphList''' then inGraphList
                                   else GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) newGraphList'''
             in
-            trace ("\tAfter network edge add/delete/move: " ++ show (length resultGraphList) ++ " resulting graphs at cost " ++ show (minimum $ fmap snd5 resultGraphList) ++ " with add/delete/move rounds (total): " ++ show counterAdd ++ " Add, "
-            ++ show counterDelete ++ " Delete, " ++ show counterMove ++ " Move, " ++ show counterAddDelete ++ " AddDelete")
+            trace ("\tAfter network edge add/delete/move: " <> show (length resultGraphList) <> " resulting graphs at cost " <> show (minimum $ fmap snd5 resultGraphList) <> " with add/delete/move rounds (total): " <> show counterAdd <> " Add, "
+            <> show counterDelete <> " Delete, " <> show counterMove <> " Move, " <> show counterAddDelete <> " AddDelete")
             resultGraphList
             )
 
@@ -523,12 +523,12 @@ getNetEdgeParams inArgs =
          checkCommandList = checkCommandArgs "netEdgeMaster" fstArgList VER.netEdgeArgList
      in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'netEdge': " ++ show inArgs)
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'netEdge': " <> show inArgs)
      else
          let keepList = filter ((== "keep") . fst) lcArgList
              keepNum
               | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " <> show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
@@ -536,14 +536,14 @@ getNetEdgeParams inArgs =
              stepsList   = filter ((== "steps") . fst) lcArgList
              steps'
               | length stepsList > 1 =
-                errorWithoutStackTrace ("Multiple annealing steps value specifications in netEdge command--can have only one (e.g. steps:10): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple annealing steps value specifications in netEdge command--can have only one (e.g. steps:10): " <> show inArgs)
               | null stepsList = Just 10
               | otherwise = readMaybe (snd $ head stepsList) :: Maybe Int
 
              annealingList = filter ((== "annealing") . fst) lcArgList
              annealingRounds'
               | length annealingList > 1 =
-                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in netEdge command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in netEdge command--can have only one: " <> show inArgs)
               | null annealingList = Just 1
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
@@ -551,55 +551,55 @@ getNetEdgeParams inArgs =
              driftList = filter ((== "drift") . fst) lcArgList
              driftRounds'
               | length driftList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " <> show inArgs)
               | null driftList = Just 1
               | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
 
              acceptEqualList = filter ((== "acceptequal") . fst) lcArgList
              acceptEqualProb
               | length acceptEqualList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " <> show inArgs)
               | null acceptEqualList = Just 0.5
               | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double
 
              acceptWorseList = filter ((== "acceptworse") . fst) lcArgList
              acceptWorseFactor
               | length acceptWorseList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " <> show inArgs)
               | null acceptWorseList = Just 20.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double
 
              maxChangesList = filter ((== "maxchanges") . fst) lcArgList
              maxChanges
               | length maxChangesList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " <> show inArgs)
               | null maxChangesList = Just 15
               | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int
 
              maxNetEdgesList = filter ((== "maxnetedges") . fst) lcArgList
              maxNetEdges
               | length maxNetEdgesList > 1 =
-                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in netEdge command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in netEdge command--can have only one: " <> show inArgs)
               | null maxNetEdgesList = Just 10
               | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
 
              maxRoundsList = filter ((== "rounds") . fst) lcArgList
              maxRounds
               | length maxRoundsList > 1 =
-                errorWithoutStackTrace ("Multiple 'rounds' number specifications in netEdge command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'rounds' number specifications in netEdge command--can have only one: " <> show inArgs)
               | null maxRoundsList = Just 1
               | otherwise = readMaybe (snd $ head maxRoundsList) :: Maybe Int
 
          in
 
          -- check inputs
-         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  ++ show (head keepList))
-         else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
-         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
-         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
-         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
-         else if isNothing maxNetEdges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxNetEdgesList))
-         else if isNothing maxRounds       then errorWithoutStackTrace ("Network edit 'rounds' specification not an integer (e.g. rounds:10): "  ++ show (snd $ head maxRoundsList))
+         if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in netEdge: "  <> show (head keepList))
+         else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  <> show (snd $ head stepsList))
+         else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  <> show (snd $ head acceptEqualList))
+         else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  <> show (snd $ head acceptWorseList))
+         else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  <> show (snd $ head maxChangesList))
+         else if isNothing maxNetEdges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  <> show (snd $ head maxNetEdgesList))
+         else if isNothing maxRounds       then errorWithoutStackTrace ("Network edit 'rounds' specification not an integer (e.g. rounds:10): "  <> show (snd $ head maxRoundsList))
 
          else
             (keepNum, steps', annealingRounds', driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, maxNetEdges, lcArgList, maxRounds)

@@ -91,10 +91,10 @@ setOutDegreeOneBits inBitVect out1VertexList vertexIndex =
   else
     let vertListIndex = L.elemIndex vertexIndex out1VertexList
         vertexPosition = fromJust vertListIndex
-        boolList = replicate vertexPosition False ++ [True] ++ replicate (length out1VertexList - vertexPosition - 1) False
+        boolList = replicate vertexPosition False <> [True] <> replicate (length out1VertexList - vertexPosition - 1) False
         prependBitVect = BV.fromBits boolList
     in
-    if isNothing vertListIndex then error ("Vertex " ++ show vertexIndex ++ " not found in list " ++ show out1VertexList)
+    if isNothing vertListIndex then error ("Vertex " <> show vertexIndex <> " not found in list " <> show out1VertexList)
     else BV.append prependBitVect inBitVect
 
 -- | getRoot takes a graph and list of nodes and returns vertex with indegree 0
@@ -183,7 +183,7 @@ getNodesFromARoot inGraph nLeaves leafNodes rootVertex =
 -- reorder NOdes is n^2 should be figured out how to keep them in order more efficeintly
 getLabelledNodes :: P.Gr String String -> Int -> [G.LNode BV.BV] -> [G.LNode BV.BV]
 getLabelledNodes inGraph nLeaves leafNodes  =
-  -- trace ("getLabbeled graph with " ++ (show $ G.noNodes inGraph) ++ " nodes in " ++ (showGraph inGraph)) (
+  -- trace ("getLabbeled graph with " <> (show $ G.noNodes inGraph) <> " nodes in " <> (showGraph inGraph)) (
   if  G.isEmpty inGraph then error "Input graph is empty in getLabelledNodes"
   else
     let rootVertexList = getRoots inGraph (G.nodes inGraph)
@@ -192,13 +192,13 @@ getLabelledNodes inGraph nLeaves leafNodes  =
      -- this for adding in missing data
     let unConnectedNodeList = getUnConnectedNodes inGraph nLeaves (G.nodes inGraph)
     in
-    reorderLNodes (htuList ++ unConnectedNodeList)  0
+    reorderLNodes (htuList <> unConnectedNodeList)  0
 
 
 -- | findLNode takes an index and looks for node with that as vertex and retuirns that node
 findLNode :: Int -> [G.LNode BV.BV] -> G.LNode BV.BV
 findLNode vertex lNodeList =
-  if null lNodeList then error ("Node " ++ show vertex ++ " not found")
+  if null lNodeList then error ("Node " <> show vertex <> " not found")
   else
       let (a,b) = head lNodeList
       in
@@ -241,7 +241,7 @@ changeLabelEdge numLeaves freqVect edgeList =
           | (u - numLeaves) >= V.length freqVect = 1
           | otherwise = freqVect V.! (u - numLeaves)
     in
-    --trace (show (e,u) ++ " " ++ (show (u - numLeaves)) ++ " " ++ show freqVect) -- ++ " " ++ show newLabel)
+    --trace (show (e,u) <> " " <> (show (u - numLeaves)) <> " " <> show freqVect) -- <> " " <> show newLabel)
     (e,u, newLabel) : changeLabelEdge numLeaves freqVect (tail edgeList)
 
 -- | addEdgeFrequenciesToGraph takes a greaph and edge frequencies and relables edges
@@ -322,14 +322,14 @@ getLeafListNewick inGraph =
 checkNodesSequential :: G.Node -> [G.Node] -> Bool
 checkNodesSequential prevNode inNodeList
   | null inNodeList = True
-  | (head inNodeList - prevNode) /= 1 = trace ("Index or indices missing between " ++ (show $ head inNodeList) ++ " and " ++ (show prevNode))  False
+  | (head inNodeList - prevNode) /= 1 = trace ("Index or indices missing between " <> (show $ head inNodeList) <> " and " <> (show prevNode))  False
   | otherwise = checkNodesSequential (head inNodeList) (tail inNodeList)
 -}
 
 -- | reAnnotateGraphs takes parsed graph input and reformats for EUN
 reAnnotateGraphs :: P.Gr String String -> P.Gr BV.BV (BV.BV, BV.BV)
 reAnnotateGraphs inGraph =
-  -- trace ("Reannotating " ++ (showGraph inGraph)) (
+  -- trace ("Reannotating " <> (showGraph inGraph)) (
   if G.isEmpty inGraph then error "Input graph is empty in reAnnotateGraphs"
   else
     let degOutList = G.outdeg inGraph <$> G.nodes inGraph
@@ -380,7 +380,7 @@ addAndReIndexUniqueNodes newIndex nodesToExamine uniqueReIndexedNodes =
 -- | getNodeIndex takes a BV.BV and returns a node with the same BV.BV
 getNodeIndex :: BV.BV -> [G.LNode BV.BV] -> Int
 getNodeIndex inBV nodeList =
-  if null nodeList then error ("Node  with BV " ++ show inBV ++ " not found in getNodeIndex")
+  if null nodeList then error ("Node  with BV " <> show inBV <> " not found in getNodeIndex")
   else
     let (inIndex, bv) = head nodeList
     in
@@ -448,8 +448,8 @@ reIndexLEdge vertexMap inEdge =
         newE = Map.lookup e vertexMap
         newU = Map.lookup u vertexMap
     in
-    if isNothing newE then error ("Error looking up vertex " ++ show e ++ " in " ++ show (e,u))
-    else if isNothing newU then error ("Error looking up vertex " ++ show u ++ " in " ++ show (e,u))
+    if isNothing newE then error ("Error looking up vertex " <> show e <> " in " <> show (e,u))
+    else if isNothing newU then error ("Error looking up vertex " <> show u <> " in " <> show (e,u))
     else (fromJust newE, fromJust newU, "")
 
 -- | reIndexAndAddLeaves takes rawGraphs and total input leaf sets and reindexes node, and edges, and adds
@@ -465,7 +465,7 @@ reIndexAndAddLeavesEdges totallLeafSet (inputLeafList, inGraph) =
       -- reindex nodes and edges and add in new nodes (total leaf set + local HTUs)
       -- create a map between inputLeafSet and totalLeafSet which is the canonical enumeration
       -- then add in local HTU nodes and for map as well
-      -- trace ("Original graph: " ++ (showGraph inGraph)) (
+      -- trace ("Original graph: " <> (showGraph inGraph)) (
       let correspondanceList = PU.seqParMap PU.myStrategyRDS (getLeafLabelMatches inputLeafList) totallLeafSet -- `using` PU.myParListChunkRDS
           matchList = filter ((/=(-1)).fst) correspondanceList
           --remove order dependancey
@@ -474,7 +474,7 @@ reIndexAndAddLeavesEdges totallLeafSet (inputLeafList, inGraph) =
           htuNumber =  length (G.labNodes inGraph) - length inputLeafList
           newHTUNumbers = [(length totallLeafSet)..(length totallLeafSet + htuNumber - 1)]
           htuMatchList = zip htuList newHTUNumbers
-          vertexMap = Map.fromList (matchList ++ htuMatchList)
+          vertexMap = Map.fromList (matchList <> htuMatchList)
           reIndexedEdgeList = fmap (reIndexLEdge vertexMap) (G.labEdges inGraph)
 
           newNodeNumbers = [0..(length totallLeafSet + htuNumber - 1)]
@@ -491,7 +491,7 @@ relabelNodes inNodes leafLabelledNodes
   | otherwise =
   let (vertex, _) = head inNodes
   in
-  (vertex, "HTU" ++ show vertex) : relabelNodes (tail inNodes) []
+  (vertex, "HTU" <> show vertex) : relabelNodes (tail inNodes) []
 
 -- | addGraphLabels take Graph and changes to add nodes labelled wiyth String, edges as well
 addGraphLabels :: P.Gr BV.BV (BV.BV, BV.BV) -> [G.LNode String] -> P.Gr String String
@@ -500,12 +500,12 @@ addGraphLabels inGraph totallLeafSet
   | null totallLeafSet = error "Empty leaf set in addGraphLabels"
   | otherwise =
   let newNodes = relabelNodes (G.labNodes inGraph) totallLeafSet
-    -- newNodes = totallLeafSet ++ newHTUList
+    -- newNodes = totallLeafSet <> newHTUList
       (eList, uList) = unzip (G.edges inGraph)
 
       newEdges = zip3 eList uList (replicate (length eList) "")
   in
-  -- trace ("Relabelled EUN : " ++ (showGraph $ G.mkGraph newNodes newEdges) ++ " from " ++ (show totallLeafSet))
+  -- trace ("Relabelled EUN : " <> (showGraph $ G.mkGraph newNodes newEdges) <> " from " <> (show totallLeafSet))
   G.mkGraph newNodes newEdges
 
 -- | intermediateNodeExists takes two node bitvetors and the full bitvector list
@@ -563,7 +563,7 @@ combinable comparison bvList bvIn
           isCombinable = L.foldl' (&&) True intersectList
       in
       [bvIn | isCombinable]
-  | otherwise = errorWithoutStackTrace ("Comparison method " ++ comparison ++ " unrecongnized (combinable/identity)")
+  | otherwise = errorWithoutStackTrace ("Comparison method " <> comparison <> " unrecongnized (combinable/identity)")
       where checkBitVectors a b
               = let c = BV.and [a, b] in
                   c == a || c == b || c == 0
@@ -606,13 +606,13 @@ getThresholdNodes comparison thresholdInt numLeaves objectListList
         objectGroupList
           | comparison == "combinable" = getCompatibleList comparison (fmap (fmap snd) objectListList)
           | comparison == "identity" = L.group $ L.sort (snd <$> concat objectListList)
-          | otherwise = errorWithoutStackTrace ("Comparison method " ++ comparison ++ " unrecognized (combinable/identity)")
+          | otherwise = errorWithoutStackTrace ("Comparison method " <> comparison <> " unrecognized (combinable/identity)")
         uniqueList = zip indexList (fmap head objectGroupList)
         frequencyList = PU.seqParMap PU.myStrategyRDS (((/ numGraphs) . fromIntegral) . length) objectGroupList  -- `using` PU.myParListChunkRDS
         fullPairList = zip uniqueList frequencyList
         threshold = (fromIntegral thresholdInt / 100.0) :: Double
     in
-    --trace ("There are " ++ (show $ length objectListList) ++ " to filter: " ++ (show uniqueList) ++ "\n" ++ (show objectGroupList) ++ " " ++ (show frequencyList))
+    --trace ("There are " <> (show $ length objectListList) <> " to filter: " <> (show uniqueList) <> "\n" <> (show objectGroupList) <> " " <> (show frequencyList))
     (fst <$> filter ((>= threshold). snd) fullPairList, snd <$> fullPairList)
 
 -- |  getThresholdEdges takes a threshold and number of graphs and keeps those unique edges present in the threshold percent or
@@ -631,7 +631,7 @@ getThresholdEdges thresholdInt numGraphsInput objectList
       frequencyList = PU.seqParMap PU.myStrategyRDS (((/ numGraphs) . fromIntegral) . length) objectGroupList -- `using` PU.myParListChunkRDS
       fullPairList = zip uniqueList frequencyList
   in
-  --trace ("There are " ++ (show numGraphsIn) ++ " to filter: " ++ (show uniqueList) ++ "\n" ++ (show $ fmap length objectGroupList) ++ " " ++ (show frequencyList))
+  --trace ("There are " <> (show numGraphsIn) <> " to filter: " <> (show uniqueList) <> "\n" <> (show $ fmap length objectGroupList) <> " " <> (show frequencyList))
   (fst <$> filter ((>= threshold). snd) fullPairList, snd <$> fullPairList)
 
 
@@ -650,7 +650,7 @@ getPostOrderVerts inGraph foundVertSet inVertexList =
       let newFoundSet = S.insert firstVertex foundVertSet
           parentVerts = G.pre inGraph firstVertex
       in
-      getPostOrderVerts inGraph newFoundSet (inVertexList ++ parentVerts)
+      getPostOrderVerts inGraph newFoundSet (inVertexList <> parentVerts)
 
 -- | verticesByPostorder takes a graph and a leaf set and an initially empty found vertex set
 -- as the postorder pass takes place form each leaf, each visited vertex is placed in foundVertSet
@@ -698,7 +698,7 @@ sortInputArgs inContents inArgs (curFEN, curNewick, curDot, curNewFiles, curFENF
       sortInputArgs (tail inContents) (tail inArgs) (T.pack firstContents : curFEN, curNewick, curDot, curNewFiles, firstFileName : curFENFILES)
     else if (head firstContents == 's') || (head firstContents == 'g') || (head firstContents == 'd') then --Dot
       sortInputArgs (tail inContents) (tail inArgs) (curFEN, curNewick, firstFileName : curDot, curNewFiles, curFENFILES)
-    else errorWithoutStackTrace("Input file " ++ firstFileName ++ " does not appear to be Newick, Enhanced Newick, Forest Enhanced Newick or dot format ")
+    else errorWithoutStackTrace("Input file " <> firstFileName <> " does not appear to be Newick, Enhanced Newick, Forest Enhanced Newick or dot format ")
 
 -- | nodeText2String takes a node with text label and returns a node with String label
 nodeText2String :: G.LNode T.Text -> G.LNode String
@@ -735,16 +735,16 @@ addUrRootAndEdges inGraph =
   else if length origRootList == 1 then
     let newEdgeList = zip3 (replicate (length unconnectedLeafList) (head origRootList)) unconnectedLeafList (replicate (length unconnectedLeafList) 0.0)
     in
-    G.mkGraph origLabVerts (origLabEdges ++ newEdgeList)
+    G.mkGraph origLabVerts (origLabEdges <> newEdgeList)
 
   -- add UR root, edges to existing roots, and edges to unconnected leaves
   else
-    let unRootedVertices = origRootList ++ unconnectedLeafList
+    let unRootedVertices = origRootList <> unconnectedLeafList
         numOrigVerts = length origLabVerts
-        newRoot = (numOrigVerts, "HTU" ++ show numOrigVerts)
+        newRoot = (numOrigVerts, "HTU" <> show numOrigVerts)
         newEdgeList = zip3 (replicate (length unRootedVertices) numOrigVerts) unRootedVertices (replicate (length unRootedVertices) 0.0)
     in
-    G.mkGraph (origLabVerts ++ [newRoot]) (origLabEdges ++ newEdgeList)
+    G.mkGraph (origLabVerts <> [newRoot]) (origLabEdges <> newEdgeList)
 
 -- | changeVertexEdgeLabels keeps or removes vertex and edge labels
 changeVertexEdgeLabels :: (Show b) => Bool -> Bool -> P.Gr String b -> P.Gr String String
@@ -761,8 +761,8 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
       newEdges = if keepEdgeLabel then fmap showLabel inLabEdges
                  else fmap (`G.toLEdge` "") inEdges
   in
-  -- trace ("CVEL " ++ (show (keepVertexLabel, keepEdgeLabel )))
-  G.mkGraph (leafNodeList ++ newNonLeafNodes) newEdges
+  -- trace ("CVEL " <> (show (keepVertexLabel, keepEdgeLabel )))
+  G.mkGraph (leafNodeList <> newNonLeafNodes) newEdges
     where showLabel (e,u,l) = (e,u,show l)
 
 -- | reconcile is the overall function to drive all methods
@@ -779,7 +779,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
         leafNodes = take numLeaves (G.labNodes $ head processedGraphs)
         firstNodes = G.labNodes $ head processedGraphs
         numFirstNodes = length firstNodes
-        unionNodes = L.sort $ leafNodes ++ addAndReIndexUniqueNodes numFirstNodes (concatMap (drop numLeaves) (G.labNodes <$> tail processedGraphs)) (drop numLeaves firstNodes)
+        unionNodes = L.sort $ leafNodes <> addAndReIndexUniqueNodes numFirstNodes (concatMap (drop numLeaves) (G.labNodes <$> tail processedGraphs)) (drop numLeaves firstNodes)
         -- unionEdges = addAndReIndexEdges "unique" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
 
         totallLeafString = L.foldl' L.union [] (fmap (fmap snd . getLeafListNewick) inputGraphList)
@@ -788,7 +788,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
         -- Create Adams II consensus
         --
         adamsII = A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
-        -- adamsIIInfo = "There are " ++ show (length $ G.nodes adamsII) ++ " nodes present in Adams II consensus"
+        -- adamsIIInfo = "There are " <> show (length $ G.nodes adamsII) <> " nodes present in Adams II consensus"
         adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
         adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
         adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] False False
@@ -798,14 +798,14 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
         -- vertex-based CUN-> Majority rule ->Strict
         --
         (thresholdNodes', nodeFreqs) = getThresholdNodes compareMethod threshold numLeaves (fmap (drop numLeaves . G.labNodes) processedGraphs)
-        thresholdNodes = leafNodes ++ thresholdNodes'
+        thresholdNodes = leafNodes <> thresholdNodes'
         thresholdEdgesList = PU.seqParMap PU.myStrategyRDS (getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes) thresholdNodes  -- `using` PU.myParListChunkRDS
         thresholdEdges = L.nub $ concat thresholdEdgesList
         -- numPossibleEdges =  ((length thresholdNodes * length thresholdNodes) - length thresholdNodes) `div` 2
         thresholdConsensusGraph = G.mkGraph thresholdNodes thresholdEdges -- O(n^3)
 
-        -- thresholdConInfo =  "There are " ++ show (length thresholdNodes) ++ " nodes present in >= " ++ (show threshold ++ "%") ++ " of input graphs and " ++ show numPossibleEdges ++ " candidate edges"
-        --                  ++ " yielding a final graph with " ++ show (length (G.labNodes thresholdConsensusGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdConsensusGraph)) ++ " edges"
+        -- thresholdConInfo =  "There are " <> show (length thresholdNodes) <> " nodes present in >= " <> (show threshold <> "%") <> " of input graphs and " <> show numPossibleEdges <> " candidate edges"
+        --                  <> " yielding a final graph with " <> show (length (G.labNodes thresholdConsensusGraph)) <> " nodes and " <> show (length (G.labEdges thresholdConsensusGraph)) <> " edges"
 
         -- add back labels for vertices and "GV.quickParams" for G.Gr String Double or whatever
         labelledTresholdConsensusGraph' = addGraphLabels thresholdConsensusGraph totallLeafSet
@@ -827,8 +827,8 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
 
         -- Remove unnconnected HTU nodes via postorder pass from leaves
         thresholdEUNGraph = verticesByPostorder thresholdEUNGraph' leafNodes S.empty
-        -- thresholdEUNInfo =  "\nThreshold EUN deleted " ++ show (length unionEdges - length (G.labEdges thresholdEUNGraph) ) ++ " of " ++ show (length unionEdges) ++ " total edges"
-        --                    ++ " for a final graph with " ++ show (length (G.labNodes thresholdEUNGraph)) ++ " nodes and " ++ show (length (G.labEdges thresholdEUNGraph)) ++ " edges"
+        -- thresholdEUNInfo =  "\nThreshold EUN deleted " <> show (length unionEdges - length (G.labEdges thresholdEUNGraph) ) <> " of " <> show (length unionEdges) <> " total edges"
+        --                    <> " for a final graph with " <> show (length (G.labNodes thresholdEUNGraph)) <> " nodes and " <> show (length (G.labEdges thresholdEUNGraph)) <> " edges"
 
         -- add back labels for vertices and "GV.quickParams" for G.Gr String Double or whatever
         thresholdLabelledEUNGraph' = addGraphLabels thresholdEUNGraph totallLeafSet
@@ -848,19 +848,19 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
     if localMethod == "eun" then
       if outputFormat == "dot" then (thresholdEUNOutDotString,  gvRelabelledEUNGraph)
       else if outputFormat == "fenewick" then (thresholdEUNOutFENString, gvRelabelledEUNGraph)
-      else errorWithoutStackTrace ("Output graph format " ++ outputFormat ++ " is not implemented")
+      else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
 
     else if localMethod == "adams" then
       if outputFormat == "dot" then (adamsIIOutDotString,  adamsII')
       else if outputFormat == "fenewick" then (adamsIIOutFENString, adamsII')
-      else errorWithoutStackTrace ("Output graph format " ++ outputFormat ++ " is not implemented")
+      else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
 
     else if (localMethod == "majority") || (localMethod == "cun") || (localMethod == "strict") then
         if outputFormat == "dot" then (thresholdConsensusOutDotString, gvRelabelledConsensusGraph)
         else if outputFormat == "fenewick" then (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
-        else errorWithoutStackTrace ("Output graph format " ++ outputFormat ++ " is not implemented")
+        else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
 
-    else errorWithoutStackTrace ("Graph combination method " ++ localMethod ++ " is not implemented")
+    else errorWithoutStackTrace ("Graph combination method " <> localMethod <> " is not implemented")
 
 
 -- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leafws to teh graphs and reindexes

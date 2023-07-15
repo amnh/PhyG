@@ -79,7 +79,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
     else if generationCounter == generations then  (inGraphList, generationCounter)
     else if stopCount >= stopNum then (inGraphList, generationCounter)
     else
-        trace ("Genetic algorithm generation: " ++ (show generationCounter)) (
+        trace ("Genetic algorithm generation: " <> (show generationCounter)) (
         let seedList = randomIntList rSeed
 
             -- get elite list of best solutions
@@ -94,10 +94,10 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                                     let numShort = popSize - (length mutatedGraphList')
                                         additionalMutated = zipWith (mutateGraph inGS inData maxNetEdges) (randomIntList $ seedList !! 2) $ takeRandom (seedList !! 3) numShort inGraphList
                                     in
-                                    mutatedGraphList' ++ additionalMutated
+                                    mutatedGraphList' <> additionalMutated
 
             -- get unique graphs, no point in recombining repetitions
-            uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (mutatedGraphList ++ inGraphList)
+            uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (mutatedGraphList <> inGraphList)
 
             -- recombine elite with mutated and mutated with mutated
             recombineSwap = getRandomElement (seedList !! 4) [None, NNI, SPR] --  these take too long, "tbr", "alternate"]
@@ -136,9 +136,9 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
 
         in
         {-
-        trace ("\tGA " ++ (show $ snd5 $ head initialEliteList) ++ " -> " ++ (show newCost) ++ "\nInGraphs " ++ (show $ L.sort $ fmap snd5 inGraphList)
-            ++ "\nMutated " ++ (show $  L.sort $ fmap snd5 mutatedGraphList)
-            ++ "\nRecombined " ++ recombineSwap ++ " " ++ (show $  L.sort $ fmap snd5 recombinedGraphList)) (
+        trace ("\tGA " <> (show $ snd5 $ head initialEliteList) <> " -> " <> (show newCost) <> "\nInGraphs " <> (show $ L.sort $ fmap snd5 inGraphList)
+            <> "\nMutated " <> (show $  L.sort $ fmap snd5 mutatedGraphList)
+            <> "\nRecombined " <> recombineSwap <> " " <> (show $  L.sort $ fmap snd5 recombinedGraphList)) (
         -}
         -- if new graphs better cost then take those
         if newCost < (snd5 $ head initialEliteList) then
@@ -146,7 +146,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
 
         -- if new graphs not better then add in elites to ensure monotonic decrease in cost
         else
-            let newGraphList = GO.selectGraphs Unique keepNum 0.0 (-1) (initialEliteList ++ selectedGraphs)
+            let newGraphList = GO.selectGraphs Unique keepNum 0.0 (-1) (initialEliteList <> selectedGraphs)
             in
             geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations (stopCount + 1) stopNum newGraphList
         )

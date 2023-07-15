@@ -201,7 +201,7 @@ unfoldr f = NEV . uncurry V.fromListN . go 0
 --  go :: Int -> b -> (Int, [a])
     go n b =
          let (v, mb) = f b
-         in  (v:) <$> maybe (n, []) (go (n+1)) mb
+         in  (v:) <$> maybe (n, []) (go (n + 1)) mb
 
 
 -- |

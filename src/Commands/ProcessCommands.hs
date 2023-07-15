@@ -76,7 +76,7 @@ preprocessOptimalityCriteriaScripts inCommandList = inCommandList
 -- ensures one command per line
 expandRunCommands :: [String] -> [String] -> IO [String]
 expandRunCommands curLines inLines =
-    --trace ("EXP " ++ (show curLines) ++ show inLines) (
+    --trace ("EXP " <> (show curLines) <> show inLines) (
     if null inLines then return $ reverse curLines
     else
         let firstLineRead = removeComments [filter (/= ' ') $ head inLines]
@@ -86,9 +86,9 @@ expandRunCommands curLines inLines =
             leftParens = length $ filter (=='(') firstLine
             rightParens = length $ filter (==')') firstLine
         in
-        --trace ("FL " ++ firstLine) (
+        --trace ("FL " <> firstLine) (
         -- only deal with run lines
-        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ firstLine)
+        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " <> firstLine)
         else if null firstLine then expandRunCommands curLines (tail inLines)
         else if take 3 (fmap toLower firstLine) /= "run" then expandRunCommands (firstLine : curLines) (restLine : tail inLines)
         else do -- is a "run command"
@@ -96,7 +96,7 @@ expandRunCommands curLines inLines =
              let runFileNames = fmap (checkFileNames . snd) runFileList
              fileListContents <- mapM readFile runFileNames
              let newLines = concatMap lines fileListContents
-             expandRunCommands (newLines ++ curLines)  (restLine : tail inLines)
+             expandRunCommands (newLines <> curLines)  (restLine : tail inLines)
              --)
         --)
 
@@ -111,18 +111,18 @@ splitCommandLine inLine =
             rightParens = length $ filter (==')') inLine
             firstPart = takeWhile (/= '(') inLine
             parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
-            firstCommand = firstPart ++ parenPart
+            firstCommand = firstPart <> parenPart
             restPart = drop (length firstCommand) inLine
         in
-        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " ++ inLine)
+        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " <> inLine)
         else (firstCommand, restPart)
 
 -- | checkFileNames checks if first and last element of String are double quotes and removes them
 checkFileNames :: String -> String
 checkFileNames inName
   | null inName = errorWithoutStackTrace "Error: Null file name"
-  | head inName /= '"' = errorWithoutStackTrace ("Error: File name must be in double quotes (b): " ++ inName)
-  | last inName /= '"' = errorWithoutStackTrace ("Error: File name must be in double quotes (e): " ++ inName)
+  | head inName /= '"' = errorWithoutStackTrace ("Error: File name must be in double quotes (b): " <> inName)
+  | last inName /= '"' = errorWithoutStackTrace ("Error: File name must be in double quotes (e): " <> inName)
   | otherwise = init $ tail inName
 
 
@@ -144,11 +144,11 @@ getCommandList  rawContents =
             reportDotArgs = filter (== "dot") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
 
         in
-        if null reportCommands || null (reportGraphsArgs ++ reportNewickArgs ++ reportDotArgs) then
+        if null reportCommands || null (reportGraphsArgs <> reportNewickArgs <> reportDotArgs) then
             trace ("Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'") $
             let addedReport = (Report, [("graphs",[]), ([], "_defaultGraph.dot_"), ("dotpdf",[])])
             in 
-            processedCommands ++ [addedReport]
+            processedCommands <> [addedReport]
         --trace (show rawList)
         else processedCommands
 
@@ -225,9 +225,9 @@ getSubCommand inString hasComma =
             secondPart = dropWhile (/= '(') inString
             parenPart = getBalancedParenPart "" secondPart 0 0
             incrCounter = if hasComma then 1 else 0
-            remainderPart = drop (length (firstPart ++ parenPart) + incrCounter) inString -- to remove ','
+            remainderPart = drop (length (firstPart <> parenPart) + incrCounter) inString -- to remove ','
         in
-        (firstPart ++ parenPart, remainderPart)
+        (firstPart <> parenPart, remainderPart)
 
 
 -- | getBalancedParenPart stakes a string starting with '(' and takes all
@@ -265,13 +265,13 @@ argumentSplitter commandLineString inString
         else [(inString, [])]
     else if commaIndex == firstDivider then
         -- no arg
-        if null (take firstDivider inString) then errorWithoutStackTrace ("Error in command '" ++ commandLineString ++ "' perhaps due to extraneous commas (',')")
+        if null (take firstDivider inString) then errorWithoutStackTrace ("Error in command '" <> commandLineString <> "' perhaps due to extraneous commas (',')")
         else if head (take firstDivider inString) == '"' then ([], take firstDivider inString) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
         else (take firstDivider inString, []) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
     else if semiIndex == firstDivider then
         -- has arg after ':'
         if inString !! (semiIndex + 1) == '(' then
-            (take firstDivider inString,takeWhile (/= ')') (drop (firstDivider + 1) inString) ++ ")") : argumentSplitter commandLineString (drop 2 $ dropWhile (/= ')') inString)
+            (take firstDivider inString,takeWhile (/= ')') (drop (firstDivider + 1) inString) <> ")") : argumentSplitter commandLineString (drop 2 $ dropWhile (/= ')') inString)
         else
             let nextStuff =  dropWhile (/= ',') inString
                 remainder = if null nextStuff then [] else tail nextStuff
@@ -289,10 +289,10 @@ argumentSplitter commandLineString inString
 freeOfSimpleErrors :: String -> Bool
 freeOfSimpleErrors commandString
   | null commandString = errorWithoutStackTrace "\n\nError in command string--empty"
-  | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly missing comma ',' between arguments or extra double quotes'\"'.")
-  | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly terminal comma ',' after or within arguments.")
-  | isSequentialSubsequence  [',','('] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly comma ',' before '('.")
-  | isSequentialSubsequence  ['(',','] commandString = errorWithoutStackTrace ("\n\nCommand format error: " ++ commandString ++ "\n\tPossibly starting comma ',' before arguments.")
+  | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly missing comma ',' between arguments or extra double quotes'\"'.")
+  | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly terminal comma ',' after or within arguments.")
+  | isSequentialSubsequence  [',','('] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly comma ',' before '('.")
+  | isSequentialSubsequence  ['(',','] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly starting comma ',' before arguments.")
   | otherwise =
     let beforeDoubleQuotes = dropWhile (/= '"') commandString
     in
@@ -306,7 +306,7 @@ freeOfSimpleErrors commandString
 parseCommandArg :: String -> Instruction -> [(String, String)] -> [Argument]
 parseCommandArg fullCommand localInstruction argList
     | localInstruction == Read = if not $ null argList then RIF.getReadArgs fullCommand argList
-                            else errorWithoutStackTrace ("\n\n'Read' command error '" ++ fullCommand ++ "': Need to specify at least one filename in double quotes")
+                            else errorWithoutStackTrace ("\n\n'Read' command error '" <> fullCommand <> "': Need to specify at least one filename in double quotes")
     | otherwise                = argList
 
 
@@ -319,7 +319,7 @@ movePrealignedTCM inArgList =
             secondPart = filter ((== "tcm").fst) inArgList
             restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
         in
-        if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" ++ show inArgList ++ "': can only specify a single tcm file")
-        else firstPart ++ secondPart ++ restPart
+        if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" <> show inArgList <> "': can only specify a single tcm file")
+        else firstPart <> secondPart <> restPart
 
 

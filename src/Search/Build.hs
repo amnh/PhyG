@@ -76,14 +76,14 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
        checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
    in
        -- check for valid command options
-   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
+   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
    else
        let -- block build options including number of display trees to return
            buildBlock = filter ((=="block").fst) lcArgList
            displayBlock = filter ((=="displaytrees").fst) lcArgList
            numDisplayTrees
                 | length displayBlock > 1 =
-                  errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " <> show inArgs)
                 | null displayBlock = Just 10
                 | null (snd $ head displayBlock) = Just 10
                 | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
@@ -92,7 +92,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            returnList = filter ((=="return").fst) lcArgList
            numReturnTrees
                 | length returnList > 1 =
-                  errorWithoutStackTrace ("Multiple 'return' number specifications in command--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple 'return' number specifications in command--can have only one: " <> show inArgs)
                 | null returnList = Just (maxBound :: Int)
                 | null (snd $ head returnList) = Just (maxBound :: Int)
                 | otherwise = readMaybe (snd $ head returnList) :: Maybe Int
@@ -140,7 +140,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                 returnGraphs = reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
                             in
                             -- trace (concatMap LG.prettify returnGraphs)
-                            -- trace ("BG: " ++ (concatMap LG.prettyIndices returnGraphs))
+                            -- trace ("BG: " <> (concatMap LG.prettyIndices returnGraphs))
                             PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs -- `using` PU.myParListChunkRDS
                             )
 
@@ -151,28 +151,28 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
 
            -- reporting info
            returnString = if (not . null) firstGraphs then
-                            ("\tReturning " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)))
+                            ("\tReturning " <> (show $ length firstGraphs) <> " graphs at cost range " <> (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)))
                           else "\t\tReturning 0 graphs"
 
            costString = if (not . null) firstGraphs then
-                            ("\tBlock build yielded " ++ (show $ length firstGraphs) ++ " graphs at cost range " ++ (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)))
+                            ("\tBlock build yielded " <> (show $ length firstGraphs) <> " graphs at cost range " <> (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)))
                         else "\t\tBlock build returned 0 graphs"
 
        in
        if isNothing numDisplayTrees then
-                                errorWithoutStackTrace ("DisplayTrees specification in build not an integer: "  ++ show (snd $ head displayBlock))
+                                errorWithoutStackTrace ("DisplayTrees specification in build not an integer: "  <> show (snd $ head displayBlock))
        else if isNothing numReturnTrees then
-                                errorWithoutStackTrace ("Return number specifications in build not an integer: " ++ show (snd $ head returnList))
+                                errorWithoutStackTrace ("Return number specifications in build not an integer: " <> show (snd $ head returnList))
 
        else
             trace returnString (
             if inputGraphType == Tree || (not . null) buildBlock then
-              -- trace ("BB: " ++ (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
+              -- trace ("BB: " <> (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
               if null buildBlock then firstGraphs
               else trace (costString) firstGraphs
               -- )
             else
-              trace ("\tRediagnosing as " ++ (show (graphType inGS)))
+              trace ("\tRediagnosing as " <> (show (graphType inGS)))
               PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst5 firstGraphs) -- `using` PU.myParListChunkRDS
             )
 
@@ -182,7 +182,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
 -- all outputs are re-optimzed and ready to go
 reconcileBlockTrees ::  Int -> [ReducedPhylogeneticGraph] -> Int -> Bool -> Bool -> Bool ->  Bool -> [SimpleGraph]
 reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN =
-      -- trace ("Reconcile producing " ++ (show numDisplayTrees)) (
+      -- trace ("Reconcile producing " <> (show numDisplayTrees)) (
       let -- numLeaves = V.length $ fst3 inData
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst5 blockTrees
@@ -224,16 +224,16 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
       in
       if LG.isEmpty reconciledGraph && not returnTrees then
         errorWithoutStackTrace "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
-      -- trace ("RBT: " ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph)) (
+      -- trace ("RBT: " <> (LG.prettyIndices reconciledGraph') <> "\n" <> (LG.prettyIndices reconciledGraph)) (
       else if (not $ LG.isEmpty reconciledGraph) && not returnTrees then
-        trace ("Reconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees for softwired network")
+        trace ("Reconciled graph has " <> show numNetNodes <> " network nodes hence up to 2^" <> show numNetNodes <> " display trees for softwired network")
         [reconciledGraph]
       else if not returnGraph && returnTrees then
          displayGraphs
       else
          if (not $ LG.isEmpty reconciledGraph) then
-            trace ("\n\tReconciled graph has " ++ show numNetNodes ++ " network nodes hence up to 2^" ++ show numNetNodes ++ " display trees")
-                -- ++ "\n" ++ (LG.prettyIndices reconciledGraph') ++ "\n" ++ (LG.prettyIndices reconciledGraph))
+            trace ("\n\tReconciled graph has " <> show numNetNodes <> " network nodes hence up to 2^" <> show numNetNodes <> " display trees")
+                -- <> "\n" <> (LG.prettyIndices reconciledGraph') <> "\n" <> (LG.prettyIndices reconciledGraph))
             reconciledGraph : displayGraphs
          else
             trace "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds."
@@ -257,7 +257,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
        checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
    in
    -- check for valid command options
-   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " ++ show inArgs)
+   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
    else
 
       let buildDistance = any ((=="distance").fst) lcArgList
@@ -265,21 +265,21 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
           repPairList = filter ((=="replicates").fst) lcArgList
           numReplicates
             | length repPairList > 1 =
-              errorWithoutStackTrace ("Multiple replicate number specifications in command--can have only one: " ++ show inArgs)
+              errorWithoutStackTrace ("Multiple replicate number specifications in command--can have only one: " <> show inArgs)
             | null repPairList = Just 10
             | otherwise = readMaybe (snd $ head repPairList) :: Maybe Int
           keepPairList = filter ((=="best").fst) lcArgList
           numToSave
             | length keepPairList > 1 =
-                  errorWithoutStackTrace ("Multiple best number specifications in command--can have only one: " ++ show inArgs)
+                  errorWithoutStackTrace ("Multiple best number specifications in command--can have only one: " <> show inArgs)
             | null keepPairList = numReplicates
             | otherwise = readMaybe (snd $ head keepPairList) :: Maybe Int
 
       in
       if buildDistance && buildCharacter then
-         errorWithoutStackTrace ("Cannot specify both 'character' and 'distance' builds in same build command" ++ show inArgs)
-      else if isNothing numReplicates then errorWithoutStackTrace ("Replicates specification not an integer: "  ++ show (snd $ head repPairList))
-      else if isNothing numToSave then errorWithoutStackTrace ("Best specification not an integer: "  ++ show (snd $ head keepPairList))
+         errorWithoutStackTrace ("Cannot specify both 'character' and 'distance' builds in same build command" <> show inArgs)
+      else if isNothing numReplicates then errorWithoutStackTrace ("Replicates specification not an integer: "  <> show (snd $ head repPairList))
+      else if isNothing numToSave then errorWithoutStackTrace ("Best specification not an integer: "  <> show (snd $ head keepPairList))
       else if buildDistance then
          -- distance build
          -- do all options in line and add together for return tree list
@@ -301,19 +301,19 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                | doOTU = "otu"
                | otherwise = "none"
              treeList    = [distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement | doDWag]
-             treeList'   = if doRDwag then treeList ++ randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem (fromJust numReplicates) rSeed (fromJust numToSave) refinement
+             treeList'   = if doRDwag then treeList <> randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem (fromJust numReplicates) rSeed (fromJust numToSave) refinement
                            else treeList
-             treeList''  = if doNJ then treeList' ++ [neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement]
+             treeList''  = if doNJ then treeList' <> [neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement]
                            else treeList'
-             treeList''' = if doWPGMA then treeList'' ++ [wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement]
+             treeList''' = if doWPGMA then treeList'' <> [wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement]
                            else treeList''
          in
-         if null treeList''' then errorWithoutStackTrace ("Distance build is specified, but without any method: " ++ show inArgs)
+         if null treeList''' then errorWithoutStackTrace ("Distance build is specified, but without any method: " <> show inArgs)
          else
-            let costRangeString = if not simpleTreeOnly then " at cost range " ++ show (minimum $ fmap snd5 treeList''', maximum $ fmap snd5 treeList''')
+            let costRangeString = if not simpleTreeOnly then " at cost range " <> show (minimum $ fmap snd5 treeList''', maximum $ fmap snd5 treeList''')
                                   else ""
             in
-            trace ("\tDistance build yielded " ++ show (length treeList''') ++ " trees" ++ costRangeString) (
+            trace ("\tDistance build yielded " <> show (length treeList''') <> " trees" <> costRangeString) (
             if not simpleTreeOnly then treeList'''
             else GO.selectGraphs Best 1 0.0 (-1) treeList'''
             )
@@ -324,14 +324,14 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
          -- final diagnosis in input graph type
          trace "\tBuilding Character Wagner" (
          let treeList = WB.rasWagnerBuild inGS inData rSeed (fromJust numReplicates)
-             costRangeString = if not simpleTreeOnly then " at cost range " ++ show (minimum $ fmap snd5 treeList, maximum $ fmap snd5 treeList)
+             costRangeString = if not simpleTreeOnly then " at cost range " <> show (minimum $ fmap snd5 treeList, maximum $ fmap snd5 treeList)
                                else ""
          in
          if not simpleTreeOnly then
-            trace ("\tCharacter build yielded " ++ show (length treeList) ++ " tree(s)" ++ costRangeString)
+            trace ("\tCharacter build yielded " <> show (length treeList) <> " tree(s)" <> costRangeString)
             treeList
          else
-            trace ("\tCharacter build yielded " ++ show (length $ GO.selectGraphs Best 1 0.0 (-1) treeList) ++ " tree(s)" ++ costRangeString)
+            trace ("\tCharacter build yielded " <> show (length $ GO.selectGraphs Best 1 0.0 (-1) treeList) <> " tree(s)" <> costRangeString)
             GO.selectGraphs Best 1 0.0 (-1) treeList
          )
 

@@ -83,7 +83,7 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
             -- remove cases of pendent edges--don't remove those either
             leafIndexList = fmap fst $ snd4 $ LG.splitVertexList inSimple
             rootChildIndexList = fmap snd3 $ concatMap (LG.out inSimple) $ fmap fst $ fst4 $ LG.splitVertexList inSimple
-            zeroEdgeList = filter ((`notElem` (leafIndexList ++ rootChildIndexList)) . snd3) zeroEdgeList'
+            zeroEdgeList = filter ((`notElem` (leafIndexList <> rootChildIndexList)) . snd3) zeroEdgeList'
         in
         if null zeroEdgeList then inPhylograph
         else
@@ -170,7 +170,7 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
             weightList = fmap weight (V.toList charInfoV)
             rootCostList = zipWith (*) weightList (fmap fromIntegral maxCharLengthList)
         in
-        -- trace ("GNCMR: " ++ (show (numChars, maxCharLengthList, weightList, rootCostList))) $
+        -- trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
         sum rootCostList
 
 -- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
@@ -214,7 +214,7 @@ getCharacterInsertCost inChar charInfo =
     else if localCharType == AlignedSlim then thisWeight * fromIntegral inDelCost * fromIntegral (SV.length $ snd3 $ alignedSlimPrelim inChar)
     else if localCharType == AlignedWide then thisWeight * fromIntegral inDelCost * fromIntegral (UV.length $ snd3 $ alignedWidePrelim inChar)
     else if localCharType == AlignedHuge then thisWeight * fromIntegral inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
-    else error ("Character type unimplemented : " ++ show localCharType)
+    else error ("Character type unimplemented : " <> show localCharType)
 
 
 -- | splitSequence takes a ShortText divider and splits a list of ShortText on
@@ -235,7 +235,7 @@ bitVectToCharStateQual :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b
 bitVectToCharStateQual localAlphabet bitValue =
   let charString = L.intercalate "," $ foldr pollSymbol mempty indices
   in
-  if popCount bitValue > 1 then "[" ++ charString ++ "]"
+  if popCount bitValue > 1 then "[" <> charString <> "]"
   else charString
   where
     indices = [ 0 .. len - 1 ]
@@ -256,9 +256,9 @@ bitVectToCharState localAlphabet bitValue =
       charString = foldr pollSymbol mempty indices
       charString' = L.intercalate "," $ filter (/= "\8220") charString
   in
-  -- trace ("BV2CSA:" ++ (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
-  if popCount bitValue > 1 then "[" ++ charString' ++ "]"  ++ " "
-  else charString'  ++ " "
+  -- trace ("BV2CSA:" <> (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
+  if popCount bitValue > 1 then "[" <> charString' <> "]"  <> " "
+  else charString'  <> " "
   -- )
 
   where
@@ -271,58 +271,58 @@ bitVectToCharState localAlphabet bitValue =
 
 bitVectToCharState' :: (Show b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState' localAlphabet bitValue =
-  -- trace ("BVCA': " ++ (show $ isAlphabetAminoAcid localAlphabet) ++ " " ++ (show $ isAlphabetDna localAlphabet) ++ " " ++ (show localAlphabet)) (
+  -- trace ("BVCA': " <> (show $ isAlphabetAminoAcid localAlphabet) <> " " <> (show $ isAlphabetDna localAlphabet) <> " " <> (show localAlphabet)) (
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
   in
-  if length stringVal == 1 then L.intercalate "," stringVal' ++ " "
+  if length stringVal == 1 then L.intercalate "," stringVal' <> " "
   else
     -- AA IUPAC
     -- if isAlphabetAminoAcid localAlphabet then
     if SET.size (alphabetSymbols localAlphabet) > 5 then
 
-        if stringVal == "DN" then "B" ++ " "
-        else if stringVal == "EQ" then "Z" ++ " "
-        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X" ++ " "
-        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?" ++ " "
+        if stringVal == "DN" then "B" <> " "
+        else if stringVal == "EQ" then "Z" <> " "
+        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X" <> " "
+        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?" <> " "
          -- amino acid polymorphisms without ambiguity codes
-        else "[" ++ stringVal ++ "]" ++ " "
+        else "[" <> stringVal <> "]" <> " "
 
     -- Nucl IUPAC
     else if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5) then
         if stringVal == "" then ""
-        else if stringVal == "AG" then "R" ++ " "
-        else if stringVal == "CT" then "Y" ++ " "
-        else if stringVal == "CG" then "S" ++ " "
-        else if stringVal == "AT" then "W" ++ " "
-        else if stringVal == "GT" then "K" ++ " "
-        else if stringVal == "AC" then "M" ++ " "
-        else if stringVal == "CGT" then "B" ++ " "
-        else if stringVal == "AGT" then "D" ++ " "
-        else if stringVal == "ACT" then "H" ++ " "
-        else if stringVal == "ACG" then "V" ++ " "
-        else if stringVal == "ACGT" then "N" ++ " "
-        else if stringVal == "-ACGT" then "?" ++ " "
+        else if stringVal == "AG" then "R" <> " "
+        else if stringVal == "CT" then "Y" <> " "
+        else if stringVal == "CG" then "S" <> " "
+        else if stringVal == "AT" then "W" <> " "
+        else if stringVal == "GT" then "K" <> " "
+        else if stringVal == "AC" then "M" <> " "
+        else if stringVal == "CGT" then "B" <> " "
+        else if stringVal == "AGT" then "D" <> " "
+        else if stringVal == "ACT" then "H" <> " "
+        else if stringVal == "ACG" then "V" <> " "
+        else if stringVal == "ACGT" then "N" <> " "
+        else if stringVal == "-ACGT" then "?" <> " "
 
         -- ours for gap chars and nuc
-        else if stringVal == "-A" then "a" ++ " "
-        else if stringVal == "-C" then "c" ++ " "
-        else if stringVal == "-G" then "g" ++ " "
-        else if stringVal == "-T" then "t" ++ " "
-        else if stringVal == "-AG" then "r" ++ " "
-        else if stringVal == "-CT" then "y" ++ " "
-        else if stringVal == "-CG" then "s" ++ " "
-        else if stringVal == "-AT" then "w" ++ " "
-        else if stringVal == "-GT" then "k" ++ " "
-        else if stringVal == "-AC" then "m" ++ " "
-        else if stringVal == "-CGT" then "b" ++ " "
-        else if stringVal == "-AGT" then "d" ++ " "
-        else if stringVal == "-ACT" then "h" ++ " "
-        else if stringVal == "-ACG" then "v" ++ " "
+        else if stringVal == "-A" then "a" <> " "
+        else if stringVal == "-C" then "c" <> " "
+        else if stringVal == "-G" then "g" <> " "
+        else if stringVal == "-T" then "t" <> " "
+        else if stringVal == "-AG" then "r" <> " "
+        else if stringVal == "-CT" then "y" <> " "
+        else if stringVal == "-CG" then "s" <> " "
+        else if stringVal == "-AT" then "w" <> " "
+        else if stringVal == "-GT" then "k" <> " "
+        else if stringVal == "-AC" then "m" <> " "
+        else if stringVal == "-CGT" then "b" <> " "
+        else if stringVal == "-AGT" then "d" <> " "
+        else if stringVal == "-ACT" then "h" <> " "
+        else if stringVal == "-ACG" then "v" <> " "
 
-        else "Unrecognized nucleic acid ambiguity code : " ++ "|" ++ stringVal ++ "|"
+        else "Unrecognized nucleic acid ambiguity code : " <> "|" <> stringVal <> "|"
 
-    else error ("Alphabet type not recognized as nucleic acid or amino acid : " ++ show localAlphabet)
+    else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> show localAlphabet)
   --  )
   where
     indices = [ 0 .. len - 1 ]
@@ -357,7 +357,7 @@ matrixStateToString inStateVect =
     in
     if length statesStringList == 1 then head statesStringList
     else
-        "[" ++ unwords statesStringList ++ "]"
+        "[" <> unwords statesStringList <> "]"
 
 
 
@@ -365,7 +365,7 @@ matrixStateToString inStateVect =
 -- [a-b] if not
 additivStateToString :: (Int, Int) -> String
 additivStateToString (a,b) = if a == b then show a
-                             else "[" ++ show a ++ "-" ++ show b ++ "]"
+                             else "[" <> show a <> "-" <> show b <> "]"
 
 -- | filledDataFields takes rawData and checks taxon to see what percent
 -- "characters" are found.
@@ -414,7 +414,7 @@ vectMaybeHead inVect =
 -- and returns Just a or V.empty
 vectResolveMaybe :: V.Vector (Maybe a) -> V.Vector a
 vectResolveMaybe inVect =
-    trace ("VRM " ++ show (length inVect)) (
+    trace ("VRM " <> show (length inVect)) (
     if isNothing (V.head inVect) then V.empty
     else V.singleton $ fromJust $ V.head inVect
     )
@@ -499,7 +499,7 @@ getLengthSequenceCharacters blockDataVect =
             sequenceCharsLength = V.sum $ fmap (V.maximum . fmap getMaxCharLength) sequenceCharVect
 
         in
-        -- trace ("GLSC: " ++ (show (sequenceCharsLength, V.length firstBlockCharacters, fmap V.length firstBlockCharacters)))
+        -- trace ("GLSC: " <> (show (sequenceCharsLength, V.length firstBlockCharacters, fmap V.length firstBlockCharacters)))
         sequenceCharsLength + getLengthSequenceCharacters (V.tail blockDataVect)
 
 -- | getMaxCharLength takes characterData and returns the length of the longest character field from preliminary
@@ -515,7 +515,7 @@ getMaxCharLength inChardata =
         aWide = (UV.length . fst3) $ alignedWidePrelim inChardata
         aHuge = (V.length . fst3) $ alignedHugePrelim inChardata
     in
-    -- trace ("GMCL: " ++ (show [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]))
+    -- trace ("GMCL: " <> (show [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]))
     maximum [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]
 
 
@@ -567,7 +567,7 @@ splitBlockCharacters inDataVV inCharInfoV localIndex exactCharPairList seqCharPa
             splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) (newPair : exactCharPairList) seqCharPairList
         else if localCharacterType `elem` sequenceCharacterTypes then
             splitBlockCharacters inDataVV inCharInfoV (localIndex + 1) exactCharPairList (newPair : seqCharPairList)
-        else error ("Unrecongized/implemented character type: " ++ show localCharacterType)
+        else error ("Unrecongized/implemented character type: " <> show localCharacterType)
 
 
 
@@ -608,14 +608,14 @@ leftRightChildLabelBVNode inPair@(firstNode, secondNode) =
 -- vertex info
 prettyPrintVertexInfo :: VertexInfo -> String
 prettyPrintVertexInfo inVertData =
-    let zerothPart = "Vertex name " ++ T.unpack (vertName inVertData) ++ " Index " ++ show (index inVertData)
-        firstPart = "\n\tBitVector (as number) " ++ show ((BV.toUnsignedNumber $ bvLabel inVertData) :: Int)
-        secondPart = "\n\tParents " ++ show (parents inVertData) ++ " Children " ++ show (children inVertData)
-        thirdPart = "\n\tType " ++ show (nodeType inVertData) ++ " Local Cost " ++ show (vertexCost inVertData) ++ " SubGraph Cost " ++ show (subGraphCost inVertData)
-        fourthPart = "\n\tData Blocks: " ++ show (V.length $ vertData inVertData) ++ " Characters (by block) " ++ show (V.length <$> vertData inVertData)
-        fifthPart = "\n\t" ++ show (vertData inVertData)
+    let zerothPart = "Vertex name " <> T.unpack (vertName inVertData) <> " Index " <> show (index inVertData)
+        firstPart = "\n\tBitVector (as number) " <> show ((BV.toUnsignedNumber $ bvLabel inVertData) :: Int)
+        secondPart = "\n\tParents " <> show (parents inVertData) <> " Children " <> show (children inVertData)
+        thirdPart = "\n\tType " <> show (nodeType inVertData) <> " Local Cost " <> show (vertexCost inVertData) <> " SubGraph Cost " <> show (subGraphCost inVertData)
+        fourthPart = "\n\tData Blocks: " <> show (V.length $ vertData inVertData) <> " Characters (by block) " <> show (V.length <$> vertData inVertData)
+        fifthPart = "\n\t" <> show (vertData inVertData)
     in
-    zerothPart ++ firstPart ++ secondPart ++ thirdPart ++ fourthPart ++ fifthPart
+    zerothPart <> firstPart <> secondPart <> thirdPart <> fourthPart <> fifthPart
 
 
 -- | add3 adds three values
@@ -713,20 +713,20 @@ simAnnealAccept inParams curBestCost candCost  =
         -- lowest cost-- greedy
         -- but increment this if using heuristic costs
         if candCost < curBestCost then
-                -- trace ("SAB: " ++ (show curStep) ++ " Better ")
+                -- trace ("SAB: " <> (show curStep) <> " Better ")
                 (True, nextSAParams)
 
         -- not better and at lowest temp
         else if curStep >= (numSteps - 1) then
-                -- trace ("SAEnd: " ++ (show curStep) ++ " Hit limit ")
+                -- trace ("SAEnd: " <> (show curStep) <> " Hit limit ")
                 (False, nextSAParams)
 
         -- test for non-lowest temp conditions
         else if intRandVal < intAccept then
-                -- trace ("SAAccept: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance)) ++ " True")
+                -- trace ("SAAccept: " <> (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance)) <> " True")
                 (True, nextSAParams)
         else
-                -- trace ("SAReject: " ++ (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance )) ++ " False")
+                -- trace ("SAReject: " <> (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance )) <> " False")
                 (False, nextSAParams)
         -- )
 
@@ -771,7 +771,7 @@ generateUniqueRandList number inParams
                     -- simAnnealParamList = replicate number inParams
                     newSimAnnealParamList = fmap (Just . updateSAParams (fromJust inParams)) randIntListList
                 in
-                -- trace ("New random list fist elements: " ++ (show $ fmap (take 1) randIntListList))
+                -- trace ("New random list fist elements: " <> (show $ fmap (take 1) randIntListList))
                 newSimAnnealParamList
   where
       updateSAParams a b = a {randomIntegerList = b}
@@ -807,15 +807,15 @@ driftAccept simAnealVals curBestCost candCost  =
         -- only increment numberof changes for True values
         -- but increment this if using heuristic costs
         if candCost < curBestCost then
-            -- trace ("Drift B: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " Better")
+            -- trace ("Drift B: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) <> " Better")
             (True, nextSAParams)
 
         else if intRandVal < intAccept then
-            -- trace ("Drift T: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " True")
+            -- trace ("Drift T: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) <> " True")
             (True, nextSAParams)
 
         else
-            -- trace ("Drift F: " ++ (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) ++ " False")
+            -- trace ("Drift F: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) <> " False")
             (False, nextSAPAramsNoChange)
             -- )
 
@@ -834,7 +834,7 @@ getSequenceCharacterLengths :: CharacterData -> CharInfo -> Int
 getSequenceCharacterLengths inCharData inCharInfo =
     let inCharType = charType inCharInfo
     in
-    -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
+    -- trace ("GCL:" <> (show inCharType) <> " " <> (show $ snd3 $ stateBVPrelim inCharData)) (
     case inCharType of
       x | x == NonAdd -> 0 -- V.length  $ snd3 $ stateBVPrelim inCharData
       x | x `elem` packedNonAddTypes   -> 0 -- UV.length  $ snd3 $ packedNonAddPrelim inCharData
@@ -846,7 +846,7 @@ getSequenceCharacterLengths inCharData inCharInfo =
       x | x == AlignedSlim       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
       x | x == AlignedWide       -> UV.length $ snd3 $ alignedWidePrelim inCharData
       x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData
-      _                                -> error ("Un-implemented data type " ++ show inCharType)
+      _                                -> error ("Un-implemented data type " <> show inCharType)
       -- )
 
 -- | getCharacterLengths returns a the length of block characters
@@ -854,7 +854,7 @@ getCharacterLength :: CharacterData -> CharInfo -> Int
 getCharacterLength inCharData inCharInfo =
     let inCharType = charType inCharInfo
     in
-    -- trace ("GCL:" ++ (show inCharType) ++ " " ++ (show $ snd3 $ stateBVPrelim inCharData)) (
+    -- trace ("GCL:" <> (show inCharType) <> " " <> (show $ snd3 $ stateBVPrelim inCharData)) (
     case inCharType of
       x | x == NonAdd -> V.length  $ snd3 $ stateBVPrelim inCharData
       x | x `elem` packedNonAddTypes   -> UV.length  $ snd3 $ packedNonAddPrelim inCharData
@@ -866,7 +866,7 @@ getCharacterLength inCharData inCharInfo =
       x | x == AlignedSlim       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
       x | x == AlignedWide       -> UV.length $ snd3 $ alignedWidePrelim inCharData
       x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData
-      _                                -> error ("Un-implemented data type " ++ show inCharType)
+      _                                -> error ("Un-implemented data type " <> show inCharType)
       -- )
 
 -- | getCharacterLengths' flipped arg version of getCharacterLength
@@ -913,15 +913,15 @@ concatFastas inMultFastaString =
 
             fastTaxNameList = (fst <$> head fastaTaxDataPairLL)
 
-            -- merge sequences with (++)
+            -- merge sequences with (<>)
             fastaDataLL =  fmap (fmap snd) fastaTaxDataPairLL
             mergedData = mergeFastaData fastaDataLL
 
             -- create new tuples
-            newFastaPairs = zipWith (++) fastTaxNameList mergedData
+            newFastaPairs = zipWith (<>) fastTaxNameList mergedData
 
         in
-        -- trace ("CF:" ++ (show $ length fastaFileStringList) ++ " " ++ (show $ fmap length fastaFileStringList))
+        -- trace ("CF:" <> (show $ length fastaFileStringList) <> " " <> (show $ fmap length fastaFileStringList))
         concat newFastaPairs
 
 -- | spitIntoFastas takes String generated by reprot ia functions,
@@ -981,7 +981,7 @@ fasta2PairList fileContents' =
                 -- tail because initial split will an empty text
                 pairData =  getRawDataPairs (tail terminalSplits)
             in
-            -- trace ("FSPL: " ++ (show $ length pairData) ++ " " ++ (show $ fmap fst pairData))
+            -- trace ("FSPL: " <> (show $ length pairData) <> " " <> (show $ fmap fst pairData))
             pairData
 
 -- | getRawDataPairstakes splits of Text and returns terminalName, Data pairs--minimal error checking
@@ -993,7 +993,7 @@ getRawDataPairs inList =
             firstName = head $ lines firstText
             firstData = concat $ tail $ lines firstText
         in
-        ('>' : firstName ++ "\n", firstData) : getRawDataPairs (tail inList)
+        ('>' : firstName <> "\n", firstData) : getRawDataPairs (tail inList)
 
 
 -- | hasResolutionDuplicateEdges checks resolution subtree in verteexInfo for duplicate d edges in softwired
@@ -1008,4 +1008,4 @@ hasResolutionDuplicateEdges inResData =
 -- | getUnionFieldsNode reutnrs String of union fields nicely
 getUnionFieldsNode :: VertexBlockData -> String
 getUnionFieldsNode inVertData =
-    "UnionFields " ++ show inVertData
+    "UnionFields " <> show inVertData

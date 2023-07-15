@@ -124,7 +124,7 @@ packedNonAddTypes = [Packed2, Packed4, Packed5,  Packed8,  Packed64]
 
 -- aligned not in here because they are not reorganized, and would screw up reroot optimization
 exactCharacterTypes :: [CharType]
-exactCharacterTypes = [Add, NonAdd, Matrix] ++ packedNonAddTypes
+exactCharacterTypes = [Add, NonAdd, Matrix] <> packedNonAddTypes
 
 -- | types for character classes
 nonExactCharacterTypes :: [CharType]
@@ -136,7 +136,7 @@ prealignedCharacterTypes = [AlignedSlim, AlignedWide, AlignedHuge]
 
 -- sequence types
 sequenceCharacterTypes :: [CharType]
-sequenceCharacterTypes = nonExactCharacterTypes ++ prealignedCharacterTypes
+sequenceCharacterTypes = nonExactCharacterTypes <> prealignedCharacterTypes
 
 -- | Graph types for searching etc.  Can be modified by 'Set command
 -- HardWired and SoftWired are network types
@@ -543,7 +543,7 @@ type RawData = ([TermData], [CharInfo])
 -- can be input to functions
 -- based on "blocks" that follow same display tree (soft-wired network)
 -- each block has a set of characters (for each vertex eventually) and character info
--- the vector of T.Text are the names--leaves form input, internal HTU ++ (show index)
+-- the vector of T.Text are the names--leaves form input, internal HTU <> (show index)
 -- ablock are initialy set bu input file, and can be later changed by "set(block,...)"
 -- command
 -- "Naive" "Optimized" and "Transformed" darta are this type after different processing steps

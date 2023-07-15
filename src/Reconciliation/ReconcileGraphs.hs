@@ -65,11 +65,11 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           -- convert eun format graph back to SimpleGraph
           reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
       in
-      --trace ("MRG :" ++ (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) ++ "\n" ++ reconcileString
-      --  ++ "\n" ++ (LG.prettyIndices reconcileSimpleGraph))
+      --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
+      --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
       (reconcileString, reconcileSimpleGraph)
-      where mergePair (a,b) = if a /= [] && b /= [] then a ++ (':' : b)
-                              else a ++ b
+      where mergePair (a,b) = if a /= [] && b /= [] then a <> (':' : b)
+                              else a <> b
 
 
 -- | processReconcileArgs takes a list of strings and returns values of commands for proram execution
@@ -92,7 +92,7 @@ processReconcileArgs validCommandList inList' =
       (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
 
     else
-        -- trace ("Rec args: " ++ (show inList)) (
+        -- trace ("Rec args: " <> (show inList)) (
         let inTextList = fmap T.pack inList
             inTextListLC = fmap T.toLower inTextList
             commandList = filter (T.any (== ':')) inTextListLC
@@ -113,7 +113,7 @@ processReconcileArgs validCommandList inList' =
         in
         if null notMatchedList then
             (localMethod, compareMethod, threshold, connect, edgeLabel, vertexLabel, outFormat)
-        else errorWithoutStackTrace ("\n\nError(s) in reconcile command specification (case insensitive):\n" ++ getCommandErrorString notMatchedList)
+        else errorWithoutStackTrace ("\n\nError(s) in reconcile command specification (case insensitive):\n" <> getCommandErrorString notMatchedList)
         -- )
 
 -- | getMethod returns method value or dedfault otherwise
@@ -135,7 +135,7 @@ getMethod inTextList =
             else if option == "majority" then "majority"
             else if option == "strict" then "strict"
             else if option == "adams" then "adams"
-            else errorWithoutStackTrace ("Reconcile option \'" ++ option ++ "\' not recognized (eun|cun|majority|strict)")
+            else errorWithoutStackTrace ("Reconcile option \'" <> option <> "\' not recognized (eun|cun|majority|strict)")
         else getMethod (tail inTextList)
 
 -- | getCompareMethod returns compareMethod value or default otherwise
@@ -154,7 +154,7 @@ getCompareMethod inTextList =
             in
             if option == "combinable" then "combinable"
             else if option == "identity" then "identity"
-            else errorWithoutStackTrace ("Compare option \'" ++ option ++ "\' not recognized (combinable|identity)")
+            else errorWithoutStackTrace ("Compare option \'" <> option <> "\' not recognized (combinable|identity)")
         else getCompareMethod (tail inTextList)
 
 -- | getConect returns connect value or default otherwise (True|False)
@@ -169,7 +169,7 @@ getConnect inTextList =
                               else if firstCommand == T.pack "connect" then
                                   let option = T.unpack firstOption
                                   in
-                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("Connect option \'" ++ option ++ "\' not recognized (True|False)"))
+                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("Connect option \'" <> option <> "\' not recognized (True|False)"))
                               else getConnect (tail inTextList))
 
 -- | getEdgeLabel returns edgeLabel value or default otherwise (True|False)
@@ -184,7 +184,7 @@ getEdgeLabel inTextList =
                         else if firstCommand == T.pack "edgelabel" then
                             let option = T.unpack firstOption
                             in
-                            (option == "true") || (option /= "false" && errorWithoutStackTrace ("EdgeLAbel option \'" ++ option ++ "\' not recognized (True|False)"))
+                            (option == "true") || (option /= "false" && errorWithoutStackTrace ("EdgeLAbel option \'" <> option <> "\' not recognized (True|False)"))
                         else getEdgeLabel (tail inTextList))
 
 -- | getVertexLabel returns edgeLabel value or default otherwise (True|False)
@@ -199,7 +199,7 @@ getVertexLabel inTextList =
                               else if firstCommand == T.pack "vertexlabel" then
                                   let option = T.unpack firstOption
                                   in
-                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("VertexLabel option \'" ++ option ++ "\' not recognized (True|False)"))
+                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("VertexLabel option \'" <> option <> "\' not recognized (True|False)"))
                               else getVertexLabel (tail inTextList))
 
 

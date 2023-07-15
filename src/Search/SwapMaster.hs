@@ -130,9 +130,9 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
 
                progressString
-                 | (not doAnnealing && not doDrift) = ("Swapping " ++ show (length inGraphListInput) ++ " input graph(s) with " ++ show replicates ++ " trajectories at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs per input graph")
-                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds with " ++ show (numberSteps $ fromJust simAnnealParams) ++ " cooling steps " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs")
-                 | otherwise = "Drifting (Swapping) " ++ show (rounds $ fromJust simAnnealParams) ++ " rounds with " ++ show (driftMaxChanges $ fromJust simAnnealParams) ++ " maximum changes per round on " ++ show (length inGraphList) ++ " input graph(s) at minimum cost "++ show (minimum $ fmap snd5 inGraphList) ++ " keeping maximum of " ++ show (fromJust keepNum) ++ " graphs"
+                 | (not doAnnealing && not doDrift) = ("Swapping " <> show (length inGraphListInput) <> " input graph(s) with " <> show replicates <> " trajectories at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs per input graph")
+                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " <> show (rounds $ fromJust simAnnealParams) <> " rounds with " <> show (numberSteps $ fromJust simAnnealParams) <> " cooling steps " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs")
+                 | otherwise = "Drifting (Swapping) " <> show (rounds $ fromJust simAnnealParams) <> " rounds with " <> show (driftMaxChanges $ fromJust simAnnealParams) <> " maximum changes per round on " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs"
 
                -- populate SwapParams structure
                localSwapParams = SwapParams {  swapType = swapType
@@ -161,12 +161,12 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                                     else ""
 
                   endString
-                    | (not doAnnealing && not doDrift) = ("\n\tAfter swap: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType)
-                    | method (fromJust simAnnealParams) == SimAnneal = ("\n\tAfter Simulated Annealing: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType)
-                    | otherwise = "\n\tAfter Drifting: " ++ show (length finalGraphList) ++ " resulting graphs with minimum cost " ++ show (minimum $ fmap snd5 finalGraphList) ++ " with swap rounds (total): " ++ show counter ++ " " ++ show swapType
+                    | (not doAnnealing && not doDrift) = ("\n\tAfter swap: " <> show (length finalGraphList) <> " resulting graphs with minimum cost " <> show (minimum $ fmap snd5 finalGraphList) <> " with swap rounds (total): " <> show counter <> " " <> show swapType)
+                    | method (fromJust simAnnealParams) == SimAnneal = ("\n\tAfter Simulated Annealing: " <> show (length finalGraphList) <> " resulting graphs with minimum cost " <> show (minimum $ fmap snd5 finalGraphList) <> " with swap rounds (total): " <> show counter <> " " <> show swapType)
+                    | otherwise = "\n\tAfter Drifting: " <> show (length finalGraphList) <> " resulting graphs with minimum cost " <> show (minimum $ fmap snd5 finalGraphList) <> " with swap rounds (total): " <> show counter <> " " <> show swapType
 
               in
-              trace (endString ++ fullBuffWarning)
+              trace (endString <> fullBuffWarning)
               finalGraphList
               )
 
@@ -236,19 +236,19 @@ getSwapParams inArgs =
         checkCommandList = checkCommandArgs "swap" fstArgList VER.swapArgList
     in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " ++ show inArgs)
+     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'swap': " <> show inArgs)
      else
          let keepList = filter ((=="keep").fst) lcArgList
              keepNum
               | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " <> show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
              moveLimitList = filter (not . null) (snd <$> filter ((`elem` ["alternate", "spr", "tbr", "nni"]).fst) lcArgList)
              maxMoveEdgeDist'
               | length moveLimitList > 1 =
-                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in swap command--can have only one (e.g. spr:2): " <> show inArgs)
               | null moveLimitList = Just ((maxBound :: Int) `div` 3)
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
 
@@ -256,14 +256,14 @@ getSwapParams inArgs =
              stepsList   = filter ((=="steps").fst) lcArgList
              steps'
               | length stepsList > 1 =
-                errorWithoutStackTrace ("Multiple annealing steps value specifications in swap command--can have only one (e.g. steps:10): " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple annealing steps value specifications in swap command--can have only one (e.g. steps:10): " <> show inArgs)
               | null stepsList = Just 10
               | otherwise = readMaybe (snd $ head stepsList) :: Maybe Int
 
              annealingList = filter ((=="annealing").fst) lcArgList
              annealingRounds'
               | length annealingList > 1 =
-                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'annealing' rounds number specifications in swap command--can have only one: " <> show inArgs)
               | null annealingList = Just 1
               | otherwise = readMaybe (snd $ head annealingList) :: Maybe Int
 
@@ -273,48 +273,48 @@ getSwapParams inArgs =
              driftList = filter ((=="drift").fst) lcArgList
              driftRounds'
               | length driftList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " <> show inArgs)
               | null driftList = Just 1
               | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
 
              acceptEqualList = filter ((=="acceptequal").fst) lcArgList
              acceptEqualProb
               | length acceptEqualList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " <> show inArgs)
               | null acceptEqualList = Just 0.5
               | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double
 
              acceptWorseList = filter ((=="acceptworse").fst) lcArgList
              acceptWorseFactor
               | length acceptWorseList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " <> show inArgs)
               | null acceptWorseList = Just 20.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double
 
              maxChangesList = filter ((=="maxchanges").fst) lcArgList
              maxChanges
               | length maxChangesList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' maxChanges number specifications in swap command--can have only one: " <> show inArgs)
               | null maxChangesList = Just 15
               | otherwise = readMaybe (snd $ head maxChangesList) :: Maybe Int
 
              replicatesList = filter ((=="replicates").fst) lcArgList
              replicates
               | length replicatesList > 1 =
-                errorWithoutStackTrace ("Multiple 'swap' replicates number specifications in swap command--can have only one: " ++ show inArgs)
+                errorWithoutStackTrace ("Multiple 'swap' replicates number specifications in swap command--can have only one: " <> show inArgs)
               | null replicatesList = Just 1
               | otherwise = readMaybe (snd $ head replicatesList) :: Maybe Int
 
         in
         -- check inputs
-        if isNothing keepNum               then errorWithoutStackTrace ("Keep specification not an integer in swap: "  ++ show (head keepList))
-        else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  ++ show (head moveLimitList))
-        else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  ++ show (snd $ head stepsList))
-        else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  ++ show (snd $ head acceptEqualList))
-        else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  ++ show (snd $ head acceptWorseList))
-        else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  ++ show (snd $ head maxChangesList))
-        else if isNothing replicates       then errorWithoutStackTrace ("Swap 'replicates' specification not an integer (e.g. replicates:5): "  ++ show (snd $ head replicatesList))
+        if isNothing keepNum               then errorWithoutStackTrace ("Keep specification not an integer in swap: "  <> show (head keepList))
+        else if isNothing maxMoveEdgeDist' then errorWithoutStackTrace ("Maximum edge move distance specification not an integer (e.g. spr:2): "  <> show (head moveLimitList))
+        else if isNothing steps'           then errorWithoutStackTrace ("Annealing steps specification not an integer (e.g. steps:10): "  <> show (snd $ head stepsList))
+        else if isNothing acceptEqualProb  then errorWithoutStackTrace ("Drift 'acceptEqual' specification not a float (e.g. acceptEqual:0.75): "  <> show (snd $ head acceptEqualList))
+        else if isNothing acceptWorseFactor then errorWithoutStackTrace ("Drift 'acceptWorse' specification not a float (e.g. acceptWorse:1.0): "  <> show (snd $ head acceptWorseList))
+        else if isNothing maxChanges       then errorWithoutStackTrace ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): "  <> show (snd $ head maxChangesList))
+        else if isNothing replicates       then errorWithoutStackTrace ("Swap 'replicates' specification not an integer (e.g. replicates:5): "  <> show (snd $ head replicatesList))
 
         else
-            -- trace ("GSP: " ++ (show inArgs) ++ " " ++ (show )(keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList))
+            -- trace ("GSP: " <> (show inArgs) <> " " <> (show )(keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList))
             (keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, replicates, lcArgList)

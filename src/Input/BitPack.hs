@@ -490,7 +490,7 @@ minMaxCharDiff inCharType bitCosts a b =
                             else if inCharType == Packed5  then minMaxPacked5 bitCosts a b
                             else if inCharType == Packed8  then minMaxPacked8 bitCosts a b
                             else if inCharType == Packed64 then minMaxPacked64 bitCosts a b
-                            else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+                            else error ("Character type " <> show inCharType <> " unrecognized/not implemented")
     in
     (minVal, maxVal)
 
@@ -764,7 +764,7 @@ minMaxPacked2 (lNoChangeCost, lChangeCost) a b =
               , max30, max31]
 
     in
-    -- trace ("MM2:" ++ "\t" ++ (showBits a0) ++ " " ++ (showBits b0) ++ "->" ++ (showBits $ a0 .&. b0) ++ "=>" ++ (show max0) ++ "\n\t" ++ (showBits a10) ++ " " ++ (showBits b10) ++ "->" ++ (showBits $ a10 .&. b10) ++ "=>" ++ (show max10))
+    -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
     else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
 
@@ -908,7 +908,7 @@ minMaxPacked4 (lNoChangeCost, lChangeCost) a b =
               , max10, max11, max12, max13, max14, max15]
 
     in
-    -- trace ("MM2:" ++ "\t" ++ (showBits a0) ++ " " ++ (showBits b0) ++ "->" ++ (showBits $ a0 .&. b0) ++ "=>" ++ (show max0) ++ "\n\t" ++ (showBits a10) ++ " " ++ (showBits b10) ++ "->" ++ (showBits $ a10 .&. b10) ++ "=>" ++ (show max10))
+    -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
     else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((16 :: Int)- maxVal)) + (lChangeCost * fromIntegral maxVal))
 
@@ -1020,7 +1020,7 @@ minMaxPacked5 (lNoChangeCost, lChangeCost) a b =
               , max10, max11]
 
     in
-    -- trace ("MM2:" ++ "\t" ++ (showBits a0) ++ " " ++ (showBits b0) ++ "->" ++ (showBits $ a0 .&. b0) ++ "=>" ++ (show max0) ++ "\n\t" ++ (showBits a10) ++ " " ++ (showBits b10) ++ "->" ++ (showBits $ a10 .&. b10) ++ "=>" ++ (show max10))
+    -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
     else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((12 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
 
@@ -1099,7 +1099,7 @@ minMaxPacked8 (lNoChangeCost, lChangeCost) a b =
         maxVal = sum [max0, max1, max2, max3, max4, max5, max6, max7]
 
     in
-    -- trace ("MM2:" ++ "\t" ++ (showBits a0) ++ " " ++ (showBits b0) ++ "->" ++ (showBits $ a0 .&. b0) ++ "=>" ++ (show max0) ++ "\n\t" ++ (showBits a10) ++ " " ++ (showBits b10) ++ "->" ++ (showBits $ a10 .&. b10) ++ "=>" ++ (show max10))
+    -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
     else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((7 :: Int)- maxVal)) + (lChangeCost * fromIntegral maxVal))
 
@@ -1125,7 +1125,7 @@ median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftCha
                                   else if inCharType == Packed5  then median2Word64 andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed8  then median2Word64 andOR8  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed64 then median2Word64 andOR64 (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
-                                  else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+                                  else error ("Character type " <> show inCharType <> " unrecognized/not implemented")
 
         -- this for PMDL/ML costs
         newCost = if thisNoChangeCost == 0.0 then inCharWeight * (fromIntegral numChange)
@@ -1136,7 +1136,7 @@ median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftCha
                                       , globalCost =newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
-    -- trace ("M2P: " ++ (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) ++ " " ++ (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) ++ " -> " ++   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) ++ " at cost " ++ (show newCost))
+    -- trace ("M2P: " <> (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) <> " " <> (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) <> " -> " <>   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) <> " at cost " <> (show newCost))
     newCharacter
 
 -- | median2PackedUnionField takes two characters of packedNonAddTypes
@@ -1148,7 +1148,7 @@ median2PackedUnionField inCharType inCharWeight (thisNoChangeCost, thisChangeCos
                                   else if inCharType == Packed5  then median2Word64 andOR5  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
                                   else if inCharType == Packed8  then median2Word64 andOR8  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
                                   else if inCharType == Packed64 then median2Word64 andOR64 (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
-                                  else error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+                                  else error ("Character type " <> show inCharType <> " unrecognized/not implemented")
 
         -- this for PMDL/ML costs
         newCost = if thisNoChangeCost == 0.0 then inCharWeight * (fromIntegral numChange)
@@ -1220,10 +1220,10 @@ andOR2 x y =
         numChars =  32 - numNonCharacters
     in
     {-
-    trace ("AO2 numChars:" ++ (show numChars) ++ " x & y:" ++ (showBits $ x .&. y) ++ "\nx .&. y .&. mask2A:" ++ (showBits $ (x .&. y .&. mask2A)) ++ "\n((x .&. y .&. mask2A) + mask2A):" ++ (showBits $ ((x .&. y .&. mask2A) + mask2A))
-      ++ "\n:(((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)): " ++ (showBits $ (((x .&. y .&. mask2A) + mask2A) .|. (x .&. y))) ++ "\n:((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B):"
-      ++ (showBits $ ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B)) ++ "\nu: " ++ (showBits u)
-      ++"\npc: " ++ (show $ popCount u) ++ " x:" ++ (showBits x) ++ " y:" ++ (showBits y) ++ " => u:" ++ (showBits u) ++ " z:" ++ (showBits z)) -- ++ " mask2A:" ++ (showBits mask2A) ++ " mask2B:" ++ (showBits mask2B))
+    trace ("AO2 numChars:" <> (show numChars) <> " x & y:" <> (showBits $ x .&. y) <> "\nx .&. y .&. mask2A:" <> (showBits $ (x .&. y .&. mask2A)) <> "\n((x .&. y .&. mask2A) + mask2A):" <> (showBits $ ((x .&. y .&. mask2A) + mask2A))
+      <> "\n:(((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)): " <> (showBits $ (((x .&. y .&. mask2A) + mask2A) .|. (x .&. y))) <> "\n:((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B):"
+      <> (showBits $ ((((x .&. y .&. mask2A) + mask2A) .|. (x .&. y)) .&. mask2B)) <> "\nu: " <> (showBits u)
+      <>"\npc: " <> (show $ popCount u) <> " x:" <> (showBits x) <> " y:" <> (showBits y) <> " => u:" <> (showBits u) <> " z:" <> (showBits z)) -- <> " mask2A:" <> (showBits mask2A) <> " mask2B:" <> (showBits mask2B))
     -}
     (z, popCount u, numChars - popCount u)
 
@@ -1260,7 +1260,7 @@ andOR5 x y =
         (numNonCharacters, _) =  divMod (numEmptyBits - 4) 5
         numChars =  12 - numNonCharacters
     in
-    -- trace ("AO5 numChars:" ++ (show numChars) ++ " x & y:" ++ (showBits $ x .&. y) ++ " u:" ++ (showBits u) ++ " z:" ++ (showBits z) ++ " leading 0:" ++ (show numEmptyBits) ++ " non-chars:" ++ (show numNonCharacters) ++ " popCount u:" ++ (show $ popCount u))
+    -- trace ("AO5 numChars:" <> (show numChars) <> " x & y:" <> (showBits $ x .&. y) <> " u:" <> (showBits u) <> " z:" <> (showBits z) <> " leading 0:" <> (show numEmptyBits) <> " non-chars:" <> (show numNonCharacters) <> " popCount u:" <> (show $ popCount u))
     (z, popCount u, numChars - popCount u)
 
 -- | andOR8 and or function for Packed8 encoding
@@ -1303,7 +1303,7 @@ packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
           | inCharType == Packed5 = UV.zipWith4 preOrder5 leftPrelim childPrelim rightPrelim parentFinal
           | inCharType == Packed8 = UV.zipWith4 preOrder8 leftPrelim childPrelim rightPrelim parentFinal
           | inCharType == Packed64 = UV.zipWith4 preOrder64 leftPrelim childPrelim rightPrelim parentFinal
-          | otherwise = error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+          | otherwise = error ("Character type " <> show inCharType <> " unrecognized/not implemented")
     in
     newStateVect
 
@@ -1325,7 +1325,7 @@ preOrder2 leftPrelim childPrelim rightPrelim parentFinal =
 
         finalState = (parentFinal .&. complement c4) .|. (c4 .&. (childPrelim .|. parentFinal .&. t))
     in
-    -- trace ("PO2: " ++ " in " ++ (show (showBits leftPrelim,  showBits childPrelim, showBits rightPrelim, showBits parentFinal)) ++ "->" ++ (show $ showBits finalState))
+    -- trace ("PO2: " <> " in " <> (show (showBits leftPrelim,  showBits childPrelim, showBits rightPrelim, showBits parentFinal)) <> "->" <> (show $ showBits finalState))
     finalState
 
 -- | preOrder4 from preOrder2 but for 4 states
@@ -1416,7 +1416,7 @@ threeWayPacked inCharType parent1 parent2 curNode =
           | inCharType == Packed5 = UV.zipWith3 threeWay5 parent1 parent2 curNode
           | inCharType == Packed8 = UV.zipWith3 threeWay8 parent1 parent2 curNode
           | inCharType == Packed64 = UV.zipWith3 threeWay64 parent1 parent2 curNode
-          | otherwise = error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+          | otherwise = error ("Character type " <> show inCharType <> " unrecognized/not implemented")
     in
     newStateVect
 
@@ -1432,7 +1432,7 @@ threeWayPacked' inCharType parent1 parent2 curNode =
           | inCharType == Packed5 = UV.zipWith3 (threeWayNWord64 packed5SubCharList) parent1 parent2 curNode
           | inCharType == Packed8 = UV.zipWith3 (threeWayNWord64 packed8SubCharList) parent1 parent2 curNode
           | inCharType == Packed64 = UV.zipWith3 threeWay64 parent1 parent2 curNode
-          | otherwise = error ("Character type " ++ show inCharType ++ " unrecognized/not implemented")
+          | otherwise = error ("Character type " <> show inCharType <> " unrecognized/not implemented")
     in
     newStateVect
 
@@ -1557,7 +1557,7 @@ recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
         newTaxVectByCharVect = V.fromList $ fmap V.fromList $ L.transpose $ concat recodedSingleVecList
 
     in
-    -- trace ("RNAC: " ++ (show (length recodedSingleVecList, fmap length recodedSingleVecList)) ++ " -> " ++ (show $ fmap length newTaxVectByCharVect) ++ " " ++ (show $ length $ V.fromList $ concat newCharInfoLL))
+    -- trace ("RNAC: " <> (show (length recodedSingleVecList, fmap length recodedSingleVecList)) <> " -> " <> (show $ fmap length newTaxVectByCharVect) <> " " <> (show $ length $ V.fromList $ concat newCharInfoLL))
     (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
 
 -- | packNonAdd takes (vector of taxa) by character data and list of character information
@@ -1568,7 +1568,7 @@ recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
 -- as single BV--here as well. Should be very few (if any) of them.
 packNonAdd ::GlobalSettings ->  V.Vector CharacterData -> CharInfo -> ([[CharacterData]], [CharInfo])
 packNonAdd inGS inCharDataV charInfo =
-    -- trace ("PNA in weight: " ++ (show $ weight charInfo)) (
+    -- trace ("PNA in weight: " <> (show $ weight charInfo)) (
     if charType charInfo /= NonAdd then ([V.toList inCharDataV],[charInfo])
     else
         -- recode non-additive characters
@@ -1591,8 +1591,8 @@ packNonAdd inGS inCharDataV charInfo =
 
 
         in
-        -- trace ("PNA:" ++ (show $ fmap length leafNonAddV))
-        -- trace ("PNA out weights : " ++ (show $ fmap weight $ concat newCharInfoList))  -- (show $ fmap fst stateNumDataPairList) ) --  ++ "\n" ++ (show (newStateCharListList, newCharInfoList) ))
+        -- trace ("PNA:" <> (show $ fmap length leafNonAddV))
+        -- trace ("PNA out weights : " <> (show $ fmap weight $ concat newCharInfoList))  -- (show $ fmap fst stateNumDataPairList) ) --  <> "\n" <> (show (newStateCharListList, newCharInfoList) ))
         (newStateCharListList, concat newCharInfoList)
         -- )
 
@@ -1675,16 +1675,16 @@ makeNewCharacterData charByTaxSingleCharData  =
 -- and removed if empty
 recodeBV2Word64 ::GlobalSettings ->  CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
 recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
-    -- trace ("Enter RBV2W64 In: " ++ (show stateNumber) ++ " " ++ (show (length charTaxBVLL, fmap length charTaxBVLL))) (
+    -- trace ("Enter RBV2W64 In: " <> (show stateNumber) <> " " <> (show (length charTaxBVLL, fmap length charTaxBVLL))) (
     if null charTaxBVLL then ([],[])
     else
         let newCharType = if stateNumber == 2 then Packed2
                           else if stateNumber == 4 then Packed4
                           else if stateNumber == 5 then Packed5
                           else if stateNumber == 8 then Packed8
-                          else error ("State number " ++ (show stateNumber) ++ " not to be packed in recodeBV2Word64")
+                          else error ("State number " <> (show stateNumber) <> " not to be packed in recodeBV2Word64")
 
-            newCharName = T.append (name charInfo) $ T.pack ((show stateNumber) ++ "State")
+            newCharName = T.append (name charInfo) $ T.pack ((show stateNumber) <> "State")
 
             -- get number of characters that can be packed into Word64 for that state number
             numCanPack = fst $ divMod 64 stateNumber
@@ -1703,11 +1703,11 @@ recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
                                            else if stateNumber == 4 then bc4 inGS
                                            else if stateNumber == 5 then bc5 inGS
                                            else if stateNumber == 8 then bc8 inGS
-                                           else error ("Change/NoChange costs for state number " ++ (show stateNumber) ++ " not to be set in recodeBV2Word64")
+                                           else error ("Change/NoChange costs for state number " <> (show stateNumber) <> " not to be set in recodeBV2Word64")
 
         in
-        -- trace ("RBV2W64 Out: " ++ (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
-        -- trace ("RBV2W64: " ++ (show (lNoChangeCost, lChangeCost)))
+        -- trace ("RBV2W64 Out: " <> (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
+        -- trace ("RBV2W64: " <> (show (lNoChangeCost, lChangeCost)))
         (packedDataL, [charInfo {name = newCharName, charType = newCharType, noChangeCost = lNoChangeCost, changeCost = lChangeCost}])
         -- )
 
@@ -1725,7 +1725,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
         packedWordVect = UV.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
 
     in
-    -- trace ("PIW64 chunks/values: " ++ (show $ V.length packedWordVect))
+    -- trace ("PIW64 chunks/values: " <> (show $ V.length packedWordVect))
     emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
                    , packedNonAddFinal = packedWordVect
                    }
@@ -1740,14 +1740,14 @@ makeWord64FromChunk stateNumber stateIndexLL bvList =
     else
         let subCharacterList = zipWith3 (makeSubCharacter stateNumber) stateIndexLL bvList [0..(length bvList - 1)]
         in
-        -- trace ("MW64FC: " ++ (show subCharacterList) ++ " " ++ (show $ L.foldl1' (.|.) subCharacterList))
+        -- trace ("MW64FC: " <> (show subCharacterList) <> " " <> (show $ L.foldl1' (.|.) subCharacterList))
         L.foldl1' (.|.) subCharacterList
 
 -- | makeSubCharacter makes sub-character (ie only those bits for states) from single bitvector and shifts appropriate number of bits
 -- to make Word64 with sub character bits set and all other bits OFF and in correct bit positions for that sub-character
 makeSubCharacter :: Int -> [Int] -> BV.BitVector -> Int -> Word64
 makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
-    -- trace ("Making sub character:" ++ (show stateNumber ++ " " ++ (show stateIndexList) ++ " " ++ (show subCharacterIndex) ++ (show inBV))) (
+    -- trace ("Making sub character:" <> (show stateNumber <> " " <> (show stateIndexList) <> " " <> (show subCharacterIndex) <> (show inBV))) (
     let -- get bit of state indices
         bitStates = fmap (testBit inBV) stateIndexList
 
@@ -1755,9 +1755,9 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
         newBitStates = setOnBits (zeroBits :: Word64) bitStates 0
         subCharacter = shiftL newBitStates (subCharacterIndex * stateNumber)
     in
-    -- trace ("MSC: " ++ (show subCharacterIndex) ++ " " ++ (show bitStates) ++ " " ++ (show newBitStates) ++ " " ++ (show subCharacter)) (
+    -- trace ("MSC: " <> (show subCharacterIndex) <> " " <> (show bitStates) <> " " <> (show newBitStates) <> " " <> (show subCharacter)) (
     -- cna remove this check when working
-    if length stateIndexList `notElem` [(fst (divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " ++ show (stateNumber, length stateIndexList, stateIndexList))
+    if length stateIndexList `notElem` [(fst (divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " <> show (stateNumber, length stateIndexList, stateIndexList))
     else
         subCharacter
     -- )
@@ -1787,7 +1787,7 @@ getStateIndexList taxBVL =
             indexList = (snd <$> filter fst onIndexPair)
 
         in
-        -- trace ("GSIL: " ++ (show indexList))
+        -- trace ("GSIL: " <> (show indexList))
         indexList
 
 
@@ -1799,7 +1799,7 @@ binStateNumber :: [(Int, [BV.BitVector])]
 binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
     if null inPairList then
         --dont' really need to reverse here but seems hygenic
-        -- trace ("Recoding NonAdditive Characters : " ++ (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
+        -- trace ("Recoding NonAdditive Characters : " <> (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
         (L.reverse cur2, L.reverse cur4, L.reverse cur5, L.reverse cur8, L.reverse cur64,  L.reverse cur128)
     else
         let (stateNum, stateData) = head inPairList
@@ -1823,7 +1823,7 @@ binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
 -- checks for min length vchars to make those missing-- can happen with implied alignment recoding
 getStateNumber :: [V.Vector BV.BitVector] -> Int -> (Int, [BV.BitVector])
 getStateNumber  characterDataVV characterIndex  =
-    -- trace ("GSN:" ++ (show characterIndex) ++ " " ++ (show $ fmap V.length characterDataVV) ++ "\n\t" ++ (show $ fmap (V.! characterIndex) characterDataVV)) (
+    -- trace ("GSN:" <> (show characterIndex) <> " " <> (show $ fmap V.length characterDataVV) <> "\n\t" <> (show $ fmap (V.! characterIndex) characterDataVV)) (
     if null characterDataVV then (0, [])
     else
         let thisCharV = fmap (V.! characterIndex) characterDataVV
@@ -1835,7 +1835,7 @@ getStateNumber  characterDataVV characterIndex  =
             -- this turns off non-missing bits
             thisCharL = fmap (.&. nonMissingBV) thisCharV
         in
-        -- trace ("GSN:" ++ (show nonMissingStates) ++ "\nNMBV " ++ (show nonMissingBV) ++ " MBV " ++ (show missingVal) ++ " -> " ++ (show numStates) ) (
+        -- trace ("GSN:" <> (show nonMissingStates) <> "\nNMBV " <> (show nonMissingBV) <> " MBV " <> (show missingVal) <> " -> " <> (show numStates) ) (
         (if null nonMissingStates || (numStates == 1) then (1, []) else (if numStates == 2 then (2, thisCharL)
         else if numStates <= 4 then (4, thisCharL)
         else if numStates == 5 then (5, thisCharL)

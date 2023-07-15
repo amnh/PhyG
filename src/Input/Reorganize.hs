@@ -121,7 +121,7 @@ convertTaxonPrealignedToNonAdd charInfoV codingTypeV charDataV =
 -- and transforms to non-additive if all tcms are 1's
 convertTaxonPrealignedToNonAddCharacter :: CharInfo -> String -> CharacterData -> (CharacterData, CharInfo)
 convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
-    -- trace ("CTP: " ++ (show $ charType charInfo) ++ " " ++ (show $ matrixType)) (
+    -- trace ("CTP: " <> (show $ charType charInfo) <> " " <> (show $ matrixType)) (
     if charType charInfo `notElem` prealignedCharacterTypes then (charData, charInfo)
     else if matrixType /= "nonAdd" then (charData, charInfo)
     else
@@ -130,7 +130,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
         let matrixCoefficient = if (charType charInfo) == AlignedSlim then 1
                                 else if (charType charInfo) == AlignedWide then MR.minInDelCost (wideTCM charInfo)
                                 else if (charType charInfo) == AlignedHuge then MR.minInDelCost (hugeTCM charInfo)
-                                else error ("Unrecognized--unimplemented character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
+                                else error ("Unrecognized--unimplemented character type in convertTaxonPrealignedToNonAddCharacter: " <> (show $ charType charInfo))
 
             charWeight = weight charInfo
 
@@ -143,7 +143,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
                             error "No point in converting huge--can't pack anyway"
                             -- this is wrong for some reason--creates incorrect IA
                             -- (snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData)
-                         else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " ++ (show $ charType charInfo))
+                         else error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " <> (show $ charType charInfo))
         in
         (emptyCharacter {stateBVPrelim = newStateBV}, charInfo {charType = NonAdd, weight = charWeight * (fromIntegral $ fromEnum matrixCoefficient)})
         -- )
@@ -182,7 +182,7 @@ getRecodingType inMatrix =
              numUniqueCosts = length $ L.group $ L.sort $ (filter (/= 0) $ concat matrixLL)
 
          in
-         -- trace  ("GRT: " ++ (show numUniqueCosts)) (
+         -- trace  ("GRT: " <> (show numUniqueCosts)) (
 
          -- don't recode huge--no point
          if S.rows inMatrix > 32 then ("matrix",  head secondRow)
@@ -194,7 +194,7 @@ getRecodingType inMatrix =
          {-
          -- all same except for gaps
          else if numUniqueCosts == 2 then
-            trace ("NAG: " ++ (show $ length $ L.group $ L.sort $ filter (/= 0) lastRow)) (
+            trace ("NAG: " <> (show $ length $ L.group $ L.sort $ filter (/= 0) lastRow)) (
             if  (length $ L.group $ filter (/= 0) lastRow) == 1 then ("nonAddGap", head lastRow)
 
             -- some no gaps different
@@ -211,7 +211,7 @@ getRecodingType inMatrix =
 -- reblock pair names may contain wildcards
 reBlockData :: [(NameText, NameText)] -> ProcessedData -> ProcessedData
 reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
-    -- trace ("RBD:" ++ (show $ fmap fst3 blockDataV )) (
+    -- trace ("RBD:" <> (show $ fmap fst3 blockDataV )) (
     if null reBlockPairs then trace "Character Blocks as input files" inData
     else
         let -- those block to be reassigned--nub in case repeated names
@@ -219,10 +219,10 @@ reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
             unChangedBlocks = V.filter ((`notElemWildcards` toBeReblockedNames).fst3) blockDataV
             blocksToChange = V.filter ((`elemWildcards` toBeReblockedNames).fst3) blockDataV
             newBlocks = makeNewBlocks reBlockPairs blocksToChange []
-            reblockedBlocks = unChangedBlocks V.++ V.fromList newBlocks
+            reblockedBlocks = unChangedBlocks <> V.fromList newBlocks
         in
-        trace ("\nReblocking: " ++ show toBeReblockedNames ++ " leaving unchanged: " ++ show (fmap fst3 unChangedBlocks)
-            ++ "\n\tNew blocks: " ++ show (fmap fst3 reblockedBlocks) ++ "\n")
+        trace ("\nReblocking: " <> show toBeReblockedNames <> " leaving unchanged: " <> show (fmap fst3 unChangedBlocks)
+            <> "\n\tNew blocks: " <> show (fmap fst3 reblockedBlocks) <> "\n")
         (leafNames, leafBVs, reblockedBlocks)
         -- )
 
@@ -231,35 +231,35 @@ makeNewBlocks :: [(NameText, NameText)] -> V.Vector BlockData -> [BlockData] -> 
 makeNewBlocks reBlockPairs inBlockV curBlockList
   | null reBlockPairs = curBlockList
   | V.null inBlockV && null curBlockList =
-    errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing '#0/N'? Blocks: " ++ (show $ fmap snd reBlockPairs))
+    errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing '#0/N'? Blocks: " <> (show $ fmap snd reBlockPairs))
   | V.null inBlockV = curBlockList
   | otherwise =
     let firstBlock = V.head inBlockV
         firstName = fst3 firstBlock
         newPairList = fst <$> filter (textMatchWildcards firstName.snd) reBlockPairs
     in
-    if null newPairList then errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing '#0'? Specified pairs: " ++ show reBlockPairs
-        ++ " input block name: " ++ T.unpack firstName)
-    else if length newPairList > 1 then errorWithoutStackTrace ("Multiple reblock destinations for single input block" ++ show newPairList)
+    if null newPairList then errorWithoutStackTrace ("Reblock pair names do not have a match for any input block--perhaps missing '#0'? Specified pairs: " <> show reBlockPairs
+        <> " input block name: " <> T.unpack firstName)
+    else if length newPairList > 1 then errorWithoutStackTrace ("Multiple reblock destinations for single input block" <> show newPairList)
     else
         let newBlockName = head newPairList
             existingBlock = filter ((==newBlockName).fst3) curBlockList
         in
         -- new block to be created
         if null existingBlock then
-            --trace("NBlocks:" ++ (show $ fmap fst3 curBlockList))
+            --trace("NBlocks:" <> (show $ fmap fst3 curBlockList))
             makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, snd3 firstBlock, thd3 firstBlock) : curBlockList)
 
         -- existing block to be added to
-        else if length existingBlock > 1 then error ("Error: Block to be added to more than one block-should not happen: " ++ show reBlockPairs)
+        else if length existingBlock > 1 then error ("Error: Block to be added to more than one block-should not happen: " <> show reBlockPairs)
         else
             -- need to add character vectors to vertex vectors and add to CharInfo
             -- could be multiple  'characteres' if non-exact data in inpuit file (Add, NonAdd, MAtrix etc)
             let blockToAddTo = head existingBlock
-                newCharData  = V.zipWith (V.++) (snd3 blockToAddTo) (snd3 firstBlock)
-                newCharInfo  = thd3 blockToAddTo V.++ thd3 firstBlock
+                newCharData  = V.zipWith (<>) (snd3 blockToAddTo) (snd3 firstBlock)
+                newCharInfo  = thd3 blockToAddTo <> thd3 firstBlock
             in
-            --trace("EBlocks:" ++ (show $ fmap fst3 curBlockList))
+            --trace("EBlocks:" <> (show $ fmap fst3 curBlockList))
             makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, newCharData, newCharInfo) : filter ((/=newBlockName).fst3) curBlockList)
 
 
@@ -336,11 +336,11 @@ combineBlockData inCharInfoV inCharDataV =
         (newPacked64CharInfo, newPacked64Char) = unzip $ V.toList $ groupCharactersByWeight packed64Chars
 
         -- Add together all new characters, seqeunce characters and char info
-        -- newCharList = newNonAddCharL ++ (V.toList nonAddCharsWeightNotInt) ++ newAddCharL ++ (V.toList addCharsWeightNot1) ++ newPacked2CharL ++ newPacked4CharL ++ newPacked5CharL ++ newPacked8CharL ++ newPacked64CharL ++ newMatrixCharL ++ (fmap snd sequenceCharacters)
-        -- newCharInfoList = newNonAddCharInfoL ++ (V.toList nonAddCharsWeightNotIntInfo) ++ newAddCharInfoL ++ (V.toList addCharsWeightNot1Info) ++ newPacked2CharInfoL ++ newPacked4CharInfoL ++ newPacked5CharInfoL ++ newPacked8CharInfoL ++ newPacked64CharInfoL ++ newMatrixCharInfoL ++ (fmap fst sequenceCharacters)
+        -- newCharList = newNonAddCharL <> (V.toList nonAddCharsWeightNotInt) <> newAddCharL <> (V.toList addCharsWeightNot1) <> newPacked2CharL <> newPacked4CharL <> newPacked5CharL <> newPacked8CharL <> newPacked64CharL <> newMatrixCharL <> (fmap snd sequenceCharacters)
+        -- newCharInfoList = newNonAddCharInfoL <> (V.toList nonAddCharsWeightNotIntInfo) <> newAddCharInfoL <> (V.toList addCharsWeightNot1Info) <> newPacked2CharInfoL <> newPacked4CharInfoL <> newPacked5CharInfoL <> newPacked8CharInfoL <> newPacked64CharInfoL <> newMatrixCharInfoL <> (fmap fst sequenceCharacters)
 
-        newCharList = newNonAddChar ++ newAddChar ++ newPacked2Char ++ newPacked4Char ++ newPacked5Char ++ newPacked8Char ++ newPacked64Char ++ newMatrixCharL ++ (fmap snd sequenceCharacters)
-        newCharInfoList = newNonAddCharInfo ++ newAddCharInfo ++ newPacked2CharInfo ++ newPacked4CharInfo ++ newPacked5CharInfo ++ newPacked8CharInfo ++ newPacked64CharInfo ++ newMatrixCharInfoL ++ (fmap fst sequenceCharacters)
+        newCharList = newNonAddChar <> newAddChar <> newPacked2Char <> newPacked4Char <> newPacked5Char <> newPacked8Char <> newPacked64Char <> newMatrixCharL <> (fmap snd sequenceCharacters)
+        newCharInfoList = newNonAddCharInfo <> newAddCharInfo <> newPacked2CharInfo <> newPacked4CharInfo <> newPacked5CharInfo <> newPacked8CharInfo <> newPacked64CharInfo <> newMatrixCharInfoL <> (fmap fst sequenceCharacters)
 
     in
     (V.fromList newCharList, V.fromList newCharInfoList)
@@ -387,7 +387,7 @@ mergeCharacters inCharsPairList =
         if thisCharType == NonAdd then V.singleton (newCharInfo, newNonAddChar)
         else if thisCharType == Add then V.singleton (newCharInfo, newAddChar)
         else if thisCharType `elem` packedNonAddTypes then V.singleton (newCharInfo, newPackedChar)
-        else error ("Error in mergeCharacters: Character type " ++ show thisCharType ++ " unrecognized/not implemented")
+        else error ("Error in mergeCharacters: Character type " <> show thisCharType <> " unrecognized/not implemented")
 
 
 
@@ -409,7 +409,7 @@ replicateCharPairByWeight :: (CharInfo, CharacterData) -> [(CharInfo, CharacterD
 replicateCharPairByWeight firstPair =
     let charIntWeight = doubleAsInt $ (weight . fst) firstPair
     in
-    if isNothing charIntWeight then error ("Character weight not an integer in replicateCharPair: " ++ (show $ (weight . fst) firstPair))
+    if isNothing charIntWeight then error ("Character weight not an integer in replicateCharPair: " <> (show $ (weight . fst) firstPair))
     else
         (replicate (fromJust charIntWeight) firstPair)
 -}
@@ -510,7 +510,7 @@ getVariableChars inCharType singleChar =
                     else if inCharType == AlignedSlim then getVarVectBits inCharType alSlimV []
                     else if inCharType == AlignedWide then getVarVectBits inCharType alWideV []
                     else if inCharType == AlignedHuge then getVarVectBits inCharType alHugeV []
-                    else error ("Char type unrecognized in getVariableChars: " ++ show inCharType)
+                    else error ("Char type unrecognized in getVariableChars: " <> show inCharType)
 
         -- get Variable characters by type
         nonAddVariable = fmap (filterConstantsV (V.fromList boolVar)) nonAddV
@@ -527,7 +527,7 @@ getVariableChars inCharType singleChar =
         outCharVect = V.zipWith (assignNewField inCharType) singleChar (V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable)
 
     in
-    -- trace ("GVC:" ++ (show $ length boolVar) ++ " -> " ++ (show $ length $ filter (== False) boolVar))
+    -- trace ("GVC:" <> (show $ length boolVar) <> " -> " <> (show $ length $ filter (== False) boolVar))
     outCharVect
 
 -- | getVarVectAdd takes a vector of a vector additive ranges and returns False if range overlap
@@ -573,7 +573,7 @@ getVarVectBits inCharType stateVV curBoolList =
                          else if inCharType == AlignedSlim  then checkIsVariableBit (GV.head firstChar) (GV.tail firstChar)
                          else if inCharType == AlignedWide  then checkIsVariableBit (GV.head firstChar) (GV.tail firstChar)
                          else if inCharType == AlignedHuge  then checkIsVariableBit (GV.head firstChar) (GV.tail firstChar)
-                         else error ("Char type unrecognized in getVariableChars: " ++ show inCharType)
+                         else error ("Char type unrecognized in getVariableChars: " <> show inCharType)
 
         in
         getVarVectBits inCharType (fmap GV.tail stateVV) (isVariable : curBoolList)
@@ -680,7 +680,7 @@ assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlim
     else if inCharType == AlignedSlim then charData {alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
     else if inCharType == AlignedWide then charData {alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
     else if inCharType == AlignedHuge then charData {alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
-    else error ("Char type unrecognized in assignNewField: " ++ show inCharType)
+    else error ("Char type unrecognized in assignNewField: " <> show inCharType)
 
 -- | recodeAddToNonAddCharacters takes an max states number and processsed data
 -- and recodes additive characters with max state < input max (0..input max - 1)
@@ -696,7 +696,7 @@ convertAddToNonAddBlock :: GlobalSettings ->  Int -> BlockData -> BlockData
 convertAddToNonAddBlock inGS maxStateToRecode (blockName, taxByCharDataVV, charInfoV) =
     let (newTaxByCharDataVV, newCharInfoVV) = V.unzip $ fmap (recodeTaxonData inGS maxStateToRecode charInfoV) taxByCharDataVV
     in
-    -- trace ("CNAB: " ++ (show (V.length $ V.head newTaxByCharDataVV, V.length $ V.head newCharInfoVV)))
+    -- trace ("CNAB: " <> (show (V.length $ V.head newTaxByCharDataVV, V.length $ V.head newCharInfoVV)))
     (blockName, newTaxByCharDataVV, V.head newCharInfoVV)
 
 -- | recodeTaxonData recodes Add as nonAdd for each taxon in turn
@@ -704,7 +704,7 @@ recodeTaxonData :: GlobalSettings -> Int -> V.Vector CharInfo -> V.Vector Charac
 recodeTaxonData inGS maxStateToRecode charInfoV taxonCharacterDataV =
     let (newCharDataVV, newCharInfoVV) = unzip $ zipWith (recodeAddToNonAddCharacter inGS maxStateToRecode) (V.toList taxonCharacterDataV) (V.toList charInfoV)
     in
-    -- trace ("RTD: " ++ (show (V.length $ V.concat newCharDataVV, V.length $ V.concat newCharInfoVV)))
+    -- trace ("RTD: " <> (show (V.length $ V.concat newCharDataVV, V.length $ V.concat newCharInfoVV)))
     (V.concat newCharDataVV, V.concat newCharInfoVV)
 
 -- |recodeAddToNonAddCharacter takes a single character for single taxon and recodes if non-additive with
@@ -731,7 +731,7 @@ recodeAddToNonAddCharacter inGS maxStateToRecode inCharData inCharInfo =
         let minRangeIndex = fst $ V.head $ snd3 $ rangePrelim inCharData
             maxRangeIndex = snd $ V.head $ snd3 $ rangePrelim inCharData
             inCharOrigData = origInfo inCharInfo
-            newCharInfo = inCharInfo { name = (T.pack $ (T.unpack origName) ++ "RecodedToNonAdd")
+            newCharInfo = inCharInfo { name = (T.pack $ (T.unpack origName) <> "RecodedToNonAdd")
                                      , charType = NonAdd
                                      , alphabet = fromSymbols $ fmap ST.fromString $ fmap show [(0 :: Int), (1 :: Int)]
                                      , origInfo = inCharOrigData
@@ -744,12 +744,12 @@ recodeAddToNonAddCharacter inGS maxStateToRecode inCharData inCharInfo =
 
 
         in
-        -- trace ("RTNA: Numstates " ++ (show numStates) ++ " " ++ (show $ (snd3 . rangePrelim) inCharData) ++ " -> " ++ (show $ fmap (snd3 . stateBVPrelim) newCharList))
-            -- (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) ++ "\n" ++ (show newCharList) ++ "\n" ++ (show $ charType newCharInfo))
+        -- trace ("RTNA: Numstates " <> (show numStates) <> " " <> (show $ (snd3 . rangePrelim) inCharData) <> " -> " <> (show $ fmap (snd3 . stateBVPrelim) newCharList))
+            -- (show (length newCharList, V.length $ V.replicate (numStates - 1) newCharInfo)) <> "\n" <> (show newCharList) <> "\n" <> (show $ charType newCharInfo))
         (V.fromList newCharList, V.fromList newCharInfoList)
         where makeInt a = let newA = readMaybe (ST.toString a) :: Maybe Int
                           in
-                          if isNothing newA then error ("State '" ++ (ST.toString  a) ++ "' not recoding to Int")
+                          if isNothing newA then error ("State '" <> (ST.toString  a) <> "' not recoding to Int")
                           else fromJust newA
 
 -- | makeNewNonAddCharacter takes a stateIndex and charcatear number
@@ -787,8 +787,8 @@ groupDataByType inData =
         -- reorganize data into same type
         organizedBlockData =  fmap organizeBlockData' (V.toList blockDataVect) `using` PU.myParListChunkRDS
     in
-    --trace ("Before Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length blockDataVect) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 blockDataVect)
-    --    ++ "\nAfter Taxa:" ++ (show $ length nameBVVect) ++ " Blocks:" ++ (show $ length organizedBlockData) ++ " Characters:" ++ (show $ fmap length $ fmap thd3 organizedBlockData))
+    --trace ("Before Taxa:" <> (show $ length nameBVVect) <> " Blocks:" <> (show $ length blockDataVect) <> " Characters:" <> (show $ fmap length $ fmap thd3 blockDataVect)
+    --    <> "\nAfter Taxa:" <> (show $ length nameBVVect) <> " Blocks:" <> (show $ length organizedBlockData) <> " Characters:" <> (show $ fmap length $ fmap thd3 organizedBlockData))
     (nameVect, nameBVVect, V.fromList organizedBlockData)
 
 -- | organizeBlockData' special cases and divides characters so that exact characters
@@ -809,8 +809,8 @@ organizeBlockData' localBlockData =
     else if (numExactChars > 0) && (numNonExactChars > 0) then
         let (exactCharacters, nonSequenceCharacters) = U.splitBlockCharacters (snd3 localBlockData) (thd3 localBlockData) 0 [] []
             newExactCharacters = organizeBlockData [] [] [] [] exactCharacters
-            newCharData = V.zipWith (V.++) (snd3 newExactCharacters) (snd3 nonSequenceCharacters)
-            newCharInfo = thd3 newExactCharacters V.++ thd3 nonSequenceCharacters
+            newCharData = V.zipWith (<>) (snd3 newExactCharacters) (snd3 nonSequenceCharacters)
+            newCharInfo = thd3 newExactCharacters <> thd3 nonSequenceCharacters
         in
         (fst3 localBlockData, newCharData, newCharInfo)
     else error "This shouldn't happen in organizeBlockData'"
@@ -843,7 +843,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
         {-Will need a function to add all this stuff back together
         (blockNamne, newCharacterVector, newCharInfoVect)
         -}
-        --trace ("New Char lengths :" ++ (show (length nonAddCharList, length addCharList, length matrixCharListList, length unchangedCharList))) (
+        --trace ("New Char lengths :" <> (show (length nonAddCharList, length addCharList, length matrixCharListList, length unchangedCharList))) (
         let (newCharDataVectVect, newCharInfoVect) = makeNewCharacterData nonAddCharList addCharList matrixCharListList unchangedCharList
         in
         (blockName, newCharDataVectVect, newCharInfoVect)
@@ -860,23 +860,23 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
             fAlphabet = alphabet firstCharacter
             firstCharacterTaxa = fmap U.safeVectorHead characterDataVectVect
         in
-        -- trace ("FCT: " ++ (show $ length firstCharacterTaxa) ++ " " ++ (show characterDataVectVect)) (
-        --trace ("CVDD: " ++ (show (length characterDataVectVect, fmap length characterDataVectVect))) (
+        -- trace ("FCT: " <> (show $ length firstCharacterTaxa) <> " " <> (show characterDataVectVect)) (
+        --trace ("CVDD: " <> (show (length characterDataVectVect, fmap length characterDataVectVect))) (
 
         -- remove inactive characters
         if not fCharActivity || (length fAlphabet < 2) || fCharWeight == (0 :: Double) then
             --trace ("Innactive/Weight 0")
             organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharList (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
         else
-            (-- trace ("OBD: " ++ (show intWeight)) (
+            (-- trace ("OBD: " <> (show intWeight)) (
             if isNothing intWeight then
                -- add to unchanged pile
                let currentUnchangedCharacter = (V.toList firstCharacterTaxa, firstCharacter)
 
                in
-               -- trace ("Unchanged character:" ++ (show $ length $ fst currentUnchangedCharacter) ++ " Name:" ++ (T.unpack $ name firstCharacter) ++ " " ++ (show (charType firstCharacter))
-               --    ++ " " ++ (show $ fst currentUnchangedCharacter))
-               -- trace ("Character Weight non-integer:" ++ show fCharWeight)
+               -- trace ("Unchanged character:" <> (show $ length $ fst currentUnchangedCharacter) <> " Name:" <> (T.unpack $ name firstCharacter) <> " " <> (show (charType firstCharacter))
+               --    <> " " <> (show $ fst currentUnchangedCharacter))
+               -- trace ("Character Weight non-integer:" <> show fCharWeight)
                organizeBlockData nonAddCharList addCharList matrixCharListList (currentUnchangedCharacter : unchangedCharList)  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
 
            -- issue with the line "firstCharacterTaxa = fmap V.head characterDataVectVect" since missing character will be empoty and throw an error on V.head
@@ -890,7 +890,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                in
                -- trace ("Non-Additive") (
                if replicateNumber == 1 then organizeBlockData (currentNonAdditiveCharacter : nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-               else organizeBlockData (replicate replicateNumber currentNonAdditiveCharacter ++ nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               else organizeBlockData (replicate replicateNumber currentNonAdditiveCharacter <> nonAddCharList) addCharList matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
                -- )
 
            -- additive characters
@@ -900,7 +900,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                in
                -- trace ("Additive") (
                if replicateNumber == 1 then organizeBlockData nonAddCharList (currentAdditiveCharacter : addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
-               else organizeBlockData nonAddCharList (replicate replicateNumber currentAdditiveCharacter ++ addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
+               else organizeBlockData nonAddCharList (replicate replicateNumber currentAdditiveCharacter <> addCharList) matrixCharListList unchangedCharList  (blockName, V.map V.tail characterDataVectVect, V.tail charInfoVect)
                -- )
 
            -- matrix characters--more complex since need to check for matrix identity
@@ -914,7 +914,7 @@ organizeBlockData nonAddCharList addCharList matrixCharListList unchangedCharLis
                -- )
 
            -- error in type--there should be no bit-packed data created yet.
-           else error ("Unrecognized/not implemented charcter type: " ++ show fCharType)) -- )
+           else error ("Unrecognized/not implemented charcter type: " <> show fCharType)) -- )
 
 
 
@@ -957,19 +957,19 @@ makeNewCharacterData nonAddCharList addCharList matrixCharListList  unchangedCha
         newCharacterList' = [nonAddCharacter | not (null nonAddCharacter)]
         newCharacterList'' = if null addCharacter then newCharacterList'
                              else addCharacter : newCharacterList'
-        newCharacterList''' = newCharacterList'' ++ matrixCharacters ++ unchangedCharacters
+        newCharacterList''' = newCharacterList'' <> matrixCharacters <> unchangedCharacters
 
         newChararacterInfoList' = [nonAddCharInfo | not (null nonAddCharacter)]
         newChararacterInfoList'' = if null addCharacter then newChararacterInfoList'
                                   else addCharInfo : newChararacterInfoList'
-        newChararacterInfoList''' = newChararacterInfoList'' ++ (fmap V.singleton matrixCharInfoList) ++ (fmap V.singleton unchangeCharacterInfoList)
+        newChararacterInfoList''' = newChararacterInfoList'' <> (fmap V.singleton matrixCharInfoList) <> (fmap V.singleton unchangeCharacterInfoList)
 
     in
     {-
-    trace ("Recoded Non-Additive: " ++ (show $ length nonAddCharList) ++ "->" ++ (show (length nonAddCharacter, fmap length $ fmap stateBVPrelim nonAddCharacter))
-        ++ " Additive: " ++ (show $ length addCharList) ++ "->" ++ (show (length addCharacter, fmap length $ fmap rangePrelim addCharacter))
-        ++ " Matrix " ++ (show  $length matrixCharListList) ++ "->" ++ (show $ length matrixCharacters)
-        ++ " total list: " ++ (show (length newCharacterList''', fmap length newCharacterList''')) ++ " CI " ++ (show $ length newChararacterInfoList'''))
+    trace ("Recoded Non-Additive: " <> (show $ length nonAddCharList) <> "->" <> (show (length nonAddCharacter, fmap length $ fmap stateBVPrelim nonAddCharacter))
+        <> " Additive: " <> (show $ length addCharList) <> "->" <> (show (length addCharacter, fmap length $ fmap rangePrelim addCharacter))
+        <> " Matrix " <> (show  $length matrixCharListList) <> "->" <> (show $ length matrixCharacters)
+        <> " total list: " <> (show (length newCharacterList''', fmap length newCharacterList''')) <> " CI " <> (show $ length newChararacterInfoList'''))
     -}
     (V.fromList $ V.fromList <$> L.transpose newCharacterList''', V.concat newChararacterInfoList''')
 
@@ -1077,7 +1077,7 @@ addMatrixCharacter inMatrixCharacterList currentCostMatrix currentMatrixCharacte
                 (fst currentMatrixCharacter : firstMatrixCharList, localCharInfo) : tail inMatrixCharacterList
 
             else
-                (replicate replicateNumber (fst currentMatrixCharacter) ++ firstMatrixCharList, localCharInfo) : tail inMatrixCharacterList
+                (replicate replicateNumber (fst currentMatrixCharacter) <> firstMatrixCharList, localCharInfo) : tail inMatrixCharacterList
 
         -- matrices don't match so recurse to next one
         else firstList : addMatrixCharacter (tail inMatrixCharacterList) currentCostMatrix currentMatrixCharacter replicateNumber

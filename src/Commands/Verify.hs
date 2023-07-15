@@ -106,13 +106,13 @@ reconcileOptionsList = ["adams", "combinable", "cun", "dot" ,"dotpdf", "eun", "f
 
 -- | refinement arguments
 refineArgList :: [String]
-refineArgList = fuseArgList ++ netEdgeArgList ++ geneticAlgorithmArgList
+refineArgList = fuseArgList <> netEdgeArgList <> geneticAlgorithmArgList
 
 -- | reportArgList contains valid 'report' arguments
 reportArgList :: [String]
 reportArgList = ["append", "ascii", "branchlengths", "collapse", "concatenate", "crossrefs", "data", "diagnosis", "displaytrees",
     "dot", "dotpdf", "graphs", "htulabels", "ia", "includemissing", "impliedalignment", "newick", "nobranchlengths", "nocollapse",
-    "nohtulabels","overwrite", "pairdist", "reconcile", "search", "support", "tnt"] ++ reconcileArgList
+    "nohtulabels","overwrite", "pairdist", "reconcile", "search", "support", "tnt"] <> reconcileArgList
 
 -- | search arguments
 searchArgList :: [String]
@@ -163,7 +163,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
             checkInstruction = commandInstruction `elem` validInstructionList
 
         in
-        if not checkInstruction then errorWithoutStackTrace ("Invalid command was specified : " ++ (show commandInstruction))
+        if not checkInstruction then errorWithoutStackTrace ("Invalid command was specified : " <> (show commandInstruction))
         else
             -- check each command for valid arguments
             -- make lower-case arguments
@@ -187,7 +187,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
                                         in
-                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in 'read' file argument: " ++ fileArgs)
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in 'read' file argument: " <> fileArgs)
                                         else (checkCommandArgs "read"  fstArgList readArgList, fileNameList, [""])
 
                                    -- Reblock -- no arguments--but reads string and blocknames
@@ -197,8 +197,8 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
                                         in
                                         -- trace (show (fstArgList, sndArgList,fileNameList)) (
-                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rebock' command, new block name and old block(s) in double quotes: " ++ fileArgs)
-                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'reblock' command: " ++ fileArgs)
+                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rebock' command, new block name and old block(s) in double quotes: " <> fileArgs)
+                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'reblock' command: " <> fileArgs)
                                         else (True,[""], [""])
                                         -- )
 
@@ -215,8 +215,8 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             (numDouble, numUnbalanced) = divMod numDoubleQuotes 2
                                         in
                                         -- trace (show (fstArgList, sndArgList,fileNameList)) (
-                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rename' command, new taxon name and old taxon name(s) in double quotes: " ++ fileArgs)
-                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'rename' command: " ++ fileArgs)
+                                        if numDouble < 2 then errorWithoutStackTrace ("Need at least two fields in 'rename' command, new taxon name and old taxon name(s) in double quotes: " <> fileArgs)
+                                        else if numUnbalanced /= 0 then errorWithoutStackTrace ("Unbalanced quotation marks in 'rename' command: " <> fileArgs)
                                         else (True,[""], [""])
                                         -- )
 
@@ -226,7 +226,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             numDoubleQuotes = length $ filter (== '"') fileArgs
                                             has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
                                         in
-                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in report file argument: " ++ fileArgs)
+                                        if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in report file argument: " <> fileArgs)
                                         else (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
 
                                    -- Run  -- processed out before this into command list
@@ -267,19 +267,19 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                    else if commandInstruction == Transform then
                                         (checkCommandArgs "transform" fstArgList transformArgList, [""], [""])
 
-                                   else errorWithoutStackTrace ("Unrecognized command was specified : " ++ (show commandInstruction))
+                                   else errorWithoutStackTrace ("Unrecognized command was specified : " <> (show commandInstruction))
 
 
 
             in
             if checkOptions then
-                let allFilesToReadFrom = filter (/= "") $ filesToReadFrom ++ inFilesToRead
-                    allFilesToWriteTo = filter (/= "") $ filesToWriteTo ++ inFilesToWrite
+                let allFilesToReadFrom = filter (/= "") $ filesToReadFrom <> inFilesToRead
+                    allFilesToWriteTo = filter (/= "") $ filesToWriteTo <> inFilesToWrite
                     readAndWriteFileList = L.intersect allFilesToReadFrom allFilesToWriteTo
                 in
                 -- trace (show (allFilesToReadFrom, allFilesToWriteTo)) (
                 if (not .null) readAndWriteFileList then
-                    errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " ++ (show readAndWriteFileList))
+                    errorWithoutStackTrace ("Error--Both reading from and writing to files (could cause errors and/or loss of data): " <> (show readAndWriteFileList))
                 else verifyCommands (tail inCommandList) allFilesToReadFrom allFilesToWriteTo
                 -- )
 

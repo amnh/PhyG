@@ -266,7 +266,7 @@ parentsInChainVertex inGraph inNode =
     if length parentNodes < 2 then False
     else if oneAncOther then True
     else 
-      --traceNoLF ("PCV:" ++ (show (firstBV, secondBV, firstBV .&. secondBV))) 
+      --traceNoLF ("PCV:" <> (show (firstBV, secondBV, firstBV .&. secondBV))) 
         False
 
 
@@ -318,8 +318,8 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
 
         graphString = GFU.fglList2ForestEnhancedNewickString (fmap (LG.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString
-        costStringList  = fmap ((('[' :) . (++ "];\n")) . show) costList
-        graphStringCost = concat $ zipWith (++) newickStringList costStringList
+        costStringList  = fmap ((('[' :) . (<> "];\n")) . show) costList
+        graphStringCost = concat $ zipWith (<>) newickStringList costStringList
     in
     graphStringCost
 
@@ -381,9 +381,9 @@ convertGeneralGraphToPhylogeneticGraph correct inGraph =
 
     else if LG.isEmpty noSisterSisterGraph then LG.empty
 
-    -- trace ("CGP orig:\n" ++ (LG.prettify inGraph) ++ "\nNew:" ++ (LG.prettify timeConsistentGraph))
+    -- trace ("CGP orig:\n" <> (LG.prettify inGraph) <> "\nNew:" <> (LG.prettify timeConsistentGraph))
     -- cycle check to make sure--can be removed when things working
-    -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" ++ (LG.prettify noSisterSisterGraph))
+    -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" <> (LG.prettify noSisterSisterGraph))
 
     -- this final need to ladderize or recontract?
     else
@@ -460,7 +460,7 @@ makeGraphTimeConsistent correct inGraph
                     timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
                     newGraph = LG.delEdges timeOffendingEdgeList inGraph
                 in
-                -- trace ("MGTC:" ++ (show timeOffendingEdgeList))
+                -- trace ("MGTC:" <> (show timeOffendingEdgeList))
                 if (not correct) && (not . null) timeOffendingEdgeList then LG.empty
                 else contractIn1Out1EdgesRename newGraph
 
@@ -486,9 +486,9 @@ renameSimpleGraphNodes inGraph =
           newEdges = LG.labEdges inGraph
     in
     --newGraph
-    -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
+    -- trace ("C11: " <> (show $ LG.getIsolatedNodes newGraph) <> " => " <> (show newNodes) <> " " <> (show $ fmap LG.toEdge newEdges))
     LG.mkGraph newNodes newEdges
-    where makeSimpleLabel g (a, b)  = if not $ LG.isLeaf g a then T.pack $ "HTU"  ++ show a
+    where makeSimpleLabel g (a, b)  = if not $ LG.isLeaf g a then T.pack $ "HTU"  <> show a
                                       else b
 
 -- | renameSimpleGraphNodesString takes nodes and renames HTU nodes based on index
@@ -502,9 +502,9 @@ renameSimpleGraphNodesString inGraph =
           newEdges = LG.labEdges inGraph
     in
     --newGraph
-    -- trace ("C11: " ++ (show $ LG.getIsolatedNodes newGraph) ++ " => " ++ (show newNodes) ++ " " ++ (show $ fmap LG.toEdge newEdges))
+    -- trace ("C11: " <> (show $ LG.getIsolatedNodes newGraph) <> " => " <> (show newNodes) <> " " <> (show $ fmap LG.toEdge newEdges))
     LG.mkGraph newNodes newEdges
-    where makeSimpleLabel g (a, b)  = if not $ LG.isLeaf g a then "HTU"  ++ show a
+    where makeSimpleLabel g (a, b)  = if not $ LG.isLeaf g a then "HTU"  <> show a
                                       else b
 
 -- | sortEdgeListByLength sorts edge list by length (midRange), highest to lowest
@@ -533,14 +533,14 @@ ladderizeGraph' inGraph nodeList
       (inEdgeList, outEdgeList) = LG.getInOutEdges inGraph firstNode
       inOutPairLength = (length inEdgeList, length outEdgeList)
   in
-  -- trace ("node " ++ (show firstNode) ++ " " ++ (show inOutPairLength)) (
+  -- trace ("node " <> (show firstNode) <> " " <> (show inOutPairLength)) (
   -- node ok to keep
   if inOutPairLength `elem` okNodeDegrees then ladderizeGraph' inGraph (tail nodeList)
   -- node edges need modification
   else
     let newGraph = resolveNode inGraph firstNode (inEdgeList, outEdgeList) inOutPairLength
     in
-    -- trace ("resolving " ++ "node " ++ (show firstNode) ++ " " ++ (show inOutPairLength) )
+    -- trace ("resolving " <> "node " <> (show firstNode) <> " " <> (show inOutPairLength) )
     ladderizeGraph' newGraph (LG.nodes newGraph)
     -- )
 
@@ -554,12 +554,12 @@ resolveNode :: SimpleGraph -> LG.Node -> ([LG.LEdge Double], [LG.LEdge Double]) 
 resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) =
   if LG.isEmpty inGraph then LG.empty
   else
-    -- trace ("Resolving " ++ show (inNum, outNum)) (
+    -- trace ("Resolving " <> show (inNum, outNum)) (
     let numNodes = length $ LG.nodes inGraph
     in
     -- isolated node -- throw warning and delete
     if inNum == 0 && outNum == 0 then
-      trace ("Warning: ResolveNode deleting isolated vertex " ++ show curNode) ( --  ++ " in graph\n" ++ LG.prettify inGraph )
+      trace ("Warning: ResolveNode deleting isolated vertex " <> show curNode) ( --  <> " in graph\n" <> LG.prettify inGraph )
       let newGraph = LG.delNode curNode inGraph
       in
       newGraph
@@ -569,7 +569,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     -- converts to tree node--biased in that direction
     else if (inNum > 2) && (outNum > 2) then
       let first2Edges = take 2 inEdgeList
-          newNode = (numNodes , T.pack ("HTU" ++ show numNodes))
+          newNode = (numNodes , T.pack ("HTU" <> show numNodes))
           newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
           newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
           newEdge3 = (numNodes, curNode, 0.0 :: Double)
@@ -580,7 +580,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     -- leaf leaf with too many parents
     else if (inNum > 1) && (outNum == 0) || (inNum > 2) && (outNum == 1) || (inNum > 1) && (outNum == 2) then
       let first2Edges = take 2 inEdgeList
-          newNode = (numNodes , T.pack ("HTU" ++ show numNodes))
+          newNode = (numNodes , T.pack ("HTU" <> show numNodes))
           newEdge1 = (fst3 $ head first2Edges, numNodes, 0.0 :: Double)
           newEdge2 = (fst3 $ last first2Edges, numNodes, 0.0 :: Double)
           newEdge3 = (numNodes, curNode, 0.0 :: Double)
@@ -591,13 +591,13 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     -- indegree 1 outdegree 1 node to contract
     else if inNum == 1 && outNum == 1 then
       let newEdge = (fst3 $ head inEdgeList, snd3 $ head outEdgeList, 0.0 :: Double)
-          newGraph = LG.insEdge newEdge $ LG.delNode curNode $ LG.delLEdges (inEdgeList ++ outEdgeList) inGraph
+          newGraph = LG.insEdge newEdge $ LG.delNode curNode $ LG.delLEdges (inEdgeList <> outEdgeList) inGraph
       in
       newGraph
 
     else if inNum < 2 || outNum > 2 then
       let  first2Edges = take 2 outEdgeList
-           newNode = (numNodes , T.pack ("HTU" ++ show numNodes))
+           newNode = (numNodes , T.pack ("HTU" <> show numNodes))
            newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
            newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
            newEdge3 = (curNode, numNodes, 0.0 :: Double)
@@ -608,7 +608,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
         -- root or simple network indegree node
     else if inNum == 0 || outNum > 2 then
       let first2Edges = take 2 outEdgeList
-          newNode = (numNodes , T.pack ("HTU" ++ show numNodes))
+          newNode = (numNodes , T.pack ("HTU" <> show numNodes))
           newEdge1 = (numNodes, snd3 $ head first2Edges, 0.0 :: Double)
           newEdge2 = (numNodes, snd3 $ last first2Edges, 0.0 :: Double)
           newEdge3 = (curNode, numNodes, 0.0 :: Double)
@@ -625,7 +625,7 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
       else LG.delNode curNode inGraph
 
 
-    else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " ++ show inOutPair ++ "\n" ++ LG.prettify inGraph)
+    else error ("This can't happen in resolveNode in/out edge lists don't need to be resolved " <> show inOutPair <> "\n" <> LG.prettify inGraph)
     -- )
 
 
@@ -696,7 +696,7 @@ dichotomizeRoot lOutgroupIndex inGraph =
         rootEdgeList = LG.out inGraph currentRoot
     in
     -- not a tree error
-    if length rootList /= 1 then error ("Graph input to dichotomizeRoot is not a tree--not single root:" ++ show rootList)
+    if length rootList /= 1 then error ("Graph input to dichotomizeRoot is not a tree--not single root:" <> show rootList)
 
     -- nothing to do
     else if length rootEdgeList < 3 then inGraph
@@ -784,8 +784,8 @@ selectPhylogeneticGraph inArgs rSeed _ curGraphs =
             checkCommandList = checkCommandArgs "select" fstArgList V.selectArgList
         in
            -- check for valid command options
-           if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " ++ show inArgs)
-           else if length inArgs > 1 then errorWithoutStackTrace ("Can only have a single select type per command: "  ++ show inArgs)
+           if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'select': " <> show inArgs)
+           else if length inArgs > 1 then errorWithoutStackTrace ("Can only have a single select type per command: "  <> show inArgs)
            else
                 let doBest    = any ((=="best").fst) lcArgList
                     doAll     = any ((=="all").fst) lcArgList
@@ -796,22 +796,22 @@ selectPhylogeneticGraph inArgs rSeed _ curGraphs =
                     thresholdList = filter ((=="threshold").fst) lcArgList
                     threshold
                       | length thresholdList >1 =
-                        errorWithoutStackTrace ("Multiple 'threshold' number specifications in select command--can have only one: " ++ show inArgs)
+                        errorWithoutStackTrace ("Multiple 'threshold' number specifications in select command--can have only one: " <> show inArgs)
                       | null thresholdList = Just 0.1
                       | otherwise = readMaybe (snd $ head thresholdList) :: Maybe Double
 
                     nonThresholdList = filter ((/="threshold").fst) lcArgList
                     numberToKeep
                       | length nonThresholdList >1 =
-                        errorWithoutStackTrace ("Multiple 'best/unique/atRandom' number specifications in select command--can have only one: " ++ show inArgs)
+                        errorWithoutStackTrace ("Multiple 'best/unique/atRandom' number specifications in select command--can have only one: " <> show inArgs)
                       | null nonThresholdList = Just (maxBound :: Int)
                       | null (snd $ head nonThresholdList) = Just (maxBound :: Int)
                       | otherwise = readMaybe (snd $ head nonThresholdList) :: Maybe Int
                 in
-                if isNothing numberToKeep then errorWithoutStackTrace ("Keep specification not an integer in select: "  ++ show (snd $ head nonThresholdList) ++ show lcArgList)
-                else if isNothing threshold then errorWithoutStackTrace ("Threshold specification not a float in select: "  ++ show (snd $ head thresholdList))
+                if isNothing numberToKeep then errorWithoutStackTrace ("Keep specification not an integer in select: "  <> show (snd $ head nonThresholdList) <> show lcArgList)
+                else if isNothing threshold then errorWithoutStackTrace ("Threshold specification not a float in select: "  <> show (snd $ head thresholdList))
                 else if doAll then curGraphs
-                else if isNothing numberToKeep then errorWithoutStackTrace ("Number to keep specification not an integer: "  ++ show (snd $ head lcArgList))
+                else if isNothing numberToKeep then errorWithoutStackTrace ("Number to keep specification not an integer: "  <> show (snd $ head lcArgList))
                 else
                     let -- minimum graph cost
                         minGraphCost = minimum $ fmap snd6 curGraphs
@@ -833,11 +833,11 @@ selectPhylogeneticGraph inArgs rSeed _ curGraphs =
                       let thresholdValue = (1.0 + fromJust threshold) * snd6 (head uniqueGraphList)
                           thresholdGraphList = filter ((<= thresholdValue) . snd6) uniqueGraphList
                       in
-                      -- trace ("SG:" ++ (show (thresholdValue, fromJust threshold)))
+                      -- trace ("SG:" <> (show (thresholdValue, fromJust threshold)))
                       thresholdGraphList
 
                     else if doBest then
-                     -- trace ("SPG: " ++ (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
+                     -- trace ("SPG: " <> (show (minGraphCost, length uniqueGraphList, fmap snd6 uniqueGraphList)))
                       take (fromJust numberToKeep) uniqueBestGraphs
                     else if doRandom then
                          let randList = head $ shuffleInt rSeed 1 [0..(length curGraphs - 1)]
@@ -882,7 +882,7 @@ isNovelGraph graphList testGraph =
                          collapseGraphList = fmap (LG.prettyIndices . fst6 . U.collapseGraph) graphList
                          matchList = filter (== collapsedInGraph) collapseGraphList
                      in
-                     -- trace ("IsNovel: " ++ (show $ null matchList))
+                     -- trace ("IsNovel: " <> (show $ null matchList))
                      null matchList)
 
 -- | keeps and returns unique graphs based on Eq of Topological Simple Graph
@@ -904,7 +904,7 @@ nubGraph curList inList =
         --firstString = LG.prettyIndices $ thd6 firstGraphNC
         isMatch = filter (== firstString) (fmap thd3 curList)
     in
-    --trace ("NG: " ++ (show $ null isMatch) ++ "->" ++ firstString) $
+    --trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString) $
     if null curList then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
     else if null isMatch then nubGraph ((firstGraphNC, firstGraphC, firstString) : curList) (tail inList)
     else nubGraph curList (tail inList)
@@ -929,13 +929,13 @@ getUniqueGraphs' inGraphPairList currentUniquePairs =
 -- | getNodeType returns node type for Node
 getNodeType :: (Show a, Show b) => LG.Gr a b -> LG.Node -> NodeType
 getNodeType inGraph inNode
-  | not $ LG.gelem inNode inGraph = error ("Node " ++ show inNode ++ " not in graph\n" ++ GFU.showGraph inGraph)
+  | not $ LG.gelem inNode inGraph = error ("Node " <> show inNode <> " not in graph\n" <> GFU.showGraph inGraph)
   | LG.isLeaf inGraph inNode = LeafNode
   | LG.isTreeNode inGraph inNode = TreeNode
   | LG.isNetworkNode inGraph inNode = NetworkNode
   | LG.isRoot inGraph inNode = RootNode
   | LG.isIn1Out1 inGraph inNode = In1Out1
-  | otherwise = error ("Node type " ++ show inNode ++ " not Leaf, Tree, Network, or Root in graph\n" ++ GFU.showGraph inGraph)
+  | otherwise = error ("Node type " <> show inNode <> " not Leaf, Tree, Network, or Root in graph\n" <> GFU.showGraph inGraph)
 
 -- | copyIAFinalToPrelim takes a Decorated graph and copies
 -- the IA final fields to preliminary IA states--this for IA only optimization
@@ -1047,7 +1047,7 @@ getEdgeMinLengthToNode  edgeList (node, _)=
   let foundEdge = L.find ((== node) . snd3) edgeList
   in
   -- root node will be nor be in in edge set and need so set > 0
-  if isNothing foundEdge then 1.0 --  error ("Edge not found in getEdgeMinLengthToNode: node " ++ (show node) ++ " edge list " ++ (show edgeList))
+  if isNothing foundEdge then 1.0 --  error ("Edge not found in getEdgeMinLengthToNode: node " <> (show node) <> " edge list " <> (show edgeList))
   else minLength $ thd3 $ fromJust foundEdge
 
 -- | getBVUniqPhylogeneticGraph takes a list of phylogenetic graphs and returns
@@ -1115,7 +1115,7 @@ hasNetNodeAncestorViolation inGraph =
     let (_, _, _, netWorkNodeList) =  LG.splitVertexList inGraph
         hasAncViolationList = filter id $ fmap (nodeAncViolation inGraph) netWorkNodeList
     in
-    -- trace ("HNV: " ++ (show $ (not . null) hasAncViolationList))
+    -- trace ("HNV: " <> (show $ (not . null) hasAncViolationList))
     (not . null) hasAncViolationList
 
 -- | nodeAncViolation checks a single node fo ancestrpo connection--he ceviolation
@@ -1124,7 +1124,7 @@ nodeAncViolation :: LG.Gr VertexInfo b -> LG.LNode VertexInfo -> Bool
 nodeAncViolation inGraph inNode =
   let parentList = LG.labParents inGraph (fst inNode)
   in
-  if length parentList /= 2 then error ("Parent number should be 2: " ++ show (fst inNode) ++ " <- " ++ show (fmap fst parentList))
+  if length parentList /= 2 then error ("Parent number should be 2: " <> show (fst inNode) <> " <- " <> show (fmap fst parentList))
   else
     let sisterNodes = concatMap (LG.sisterLabNodes inGraph) parentList
         sisterBVData = fmap (bvLabel . snd) sisterNodes
@@ -1167,9 +1167,9 @@ selectGraphStochastic rSeed number factor inGraphList
 
 
                 in
-                -- trace ("SGS " ++ (show intAcceptList) ++ " " ++ (show intRandValList) ++ " -> " ++ (show acceptList))
+                -- trace ("SGS " <> (show intAcceptList) <> " " <> (show intRandValList) <> " -> " <> (show acceptList))
                 -- so no more than specified
-                take number $ returnGraphList ++ luckyList
+                take number $ returnGraphList <> luckyList
   where
       getProb a b = exp ((- 1) * b / a)
 
@@ -1200,7 +1200,7 @@ getCharacterCost rootIndex inGraph =
   else
     let rootLabel = LG.lab inGraph rootIndex
     in
-    maybe (error ("Root index without label: " ++ show rootIndex)) subGraphCost rootLabel
+    maybe (error ("Root index without label: " <> show rootIndex)) subGraphCost rootLabel
 
 -- | makeLeafGraph takes input data and creates a 'graph' of leaves with Vertex informnation
 -- but with zero edges.  This 'graph' can be reused as a starting structure for graph construction
@@ -1230,7 +1230,7 @@ makeSimpleLeafGraph (nameVect, _, _) =
 -- | makeLeafVertex makes a single unconnected vertex for a leaf
 makeLeafVertex :: V.Vector NameText -> V.Vector NameBV -> V.Vector BlockData -> Int -> LG.LNode VertexInfo
 makeLeafVertex nameVect bvNameVect inData localIndex =
-    -- trace ("Making leaf " ++ (show localIndex) ++ " Data " ++ (show $ length inData) ++ " " ++ (show $ fmap length $ fmap snd3 inData)) (
+    -- trace ("Making leaf " <> (show localIndex) <> " Data " <> (show $ length inData) <> " " <> (show $ fmap length $ fmap snd3 inData)) (
     let centralData = V.map snd3 inData
         thisData = V.map (V.! localIndex) centralData
         newVertex = VertexInfo  { index = localIndex
@@ -1245,7 +1245,7 @@ makeLeafVertex nameVect bvNameVect inData localIndex =
                                 , subGraphCost = 0.0
                                 }
         in
-        -- trace (show (length thisData) ++ (show $ fmap length thisData))
+        -- trace (show (length thisData) <> (show $ fmap length thisData))
         (localIndex, newVertex)
         -- )
 

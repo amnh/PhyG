@@ -87,7 +87,7 @@ vertex2FGLNode :: V.Vector String -> Vertex -> (Int, T.Text)
 vertex2FGLNode leafVect vertIndex=
   if vertIndex < V.length leafVect then (vertIndex,  T.pack (leafVect V.! vertIndex))
   else
-    let vertexName = "HTU" ++ show (vertIndex - V.length leafVect)
+    let vertexName = "HTU" <> show (vertIndex - V.length leafVect)
     in
     (vertIndex, T.pack vertexName)
 
@@ -99,7 +99,7 @@ tree2FGL inTree@(inVertexVect, inEdgeVect) leafNameVect =
   else
     let fglNodes = V.map (vertex2FGLNode leafNameVect) inVertexVect
     in
-    -- trace ("tree2FGL orig, vertices, edges =  " ++ (show $ length inVertexVect ) ++ " "  ++ (show $ length fglNodes ) ++ " " ++ (show $ length inEdgeVect ))
+    -- trace ("tree2FGL orig, vertices, edges =  " <> (show $ length inVertexVect ) <> " "  <> (show $ length fglNodes ) <> " " <> (show $ length inEdgeVect ))
     G.mkGraph (V.toList fglNodes) (V.toList inEdgeVect)
 
 -- reIndexEdges take a list of vertices as integer indices and an edges (Int, Int, Double)
@@ -114,7 +114,7 @@ reIndexEdges inVertexList (e,u,w) =
     --un safe not testing but list is created from edges first
     (fromJust newE, fromJust newU, w)
 
--- | makeVertexNames takes vertgex indices and returns leaf name if < nOTUs and "HTU" ++ show Index
+-- | makeVertexNames takes vertgex indices and returns leaf name if < nOTUs and "HTU" <> show Index
 -- if not
 makeVertexNames :: [Vertex] -> Int -> V.Vector String -> Bool -> [String]
 makeVertexNames vertList nOTUs leafNames nameHTUs =
@@ -123,7 +123,7 @@ makeVertexNames vertList nOTUs leafNames nameHTUs =
       let firstVert = head vertList
       in
       if firstVert < nOTUs then (leafNames V.! firstVert) : makeVertexNames (tail vertList) nOTUs leafNames nameHTUs
-      else if nameHTUs then ("HTU" ++ show firstVert) : makeVertexNames (tail vertList) nOTUs leafNames nameHTUs
+      else if nameHTUs then ("HTU" <> show firstVert) : makeVertexNames (tail vertList) nOTUs leafNames nameHTUs
       else "" : makeVertexNames (tail vertList) nOTUs leafNames nameHTUs
 
 -- | directSingleEdge takes an Int and makes that 'e' and otehr vertex as 'u' in edge (e->u)
@@ -131,13 +131,13 @@ directSingleEdge :: Int -> Edge -> Edge
 directSingleEdge index (a,b,w)
   | a == index = (a,b,w)
   | b == index = (b,a,w)
-  | otherwise = error ("Index " ++ show index ++ " doesn't match edge " ++ show (a,b,w) ++ " in directSingleEdge")
+  | otherwise = error ("Index " <> show index <> " doesn't match edge " <> show (a,b,w) <> " in directSingleEdge")
 
 -- | getChildEdges returns the two edges that are childre of a vertex
 getChildEdges :: Int -> Int -> V.Vector Edge -> V.Vector Edge
 getChildEdges vertIndex nLeaves inEdgeVect
   | V.null inEdgeVect = V.empty
-  | vertIndex < nLeaves = error ("Looking for child of leaf " ++ show (vertIndex, nLeaves))
+  | vertIndex < nLeaves = error ("Looking for child of leaf " <> show (vertIndex, nLeaves))
   | otherwise =
     let (a,b,w) = V.head inEdgeVect
     in
@@ -160,7 +160,7 @@ directEdges vertIndex nLeaves isFirst inEdgeVect
         remainingEdgeVect = subtractVector descdendantEdges inEdgeVect
         newDescEdges = V.map (directSingleEdge vertIndex) descdendantEdges
     in
-    if V.length newDescEdges /= 2 then error ("There should be 2 child edges for index " ++ show vertIndex ++ " and there are(is) " ++ show (V.length newDescEdges) ++ " " ++ show newDescEdges)
+    if V.length newDescEdges /= 2 then error ("There should be 2 child edges for index " <> show vertIndex <> " and there are(is) " <> show (V.length newDescEdges) <> " " <> show newDescEdges)
     else
         let (_, bf, _) = V.head newDescEdges
             (_, bs, _) = V.last newDescEdges
@@ -168,7 +168,7 @@ directEdges vertIndex nLeaves isFirst inEdgeVect
             remainingEdgeVect' = subtractVector firstSubEdges remainingEdgeVect
             secondSubEdges = directEdges bs nLeaves False remainingEdgeVect'
         in
-        (newDescEdges V.++ (firstSubEdges V.++ secondSubEdges))
+        (newDescEdges <> (firstSubEdges <> secondSubEdges))
 
 
 -- | convertToGraph takes Vertex of names and a tree and return inductive Graph format
@@ -208,7 +208,7 @@ convertToNewick leafNames outGroup inTree
   | otherwise =
     let fglTree = convertToDirectedGraphText leafNames outGroup inTree
     in
-    --trace ("ConverttoNewick in-vertices in-edges" ++ (show $ length inVertexVect ) ++ " "  ++ (show $ V.toList inVertexVect ) ++ "\n" ++ (show $ length vertexVect ) ++ " "  ++ (show vertexVect ) ++ "\n" ++ (show $ length edgeVect ) ++ " " ++ show edgeVect ++ "\n" ++ show fglTree)
+    --trace ("ConverttoNewick in-vertices in-edges" <> (show $ length inVertexVect ) <> " "  <> (show $ V.toList inVertexVect ) <> "\n" <> (show $ length vertexVect ) <> " "  <> (show vertexVect ) <> "\n" <> (show $ length edgeVect ) <> " " <> show edgeVect <> "\n" <> show fglTree)
     PP.fglList2ForestEnhancedNewickString [fglTree] True False
 
 
@@ -256,8 +256,8 @@ convertToNewickGuts leafNames outGroup wagTree =
       remainderEdges = V.filter (/= foundEdge) edgeVect
   in
   -- this is embarassing bullshit  -- converting  ",,"  to ","
-  if firstVert == outGroup then "(" ++ (leafNames V.! outGroup)  ++ ":" ++ showDouble 8 (weight/2.0) ++ "," ++ getEdgesNonRoot secondVert remainderEdges (V.length leafNames) leafNames ++ ":" ++ showDouble 8 (weight/2.0) ++ ")"
-  else "(" ++ (leafNames V.! outGroup)  ++ ":" ++ showDouble 8 (weight/2.0) ++ "," ++ getEdgesNonRoot firstVert remainderEdges (V.length leafNames) leafNames ++ ":" ++ showDouble 8 (weight/2.0) ++ ")"
+  if firstVert == outGroup then "(" <> (leafNames V.! outGroup)  <> ":" <> showDouble 8 (weight/2.0) <> "," <> getEdgesNonRoot secondVert remainderEdges (V.length leafNames) leafNames <> ":" <> showDouble 8 (weight/2.0) <> ")"
+  else "(" <> (leafNames V.! outGroup)  <> ":" <> showDouble 8 (weight/2.0) <> "," <> getEdgesNonRoot firstVert remainderEdges (V.length leafNames) leafNames <> ":" <> showDouble 8 (weight/2.0) <> ")"
 
 -- | orderEdge takes an Edge and puts high index first then lower
 orderEdge :: Edge -> Edge
@@ -304,41 +304,41 @@ getEdgesNonRoot edgeIndex edgeVect nOTUs leafNames =
           uSubTree = getEdgesNonRoot uVect remainderEdges nOTUs leafNames
       in
       if V.null remainderEdges then
-        (leafNames V.! uVect) ++ ":" ++ showDouble precision weight  ++ ","
+        (leafNames V.! uVect) <> ":" <> showDouble precision weight  <> ","
 
       else if eVect == edgeIndex then
 
         if eVect < nOTUs then
-          if uDesc /= terminal then "(" ++ (leafNames V.! eVect) ++ ":" ++ showDouble precision weight ++ "," ++ uSubTree ++ ")"
-          else (leafNames V.! eVect) ++ ":" ++ showDouble precision weight ++ ","
+          if uDesc /= terminal then "(" <> (leafNames V.! eVect) <> ":" <> showDouble precision weight <> "," <> uSubTree <> ")"
+          else (leafNames V.! eVect) <> ":" <> showDouble precision weight <> ","
         else
         if uVect < nOTUs then
-          if eDesc /= terminal then "(" ++ (leafNames V.! uVect) ++ ":" ++ showDouble precision weight ++ "," ++ eSubTree ++  ")"
-          else (leafNames V.! uVect) ++ ":" ++ showDouble precision weight ++ ","
+          if eDesc /= terminal then "(" <> (leafNames V.! uVect) <> ":" <> showDouble precision weight <> "," <> eSubTree <>  ")"
+          else (leafNames V.! uVect) <> ":" <> showDouble precision weight <> ","
         else
-            if (eDesc /= terminal) && (uDesc == terminal) then eSubTree  ++ ":" ++ showDouble precision weight  ++ ","
-            else if (eDesc == terminal) && (uDesc /= terminal) then uSubTree ++ ":" ++ showDouble precision weight ++ ","
+            if (eDesc /= terminal) && (uDesc == terminal) then eSubTree  <> ":" <> showDouble precision weight  <> ","
+            else if (eDesc == terminal) && (uDesc /= terminal) then uSubTree <> ":" <> showDouble precision weight <> ","
             else
-              if length eSubTree < length uSubTree then "(" ++ eSubTree ++ "," ++ uSubTree ++ ":" ++ showDouble precision weight ++ ")"
-              else "(" ++ uSubTree ++ "," ++ eSubTree ++ ":" ++ showDouble precision weight ++ ")"
+              if length eSubTree < length uSubTree then "(" <> eSubTree <> "," <> uSubTree <> ":" <> showDouble precision weight <> ")"
+              else "(" <> uSubTree <> "," <> eSubTree <> ":" <> showDouble precision weight <> ")"
 
       else if uVect == edgeIndex then
         if uVect < nOTUs then
-          if eDesc /= terminal then "(" ++ (leafNames V.! uVect) ++ ":" ++ showDouble precision weight ++  "," ++ eSubTree ++ ")"
-          else (leafNames V.!uVect) ++ ":" ++ showDouble precision weight ++ ","
+          if eDesc /= terminal then "(" <> (leafNames V.! uVect) <> ":" <> showDouble precision weight <>  "," <> eSubTree <> ")"
+          else (leafNames V.!uVect) <> ":" <> showDouble precision weight <> ","
 
         else if eVect < nOTUs then
-          if uDesc /= terminal then "(" ++ (leafNames V.! eVect) ++ ":" ++ showDouble precision weight ++ "," ++ uSubTree ++ ")"
-          else (leafNames V.!eVect) ++ ":" ++ showDouble precision weight  ++ ","
+          if uDesc /= terminal then "(" <> (leafNames V.! eVect) <> ":" <> showDouble precision weight <> "," <> uSubTree <> ")"
+          else (leafNames V.!eVect) <> ":" <> showDouble precision weight  <> ","
 
         else
-          if (eDesc /= terminal) && (uDesc == terminal) then eSubTree  ++ ":" ++ showDouble precision weight ++ ","
-          else if (eDesc == terminal) && (uDesc /= terminal) then uSubTree ++ ":" ++ showDouble precision weight ++ ","
+          if (eDesc /= terminal) && (uDesc == terminal) then eSubTree  <> ":" <> showDouble precision weight <> ","
+          else if (eDesc == terminal) && (uDesc /= terminal) then uSubTree <> ":" <> showDouble precision weight <> ","
           else
-              if length eSubTree < length uSubTree then "(" ++ eSubTree ++ "," ++ uSubTree ++ ":" ++ showDouble precision weight ++ ")"
-              else "(" ++ uSubTree ++ ":" ++ showDouble precision weight ++ "," ++ eSubTree ++ ")"
+              if length eSubTree < length uSubTree then "(" <> eSubTree <> "," <> uSubTree <> ":" <> showDouble precision weight <> ")"
+              else "(" <> uSubTree <> ":" <> showDouble precision weight <> "," <> eSubTree <> ")"
 
-      else getEdgesNonRoot edgeIndex remainderEdges nOTUs leafNames ++ ":" ++ showDouble precision weight ++ ","
+      else getEdgesNonRoot edgeIndex remainderEdges nOTUs leafNames <> ":" <> showDouble precision weight <> ","
 
 -- getBestTrees takes newick and L.sorts on comment at end with cost
 getBestTrees :: String -> Int -> [TreeWithData] -> Double -> [TreeWithData] -> [TreeWithData]
@@ -354,7 +354,7 @@ getBestTrees keepMethod number inList curBestCost curBestTrees =
             newList =  RandS.shuffle curBestTrees randIntList
         in
         take number newList
-      else error ("Keep method " ++ keepMethod ++ " not implemented")
+      else error ("Keep method " <> keepMethod <> " not implemented")
   else
     let firstTree = head inList
         (_, _, firstCost, _) = firstTree
@@ -398,8 +398,8 @@ keepTrees inList saveMethod keepMethod curBestCost
           (_, _, bestCost, _) = head saveTrees
       in
       getBestTrees keepMethod number saveTrees bestCost []
-    else error ("Save method " ++ saveMethod ++ " improperly formatted")
-  | otherwise = error ("Save method " ++ saveMethod ++ " not implemented")
+    else error ("Save method " <> saveMethod <> " improperly formatted")
+  | otherwise = error ("Save method " <> saveMethod <> " not implemented")
 
   -- | ranList generates random list of positive integers
 ranList :: Rand.StdGen -> Int -> Int -> [Int]

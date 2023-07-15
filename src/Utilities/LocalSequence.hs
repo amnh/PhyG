@@ -83,9 +83,9 @@ null inSeq = inSeq == S.empty
 singleton :: a -> Seq a
 singleton = S.singleton
 
--- | ++ maps to ><
-(++) :: Seq a -> Seq a -> Seq a
-(++) inSeqA inSeqB = inSeqA >< inSeqB
+-- | <> maps to ><
+(<>) :: Seq a -> Seq a -> Seq a
+(<>) inSeqA inSeqB = inSeqA >< inSeqB
 
 -- | concat fold over ><
 concat :: (Eq a) => Seq (Seq a) -> Seq a

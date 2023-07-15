@@ -97,9 +97,9 @@ performSearch inputFilePath = do
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
     timeCD <- getCurrentTime
-    hPutStrLn stderr ("Initial random seed set to " ++ show timeD)
+    hPutStrLn stderr ("Initial random seed set to " <> show timeD)
 
-    -- hPutStrLn stderr ("Current time is " ++ show timeD)
+    -- hPutStrLn stderr ("Current time is " <> show timeD)
     let seedList = randomIntList timeD
 
     -- Process commands to get list of actions
@@ -118,7 +118,7 @@ performSearch inputFilePath = do
     expandedReadCommands <- mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
 
     -- sort added to sort input read commands for left right consistancy
-    let thingsToDo = L.sort (concat expandedReadCommands) ++ filter ((/= Read) . fst) thingsToDo'
+    let thingsToDo = L.sort (concat expandedReadCommands) <> filter ((/= Read) . fst) thingsToDo'
     --hPutStrLn stderr (show $ concat expandedReadCommands)
 
     -- check commands and options for basic correctness
@@ -132,7 +132,7 @@ performSearch inputFilePath = do
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
-    else hPutStrLn stderr ("Entered " ++ show (length rawData) ++ " data file(s) and " ++ show (length rawGraphs) ++ " input graphs")
+    else hPutStrLn stderr ("Entered " <> show (length rawData) <> " data file(s) and " <> show (length rawGraphs) <> " input graphs")
 
     -- get set partitions character from Set commands early, the enpty seed list puts in first section--only processing a few fields
     -- confusing and should be changed
@@ -144,7 +144,7 @@ performSearch inputFilePath = do
 
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
-    if not $ null newNamePairList then hPutStrLn stderr ("Renaming " ++ show (length newNamePairList) ++ " terminals")
+    if not $ null newNamePairList then hPutStrLn stderr ("Renaming " <> show (length newNamePairList) <> " terminals")
     else hPutStrLn stderr "No terminals to be renamed"
 
     let renamedData   = fmap (DT.renameData newNamePairList) rawDataSplit
@@ -157,16 +157,16 @@ performSearch inputFilePath = do
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
         -- get taxa to include in analysis
-    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" ++ concatMap (++ " ") (fmap Text.unpack terminalsToInclude))
+    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" <> concatMap (<> " ") (fmap Text.unpack terminalsToInclude))
     else hPutStrLn stderr ""
-    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" ++ concatMap (++ " ") (fmap Text.unpack terminalsToExclude))
+    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" <> concatMap (<> " ") (fmap Text.unpack terminalsToExclude))
     else hPutStrLn stderr ""
 
     -- Uses names from terminal list if non-null, and remove excluded terminals
     let dataLeafNames' = if not $ null terminalsToInclude then L.sort $ L.nub terminalsToInclude
                         else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
-    hPutStrLn stderr ("Data were input for " ++ show (length dataLeafNames) ++ " terminals")
+    hPutStrLn stderr ("Data were input for " <> show (length dataLeafNames) <> " terminals")
 
     -- this created here and passed to command execution later to remove dependency of renamed data in command execution to
     -- reduce memory footprint keeoing that stuff around.
@@ -183,7 +183,7 @@ performSearch inputFilePath = do
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList = filter ((== 0) . snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap (snd3 . U.filledDataFields (0,0)) . fst) reconciledData
     if not (null taxaDataSizeList) then errorWithoutStackTrace ("\nError: There are taxa without any data: "
-            ++ L.intercalate ", " (fmap (Text.unpack . fst) taxaDataSizeList) ++ "\n")
+            <> L.intercalate ", " (fmap (Text.unpack . fst) taxaDataSizeList) <> "\n")
     else hPutStrLn stderr "All taxa contain data"
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
@@ -259,7 +259,7 @@ performSearch inputFilePath = do
                                                     , fractionDynamic = fractionDynamicData
                                                     , dynamicEpsilon = 1.0 + ((dynamicEpsilon emptyGlobalSettings - 1.0) * fractionDynamicData)
                                                     }
-    -- hPutStrLn stderr ("Fraction characters that are dynamic: " ++ (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
+    -- hPutStrLn stderr ("Fraction characters that are dynamic: " <> (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
 
     let initialSetCommands = filter ((== Set).fst) thingsToDoAfterReblock
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
@@ -286,7 +286,7 @@ performSearch inputFilePath = do
     let pairDist = D.getPairwiseDistances optimizedData
 
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) (terminalsToExclude, renameFilePairs) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString ++ commandsAfterInitialDiagnose)
+    (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) (terminalsToExclude, renameFilePairs) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString <> commandsAfterInitialDiagnose)
 
     -- print global setting just to check
     --hPutStrLn stderr (show _finalGlobalSettings)
@@ -304,21 +304,21 @@ performSearch inputFilePath = do
 
 
     -- final results reporting to stderr
-    hPutStrLn stderr ("Execution returned " ++ show (length finalGraphList') ++ " graph(s) at cost range " ++ show (minCost, maxCost))
+    hPutStrLn stderr ("Execution returned " <> show (length finalGraphList') <> " graph(s) at cost range " <> show (minCost, maxCost))
 
     -- Final Stderr report
     timeCPUEnd <- getCPUTime
     timeCDEnd <- getCurrentTime
 
-    --hPutStrLn stderr ("CPU Time " ++ (show timeCPUEnd))
+    --hPutStrLn stderr ("CPU Time " <> (show timeCPUEnd))
     let wallClockDuration = floor (1000000000000 * nominalDiffTimeToSeconds (diffUTCTime timeCDEnd timeCD)) :: Integer
-    --hPutStrLn stderr ("Current time " ++  (show wallClockDuration))
+    --hPutStrLn stderr ("Current time " <>  (show wallClockDuration))
     let cpuUsage = fromIntegral timeCPUEnd / fromIntegral wallClockDuration :: Double
-    --hPutStrLn stderr ("CPU % " ++ (show cpuUsage))
+    --hPutStrLn stderr ("CPU % " <> (show cpuUsage))
 
-    hPutStrLn stderr ("\n\tWall-Clock time " ++ show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0) ++ " second(s)"
-        ++ "\n\tCPU time " ++ show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0) ++ " second(s)"
-        ++ "\n\tCPU usage " ++ show (floor (100.0 * cpuUsage) :: Integer) ++ "%"
+    hPutStrLn stderr ("\n\tWall-Clock time " <> show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0) <> " second(s)"
+        <> "\n\tCPU time " <> show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0) <> " second(s)"
+        <> "\n\tCPU usage " <> show (floor (100.0 * cpuUsage) :: Integer) <> "%"
         )
 
 

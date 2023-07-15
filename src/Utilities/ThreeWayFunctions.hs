@@ -125,7 +125,7 @@ threeMedianFinal charInfo parent1 parent2 curNode =
       curNode { hugeFinal = extractMedians $ M.makeDynamicCharacterFromSingleVector threeFinal
               }
 
-   else error ("Unrecognized/implemented character type: " ++ show localCharType)
+   else error ("Unrecognized/implemented character type: " <> show localCharType)
 
 
 -- | threeWayNonAdditive takes the union/intersection operation over 3 non additive states
@@ -340,7 +340,7 @@ addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild
    let (reGappedLeft, reGappedRight) = slideRegap reGappedNodePrelim gappedNodePrelim gappedLeftChild gappedRightChild mempty mempty
    in
    if (GV.length reGappedParentFinal /= GV.length reGappedLeft) || (GV.length reGappedParentFinal /= GV.length reGappedRight) then error ("Vectors not same length "
-      ++ show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
+      <> show (GV.length reGappedParentFinal, GV.length reGappedLeft, GV.length reGappedRight))
    else (reGappedParentFinal, reGappedLeft, reGappedRight)
    -- )
 
@@ -348,7 +348,7 @@ addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild
 -- to the 3rd and 4th input vectors
 slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
 slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
-   -- trace ("SRG: " ++ (show (GV.length reGappedNode, GV.length gappedNode, GV.length gappedLeft, GV.length gappedRight))) (
+   -- trace ("SRG: " <> (show (GV.length reGappedNode, GV.length gappedNode, GV.length gappedLeft, GV.length gappedRight))) (
    if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
    else
       let firstRGN = GV.head reGappedNode
@@ -360,7 +360,7 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
       if GV.null gappedNode then
         let gapList = replicate  (GV.length reGappedNode) (bit gapIndex)
         in
-        (GV.fromList $ reverse (gapList ++ newLeftList), GV.fromList $ reverse (gapList ++ newRightList))
+        (GV.fromList $ reverse (gapList <> newLeftList), GV.fromList $ reverse (gapList <> newRightList))
 
       else if firstRGN /= firstGN then
          let gap = bit gapIndex
@@ -416,7 +416,7 @@ threeWayGeneric charInfo parent1 parent2 curNode =
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
                                                             in
                                                             (mempty, mempty, median, cost)
-                                                         else error ("Unrecognized character type: " ++ show localCharType)
+                                                         else error ("Unrecognized character type: " <> show localCharType)
 
        (median2Slim, median2Wide, median2Huge, cost2) =  if localCharType `elem` [SlimSeq, NucSeq]  then
                                                             let (a,b,c) = addGapsToChildren (slimGapped p1cNp2) (slimGapped p1cN)
@@ -433,7 +433,7 @@ threeWayGeneric charInfo parent1 parent2 curNode =
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
                                                             in
                                                             (mempty, mempty, median, cost)
-                                                         else error ("Unrecognized character type: " ++ show localCharType)
+                                                         else error ("Unrecognized character type: " <> show localCharType)
 
        (median3Slim, median3Wide, median3Huge, cost3) =  if localCharType `elem` [SlimSeq, NucSeq]  then
                                                             let (a,b,c) = addGapsToChildren (slimGapped p2cNp1) (slimGapped p2cN)
@@ -450,7 +450,7 @@ threeWayGeneric charInfo parent1 parent2 curNode =
                                                                 (median, cost) = get3WayGeneric (MR.retreiveThreewayTCM (hugeTCM charInfo)) a b c
                                                             in
                                                             (mempty, mempty, median, cost)
-                                                         else error ("Unrecognized character type: " ++ show localCharType)
+                                                         else error ("Unrecognized character type: " <> show localCharType)
 
 
        minCost = minimum [cost1, cost2, cost3]
@@ -467,4 +467,4 @@ threeWayGeneric charInfo parent1 parent2 curNode =
 
    else if localCharType == HugeSeq then emptyCharacter {hugeFinal = medianBestHuge}
 
-   else error ("Unrecognized character type: " ++ show localCharType)
+   else error ("Unrecognized character type: " <> show localCharType)

@@ -1,32 +1,20 @@
------------------------------------------------------------------------------
--- |
--- Module      :  Data.Alphabet.IUPAC
--- Copyright   :  (c) 2015-2021 Ward Wheeler
--- License     :  BSD-style
---
--- Maintainer  :  wheeler@amnh.org
--- Stability   :  provisional
--- Portability :  portable
---
------------------------------------------------------------------------------
-
 module Data.Alphabet.IUPAC
   ( iupacToAminoAcid
   , iupacToDna
   , iupacToRna
   ) where
 
+import Control.Arrow ((***))
+import Data.Bimap (Bimap)
+import Data.Bimap qualified as BM
+import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty qualified as NE
+import Data.String
 
-import           Control.Arrow      ((***))
-import           Data.Bimap         (Bimap)
-import qualified Data.Bimap         as BM
-import           Data.List.NonEmpty (NonEmpty)
-import qualified Data.List.NonEmpty as NE
-import           Data.String
 
-
--- |
--- Substitutions for converting to an Amino Acid sequence based on IUPAC codes.
+{- |
+Substitutions for converting to an Amino Acid sequence based on IUPAC codes.
+-}
 iupacToAminoAcid :: (IsString s, Ord s) => Bimap (NonEmpty s) (NonEmpty s)
 iupacToAminoAcid = toBimap
     [ ('A', "A")
@@ -57,8 +45,9 @@ iupacToAminoAcid = toBimap
     ]
 
 
--- |
--- Substitutions for converting to a DNA sequence based on IUPAC codes.
+{- |
+Substitutions for converting to a DNA sequence based on IUPAC codes.
+-}
 iupacToDna :: (IsString s, Ord s) => Bimap (NonEmpty s) (NonEmpty s)
 iupacToDna = toBimap
     [ ('A', "A")
@@ -96,8 +85,9 @@ iupacToDna = toBimap
     ]
 
 
--- |
--- Substitutions for converting to a RNA sequence based on IUPAC codes.
+{- |
+Substitutions for converting to a RNA sequence based on IUPAC codes.
+-}
 iupacToRna :: (IsString s, Ord s) => Bimap (NonEmpty s) (NonEmpty s)
 iupacToRna = BM.mapMonotonic setUpdate $ BM.mapMonotonicR setUpdate iupacToDna
   where
