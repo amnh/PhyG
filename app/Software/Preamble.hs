@@ -24,6 +24,9 @@ import Software.Metadata
 import System.Environment (getProgName)
 
 
+{- |
+Text to be displayed at the beginning of each computation.
+-}
 preambleText :: IO Builder
 preambleText =
     let copywriting = fromString copyright

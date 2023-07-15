@@ -40,6 +40,7 @@ Valid command line options
 newtype CommandLineOptions = OptionsCLI { getArgsCLI :: Either (NonEmpty DisplayInfoBlock) FilePath }
     deriving stock (Generic)
 
+
 {- |
 Collection of flags gathered from command line interface which has yet to be validated.
 -}

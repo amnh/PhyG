@@ -109,8 +109,6 @@ fullVersionInformation =
             ]
 
 
-
-
 {- |
 The UTC system time at which (this module of) the binary was compiled.
 -}
