@@ -52,13 +52,13 @@ cabal install
 [Funding-1]: https://www.darpa.mil/program/simplifying-complexity-in-scientific-discovery
 [Funding-2]: http://www.klebergfoundation.org/
 
-[GitHub-actions-img]: https://github.com/AMNH/PhyG/workflows/build/badge.svg?branch=master
+[GitHub-actions-img]: https://github.com/amnh/PhyG/actions/workflows/integration-test-suite.yaml/badge.svg?branch=master
 [GitHub-actions-ref]: https://github.com/AMNH/PhyG/actions
 [GitHub-authors-img]: https://img.shields.io/badge/author-Ward%20Wheeler-blue.svg?color=134EA2
 [GitHub-authors-ref]: https://github.com/AMNH/PhyG/tree/master/doc/AUTHORS.md
 [GitHub-codelen-img]: https://img.shields.io/github/languages/code-size/AMNH/PhyG.svg?style=popout&color=yellowgreen
 [GitHub-codelen-ref]: https://github.com/AMNH/PhyG/archive/master.zip
-[GitHub-commits-img]: https://img.shields.io/github/commits-since/AMNH/PhyG/0.3.0.svg?style=popout&color=yellowgreen
+[GitHub-commits-img]: https://img.shields.io/github/commits-since/AMNH/PhyG/v0.1.2.svg?style=popout&color=yellowgreen
 [GitHub-commits-ref]: https://github.com/AMNH/PhyG/commits/master
 [GitHub-conduct-img]: https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg
 [GitHub-conduct-ref]: https://github.com/AMNH/PhyG/blob/master/doc/Code_Of_Conduct.md
@@ -67,7 +67,7 @@ cabal install
 [GitHub-release-img]: https://img.shields.io/github/release-pre/AMNH/PhyG.svg?style=popout&color=orange
 [GitHub-release-ref]: https://github.com/AMNH/PhyG/releases/latest
 [GitHub-tagdate-img]: https://img.shields.io/github/release-date-pre/AMNH/PhyG.svg?style=popout&color=orange
-[GitHub-support-img]: https://img.shields.io/maintenance/no/2021.svg?style=popout
+[GitHub-support-img]: https://img.shields.io/maintenance/yes/2023.svg?style=popout
 [GitHub-support-ref]: https://github.com/AMNH/PhyG/graphs/contributors
 
 [GitHub-Funding]: https://github.com/AMNH/PhyG/blob/master/doc/Funding.md
