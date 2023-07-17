@@ -1294,8 +1294,11 @@ local3WaySlim lSlimTCM b c d =
 generalSequenceDiff :: (Show a, FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
     -- trace ("GSD: " <> (show (numStates, uState, vState))) (
-    let uState' = if popCount uState == 0 then bit gapIndex else uState
-        vState' = if popCount vState == 0 then bit gapIndex else vState
+    let gapIfNil x
+            | popCount x == 0 = (x `xor` x) `setBit` fromEnum gapIndex
+            | otherwise = x
+        uState' = gapIfNil uState
+        vState' = gapIfNil vState
         uStateList = fmap snd $ filter fst $ zip (fmap (testBit uState') [0.. numStates - 1]) [0.. numStates - 1]
         vStateList = fmap snd $ filter fst $ zip (fmap (testBit vState') [0.. numStates - 1]) [0.. numStates - 1]
         uvCombinations = cartProd uStateList vStateList

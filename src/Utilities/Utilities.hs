@@ -38,6 +38,7 @@ module Utilities.Utilities  where
 
 import           Data.Alphabet
 import           Data.Alphabet.IUPAC
+import           Data.Alphabet.Special
 import qualified Data.BitVector.LittleEndian as BV
 import qualified Data.List                   as L
 import qualified Data.List.NonEmpty          as NE
@@ -234,19 +235,17 @@ splitSequence partitionST stList =
 bitVectToCharStateQual :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharStateQual localAlphabet bitValue =
   let charString = L.intercalate "," $ foldr pollSymbol mempty indices
-  in
-  if popCount bitValue > 1 then "[" <> charString <> "]"
-  else charString
+  in  if popCount bitValue > 1
+      then "[" <> charString <> "]"
+      else charString
   where
     indices = [ 0 .. len - 1 ]
     len = length vec
     -- this is a hack--the alphabets for non-additive charcaters gets truncated to binary at some point earlier
-    localAlphabet' = if length localAlphabet == finiteBitSize bitValue then localAlphabet
-                     else fromSymbolsWOGap $ fmap show [0.. finiteBitSize bitValue - 1]
-    vec = alphabetSymbols localAlphabet'
+    vec = V.fromList $ fmap show [ 0 .. finiteBitSize bitValue - 1 ]
     pollSymbol i polled
       | bitValue `testBit` i = (vec V.! i) : polled
-      | otherwise         = polled
+      | otherwise = polled
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String

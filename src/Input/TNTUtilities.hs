@@ -257,18 +257,21 @@ collectAmbiguities fileName inStringList =
 
 -- | defaultTNTCharInfo default values for TNT characters
 defaultTNTCharInfo :: CharInfo
-defaultTNTCharInfo = emptyCharInfo { charType = NonAdd
-                                , activity = True
-                                , weight = 1.0
-                                , costMatrix = SM.empty
-                                , name = T.empty
-                                , alphabet = fromSymbolsWOGap [ST.fromString "0"] -- fromSymbols []
-                                , prealigned = True
-                                , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
-                                , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
-                                , hugeTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
-                                , origInfo   = V.singleton (T.empty, NonAdd, fromSymbolsWOGap []) -- fromSymbols [])
-                                }
+defaultTNTCharInfo =
+    let a = fromSymbols [ST.fromString "0"] -- fromSymbols []
+    in  emptyCharInfo
+        { charType = NonAdd
+        , activity = True
+        , weight = 1.0
+        , costMatrix = SM.empty
+        , name = T.empty
+        , alphabet   = a
+        , prealigned = True
+        , slimTCM    = FAC.genDiscreteDenseOfDimension (0 :: Word)
+        , wideTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
+        , hugeTCM    = snd $ metricRepresentation <$> TCM.fromRows [[0::Word]]
+        , origInfo   = V.singleton (T.empty, NonAdd, a)
+        }
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number
 renameTNTChars :: String -> Int -> [CharInfo] -> [CharInfo]
@@ -541,7 +544,7 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
         if charIndex /= firstIndex then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix indexList (charIndex + 1) (firstCharInfo : curCharList)
         else
             --let updatedCharInfo = firstCharInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
-            let updatedCharInfo = firstCharInfo {alphabet = fromSymbolsWOGap localAlphabet, costMatrix = SM.fromLists localMatrix}
+            let updatedCharInfo = firstCharInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
             in
             -- trace ("TNT2" <> (show $ alphabet updatedCharInfo))
             newCharInfoMatrix (tail inCharList) localAlphabet localMatrix  (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
@@ -634,7 +637,7 @@ getAlphabetFromSTList fileName inStates inCharInfo =
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     -- (fromSymbols thisAlphabet, newWeight, newColumn)
     -- trace ("getAlph weight: " <> (show thisWeight))
-    (fromSymbolsWOGap thisAlphabet, newWeight, newColumn)
+    (fromSymbols thisAlphabet, newWeight, newColumn)
 
 
 -- | getDecimals tkase a state ShortText and return number decimals--if ambiguous then the most of range

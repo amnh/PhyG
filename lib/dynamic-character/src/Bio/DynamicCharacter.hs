@@ -579,7 +579,7 @@ renderDynamicCharacter (lc,mc,rc) = unlines
 
 
 buildGap :: Bits e => e -> e
-buildGap e = buildNil e `setBit` gapIndex
+buildGap e = buildNil e `setBit` fromEnum gapIndex
 
 
 buildNil :: Bits e => e -> e
@@ -589,5 +589,5 @@ buildNil e = e `xor` e
 buildGapAndNil :: Bits e => e -> (# e, e #)
 buildGapAndNil e =
   let nil = buildNil e
-      gap = nil `setBit` gapIndex
+      gap = nil `setBit` fromEnum gapIndex
   in  (# gap, nil #)

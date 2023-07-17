@@ -36,6 +36,11 @@
         , rhs: fold1
         }
 
+- warn: { name: Prefer fold1 to sconcat
+        , lhs: bit $ fromEnum gapIndex
+        , rhs: \x -> (x `xor` x) `setBit` fromEnum gapIndex
+        }
+
 # Custom suggestion hints
 - suggestion: { name: Strict sum
               , note: Prefer custom strict sum to lazy sum. Decreases laziness
