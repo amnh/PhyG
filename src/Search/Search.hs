@@ -164,7 +164,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
        
        let result' = if isNothing result then 
                         trace ("Thread " <> (show refIndex) <> " terminated due to time" ) -- <> show allotedSeconds)
-                        (inGraphList, infoStringList <> [",Final Values,,,,," <> "*"])
+                        (inGraphList, [])
                      else 
                         --trace ("Thread " <> (show refIndex) <> " is OK "  <> (show allotedSeconds) <> " -> " <> (show $ fromIntegral $ toMicroseconds allotedSeconds))
                         fromJust result
@@ -176,7 +176,8 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
    let finalTimeString = ",Final Values,,," <> (show $ toSeconds outTotalSeconds)
    -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
    let (updatedThetaList, newStopCount) = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSecondsCPU outTotalSeconds stopCount stopNum
-   let thetaString = L.intercalate "," $ fmap (show . snd) updatedThetaList
+   let thetaString = if (null $ snd output) then L.intercalate "," $ fmap (show . snd) thetaList
+                     else L.intercalate "," $ fmap (show . snd) updatedThetaList
 
    let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
    hPutStrLn stderr $ unlines [ "Thread   \t" <> show refIndex
@@ -185,9 +186,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                       , "Remaining\t" <> show remainingTime
                       ]
 
-   if (snd output) == infoStringList 
-   then pure (inGraphList, infoStringList) 
-   else if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum 
+   if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum || (null $ snd output)
    then pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) -- output with strings correctly added together
    else searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction updatedThetaList (counter + 1) maxNetEdges outTotalSeconds remainingTime newStopCount stopNum refIndex (tail seedList) $ bimap (inGraphList <>) (infoStringList <>) output
 
