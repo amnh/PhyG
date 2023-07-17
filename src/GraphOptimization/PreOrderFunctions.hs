@@ -927,10 +927,13 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b)
           equalAndSingleState a b = (a == b) && (popCount a == 1)
 
+
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
-zero2Gap :: (FiniteBits a) => a -> a
-zero2Gap inVal = if popCount inVal == 0 then bit gapIndex
-                 else inVal
+zero2Gap :: FiniteBits a => a -> a
+zero2Gap inVal
+    | popCount inVal == 0 = (inVal `xor` inVal) `setBit` fromEnum gapIndex
+    | otherwise = inVal
+
 
 {-
 -- | zero2GapWide converts a '0' or no bits set to gap (indel) value

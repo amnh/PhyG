@@ -521,7 +521,7 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
       -- different types--vector wrangling
       -- missing data fields set if no implied alignment ie missing data
       if inCharType `elem` [SlimSeq, NucSeq] then
-         let gapChar = setBit (0 :: CUInt) gapIndex
+         let gapChar = (0 :: CUInt) `setBit` fromEnum gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
                                 else
                                   let missingElement = SV.replicate charLength $ B.complement (0 :: CUInt) -- TRANS.setMissingBits (0 :: CUInt) 0 alphSize
@@ -546,7 +546,7 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
             (inCharData {alignedSlimPrelim = impliedAlignChar}, inCharInfo {charType =  AlignedSlim})
 
       else if inCharType `elem` [WideSeq, AminoSeq] then
-         let gapChar = setBit (0 :: Word64) gapIndex
+         let gapChar = (0 :: Word64) `setBit` fromEnum gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
                                 else
                                   let missingElement = UV.replicate charLength $ B.complement (0 :: Word64) -- TRANS.setMissingBits (0 :: Word64) 0 alphSize
@@ -568,7 +568,7 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
             (inCharData {alignedWidePrelim = impliedAlignChar}, inCharInfo {charType =  AlignedWide})
 
       else if inCharType == HugeSeq then
-         let gapChar = setBit (BV.fromBits $ replicate alphSize False) gapIndex
+         let gapChar = (BV.fromBits $ replicate alphSize False) `setBit` fromEnum gapIndex
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData) then hugeAlignment inCharData
                                 else
                                  let missingElement = V.replicate alphSize $ (BV.fromBits $ replicate alphSize True)

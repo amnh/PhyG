@@ -34,40 +34,38 @@ Portability :  portable (I hope)
 
 -}
 
-
-
 module Commands.CommandUtilities where
 
-
-import           Data.Alphabet
-import           Data.Bits
-import qualified Data.Char                    as C
-import           Data.Foldable
-import qualified Data.List                    as L
-import qualified Data.List.Split              as LS
-import qualified Data.List.Split              as SL
-import           Data.Maybe
-import qualified Data.Text.Lazy               as T
-import qualified Data.Text.Short              as ST
-import qualified Data.Vector                  as V
-import qualified Data.Vector.Storable         as SV
-import qualified Data.Vector.Unboxed          as UV
-import           Debug.Trace
-import           GeneralUtilities
-import           GraphFormatUtilities
-import qualified GraphOptimization.Traversals as TRAV
-import           Graphs.GraphOperations       as GO
-import qualified Input.Reorganize             as IR
-import qualified SymMatrix                    as S
-import           System.Directory
-import           System.IO
-import           System.Info
-import           System.Process
-import           Types.Types
-import qualified Utilities.LocalGraph         as LG
-import qualified Utilities.Utilities          as U
--- import qualified Commands.Transform          as DT
-import qualified Data.Set                     as SET
+import Data.Alphabet
+import Data.Alphabet.Special
+import Data.Bits
+import Data.Char qualified as C
+import Data.Foldable
+import Data.List qualified as L
+import Data.List.Split qualified as LS
+import Data.List.Split qualified as SL
+import Data.Maybe
+import Data.Set qualified as SET
+import Data.Text.Lazy qualified as T
+import Data.Text.Short qualified as ST
+import Data.Vector qualified as V
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
+import Debug.Trace
+import GeneralUtilities
+import GraphFormatUtilities
+import GraphOptimization.Traversals qualified as TRAV
+import Graphs.GraphOperations qualified as GO
+import Input.Reorganize qualified as IR
+import SymMatrix qualified as S
+import System.Directory
+import System.IO
+import System.Info
+import System.Process
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
+-- import Commands.Transform qualified as DT
 
 
 -- | processSearchFields takes a [String] and reformats the String associated with the

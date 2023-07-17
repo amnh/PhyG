@@ -79,8 +79,8 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
    else
        let -- block build options including number of display trees to return
-           buildBlock = filter ((=="block").fst) lcArgList
-           displayBlock = filter ((=="displaytrees").fst) lcArgList
+           buildBlock = filter ((== "block").fst) lcArgList
+           displayBlock = filter ((== "displaytrees").fst) lcArgList
            numDisplayTrees
                 | length displayBlock > 1 =
                   errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " <> show inArgs)
@@ -89,7 +89,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                 | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
 
 
-           returnList = filter ((=="return").fst) lcArgList
+           returnList = filter ((== "return").fst) lcArgList
            numReturnTrees
                 | length returnList > 1 =
                   errorWithoutStackTrace ("Multiple 'return' number specifications in command--can have only one: " <> show inArgs)
@@ -97,15 +97,15 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                 | null (snd $ head returnList) = Just (maxBound :: Int)
                 | otherwise = readMaybe (snd $ head returnList) :: Maybe Int
 
-           doEUN' = any ((=="eun").fst) lcArgList
-           doCUN' = any ((=="cun").fst) lcArgList
+           doEUN' = any ((== "eun").fst) lcArgList
+           doCUN' = any ((== "cun").fst) lcArgList
            doEUN = if not doEUN' && not doCUN' then True
                    else doEUN'
-           returnTrees' = any ((=="displaytrees").fst) lcArgList
-           returnGraph' = any ((=="graph").fst) lcArgList
-           returnRandomDisplayTrees' = any ((=="atrandom").fst) lcArgList
-           returnFirst' = any ((=="first").fst) lcArgList
-           buildDistance = any ((=="distance").fst) lcArgList
+           returnTrees' = any ((== "displaytrees").fst) lcArgList
+           returnGraph' = any ((== "graph").fst) lcArgList
+           returnRandomDisplayTrees' = any ((== "atrandom").fst) lcArgList
+           returnFirst' = any ((== "first").fst) lcArgList
+           buildDistance = any ((== "distance").fst) lcArgList
 
            -- temprary change (if needed) to buyild tree structures
            inputGraphType = graphType inGS
@@ -260,15 +260,15 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
    else
 
-      let buildDistance = any ((=="distance").fst) lcArgList
-          buildCharacter = any ((=="character").fst) lcArgList
-          repPairList = filter ((=="replicates").fst) lcArgList
+      let buildDistance = any ((== "distance").fst) lcArgList
+          buildCharacter = any ((== "character").fst) lcArgList
+          repPairList = filter ((== "replicates").fst) lcArgList
           numReplicates
             | length repPairList > 1 =
               errorWithoutStackTrace ("Multiple replicate number specifications in command--can have only one: " <> show inArgs)
             | null repPairList = Just 10
             | otherwise = readMaybe (snd $ head repPairList) :: Maybe Int
-          keepPairList = filter ((=="best").fst) lcArgList
+          keepPairList = filter ((== "best").fst) lcArgList
           numToSave
             | length keepPairList > 1 =
                   errorWithoutStackTrace ("Multiple best number specifications in command--can have only one: " <> show inArgs)
@@ -283,13 +283,13 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
       else if buildDistance then
          -- distance build
          -- do all options in line and add together for return tree list
-         let doDWag  = any ((=="dwag").fst) lcArgList
-             doRDwag = any ((=="rdwag").fst) lcArgList
-             doNJ    = any ((=="nj").fst) lcArgList
-             doWPGMA = any ((=="wpgma").fst) lcArgList
-             doOTU   = any ((=="otu").fst) lcArgList
-             doSPR   = any ((=="spr").fst) lcArgList
-             doTBR   = any ((=="tbr").fst) lcArgList
+         let doDWag  = any ((== "dwag").fst) lcArgList
+             doRDwag = any ((== "rdwag").fst) lcArgList
+             doNJ    = any ((== "nj").fst) lcArgList
+             doWPGMA = any ((== "wpgma").fst) lcArgList
+             doOTU   = any ((== "otu").fst) lcArgList
+             doSPR   = any ((== "spr").fst) lcArgList
+             doTBR   = any ((== "tbr").fst) lcArgList
              outgroupElem = outgroupIndex inGS
              nameStringVect = fmap TL.unpack nameTextVect
              distMatrix = M.fromLists pairwiseDistances
