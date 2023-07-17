@@ -122,7 +122,9 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                    completeGraphList = inGraphList <> fold newGraphList
                    filteredGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) completeGraphList
                    selectedGraphList = take keepNum filteredGraphList
-               in  (selectedGraphList, commentList <> [[iterationHitString]])
+               in  
+               trace (iterationHitString) 
+               (selectedGraphList, commentList <> [[iterationHitString]])
     )
     where getMinGraphListCost a = if (not $ null a) then minimum $ fmap snd5 a
                                   else infinity
