@@ -24,6 +24,9 @@ The text of the software license under which the PHANE tool is distributed.
 -}
 licenseText :: ExpQ
 licenseText =
-    let gatherData = getDataFileName "LICENSE" >>= polishData . readFile . normalise
+    let locateData = runIO $ getDataFileName "LICENSE"
+        gatherData = polishData . readFile . normalise
         polishData = fmap (intercalate "\n" . lines)
-    in  runIO gatherData >>= lift
+    in  do  filePath <- locateData
+            addDependentFile filePath
+            runIO $ gatherData filePath >>= lift 
