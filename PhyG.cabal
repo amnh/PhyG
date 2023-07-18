@@ -30,13 +30,10 @@ Description:
   classes of input data and phylogenetic graphs. The phylogenetic graph inputs and outputs of PhyG
   include trees, as well as softwired and hardwired networks.
 
-Data-Dir:
-  doc
-
 Data-Files:
-  Authors.md
-  Funding.md
-  LICENSE
+  doc/Authors.md
+  doc/Funding.md
+  doc/LICENSE
 
 Extra-Doc-Files:
   doc/Authors.md
@@ -235,7 +232,7 @@ Executable phyg
     phygraph.hs
 
   GHC-Options:
---     -feager-blackholing  may be causing paralel loop errors
+--     -feager-blackholing  may be causing parallel loop errors
     -O2
     -rtsopts
     -Wall
@@ -288,12 +285,14 @@ Executable phyg
     bimap,
     bv,
     bv-little,
+    bytestring,     
     clock,
     concurrent-hashtable,
     containers >= 0.6,
     cpuinfo,
     deepseq,
     directory,
+    file-embed,
     filepath >= 1.4.100,
     fgl >=5.8,
     foldl,
@@ -330,10 +329,6 @@ Executable phyg
     app
     src
 
-  -- Apparently this is needed to compile with profiling, which is really stupid.
-  -- It should only be in the modules which use TemplateHaskell, not all modules.
-  -- I consider this a temporary hack to get things to compile with profiling.
-  -- TODO: remove this in the future when cabal gets it's act together.
   Other-Extensions:
     TemplateHaskell
 
@@ -383,6 +378,7 @@ Executable phyg
     Software.Credits
     Software.License
     Software.Metadata
+    Software.Metadata.Embedded
     Software.Metadata.TimeStamp
     Software.Preamble
     Software.SplashImage
