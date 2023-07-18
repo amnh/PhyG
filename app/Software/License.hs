@@ -18,6 +18,7 @@ import Language.Haskell.TH.Syntax hiding (Inline)
 import Paths_PhyG
 import Prelude hiding (lines, readFile)
 import System.FilePath (normalise)
+import System.Directory
 
 
 {- |
@@ -38,8 +39,11 @@ licenseText =
             getDataDir    >>= noting "getDataDir"
             getLibexecDir >>= noting "getLibexecDir"
             getSysconfDir >>= noting "getSysconfDir"
+            getCurrentDirectory >>= noting "CurrentDir"
             inlineData
-    in  addDependentFile filePath *> runIO workingIO
+    in  addDependentFile filePath *>
+            (location >>= runIO . noting "location" . show)
+            *> runIO workingIO
 {-
 licenseText :: ExpQ
 licenseText =
