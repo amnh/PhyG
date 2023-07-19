@@ -118,7 +118,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
            pure $
                let (newGraphList, commentList) = unzip resultList
                    newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
-                   iterationHitString = ("Hit minimum cost in " <> (show $ length $ head newCostList) <> " of " <> (show $ length newGraphList) <> " iterations")
+                   iterationHitString = ("Hit minimum cost " <> (show $ minimum $ fmap snd5 $ concat newGraphList) <> " in " <> (show $ length $ head newCostList) <> " of " <> (show $ length newGraphList) <> " iterations")
                    completeGraphList = inGraphList <> fold newGraphList
                    filteredGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) completeGraphList
                    selectedGraphList = take keepNum filteredGraphList
@@ -175,7 +175,9 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
 
    -- update theta list based on performance
    let outTotalSeconds = timeSum inTotalSeconds elapsedSecondsCPU
-   let finalTimeString = ",Final Values,,," <> (show $ toSeconds outTotalSeconds)
+   let bestCost = if (not $ null $ fst output) then minimum $ fmap snd5 $ fst output
+                  else infinity
+   let finalTimeString = ",Final Values,," <> (show bestCost) <> "," <> (show $ toSeconds outTotalSeconds)
    -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
    let (updatedThetaList, newStopCount) = updateTheta thompsonSample mFactor mFunction counter (snd output) thetaList elapsedSecondsCPU outTotalSeconds stopCount stopNum
    let thetaString = if (null $ snd output) then L.intercalate "," $ fmap (show . snd) thetaList

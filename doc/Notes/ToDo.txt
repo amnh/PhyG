@@ -566,3 +566,7 @@
 445) check for malfomed networks in support and LG.nodesAndEdgesAfter  check on split graph
 
 446) Check character wag build seems awful compared to distance
+
+447) Add in hits on saerch output iterations
+
+448) Randomize Thompsons settings option

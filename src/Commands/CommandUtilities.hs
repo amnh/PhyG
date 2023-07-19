@@ -83,10 +83,11 @@ processSearchFields inStringListList =
         else
             let newHeader = ["Iteration","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
                 instanceSplitList = LS.splitOn "*" (L.last firstList)
+                hitsMinimum = filter (/= '*') $ last $ LS.splitOn "," (L.last firstList)
                 (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
             in
-            -- trace ("GSI: " <> (show firstList))
-            [L.init firstList] <> [newHeader <> head searchBanditListList <> ["Arguments"]] <> concat instanceStringListList <> processSearchFields (tail inStringListList)
+            -- trace ("GSI: " <> (show firstList) <> "\nLF: " <> (hitsMinimum) <> "\nILL: " <> (show instanceStringListList) <> "\nSB: " <> (show searchBanditListList))
+            fmap (fmap (filter (/= '\n'))) $ [L.init firstList] <> [newHeader <> head searchBanditListList <> ["Arguments"]] <> concat instanceStringListList <> [[hitsMinimum]] <> processSearchFields (tail inStringListList)
 
 -- processSearchInstance takes the String of instance information and
 -- returns appropriate [[String]] for pretty csv output
