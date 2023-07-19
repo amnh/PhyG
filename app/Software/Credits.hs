@@ -14,6 +14,7 @@ import Control.Foldl qualified as L
 import Control.Monad
 import Data.Foldable
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.Map ((!))
 import Data.Text hiding (filter, intersperse, replicate)
 import Data.Text.Builder.Linear
 import Data.Text.IO (readFile)
@@ -22,6 +23,7 @@ import Language.Haskell.TH hiding (Inline)
 import Language.Haskell.TH.Syntax hiding (Inline)
 import Paths_PhyG (getDataFileName)
 import Prelude hiding (readFile)
+import Software.Metadata.Embedded (embeddedDataFiles)
 import System.FilePath (normalise)
 import Text.MMark
 import Text.MMark.Extension
@@ -31,16 +33,16 @@ import Text.URI qualified as URI
 {- |
 Rendering of the financial and techncal contributors to the software.
 -}
-contributors :: ExpQ
+contributors :: Builder
 contributors =
-    let joinLists x y = runBuilder $ x <> "\n\n\n" <> y
-    in  lift =<< (joinLists <$> authorsList <*> fundingList)
+    let joinLists x y = x <> "\n\n\n" <> y
+    in  joinLists authorsList fundingList
 
 
 {- |
 List of authors who have contributed to the PHANE project.
 -}
-authorsList :: Q Builder
+authorsList :: Builder
 authorsList =
     let drawAuthorLines :: [Text] -> Builder
         drawAuthorLines rawAuthorLines =
@@ -53,17 +55,17 @@ authorsList =
 
         readAuthorLines :: Text -> [Text]
         readAuthorLines = fmap fst . fromMarkdown processMarkdown
-    
+
         renderAuthorData :: Text -> Builder
         renderAuthorData = drawAuthorLines . readAuthorLines
 
-    in  renderAuthorData `atCompileTimeFromFile` "Authors.md"
+    in  renderAuthorData `fromEmbeddedFileData` "Authors.md"
 
 
 {- |
 List of funding sources which have contributed to PHANE project.
 -}
-fundingList :: Q Builder
+fundingList :: Builder
 fundingList =
     let drawFunderLines :: [(Text, Maybe Text)] -> Builder
         drawFunderLines rawFundingSources =
@@ -83,11 +85,17 @@ fundingList =
         renderFunderData :: Text -> Builder
         renderFunderData = drawFunderLines . readFunderLines
 
-    in  renderFunderData `atCompileTimeFromFile` "Funding.md"
+    in  renderFunderData `fromEmbeddedFileData` "Funding.md"
 
 
+fromEmbeddedFileData :: (Text -> Builder) -> FilePath -> Builder
+fromEmbeddedFileData processor = processor . (embeddedDataFiles !)
+
+
+{-
 atCompileTimeFromFile :: (Text -> Builder) -> FilePath -> Q Builder
 atCompileTimeFromFile processor = runIO . fmap processor . (getDataFileName >=> readFile . normalise)
+-}
 
 
 processMarkdown :: MMark -> [(Text, Maybe Text)]
@@ -141,7 +149,7 @@ bulletPrefix depth bullet =
 
 
 indentation :: Builder
-indentation = "  " 
+indentation = "  "
 
 
 unlines' :: Foldable f => f Builder -> Builder

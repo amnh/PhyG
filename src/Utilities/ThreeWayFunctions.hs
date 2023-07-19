@@ -358,12 +358,12 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
       -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
       -- can copmplete the remainder of the slide as gaps only
       if GV.null gappedNode then
-        let gapList = replicate  (GV.length reGappedNode) (bit gapIndex)
+        let gapList = replicate (GV.length reGappedNode) (bit $ fromEnum gapIndex) -- TODO: Note, unsafe!
         in
         (GV.fromList $ reverse (gapList <> newLeftList), GV.fromList $ reverse (gapList <> newRightList))
 
       else if firstRGN /= firstGN then
-         let gap = bit gapIndex
+         let gap = bit $ fromEnum gapIndex
          in
          slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
 

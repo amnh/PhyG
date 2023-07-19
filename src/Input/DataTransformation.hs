@@ -51,6 +51,7 @@ module Input.DataTransformation
 import           Data.Alphabet
 import           Data.Alphabet.Codec
 import           Data.Alphabet.IUPAC
+import           Data.Alphabet.Special
 import           Data.Bifunctor
 import           Data.Bimap                  (Bimap)
 import qualified Data.Bimap                  as BM
@@ -89,7 +90,7 @@ removeAllMissingCharacters :: RawData -> [RawData]
 removeAllMissingCharacters inData =
     let termData = fst inData
         charData = snd inData
-        lengthCheck = filter (>0) $ fmap length $ fmap snd termData
+        lengthCheck = filter (> 0) $ fmap length $ fmap snd termData
     in
     -- trace ("RAMC: " <> (T.unpack $ name $ head charData) <> (show (length termData, length charData))) (
     -- if length charData /= 1 then error ("removeAllMissingCharacters assumes a single character input and has " <> (show $ length charData))
@@ -240,7 +241,7 @@ checkDuplicatedTerminals inData =
     if null inData then (False, [])
     else
         let nameList = L.group $ L.sort $ fmap fst inData
-            dupList = filter ((>1).length) nameList
+            dupList = filter ((> 1).length) nameList
         in
         if null dupList then (False, [])
         else (True, fmap head dupList)
@@ -358,7 +359,7 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
 
             in
             -- trace ("CND:" <> (show $ fmap length $ (fmap snd firstData))) (
-            if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " <> (takeWhile (/='#') $ T.unpack thisBlockName') <> "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " <> (show nameMinPairList) <> "\nNon Minimum length taxa: " <> (show nameNonMinPairList) )
+            if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " <> (takeWhile (/= '#') $ T.unpack thisBlockName') <> "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " <> (show nameMinPairList) <> "\nNon Minimum length taxa: " <> (show nameNonMinPairList) )
             -- trace ("CND:" <> (show $ fmap snd firstData)) (
             else
                 trace ("Recoding input block: " <> T.unpack thisBlockName')
@@ -407,7 +408,7 @@ recodeNonAddMissingCharacter charInfo inCharData =
 
 
 -- | getAddNonAddAlphabets takes recoded character data and resets the alphabet
--- field in charInfo to reflect observed states.  This is used too properly sety missing and
+-- field in charInfo to reflect observed states.  This is used too properly set missing and
 -- bit packing values
 resetAddNonAddAlphabets :: V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> CharInfo
 resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
@@ -423,11 +424,11 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 nonMissingBV = V.foldl1' (.|.) $ V.filter (/= missingVal) inCharV
 
                 -- max in case of all missing character
-                numStates = max 1 (popCount nonMissingBV)
+                numStates = max 1 $ popCount nonMissingBV
 
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
-                foundSymbols = fmap ST.fromString $ fmap show [0.. numStates - 1]
-                stateAlphabet = fromSymbolsWOGap  foundSymbols -- fromSymbolsWOGap foundSymbols
+                foundSymbols  = ST.fromString . show <$> [ 0 .. numStates - 2 ]
+                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             -- trace ("RNA: " <> (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
@@ -441,8 +442,8 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 maxRange = if maximum maxRangeL > (minBound :: Int) then maximum maxRangeL
                            else 0
 
-                foundSymbols = fmap ST.fromString $ fmap show [minRange.. maxRange]
-                stateAlphabet = fromSymbolsWOGap foundSymbols -- fromSymbolsWOGap foundSymbols
+                foundSymbols = ST.fromString . show <$> [ minRange .. maxRange ]
+                stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             if maxRange < minRange then error ("Error in processing of additive character states " <> (show (minRange, maxRange)))
             else

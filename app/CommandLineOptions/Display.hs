@@ -58,11 +58,11 @@ printInformationDisplay =
 
 
 builderLicenseText :: Builder
-builderLicenseText = fromText $(licenseText)
+builderLicenseText = fromText licenseText
 
 
 builderCreditsRoll :: Builder
-builderCreditsRoll = fromText $(contributors)
+builderCreditsRoll = contributors
 
 
 builderVersionInfo :: Builder

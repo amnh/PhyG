@@ -75,14 +75,10 @@ encloseLine :: String -> Builder
 encloseLine = enclosing ' ' "│ " " │"
 
 
-fullLicenseText :: Text
-fullLicenseText = $(licenseText)
-
-
 getLicenseLine :: Word -> String
 getLicenseLine lineNum =
     let n = fromEnum lineNum
-    in  unpack . head . drop (n - 1) . take n $ T.lines fullLicenseText
+    in  unpack . head . drop (n - 1) . take n $ T.lines licenseText
 
 
 intercalate' :: Builder -> NonEmpty Builder -> Builder

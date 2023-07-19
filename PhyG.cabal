@@ -30,13 +30,10 @@ Description:
   classes of input data and phylogenetic graphs. The phylogenetic graph inputs and outputs of PhyG
   include trees, as well as softwired and hardwired networks.
 
-Data-Dir:
-  doc
-
 Data-Files:
-  Authors.md
-  Funding.md
-  LICENSE
+  doc/Authors.md
+  doc/Funding.md
+  doc/LICENSE
 
 Extra-Doc-Files:
   doc/Authors.md
@@ -235,7 +232,7 @@ Executable phyg
     phygraph.hs
 
   GHC-Options:
---     -feager-blackholing  may be causing paralel loop errors
+--     -feager-blackholing  may be causing parallel loop errors
     -O2
     -rtsopts
     -Wall
@@ -278,7 +275,7 @@ Executable phyg
       -fstatic-argument-transformation
 
   Build-Depends:
-    PhyG:alphabet,
+    PHANE-alphabet,
     PhyG:dynamic-character,
     PhyG:tcm,
     PHANE-PhyloLib,
@@ -288,12 +285,14 @@ Executable phyg
     bimap,
     bv,
     bv-little,
+    bytestring,     
     clock,
     concurrent-hashtable,
     containers >= 0.6,
     cpuinfo,
     deepseq,
     directory,
+    file-embed,
     filepath >= 1.4.100,
     fgl >=5.8,
     foldl,
@@ -330,10 +329,6 @@ Executable phyg
     app
     src
 
-  -- Apparently this is needed to compile with profiling, which is really stupid.
-  -- It should only be in the modules which use TemplateHaskell, not all modules.
-  -- I consider this a temporary hack to get things to compile with profiling.
-  -- TODO: remove this in the future when cabal gets it's act together.
   Other-Extensions:
     TemplateHaskell
 
@@ -383,6 +378,7 @@ Executable phyg
     Software.Credits
     Software.License
     Software.Metadata
+    Software.Metadata.Embedded
     Software.Metadata.TimeStamp
     Software.Preamble
     Software.SplashImage
@@ -407,45 +403,6 @@ Executable phyg
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 
-Library alphabet
-
-  Import:
-    build-defaults
-
-  HS-Source-Dirs:
-    lib/alphabet/src
-
-  Build-Depends:
-    PhyG:utility,
-    base                     >= 4.11      && < 5.0,
-    bimap                    >= 0.3       && < 1.0,
-    binary                   >= 0.8       && < 1.0,
-    containers               >= 0.6.2     && < 1.0,
-    deepseq                  >= 1.4       && < 2.0,
-    keys                     >= 3.12      && < 4.0,
-    mtl                      >= 2.2.2     && < 3.0,
-    QuickCheck               >= 2.14      && < 3.0,
-    semigroupoids            >= 5.3       && < 5.4,
-    stm,
-    text-short               >= 0.1.3     && < 1.0,
-    transformers             >= 0.5.6     && < 1.0,
-    vector                   >= 0.12.0.3  && < 1.0,
-
-  -- Apparently this is needed to compile with profiling, which is really stupid.
-  -- It should only be in the modules which use TemplateHaskell, not all modules.
-  -- I consider this a temporary hack to get things to compile with profiling.
-  other-extensions: TemplateHaskell
-
-  Exposed-Modules:
-    Data.Alphabet
-    Data.Alphabet.Codec
-    Data.Alphabet.IUPAC
-    Data.Alphabet.Special
-
-  Other-Modules:
-    Data.Alphabet.Internal
-
-
 -- Library for performing string alignment on dynamic characters.
 
 -- Provides various metrics for scoring static characters and
@@ -461,7 +418,7 @@ Library dynamic-character
     lib/dynamic-character/src
 
   Build-Depends:
-    PhyG:alphabet,
+    PHANE-alphabet,
     PhyG:tcm,
     PhyG:utility,
     base                     >= 4.11      && < 5.0,
@@ -672,7 +629,7 @@ Test-Suite test-dynamic-character
     lib/dynamic-character/test
 
   Build-Depends:
-    PhyG:alphabet,
+    PHANE-alphabet,
     PhyG:dynamic-character,
     PhyG:tcm,
     base                     >= 4.11      && < 5.0,
@@ -720,7 +677,7 @@ Test-Suite test-dynamic-character
 --    lib/dynamic-character/test
 --
 --  Build-Depends:
---    PhyG:alphabet,
+--    PHANE-alphabet,
 --    PhyG:dynamic-character,
 --    PhyG:tcm,
 --    base                     >= 4.11      && < 5.0,
