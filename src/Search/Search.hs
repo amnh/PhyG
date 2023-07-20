@@ -61,6 +61,7 @@ import           System.Timeout
 import           Text.Read
 import           Types.Types
 import qualified Utilities.Utilities      as U
+import qualified Utilities.LocalGraph     as LG
 
 
 
@@ -355,8 +356,17 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           randDoubleVect = V.fromList $ take 20 randDoubleList
 
           -- choose search type from list with frequencies as input from searchForDuration
+          -- adjust if all trees and networks chose to ensure some net stuff tried
           searchBandit = if null inGraphList' then  "buildDistance"
-                         else chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
+                         else if (graphType inGS' == Tree) then chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
+                         else 
+                            let someGraphsNetwork = filter (== False) $ fmap LG.isTree $ fmap fst5 inGraphList'
+                                tempBandit = chooseElementAtRandomPair (randDoubleVect V.! 0) thetaList
+                            in
+                            if (not . null) someGraphsNetwork then tempBandit
+                            else 
+                                if tempBandit `notElem` ["networkMove", "networkDelete", "driftNetwork", "annealNetwork"] then tempBandit
+                                else chooseElementAtRandomPair (randDoubleVect V.! 0) [("networkAdd", 0.5), ("networkAddDelete", 0.5)]
 
           -- common build arguments including block and distance
           --    Tree does not use block--doesn't work very well for tree building
@@ -409,7 +419,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           netMoveArgs = ("netMove", "") : netGeneralArgs
           netAddArgs = ("netAdd", "") : netGeneralArgs
           netDelArgs = ("netDel", "") : netGeneralArgs
-          netAddDelArgs = ("netadddel", "") : netGeneralArgs
+          netAddDelArgs = ("netAdddel", "") : netGeneralArgs
 
 
           -- Genetic Algorithm Arguments
@@ -629,13 +639,6 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                           else if searchBandit == "networkDelete" then
                                             let -- network delete args
                                                 netEditArgs = netDelArgs
-                                            in
-                                            -- perform search
-                                            (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
-
-                                          else if searchBandit == "networkAddDelete" then
-                                            let -- network add/delete args
-                                                netEditArgs = netAddDelArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)

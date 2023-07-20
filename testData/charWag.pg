@@ -5,17 +5,23 @@ read(fasta:"chel-16.fas")
 --read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
 --read(prefasta:"chel-prealigned.fas")
-read(prefasta:"chel-prealigned.fas", tcm:(2,1))
---read(prefasta:"chel-prealigned.fas", tcm:"sg2t2.mat")
+
+-- this line can cause seg fault--not sure why
+--read(prefasta:"chel-prealigned.fas", tcm:(2,1))
+
+--read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 read(fasta:"chel.fas", tcm:"sg2t1.mat")
---read(fasta:"chel-16.fas", tcm:"sg2t2.mat")
---read(fasta:"chel-16.fas", tcm:"sg2t2.mat")
+read(fasta:"chel-16.fas", tcm:"sg2t2.mat")
+read(fasta:"chel-16.fas", tcm:"sg2t2.mat")
 read("chel.ss")
 --read("chel-3.hen")
 --transform(weight:0.01, name:"chel.fas#0*")
 
 set(seed:1666899539)
+
+report("test0-data.csv", data, overwrite)
+
 
 --set(partitionCharacter:%)
 --set(finalassignment:ia)
@@ -33,7 +39,7 @@ set(seed:1666899539)
 -- For network testing
 --set (outgroup:"one")
 --set(graphtype:hardwired)
---set(graphtype:softwired)
+set(graphtype:softwired)
 --Set(Compressresolutions:True)
 --set(graphFactor:NoPenalty)
 --set(rootcost:ml)
@@ -58,13 +64,12 @@ set(seed:1666899539)
 --swap()
 
 
-search(hours:0, minutes:1, instances:2, Thompson:1, linear)
+search(hours:0, minutes:10, instances:10, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 
 -- transform(dynamic)
 select(best)
-report("test0-data.csv", data, overwrite)
 report("test0-crossrefs.csv", crossrefs, overwrite)
 report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)
