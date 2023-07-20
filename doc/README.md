@@ -7,12 +7,12 @@ Performs heuristic search of phylogenetic graph space via scoring abstract input
 
 [![Release             ][GitHub-release-img]][GitHub-release-ref]
 [![Release Date        ][GitHub-tagdate-img]][GitHub-release-ref]
-
 [![New Commits         ][GitHub-commits-img]][GitHub-commits-ref]
 [![Code Size           ][GitHub-codelen-img]][GitHub-codelen-ref]
 
 [![Author              ][GitHub-authors-img]][GitHub-authors-ref]
 [![BSD3 License        ][GitHub-license-img]][GitHub-license-ref]
+[![Haskell Programming Language][GitHub-prolang-img]][GitHub-prolang-ref]
 [![Contributor Covenant][GitHub-conduct-img]][GitHub-conduct-ref]
 
 The `PhyG` package exposes the `phyg` executable and the `PhyG` sub-libraries.
@@ -64,6 +64,8 @@ cabal install
 [GitHub-conduct-ref]: https://github.com/AMNH/PhyG/blob/master/doc/Code_Of_Conduct.md
 [GitHub-license-img]: https://img.shields.io/badge/license-BSD3-blue.svg?color=134EA2
 [GitHub-license-ref]: https://github.com/AMNH/PhyG/blob/master/doc/LICENSE
+[GitHub-prolang-img]: https://img.shields.io/badge/language-Haskell-blue.svg
+[GitHub-prolang-ref]: https://www.haskell.org
 [GitHub-release-img]: https://img.shields.io/github/release-pre/AMNH/PhyG.svg?style=popout&color=orange
 [GitHub-release-ref]: https://github.com/AMNH/PhyG/releases/latest
 [GitHub-tagdate-img]: https://img.shields.io/github/release-date-pre/AMNH/PhyG.svg?style=popout&color=orange
