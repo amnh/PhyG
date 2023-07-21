@@ -49,6 +49,7 @@ import           Data.Alphabet
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits
 import qualified Data.List                   as L
+import Data.List.NonEmpty (NonEmpty(..))
 import           Data.Maybe
 import qualified Data.MetricRepresentation   as MR
 import qualified Data.Text.Lazy              as T
@@ -733,7 +734,7 @@ recodeAddToNonAddCharacter inGS maxStateToRecode inCharData inCharInfo =
             inCharOrigData = origInfo inCharInfo
             newCharInfo = inCharInfo { name = (T.pack $ (T.unpack origName) <> "RecodedToNonAdd")
                                      , charType = NonAdd
-                                     , alphabet = fromSymbols $ fmap ST.fromString $ fmap show [(0 :: Int), (1 :: Int)]
+                                     , alphabet = fromSymbols . fmap ST.fromString $ "0" :| [ "1" ]
                                      , origInfo = inCharOrigData
                                      }
 

@@ -46,13 +46,15 @@ module Input.FastAC
   , genDiscreteDenseOfDimension
   ) where
 
-import           Control.DeepSeq
-import           Data.Alphabet
-import           Data.Bits
-import qualified Data.Char                 as C
-import           Data.Hashable
-import qualified Data.List                 as L
-import           Data.MetricRepresentation
+import Control.DeepSeq
+import Data.Alphabet
+import Data.Bits
+import Data.Char qualified as C
+import Data.Hashable
+import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty qualified as NE
+import Data.MetricRepresentation
 import qualified Data.MetricRepresentation as MR
 import           Data.TCM                  (TCMDiagnosis (..),
                                             TCMStructure (..))
@@ -74,7 +76,7 @@ import           Types.Types
 -- '#' for partitions in fasta sequences
 getAlphabet :: [String] -> [ST.ShortText] -> [ST.ShortText]
 getAlphabet curList inList =
-    let notAlphElement = fmap ST.fromString ["?", "[", "]", "#"]
+    let notAlphElement = ST.fromString <$> [ "?","[", "]", "#" ]
     in
     if null inList then filter (`notElem` notAlphElement) $ fmap ST.fromString $ L.sort curList `L.union` ["-"]
     else
@@ -127,14 +129,14 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             seqSymbols =
               let toSymbols = fmap ST.fromString
               in  case seqType of
-                    NucSeq   -> toSymbols ["A","C","G","T","-"]
-                    AminoSeq -> toSymbols ["A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
-                    _        -> sequenceData
+                    NucSeq   -> toSymbols $ "A" :| ["C","G","T","-"]
+                    AminoSeq -> toSymbols $ "A" :| ["C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
+                    _        -> NE.fromList sequenceData
 
             thisAlphabet =
                 case fst3 localTCM of
-                a | null a -> seqAlphabet
-                a          -> fromSymbols a
+                    []    -> seqAlphabet
+                    a:as -> fromSymbols $ a :| as
 
 
         in
@@ -269,7 +271,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
               | not $ null $ fst3 localTCM = fst3 localTCM
               | otherwise = getSequenceAphabet [] $ concatMap snd inData
 
-            thisAlphabet = fromSymbols symbolsFound
+            thisAlphabet = fromSymbols $ NE.fromList symbolsFound
 
             seqType =
                 case length thisAlphabet of

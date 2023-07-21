@@ -40,24 +40,25 @@ Portability :  portable (I hope)
 
 module Types.Types where
 
-import           Control.DeepSeq
-import           Control.Parallel.Strategies
-import           Data.Alphabet
-import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.InfList                as IL
-import qualified Data.MetricRepresentation   as MR
-import qualified Data.TCM                    as TCM
-import qualified Data.TCM.Dense              as TCMD
-import qualified Data.Text.Lazy              as T
-import qualified Data.Text.Short             as ST
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
-import           Data.Word
-import           Foreign.C.Types             (CUInt)
-import           GHC.Generics
-import qualified SymMatrix                   as S
-import qualified Utilities.LocalGraph        as LG
+import Control.DeepSeq
+import Control.Parallel.Strategies
+import Data.Alphabet
+import Data.BitVector.LittleEndian qualified as BV
+import Data.InfList qualified as IL
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.MetricRepresentation as MR
+import Data.TCM qualified as TCM
+import Data.TCM.Dense qualified as TCMD
+import Data.Text.Lazy qualified as T
+import Data.Text.Short qualified as ST
+import Data.Vector qualified as V
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
+import Data.Word
+import Foreign.C.Types (CUInt)
+import GHC.Generics
+import SymMatrix qualified as S
+import Utilities.LocalGraph qualified as LG
 
 -- | Debug Flag
 isDebug :: Bool
@@ -779,7 +780,7 @@ emptyCharInfo = CharInfo { name       = T.pack "EmptyCharName"
                          , hugeTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
                          , changeCost = 1.0
                          , noChangeCost = 0.0
-                         , alphabet   = fromSymbols $ fmap ST.fromString ["0", "1"]
+                         , alphabet   = fromSymbols $ fmap ST.fromString $ "0" :| [ "1"]
                          , prealigned = False
                          , origInfo   = V.empty
                          }

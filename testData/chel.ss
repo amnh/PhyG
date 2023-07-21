@@ -17,7 +17,7 @@ Pauroctonus	1
 Rhiphicephalus	1
 Thelichoris	1
 Thermobius 1
-Vonones	?
+Vonones	-
 ;
-cc + 0.;
+cc - 0.;
 proc/;

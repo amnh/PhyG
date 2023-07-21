@@ -50,6 +50,8 @@ import qualified Data.Bimap                  as BM
 import           Data.Bits
 import           Data.Foldable
 import qualified Data.InfList                as IL
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set                    as SET
 import qualified Data.Text.Lazy              as T
 import qualified Data.Text.Short             as ST
@@ -333,7 +335,7 @@ bitVectToCharState' localAlphabet bitValue =
 
 
 -- bitVectToCharState''  takes a bit vector representation and returns a list states as integers
-bitVectToCharState'' :: (Bits b) => [String] -> b -> String
+bitVectToCharState'' :: (Bits b) => NonEmpty String -> b -> String
 bitVectToCharState'' localAlphabet bitValue
   | isAlphabetDna       hereAlphabet = fold $ iupacToDna       BM.!> observedSymbols
   | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
@@ -344,7 +346,7 @@ bitVectToCharState'' localAlphabet bitValue
       observedSymbols
         = NE.fromList
             $ foldMap
-                (\ i -> [localAlphabet !! i | bitValue `testBit` i])
+                (\ i -> [localAlphabet NE.!! i | bitValue `testBit` i])
                 [0 .. symbolCountH - 1]
 
 -- | matrixStateToStringtakes a matrix state and returns a string representation

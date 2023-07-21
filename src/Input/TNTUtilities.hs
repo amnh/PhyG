@@ -64,6 +64,7 @@ import           Data.Char
 import qualified Data.Char                 as C
 import           Data.Foldable
 import qualified Data.List                 as L
+import Data.List.NonEmpty (NonEmpty(..))
 import           Data.Maybe
 import           Data.MetricRepresentation
 import qualified Data.Set                  as Set
@@ -258,7 +259,7 @@ collectAmbiguities fileName inStringList =
 -- | defaultTNTCharInfo default values for TNT characters
 defaultTNTCharInfo :: CharInfo
 defaultTNTCharInfo =
-    let a = fromSymbols [ST.fromString "0"] -- fromSymbols []
+    let a = fromSymbols $ ST.fromString "0" :| [] -- fromSymbols []
     in  emptyCharInfo
         { charType = NonAdd
         , activity = True
@@ -366,19 +367,21 @@ getCosts fileName charNumber commandWordList curCharInfo =
 -- | processCostsLine takes the transformation commands of TNT and creates a TCM matrix from that
 -- does not check for alphabet size or order so sorts states to get matrix
 -- TNT states (alphabet elements) must be single characters
-processCostsLine :: String -> [T.Text] -> ([ST.ShortText],[[Int]])
+processCostsLine :: String -> [T.Text] -> (NonEmpty ST.ShortText, [[Int]])
 processCostsLine fileName wordList =
     if null wordList then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " costs processing error:  'costs' command without transfomation costs specified")
-    else
-        let localAlphabet = L.sort $ L.nub $ concatMap getAlphabetElements wordList
-            transCosts = getTransformationCosts fileName localAlphabet wordList
-            localMatrix = makeMatrix fileName localAlphabet transCosts
-        in
+    else case L.sort . L.nub $ foldMap getAlphabetElements wordList of
+        [] -> errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " No symbols found!")
+        s:ss ->
+            let localAlphabet = s :| ss
+                transCosts = getTransformationCosts fileName localAlphabet wordList
+                localMatrix = makeMatrix fileName localAlphabet transCosts
+            in  (localAlphabet, localMatrix)
         -- trace ("TNT" <> show localAlphabet <> " " <> show transCosts <> "\n\t" <> show localMatrix)
-        (localAlphabet, localMatrix)
+        
 
 -- | makeMatrix takes triples and makes a square matrix with 0 diagonals if  not specified
-makeMatrix :: String -> [ST.ShortText]->  [(Int, Int, Int)] -> [[Int]]
+makeMatrix :: String -> NonEmpty ST.ShortText ->  [(Int, Int, Int)] -> [[Int]]
 makeMatrix fileName localAlphabet transCosts
   | null transCosts = []
   | length transCosts < (length localAlphabet * length localAlphabet) - length localAlphabet =
@@ -395,7 +398,7 @@ makeMatrix fileName localAlphabet transCosts
 -- | getTransformationCosts get state pairs and their costs
 -- retuns as (i,j,k) = i->j costs k
 -- need to make this gerneral to letter states
-getTransformationCosts :: String -> [ST.ShortText]-> [T.Text] -> [(Int, Int, Int)]
+getTransformationCosts :: String -> NonEmpty ST.ShortText-> [T.Text] -> [(Int, Int, Int)]
 getTransformationCosts fileName localAlphabet wordList
   | null wordList = []
   | length wordList == 1 = errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " ccode processing error:  'costs' command imporperly formated (transformation and costs in pairs)")
@@ -425,8 +428,8 @@ getTransformationCosts fileName localAlphabet wordList
             newTripleList <> getTransformationCosts fileName localAlphabet (drop 2 wordList)
         else
             -- states are characters (or multicharacters)
-            let fromStateIndex = L.elemIndex (ST.fromText $ T.toStrict fromStateText) localAlphabet
-                toStateIndex   = L.elemIndex (ST.fromText $ T.toStrict toStateText) localAlphabet
+            let fromStateIndex = L.elemIndex (ST.fromText $ T.toStrict fromStateText) $ toList localAlphabet
+                toStateIndex   = L.elemIndex (ST.fromText $ T.toStrict toStateText) $ toList localAlphabet
                 newTripleList  = if isNothing symetricalOperator then [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost)]
                                 else  [(fromJust fromStateIndex, fromJust toStateIndex, fromJust transCost), (fromJust toStateIndex, fromJust fromStateIndex, fromJust transCost)]
             in
@@ -527,9 +530,9 @@ getNewCharInfo fileName inCharList newStatus newStatusFull indexList charIndex c
 -- | newCharInfoMatrix updates alphabet and tcm matrix for characters in indexList
 -- if that character is not in index list it is unaffected and added back to create the new list
 -- in a single pass.
--- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
+-- if nothing to do (and nothing done so curCharList == []) then return original charInfo
 -- othewise retiurn the reverse since new values are prepended
-newCharInfoMatrix :: [CharInfo] -> [ST.ShortText] -> [[Int]] -> [Int] -> Int -> [CharInfo] -> [CharInfo]
+newCharInfoMatrix :: [CharInfo] -> NonEmpty ST.ShortText -> [[Int]] -> [Int] -> Int -> [CharInfo] -> [CharInfo]
 newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCharList =
     --trace (show charIndex <> " " <> show indexList <> " " <> (show $ length inCharList)) (
     if null inCharList then reverse curCharList
@@ -628,11 +631,14 @@ getAlphabetFromSTList fileName inStates inCharInfo =
         mostDecimals = if thisType == Add then maximum $ fmap getDecimals inStates
                        else 0
         (thisAlphabet', newColumn) = getAlphWithAmbiguity fileName inStates thisType mostDecimals [] []
-        newWeight = if mostDecimals > 0 then  thisWeight / (10.0 ** fromIntegral mostDecimals)
-                    else thisWeight
 
-        thisAlphabet = if null thisAlphabet' then [ST.fromString "0"]
-                       else thisAlphabet'
+        newWeight
+            | mostDecimals > 0 = thisWeight / (10.0 ** fromIntegral mostDecimals)
+            | otherwise =  thisWeight
+
+        thisAlphabet = case thisAlphabet' of
+            [] -> ST.fromString "0" :| []
+            s:ss -> s :| ss
     in
     --trace (show (thisAlphabet, newWeight, newColumn, mostDecimals))
     -- (fromSymbols thisAlphabet, newWeight, newColumn)
