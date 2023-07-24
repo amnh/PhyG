@@ -912,11 +912,12 @@ getCharacterString inCharData inCharInfo =
                       x | x == AlignedWide       -> UV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedWidePrelim inCharData
                       x | x == AlignedHuge       ->    foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedHugePrelim inCharData
                       _                                -> error ("Un-implemented data type " <> show inCharType)
-        allMissing = not (any (/= '-') charString)
+        -- allMissing = not (any (/= '-') charString)
     in
-    if not allMissing then charString
-    else replicate (length charString) '?'
-
+    if not (isAllGaps charString) then charString
+    else fmap replaceDashWithQuest charString
+    where replaceDashWithQuest s = if s == '-' then '?'
+                                       else s
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
 bitVectToCharStringTNT ::  (FiniteBits b, Bits b) => Int -> Alphabet String -> b -> String
 bitVectToCharStringTNT alphSize localAlphabet bitValue =
@@ -1031,10 +1032,10 @@ makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV blockInde
 isAllGaps :: String -> Bool
 isAllGaps inSeq
   | null inSeq = True
-  | length (filter (`notElem` ['-', '\n']) inSeq) == 0 = True
+  | length (filter (`notElem` [' ', '-', '\n']) inSeq) == 0 = True
   | otherwise = False
 
--- | makeBlockCharacterString creates implied alignmennt string for sequnce charactes and null if not
+-- | makeBlockCharacterString creates implied alignmennt string for sequence charactes and null if not
 makeBlockCharacterString :: Bool -> [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
 makeBlockCharacterString includeMissing leafNameList leafDataVV thisCharInfo charIndex =
     -- check if sequence type character
@@ -1063,7 +1064,7 @@ getCharacterDataOrMissing leafDataVV charIndex newCharList =
         getCharacterDataOrMissing leafDataVV (charIndex + 1) (firstCharData : newCharList)
 -}
 
--- | getTaxDataOrMissing gets teh index character if data not null, empty character if not
+-- | getTaxDataOrMissing gets the index character if data not null, empty character if not
 getTaxDataOrMissing :: V.Vector (V.Vector CharacterData) -> Int -> Int -> [CharacterData] -> [CharacterData]
 getTaxDataOrMissing charDataV charIndex taxonIndex newTaxList
   | taxonIndex == V.length charDataV = reverse newTaxList
@@ -1095,12 +1096,14 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
                                x | x == AlignedHuge       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum
                                _                                -> error ("Un-implemented data type " <> show inCharType)
 
-            sequenceString' = if not (any (/= '-') sequenceString) then
-                                replicate (length sequenceString) '?'
+            sequenceString' = if isAllGaps sequenceString then 
+                                fmap replaceDashWithQuest sequenceString
                               else sequenceString
+
             sequenceChunks = ((<> "\n") <$> SL.chunksOf 50 sequenceString')
 
         in
         (if ((not includeMissing) && (isAllGaps sequenceString)) || (blockDatum == emptyCharacter) then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList) else (concat $ (('>' : (T.unpack firstName)) <> "\n") : sequenceChunks) <> (pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)))
 
-
+        where replaceDashWithQuest s = if s == '-' then '?'
+                                       else s

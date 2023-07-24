@@ -289,8 +289,10 @@ bitVectToCharState' localAlphabet bitValue =
          -- amino acid polymorphisms without ambiguity codes
         else "[" <> stringVal <> "]" <> " "
 
-    -- Nucl IUPAC
-    else if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5) then
+    -- Nucleotide IUPAC
+    -- hack until fix isDNA and RNA alphabet
+    else if ((show localAlphabet) == ("Alphabet: {\"-\", \"A\", \"C\", \"G\", \"T\"}")) || ((show localAlphabet) == ("Alphabet: {\"-\", \"A\", \"C\", \"G\", \"U\"}")) then
+    -- else if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5) then
         if stringVal == "" then ""
         else if stringVal == "AG" then "R" <> " "
         else if stringVal == "CT" then "Y" <> " "
@@ -323,7 +325,8 @@ bitVectToCharState' localAlphabet bitValue =
 
         else "Unrecognized nucleic acid ambiguity code : " <> "|" <> stringVal <> "|"
 
-    else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> show localAlphabet)
+    else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet) 
+        <> " RNA: " <> (show $ isAlphabetRna localAlphabet) <> " Size: " <> (show $ SET.size (alphabetSymbols localAlphabet)) )
   --  )
   where
     indices = [ 0 .. len - 1 ]
