@@ -649,6 +649,8 @@ getTNTString inGS inData inGraph graphNumber =
 
             -- get character information in 3-tuples and list of lengths--to match lengths
             ccCodeInfo = getCharacterInfo charInfoVV
+            
+            -- only first of block list type--so assumes single sequence per block and only that type--no exact types
             charTypeList = V.toList $ fmap charType $ fmap V.head charInfoVV
 
         in
@@ -658,9 +660,7 @@ getTNTString inGS inData inGraph graphNumber =
 
                 -- get character strings
                 blockStringListstList = V.toList $ V.zipWith (getTaxonCharStringList charInfoVV) leafDataList (V.fromList leafNameList)
-                -- nameCharStringList = fmap (<> "\n") $ fmap concat blockStringListstList
                 interleavedBlocks = concat $ makePairInterleave blockStringListstList charTypeList 
-
 
                 -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString charInfoVV) leafDataList
                 -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
@@ -738,6 +738,10 @@ createDisplayTreeTNT inGS inData inGraph =
     let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
         leafNameList = fmap ((<> "\t") . T.unpack) (fmap (vertName . snd) leafList)
         charInfoVV = six6 inGraph
+        
+        -- only first of block list type--so assumes single sequence per block and only that type--no exact types
+        charTypeList = V.toList $ fmap charType $ fmap V.head charInfoVV
+
         numTaxa = V.length $ fst3 inData
         ccCodeInfo = getCharacterInfo charInfoVV
         blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
@@ -752,8 +756,11 @@ createDisplayTreeTNT inGS inData inGraph =
         (leafDataList, mergedCharInfoVV) = mergeDataBlocks (V.toList decoratedBlockTreeList) [] []
 
         -- get character block strings as interleaved groups
-        taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString mergedCharInfoVV) leafDataList
-        nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
+        blockStringListstList = V.toList $ V.zipWith (getTaxonCharStringList charInfoVV) leafDataList (V.fromList leafNameList)
+        interleavedBlocks = concat $ makePairInterleave blockStringListstList charTypeList 
+        
+        -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString mergedCharInfoVV) leafDataList
+        -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
         -- length information for cc code extents
         charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) mergedCharInfoVV
@@ -768,7 +775,7 @@ createDisplayTreeTNT inGS inData inGraph =
         ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
     in
     nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
-                <> nameCharStringList <> ";\n" <> ccCodeString
+                <> interleavedBlocks <> ";\n" <> ccCodeString
 
 
 -- | pairListToStringList takes  alist of (String, Int) and a starting index and returns scope of charcter for leading comment

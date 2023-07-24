@@ -40,7 +40,7 @@ report("test0-data.csv", data, overwrite)
 -- For network testing
 --set (outgroup:"one")
 --set(graphtype:hardwired)
---set(graphtype:softwired)
+set(graphtype:softwired)
 --Set(Compressresolutions:True)
 --set(graphFactor:NoPenalty)
 --set(rootcost:ml)
