@@ -630,10 +630,12 @@ getEdgeInfo inEdge =
 
 -- | TNT report functions
 
--- | getTNTStrings returns as a single String the implied alignments of all sequence characters
+-- | getTNTStrings returns as a set of interleaved b;ocks==one for each "character"  so not mix numerical and 
+-- sequence characters 
 -- softwired use display trees, hardWired transform to softwired then proceed with display trees
 -- key to keep cost matrices and weights
--- Usews Phylogenetic graph to noit repeat functions for display and charcter trees
+-- Uses Phylogenetic graph to noit repeat functions for display and charcter trees
+
 getTNTString :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Int -> String
 getTNTString inGS inData inGraph graphNumber =
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create TNT data for in getTNTString"
@@ -647,6 +649,7 @@ getTNTString inGS inData inGraph graphNumber =
 
             -- get character information in 3-tuples and list of lengths--to match lengths
             ccCodeInfo = getCharacterInfo charInfoVV
+            charTypeList = V.toList $ fmap charType $ fmap V.head charInfoVV
 
         in
 
@@ -654,8 +657,13 @@ getTNTString inGS inData inGraph graphNumber =
             let leafDataList = V.fromList $ fmap (vertData . snd) leafList
 
                 -- get character strings
-                taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString charInfoVV) leafDataList
-                nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
+                blockStringListstList = V.toList $ V.zipWith (getTaxonCharStringList charInfoVV) leafDataList (V.fromList leafNameList)
+                -- nameCharStringList = fmap (<> "\n") $ fmap concat blockStringListstList
+                interleavedBlocks = concat $ makePairInterleave blockStringListstList charTypeList 
+
+
+                -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString charInfoVV) leafDataList
+                -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
                 -- length information for cc code extents
                 charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) charInfoVV
@@ -671,7 +679,7 @@ getTNTString inGS inData inGraph graphNumber =
             in
             -- trace ("GTNTS:" <> (show charLengthList))
             headerString  <> nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
-                <> nameCharStringList <> ";\n" <> ccCodeString <> finalString
+                <> interleavedBlocks <> ";\n" <> ccCodeString <> finalString
 
 
         -- for softwired networks--use display trees
@@ -704,6 +712,26 @@ getTNTString inGS inData inGraph graphNumber =
             trace ("TNT  not yet implemented for graphtype " <> show (graphType inGS))
             ("There is no implied alignment for " <> show (graphType inGS))
 
+
+-- | makePairInterleave creates interleave block strings from character name block list
+-- list of taxa and blocck with taxon name
+makePairInterleave :: [[String]] -> [CharType] -> [String]
+makePairInterleave inTaxCharStringList alphabetType = -- concat $ fmap concat inTaxCharStringList
+    if null inTaxCharStringList then []
+    else if null $ head inTaxCharStringList then []
+    else
+        let firstInterleave = concatMap (<> "\n") $ fmap head inTaxCharStringList
+            remainder = fmap tail inTaxCharStringList
+            interleaveMarkerString 
+                | head alphabetType `elem` exactCharacterTypes = "& [num]"
+                | head alphabetType `elem` [NucSeq, AlignedSlim] = "& [dna]"
+                | head alphabetType `elem` [AminoSeq, AlignedWide] = "& [prot]"
+                | otherwise = 
+                    trace ("Warning--sequence data in tnt ouput not of type TNT accepts") 
+                    "& [other]"
+        in
+        (interleaveMarkerString <> "\n") : (firstInterleave : makePairInterleave remainder (tail alphabetType))
+
 -- | createDisplayTreeTNT take a softwired graph and creates TNT data string
 createDisplayTreeTNT :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> String
 createDisplayTreeTNT inGS inData inGraph =
@@ -723,7 +751,7 @@ createDisplayTreeTNT inGS inData inGraph =
         -- create leaf data by merging display graph block data (each one a phylogentic graph)
         (leafDataList, mergedCharInfoVV) = mergeDataBlocks (V.toList decoratedBlockTreeList) [] []
 
-        -- get character strings
+        -- get character block strings as interleaved groups
         taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString mergedCharInfoVV) leafDataList
         nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
@@ -779,6 +807,17 @@ getTaxonCharString charInfoVV charDataVV =
     let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
     in
     concat $ V.zipWith (getBlockString lengthBlock) charInfoVV charDataVV
+
+
+-- | getTaxonCharStringList returns the total character string list (over blocks) for a taxon
+-- length and zipping for missing data
+getTaxonCharStringList ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String -> [String]
+getTaxonCharStringList charInfoVV charDataVV leafName =
+    let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
+    in
+    fmap (leafName <>) $ (V.toList $ V.zipWith (getBlockString lengthBlock) charInfoVV charDataVV)
+
+
 
 -- | getBlockString returns the String for a character block
 -- returns all '?' if missing
@@ -891,8 +930,8 @@ getBlockNames inCharInfoV =
 
 
 -- | getCharacterString returns a string of character states
--- need to add splace between (large alphabets etc)
--- local alphabet for charactes where that is input.  Mattrix and additive are integers
+-- need to add space between (large alphabets etc)
+-- local alphabet for characters where that is input.  Matrix and additive are integers
 getCharacterString :: CharacterData -> CharInfo -> String
 getCharacterString inCharData inCharInfo =
     let inCharType = charType inCharInfo
