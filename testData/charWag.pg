@@ -47,7 +47,7 @@ report("test0-data.csv", data, overwrite)
 --set(criterion:ml)
 
 -- set(seed:1)
---build(replicates:10)
+build(replicates:10)
 --build(distance, dwag)
 --build(distance, rdwag, replicates:20, best:20)
 
@@ -65,7 +65,7 @@ report("test0-data.csv", data, overwrite)
 --swap()
 
 
-search(hours:0, minutes:1, instances:2, Thompson:1, linear, maxnetedges:5)
+--search(hours:0, minutes:5, instances:2, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 

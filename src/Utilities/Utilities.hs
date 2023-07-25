@@ -291,8 +291,8 @@ bitVectToCharState' localAlphabet bitValue =
 
     -- Nucleotide IUPAC
     -- hack until fix isDNA and RNA alphabet
-    else if ((show localAlphabet) == ("Alphabet: {\"-\", \"A\", \"C\", \"G\", \"T\"}")) || ((show localAlphabet) == ("Alphabet: {\"-\", \"A\", \"C\", \"G\", \"U\"}")) then
-    -- else if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5) then
+    -- else if ((show localAlphabet) == ("Alphabet: {\"-\", \"A\", \"C\", \"G\", \"T\"}")) || ((show localAlphabet) == ("Alphabet: {\"-\", \"A\", \"C\", \"G\", \"U\"}")) then
+    else if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5) then
         if stringVal == "" then ""
         else if stringVal == "AG" then "R" <> " "
         else if stringVal == "CT" then "Y" <> " "
