@@ -232,7 +232,7 @@ Executable phyg
     phygraph.hs
 
   GHC-Options:
---     -feager-blackholing  may be causing parallel loop errors
+--     -feager-blackholing --  may be causing parallel loop errors
     -O2
     -rtsopts
     -Wall
