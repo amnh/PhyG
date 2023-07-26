@@ -65,6 +65,7 @@ import System.Process
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import Data.List.NonEmpty qualified as NE
 -- import Commands.Transform qualified as DT
 
 
@@ -946,7 +947,7 @@ getCharacterString inCharData inCharInfo =
                         else fmap ST.toString discreteAlphabet
         alphSize =  S.rows $ costMatrix inCharInfo
     in
-    let charString = case inCharType of
+    let charString = filter (/= ' ') $ case inCharType of
                       x | x == NonAdd ->    foldMap (U.bitVectToCharStateNonAdd localAlphabet) $ snd3 $ stateBVPrelim inCharData
                       x | x `elem` packedNonAddTypes   -> UV.foldMap (U.bitVectToCharStateQual  localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
                       x | x == Add ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
@@ -967,7 +968,8 @@ getCharacterString inCharData inCharInfo =
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
 bitVectToCharStringTNT ::  (Show b, FiniteBits b, Bits b) =>  Alphabet String -> b -> String
 bitVectToCharStringTNT localAlphabet bitValue =
-   let stateString = U.bitVectToCharState localAlphabet bitValue
+   -- let stateString = U.bitVectToCharState'' (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet) bitValue
+   let stateString = U.bitVectToCharState' localAlphabet bitValue
    in
    stateString
 
