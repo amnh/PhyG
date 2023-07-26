@@ -93,7 +93,7 @@ getTNTDataText :: T.Text -> String -> RawData
 getTNTDataText inString fileName =
     if T.null inString then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--empty file")
     else
-        let inString' = T.unlines $ filter (not . T.null) $ fmap T.strip (T.lines inString)
+        let inString' = T.unlines $ filter ((/= '&') . T.head ) $ filter (not . T.null) $ fmap T.strip (T.lines inString)
             inText = T.strip inString'
         in
         if toLower (T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--must begin with 'xread'")
@@ -690,7 +690,8 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                     if firstState `elem` ["?", "-"]  then getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals newAlph (head inStates : newStates)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (head inStates : newAlph) (head inStates : newStates)
                 else -- ambiguity
-                    let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
+                    -- let newAmbigStates  = fmap ST.fromString $ words $ filter (`notElem` ['[',']']) firstState
+                    let newAmbigStates  = fmap ST.fromString $ fmap (:[]) $ filter (`notElem` ['[',']']) firstState
                     in
                     getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (newAmbigStates <> newAlph) (head inStates : newStates)
 

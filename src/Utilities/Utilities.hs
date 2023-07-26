@@ -237,8 +237,9 @@ splitSequence partitionST stList =
 bitVectToCharStateQual :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharStateQual localAlphabet bitValue =
   let charString = L.intercalate "," $ foldr pollSymbol mempty indices
-  in  if popCount bitValue > 1
-      then "[" <> charString <> "]"
+  in  if popCount bitValue == bitSize bitValue then "?"
+      else if popCount bitValue > 1
+        then "[" <> charString <> "]"
       else charString
   where
     indices = [ 0 .. len - 1 ]
@@ -250,6 +251,22 @@ bitVectToCharStateQual localAlphabet bitValue =
       | otherwise = polled
 
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
+-- this for TNT output of qualitative characters
+bitVectToCharStateNonAdd :: (Show b, FiniteBits b, Bits b) => Alphabet String -> b -> String
+bitVectToCharStateNonAdd localAlphabet bitValue =
+ let stateList = [0 .. (bitSize bitValue) - 1 ]
+     stateCharList = fmap (:[]) $ ['0'..'9'] <> ['A'..'Z'] <> ['a'..'z']
+     bitOnList = fmap (testBit bitValue) stateList
+     statesON = fmap fst $ filter ((== True) . snd) $ zip stateCharList bitOnList
+     charString = concat statesON
+ in
+ -- trace ("BVNA: " <> (show (bitValue, bitOnList, charString))) $
+ if popCount bitValue == bitSize bitValue then "?"
+ else if popCount bitValue > 1
+     then "[" <> charString <> "]"
+ else charString
+ 
+-- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState localAlphabet bitValue =
   -- check for symbol length > 1 then add space (since sorted last element longest)
@@ -258,7 +275,8 @@ bitVectToCharState localAlphabet bitValue =
       charString' = L.intercalate "," $ filter (/= "\8220") charString
   in
   -- trace ("BV2CSA:" <> (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
-  if popCount bitValue > 1 then "[" <> charString' <> "]"  <> " "
+  if popCount bitValue == bitSize bitValue then "?"
+  else if popCount bitValue > 1 then "[" <> charString' <> "]"  <> " "
   else charString'  <> " "
   -- )
 

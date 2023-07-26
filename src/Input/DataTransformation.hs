@@ -397,10 +397,10 @@ recodeNonAddMissingCharacter charInfo inCharData =
     if inCharType /= NonAdd then inCharData
     else
         let nonAddState = (V.head . snd3 . stateBVPrelim) inCharData
-            newState = if  BV.isZeroVector nonAddState then V.singleton (complement nonAddState)
+            newState = if  nonAddState == (nonAddState `xor` nonAddState) then V.singleton (complement nonAddState)
                        else V.singleton nonAddState
         in
-        if  BV.isZeroVector nonAddState then
+        if  nonAddState == (nonAddState `xor` nonAddState)  then
             inCharData { stateBVPrelim = (newState, newState, newState)
                        , stateBVFinal = newState}
         else
@@ -408,10 +408,10 @@ recodeNonAddMissingCharacter charInfo inCharData =
 
 
 -- | getAddNonAddAlphabets takes recoded character data and resets the alphabet
--- field in charInfo to reflect observed states.  This is used too properly set missing and
+-- field in charInfo to reflect observed states.  This is used to properly set missing and
 -- bit packing values
 resetAddNonAddAlphabets :: V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> CharInfo
-resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
+resetAddNonAddAlphabets taxonByCharData charInfo charIndex = 
     let inCharType = charType charInfo
     in
     if inCharType `notElem` [Add, NonAdd] then charInfo
@@ -430,7 +430,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 foundSymbols  = ST.fromString . show <$> (0 :| [ 1 .. numStates - 2 ])
                 stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
             in
-            -- trace ("RNA: " <> (show stateAlphabet))
+            --trace ("RNA: " <> (show stateAlphabet))
             charInfo {alphabet = stateAlphabet}
 
         else if inCharType == Add then
@@ -453,6 +453,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
 
 
         else error ("Unrecognized character type in resetAddNonAddAlphabets: " <> (show inCharType))
+    
 
 -- | checkPrealignedEqualLength checks prealigned type for equal length
 -- at this stage (called before reblocking) there should only be a single charcter per block
@@ -894,11 +895,14 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                 ambiguousStateString = ST.toString ambiguousStateST
                                 stateSTList = fmap ST.singleton ambiguousStateString
                                 stateBVList = fmap (getStateBitVector (alphabet firstCharInfo)) stateSTList
+                                showStuff = show (firstState, ambiguousStateST, ambiguousStateString, stateSTList, stateBVList)
                             in
                             -- trace ("GQC: " <> (show ambiguousStateString) <> " " <> (show stateSTList) <> " " <> (show stateBVList))
+                            -- traceNoLF ("GQC: " <> showStuff)
                             L.foldl1' (.|.) stateBVList
                 newCharacter = emptyCharacter {  stateBVPrelim = (V.singleton stateBV, V.singleton stateBV, V.singleton stateBV) }
                 in
+                -- trace (" -> " <> (show stateBV) <> " from " <> (show totalAlphabet))
                 getQualitativeCharacters (tail inCharInfoList) (tail inStateList) (newCharacter : curCharList)
 
         else if firstCharType == Add then

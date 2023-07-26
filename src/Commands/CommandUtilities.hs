@@ -947,16 +947,16 @@ getCharacterString inCharData inCharInfo =
         alphSize =  S.rows $ costMatrix inCharInfo
     in
     let charString = case inCharType of
-                      x | x == NonAdd ->    foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ stateBVPrelim inCharData
-                      x | x `elem` packedNonAddTypes   -> UV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
+                      x | x == NonAdd ->    foldMap (U.bitVectToCharStateNonAdd localAlphabet) $ snd3 $ stateBVPrelim inCharData
+                      x | x `elem` packedNonAddTypes   -> UV.foldMap (U.bitVectToCharStateQual  localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
                       x | x == Add ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
                       x | x == Matrix ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
-                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ slimAlignment inCharData
-                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ wideAlignment inCharData
-                      x | x == HugeSeq           ->    foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ hugeAlignment inCharData
-                      x | x == AlignedSlim       -> SV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
-                      x | x == AlignedWide       -> UV.foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedWidePrelim inCharData
-                      x | x == AlignedHuge       ->    foldMap (bitVectToCharStringTNT alphSize localAlphabet) $ snd3 $ alignedHugePrelim inCharData
+                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ slimAlignment inCharData
+                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ wideAlignment inCharData
+                      x | x == HugeSeq           ->    foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ hugeAlignment inCharData
+                      x | x == AlignedSlim       -> SV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
+                      x | x == AlignedWide       -> UV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedWidePrelim inCharData
+                      x | x == AlignedHuge       ->    foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedHugePrelim inCharData
                       _                                -> error ("Un-implemented data type " <> show inCharType)
         -- allMissing = not (any (/= '-') charString)
     in
@@ -965,12 +965,11 @@ getCharacterString inCharData inCharInfo =
     where replaceDashWithQuest s = if s == '-' then '?'
                                        else s
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
-bitVectToCharStringTNT ::  (FiniteBits b, Bits b) => Int -> Alphabet String -> b -> String
-bitVectToCharStringTNT alphSize localAlphabet bitValue =
+bitVectToCharStringTNT ::  (Show b, FiniteBits b, Bits b) =>  Alphabet String -> b -> String
+bitVectToCharStringTNT localAlphabet bitValue =
    let stateString = U.bitVectToCharState localAlphabet bitValue
    in
-   if popCount bitValue == alphSize then "?"
-   else stateString
+   stateString
 
 -- | Implied Alignment report functions
 
