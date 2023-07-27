@@ -1279,9 +1279,10 @@ andOR8 x y =
     (z, popCount u, numChars - popCount u)
 
 -- | andOR64 and or function for Packed64 encoding
+-- x `xor` x to make sure all 0 bits
 andOR64 :: Word64 -> Word64 -> (Word64, Int, Int)
 andOR64 x y =
-     if  (x .&. y) /= zeroBits then (x .&. y, 1, 0)
+     if  (x .&. y) /= (x `xor` x)  then (x .&. y, 1, 0)
      else (x .|. y, 0, 1)
 
 {-
@@ -1394,8 +1395,8 @@ preOrder64 leftPrelim childPrelim rightPrelim parentFinal =
         c = parentFinal .|. childPrelim
         d = childPrelim .|. (parentFinal .&. (leftPrelim .|. rightPrelim))
     in
-    if a == (zeroBits:: Word64) then parentFinal
-    else if b == (zeroBits:: Word64) then c
+    if a == (leftPrelim `xor` leftPrelim :: Word64) then parentFinal
+    else if b == (leftPrelim `xor` leftPrelim :: Word64) then c
     else d
 
 {-
@@ -1518,8 +1519,8 @@ threeWay64 p1 p2 cN =
         y = (p1 .&. p2) .|. (p1 .&. cN) .|. (p2 .&. cN)
         z = p1 .|. p2 .|. cN
     in
-    if x /= (zeroBits :: Word64) then x
-    else if y /=  (zeroBits :: Word64) then y
+    if x /= (p1 `xor` p1 :: Word64) then x
+    else if y /=  (p1 `xor` p1  :: Word64) then y
     else z
 
 
@@ -1752,14 +1753,15 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
         bitStates = fmap (testBit inBV) stateIndexList
 
         -- get index of states when only minimally bit encoded (0101, 0001 -> 11, 01)
-        newBitStates = setOnBits (zeroBits :: Word64) bitStates 0
+        newBitStates = setOnBits (0 `xor` 0 :: Word64) bitStates 0
         subCharacter = shiftL newBitStates (subCharacterIndex * stateNumber)
     in
     -- trace ("MSC: " <> (show subCharacterIndex) <> " " <> (show bitStates) <> " " <> (show newBitStates) <> " " <> (show subCharacter)) (
     -- cna remove this check when working
-    if length stateIndexList `notElem` [(fst (divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " <> show (stateNumber, length stateIndexList, stateIndexList))
+    
+    if length stateIndexList `notElem` [(fst (divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " <> show (stateNumber, length     stateIndexList, stateIndexList))
     else
-        subCharacter
+           subCharacter
     -- )
     -- )
 

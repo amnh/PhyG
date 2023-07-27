@@ -343,8 +343,9 @@ bitVectToCharState' localAlphabet bitValue =
 
         else "Unrecognized nucleic acid ambiguity code : " <> "|" <> stringVal <> "|"
 
-    else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet) 
-        <> " RNA: " <> (show $ isAlphabetRna localAlphabet) <> " Size: " <> (show $ SET.size (alphabetSymbols localAlphabet)) )
+    -- else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet) 
+    --    <> " RNA: " <> (show $ isAlphabetRna localAlphabet) <> " Size: " <> (show $ SET.size (alphabetSymbols localAlphabet)) )
+    else bitVectToCharState'' (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet) bitValue
   --  )
   where
     indices = [ 0 .. len - 1 ]
