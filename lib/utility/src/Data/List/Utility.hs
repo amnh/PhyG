@@ -1,20 +1,11 @@
-{-# LANGUAGE BangPatterns           #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
------------------------------------------------------------------------------
--- |
--- Module      :  Data.List.Utility
--- Copyright   :  (c) 2015-2021 Ward Wheeler
--- License     :  BSD-style
---
--- Maintainer  :  wheeler@amnh.org
--- Stability   :  provisional
--- Portability :  portable
---
--- Functions for finding occurrences of elements in a list.
---
------------------------------------------------------------------------------
+{-# Language BangPatterns #-}
+{-# Language FlexibleInstances #-}
+{-# Language FunctionalDependencies #-}
+{-# Language MultiParamTypeClasses #-}
+
+{- |
+Functions for finding occurrences of elements in a list.
+-}
 
 module Data.List.Utility
   ( catMaybes1
@@ -36,18 +27,18 @@ module Data.List.Utility
   , transpose
   ) where
 
-import           Control.Lens            (Lens', lens)
-import           Data.Foldable
-import           Data.Key                (Zip(..))
-import           Data.List               (sort, sortBy)
-import           Data.List.NonEmpty      (NonEmpty(..), nonEmpty)
-import qualified Data.List.NonEmpty      as NE
-import           Data.Map                (assocs, empty, insertWith)
-import           Data.Maybe              (catMaybes)
-import           Data.Ord                (comparing)
-import           Data.Semigroup.Foldable
-import           Data.Set                (insert, intersection)
-import           Prelude                 hiding (zipWith)
+import Control.Lens (Lens', lens)
+import Data.Foldable
+import Data.Key (Zip(..))
+import Data.List (sort, sortBy)
+import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
+import Data.List.NonEmpty qualified as NE
+import Data.Map (assocs, empty, insertWith)
+import Data.Maybe (catMaybes)
+import Data.Ord (comparing)
+import Data.Semigroup.Foldable
+import Data.Set (insert, intersection)
+import Prelude hiding (zipWith)
 
 
 -- |
