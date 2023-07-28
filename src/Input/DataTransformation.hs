@@ -427,7 +427,7 @@ resetAddNonAddAlphabets taxonByCharData charInfo charIndex =
                 numStates = max 1 $ popCount nonMissingBV
 
                 -- numBits = BV.dimension $ (V.head . snd3 . stateBVPrelim) $ (V.head taxonByCharData) V.! charIndex
-                foundSymbols  = ST.fromString . show <$> (0 :| [ 1 .. numStates - 2 ])
+                foundSymbols  = ST.fromString . show <$> (0 :| [ 1 .. pred numStates ])
                 stateAlphabet = fromSymbols foundSymbols -- fromSymbolsWOGap foundSymbols
             in
             --trace ("RNA: " <> (show stateAlphabet))
@@ -637,7 +637,7 @@ iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.t
 nucleotideBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
 nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
   where
-    baseAlphabet = fromSymbols . fmap  ST.fromString $ "A" :| [ "C", "G", "T" ]
+    baseAlphabet = fromSymbols $ ST.fromString <$> "-" :| [ "A", "C", "G", "T" ]
 
 -- | aminoAcidBVPairs for recoding protein sequences
 -- this done to insure not recalculating everything for each residue
@@ -645,8 +645,8 @@ nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
 aminoAcidBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
 aminoAcidBVPairs = iupacToBVPairs acidAlphabet iupacToAminoAcid
   where
-    acidAlphabet = fromSymbols . fmap fromString $
-      "A" :| ["C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
+    acidAlphabet = fromSymbols $ fromString <$>
+      "A" :| ["C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y","-"]
 
 
 -- | getBVCode take a Vector of (ShortText, BV) and returns bitvector code for

@@ -34,7 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
-{-# LANGUAGE LambdaCase #-}
+{-# Language LambdaCase #-}
+{-# Language OverloadedStrings #-}
 
 module Input.FastAC
   ( getFastA
@@ -131,7 +132,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
               in  case seqType of
                     NucSeq   -> toSymbols $ "A" :| ["C","G","T","-"]
                     AminoSeq -> toSymbols $ "A" :| ["C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y", "-"]
-                    _        -> NE.fromList sequenceData
+                    _        -> "-" :| sequenceData
 
             thisAlphabet =
                 case fst3 localTCM of
@@ -139,8 +140,7 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     a:as -> fromSymbols $ a :| as
 
 
-        in
-        commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet
+        in  commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet
 
 -- | commonFastCharInfo breaks out common functions between fasta and fastc parsing
 commonFastCharInfo :: String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharType -> Alphabet ST.ShortText-> CharInfo
@@ -294,7 +294,7 @@ getFastA fileContents' fileName isPreligned =
         in
         if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
         else
-            let terminalSplits = T.split (=='>') $ T.pack fileContents
+            let terminalSplits = T.split (== '>') $ T.pack fileContents
                 pairData =  getRawDataPairsFastA isPreligned (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
@@ -314,7 +314,7 @@ getFastAText fileContents' fileName isPreligned =
         in
         if T.head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
         else
-            let terminalSplits = T.split (=='>') fileContents
+            let terminalSplits = T.split (== '>') fileContents
                 pairData =  getRawDataPairsFastA isPreligned (tail terminalSplits)
                 (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
             in
@@ -358,13 +358,13 @@ getFastC fileContents' fileName isPreligned =
         -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
         --  because of latexIPA encodings using ';'(and '$')
         else
-            let fileContents = unlines $ filter ((/=';').head) fileContentLines
+            let fileContents = unlines $ filter ((/= ';').head) fileContentLines
             in
             if null fileContents then errorWithoutStackTrace ("File " <> show fileName <> " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
                 <> "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
             else if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
-                let terminalSplits = T.split (=='>') $ T.pack fileContents
+                let terminalSplits = T.split (== '>') $ T.pack fileContents
                     pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC isPreligned (tail terminalSplits)
                     (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
                 in
@@ -386,13 +386,13 @@ getFastCText fileContents' fileName isPreligned =
         -- ';' comments if in terminal name are removed by getRawDataPairsFastC--otherwise leaves in there--unless its first character of line
         --  because of latexIPA encodings using ';'(and '$')
         else
-            let fileContents = T.unlines $ filter ((/=';') . T.head) fileContentLines
+            let fileContents = T.unlines $ filter ((/= ';') . T.head) fileContentLines
             in
             if T.null fileContents then errorWithoutStackTrace ("File " <> show fileName <> " is having problems reading as 'fastc'.  If this is a 'fasta' file, "
                 <> "prepend `fasta:' to the file name as in 'fasta:\"bleh.fas\"'")
             else if T.head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
             else
-                let terminalSplits = T.split (=='>') fileContents
+                let terminalSplits = T.split (== '>') fileContents
                     pairData = recodeFASTCAmbiguities fileName $ getRawDataPairsFastC isPreligned (tail terminalSplits)
                     (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
                 in
@@ -449,10 +449,10 @@ getRawDataPairsFastC isPreligned inTextList =
         let firstText = head inTextList
             firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= ' ') $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
             firstData = T.split (== ' ') $ T.concat $ tail $ T.lines firstText
-            firstDataNoGaps = filter (/= T.pack "-") firstData
+            firstDataNoGaps = filter (/= "-") firstData
         in
         --trace (show firstData) (
-        -- trace (T.unpack firstName <> "\n"  <> (T.unpack $ T.intercalate (T.pack " ") firstData)) (
+        -- trace (T.unpack firstName <> "\n"  <> (T.unpack $ T.intercalate " " firstData)) (
         if isPreligned then (firstName, fmap (ST.fromText . T.toStrict) firstData) : getRawDataPairsFastC isPreligned (tail inTextList)
         else (firstName, fmap (ST.fromText . T.toStrict) firstDataNoGaps) : getRawDataPairsFastC isPreligned (tail inTextList)
 

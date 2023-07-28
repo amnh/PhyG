@@ -35,8 +35,9 @@ Portability :  portable (I hope)
 -}
 
 
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language OverloadedStrings #-}
 
 module Types.Types where
 
@@ -625,7 +626,7 @@ emptySearchData  = SearchData
 -- | emptyGlobalSettings for early use in parition charcter.  Can't have full due to data dependency of outpogroup name
 emptyGlobalSettings :: GlobalSettings
 emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
-                                     , outGroupName = T.pack "NoOutgroupSet"
+                                     , outGroupName = "NoOutgroupSet"
                                      , optimalityCriterion = Parsimony
                                      , graphType = Tree
                                      , compressResolutions = False
@@ -749,7 +750,7 @@ emptyVertexInfo = VertexInfo { index        = -1
                              , parents      = mempty
                              , children     = mempty
                              , nodeType     = TreeNode -- root, leaf, network, tree
-                             , vertName     = T.pack "EmptyVertex"
+                             , vertName     =  "EmptyVertex"
                              , vertData     = mempty
                              , vertexResolutionData = mempty
                              , vertexCost   = 0.0
@@ -770,7 +771,7 @@ dummyEdge = EdgeInfo    { minLength = 0
 
 -- emptyCharInfo for convenience
 emptyCharInfo :: CharInfo
-emptyCharInfo = CharInfo { name       = T.pack "EmptyCharName"
+emptyCharInfo = CharInfo { name       = "EmptyCharName"
                          , charType   = NonAdd
                          , activity   = True
                          , weight     = 1.0
@@ -780,7 +781,7 @@ emptyCharInfo = CharInfo { name       = T.pack "EmptyCharName"
                          , hugeTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
                          , changeCost = 1.0
                          , noChangeCost = 0.0
-                         , alphabet   = fromSymbols $ fmap ST.fromString $ "0" :| [ "1"]
+                         , alphabet   = fromSymbols $ "0" :| [ "1" ]
                          , prealigned = False
                          , origInfo   = V.empty
                          }

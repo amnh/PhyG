@@ -348,29 +348,25 @@ addGapsToChildren  (reGappedParentFinal, _, reGappedNodePrelim) (gappedLeftChild
 -- to the 3rd and 4th input vectors
 slideRegap :: (FiniteBits a, GV.Vector v a) => v a -> v a -> v a -> v a -> [a] -> [a] -> (v a, v a)
 slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightList =
-   -- trace ("SRG: " <> (show (GV.length reGappedNode, GV.length gappedNode, GV.length gappedLeft, GV.length gappedRight))) (
-   if GV.null reGappedNode then (GV.fromList $ reverse newLeftList, GV.fromList $ reverse newRightList)
-   else
-      let firstRGN = GV.head reGappedNode
-          firstGN = GV.head  gappedNode
-      in
+    let finalize = GV.fromList . reverse
+    in  case GV.uncons reGappedNode of
+            Nothing -> (finalize newLeftList, finalize newRightList)
+            Just (headRGN, tailRGN) ->
+                let gapState = (headRGN `xor` headRGN) `setBit` fromEnum gapIndex
+                    nextCall = slideRegap tailRGN
+                    -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
+                    -- can copmplete the remainder of the slide as gaps only
+                in  case GV.uncons gappedNode of
+                        Nothing ->
+                            let gapList = replicate (GV.length reGappedNode) gapState
+                                gapApplication = finalize . (gapList <>)
+                            in  (gapApplication newLeftList, gapApplication newRightList)
+                        Just (headGN, tailGN) ->
+                            if headRGN /= headGN
+                            then nextCall gappedNode gappedLeft gappedRight (gapState : newLeftList) (gapState : newRightList)
+                            -- no "new gap"
+                            else nextCall tailGN (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
 
-      -- gap in reGappedNode, null gappedNode is gap at end of reGappedNode
-      -- can copmplete the remainder of the slide as gaps only
-      if GV.null gappedNode then
-        let gapList = replicate (GV.length reGappedNode) (bit $ fromEnum gapIndex) -- TODO: Note, unsafe!
-        in
-        (GV.fromList $ reverse (gapList <> newLeftList), GV.fromList $ reverse (gapList <> newRightList))
-
-      else if firstRGN /= firstGN then
-         let gap = bit $ fromEnum gapIndex
-         in
-         slideRegap (GV.tail reGappedNode) gappedNode gappedLeft gappedRight (gap : newLeftList) (gap : newRightList)
-
-      -- no "new gap"
-      else -- if firstRGN == firstGN then
-         slideRegap (GV.tail reGappedNode) (GV.tail gappedNode) (GV.tail gappedLeft) (GV.tail gappedRight) (GV.head gappedLeft : newLeftList) (GV.head gappedRight : newRightList)
-    -- )
 
 -- | get3WayGeneric takes thee vectors and produces a (median, cost) pair
 get3WayGeneric :: (FiniteBits e, GV.Vector v e) => (e -> e -> e -> (e, Word)) -> v e -> v e -> v e -> (v e, Word)
