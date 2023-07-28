@@ -1,4 +1,4 @@
-\documentclass[11pt]{article}
+\documentclass[]{article}
 \usepackage{longtable}
 \usepackage{color}
 \usepackage{tabu}
@@ -10,8 +10,9 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{natbib}
-\usepackage{fullpage}
+%\usepackage{fullpage}
 \bibliographystyle{plain}
+\usepackage{fancyhdr}
 %\bibliographystyle{cbe}
 \usepackage{algorithmic}
 \usepackage[vlined,ruled]{algorithm2e}
@@ -40,6 +41,7 @@
 \begin{document}
 \maketitle
 
+\pagestyle{fancy}
 
 %Maybe add:\\
 %\begin{enumerate}
@@ -393,7 +395,7 @@ sequence elements and ``gap'' or insertion-deletion.
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
-\subsection{Building a tree with nucleotide sequence characters}
+\subsection{Tree building with nucleotide sequence characters}
 \label{subsec:Building}
 
 Having imported and inspected our data, we are now ready to build the initial trees 
@@ -603,7 +605,8 @@ another lab session.
 	report("chel\_ia1.fas", ia, overwrite)\\
 	\end{quote}
 	
-An implied alignment is output for each reported tree, as well as for each block of imported data.
+An implied alignment is output for each reported tree, as well as for each block of imported 
+data.
 
 \item Should the user wish to output an implied alignment that is readable by the 
 program \textit{TNT}, they should adjust the command  replacing \texttt{ia} with the
@@ -652,35 +655,35 @@ or any vectorial image edition program. Modify the script to include this comman
 	\end{quote}
 	
 \item Notice that two files were outputted from using this command. \phyg has 
-output a eps (on OSX) or pdf (on linux) file that can be viewed in a vector graphics 
+output an eps (on OSX) or pdf (on linux) file that can be viewed in a vector graphics 
 program and a dot file, which can be viewed (and modified) in \textit{Graphviz}.
 \end{enumerate}
 
-\subsection{Using Search}
-\label{subsec:search}
-
-This command implements a default search strategy, performing a timed randomized 
-series of graph optimization methods including building, swapping, recombination 
-(fusing), simulated annealing and drifting, network edge addition/deletion/moving, 
-and Genetic Algorithm. The parameters and their order of implementation are 
-randomized for this search.
-
-\begin{enumerate}
-\item Create a new file using your text editor of choice.
-
-\item Type the following:
-	
-	\begin{quote}
-	-\/-Chel analysis using search\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	search(minutes:20)\\
-	report("chel\_search2.csv", search, overwrite)
-	report("chel\_data2.csv", data, overwrite)\\
-	report("chel\_search2.tre", newick, graphs, overwrite)\\
-	\end{quote}
+%\subsection{Using Search}
+%\label{subsec:search}
+%
+%This command implements a default search strategy, performing a timed randomized 
+%series of graph optimization methods including building, swapping, recombination 
+%(fusing), simulated annealing and drifting, network edge addition/deletion/moving, 
+%and Genetic Algorithm. The parameters and their order of implementation are 
+%randomized for this search.
+%
+%\begin{enumerate}
+%\item Create a new file using your text editor of choice.
+%
+%\item Type the following:
+%	
+%	\begin{quote}
+%	-\/-Chel analysis using search\\
+%	set(seed:73412305)\\
+%	set(outgroup:"Limulus")\\
+%	read(nucleotide:"chel\_16S.fas")\\
+%	read(nucleotide:"chel\_cox1.fas")\\
+%	search(minutes:20)\\
+%	report("chel\_search2.csv", search, overwrite)\\
+%	report("chel\_data2.csv", data, overwrite)\\
+%	report("chel\_search2.tre", newick, graphs, overwrite)\\
+%	\end{quote}
 %
 %    \item
 %        \ phyg{search} should be the first analysis option for both new and
@@ -696,7 +699,7 @@ randomized for this search.
 %\item Save this file with the name \textbf{run1\_search.pg} in a directory \texttt{phygfiles} 
 %located on your Desktop.
 
-\end{enumerate}
+%\end{enumerate}
 
 \subsection{Calculating Supports: Goodman-Bremer}
 
@@ -704,12 +707,13 @@ This method calculates Goodman-Bremer support values for input graphs. The
 method traverses the SPR or TBR neighborhood, to determine an upper bound 
 on the NP-hard values. The arguments of \texttt{goodmanbremer} (\texttt{spr} or 
 \texttt{tbr}) are optional, but \phyg will, by default, traverse the TBR neighborhood. 
-The command \texttt{report(support)} labels the edges with bootstrap frequencies.
+The command \texttt{report(support)} labels the edges with Goodman-Bremer support 
+values.
 
 \begin{enumerate}
  
  \item Using your text editor of choice, make a new script to generate the 
- Goodman-Bremer  support values for our newick tree from \textbf{run1.pg}.
+ Goodman-Bremer support values for our newick tree from \textbf{run1.pg}.
  
          \begin{quote}
 	-\/-Goodman-Bremers for chel\_run1\\
@@ -719,7 +723,7 @@ The command \texttt{report(support)} labels the edges with bootstrap frequencies
 	read(nucleotide:"chel\_cox1.fas") \\
 	read(newick:"chel\_run1.tre") \\
 	support(gb:spr, gbsample:10000)\\
-	report("chel\_run1\_gb.dot", support, dotpdf, overwrite)
+	report("chel\_run1\_GB.dot", support, dotpdf, overwrite)
         \end{quote}  
        
 \item Save this file in the same directory as your tree file, i.e. \texttt{run1}.
@@ -735,6 +739,12 @@ We will name this file \texttt{run1\_GBs.pg}.
 over the branches.
          
 \end{enumerate}
+
+\subsection{Calculating Supports: Bootstrap}
+
+\subsection{Calculating Supports: Jackknife}
+
+
 %\printindex
 
 \end{document}
