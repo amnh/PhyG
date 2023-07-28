@@ -947,16 +947,16 @@ getCharacterString inCharData inCharInfo =
                         else fmap ST.toString discreteAlphabet
         alphSize =  S.rows $ costMatrix inCharInfo
     in
-    let charString = filter (/= ' ') $ case inCharType of
-                      x | x == NonAdd ->    foldMap (U.bitVectToCharStateNonAdd localAlphabet) $ snd3 $ stateBVPrelim inCharData
+    let charString = case inCharType of
+                      x | x == NonAdd ->  filter (/= ' ') $   foldMap (U.bitVectToCharStateNonAdd localAlphabet) $ snd3 $ stateBVPrelim inCharData
                       x | x `elem` packedNonAddTypes   -> UV.foldMap (U.bitVectToCharStateQual  localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
-                      x | x == Add ->    foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
-                      x | x == Matrix ->    foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
-                      x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ slimAlignment inCharData
-                      x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ wideAlignment inCharData
+                      x | x == Add ->  filter (/= ' ') $   foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
+                      x | x == Matrix ->  filter (/= ' ') $   foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
+                      x | x `elem` [SlimSeq, NucSeq  ] -> filter (/= ' ') $ SV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ slimAlignment inCharData
+                      x | x `elem` [WideSeq, AminoSeq] -> filter (/= ' ') $ UV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ wideAlignment inCharData
                       x | x == HugeSeq           ->    foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ hugeAlignment inCharData
-                      x | x == AlignedSlim       -> SV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
-                      x | x == AlignedWide       -> UV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedWidePrelim inCharData
+                      x | x == AlignedSlim       -> filter (/= ' ') $ SV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedSlimPrelim inCharData
+                      x | x == AlignedWide       -> filter (/= ' ') $ UV.foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedWidePrelim inCharData
                       x | x == AlignedHuge       ->    foldMap (bitVectToCharStringTNT  localAlphabet) $ snd3 $ alignedHugePrelim inCharData
                       _                                -> error ("Un-implemented data type " <> show inCharType)
         -- allMissing = not (any (/= '-') charString)

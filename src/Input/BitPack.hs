@@ -47,20 +47,20 @@ module Input.BitPack
   , minMaxCharDiff
   ) where
 
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits
-import qualified Data.List                   as L
-import qualified Data.List.Split             as SL
-import qualified Data.Text.Lazy              as T
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Generic         as GV
-import qualified Data.Vector.Unboxed         as UV
-import           Data.Word
--- import           Debug.Trace
-import           GeneralUtilities
-import qualified ParallelUtilities           as PU
-import           Types.Types
-import qualified Utilities.Utilities         as U
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.List qualified as L
+import Data.List.Split qualified as SL
+import Data.Text.Lazy qualified as T
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
+import Data.Vector.Unboxed qualified as UV
+import Data.Word
+import Debug.Trace
+import GeneralUtilities
+import ParallelUtilities qualified as PU
+import Types.Types
+import Utilities.Utilities qualified as U
 
 
 {-
@@ -1726,7 +1726,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
         packedWordVect = UV.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
 
     in
-    -- trace ("PIW64 chunks/values: " <> (show $ V.length packedWordVect))
+    -- traceNoLF ("PIW64 chunks/values: " <> (show $ (stateNumber, numToPack, length packIndexLL, fmap length packIndexLL))) $
     emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
                    , packedNonAddFinal = packedWordVect
                    }
@@ -1756,10 +1756,10 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
         newBitStates = setOnBits (0 `xor` 0 :: Word64) bitStates 0
         subCharacter = shiftL newBitStates (subCharacterIndex * stateNumber)
     in
-    -- trace ("MSC: " <> (show subCharacterIndex) <> " " <> (show bitStates) <> " " <> (show newBitStates) <> " " <> (show subCharacter)) (
+    trace ("MSC: " <> (show subCharacterIndex) <> " " <> (show bitStates) <> " " <> (show newBitStates) <> " " <> (show subCharacter)) $
     -- cna remove this check when working
     
-    if length stateIndexList `notElem` [(fst (divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " <> show (stateNumber, length     stateIndexList, stateIndexList))
+    if length stateIndexList `notElem` [(fst (divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " <> show (stateNumber, length stateIndexList, stateIndexList))
     else
            subCharacter
     -- )
