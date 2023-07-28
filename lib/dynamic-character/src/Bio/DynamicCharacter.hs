@@ -334,22 +334,6 @@ extractMediansSingle me
         in  GV.filter (/=gap) me
 
 
-
--- |
--- Extract the left child's /ungapped/ medians used to construct the dynamic character.
---
--- Output medians will /not/ contain "gap" or "nil" states
-{-# INLINEABLE extractMediansLeft #-}
-{-# SPECIALISE extractMediansLeft :: SlimDynamicCharacter -> SV.Vector SlimState #-}
-{-# SPECIALISE extractMediansLeft :: WideDynamicCharacter -> UV.Vector WideState #-}
-{-# SPECIALISE extractMediansLeft :: HugeDynamicCharacter ->  V.Vector HugeState #-}
-extractMediansLeft :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> v e
-extractMediansLeft (lc,_,_)
-    | GV.null lc = lc
-    | otherwise  =
-        let (# gap, nil #) = buildGapAndNil $ lc ! 0
-        in  GV.filter (\e -> e /= gap && e /= nil) lc
-
 -- |
 -- Extract the  /ungapped/ medians used to construct the dynamic character.
 --
@@ -366,6 +350,17 @@ removeGapAndNil rc
         in  GV.filter (\e -> e /= gap && e /= nil) rc
 
 
+-- |
+-- Extract the left child's /ungapped/ medians used to construct the dynamic character.
+--
+-- Output medians will /not/ contain "gap" or "nil" states
+{-# INLINEABLE extractMediansLeft #-}
+{-# SPECIALISE extractMediansLeft :: SlimDynamicCharacter -> SV.Vector SlimState #-}
+{-# SPECIALISE extractMediansLeft :: WideDynamicCharacter -> UV.Vector WideState #-}
+{-# SPECIALISE extractMediansLeft :: HugeDynamicCharacter ->  V.Vector HugeState #-}
+extractMediansLeft :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> v e
+extractMediansLeft = removeGapAndNil . extractMediansRightGapped
+
 
 -- |
 -- Extract the right child's /ungapped/ medians used to construct the dynamic character.
@@ -376,11 +371,7 @@ removeGapAndNil rc
 {-# SPECIALISE extractMediansRight :: WideDynamicCharacter -> UV.Vector WideState #-}
 {-# SPECIALISE extractMediansRight :: HugeDynamicCharacter ->  V.Vector HugeState #-}
 extractMediansRight :: (FiniteBits e, Vector v e) => OpenDynamicCharacter v e -> v e
-extractMediansRight (_,_,rc)
-    | GV.null rc = rc
-    | otherwise  =
-        let (# gap, nil #) = buildGapAndNil $ rc ! 0
-        in  GV.filter (\e -> e /= gap && e /= nil) rc
+extractMediansRight = removeGapAndNil . extractMediansRightGapped
 
 
 -- |

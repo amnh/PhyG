@@ -238,7 +238,7 @@ Executable phyg
     -Wall
     -- There is/are known compiler bug(s) with this optimization in GHC 9.6.2 (and earlier?).
     -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
-    -fno-polymorphic-specialisation
+    -- -fno-polymorphic-specialisation
 
 
   If flag(Use-LLVM)

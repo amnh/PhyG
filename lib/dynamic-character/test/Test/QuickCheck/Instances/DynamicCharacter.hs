@@ -404,7 +404,7 @@ sizeOfDNA (DNA (_,mc,_)) = GV.length mc
 
 
 nucleotideAlphabet :: Alphabet String
-nucleotideAlphabet = fromSymbols . NE.fromList $ pure <$> "ACGT"
+nucleotideAlphabet = fromSymbols . NE.fromList $ pure <$> "-ACGT"
 
 
 nucleotideGap :: Nucleotide
