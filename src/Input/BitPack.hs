@@ -1756,7 +1756,7 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
         newBitStates = setOnBits (0 `xor` 0 :: Word64) bitStates 0
         subCharacter = shiftL newBitStates (subCharacterIndex * stateNumber)
     in
-    trace ("MSC: " <> (show subCharacterIndex) <> " " <> (show bitStates) <> " " <> (show newBitStates) <> " " <> (show subCharacter)) $
+    -- trace ("MSC: " <> (show subCharacterIndex) <> " " <> (show bitStates) <> " " <> (show newBitStates) <> " " <> (show subCharacter)) $
     -- cna remove this check when working
     
     if length stateIndexList `notElem` [(fst (divMod 2 stateNumber) + 1) .. stateNumber] then error ("State number of index list do not match: " <> show (stateNumber, length stateIndexList, stateIndexList))
