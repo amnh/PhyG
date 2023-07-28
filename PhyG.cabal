@@ -236,6 +236,10 @@ Executable phyg
     -O2
     -rtsopts
     -Wall
+    -- There is/are known compiler bug(s) with this optimization in GHC 9.6.2 (and earlier?).
+    -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
+    -fno-polymorphic-specialisation
+
 
   If flag(Use-LLVM)
     GHC-Options:
@@ -273,6 +277,13 @@ Executable phyg
       -fspec-constr-keen
       -fspecialize-aggressively
       -fstatic-argument-transformation
+      -fstg-cse
+      -fstrictness-before=1
+      -fstrictness-before=2
+      -fstrictness-before=3
+      -fstrictness-before=4
+      -funbox-small-strict-fields
+      -funbox-strict-fields
 
   Build-Depends:
     PHANE-alphabet,
