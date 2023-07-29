@@ -38,8 +38,7 @@ Portability :  portable (I hope)
 {-# Language OverloadedStrings #-}
 
 module Input.FastAC
-  ( getFastA
-  , getFastAText
+  ( getFastAText
   , getFastaCharInfo
   , getFastC
   , getFastCText
@@ -102,7 +101,7 @@ generateDefaultMatrix inAlph rowCount indelCost substitutionCost
 -- this doesn't separate ambiguities from elements--processed later
 -- need to read in TCM or default
 -- only for single character element sequecnes
-getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharInfo
+getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> (CharInfo, [TermData])
 getFastaCharInfo inData dataName dataType isPrealigned localTCM =
     if null inData then error "Empty inData in getFastaCharInfo"
     else
@@ -139,8 +138,20 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     []    -> seqAlphabet
                     a:as -> fromSymbols $ a :| as
 
+            -- capitalize input data if NucSeq or AminoSeq
+            outData = if seqType `notElem` [NucSeq, AminoSeq] then inData
+                      else fmap makeUpperCaseTermData inData
 
-        in  commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet
+        in  (commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet, outData)
+
+-- | makeUpperCaseTermData
+makeUpperCaseTermData :: TermData -> TermData
+makeUpperCaseTermData (taxName, dataList) =
+    let newData = fmap (fmap C.toUpper) $ fmap ST.unpack dataList
+    in
+    (taxName, fmap ST.pack newData)
+
+
 
 -- | commonFastCharInfo breaks out common functions between fasta and fastc parsing
 commonFastCharInfo :: String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharType -> Alphabet ST.ShortText-> CharInfo
@@ -281,7 +292,7 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
         in
         commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet
-
+{-
 -- | getFastA processes fasta file
 -- assumes single character alphabet
 -- deletes '-' (unless "prealigned"), and spaces
@@ -301,6 +312,7 @@ getFastA fileContents' fileName isPreligned =
             -- tail because initial split will an empty text
             if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
             else pairData
+-}
 
 -- | getFastAText processes fasta file
 -- assumes single character alphabet
@@ -331,7 +343,7 @@ getRawDataPairsFastA isPreligned inTextList =
     else
         let firstText = head inTextList
             firstName = T.strip $ T.filter (/= '"') $ T.filter C.isPrint $ T.takeWhile (/= ' ') $ T.takeWhile (/= '$') $ T.takeWhile (/= ';') $ head $ T.lines firstText
-            firstData = T.strip $ T.filter C.isPrint $ T.filter (/= ' ') $ T.toUpper $ T.concat $ tail $ T.lines firstText
+            firstData = T.strip $ T.filter C.isPrint $ T.filter (/= ' ') $ T.concat $ tail $ T.lines firstText
             firstDataNoGaps = T.filter (/= '-') firstData
             firtDataSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstData)
             firstDataNoGapsSTList = fmap (ST.fromText . T.toStrict) (T.chunksOf 1 firstDataNoGaps)

@@ -241,8 +241,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                     trace ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input.")
                                     executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                                 else
-                                    let fastaData = FAC.getFastAText fileContents firstFile isPrealigned'
-                                        fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
+                                    let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
+                                        (fastaCharInfo, fastaData)  = FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
                                     in
                                     trace ("\tTrying to parse " <> firstFile <> " as fasta")
                                     executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
@@ -250,8 +250,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         else errorWithoutStackTrace ("Cannot determine file type for " <> firstFile <> " need to prepend type")
                     -- fasta
                     else if firstOption `elem` ["fasta", "nucleotide", "aminoacid", "hugeseq"] then
-                        let fastaData = FAC.getFastAText fileContents firstFile isPrealigned'
-                            fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption isPrealigned' tcmPair
+                        let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
+                            (fastaCharInfo, fastaData) = FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
                         in
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
@@ -263,8 +263,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
 
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid", "prehugeseq"] then
-                        let fastaData = FAC.getFastAText fileContents firstFile True
-                            fastaCharInfo = FAC.getFastaCharInfo fastaData firstFile firstOption True tcmPair
+                        let fastaData' = FAC.getFastAText fileContents firstFile True
+                            (fastaCharInfo, fastaData) = FAC.getFastaCharInfo fastaData' firstFile firstOption True tcmPair
                         in
                         -- trace ("POSTREAD:" <> (show fastaCharInfo) <> "\n" <> (show fastaData))
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
