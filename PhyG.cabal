@@ -135,6 +135,7 @@ Common build-defaults
       --   2. Exclude the undesirable warnings
       -Wno-all-missed-specialisations
       -Wno-implicit-prelude
+      -Wno-inferred-safe-imports
       -Wno-missing-import-lists
       -Wno-missing-kind-signatures
       -Wno-missing-safe-haskell-mode

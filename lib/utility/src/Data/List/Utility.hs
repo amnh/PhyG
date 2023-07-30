@@ -2,6 +2,8 @@
 {-# Language FlexibleInstances #-}
 {-# Language FunctionalDependencies #-}
 {-# Language MultiParamTypeClasses #-}
+{-# Language Safe #-}
+{-# Language ScopedTypeVariables #-}
 
 {- |
 Functions for finding occurrences of elements in a list.
@@ -33,7 +35,7 @@ import Data.Key (Zip(..))
 import Data.List (sort, sortBy)
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import Data.List.NonEmpty qualified as NE
-import Data.Map (assocs, empty, insertWith)
+import Data.Map (Map, assocs, empty, insertWith)
 import Data.Maybe (catMaybes)
 import Data.Ord (comparing)
 import Data.Semigroup.Foldable
@@ -41,30 +43,32 @@ import Data.Set (insert, intersection)
 import Prelude hiding (zipWith)
 
 
--- |
--- \( \mathcal{O} \left( n * k \right) \)
---
--- Takes two nested, linear-dimensional structures and transposes their dimensions.
--- It's like performing a matrix transpose operation, but more general.
---
--- ==Example==
---
--- >>> transpose []
--- [[]]
---
--- >>> transpose [[1]]
--- [[1]]
---
--- >>> transpose [ [ 1, 2 ], [ 3, 4 ] ]
--- [[1,3],[2,4]]
---
--- >>> transpose [ [ 1, 2, 3 ], [ 4, 5, 6 ], [ 7, 8, 9] ]
--- [[1,4,7],[2,5,8],[3,6,9]]
---
--- >>> transpose [ [ 1, 2, 3, 0, 0 ], [ 4, 5, 6, 0 ], [ 7, 8, 9] ]
--- [[1,4,7],[2,5,8],[3,6,9]]
+{- |
+\( \mathcal{O} \left( n * k \right) \)
+
+Takes two nested, linear-dimensional structures and transposes their dimensions.
+It's like performing a matrix transpose operation, but more general.
+
+==Example==
+
+>>> transpose []
+[[]]
+
+>>> transpose [[1]]
+[[1]]
+
+>>> transpose [ [ 1, 2 ], [ 3, 4 ] ]
+[[1,3],[2,4]]
+
+>>> transpose [ [ 1, 2, 3 ], [ 4, 5, 6 ], [ 7, 8, 9] ]
+[[1,4,7],[2,5,8],[3,6,9]]
+
+>>> transpose [ [ 1, 2, 3, 0, 0 ], [ 4, 5, 6, 0 ], [ 7, 8, 9] ]
+[[1,4,7],[2,5,8],[3,6,9]]
+-}
 transpose
-  :: ( Applicative f
+  :: forall a f t.
+     ( Applicative f
      , Applicative t
      , Semigroup (t a)
      , Traversable t
@@ -74,33 +78,36 @@ transpose
 transpose value =
     case toList value of
       []   -> sequenceA value
-      x:xs -> transpose' $ x:|xs
+      x:xs -> transpose' $ x :| xs
   where
-    transpose' (e:|[])     =  pure <$> e
-    transpose' (e:|(x:xs)) = (cons <$> e) `zap` transpose' (x:|xs)
+    transpose' :: NonEmpty (f a) -> f (t a)
+    transpose' (e :| [])     =  pure <$> e
+    transpose' (e :| (x:xs)) = (cons <$> e) `zap` transpose' (x :| xs)
 
+    cons :: a -> t a -> t a
     cons = (<>) . pure
 
 
--- |
--- \( \mathcal{O} \left( n * k \right) \) where \( k \) is the cost to convert the structure to a list in weak head
--- normal form.
---
--- Determines whether a 'Foldable' structure contains a single element.
---
--- ==_Example==
---
--- >>> isSingleton []
--- False
---
--- >>> isSingleton [ () ]
--- True
---
--- >>> isSingleton [ (), () ]
--- False
+{- |
+\( \mathcal{O} \left( n * k \right) \) where \( k \) is the cost to convert the structure to a list in weak head normal form.
+
+Determines whether a 'Foldable' structure contains a single element.
+
+==_Example==
+
+>>> isSingleton []
+False
+
+>>> isSingleton [ () ]
+True
+
+>>> isSingleton [ (), () ]
+False
+-}
 isSingleton :: Foldable t => t a -> Bool
 isSingleton = f . toList
   where
+    f :: [a] -> Bool
     f [_] = True
     f  _  = False
 
@@ -138,9 +145,9 @@ prepend p ne =
 -- Nothing
 catMaybes1 :: Foldable1 f => f (Maybe a) -> Maybe (NonEmpty a)
 catMaybes1 v =
-   let x:|xs = toNonEmpty v
-       as    = catMaybes xs
-   in  maybe (nonEmpty as) (Just . (:|as)) x
+   let x :| xs = toNonEmpty v
+       as = catMaybes xs
+   in  maybe (nonEmpty as) (Just . (:| as)) x
 
 
 -- |
@@ -161,10 +168,11 @@ catMaybes1 v =
 duplicates :: (Foldable t, Ord a) => t a -> [a]
 duplicates = duplicates' . sort . toList
   where
+    duplicates' :: Ord a => [a] -> [a]
     duplicates' []       = []
     duplicates' [_]      = []
     duplicates' (x:y:ys) = if   x == y
-                           then (x:) . duplicates $ dropWhile (==y) ys
+                           then (x:) . duplicates $ dropWhile (== y) ys
                            else duplicates (y:ys)
 
 
@@ -211,10 +219,15 @@ occurrences = collateOccuranceMap . buildOccuranceMap
   where
     buildOccuranceMap = foldr occurrence empty
       where
+        occurrence :: (Ord k, Enum a, Num a) => k -> Map k a -> Map k a
         occurrence e = insertWith (const succ) e 1
+
+    collateOccuranceMap :: Ord v => Map k v -> [(k, v)]
     collateOccuranceMap = sortBy comparator . assocs
       where
+        comparator :: Ord v => (k, v) -> (k, v) -> Ordering
         comparator x y = descending $ comparing snd x y
+
         descending LT = GT
         descending GT = LT
         descending x  = x
@@ -235,6 +248,7 @@ occurrences = collateOccuranceMap . buildOccuranceMap
 chunksOf :: Foldable t => Int -> t a -> [[a]]
 chunksOf n = chunksOf' . toList
   where
+    chunksOf' :: [a] -> [[a]]
     chunksOf' xs =
       case splitAt n xs of
         (y,[]) -> [y]

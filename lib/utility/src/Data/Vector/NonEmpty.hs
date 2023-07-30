@@ -42,28 +42,28 @@ module Data.Vector.NonEmpty
   ) where
 
 
-import           Control.DeepSeq            hiding (force)
-import qualified Control.Foldl              as L
-import           Data.Binary
-import           Data.Coerce
-import           Data.Data
-import           Data.Foldable
-import           Data.Functor.Alt
-import           Data.Functor.Bind
-import           Data.Functor.Classes
-import           Data.Functor.Extend
-import           Data.Hashable
-import           Data.Key
-import           Data.List.NonEmpty         (NonEmpty((:|)))
-import qualified Data.List.NonEmpty         as NE
-import           Data.Pointed
-import           Data.Semigroup.Foldable
-import           Data.Semigroup.Traversable
-import qualified Data.Vector                as V
-import           Data.Vector.Binary         ()
-import           Data.Vector.Instances      ()
-import           Test.QuickCheck            hiding (generate)
-import           Text.Read
+import Control.DeepSeq hiding (force)
+import Control.Foldl qualified as L
+import Data.Binary
+import Data.Coerce
+import Data.Data
+import Data.Foldable
+import Data.Functor.Alt
+import Data.Functor.Bind
+import Data.Functor.Classes
+import Data.Functor.Extend
+import Data.Hashable
+import Data.Key
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.List.NonEmpty qualified as NE
+import Data.Pointed
+import Data.Semigroup.Foldable
+import Data.Semigroup.Traversable
+import Data.Vector qualified as V
+import Data.Vector.Binary ()
+import Data.Vector.Instances ()
+import Test.QuickCheck hiding (generate)
+import Text.Read
 
 
 -- |

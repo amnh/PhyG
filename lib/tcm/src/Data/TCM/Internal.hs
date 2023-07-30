@@ -10,12 +10,14 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE Strict             #-}
-{-# LANGUAGE TypeFamilies       #-}
+{-# Language DeriveAnyClass #-}
+{-# Language DeriveDataTypeable #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language Strict #-}
+{-# Language TypeFamilies #-}
+
+{-# OPTIONS_GHC -Wno-missed-specialisations #-}
 
 module Data.TCM.Internal
   ( TCM(..)
@@ -30,22 +32,22 @@ module Data.TCM.Internal
   , fromRows
   ) where
 
-import           Control.Arrow        ((***))
-import           Control.DeepSeq
-import           Data.Binary
-import           Data.Data
-import           Data.Foldable
-import           Data.List            (transpose)
-import           Data.List.Utility    (equalityOf, occurrences)
-import           Data.Map             (delete, findMax, keys)
-import qualified Data.Map             as Map (fromList)
-import           Data.MonoTraversable
-import           Data.Ratio
-import           Data.Vector.Binary   ()
-import           Data.Vector.Unboxed  (Vector)
-import qualified Data.Vector.Unboxed  as V
-import           GHC.Generics
-import           Test.QuickCheck      hiding (generate)
+import Control.Arrow ((***))
+import Control.DeepSeq
+import Data.Binary
+import Data.Data
+import Data.Foldable
+import Data.List (transpose)
+import Data.List.Utility (equalityOf, occurrences)
+import Data.Map (delete, findMax, keys)
+import Data.Map qualified as Map (fromList)
+import Data.MonoTraversable
+import Data.Ratio
+import Data.Vector.Binary ()
+import Data.Vector.Unboxed (Vector)
+import Data.Vector.Unboxed qualified as V
+import GHC.Generics
+import Test.QuickCheck hiding (generate)
 
 
 -- |
@@ -67,7 +69,7 @@ import           Test.QuickCheck      hiding (generate)
 -- constructors will result in a runtime exception.
 data TCM
    = TCM {-# UNPACK #-} Int !(Vector Word32)
-   deriving stock    (Data, Eq, Generic, Typeable)
+   deriving stock    (Data, Eq, Generic)
    deriving anyclass (Binary, NFData)
 
 
@@ -143,7 +145,7 @@ data  TCMStructure
     | UltraMetric
     | Additive
     | NonAdditive
-    deriving stock    (Data, Eq, Generic, Show, Typeable)
+    deriving stock    (Data, Eq, Generic, Show)
     deriving anyclass (NFData)
 
 
@@ -159,7 +161,7 @@ data  TCMDiagnosis
     , tcmStructure   :: TCMStructure -- ^ The most restrictive present in the
                                      --   'factoredTcm'.
     }
-    deriving stock    (Data, Eq, Generic, Show, Typeable)
+    deriving stock    (Data, Eq, Generic, Show)
     deriving anyclass (NFData)
 
 
@@ -258,7 +260,7 @@ instance Show TCM where
 
     show tcm = headerLine <> matrixLines
       where
-        renderRow i = ("  "<>) . unwords $ renderValue <$> [ tcm ! (i,j) | j <- rangeValues ]
+        renderRow i = ("  " <>) . unwords $ renderValue <$> [ tcm ! (i,j) | j <- rangeValues ]
         matrixLines = unlines $ renderRow   <$> rangeValues
         rangeValues = [0 .. size tcm - 1]
         headerLine  = '\n' : unwords [ "TCM:", show $ size tcm, "x", show $ size tcm, "\n"]
@@ -320,7 +322,10 @@ fromList xs
     len           = length xs
     dimension     = floor $ sqrt (fromIntegral len :: Double)
     notSquareList = square dimension /= len
-    square x      = x*x
+
+    square :: Num a => a -> a
+    square x = x * x
+    
     notSquareErrorMsg = fold [ "fromList: The number of element ("
                                 , show len
                                 ,") is not a square number. "

@@ -89,13 +89,13 @@ module Data.Matrix.NotStupid
   , Stupid.detLU
   ) where
 
-import           Control.Arrow ((***))
-import           Data.Foldable
-import           Data.Key
-import           Data.Matrix   (Matrix, (<->), (<|>))
-import qualified Data.Matrix   as Stupid
-import           Data.Maybe    (catMaybes)
-import           Data.Vector   (Vector)
+import Control.Arrow ((***))
+import Data.Foldable
+import Data.Key
+import Data.Matrix (Matrix, (<->), (<|>))
+import Data.Matrix qualified as Stupid
+import Data.Maybe (catMaybes)
+import Data.Vector (Vector)
 
 
 type instance Key Matrix = (Int, Int)
