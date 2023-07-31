@@ -1131,10 +1131,10 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
             sequenceString = case inCharType of
                                -- x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
                                x | x == SlimSeq -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
-                               x | x == NucSeq -> SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ slimAlignment blockDatum
+                               x | x == NucSeq -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
                                -- x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
                                x | x == WideSeq -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
-                               x | x == AminoSeq -> UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ wideAlignment blockDatum
+                               x | x == AminoSeq -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
                                x | x == HugeSeq           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment blockDatum
                                x | x == AlignedSlim       -> if isAlphabetDna (alphabet inCharInfo) || isAlphabetRna (alphabet inCharInfo) then SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
                                                                    else SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum

@@ -267,8 +267,8 @@ bitVectToCharStateNonAdd localAlphabet bitValue =
  else charString
  
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
-bitVectToCharState :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
-bitVectToCharState localAlphabet bitValue =
+bitVectToCharState' :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
+bitVectToCharState' localAlphabet bitValue =
   -- check for symbol length > 1 then add space (since sorted last element longest)
   let -- maxSymbolLength = maximum (length <$> SET.toList (alphabetSymbols localAlphabet))
       charString = foldr pollSymbol mempty indices
@@ -288,8 +288,8 @@ bitVectToCharState localAlphabet bitValue =
       | bitValue `testBit` i = (vec V.! i) : polled
       | otherwise         = polled
 
-bitVectToCharState' :: (Show b, Bits b) => Alphabet String -> b -> String
-bitVectToCharState' localAlphabet bitValue =
+bitVectToCharState :: (Show b, Bits b) => Alphabet String -> b -> String
+bitVectToCharState localAlphabet bitValue =
   -- trace ("BVCA': " <> (show $ isAlphabetAminoAcid localAlphabet) <> " " <> (show $ isAlphabetDna localAlphabet) <> " " <> (show localAlphabet)) (
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
