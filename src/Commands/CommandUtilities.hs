@@ -540,7 +540,6 @@ getVertexAndParentCharInfo useIA blockDataVect inGraph charInfoVectVect allVertV
     in
     basicInfoList : blockInfoListParent
 
-
 -- | getBlockList takes a pair of Vector of chardata and vector of charInfo and returns Strings
 getBlockList :: Bool -> (NameText, V.Vector CharacterData, V.Vector CharInfo) -> [[String]]
 getBlockList useIA (blockName, blockDataVect, charInfoVect) =
@@ -572,28 +571,27 @@ makeCharLine useIA (blockDatum, charInfo) =
         (slimField, wideField, hugeField) = if useIA then (slimIAFinal blockDatum, wideIAFinal blockDatum, hugeIAFinal blockDatum)
                                             else (slimFinal blockDatum, wideFinal blockDatum, hugeFinal blockDatum)
 
+        -- this to avoid recalculations and list access issues
+        lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
+        lAVect = V.fromList $ NE.toList $ lANES
+        getCharState a = U.bitVectToCharState localAlphabet lANES lAVect a
+
 
         -- (stringPrelim, stringFinal) = if localType == Add then (show $ snd3 $ rangePrelim blockDatum, show $ rangeFinal blockDatum)
         stringFinal
           | localType == Add = (show $ rangeFinal blockDatum)
           | localType == NonAdd = (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal blockDatum)
-          | localType `elem` packedNonAddTypes = (UV.foldMap (U.bitVectToCharState localAlphabet) $ packedNonAddFinal blockDatum)
+          | localType `elem` packedNonAddTypes = (UV.foldMap getCharState $ packedNonAddFinal blockDatum)
           | localType == Matrix = (show $ fmap (fmap fst3) $ matrixStatesFinal blockDatum)
           | localType `elem` sequenceCharacterTypes = case localType of
-                                    x | x `elem` [NucSeq  ] -> (SV.foldMap (U.bitVectToCharState' localAlphabet) slimField)
-                                    x | x `elem` [SlimSeq ] -> (SV.foldMap (U.bitVectToCharState localAlphabet) slimField)
-                                    x | x `elem` [WideSeq] -> (UV.foldMap (U.bitVectToCharState localAlphabet) wideField)
-                                    x | x `elem` [AminoSeq] -> (UV.foldMap (U.bitVectToCharState' localAlphabet) wideField)
-                                    x | x `elem` [HugeSeq]           -> (foldMap (U.bitVectToCharState localAlphabet) hugeField)
-                                    x | x `elem` [AlignedSlim]       -> if (isAlphabetDna $ alphabet charInfo) || (isAlphabetRna $ alphabet charInfo) then
-                                                                            (SV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedSlimFinal blockDatum)
-                                                                        else
-                                                                            (SV.foldMap (U.bitVectToCharState localAlphabet) $ alignedSlimFinal blockDatum)
-                                    x | x `elem` [AlignedWide]       -> if (isAlphabetAminoAcid $ alphabet charInfo) then
-                                                                            (UV.foldMap (U.bitVectToCharState' localAlphabet) $ alignedWideFinal blockDatum)
-                                                                        else
-                                                                            (UV.foldMap (U.bitVectToCharState localAlphabet) $ alignedWideFinal blockDatum)
-                                    x | x `elem` [AlignedHuge]       -> (foldMap (U.bitVectToCharState localAlphabet) $ alignedHugeFinal blockDatum)
+                                    x | x `elem` [NucSeq  ]          -> (SV.foldMap getCharState slimField)
+                                    x | x `elem` [SlimSeq ]          -> (SV.foldMap getCharState slimField)
+                                    x | x `elem` [WideSeq]           -> (UV.foldMap getCharState wideField)
+                                    x | x `elem` [AminoSeq]          -> (UV.foldMap getCharState wideField)
+                                    x | x `elem` [HugeSeq]           -> (foldMap getCharState hugeField)
+                                    x | x `elem` [AlignedSlim]       -> (SV.foldMap getCharState $ alignedSlimFinal blockDatum)
+                                    x | x `elem` [AlignedWide]       -> (UV.foldMap getCharState $ alignedWideFinal blockDatum)
+                                    x | x `elem` [AlignedHuge]       -> (foldMap getCharState $ alignedHugeFinal blockDatum)
 
                                     _ -> error ("Un-implemented data type " <> show localType)
           | otherwise = error ("Un-implemented data type " <> show localType)
@@ -1126,22 +1124,25 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
     else
         let (firstName, blockDatum) = head nameDataPairList
             inCharType = charType inCharInfo
+
+            -- this to avoid recalculations and list access issues
             localAlphabet = (ST.toString <$> alphabet inCharInfo)
+            lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
+            lAVect = V.fromList $ NE.toList $ lANES  
+            getCharState a = U.bitVectToCharState localAlphabet lANES lAVect a
 
             sequenceString = case inCharType of
                                -- x | x `elem` [SlimSeq, NucSeq  ] -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
-                               x | x == SlimSeq -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
-                               x | x == NucSeq -> SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ slimAlignment blockDatum
+                               x | x == SlimSeq           -> SV.foldMap getCharState $ snd3 $ slimAlignment blockDatum
+                               x | x == NucSeq            -> SV.foldMap getCharState $ snd3 $ slimAlignment blockDatum
                                -- x | x `elem` [WideSeq, AminoSeq] -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
-                               x | x == WideSeq -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
-                               x | x == AminoSeq -> UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ wideAlignment blockDatum
-                               x | x == HugeSeq           ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ hugeAlignment blockDatum
-                               x | x == AlignedSlim       -> if isAlphabetDna (alphabet inCharInfo) || isAlphabetRna (alphabet inCharInfo) then SV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
-                                                                   else SV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedSlimPrelim blockDatum
-                               x | x == AlignedWide       -> if isAlphabetAminoAcid $ alphabet inCharInfo then UV.foldMap (U.bitVectToCharState' localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
-                                                                   else UV.foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedWidePrelim blockDatum
-                               x | x == AlignedHuge       ->    foldMap (U.bitVectToCharState localAlphabet) $ snd3 $ alignedHugePrelim blockDatum
-                               _                                -> error ("Un-implemented data type " <> show inCharType)
+                               x | x == WideSeq           -> UV.foldMap getCharState $ snd3 $ wideAlignment blockDatum
+                               x | x == AminoSeq          -> UV.foldMap getCharState $ snd3 $ wideAlignment blockDatum
+                               x | x == HugeSeq           ->    foldMap getCharState $ snd3 $ hugeAlignment blockDatum
+                               x | x == AlignedSlim       -> SV.foldMap getCharState $ snd3 $ alignedSlimPrelim blockDatum
+                               x | x == AlignedWide       -> UV.foldMap getCharState $ snd3 $ alignedWidePrelim blockDatum
+                               x | x == AlignedHuge       ->    foldMap getCharState $ snd3 $ alignedHugePrelim blockDatum
+                               _                          -> error ("Un-implemented data type " <> show inCharType)
 
             sequenceString' = if isAllGaps sequenceString then 
                                 fmap replaceDashWithQuest sequenceString

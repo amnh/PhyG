@@ -288,8 +288,8 @@ bitVectToCharState' localAlphabet bitValue =
       | bitValue `testBit` i = (vec V.! i) : polled
       | otherwise         = polled
 
-bitVectToCharState :: (Show b, Bits b) => Alphabet String -> b -> String
-bitVectToCharState localAlphabet bitValue =
+bitVectToCharState :: (Show b, Bits b) => Alphabet String -> NonEmpty String -> V.Vector String -> b -> String
+bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValue =
   -- trace ("BVCA': " <> (show $ isAlphabetAminoAcid localAlphabet) <> " " <> (show $ isAlphabetDna localAlphabet) <> " " <> (show localAlphabet)) (
   let stringVal' = foldr pollSymbol mempty indices
       stringVal = concat stringVal'
@@ -345,7 +345,7 @@ bitVectToCharState localAlphabet bitValue =
 
     -- else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet) 
     --    <> " RNA: " <> (show $ isAlphabetRna localAlphabet) <> " Size: " <> (show $ SET.size (alphabetSymbols localAlphabet)) )
-    else bitVectToCharState'' (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet) bitValue
+    else bitVectToCharState'' localAlphabetNEString localAlphabetVect bitValue
   --  )
   where
     indices = [ 0 .. len - 1 ]
@@ -355,10 +355,9 @@ bitVectToCharState localAlphabet bitValue =
       | bitValue `testBit` i = (vec V.! i) : polled
       | otherwise         = polled
 
-
 -- bitVectToCharState''  takes a bit vector representation and returns a list states as integers
-bitVectToCharState'' :: (Bits b) => NonEmpty String -> b -> String
-bitVectToCharState'' localAlphabet bitValue
+bitVectToCharState'' :: (Bits b) => NonEmpty String -> V.Vector String -> b -> String
+bitVectToCharState'' localAlphabet localAlphabetVect bitValue
   | isAlphabetDna       hereAlphabet = fold $ iupacToDna       BM.!> observedSymbols
   | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
   | otherwise = L.intercalate "," $ toList observedSymbols
@@ -368,7 +367,8 @@ bitVectToCharState'' localAlphabet bitValue
       observedSymbols
         = NE.fromList
             $ foldMap
-                (\ i -> [localAlphabet NE.!! i | bitValue `testBit` i])
+                -- (\ i -> [localAlphabet NE.!! i | bitValue `testBit` i])
+                (\ i -> [localAlphabetVect V.! i | bitValue `testBit` i])
                 [0 .. symbolCountH - 1]
 
 -- | matrixStateToStringtakes a matrix state and returns a string representation
@@ -381,8 +381,6 @@ matrixStateToString inStateVect =
     if length statesStringList == 1 then head statesStringList
     else
         "[" <> unwords statesStringList <> "]"
-
-
 
 -- | additivStateToString take an additive range and prints single state if range equal or
 -- [a-b] if not
