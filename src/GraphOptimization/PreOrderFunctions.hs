@@ -934,19 +934,6 @@ zero2Gap inVal
     | popCount inVal == 0 = (inVal `xor` inVal) `setBit` fromEnum gapIndex
     | otherwise = inVal
 
-
-{-
--- | zero2GapWide converts a '0' or no bits set to gap (indel) value
-zero2GapWide :: Word64 -> Word64 -> Word64
-zero2GapWide gapChar inVal = if popCount inVal == 0  then bit gapIndex
-                         else inVal
-
--- | zero2GapBV converts a '0' or no bits set to gap (indel) value
-zero2GapBV :: BV.BitVector -> BV.BitVector -> BV.BitVector
-zero2GapBV gapChar inVal = if popCount inVal == 0 then bit gapIndex
-                         else inVal
--}
-
 -- | maxIntervalDiff takes two ranges and gets the maximum difference between the two based on differences
 -- in upp and lower ranges.
 maxMinIntervalDiff :: (Int, Int)-> (Int, Int) -> (Int, Int)
