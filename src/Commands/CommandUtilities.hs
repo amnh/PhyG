@@ -954,7 +954,7 @@ getCharacterString inCharData inCharInfo =
     let charString = case inCharType of
                       x | x == NonAdd                   ->  filter (/= ' ') $   foldMap (U.bitVectToCharStateNonAdd localAlphabet) $ snd3 $ stateBVPrelim inCharData
                       x | x `elem` packedNonAddTypes    -> UV.foldMap (U.bitVectToCharStateQual  localAlphabet) $ snd3 $ packedNonAddPrelim inCharData
-                      x | x == Add                      ->  filter (/= ' ') $   foldMap  U.additivStateToString $ snd3 $ rangePrelim inCharData
+                      x | x == Add                      ->  filter (/= ' ') $   foldMap  (U.additivStateToString lAVect) $ snd3 $ rangePrelim inCharData
                       x | x == Matrix                   ->  filter (/= ' ') $   foldMap  U.matrixStateToString  $ matrixStatesPrelim inCharData
                       x | x `elem` [SlimSeq, NucSeq  ]  -> filter (/= ' ') $ SV.foldMap getCharState $ snd3 $ slimAlignment inCharData
                       x | x `elem` [WideSeq, AminoSeq]  -> filter (/= ' ') $ UV.foldMap getCharState  $ snd3 $ wideAlignment inCharData
