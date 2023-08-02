@@ -1575,7 +1575,7 @@ packNonAdd inGS inCharDataV charInfo =
         -- recode non-additive characters
         let leafNonAddV = V.toList $ fmap (snd3 . stateBVPrelim) inCharDataV
 
-              -- there is a problem with this index--they should all be the same but there are two classes in soem cases
+              -- there is a problem with this index--they should all be the same but there are two classes in some cases
               -- I believe due to missing data
             -- numNonAdd = (length . head) leafNonAddV
             numNonAdd = minimum $ fmap length leafNonAddV
@@ -1592,9 +1592,9 @@ packNonAdd inGS inCharDataV charInfo =
 
 
         in
-        -- trace ("PNA:" <> (show $ fmap length leafNonAddV))
-        -- trace ("PNA out weights : " <> (show $ fmap weight $ concat newCharInfoList))  -- (show $ fmap fst stateNumDataPairList) ) --  <> "\n" <> (show (newStateCharListList, newCharInfoList) ))
-        (newStateCharListList, concat newCharInfoList)
+        -- this here in case recoding and removing constant (with missing) characters yields no data to be bitpacked
+        if (L.foldl1' (&&) $ fmap null [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]) then ([V.toList inCharDataV],[charInfo])
+        else (newStateCharListList, concat newCharInfoList)
         -- )
 
 -- | makeStateNCharacterTuple is a wrapper for makeStateNCharacter to allow for parMap use

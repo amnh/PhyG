@@ -458,6 +458,7 @@ makeStaticApprox inGS leavePrealigned inData inGraph =
           newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
       in
       -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
+      -- issues if no variation in block reducing length to zero so need leave "prealigned" if so
       if leavePrealigned then (nameV, nameBVV, V.fromList newBlockDataV)
       else newProcessedData'
 
