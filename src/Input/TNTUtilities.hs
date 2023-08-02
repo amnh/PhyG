@@ -94,7 +94,11 @@ getTNTDataText inString fileName =
     if T.null inString then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--empty file")
     else
         let inString' = T.unlines $ filter ((/= '&') . T.head ) $ filter (not . T.null) $ fmap T.strip (T.lines inString)
-            inText = T.strip inString'
+            inText' = T.strip inString'
+
+            -- this for leading command like "taxname ujsed in report tnt"
+            inText = if (T.head inText') /= 'x' then T.unlines $ tail $ T.lines inText'
+                     else inText'
         in
         if toLower (T.head inText) /= 'x' then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--must begin with 'xread'")
         else
@@ -709,16 +713,16 @@ getAlphWithAmbiguity fileName inStates thisType mostDecimals newAlph newStates =
                         else errorWithoutStackTrace ("\n\nTNT file " <> fileName <> " ccode processing error: Additive character not a number (Int/Float) " <> firstState)
                     else getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (ST.fromString newStateNumber : newAlph) (ST.fromString newStateNumber : newStates)
             else
-                -- trace ("GAlphAmb: " <> (show firstState)) (
-                let hasDecimal = elem '.' firstState
-                    gutsList = if hasDecimal then words $ filter (`notElem` ['[',']']) firstState
+                --trace ("GAlphAmb: " <> (show firstState)) $
+                let hasDecimalorDash = (elem '.' firstState) || (elem '-' firstState)
+                    gutsList = if hasDecimalorDash then fmap (:[]) $ filter (`notElem` ['[',']','.','-']) firstState
                                else (:[]) <$> filter (`notElem` ['[',']']) firstState
                     newStateNumberList = fmap readMaybe gutsList :: [Maybe Double]
-                    newStateNumberStringList = fmap (((takeWhile (/='.') . show) . (/ scaleFactor)) . fromJust) newStateNumberList
+                    newStateNumberStringList = fmap (((takeWhile (`notElem` ['.','-']) . show) . (/ scaleFactor)) . fromJust) newStateNumberList
                 in
                 if Nothing `elem` newStateNumberList then errorWithoutStackTrace ("\n\nTNT file " <> fileName <> " ccode processing error: Additive character not a number (Int/Float) " <> firstState)
                 else
-                    let newAmbigState = if hasDecimal then ST.fromString $ '[' : unwords newStateNumberStringList <> "]"
+                    let newAmbigState = if hasDecimalorDash then ST.filter (/= ' ') $ ST.fromString $ '[' : unwords newStateNumberStringList <> "]"
                                         else ST.fromString $ '[' : concat newStateNumberStringList <> "]"
                     in
                     getAlphWithAmbiguity fileName (tail inStates) thisType  mostDecimals (fmap ST.fromString newStateNumberStringList <> newAlph) (newAmbigState : newStates)
