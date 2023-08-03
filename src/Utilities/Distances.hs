@@ -64,7 +64,7 @@ getPairwiseDistances (nameVect, _, blockDataVect)
         maxDistance = U.getMaxNumberObservations blockDataVect
         pairList = makeIndexPairs True (V.length nameVect) (V.length nameVect) 0 0
         pairListCosts = fmap (U.getPairwiseObservations blockDataVect) pairList `using` P.myParListChunkRDS
-        normFactorList = fmap (maxDistance /) pairListCosts
+        normFactorList = fmap (maxDistance /) $ fmap (max 1.0) pairListCosts
         initialFactorMatrix = S.fromLists $ replicate (V.length nameVect) $ replicate (V.length nameVect) 0.0
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList normFactorList
