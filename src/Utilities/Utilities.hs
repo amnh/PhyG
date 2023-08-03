@@ -36,33 +36,35 @@ Portability :  portable (I hope)
 
 module Utilities.Utilities  where
 
-import           Data.Alphabet
-import           Data.Alphabet.IUPAC
-import           Data.Alphabet.Special
-import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.List                   as L
-import qualified Data.List.NonEmpty          as NE
-import qualified Data.List.Split             as SL
-import           Data.Maybe
-import qualified Data.Vector                 as V
+import Data.Alphabet
+import Data.Alphabet.IUPAC
+import Data.Alphabet.Special
+import Data.BitVector.LittleEndian qualified as BV
+import Data.List  qualified                 as L
+import Data.List.NonEmpty   qualified       as NE
+import Data.List.Split  qualified           as SL
+import Data.Maybe
+import  Data.Vector   qualified              as V
 -- import Data.Alphabet.Special
-import qualified Data.Bimap                  as BM
-import           Data.Bits
-import           Data.Foldable
-import qualified Data.InfList                as IL
+import Data.Bimap    qualified              as BM
+import Data.Bits
+import Data.Foldable
+import Data.InfList   qualified             as IL
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Set                    as SET
-import qualified Data.Text.Lazy              as T
-import qualified Data.Text.Short             as ST
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GeneralUtilities            as GU
-import qualified SymMatrix                   as S
-import           Types.Types
-import qualified Utilities.LocalGraph        as LG
+import Data.List.NonEmpty qualified as NE
+import Data.Set        qualified            as SET
+import Data.Text.Lazy  qualified            as T
+import Data.Text.Short    qualified         as ST
+import Data.Vector.Storable  qualified      as SV
+import Data.Vector.Unboxed   qualified      as UV
+import Debug.Trace
+import GeneralUtilities
+import GeneralUtilities  qualified          as GU
+import SymMatrix     qualified              as S
+import Types.Types
+import Utilities.LocalGraph  qualified      as LG
+import Control.Parallel.Strategies
+import ParallelUtilities qualified as P
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
@@ -543,18 +545,23 @@ getLengthSequenceCharacters blockDataVect =
 -- | getMaxCharLength takes characterData and returns the length of the longest character field from preliminary
 getMaxCharLength :: CharacterData -> Int
 getMaxCharLength inChardata =
-    let nonAdd = (V.length . fst3) $ stateBVPrelim inChardata
-        add = (V.length . fst3) $ rangePrelim inChardata
+    let nonAdd = (V.length . snd3) $ stateBVPrelim inChardata
+        add = (V.length . snd3) $ rangePrelim inChardata
         matrix = V.length  $ matrixStatesPrelim inChardata
-        slim  = (SV.length . fst3) $ slimGapped inChardata
-        wide = (UV.length . fst3) $ wideGapped inChardata
-        huge = (V.length . fst3) $ hugeGapped inChardata
-        aSlim = (SV.length . fst3) $ alignedSlimPrelim inChardata
-        aWide = (UV.length . fst3) $ alignedWidePrelim inChardata
-        aHuge = (V.length . fst3) $ alignedHugePrelim inChardata
+        slim  = (SV.length . snd3) $ slimGapped inChardata
+        wide = (UV.length . snd3) $ wideGapped inChardata
+        huge = (V.length . snd3) $ hugeGapped inChardata
+        aSlim = (SV.length . snd3) $ alignedSlimPrelim inChardata
+        aWide = (UV.length . snd3) $ alignedWidePrelim inChardata
+        aHuge = (V.length . snd3) $ alignedHugePrelim inChardata
+        packed = 32 * ((UV.length . snd3) $ packedNonAddPrelim inChardata)
+        aBitChar = (UV.head . snd3) $ packedNonAddPrelim inChardata
+        missingBitChar = complement $ aBitChar `xor` aBitChar
+        packedNotMissingChars = 32 *  (UV.length $ UV.filter (/= missingBitChar) $ snd3 $ packedNonAddPrelim inChardata)
     in
-    -- trace ("GMCL: " <> (show [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]))
-    maximum [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge]
+    -- trace ("GMCL: " <> (show [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge, packed]))
+    -- trace ("GMCL: " <> show (nonAdd, add, matrix, packed, packedNotMissingChars)) $
+    maximum [nonAdd, add, matrix, slim, wide, huge, aSlim, aWide, aHuge, packedNotMissingChars]
 
 
 -- | getNumberExactCharacters takes processed data and returns the number of non-exact characters
@@ -568,6 +575,75 @@ getNumberExactCharacters blockDataVect =
             exactChars = length $ V.filter id $ V.map (`elem` exactCharacterTypes) characterTypes
         in
         exactChars + getNumberExactCharacters (V.tail blockDataVect)
+
+
+-- | getPairwiseObservations gets the observations between a pairs of leaves that are non-missing
+-- sued to normalize distances
+getPairwiseObservations:: V.Vector BlockData -> (Int, Int) -> VertexCost
+getPairwiseObservations blocKDataV pairTax =
+    if V.null blocKDataV then 0
+    else 
+        fromIntegral $ V.sum (fmap (getPairBlockObs pairTax) blocKDataV)
+
+-- | getMaxBlockObs gets the supremum over taxa number of characters in a block of data
+getPairBlockObs :: (Int, Int) -> BlockData -> Int
+getPairBlockObs pairTax (_, charDataVV, _) =
+    if V.null charDataVV then 0
+    else 
+        let newListList = L.transpose $ V.toList $ fmap V.toList charDataVV
+            charTaxVect = V.fromList $ fmap V.fromList newListList
+        in
+        --trace ("GPBO: " <> (show (V.length charDataVV, V.length charTaxVect, fmap V.length charTaxVect))) $
+        V.sum (fmap (getPairCharLength pairTax) charTaxVect)    
+
+-- | getPairBlockObs get non-missing observations between taxa
+-- NB--does not go into qualitative or packed charcters and check for missing values 
+-- other than "all missing"  packed
+getPairCharLength :: (Int, Int) -> V.Vector CharacterData -> Int
+getPairCharLength (iIndex, jIndex) charDataV =
+    if V.null charDataV then 0
+    else
+        let iTaxon = charDataV V.! iIndex
+            jTaxon = charDataV V.! jIndex
+            obsI = getMaxCharLength iTaxon
+            obsJ = getMaxCharLength jTaxon
+
+        in
+        --trace ("GPCL: " <> (show (iIndex, jIndex, V.length charDataV))) $
+        if obsI == 0 || obsJ == 0 then 0
+        else max obsI obsJ
+
+
+-- | getMaxNumberObservations takes data set and returns the supremum of character numbers from all
+-- taxa over all charcaters (sequence and qiualitative) 
+-- used for various normalizations
+getMaxNumberObservations :: V.Vector BlockData -> VertexCost
+getMaxNumberObservations blocKDataV =
+    if V.null blocKDataV then 0
+    else 
+        fromIntegral $ V.sum (P.seqParMap P.myStrategyHighLevel getMaxBlockObs blocKDataV)
+
+-- | getMaxBlockObs gets the supremum over taxa number of characters in a block of data
+getMaxBlockObs :: BlockData -> Int
+getMaxBlockObs (_, charDataVV, _) =
+    if V.null charDataVV then 0
+    else 
+        let newListList = L.transpose $ V.toList $ fmap V.toList charDataVV
+            charTaxVect = V.fromList $ fmap V.fromList newListList
+        in
+        V.sum (P.seqParMap P.myStrategyHighLevel getSupCharLength charTaxVect)
+
+-- | getMaxCharLength takes a vector of charcters and returns the supremum of observations for that character 
+-- over all taxa
+getSupCharLength :: V.Vector CharacterData -> Int
+getSupCharLength charDataV =
+    if V.null charDataV then 0
+    else
+        V.maximum (P.seqParMap P.myStrategyHighLevel getMaxCharLength charDataV)
+
+-- | getMaxDistance gets teh maximum numbert of observations that could be different between
+-- two taxa--by counting only obsercvvations where both are non-missing
+
 
 
 -- getFractionDynamic returns fraction (really of length) of dynamic charcters for adjustment to dynamicEpsilon
