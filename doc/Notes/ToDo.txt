@@ -572,3 +572,5 @@
 448) Randomize Thompsons settings option
 
 449) randomized distance wagner seems to be waaaay underutilizing parallel
+
+450) parallelize tnt and ia outputs

@@ -254,7 +254,7 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSeq
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
         --let randomAddTrees = PU.seqParMap PU.myStrategyHighLevel  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences 
-        let randomAddTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` myParListChunkRDS -- was rseq not sure whats better
+        let randomAddTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS -- was rseq not sure whats better
             -- randomAddTrees = parmap rseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
         in
         randomAddTrees
