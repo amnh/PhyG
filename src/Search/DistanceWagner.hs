@@ -42,17 +42,18 @@ Need to integerize costs for swapping very slow on Double values
 
 module Search.DistanceWagner (doWagnerS, performRefinement) where
 
-import           Data.Maybe
-import qualified Data.Number.Transfinite     as NT
-import qualified Data.Vector                 as V
-import           Debug.Trace
-import           GeneralUtilities
-import           ParallelUtilities           as PU
-import qualified SymMatrix                   as M
-import           Types.DistanceTypes
-import           Utilities.DistanceUtilities
+import Data.Maybe
+import Data.Number.Transfinite qualified as NT
+import Data.Vector qualified as V
+import Debug.Trace
+import GeneralUtilities
+import ParallelUtilities qualified as PU
+import SymMatrix qualified as M
+import Types.DistanceTypes
+import Utilities.DistanceUtilities
 --import qualified LocalSequence as LS
-import qualified Data.Vector                 as LS
+import Data.Vector qualified as LS
+import Control.Parallel.Strategies
 
 -- | getStartingPair returns starying pair for Wagner build
 --  closts mnimal cost pair
@@ -252,7 +253,8 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSeq
   else if head addSequence == 'r' then
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
-        let randomAddTrees = PU.seqParMap PU.myStrategyHighLevel  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences -- `using` myParListChunkRDS -- was rseq not sure whats better
+        --let randomAddTrees = PU.seqParMap PU.myStrategyHighLevel  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences 
+        let randomAddTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` myParListChunkRDS -- was rseq not sure whats better
             -- randomAddTrees = parmap rseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
         in
         randomAddTrees

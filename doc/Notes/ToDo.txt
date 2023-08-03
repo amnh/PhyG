@@ -570,3 +570,5 @@
 447) Add in hits on saerch output iterations
 
 448) Randomize Thompsons settings option
+
+449) randomized distance wagner seems to be waaaay underutilizing parallel
