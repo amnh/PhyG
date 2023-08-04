@@ -400,12 +400,13 @@ matrixStateToString inStateVect =
         "[" <> unwords statesStringList <> "]"
 
 -- | additivStateToString take an additive range and prints single state if range equal or
--- [a-b] if not
+-- [ab] if not
+-- [a-b] causes problems with TNT
 additivStateToString ::  V.Vector String -> (Int, Int) ->String
 additivStateToString localAlphabet (a,b) = 
     if a == b then show a
     else if (show a == V.head localAlphabet) && (show b == V.last localAlphabet) then "?"
-    else "[" <> show a <> "-" <> show b <> "]"
+    else "[" <> show a <> show b <> "]"
 
 -- | filledDataFields takes rawData and checks taxon to see what percent
 -- "characters" are found.

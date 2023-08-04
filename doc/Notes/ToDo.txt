@@ -571,6 +571,5 @@
 
 448) Randomize Thompsons settings option
 
-449) randomized distance wagner seems to be waaaay underutilizing parallel
+451) TNT newick file--no labels, no lengths., no commas (spaces in stead)
 
-450) parallelize tnt and ia outputs
