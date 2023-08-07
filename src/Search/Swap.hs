@@ -40,19 +40,19 @@ module Search.Swap  ( swapSPRTBR
                     , getUnionRejoinEdgeList
                     ) where
 
-import qualified Data.List                                     as L
-import           Data.Maybe
-import qualified Data.Vector                                   as V
-import           GeneralUtilities
-import qualified GraphOptimization.Medians                     as M
-import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import qualified GraphOptimization.PreOrderFunctions           as PRE
-import qualified GraphOptimization.Traversals                  as T
-import qualified Graphs.GraphOperations                        as GO
-import qualified ParallelUtilities                             as PU
-import           Types.Types
-import qualified Utilities.LocalGraph                          as LG
-import           Utilities.Utilities                           as U
+import Data.List qualified as L
+import Data.Maybe
+import Data.Vector qualified as V
+import GeneralUtilities
+import GraphOptimization.Medians qualified as M
+import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
+import GraphOptimization.PreOrderFunctions qualified as PRE
+import GraphOptimization.Traversals qualified as T
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Types.Types
+import Utilities.LocalGraph  qualified as LG
+import Utilities.Utilities as U
 -- import           Debug.Trace
 
 
@@ -1008,6 +1008,9 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
       -- do redo orginal graph join
       if originalConnectionOfPruned `elem` [u,v] then ([], inSimAnnealParams)
 
+      -- from just nothing
+      else if isNothing (LG.lab splitGraph prunedGraphRootIndex) then ([], inSimAnnealParams)
+
       -- regular swap
       else if isNothing inSimAnnealParams then
 
@@ -1134,7 +1137,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
       let charInfoVV = fmap thd3 $ thd3 inData
           
           -- graphTYpoe with IA field
-          -- only uswe wqhere they exist
+          -- only uswe wqhere they exist\
           (makeEdgeDataFunction, edgeJoinFunction) = if graphType inGS == HardWired then (M.makeEdgeData False True, edgeJoinDelta False) 
                                                      else if not (useIA inGS) then (M.makeEdgeData False True, edgeJoinDelta False)
                                                      else (M.makeEdgeData True True, edgeJoinDelta True)
@@ -1305,7 +1308,7 @@ rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectio
 -- original root edges and reroort edge are deleted and new root and edge spanning orginal root created
 -- delete original connection edge and creates a new one--like SPR
 -- returns ([add], [delete])
-getTBREdgeEditsSimple :: (Show a) => SimpleGraph -> LG.Node -> LG.LEdge a -> ([LG.LEdge Double],[LG.Edge])
+getTBREdgeEditsSimple :: SimpleGraph -> LG.Node -> LG.LEdge a -> ([LG.LEdge Double],[LG.Edge])
 getTBREdgeEditsSimple inGraph prunedGraphRootIndex rerootEdge =
    --trace ("Getting TBR Edits for " <> (show rerootEdge)) (
    let -- originalRootEdgeNodes = LG.descendants inGraph prunedGraphRootIndex
