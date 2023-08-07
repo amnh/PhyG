@@ -39,22 +39,22 @@ module Search.WagnerBuild  ( wagnerTreeBuild
                            , rasWagnerBuild
                      ) where
 
--- import qualified Data.List                           as L
-import           Data.Maybe
-import qualified Data.Text.Lazy                                as TL
-import qualified Data.Vector                                   as V
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphOptimization.Medians                     as M
-import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import qualified GraphOptimization.PreOrderFunctions           as PRE
-import qualified GraphOptimization.Traversals                  as T
-import qualified Graphs.GraphOperations                        as GO
-import qualified ParallelUtilities                             as PU
-import           Types.Types
-import qualified Utilities.LocalGraph                          as LG
-import           Utilities.Utilities                           as U
---import qualified Search.Swap                         as S
+-- import Data.List                           as L
+import Data.Maybe
+import Data.Text.Lazy qualified as TL
+import Data.Vector qualified as V
+import Debug.Trace
+import GeneralUtilities
+import GraphOptimization.Medians qualified as M
+import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
+import GraphOptimization.PreOrderFunctions qualified as PRE
+import GraphOptimization.Traversals qualified as T
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
+--import  Search.Swap         qualified                as S
 
 
 -- Haven't added in unions--but prob should
@@ -108,13 +108,16 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 
        blockCharInfo = V.map thd3 $ thd3 inData
 
+       -- this used for missing data adjustments during build
+       maxDistance = U.getMaxNumberObservations (thd3 inData)
+
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree
        -- False flag for staticIA--can't be done in build
        calculateBranchLengths = False -- must be True for delata using existing edge
        initialPostOrderTree = POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
        initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
 
-       wagnerTree = recursiveAddEdgesWagner (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
+       wagnerTree = recursiveAddEdgesWagner maxDistance (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in
    -- trace ("Initial Tree:\n" <> (LG.prettify initialTree) <> "FDT at cost " <> (show $ snd6 initialFullyDecoratedTree) <>":\n"
    --    <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
@@ -125,8 +128,8 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
 -- this tested by null additin sequence list
 -- interface will change with correct final states--using post-order pass for now
-recursiveAddEdgesWagner :: Bool -> V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
-recursiveAddEdgesWagner useIA additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, _, inDecGraph, _, _, charInfoVV) =
+recursiveAddEdgesWagner :: VertexCost -> Bool -> V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
+recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, _, inDecGraph, _, _, charInfoVV) =
    -- all edges/ taxa in graph
    -- trace ("To go " <> (show additionSequence) <> " verts " <> (show numVerts)) (
    if null additionSequence then inGraph
@@ -146,7 +149,7 @@ recursiveAddEdgesWagner useIA additionSequence numLeaves numVerts inGS inData ha
           unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
           -}
 
-          candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
+          candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
           minDelta = minimum $ fmap fst4 candidateEditList
           (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
 
@@ -166,20 +169,21 @@ recursiveAddEdgesWagner useIA additionSequence numLeaves numVerts inGS inData ha
       in
       if isNothing (LG.lab inDecGraph leafToAdd) then error "Missing label data for vertices"
       else
-         recursiveAddEdgesWagner useIA (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
+         recursiveAddEdgesWagner maxDistance useIA (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
       -- )
 
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
 -- returns a tuple of the cost, node to add, edges to add, edge to delete
-addTaxonWagner :: Bool
+addTaxonWagner :: VertexCost
+               -> Bool
                -> Int
                -> PhylogeneticGraph
                -> VertexBlockData
                -> Int
                -> LG.LEdge EdgeInfo
                -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
-addTaxonWagner useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData leafToAdd targetEdge =
+addTaxonWagner maxDistance useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData leafToAdd targetEdge =
    let edge0 = (numVerts, leafToAdd, 0.0)
        edge1 = (fst3 targetEdge, numVerts, 0.0)
        edge2 = (numVerts, snd3 targetEdge, 0.0)
@@ -190,16 +194,22 @@ addTaxonWagner useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVert
        --newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
 
        -- heuristic delta
-       delta = getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
+       (delta, edgeUnionVertData) = getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
+
+       -- modification for missing data
+       nonMissingDistance = U.getPairwiseObservationsGraph leafToAddVertData edgeUnionVertData
+
+       deltaNormalized = delta * maxDistance / (max 1.0 nonMissingDistance)
 
    in
-   (delta, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
+   -- trace ("ATW :" <> (show $ maxDistance / (max 1.0 nonMissingDistance))) $
+   (deltaNormalized, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
    -- (newCost, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
 
 
 -- | getDelta estimates the delta in tree cost by adding a leaf taxon in Wagner build
 -- must be DO for this--isolated leaves won't have IA
-getDelta :: Bool -> VertexBlockData -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> VertexCost
+getDelta :: Bool -> VertexBlockData -> LG.LEdge EdgeInfo -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> (VertexCost, VertexBlockData)
 getDelta useIA leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
    let eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
        vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
@@ -226,7 +236,7 @@ getDelta useIA leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
 
       -- min dLeafEdgeUnionCost dLeafEVAddCost
       -- dLeafEVAddCost
-      dLeafEdgeUnionCost
+      (dLeafEdgeUnionCost, edgeUnionVertData)
       -- )
 
 

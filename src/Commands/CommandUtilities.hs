@@ -268,7 +268,7 @@ makeBlockGraphStrings commandList costList lOutgroupIndex (labelString, graphL) 
 outputDisplayString :: [String] -> [VertexCost] -> Int -> [DecoratedGraph] -> String
 outputDisplayString commandList costList lOutgroupIndex graphList
   | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = GO.makeNewickList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0)
+  | "newick" `elem` commandList = GO.makeNewickList False (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0)
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -277,7 +277,7 @@ outputDisplayString commandList costList lOutgroupIndex graphList
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
-  | "newick" `elem` commandList = GO.makeNewickList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList
+  | "newick" `elem` commandList = GO.makeNewickList False (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
     makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -286,7 +286,7 @@ outputGraphString commandList lOutgroupIndex graphList costList
 outputGraphStringSimple :: [String] -> Int -> [SimpleGraph] ->  [VertexCost] -> String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
   | "dot" `elem` commandList = makeDotList costList lOutgroupIndex graphList
-  | "newick" `elem` commandList = GO.makeNewickList True True lOutgroupIndex graphList costList
+  | "newick" `elem` commandList = GO.makeNewickList False True True lOutgroupIndex graphList costList
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
   | otherwise = -- "dot" as default
     makeDotList costList lOutgroupIndex graphList
@@ -654,6 +654,9 @@ getTNTString inGS inData inGraph graphNumber =
             -- only first of block list type--so assumes single sequence per block and only that type--no exact types
             charTypeList = V.toList $ fmap charType $ fmap V.head charInfoVV
 
+            -- Tree in TNT format
+            tntTreeString = "tread 'Trees from PhyG'\n" <> (GO.makeNewickList True False False (outgroupIndex inGS) [GO.convertDecoratedToSimpleGraph $ thd6 inGraph] [snd6 inGraph])
+
         in
 
         if graphType inGS == Tree then
@@ -680,7 +683,7 @@ getTNTString inGS inData inGraph graphNumber =
             in
             -- trace ("GTNTS:" <> (show charLengthList))
             headerString  <> nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
-                <> interleavedBlocks <> ";\n" <> ccCodeString <> finalString
+                <> interleavedBlocks <> ";\n" <> ccCodeString <> tntTreeString <> finalString
 
 
         -- for softwired networks--use display trees
@@ -689,7 +692,7 @@ getTNTString inGS inData inGraph graphNumber =
             -- get display trees for each data block-- takes first of potentially multiple
             let middleStuffString = createDisplayTreeTNT inGS inData inGraph
             in
-            headerString <> middleStuffString <> finalString
+            headerString <> middleStuffString <> tntTreeString <> finalString
 
         -- for hard-wired networks--transfoirm to softwired and use display trees
         else if graphType inGS == HardWired then
@@ -707,7 +710,7 @@ getTNTString inGS inData inGraph graphNumber =
             trace "There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation"
             --headerString <> nameLengthString <> "'\n" <> (show $ sum charLengthList) <> " " <> (show numTaxa) <> "\n"
             --    <> nameCharStringList <> ";\n" <> ccCodeString <> finalString
-            headerString <> middleStuffString <> finalString
+            headerString <> middleStuffString <> tntTreeString <> finalString
 
         else
             trace ("TNT  not yet implemented for graphtype " <> show (graphType inGS))

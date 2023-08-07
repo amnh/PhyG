@@ -926,9 +926,9 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 else
                     let curGraphs' = if not (reportNaiveData globalSettings) then (fmap GO.convertReduced2PhylogeneticGraph curGraphs)
                                      else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
-                        tntContentList = zipWith (getTNTString globalSettings processedData) curGraphs' [0.. (length curGraphs' - 1)]
+                        tntContentList = concat $ zipWith (getTNTString globalSettings processedData) curGraphs' [0.. (length curGraphs' - 1)]
                     in
-                    (concat tntContentList, outfileName, writeMode)
+                    (tntContentList, outfileName, writeMode)
 
             else
                 trace ("\nWarning: Unrecognized/missing report option in " <> show commandList <> " defaulting to 'graphs'") (

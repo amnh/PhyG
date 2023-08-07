@@ -70,26 +70,26 @@ module GraphOptimization.Medians  ( median2
                                   , distance2Unions
                                   ) where
 
-import           Bio.DynamicCharacter
-import           Data.Alphabet
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits
-import           Data.Foldable
-import qualified Data.List                   as L
-import           Data.Maybe
-import qualified Data.MetricRepresentation   as MR
-import qualified Data.TCM.Dense              as TCMD
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Generic         as GV
-import qualified Data.Vector.Storable        as SV
-import           Data.Word
-import           DirectOptimization.Pairwise
-import           Foreign.C.Types             (CUInt)
-import           GeneralUtilities
-import qualified Input.BitPack               as BP
-import qualified SymMatrix                   as S
-import           Types.Types
-import qualified Utilities.LocalGraph        as LG
+import Bio.DynamicCharacter
+import Data.Alphabet
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.Foldable
+import Data.List qualified as L
+import Data.Maybe
+import Data.MetricRepresentation qualified  as MR
+import Data.TCM.Dense qualified as TCMD
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified  as GV
+import Data.Vector.Storable qualified as SV
+import Data.Word
+import DirectOptimization.Pairwise
+import Foreign.C.Types (CUInt)
+import GeneralUtilities
+import Input.BitPack qualified as BP
+import SymMatrix qualified as S
+import Types.Types
+import Utilities.LocalGraph qualified as LG
 --import           Debug.Trace
 
 

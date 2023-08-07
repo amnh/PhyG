@@ -305,8 +305,8 @@ phylogeneticGraphListMinus minuendList subtrahendList
                 differenceList
 
 -- | makeNewickList takes a list of fgl trees and outputs a single String cointaining the graphs in Newick format
-makeNewickList ::  Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
-makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
+makeNewickList ::  Bool -> Bool -> Bool -> Int -> [SimpleGraph] -> [VertexCost] -> String
+makeNewickList isTNT writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
     let allTrees = L.foldl' (&&) True (fmap LG.isTree graphList)
 
         -- check for network HTU label requirement
@@ -318,10 +318,16 @@ makeNewickList writeEdgeWeight writeNodeLabel' rootIndex graphList costList =
 
         graphString = GFU.fglList2ForestEnhancedNewickString (fmap (LG.rerootTree rootIndex) graphList)  writeEdgeWeight writeNodeLabel
         newickStringList = fmap init $ filter (not . null) $ lines graphString
-        costStringList  = fmap ((('[' :) . (<> "];\n")) . show) costList
-        graphStringCost = concat $ zipWith (<>) newickStringList costStringList
+        costStringList  = if not isTNT then 
+                            fmap ((('[' :) . (<> "];\n")) . show) costList
+                          else L.replicate (length costList) "*\n"
+        graphStringCost = fmap commaToSpace $ concat $ zipWith (<>) newickStringList costStringList
+
+        graphStringCost' = if not isTNT then graphStringCost
+                           else (take (length graphStringCost - 2) graphStringCost) <> ";\n"
     in
-    graphStringCost
+    graphStringCost'
+    where commaToSpace a = if a /= ',' then a else ' '
 
 -- | convertGeneralGraphToPhylogeneticGraph inputs a SimpleGraph and converts it to a Phylogenetic graph by:
 --  1) transitive reduction -- removes anc <-> desc netork edges
@@ -898,7 +904,7 @@ nubGraph curList inList =
     let (firstGraphNC, firstGraphC) = head inList
 
         -- nub on newick topology only--should be collapsed already
-        firstString = makeNewickList False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
+        firstString = makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
 
         -- nub on prettty string
         --firstString = LG.prettyIndices $ thd6 firstGraphNC

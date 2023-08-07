@@ -1,6 +1,6 @@
 Cabal-Version: 3.8
 Name:          PhyG
-Version:       0.1.2
+Version:       0.1.3
 Stability:     Alpha
 Build-Type:    Simple
 Tested-With:

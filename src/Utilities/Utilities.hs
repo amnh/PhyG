@@ -577,9 +577,36 @@ getNumberExactCharacters blockDataVect =
         in
         exactChars + getNumberExactCharacters (V.tail blockDataVect)
 
+-- | getPairwiseObservationsGraph gets the observations between a pairs of vertices on a graph
+-- that are non-missing
+-- used to normalize Wagner deltas
+getPairwiseObservationsGraph :: VertexBlockData -> VertexBlockData -> VertexCost
+getPairwiseObservationsGraph vertexBlockDataI vertexBlockDataJ =
+    let blockObsV = V.zipWith getPairedBlockObs vertexBlockDataI vertexBlockDataJ
+
+    in
+    if V.null vertexBlockDataI || V.null vertexBlockDataJ then 0.0
+    else fromIntegral $ V.sum blockObsV
+
+-- | getPairedBlockObs takes zipped block of chardata vectors and returns block paired observaiton that are non-missing
+getPairedBlockObs :: V.Vector CharacterData -> V.Vector CharacterData -> Int
+getPairedBlockObs charVectI charVectJ =
+    if V.null charVectI || V.null charVectJ then 0
+    else
+        V.sum $ V.zipWith getPairCharNonMissing charVectI charVectJ
+
+-- | getPairCharNonMissing gets non-missing character numbers from a pair of characters
+getPairCharNonMissing :: CharacterData ->  CharacterData -> Int
+getPairCharNonMissing iTaxon jTaxon =
+    let obsI = getMaxCharLength iTaxon
+        obsJ = getMaxCharLength jTaxon
+    in
+    --trace ("GPCL: " <> (show (iIndex, jIndex, V.length charDataV))) $
+    if obsI == 0 || obsJ == 0 then 0
+    else max obsI obsJ
 
 -- | getPairwiseObservations gets the observations between a pairs of leaves that are non-missing
--- sued to normalize distances
+-- used to normalize distances
 getPairwiseObservations:: V.Vector BlockData -> (Int, Int) -> VertexCost
 getPairwiseObservations blocKDataV pairTax =
     if V.null blocKDataV then 0
