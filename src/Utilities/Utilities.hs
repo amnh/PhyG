@@ -482,7 +482,7 @@ getNumberNonExactCharacters blockDataVect =
             characterTypes = V.map charType firstBlock
             sequenceChars = length $ V.filter id $ V.map (`elem` nonExactCharacterTypes) characterTypes
         in
-        sequenceChars + getNumberPrealignedCharacters (V.tail blockDataVect)
+        sequenceChars + getNumberNonExactCharacters (V.tail blockDataVect)
 
 -- | getNumberSequenceCharacters takes processed data and returns the number of non-exact (= sequence) characters
 -- utilized to special case datasets with limited non-exact characters

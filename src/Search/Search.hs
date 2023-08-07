@@ -327,6 +327,25 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
         else errorWithoutStackTrace ("Thompson search option " <> mFunction <> " not recognized " <> (show ["simple", "linear","exponential"]))
         -- )
 
+-- | This exponentiation functionn from http://www.haskell.org/haskellwiki/Generic_number_type#squareRoot
+(^!) :: Num a => a -> Int -> a
+(^!) x n = x^n
+
+-- | squareRoot integer square root from http://www.haskell.org/haskellwiki/Generic_number_type#squareRoot
+squareRoot :: Integer -> Integer
+squareRoot 0 = 0
+squareRoot 1 = 1
+squareRoot n =
+   let twopows = iterate (^!2) 2
+       (lowerRoot, lowerN) =
+          last $ takeWhile ((n>=) . snd) $ zip (1:twopows) twopows
+       newtonStep x = div (x + div n x) 2
+       iters = iterate newtonStep (squareRoot (div n lowerN) * lowerRoot)
+       isRoot r  =  r^!2 <= n && n < (r+1)^!2
+  in  head $ dropWhile (not . isRoot) iters
+
+
+
 -- | performSearch takes input graphs and performs randomized build and search with time limit
 -- Thompson sampling and mFactor to pick strategy from updated theta success values
 -- the random calls return the tail of the input list to avoid long list access--can do vector since infinite
@@ -344,7 +363,8 @@ performSearch :: GlobalSettings
                -> ([ReducedPhylogeneticGraph], [String])
 performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rSeed inTime (inGraphList', _) =
       -- set up basic parameters for search/refine methods
-      let -- set up log for sample
+      let numLeaves = V.length $ fst3 inData'
+          -- set up log for sample
           thompsonString = "," <> (show thetaList)
 
           -- get infinite lists if integers and doubles
@@ -378,9 +398,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                       else if searchBandit == "buildDistance" then "distance"
                       else chooseElementAtRandomPair (randDoubleVect V.! 11) [("distance", 0.5), ("character", 0.5)]
 
-          numToCharBuild = (10 :: Int)
-          numToDistBuild = (1000 :: Int)
-          numDistToKeep = (100 :: Int)
+          numToCharBuild = fromInteger $ squareRoot $ toInteger numLeaves
+          numToDistBuild = numLeaves * numLeaves
+          numDistToKeep = numLeaves
 
           -- to resolve block build graphs
           reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 12) [("eun", 0.5), ("cun", 0.5)]
@@ -434,11 +454,13 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
       in
 
       -- no input graphs so must build to start
+      -- chooses NJ (n^3), dWag (n^3), WPGMA (n^2), or rdWag (n^2 but lots so n^4 here)
       if null inGraphList' then
 
-         let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-
-
+         let distanceMethod =  chooseElementAtRandomPair (randDoubleVect V.! 15) [("nj", 0.25), ("dwag", 0.25), ("wpgma", 0.25), ("rdwag", 0.25)]
+             noGraphsWagnerOptions = [("replicates", show numToDistBuild), (distanceMethod, ""), ("best", show numDistToKeep), ("return", show numToCharBuild)]  
+             buildArgs = [(buildType, "")] <> noGraphsWagnerOptions <> blockOptions
+             
              buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
              uniqueGraphs = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
 
@@ -464,26 +486,32 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
       -- choose a method and parameters at random
       -- fuse on single graph will build a couple more first
       else
-         let -- choose staticApproximation or not
+         let -- unless fuse or genetic algorithm, only operate on "best" input graphs
+             -- this to reduce memory footrpint when have multiple iterations
+             inGraphList'' = if searchBandit `notElem` ["fuse", "fuseSPR", "fuseTBR","geneticAlgorithm"] then 
+                                GO.selectGraphs Best keepNum 0.0 (-1) inGraphList'
+                             else inGraphList'
+
+             -- choose staticApproximation or not
              -- up top here because used by other non-build options
              -- if happens--need to transform  back before returning
              -- checks if there are non-exact characters to transform
              transformToStaticApproximation = if U.getNumberNonExactCharacters (thd3 inData') == 0 then False
-                                              else chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.25), (False, 0.75)]
+                                              else chooseElementAtRandomPair (randDoubleVect V.! 13) [(True, 0.34), (False, 0.66)]
 
              -- choose to togle multitraverse (n-speed up compared to default multi-traverse)
              -- if already False--don't change
              transformMultiTraverse = if transformToStaticApproximation then False
                                       else if not (multiTraverseCharacters inGS') then False
-                                      else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.66), (False, 0.34)]
+                                      else chooseElementAtRandomPair (randDoubleVect V.! 14) [(True, 0.50), (False, 0.50)]
 
              -- Can't do both static approx and multitraverse:False
              ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation && (useIA inGS') then
-                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList', ",StaticApprox")
+                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList'', ",StaticApprox")
                                                                         else if transformMultiTraverse then
-                                                                            (TRANS.transform [("multitraverse","false")] inGS' inData' inData' 0 inGraphList', ",MultiTraverse:False")
+                                                                            (TRANS.transform [("multitraverse","false")] inGS' inData' inData' 0 inGraphList'', ",MultiTraverse:False")
                                                                         else
-                                                                            ((inGS', inData', inData', inGraphList'), "")
+                                                                            ((inGS', inData', inData', inGraphList''), "")
 
 
 
@@ -561,7 +589,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs <> driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
 
                                           -- drift only best graphs
                                           else if searchBandit == "driftAlternate" then
@@ -573,7 +601,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapDriftArgs = swapArgs <> driftArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapDriftArgs)
+                                            (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapDriftArgs)
 
                                           -- anneal only best graphs
                                           else if searchBandit == "annealSPR" then
@@ -585,7 +613,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs <> annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
 
                                           -- anneal only best graphs
                                           else if searchBandit == "annealAlternate" then
@@ -597,7 +625,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
                                                 swapAnnealArgs = swapArgs <> annealArgs
                                             in
                                             -- perform search
-                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) (GO.selectGraphs Best keepNum 0.0 (-1) inGraphList), swapAnnealArgs)
+                                            (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
 
                                           else if searchBandit == "geneticAlgorithm" then
                                             -- args from above
