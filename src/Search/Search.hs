@@ -431,7 +431,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
           annealArgs = [("annealing", ""),("steps", tempSteps)]
 
           -- common fuse options
-          fusePairs = chooseElementAtRandomPair (randDoubleVect V.! 5) [("10", 0.45), ("20", 0.45), ("40", 0.1)]
+          fusePairs = chooseElementAtRandomPair (randDoubleVect V.! 5) [("5", 0.45), ("10", 0.45), ("20", 0.1)]
           fuseKeep = 2 * keepNum
 
           -- network edit options
