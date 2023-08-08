@@ -485,8 +485,16 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
           -- get new processed (leaf) data 
           newBlockDataV = V.zipWith (getBlockLeafDataFromDisplayTree leavePrealigned) (fmap thd6 decoratedBlockTreeList) blockDataV
 
+          -- remove constants from new prealigned
+          newProcessedData = R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+
+          -- bit pack any new non-additive characters
+          newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
+
+
       in
-      (nameV, nameBVV, newBlockDataV)
+      if leavePrealigned then (nameV, nameBVV, newBlockDataV)
+      else newProcessedData'
                 
    else trace ("Static Approx not yet implemented for graph type : " <> (show $ graphType inGS) <> " skipping") inData
 
