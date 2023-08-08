@@ -39,6 +39,8 @@ module Commands.Transform
   , makeStaticApprox
   ) where
 
+
+import Control.Parallel.Strategies
 import           Data.Alphabet
 import qualified Data.BitVector.LittleEndian  as BV
 import           Data.Bits
@@ -67,6 +69,7 @@ import qualified Data.Bits                    as B
 import qualified Data.Char                    as C
 import qualified Data.Text.Lazy               as TL
 import qualified Input.BitPack                as BP
+import Commands.CommandUtilities qualified as CU
 
 
 
@@ -438,16 +441,15 @@ reweightCharacterData weightValue charTypeList charNameList charInfo =
 -- since for heuristic searcing--uses additive weight for sequences and simple cost matrices, otherwise
 -- matrix characters
 makeStaticApprox :: GlobalSettings -> Bool -> ProcessedData -> ReducedPhylogeneticGraph -> ProcessedData
-makeStaticApprox inGS leavePrealigned inData inGraph =
+makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGraph =
    if LG.isEmpty (fst5 inGraph) then error "Empty graph in makeStaticApprox"
 
    -- tree type
    else if graphType inGS == Tree then
       let decGraph = thd5 inGraph
-          (nameV, nameBVV, blockDataV) = inData
 
           -- do each block in turn pulling and transforming data from inGraph
-          newBlockDataV = PU.seqParMap (parStrategy $ strictParStrat inGS) (pullGraphBlockDataAndTransform leavePrealigned decGraph inData) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
+          newBlockDataV = PU.seqParMap (parStrategy $ strictParStrat inGS) (pullGraphBlockDataAndTransform leavePrealigned decGraph blockDataV) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
 
           -- convert prealigned to non-additive if all 1's tcm
 
@@ -462,20 +464,64 @@ makeStaticApprox inGS leavePrealigned inData inGraph =
       if leavePrealigned then (nameV, nameBVV, V.fromList newBlockDataV)
       else newProcessedData'
 
-   else trace ("Static Approx not yet implemented for graph type :" <> (show $ graphType inGS) <> " skipping") inData
+   -- network sttaic apporx relies on display tree implied alignments after contacting out in=out=1 vertices
+   -- harwired based on softwired optimization
+   else if graphType inGS `elem` [SoftWired, HardWired] then
+      -- get display trees for each data block-- takes first of potentially multiple
+      let inFullGraph = if graphType inGS == SoftWired then
+                           GO.convertReduced2PhylogeneticGraph inGraph 
+                        else --rediagnose HardWired as softwired
+                           T.multiTraverseFullyLabelGraph (inGS {graphType = SoftWired}) inData False False Nothing (fst5 inGraph)
 
 
--- | pullGraphBlockDataAndTransform takes a DecoratedGrpah and block index and pulls
+          blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (fth6 inFullGraph)
+
+          -- create seprate processed data for each block
+          blockProcessedDataList = fmap (CU.makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
+
+          -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
+          decoratedBlockTreeList = V.fromList (zipWith (T.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
+
+          -- get new processed (leaf) data 
+          newBlockDataV = V.zipWith (getBlockLeafDataFromDisplayTree leavePrealigned) (fmap thd6 decoratedBlockTreeList) blockDataV
+
+
+      in
+      (nameV, nameBVV, newBlockDataV)
+                
+
+   else trace ("Static Approx not yet implemented for graph type : " <> (show $ graphType inGS) <> " skipping") inData
+
+-- | getBlockLeafDataFromDisplayTree take a dispay tree and the block dat for that tree
+-- and returns leae data--prealiged IA data
+-- like pullGraphBlockDataAndTransform but for a single block and display tree
+getBlockLeafDataFromDisplayTree :: Bool -> DecoratedGraph -> BlockData -> BlockData
+getBlockLeafDataFromDisplayTree leavePrealigned inDecGraph blockCharInfo =
+   let (_, leafVerts, _, _) = LG.splitVertexList inDecGraph
+       (_, leafLabelList) = unzip leafVerts
+       leafBlockData = fmap V.toList $ V.fromList $ fmap V.head $ fmap vertData leafLabelList
+
+       -- new recoded data-- need to filter out constant chars after recoding
+       -- need character length for missing values
+       charLengthV = V.zipWith U.getMaxCharacterLength (thd3 blockCharInfo) leafBlockData
+
+       (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData leavePrealigned (thd3 blockCharInfo) charLengthV) (fmap V.fromList $ V.toList leafBlockData)
+   in
+   (fst3 blockCharInfo , V.fromList transformedLeafBlockData, head transformedBlockInfo)
+
+
+
+-- | pullGraphBlockDataAndTransform takes a DecoratedGraph and block index and pulls
 -- the character data of the block and transforms the leaf data by using implied alignment
 -- feilds for dynamic characters
-pullGraphBlockDataAndTransform :: Bool -> DecoratedGraph -> ProcessedData -> Int -> BlockData
-pullGraphBlockDataAndTransform leavePrealigned inDecGraph  (_, _, blockCharInfoV) blockIndex =
+pullGraphBlockDataAndTransform :: Bool -> DecoratedGraph -> V.Vector BlockData -> Int -> BlockData
+pullGraphBlockDataAndTransform leavePrealigned inDecGraph  blockCharInfoV blockIndex =
    let (_, leafVerts, _, _) = LG.splitVertexList inDecGraph
        (_, leafLabelList) = unzip leafVerts
        leafBlockData = fmap (V.! blockIndex) (fmap vertData leafLabelList)
 
        -- new recoded data-- need to filter out constant chars after recoding
-       -- nedd character legnth for missing values
+       -- need character length for missing values
        charLengthV = V.zipWith U.getMaxCharacterLength (thd3 $ blockCharInfoV V.! blockIndex) (V.fromList $ fmap V.toList leafBlockData)
 
        (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData leavePrealigned (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData

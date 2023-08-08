@@ -1016,9 +1016,9 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph g
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
                 -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
-                decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
+                decoratedBlockTreeList = V.fromList (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
 
-                -- extract IA strings as if mutiple graphs
+                -- extract IA strings as if multiple graphs
                 diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
 
             in
@@ -1042,7 +1042,7 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph g
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
                 -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
-                decoratedBlockTreeList = V.zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) blockProcessedDataList blockDisplayList
+                decoratedBlockTreeList =  V.fromList (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
 
                 -- extract IA strings as if mutiple graphs
                 diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
