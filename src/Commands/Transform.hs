@@ -485,11 +485,9 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
           -- get new processed (leaf) data 
           newBlockDataV = V.zipWith (getBlockLeafDataFromDisplayTree leavePrealigned) (fmap thd6 decoratedBlockTreeList) blockDataV
 
-
       in
       (nameV, nameBVV, newBlockDataV)
                 
-
    else trace ("Static Approx not yet implemented for graph type : " <> (show $ graphType inGS) <> " skipping") inData
 
 -- | getBlockLeafDataFromDisplayTree take a dispay tree and the block dat for that tree
