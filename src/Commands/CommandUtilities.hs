@@ -80,7 +80,8 @@ processSearchFields inStringListList =
     else
         let firstList = head inStringListList
         in
-        if head firstList /= "Search" then firstList : processSearchFields (tail inStringListList)
+        if head firstList /= "Search" then 
+            firstList : processSearchFields (tail inStringListList)
         else
             let newHeader = ["Iteration","Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
                 instanceSplitList = LS.splitOn "*" (L.last firstList)
@@ -88,10 +89,11 @@ processSearchFields inStringListList =
                 (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
 
                 -- add columns between graph and search bandits
-                let newBanditList =  (take 3 searchBanditListList) <> ",," <> (drop 3 searchBanditListList)
+                newBanditList =  (take 3 $ head searchBanditListList) <> [" "] <> (drop 3 $ head searchBanditListList)
+                newInstanceStringListList = zip3 (fmap (take 3 ) instanceStringListList) (replicate (length instanceStringListList [" "]) (fmap (drop 3) instanceStringListList))
             in
             -- trace ("GSI: " <> (show firstList) <> "\nLF: " <> (hitsMinimum) <> "\nILL: " <> (show instanceStringListList) <> "\nSB: " <> (show searchBanditListList))
-            fmap (fmap (filter (/= '\n'))) $ [L.init firstList] <> [newHeader <> head newBanditList <> ["Arguments"]] <> concat instanceStringListList <> [[hitsMinimum]] <> processSearchFields (tail inStringListList)
+            fmap (fmap (filter (/= '\n'))) $ [L.init firstList] <> [newHeader <> newBanditList <> ["Arguments"]] <> concat newInstanceStringListList <> [[hitsMinimum]] <> processSearchFields (tail inStringListList)
 
 -- processSearchInstance takes the String of instance information and
 -- returns appropriate [[String]] for pretty csv output
