@@ -86,9 +86,12 @@ processSearchFields inStringListList =
                 instanceSplitList = LS.splitOn "*" (L.last firstList)
                 hitsMinimum = filter (/= '*') $ last $ LS.splitOn "," (L.last firstList)
                 (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
+
+                -- add columns between graph and search bandits
+                let newBanditList =  (take 3 searchBanditListList) <> ",," <> (drop 3 searchBanditListList)
             in
             -- trace ("GSI: " <> (show firstList) <> "\nLF: " <> (hitsMinimum) <> "\nILL: " <> (show instanceStringListList) <> "\nSB: " <> (show searchBanditListList))
-            fmap (fmap (filter (/= '\n'))) $ [L.init firstList] <> [newHeader <> head searchBanditListList <> ["Arguments"]] <> concat instanceStringListList <> [[hitsMinimum]] <> processSearchFields (tail inStringListList)
+            fmap (fmap (filter (/= '\n'))) $ [L.init firstList] <> [newHeader <> head newBanditList <> ["Arguments"]] <> concat instanceStringListList <> [[hitsMinimum]] <> processSearchFields (tail inStringListList)
 
 -- processSearchInstance takes the String of instance information and
 -- returns appropriate [[String]] for pretty csv output
@@ -215,7 +218,7 @@ printGraphVizDot graphDotString dotFile =
             hPutStrLn stderr "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download"
 
 
--- | showSearchFields cretes a String list for SearchData Fields
+-- | showSearchFields creates a String list for SearchData Fields
 -- special processing for notACommand that contains info for initial data and graph processing
 showSearchFields :: SearchData -> [String]
 showSearchFields sD =
@@ -1013,7 +1016,7 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph g
             let blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (fth6 inGraph)
 
                 -- create seprate processed data for each block
-                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
+                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
 
                 -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
                 decoratedBlockTreeList = V.fromList (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
