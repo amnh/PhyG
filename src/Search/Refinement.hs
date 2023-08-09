@@ -580,7 +580,7 @@ getNetEdgeParams inArgs =
              maxNetEdges
               | length maxNetEdgesList > 1 =
                 errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in netEdge command--can have only one: " <> show inArgs)
-              | null maxNetEdgesList = Just 10
+              | null maxNetEdgesList = Just 5
               | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
 
              maxRoundsList = filter ((== "rounds") . fst) lcArgList
