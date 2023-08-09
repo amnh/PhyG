@@ -119,6 +119,11 @@ data CharType = Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | A
                 Packed2 | Packed4 | Packed5 | Packed8 | Packed64
     deriving stock (Read, Show, Eq)
 
+-- | Evaluation strategries for a graph, full muti-traversal, single-trwraversal based on outpgroup rooting, 
+-- static apporximation of non-exact (unaligned sequence) charcaters.
+data GraphEvaluation = MultiTraverse | SingleTraverse | StaticApproximation
+    deriving stock (Read, Show, Eq)
+
 -- non additive bit packed types (64 not really 'packed' but treated as if were)
 -- these are not entered but are created by transforming existing non-additive characters
 packedNonAddTypes :: [CharType]

@@ -254,8 +254,12 @@ transform inArgs inGS origData inData rSeed inGraphList =
                    newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
 
                in
-               trace ("Transforming data to staticApprox: " <> (show $ minimum $ fmap snd5 inGraphList) <> " -> " <> (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
-               (inGS, origData, newData, newPhylogeneticGraphList)
+               if null inGraphList then 
+                  trace("No graphs to base static approximation on--skipping.") 
+                  (inGS, origData, origData, inGraphList)
+               else 
+                  trace ("Transforming data to staticApprox: " <> (show $ minimum $ fmap snd5 inGraphList) <> " -> " <> (show $ minimum $ fmap snd5 newPhylogeneticGraphList))
+                  (inGS, origData, newData, newPhylogeneticGraphList)
 
             -- change weight values in charInfo and reoptimize
             -- reweights both origData and inData so weighting doens't get undone by static approc to and from transfomrations

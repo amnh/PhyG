@@ -86,6 +86,10 @@ netWorkBanditList = ["networkAdd", "networkDelete", "networkAddDelete", "driftNe
 fullBanditList :: [String]
 fullBanditList = treeBanditList <> netWorkBanditList
 
+-- | graphBanditList list for more rapid, or more thorough methods
+graphBanditList :: [GraphEvaluation]
+graphBanditList = [MultiTraverse, SingleTraverse, StaticApproximation]
+
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
 uncurry3' f (a, b, c) = force <$> f a b c
@@ -101,6 +105,8 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList =
                             zip treeBanditList (L.replicate (length treeBanditList) (1.0 / (fromIntegral $ length treeBanditList)))
                        else
                             zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
+
+       flatGraphBanditList = zip graphBanditList (L.replicate (length graphBanditList) (1.0 / (fromIntegral $ length graphBanditList)))
 
        threshold   = fromSeconds . fromIntegral $ (95 * searchTime) `div` 100
        initialSeconds = fromSeconds . fromIntegral $ (0 :: Int)
@@ -214,7 +220,7 @@ updateTheta thompsonSample mFactor mFunction counter infoStringList inPairList e
         -- trace ("UT1: " <> (show infoStringList)) (
         -- update via results, previous history, memory \factor and type of memory "loss"
         let -- get search info for last search iteration
-            -- thjis tail/head stuff due to leading ',' in comment field
+            -- this tail/head stuff due to leading ',' in comment field
             searchBandit = takeWhile (/= ',') (tail $ head infoStringList)
             searchDeltaString = takeWhile (/= ',') $ drop (1 + length searchBandit) (tail $ head infoStringList)
             searchDelta = read searchDeltaString :: Double
