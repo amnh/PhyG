@@ -666,7 +666,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
                                           else if searchBandit == "networkDelete" then
                                             let -- network delete args
-                                                netEditArgs = netDelArgs
+                                                netEditArgs = netAddDelArgs <> netDelArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
@@ -680,7 +680,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ thetaList maxNetEdges rS
 
                                           else if searchBandit == "networkMove" then
                                             let -- network move args
-                                                netEditArgs = netMoveArgs
+                                                netEditArgs = netAddDelArgs <> netMoveArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
