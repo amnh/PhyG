@@ -124,6 +124,11 @@ data CharType = Add | NonAdd | Matrix | SlimSeq | WideSeq | HugeSeq | NucSeq | A
 data GraphEvaluation = MultiTraverse | SingleTraverse | StaticApproximation
     deriving stock (Read, Show, Eq)
 
+-- | bandit types
+data BanditType = SearchBandit | GraphBandit
+    deriving stock (Read, Show, Eq)
+
+
 -- non additive bit packed types (64 not really 'packed' but treated as if were)
 -- these are not entered but are created by transforming existing non-additive characters
 packedNonAddTypes :: [CharType]
