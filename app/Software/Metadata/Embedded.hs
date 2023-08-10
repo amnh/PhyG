@@ -10,7 +10,6 @@ module Software.Metadata.Embedded
 
 import Data.Bifunctor (bimap)
 import Data.ByteString (ByteString)
-import Data.ByteString.Char8 (unpack)
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8Lenient)

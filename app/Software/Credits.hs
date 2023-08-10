@@ -15,16 +15,17 @@ import Control.Monad
 import Data.Foldable
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Map ((!))
+import Data.String (IsString)
 import Data.Text hiding (filter, intersperse, replicate)
 import Data.Text.Builder.Linear
-import Data.Text.IO (readFile)
+--import Data.Text.IO (readFile)
 import Instances.TH.Lift ()
-import Language.Haskell.TH hiding (Inline)
-import Language.Haskell.TH.Syntax hiding (Inline)
-import Paths_PhyG (getDataFileName)
+--import Language.Haskell.TH hiding (Inline)
+--import Language.Haskell.TH.Syntax hiding (Inline)
+--import Paths_PhyG (getDataFileName)
 import Prelude hiding (readFile)
 import Software.Metadata.Embedded (embeddedDataFiles)
-import System.FilePath (normalise)
+--import System.FilePath (normalise)
 import Text.MMark
 import Text.MMark.Extension
 import Text.URI qualified as URI
@@ -35,7 +36,8 @@ Rendering of the financial and techncal contributors to the software.
 -}
 contributors :: Builder
 contributors =
-    let joinLists x y = x <> "\n\n\n" <> y
+    let joinLists :: (Semigroup a, IsString a) => a -> a -> a
+        joinLists x y = x <> "\n\n\n" <> y
     in  joinLists authorsList fundingList
 
 

@@ -1,58 +1,22 @@
 {- |
-Module      :  adams.hs
-Description :  functions to create Adams II consensus trees (unlabelled internal veritices)
-Copyright   :  (c) 2020 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
-
+Functions to create Adams II consensus trees (unlabelled internal veritices)
 -}
-
-
-
 
 module Reconciliation.Adams (makeAdamsII) where
 
-import qualified Data.Graph.Inductive.Graph        as G
-import qualified Data.Graph.Inductive.PatriciaTree as P
-import qualified Data.List                         as L
-import           Data.Maybe
-import qualified Data.Set                          as Set
-import qualified Data.Text.Lazy                    as T
-import qualified Data.Vector                       as V
-import qualified GraphFormatUtilities              as PhyP
-import qualified ParallelUtilities                 as PU
--- import           Debug.Trace
+import Data.Graph.Inductive.Graph qualified as G
+import Data.Graph.Inductive.PatriciaTree qualified as P
+import Data.List qualified as L
+import Data.Maybe
+import Data.Set qualified as Set
+import Data.Text.Lazy qualified as T
+import Data.Vector qualified as V
+import GraphFormatUtilities qualified as PhyP
+import ParallelUtilities qualified as PU
+-- import Debug.Trace
 
 data VertexType = Root | Internal | Leaf | Network | Tree
-    deriving (Read, Show, Eq) --NFData ?
+    deriving stock (Eq, Ord, Read, Show) --NFData ?
 
 type Vertex = (String, [Int], [Int], VertexType) -- name, child vertices, parent vertices, type (a bit redundant)
 type Edge = (Int, Int, Maybe Double) -- terminal vertices (by numbers) and potential length
@@ -79,8 +43,9 @@ getAdamsIIPair inGraphVectA inGraphVectB =
             rootLUB = [L.sort x | x <- rootLUBPre, not (null x)] --need map sort $
 
             --create nodes based on LUBs
-            leavesPlaced = concat [x | x <- rootLUB, length x < 3]
+            rootNode :: (String, [String], [a])
             rootNode = ("root", map lub2TreeRep rootLUB, [])
+            leavesPlaced = concat [x | x <- rootLUB, length x < 3]
             vertexLeafSetList = map (map getLeafSetFromNodeName . V.toList) curVertexSets
             potentialVertexSets = map (map getSecond . V.toList) curVertexSets
         in
@@ -314,6 +279,7 @@ genForestToPhyloGraphVect inGen inPhyVect nameList =
             descNumList = getVertNum nameList inVertexDescNameList
             ancNumList = getVertNum nameList inVertexAncNameList
             vertType = getVertType (length descNumList) (length ancNumList)
+            newEdgeVect ::  V.Vector (Int, Int, Maybe a)
             newEdgeVect = V.zip3 (V.fromList ancNumList) (V.replicate (length ancNumList)
                 (head $ getVertNum nameList [inVertexName]))
                 (V.replicate (length ancNumList) Nothing) --edge from anc to current, no weight info
@@ -395,15 +361,19 @@ makeAdamsNodes inAdamsTree parentName inLUBList placedTaxa bothLeafLists = --inT
         let curLUB = head inLUBList
         in
         if length curLUB == 1 then --make nodes since done
-            let newNode = (head curLUB, [], [parentName])
-            in
-            makeAdamsNodes (newNode : inAdamsTree) parentName (tail inLUBList)
-                (head curLUB : placedTaxa) bothLeafLists --inTreeVertexLists vertexLeafSetList
+            let newNode :: (String, [a], [String])
+                newNode = (head curLUB, [], [parentName])
+            in  makeAdamsNodes
+                  (newNode : inAdamsTree)
+                  parentName
+                  (tail inLUBList)
+                  (head curLUB : placedTaxa) bothLeafLists --inTreeVertexLists vertexLeafSetList
         else if length curLUB == 2 then
             let leftChild  = lub2TreeRep  [head curLUB]
                 rightChild = lub2TreeRep  [last curLUB]
+                newNode1, newNode2, newNode3 :: (String, [String], [String])
                 newNode1 = (lub2TreeRep curLUB, [leftChild, rightChild], [parentName])
-                newNode2 = (leftChild, [], [lub2TreeRep curLUB])
+                newNode2 = ( leftChild, [], [lub2TreeRep curLUB])
                 newNode3 = (rightChild, [], [lub2TreeRep curLUB])
                 newGenPhyNet = newNode2 : (newNode3 : (newNode1 : inAdamsTree))
                 newPlacedTaxa = lub2TreeRep curLUB : (leftChild : (rightChild : placedTaxa))

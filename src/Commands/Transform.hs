@@ -34,6 +34,8 @@ Portability :  portable (I hope)
 
 -}
 
+{-# OPTIONS_GHC -Wno-missed-specialisations #-}
+
 module Commands.Transform
   ( transform
   , makeStaticApprox
@@ -41,34 +43,34 @@ module Commands.Transform
 
 
 import Control.Parallel.Strategies
-import           Data.Alphabet
-import qualified Data.BitVector.LittleEndian  as BV
-import           Data.Bits
-import           Data.Char
-import qualified Data.List                    as L
-import           Data.Maybe
-import qualified Data.Vector                  as V
-import qualified Data.Vector.Generic          as GV
-import qualified Data.Vector.Storable         as SV
-import qualified Data.Vector.Unboxed          as UV
-import           Data.Word
-import           Debug.Trace
-import           Foreign.C.Types              (CUInt)
-import           GeneralUtilities
-import qualified GraphOptimization.Traversals as T
-import qualified Graphs.GraphOperations       as GO
-import qualified Input.Reorganize             as R
-import qualified ParallelUtilities            as PU
-import           Text.Read
-import           Types.Types
-import qualified Utilities.LocalGraph         as LG
-import qualified Utilities.Utilities          as U
--- import qualified Input.DataTransformation    as TRANS
-import qualified Commands.Verify              as VER
-import qualified Data.Bits                    as B
-import qualified Data.Char                    as C
-import qualified Data.Text.Lazy               as TL
-import qualified Input.BitPack                as BP
+import Data.Alphabet
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.Char
+import Data.List qualified as L
+import Data.Maybe
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
+import Data.Word
+import Debug.Trace
+import Foreign.C.Types              (CUInt)
+import GeneralUtilities
+import GraphOptimization.Traversals qualified as T
+import Graphs.GraphOperations qualified as GO
+import Input.Reorganize qualified as R
+import ParallelUtilities qualified as PU
+import Text.Read
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
+-- import Input.DataTransformation qualified as TRANS
+import Commands.Verify qualified as VER
+import Data.Bits qualified as B
+import Data.Char qualified as C
+import Data.Text.Lazy qualified as TL
+import Input.BitPack qualified as BP
 import Commands.CommandUtilities qualified as CU
 
 
@@ -85,7 +87,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
    -- check for valid command options
    if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'transform': " <> show inArgs)
    else
-        let displayBlock = filter ((=="displaytrees").fst) lcArgList
+        let displayBlock = filter ((== "displaytrees").fst) lcArgList
             numDisplayTrees
                | length displayBlock > 1 =
                   errorWithoutStackTrace ("Multiple displayTree number specifications in transform--can have only one: " <> show inArgs)
@@ -93,25 +95,25 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head displayBlock) = Just 10
                | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
 
-            toTree = any ((=="totree").fst) lcArgList
-            toSoftWired = any ((=="tosoftwired").fst) lcArgList
-            toHardWired = any ((=="tohardwired").fst) lcArgList
-            toStaticApprox = any ((=="staticapprox").fst) lcArgList
-            toDynamic = any ((=="dynamic").fst) lcArgList
-            atRandom = any ((=="atrandom").fst) lcArgList
-            chooseFirst = any ((=="first").fst) lcArgList
-            reWeight =  any ((=="weight").fst) lcArgList
-            changeEpsilon = any ((=="dynamicepsilon").fst) lcArgList
-            reRoot = any ((=="outgroup").fst) lcArgList
-            changeGraphsSteepest = any ((=="graphssteepest").fst) lcArgList
-            changeSoftwiredMethod = any ((=="softwiredmethod").fst) lcArgList
-            changeGraphFactor = any ((=="graphfactor").fst) lcArgList
-            changeCompressionResolutions = any ((=="compressresolutions").fst) lcArgList
-            changeMultiTraverse = any ((=="multitraverse").fst) lcArgList
-            changeUnionThreshold = any ((=="jointhreshold").fst) lcArgList
+            toTree = any ((== "totree").fst) lcArgList
+            toSoftWired = any ((== "tosoftwired").fst) lcArgList
+            toHardWired = any ((== "tohardwired").fst) lcArgList
+            toStaticApprox = any ((== "staticapprox").fst) lcArgList
+            toDynamic = any ((== "dynamic").fst) lcArgList
+            atRandom = any ((== "atrandom").fst) lcArgList
+            chooseFirst = any ((== "first").fst) lcArgList
+            reWeight =  any ((== "weight").fst) lcArgList
+            changeEpsilon = any ((== "dynamicepsilon").fst) lcArgList
+            reRoot = any ((== "outgroup").fst) lcArgList
+            changeGraphsSteepest = any ((== "graphssteepest").fst) lcArgList
+            changeSoftwiredMethod = any ((== "softwiredmethod").fst) lcArgList
+            changeGraphFactor = any ((== "graphfactor").fst) lcArgList
+            changeCompressionResolutions = any ((== "compressresolutions").fst) lcArgList
+            changeMultiTraverse = any ((== "multitraverse").fst) lcArgList
+            changeUnionThreshold = any ((== "jointhreshold").fst) lcArgList
 
 
-            reweightBlock = filter ((=="weight").fst) lcArgList
+            reweightBlock = filter ((== "weight").fst) lcArgList
             weightValue
                | length reweightBlock > 1 =
                   errorWithoutStackTrace ("Multiple weight specifications in transform--can have only one: " <> show inArgs)
@@ -119,7 +121,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head reweightBlock) = Just 1
                | otherwise = readMaybe (snd $ head reweightBlock) :: Maybe Double
 
-            changeCompressionBlock = filter ((=="compressresolutions").fst) lcArgList
+            changeCompressionBlock = filter ((== "compressresolutions").fst) lcArgList
             compressionValue
                | length changeCompressionBlock > 1 =
                   errorWithoutStackTrace ("Multiple compressResolutions specifications in transform--can have only one: " <> show inArgs)
@@ -127,7 +129,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head changeCompressionBlock) = Just $ fmap toLower $ show $ compressResolutions inGS
                | otherwise = readMaybe (show $ snd $ head changeCompressionBlock) :: Maybe String
 
-            changeEpsilonBlock = filter ((=="dynamicepsilon").fst) lcArgList
+            changeEpsilonBlock = filter ((== "dynamicepsilon").fst) lcArgList
             epsilonValue
                | length changeEpsilonBlock > 1 =
                   errorWithoutStackTrace ("Multiple dynamicEpsilon specifications in transform--can have only one: " <> show inArgs)
@@ -135,7 +137,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head changeEpsilonBlock) = Just $ dynamicEpsilon inGS
                | otherwise = readMaybe (snd $ head changeEpsilonBlock) :: Maybe Double
 
-            changeGraphFactorBlock = filter ((=="graphfactor").fst) lcArgList
+            changeGraphFactorBlock = filter ((== "graphfactor").fst) lcArgList
             newGraphFactor
                | length changeGraphFactorBlock > 1 =
                   errorWithoutStackTrace ("Multiple graphFactor specifications in transform--can have only one: " <> show inArgs)
@@ -143,7 +145,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head changeGraphFactorBlock) = Just $ fmap toLower $ show $ graphFactor inGS
                | otherwise = readMaybe (show $ snd $ head changeGraphFactorBlock) :: Maybe String
 
-            changeGraphsSteepestBlock = filter ((=="graphssteepest").fst) lcArgList
+            changeGraphsSteepestBlock = filter ((== "graphssteepest").fst) lcArgList
             newGraphsSteepest
                | length changeGraphsSteepestBlock > 1 =
                   errorWithoutStackTrace ("Multiple graphsSteepest specifications in transform--can have only one: " <> show inArgs)
@@ -151,7 +153,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head changeGraphsSteepestBlock) = Just $ graphsSteepest inGS
                | otherwise = readMaybe (snd $ head changeGraphsSteepestBlock) :: Maybe Int
 
-            changeMultiTraverseBlock = filter ((=="multitraverse").fst) lcArgList
+            changeMultiTraverseBlock = filter ((== "multitraverse").fst) lcArgList
             multiTraverseValue
                | length changeMultiTraverseBlock > 1 =
                   errorWithoutStackTrace ("Multiple multiTraverse specifications in transform--can have only one: " <> show inArgs)
@@ -159,7 +161,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head changeMultiTraverseBlock) = Just $ fmap toLower $ show $ multiTraverseCharacters inGS
                | otherwise = readMaybe (show $ snd $ head changeMultiTraverseBlock) :: Maybe String
 
-            changeSoftwiredMethodBlock = filter ((=="softwiredmethod").fst) lcArgList
+            changeSoftwiredMethodBlock = filter ((== "softwiredmethod").fst) lcArgList
             newSoftwiredMethod
                | length changeSoftwiredMethodBlock > 1 =
                   errorWithoutStackTrace ("Multiple softwiredMethod specifications in transform--can have only one: " <> show inArgs)
@@ -167,7 +169,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head changeSoftwiredMethodBlock) = Just $ fmap toLower $ show $ softWiredMethod inGS
                | otherwise = readMaybe (show $ snd $ head changeSoftwiredMethodBlock) :: Maybe String
 
-            reRootBlock = filter ((=="outgroup").fst) lcArgList
+            reRootBlock = filter ((== "outgroup").fst) lcArgList
             outgroupValue
                | length reRootBlock > 1 =
                   errorWithoutStackTrace ("Multiple outgroup specifications in transform--can have only one: " <> show inArgs)
@@ -175,7 +177,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head reRootBlock) = Just $ outGroupName inGS
                | otherwise = readMaybe (snd $ head reRootBlock) :: Maybe TL.Text
 
-            changeUnionBlock = filter ((=="jointhreshold").fst) lcArgList
+            changeUnionBlock = filter ((== "jointhreshold").fst) lcArgList
             unionValue
                | length changeUnionBlock > 1 =
                   errorWithoutStackTrace ("Multiple joinThreshold specifications in transform--can have only one: " <> show inArgs)
@@ -183,8 +185,8 @@ transform inArgs inGS origData inData rSeed inGraphList =
                | null (snd $ head changeUnionBlock) = Just $ unionThreshold inGS
                | otherwise = readMaybe (snd $ head changeUnionBlock) :: Maybe Double
 
-            nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((=="name").fst) lcArgList
-            charTypeList = fmap snd $ filter ((=="type").fst) lcArgList
+            nameList = fmap TL.pack $ fmap (filter (/= '"')) $ fmap snd $ filter ((== "name").fst) lcArgList
+            charTypeList = fmap snd $ filter ((== "type").fst) lcArgList
         
 
         in
@@ -199,6 +201,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
         else
             let pruneEdges = False
                 warnPruneEdges = False
+                startVertex :: Maybe a
                 startVertex = Nothing
             in
             -- transform nets to tree
