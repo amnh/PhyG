@@ -87,13 +87,9 @@ processSearchFields inStringListList =
                 instanceSplitList = LS.splitOn "*" (L.last firstList)
                 hitsMinimum = filter (/= '*') $ last $ LS.splitOn "," (L.last firstList)
                 (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
-
-                -- add columns between graph and search bandits
-                newBanditList =  (take 3 $ head searchBanditListList) <> [" "] <> (drop 3 $ head searchBanditListList)
-                newInstanceStringListList = zip3 (fmap (take 3 ) instanceStringListList) (replicate (length instanceStringListList [" "]) (fmap (drop 3) instanceStringListList))
             in
             -- trace ("GSI: " <> (show firstList) <> "\nLF: " <> (hitsMinimum) <> "\nILL: " <> (show instanceStringListList) <> "\nSB: " <> (show searchBanditListList))
-            fmap (fmap (filter (/= '\n'))) $ [L.init firstList] <> [newHeader <> newBanditList <> ["Arguments"]] <> concat newInstanceStringListList <> [[hitsMinimum]] <> processSearchFields (tail inStringListList)
+            fmap (fmap (filter (/= '\n'))) $ [L.init firstList] <> [newHeader <> (head searchBanditListList) <> ["Arguments"]] <> concat instanceStringListList <> [[hitsMinimum]] <> processSearchFields (tail inStringListList)
 
 -- processSearchInstance takes the String of instance information and
 -- returns appropriate [[String]] for pretty csv output
@@ -104,16 +100,30 @@ processSearchInstance inString =
         let tempList = getSearchIterations inString
             iterationList = L.init tempList
             iterationCounterList = fmap ((:[]) . show) [0..(length iterationList - 1)]
-            searchBanditList = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
+            searchBanditList' = getBanditNames $ tail $ dropWhile (/= '[') $ head iterationList
             preArgStringList = fmap getPreArgString iterationList
             searchArgStringList = fmap getSearchArgString iterationList
-            searchBanditProbsList = fmap (getBanditProbs . tail . (dropWhile (/= '['))) iterationList
+            searchBanditProbsList' = fmap (getBanditProbs . tail . (dropWhile (/= '['))) iterationList
+
+            -- add columns between graph and search bandits
+            searchBanditList =  (take 3 searchBanditList') <> [" "] <> (drop 3  searchBanditList')
+            searchBanditProbsList = fmap (addColumn 3) searchBanditProbsList'
+            
+
             processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList  searchBanditProbsList searchArgStringList
-            instanceStringList = processedSearchList <> [LS.splitOn "," $ L.last tempList]
+            finalString = addColumn  8 $ LS.splitOn "," $ L.last tempList
+            instanceStringList = processedSearchList <> [finalString]
         in
         if null iterationList then ([], [])
         else (instanceStringList, searchBanditList)
         where concat4 a b c d = a <> b <> c <> d
+
+-- | addColumn takea list of strings and adds a list of empty strings after third string in each
+addColumn :: Int -> [String] -> [String]
+addColumn index inList = 
+    if null inList then []
+    else 
+        (take index inList) <> [" "] <> (drop index inList)
 
 -- | getBanditProbs parses bandit prob line for probabilities
 getBanditProbs :: String -> [String]
