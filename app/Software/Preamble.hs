@@ -16,7 +16,7 @@ import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.String (IsString(fromString))
 import Data.Text.Builder.Linear
-import Data.Text (Text, unpack)
+import Data.Text (unpack)
 import Data.Text qualified as T
 import PackageInfo_PhyG (copyright, homepage, synopsis)
 import Software.License

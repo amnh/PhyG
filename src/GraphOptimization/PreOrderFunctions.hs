@@ -1,95 +1,67 @@
 {- |
-Module      :  PostOrderFunctions.hs
-Description :  Module specifying pre-order graph functions
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module specifying pre-order graph functions
 -}
 
-module GraphOptimization.PreOrderFunctions  ( createFinalAssignmentOverBlocks
-                                            , preOrderTreeTraversal
-                                            , getBlockCostPairsFinal
-                                            , setFinalToPreliminaryStates
-                                            , setPreliminaryToFinalStates
-                                            , zero2Gap
-                                            , updateLeafIABlock
-                                            , makeIAUnionAssignments
-                                            ) where
+{-# OPTIONS_GHC -Wno-missed-specialisations #-}
 
-import           Bio.DynamicCharacter
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits
-import qualified Data.List                   as L
-import qualified Data.Map                    as MAP
-import           Data.Maybe
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Generic         as GV
--- import qualified Data.Vector.Storable         as SV
-import           Data.Alphabet
-import qualified Data.Vector.Unboxed         as UV
-import           Debug.Trace
-import qualified DirectOptimization.PreOrder as DOP
-import           GeneralUtilities
-import qualified GraphOptimization.Medians   as M
-import qualified Graphs.GraphOperations      as GO
-import qualified Input.BitPack               as BP
-import qualified ParallelUtilities           as PU
-import qualified SymMatrix                   as S
-import           Types.Types
-import qualified Utilities.LocalGraph        as LG
-import qualified Utilities.ThreeWayFunctions as TW
-import qualified Utilities.Utilities         as U
+module GraphOptimization.PreOrderFunctions
+  ( createFinalAssignmentOverBlocks
+  , getBlockCostPairsFinal
+  , makeIAUnionAssignments
+  , preOrderTreeTraversal
+  , setFinalToPreliminaryStates
+  , setPreliminaryToFinalStates
+  , updateLeafIABlock
+  , zero2Gap
+  ) where
+
+import Bio.DynamicCharacter
+import Data.Alphabet
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.List qualified as L
+import Data.Map qualified as MAP
+import Data.Maybe
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
+import Data.Vector.Unboxed qualified as UV
+import Debug.Trace
+import DirectOptimization.PreOrder qualified as DOP
+import GeneralUtilities
+import GraphOptimization.Medians qualified as M
+import Graphs.GraphOperations qualified as GO
+import Input.BitPack qualified as BP
+import ParallelUtilities qualified as PU
+import SymMatrix qualified as S
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.ThreeWayFunctions qualified as TW
+import Utilities.Utilities qualified as U
 
 
--- | preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
--- and returns a full labels with 'final' assignments based on character decorated graphs
--- created postorder (5th of 6 fields).
--- the preorder states are created by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
--- these are by block and character,  Exact characters are vectors of standard characters and each sequence (non-exact)
--- has its own traversal graph. These should be trees here (could be forests later) and should all have same root (number taxa)
--- but worth checking to make sure.
--- these were created by "splitting" them after preorder, or by separate passes in softwired graphs
+{- |
+preOrderTreeTraversal takes a preliminarily labelled PhylogeneticGraph
+and returns a full labels with 'final' assignments based on character decorated graphs
+created postorder (5th of 6 fields).
+the preorder states are created by traversing the traversal DecoratedGraphs in the 5th filed of PhylogeneticGraphs
+these are by block and character,  Exact characters are vectors of standard characters and each sequence (non-exact)
+has its own traversal graph. These should be trees here (could be forests later) and should all have same root (number taxa)
+but worth checking to make sure.
+these were created by "splitting" them after preorder, or by separate passes in softwired graphs
 
--- For sequence characters (slim/wide/huge) final states are created either by DirectOptimization or ImpliedAlignment
--- if DO--then does a  median between parent andchgaps wherre needed--then  doing a 3way state assignmeent filteringgaps out
--- if IA--then a separate post and preorder pass are donne on the slim/wide/huge/AI fields to crete full IA assignments
--- that are then filtered of gaps and assigned to th efinal fields
+For sequence characters (slim/wide/huge) final states are created either by DirectOptimization or ImpliedAlignment
+if DO--then does a  median between parent andchgaps wherre needed--then  doing a 3way state assignmeent filteringgaps out
+if IA--then a separate post and preorder pass are donne on the slim/wide/huge/AI fields to crete full IA assignments
+that are then filtered of gaps and assigned to th efinal fields
 
--- The final states are propagated back to the second field
--- DecoratedGraph of the full Phylogenetic graph--which does NOT have the character based preliminary assignments
--- ie postorder--since those are traversal specific
--- the character specific decorated graphs have appropriate post and pre-order assignments
--- the traversal begins at the root (for a tree) and proceeds to leaves.
+The final states are propagated back to the second field
+DecoratedGraph of the full Phylogenetic graph--which does NOT have the character based preliminary assignments
+ie postorder--since those are traversal specific
+the character specific decorated graphs have appropriate post and pre-order assignments
+the traversal begins at the root (for a tree) and proceeds to leaves.
 
--- Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
+Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
+-}
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " <> (show finalMethod) <> " " <> (show $ fmap (fmap charType) inCharInfoVV)) (

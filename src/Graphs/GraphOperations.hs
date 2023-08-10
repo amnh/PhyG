@@ -1,106 +1,77 @@
 {- |
-Module      :  GraphOperations.hs
-Description :  Module specifying general graph functions--with types specific to Types.hs
-               graph functions that a re general are in LocalGraph.hs
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module specifying general graph functions--with types specific to Types.hs
+graph functions that a re general are in LocalGraph.hs
 -}
 
-module Graphs.GraphOperations (  ladderizeGraph
-                               , convertDecoratedToSimpleGraph
-                               , convertSimpleToDecoratedGraph
-                               , convertToSimpleEdge
-                               , graphCostFromNodes
-                               , dichotomizeRoot
-                               , showDecGraphs
-                               , sortEdgeListByLength
-                               , selectPhylogeneticGraph
-                               , selectPhylogeneticGraphReduced
-                               , selectGraphsFull
-                               , getUniqueGraphs
-                               , copyIAFinalToPrelim
-                               , copyIAPrelimToFinal
-                               , makeIAFinalFromPrelim
-                               , makeIAPrelimFromFinal
-                               , topologicalEqual
-                               , getTopoUniqPhylogeneticGraph
-                               , getBVUniqPhylogeneticGraph
-                               , makeDummyLabEdge
-                               , contractIn1Out1EdgesRename
-                               , renameSimpleGraphNodes
-                               , renameSimpleGraphNodesString
-                               , hasNetNodeAncestorViolation
-                               , convertGeneralGraphToPhylogeneticGraph
-                               , selectGraphStochastic
-                               , makeNewickList
-                               , makeGraphTimeConsistent
-                               , isNovelGraph
-                               , getNodeType
-                               , getDisplayTreeCostList
-                               , phylogeneticGraphListMinus
-                               , reducedphylogeneticGraphListMinus
-                               , makeLeafGraph
-                               , makeSimpleLeafGraph
-                               , selectGraphs
-                               , remakePhylogeneticGraph
-                               , isPhylogeneticDecoratedGraph
-                               , parentsInChainGraph
-                               , removeParentsInChain
-                               , convertPhylogeneticGraph2Reduced
-                               , convertReduced2PhylogeneticGraph
-                               , convertReduced2PhylogeneticGraphSimple
-                               , getDecoratedDisplayTreeList
-                               ) where
+{-# OPTIONS_GHC -Wno-missed-specialisations #-}
 
-import           Bio.DynamicCharacter
-import qualified Commands.Verify             as V
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits
-import qualified Data.Char                   as C
-import qualified Data.List                   as L
-import           Data.Ord
-import           Data.Maybe
-import qualified Data.Text.Lazy              as T
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Generic         as GV
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphFormatUtilities        as GFU
-import qualified GraphOptimization.Medians   as M
-import qualified ParallelUtilities           as PU
-import           Text.Read
-import           Types.Types
-import qualified Utilities.LocalGraph        as LG
-import qualified Utilities.Utilities         as U
+module Graphs.GraphOperations
+  ( contractIn1Out1EdgesRename
+  , convertDecoratedToSimpleGraph
+  , convertGeneralGraphToPhylogeneticGraph
+  , convertPhylogeneticGraph2Reduced
+  , convertReduced2PhylogeneticGraph
+  , convertReduced2PhylogeneticGraphSimple
+  , convertSimpleToDecoratedGraph
+  , convertToSimpleEdge
+  , copyIAFinalToPrelim
+  , copyIAPrelimToFinal
+  , dichotomizeRoot
+  , getBVUniqPhylogeneticGraph
+  , getDecoratedDisplayTreeList
+  , getDisplayTreeCostList
+  , getNodeType
+  , getTopoUniqPhylogeneticGraph
+  , getUniqueGraphs
+  , graphCostFromNodes
+  , hasNetNodeAncestorViolation
+  , isNovelGraph
+  , isPhylogeneticDecoratedGraph
+  , ladderizeGraph
+  , makeDummyLabEdge
+  , makeGraphTimeConsistent
+  , makeIAFinalFromPrelim
+  , makeIAPrelimFromFinal
+  , makeLeafGraph
+  , makeNewickList
+  , makeSimpleLeafGraph
+  , parentsInChainGraph
+  , phylogeneticGraphListMinus
+  , reducedphylogeneticGraphListMinus
+  , remakePhylogeneticGraph
+  , removeParentsInChain
+  , renameSimpleGraphNodes
+  , renameSimpleGraphNodesString
+  , selectGraphStochastic
+  , selectGraphs
+  , selectGraphsFull
+  , selectPhylogeneticGraph
+  , selectPhylogeneticGraphReduced
+  , showDecGraphs
+  , sortEdgeListByLength
+  , topologicalEqual
+  ) where
+
+import Bio.DynamicCharacter
+import Commands.Verify qualified as V
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.Char qualified as C
+import Data.List qualified as L
+import Data.Ord
+import Data.Maybe
+import Data.Text.Lazy qualified as T
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
+import Debug.Trace
+import GeneralUtilities
+import GraphFormatUtilities qualified as GFU
+import GraphOptimization.Medians qualified as M
+import ParallelUtilities qualified as PU
+import Text.Read
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
 
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
 convertPhylogeneticGraph2Reduced :: PhylogeneticGraph -> ReducedPhylogeneticGraph

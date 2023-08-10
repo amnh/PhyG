@@ -1,39 +1,8 @@
 {- |
-Module      :  DataTransformation.hs
-Description :  Module with functionality to transform phylogenetic data
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module with functionality to transform phylogenetic data
 -}
 
+{-# OPTIONS_GHC -Wno-missed-specialisations #-}
 
 module Input.Reorganize
   ( combineDataByType
@@ -45,37 +14,38 @@ module Input.Reorganize
   , getRecodingType
   ) where
 
-import           Data.Alphabet
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits
-import qualified Data.List                   as L
+import Data.Alphabet
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty(..))
-import           Data.Maybe
-import qualified Data.MetricRepresentation   as MR
-import qualified Data.Text.Lazy              as T
-import qualified Data.Text.Short             as ST
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Generic         as GV
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
-import           Data.Word
-import           Debug.Trace
-import           Foreign.C.Types             (CUInt)
-import           GeneralUtilities
-import qualified GraphOptimization.Medians   as M
-import qualified Input.BitPack               as BP
-import qualified ParallelUtilities           as PU
-import qualified SymMatrix                   as S
-import           Text.Read
-import           Types.Types
-import qualified Utilities.Utilities         as U
+import Data.Maybe
+import Data.MetricRepresentation qualified as MR
+import Data.Text.Lazy qualified as T
+import Data.Text.Short qualified as ST
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
+import Data.Word
+import Debug.Trace
+import Foreign.C.Types (CUInt)
+import GeneralUtilities
+import GraphOptimization.Medians qualified as M
+import Input.BitPack qualified as BP
+import ParallelUtilities qualified as PU
+import SymMatrix qualified as S
+import Text.Read
+import Types.Types
+import Utilities.Utilities qualified as U
 
 
--- | optimizePrealignedData convert
-        -- prealigned to non-additive or matrix
-            -- here
-        -- bitPack new non-additive
-            -- packNonAdditive
+{- | optimizePrealignedData convert
+prealigned to non-additive or matrix
+here
+bitPack new non-additive
+packNonAdditive
+-}
 optimizePrealignedData :: GlobalSettings -> ProcessedData -> ProcessedData
 optimizePrealignedData inGS inData@(_, _, blockDataVect) =
     let -- remove constant characters from prealigned
@@ -244,7 +214,7 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
     else if length newPairList > 1 then errorWithoutStackTrace ("Multiple reblock destinations for single input block" <> show newPairList)
     else
         let newBlockName = head newPairList
-            existingBlock = filter ((==newBlockName).fst3) curBlockList
+            existingBlock = filter ((== newBlockName).fst3) curBlockList
         in
         -- new block to be created
         if null existingBlock then
@@ -261,7 +231,7 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
                 newCharInfo  = thd3 blockToAddTo <> thd3 firstBlock
             in
             --trace("EBlocks:" <> (show $ fmap fst3 curBlockList))
-            makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, newCharData, newCharInfo) : filter ((/=newBlockName).fst3) curBlockList)
+            makeNewBlocks reBlockPairs (V.tail inBlockV) ((newBlockName, newCharData, newCharInfo) : filter ((/= newBlockName).fst3) curBlockList)
 
 
 -- | combineDataByType combines data of same type for (exact types) into
@@ -561,10 +531,12 @@ getVarVectMatrix stateVV curBoolList =
         getVarVectMatrix (fmap V.tail stateVV) (isVariable : curBoolList)
 
 
--- | getVarVectBits takes a generic vector and returns False if values are same
--- True if not (short circuits)
--- based on simple identity not max cost zero
-getVarVectBits :: (FiniteBits a, Eq a, GV.Vector v a) => CharType -> V.Vector (v a) -> [Bool] -> [Bool]
+{- |
+getVarVectBits takes a generic vector and returns False if values are same
+True if not (short circuits)
+based on simple identity not max cost zero
+-}
+getVarVectBits :: (FiniteBits a, GV.Vector v a) => CharType -> V.Vector (v a) -> [Bool] -> [Bool]
 getVarVectBits inCharType stateVV curBoolList =
     if GV.null (V.head stateVV) then L.reverse curBoolList
 
