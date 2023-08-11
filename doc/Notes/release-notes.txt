@@ -1,0 +1,11 @@
+-- Changes in v 0.1.3
+	-- Enhancements
+		Improved TNT ouput with TNT legible trees
+		Added graph evaluation procedures (Static Approximation, Single Traversal) to randomized search
+		Implemented Static Approximation for networks
+		Parallelized output of Implied Alignment fasta/c and TNT
+		Improved behavior of distance and character builds with missing data
+
+	-- Bugs Fixed
+		Transform for non 1:1 nucleotide sequences caused seg fault
+		Simulated Annealing and Drift parameter errors for networks
