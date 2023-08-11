@@ -466,7 +466,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
           netMoveArgs = ("netMove", "") : netGeneralArgs
           netAddArgs = ("netAdd", "") : netGeneralArgs
           netDelArgs = ("netDel", "") : netGeneralArgs
-          netAddDelArgs = ("netAdddel", "") : netGeneralArgs
+          netAddDelArgs = ("netAddDel", "") : netGeneralArgs
+          netDriftAnnealMethod = chooseElementAtRandomPair (randDoubleVect V.! 17)  [("netAdd", 0.25), ("netAddDel", 0.25),("netDel", 0.25),("netMove", 0.25)]
 
 
           -- Genetic Algorithm Arguments
@@ -735,21 +736,21 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
                                           else if searchBandit == "networkMove" then
                                             let -- network move args
-                                                netEditArgs = netAddDelArgs <> netMoveArgs
+                                                netEditArgs = netMoveArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "driftNetwork" then
                                             let -- network add/delete  + drift args
-                                                netEditArgs = netAddDelArgs <> driftArgs
+                                                netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> driftArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
 
                                           else if searchBandit == "annealNetwork" then
                                             let -- network add/delete  + annealing  args
-                                                netEditArgs = netAddDelArgs <> annealArgs
+                                                netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> annealArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
