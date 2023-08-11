@@ -467,7 +467,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
           netAddArgs = ("netAdd", "") : netGeneralArgs
           netDelArgs = ("netDel", "") : netGeneralArgs
           netAddDelArgs = ("netAddDel", "") : netGeneralArgs
-          netDriftAnnealMethod = chooseElementAtRandomPair (randDoubleVect V.! 17)  [("netAdd", 0.25), ("netAddDel", 0.25),("netDel", 0.25),("netMove", 0.25)]
+          netDriftAnnealMethod = chooseElementAtRandomPair (randDoubleVect V.! 17)  [("netAdd", 0.5),("netDel", 0.5)] -- ,("netMove", 0.25),  ("netAddDel", 0.25),]
 
 
           -- Genetic Algorithm Arguments
