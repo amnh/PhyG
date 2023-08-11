@@ -1,8 +1,8 @@
 --read(fasta:"metazoa-aa-1.fas")
-read(fasta:"chel.fas")
+--read(fasta:"chel.fas")
 read(fasta:"chel-16.fas")
 --set(criterion:NCM)
-read(prefasta:"chel-prealigned.fas")
+--read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
 --read(prefasta:"chel-prealigned.fas")
 
@@ -68,7 +68,7 @@ report("test0-data.csv", data, overwrite)
 
 build(distance, wpgma)
 
---transform(staticApprox)
+transform(staticApprox)
 
 swap()
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)

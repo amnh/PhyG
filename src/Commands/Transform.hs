@@ -67,7 +67,6 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 -- import Input.DataTransformation qualified as TRANS
 import Commands.Verify qualified as VER
-import Data.Bits qualified as B
 import Data.Char qualified as C
 import Data.Text.Lazy qualified as TL
 import Input.BitPack qualified as BP
@@ -582,9 +581,10 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
       -- missing data fields set if no implied alignment ie missing data
       if inCharType `elem` [SlimSeq, NucSeq] then
          let gapChar = (0 :: CUInt) `setBit` fromEnum gapIndex
+             missingState = L.foldl' (setBit) (0 :: CUInt)  [0.. alphSize - 1]
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
                                 else
-                                  let missingElement = SV.replicate charLength $ B.complement (0 :: CUInt) -- TRANS.setMissingBits (0 :: CUInt) 0 alphSize
+                                  let missingElement = SV.replicate charLength missingState -- if simple all ON then segfault do to lookup outside of cost matrix
                                   in
                                   (missingElement, missingElement, missingElement)
 
@@ -607,9 +607,10 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
 
       else if inCharType `elem` [WideSeq, AminoSeq] then
          let gapChar = (0 :: Word64) `setBit` fromEnum gapIndex
+             missingState = L.foldl' (setBit) (0 :: Word64)  [0.. alphSize - 1]
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
                                 else
-                                  let missingElement = UV.replicate charLength $ B.complement (0 :: Word64) -- TRANS.setMissingBits (0 :: Word64) 0 alphSize
+                                  let missingElement = UV.replicate charLength missingState -- if simple all ON then segfault do to lookup outside of cost matrix 
                                   in (missingElement, missingElement, missingElement)
 
              newPrelimBV = R.convert2BV 64 impliedAlignChar
@@ -629,9 +630,10 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
 
       else if inCharType == HugeSeq then
          let gapChar = (BV.fromBits $ replicate alphSize False) `setBit` fromEnum gapIndex
+             missingState = BV.fromBits $ replicate alphSize True
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData) then hugeAlignment inCharData
                                 else
-                                 let missingElement = V.replicate alphSize $ (BV.fromBits $ replicate alphSize True)
+                                 let missingElement = V.replicate alphSize missingState
                                  in (missingElement, missingElement, missingElement)
 
              newPrelimBV = impliedAlignChar
