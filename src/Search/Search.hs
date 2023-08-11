@@ -722,7 +722,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
                                           else if searchBandit == "networkDelete" then
                                             let -- network delete args
-                                                netEditArgs = netAddDelArgs <> netDelArgs
+                                                netEditArgs = netDelArgs
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
