@@ -10,12 +10,12 @@
 --
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE BangPatterns       #-}
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE StrictData         #-}
-{-# LANGUAGE UnboxedSums        #-}
+{-# Language BangPatterns #-}
+{-# Language DeriveAnyClass #-}
+{-# Language DeriveGeneric #-}
+{-# Language DerivingStrategies #-}
+{-# Language StrictData #-}
+{-# Language UnboxedSums #-}
 
 module Data.MetricRepresentation
   ( -- * Smart Constructors
@@ -124,8 +124,10 @@ metricRepresentation tcm =
     alphabetSize   = size tcm
     gapIndex       = 0
     nonGapElements = [ 1 .. alphabetSize - 1 ]
-    inDelCost f i  = f (tcm ! (i, gapIndex))
-                       (tcm ! (gapIndex, i))
+
+    inDelCost :: (Word32 -> Word32 -> t) -> Int -> t
+    inDelCost f i = f (tcm ! (i, gapIndex))
+                      (tcm ! (gapIndex, i))
 
 
 -- |

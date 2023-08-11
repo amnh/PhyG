@@ -2,6 +2,7 @@
 Compile-time embedding of the UTC time at which the program was built.
 -}
 
+{-# Language Safe #-}
 {-# Language TemplateHaskellQuotes #-}
 {-# Options_GHC -Wno-implicit-lift #-}
 
