@@ -477,7 +477,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
           severity          = chooseElementAtRandomPair (randDoubleVect V.! 8)  [("0.0", 0.33), ("1.0", 0.34), ("2.0", 0.33)]
           recombinations    = chooseElementAtRandomPair (randDoubleVect V.! 9)  [("10", 0.45), ("20", 0.45), ("40", 0.1)]
 
-          gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations), ("stop", "2")] <> netGeneralArgs
+          gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations), ("stop", "2")] <> [("maxnetedges", show maxNetEdges)]
 
           -- unless fuse or genetic algorithm, only operate on "best" input graphs
           -- this to reduce memory footrpint when have multiple iterations
