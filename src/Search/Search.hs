@@ -352,19 +352,19 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
 
 -- | This exponentiation functionn from http://www.haskell.org/haskellwiki/Generic_number_type#squareRoot
 (^!) :: Num a => a -> Int -> a
-(^!) x n = x^n
+(^!) x n = x ^ n
 
 -- | squareRoot integer square root from http://www.haskell.org/haskellwiki/Generic_number_type#squareRoot
 squareRoot :: Integer -> Integer
 squareRoot 0 = 0
 squareRoot 1 = 1
 squareRoot n =
-   let twopows = iterate (^!2) 2
+   let twopows = iterate ( ^! 2) 2
        (lowerRoot, lowerN) =
-          last $ takeWhile ((n>=) . snd) $ zip (1:twopows) twopows
+          last $ takeWhile ((n >= ) . snd) $ zip (1:twopows) twopows
        newtonStep x = div (x + div n x) 2
        iters = iterate newtonStep (squareRoot (div n lowerN) * lowerRoot)
-       isRoot r  =  r^!2 <= n && n < (r+1)^!2
+       isRoot r  =  r ^! 2 <= n && n < (r + 1) ^! 2
   in  head $ dropWhile (not . isRoot) iters
 
 
@@ -477,7 +477,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
           severity          = chooseElementAtRandomPair (randDoubleVect V.! 8)  [("0.0", 0.33), ("1.0", 0.34), ("2.0", 0.33)]
           recombinations    = chooseElementAtRandomPair (randDoubleVect V.! 9)  [("10", 0.45), ("20", 0.45), ("40", 0.1)]
 
-          gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations), ("stop", "2")]
+          gaArgs = [("popsize", popSize), ("generations", generations), ("severity", severity), ("recombinations", recombinations), ("stop", "2")] <> netGeneralArgs
 
           -- unless fuse or genetic algorithm, only operate on "best" input graphs
           -- this to reduce memory footrpint when have multiple iterations

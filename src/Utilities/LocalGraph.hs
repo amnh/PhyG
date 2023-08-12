@@ -1802,9 +1802,14 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
           let leftChildEdge = (orginalRoot, rerootIndex, edgeLabel $ head originalRootEdges)
               rightChildEdge = (orginalRoot, fst3 newRootOrigEdge, edgeLabel $ last originalRootEdges)
 
-              --  this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
-              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then error ("Number of root out edges /= 2 in rerootGraph: " <> (show $ length originalRootEdges)
-                <> " root index: " <> (show (orginalRoot, rerootIndex, fst $ head $ getRoots inGraph)) <> "\nGraph:\n" <> (prettyIndices inGraph))
+              -- this assumes 2 children of old root -- shouled be correct as Phylogenetic Graph
+              -- same result for both conditions to allow for check below and return original root if not correct
+              newEdgeOnOldRoot = if (length originalRootEdges) /= 2 then 
+                    (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
+                    {-
+                    error ("Number of root out edges /= 2 in rerootGraph: " <> (show $ length originalRootEdges)
+                    <> " root index: " <> (show (orginalRoot, rerootIndex, fst $ head $ getRoots inGraph)) <> "\nGraph:\n" <> (prettyIndices inGraph))
+                    -}
                                  else (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, thd3 $ head originalRootEdges)
 
               newRootEdges = [leftChildEdge, rightChildEdge, newEdgeOnOldRoot]
@@ -1814,8 +1819,10 @@ rerootDisplayTree orginalRootIndex rerootIndex inGraph =
               newGraph' = preTraverseAndFlipEdgesTree orginalRootIndex [leftChildEdge,rightChildEdge] newGraph
 
           in
+          -- this erros for malformed newEdge on old root
+          if (length originalRootEdges) /= 2 then inGraph
           -- checks that new root has two edges
-          if (length $ out newGraph' orginalRootIndex) /= 2 then inGraph
+          else if (length $ out newGraph' orginalRootIndex) /= 2 then inGraph
           else newGraph'
           
 

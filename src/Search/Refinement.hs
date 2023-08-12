@@ -188,7 +188,7 @@ getGeneticAlgParams inArgs =
              maxNetEdges
               | length maxNetEdgesList > 1 =
                 errorWithoutStackTrace ("Multiple 'maxNetEdges' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
-              | null maxNetEdgesList = Just 10
+              | null maxNetEdgesList = Just 5
               | otherwise = readMaybe (snd $ head maxNetEdgesList) :: Maybe Int
 
              stopList = filter ((== "stop") . fst) lcArgList
@@ -551,21 +551,21 @@ getNetEdgeParams inArgs =
              driftList = filter ((== "drift") . fst) lcArgList
              driftRounds'
               | length driftList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in swap command--can have only one: " <> show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' rounds number specifications in netEdge command--can have only one: " <> show inArgs)
               | null driftList = Just 1
               | otherwise = readMaybe (snd $ head driftList) :: Maybe Int
 
              acceptEqualList = filter ((== "acceptequal") . fst) lcArgList
              acceptEqualProb
               | length acceptEqualList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in swap command--can have only one: " <> show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' acceptEqual specifications in netEdge command--can have only one: " <> show inArgs)
               | null acceptEqualList = Just 0.5
               | otherwise = readMaybe (snd $ head acceptEqualList) :: Maybe Double
 
              acceptWorseList = filter ((== "acceptworse") . fst) lcArgList
              acceptWorseFactor
               | length acceptWorseList > 1 =
-                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in swap command--can have only one: " <> show inArgs)
+                errorWithoutStackTrace ("Multiple 'drift' acceptWorse specifications in netEdge command--can have only one: " <> show inArgs)
               | null acceptWorseList = Just 20.0
               | otherwise = readMaybe (snd $ head acceptWorseList) :: Maybe Double
 
