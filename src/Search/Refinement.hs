@@ -34,6 +34,13 @@ Portability :  portable (I hope)
 
 -}
 
+{--
+This is a mnmory pig and rather slow.  Probbaly because it doens't just take the
+first "better" graph.  
+
+For now--graphsteepest set to 1 to reduce memory footprint.
+--}
+
 module Search.Refinement  ( refineGraph
                           , netEdgeMaster
                           , fuseGraphs
@@ -152,7 +159,7 @@ getGeneticAlgParams inArgs =
          let keepList = filter ((== "keep") . fst) lcArgList
              keepNum
               | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " <> show inArgs)
+                errorWithoutStackTrace ("Multiple 'keep' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
@@ -289,7 +296,8 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                                              }
            in
            -- perform graph fuse operations
-           let (newGraphList, counterFuse) = F.fuseAllGraphs swapParams inGS inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
+           -- sets graphsSteepest to 1 to reduce memory footprintt
+           let (newGraphList, counterFuse) = F.fuseAllGraphs swapParams (inGS {graphsSteepest = 1}) inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
 
            in
            trace ("\tAfter fusing: " <> show (length newGraphList) <> " resulting graphs with minimum cost " <> show (minimum $ fmap snd5 newGraphList) <> " after fuse rounds (total): " <> show counterFuse)
