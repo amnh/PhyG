@@ -339,7 +339,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
 -- 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)
 distanceWagner :: Bool -> GlobalSettings -> ProcessedData -> V.Vector String -> M.Matrix Double -> Int -> String -> ReducedPhylogeneticGraph
 distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
-   let distWagTree = head $ DM.doWagnerS leafNames distMatrix "closest" outgroupValue "best" []
+   let distWagTree = head $ DM.doWagnerS leafNames distMatrix "closest" outgroupValue "best" 1 []
        distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree
        distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
        charInfoVV = V.map thd3 $ thd3 inData
@@ -355,7 +355,7 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
 randomizedDistanceWagner :: Bool -> GlobalSettings -> ProcessedData ->  V.Vector String -> M.Matrix Double -> Int -> Int -> Int -> Int -> String -> [ReducedPhylogeneticGraph]
 randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates rSeed numToKeep refinement =
    let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0..(length leafNames - 1)]
-       randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" randomizedAdditionSequences
+       randomizedAdditionWagnerTreeList = DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" numToKeep randomizedAdditionSequences
        randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
        randomizedAdditionWagnerTreeList'' = head <$> PU.seqParMap PU.myStrategyHighLevel (DW.performRefinement refinement "best:1"  "first" leafNames outgroupValue) randomizedAdditionWagnerTreeList'
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''

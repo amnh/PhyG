@@ -54,6 +54,7 @@ import Utilities.DistanceUtilities
 --import qualified LocalSequence as LS
 import Data.Vector qualified as LS
 import Control.Parallel.Strategies
+import Data.List qualified as L 
 
 -- | getStartingPair returns starying pair for Wagner build
 --  closts mnimal cost pair
@@ -229,8 +230,8 @@ getRandomAdditionSequence leafNames distMatrix outgroup initiaLeavesToAdd =
 
 -- | doWagnerS takes user options and produces the Wagner tree methods desired (best, asis, or random)
 -- outputs newick rep list
-doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> [V.Vector Int]-> [TreeWithData]
-doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSequences =
+doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> [TreeWithData]
+doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
   let nOTUs = V.length leafNames
   in
   if addSequence == "best" then
@@ -241,6 +242,7 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSeq
          newickTree' = take (length newickTree - 3) newickTree <> "[" <> showDouble precision treeCost <> "]" <> ";"
       in
       [(newickTree', fst wagnerResult, treeCost, snd wagnerResult)]
+
   else if addSequence == "asis" then
       let initialTree = (V.fromList [0, 1],V.fromList [(0, 1, distMatrix M.! (0,1))])
           leavesToAdd = V.fromList [2..(nOTUs-1)]
@@ -250,15 +252,30 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence replicateSeq
           newickTree' = take (length newickTree - 3) newickTree <> "[" <> showDouble precision treeCost <> "]" <> ";"
       in
       [(newickTree', fst asIsResult, treeCost, snd asIsResult)]
+
   else if head addSequence == 'r' then
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
-        --let randomAddTrees = PU.seqParMap PU.myStrategyHighLevel  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences 
-        let randomAddTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS -- was rseq not sure whats better
-            -- randomAddTrees = parmap rseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
-        in
-        randomAddTrees
+        doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
+
   else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
+
+
+-- | doWagnerRASProgressive performs RAS distance Wagner in chunks to reduce memory footprint 
+-- for large numner of replicates
+doWagnerRASProgressive :: V.Vector String -> M.Matrix Double -> Int -> Int -> [TreeWithData] -> [V.Vector Int]-> [TreeWithData]
+doWagnerRASProgressive leafNames distMatrix outgroup numToKeep curBestTreeList replicateSequences =
+  if null replicateSequences then curBestTreeList
+  else 
+    let threadNumber = PU.getNumThreads
+        -- this number can be tweaked to incrase or reduce memory usage and efficiency
+        jobFactor = 20 
+        replist = take (jobFactor * threadNumber) replicateSequences
+        rasTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS
+        newBestList = take numToKeep $ L.sortOn thd4 (rasTrees ++ curBestTreeList)
+    in
+    doWagnerRASProgressive leafNames distMatrix outgroup numToKeep newBestList (drop (jobFactor * threadNumber) replicateSequences)
+
 
 -- | edgeHasVertex takes an vertex and an edge and returns Maybe Int
 -- of other vertex
