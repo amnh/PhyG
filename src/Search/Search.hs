@@ -426,7 +426,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                       else chooseElementAtRandomPair (randDoubleVect V.! 12) [("distance", 0.5), ("character", 0.5)]
 
           numToCharBuild = fromInteger $ squareRoot $ toInteger numLeaves
-          numToDistBuild = max 10000 (numLeaves * numLeaves)
+          numToDistBuild = min 10000 (numLeaves * numLeaves)
           numDistToKeep = 100
 
           -- to resolve block build graphs

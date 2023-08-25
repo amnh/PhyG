@@ -271,7 +271,8 @@ doWagnerRASProgressive leafNames distMatrix outgroup numToKeep curBestTreeList r
         -- this number can be tweaked to incrase or reduce memory usage and efficiency
         jobFactor = 20 
         replist = take (jobFactor * threadNumber) replicateSequences
-        rasTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS
+        --rasTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS
+        rasTrees = PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replist 
         newBestList = take numToKeep $ L.sortOn thd4 (rasTrees ++ curBestTreeList)
     in
     doWagnerRASProgressive leafNames distMatrix outgroup numToKeep newBestList (drop (jobFactor * threadNumber) replicateSequences)
