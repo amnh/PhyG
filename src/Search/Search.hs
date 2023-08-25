@@ -427,7 +427,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
           numToCharBuild = fromInteger $ squareRoot $ toInteger numLeaves
           numToDistBuild = min 1000 (numLeaves * numLeaves)
-          numDistToKeep = 100
+          numDistToKeep = 50
 
           -- to resolve block build graphs
           reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 13) [("eun", 0.5), ("cun", 0.5)]
