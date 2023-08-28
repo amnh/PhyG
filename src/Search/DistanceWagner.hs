@@ -256,7 +256,8 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep re
   else if head addSequence == 'r' then
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
-        doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
+        if (length replicateSequences > 10000) then doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
+        else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
 
   else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
 
@@ -270,14 +271,15 @@ doWagnerRASProgressive leafNames distMatrix outgroup numToKeep curBestTreeList r
     let threadNumber = PU.getNumThreads
         -- this number can be tweaked to incrase or reduce memory usage and efficiency
         jobFactor = 20 
-        replist = take (jobFactor * threadNumber) replicateSequences
+        numToDo = max 1000 (jobFactor * threadNumber)
+        replist = take numToDo replicateSequences
         --rasTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS
         rasTrees = PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replist 
         newBestList = take numToKeep $ L.sortOn thd4 (rasTrees ++ curBestTreeList)
     in
     --take numToKeep $ L.sortOn thd4 $ PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
     --take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS)
-    doWagnerRASProgressive leafNames distMatrix outgroup numToKeep newBestList (drop (jobFactor * threadNumber) replicateSequences)
+    doWagnerRASProgressive leafNames distMatrix outgroup numToKeep newBestList (drop numToDo replicateSequences)
 
 
 -- | edgeHasVertex takes an vertex and an edge and returns Maybe Int
