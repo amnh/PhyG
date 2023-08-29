@@ -48,6 +48,20 @@ cabal install
 
 ### [Publications][GitHub-PHANE-Papers]
 
+### Synchronizing Documentation
+
+If you are on the `documentation-authoring` branch and need the newest code for building `phyg`, *do not panic!*
+Instead do the following:
+
+```
+git checkout main
+git pull
+git checkout documentation-authoring
+git merge main
+```
+
+That's it! You've done it and are certainly a hero who just saved the day.
+
 [Funding-0]: https://www.amnh.org/our-research/computational-sciences
 [Funding-1]: https://www.darpa.mil/program/simplifying-complexity-in-scientific-discovery
 [Funding-2]: http://www.klebergfoundation.org/
