@@ -19,7 +19,7 @@ The `PhyG` package exposes the `phyg` executable and the `PhyG` sub-libraries.
 
 ## `phyg`
 
-Phylogenetic Graph (PhyG) is a multi-platform programram designed to produce phylogenetic graphs from input data and graphs via heuristic searching of general phylogenetic graph space.
+Phylogenetic Graph (PhyG) is a multi-platform program designed to produce phylogenetic graphs from input data and graphs via heuristic searching of general phylogenetic graph space.
 The bio-informatics framework libraries of the broader [Phylogenetic Haskell Analytic Network Engine (PHANE) project][GitHub-PHANE-Readme] are the foundation upon which PhyG is constructed.
 PhyG offers vast functionality, including the optimization of unaligned sequences, and the ability to implement search strategies such as random addition sequence, swapping, and tree fusing.
 Furthermore, PhyG can generate outputs in the form of implied alignments and graphical representations of cladograms and graphs.
