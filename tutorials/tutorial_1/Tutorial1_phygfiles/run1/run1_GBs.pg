@@ -1,8 +1,0 @@
---Bootstraps for Chel1 
-set(seed:73412305) 
-set(outgroup:"Limulus") 
-read(nucleotide:"chel_16S.fas") 
-read(nucleotide:"chel_cox1.fas") 
-read(newick:"chel_run1.tre") 
-support(gb:spr, gbsample:10000)
-report("chel_run1_GB.dot", support, dotpdf, overwrite)
