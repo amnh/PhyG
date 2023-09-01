@@ -195,6 +195,12 @@ a given search strategy each time the script is run. This value can be any numbe
 digits in length. Note: this seed value should not be mistaken for the initial random
 seed value, as chosen by the application (see Figure \ref{output1}).
 
+[Note: \phyg is a multi-threading application and will, by default, use all available cores. 
+To guarantee the reproducibility of a given search each time the scripts is run, the user
+should specify the same number of processors used by \phyg for each run.
+This is achieved by including the options `+RTS -NX' where `X' is the number 
+of processors offered  to the program.] 
+
 \item Next \texttt{set} the outgroup for the analysis to \textit{Limulus}. If the outgroup
 is not set, \phyg will sort the taxa alphabetically and choose the first taxon as the
 outgroup. Only a single taxon can be set as the outgroup of the analysis. Note: taxon 
@@ -268,16 +274,16 @@ begin, open a \textit{Terminal} window.
 	phyg commandFile
 	\end{quote}
 	
-To run the script \textbf{run1.pg} type the following:
+To run the script \textbf{run1.pg} using four processors type the following:
 		
 	\begin{quote}
-  	phyg run1.pg
+  	phyg run1.pg %+RTS -N4
 	\end{quote}
 	
 This is equivalent to typing the following from any location on your computer:
 	
 	\begin{quote}
-  	phyg ~/Desktop/phygfiles/run1.pg
+  	phyg ~/Desktop/phygfiles/run1.pg %+RTS -N4
 	\end{quote}
 
 Note: should you get the error ``phyg: command not found'' this indicated that 
