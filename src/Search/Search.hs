@@ -515,6 +515,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
       in
 
+      -- This can't happen any more--added distance builds if graph list empty at beginningof search
+        -- this to remove "sucesses" of initial builds form affecting Thompson values
       -- no input graphs so must build to start
       -- chooses NJ (n^3), dWag (n^3), WPGMA (n^2), or rdWag (n^2 but lots so n^4 here)
       if null inGraphList' then
