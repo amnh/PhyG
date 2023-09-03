@@ -98,8 +98,19 @@ uncurry3' f (a, b, c) = force <$> f a b c
 
 -- | search timed randomized search returns graph list and comment list with info String for each search instance
 search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [ReducedPhylogeneticGraph] -> IO ([ReducedPhylogeneticGraph], [[String]])
-search inArgs inGS inData pairwiseDistances rSeed inGraphList =
+search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
    let (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) = getSearchParams inArgs
+
+       -- If therea re no inpout graphs--make some via distance
+       inGraphList = if (not .null) inGraphList' then inGraphList' 
+                     else 
+                        let njGraph = head $ B.buildGraph [("distance", ""), ("nj", "")] inGS inData pairwiseDistances rSeed
+                            wpgmaGraph =  head $ B.buildGraph  [("distance", ""), ("wpgma", "")] inGS inData pairwiseDistances rSeed
+                            dWagGraph =   head $ B.buildGraph [("distance", ""), ("dWag", "")] inGS inData pairwiseDistances rSeed
+                            rdwagGraphList = B.buildGraph [("distance", ""), ("replicates", show (keepNum * keepNum)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]  inGS inData pairwiseDistances rSeed
+                            buildGraphs = [njGraph, wpgmaGraph, dWagGraph] ++ rdwagGraphList
+                        in
+                        take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
 
        -- flatThetaList is the initial prior list (flat) of search (bandit) choices
        -- can also be used in search for non-Thomspon search

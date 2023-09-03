@@ -66,12 +66,12 @@ report("test0-data.csv", data, overwrite)
 --fuse(tbr)
 --swap()
 
-build(distance, wpgma)
+--build(distance, wpgma)
 
-transform(staticApprox)
+--transform(staticApprox)
 
-swap()
---search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
+--swap()
+search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 
