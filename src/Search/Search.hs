@@ -534,7 +534,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                            
 
              -- string of delta cost of graphs
-             deltaString = if null inGraphList' then "10.0"
+             -- delta of zero if no inputs so not weight too strongly in favor of initial builds
+             deltaString = if null inGraphList' then "0.0"
                            else show ((minimum $ fmap snd5 inGraphList') - (minimum $ fmap snd5 uniqueGraphs))
 
              currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd5 uniqueGraphs
