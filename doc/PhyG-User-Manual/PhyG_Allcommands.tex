@@ -1058,6 +1058,9 @@
 		With this information, the user can then estimate the amount of time necessary 
 		to perform a thorough search (perhaps 10 times the amount of time it took to 
 		perform this simple search). 
+		
+		%It is recommended to perform a \texttt{swap(joinAll)} (alternate swap turning off rejoin preferences)
+		%after the \texttt{search} has completed.
 		%The user should also allow some time for the program 
 		%to collate and write the results to files.
 		}
@@ -1452,13 +1455,13 @@
 		group of algorithms referred to as branch swapping, that proceed by clipping
 		parts of the given tree and attaching them in different positions. These algorithms 
 		include `NNI' \citep{CaminandSokal1965, Robinson1971}, `SPR' \citep{Dayhoff1969}, 
-		and `TBR' \citep{Farris1988, swofford1990a} refinement.  Default swapping trajectories ar randomized.}
+		and `TBR' \citep{Farris1988, swofford1990a} refinement.  Default swapping trajectories are randomized.}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
 	\begin{description}
-		\item[all] Turns off all preference strategies to make a join, simply trying all possible 
-		join positions for each pair of clades generated after a break. 
+		\item[all] Turns off all preference strategies to break and join graphs, simply trying all possible 
+		rearrangements. 
 		The refinement examines the entire rearrangement neighborhood of the current graph 
 		before retaining the best (lowest cost) solutions. This can be very memory intensive.
 
@@ -1508,8 +1511,11 @@
 		branch swapping as opposed to full Direct Optimization for dynamic characters when the 
 		graph type is \texttt{tree}.
 		
-		\item[inorder] Contra \texttt{atRandom}, swap neighborhoods are always traversed 
+		\item[inOrder] Contra \texttt{atRandom}, swap neighborhoods are always traversed 
 		in the same undefined, but consistent order.
+		
+		\item[joinAll] Turns off all preference strategies to make a join, simply trying all possible 
+		join positions for each pair of clades generated after a break. 
 		
 		\item[keep:INT] Specifies the number of equally costly graphs to be retained, as
 		determined by the integer value.		
