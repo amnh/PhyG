@@ -292,10 +292,12 @@ makeNewickList isTNT writeEdgeWeight writeNodeLabel' rootIndex graphList costLis
         costStringList  = if not isTNT then 
                             fmap ((('[' :) . (<> "];\n")) . show) costList
                           else L.replicate (length costList) "*\n"
-        graphStringCost = fmap commaToSpace $ concat $ zipWith (<>) newickStringList costStringList
+
+        graphStringCost = concat $ zipWith (<>) newickStringList costStringList
+        graphStringCostTNT = fmap commaToSpace graphStringCost
 
         graphStringCost' = if not isTNT then graphStringCost
-                           else (take (length graphStringCost - 2) graphStringCost) <> ";\n"
+                           else (take (length graphStringCostTNT - 2) graphStringCostTNT) <> ";\n"
     in
     graphStringCost'
     where commaToSpace a = if a /= ',' then a else ' '
