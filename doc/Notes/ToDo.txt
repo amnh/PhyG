@@ -573,3 +573,6 @@
 
 451) TNT newick file--no labels, no lengths., no commas (spaces in stead)
 
+452) Affine and IP for slim
+
+453) Make tnt char weight work with negative wqeights-- or perhaps add "\" for negative weights (versus "/")"

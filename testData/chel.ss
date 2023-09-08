@@ -20,4 +20,5 @@ Thermobius 1
 Vonones	-
 ;
 cc - 0.;
+cc /10 0.;
 proc/;
