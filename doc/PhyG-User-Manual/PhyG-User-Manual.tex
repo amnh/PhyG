@@ -237,15 +237,17 @@
 	
 	\subsection{Execution in Parallel}
 	\label{subsec:parallel}
-		\phyg is a multi-threading application and will, by default,  use all available cores. Should 
+		\phyg is a multi-threading application and will, by default,  use all available physical (not hyperthreaded) cores. Should 
 		the user wish to limit or specify the number of processors used by \phyg this can be achieved 
-		by including the options `\textbf{+RTS -NX -RTS}', where `\textbf{X}' is the number of processors 
+		by including the options `\textbf{+RTS -NX -RTS}', where `\textbf{X}' is the number of processing cores 
 		offered cd to the program, when executing the script. Should the user wish to use a single processor, 
 		this can be specified by typing:
 
 		\begin{quote}
 		phyg fileName +RTS -N1 
 		\end{quote}
+		
+		Specification of \textbf{X} greater than the number of physical cores can degrade overall performance.
 		
 		\medskip
 		\noindent This will execute the program sequentially.		

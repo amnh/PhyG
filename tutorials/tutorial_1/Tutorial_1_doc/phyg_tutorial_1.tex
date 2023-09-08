@@ -199,7 +199,7 @@ seed value, as chosen by the application (see Figure \ref{output1}).
 To guarantee the reproducibility of a given search each time the scripts is run, the user
 should specify the same number of processors used by \phyg for each run.
 This is achieved by including the options `+RTS -NX' where `X' is the number 
-of processors offered  to the program.] 
+of processors offered to the program.] 
 
 \item Next \texttt{set} the outgroup for the analysis to \textit{Limulus}. If the outgroup
 is not set, \phyg will sort the taxa alphabetically and choose the first taxon as the
@@ -277,13 +277,13 @@ begin, open a \textit{Terminal} window.
 To run the script \textbf{run1.pg} using four processors type the following:
 		
 	\begin{quote}
-  	phyg run1.pg %+RTS -N4
+  	phyg run1.pg +RTS -N4
 	\end{quote}
 	
 This is equivalent to typing the following from any location on your computer:
 	
 	\begin{quote}
-  	phyg ~/Desktop/phygfiles/run1.pg %+RTS -N4
+  	phyg ~/Desktop/phygfiles/run1.pg +RTS -N4
 	\end{quote}
 
 Note: should you get the error ``phyg: command not found'' this indicated that 
@@ -444,7 +444,7 @@ like \textit{FigTree} or \textit{TreeView}. The values associated with the taxon
 HTUs are the branch lengths. The cost of the tree(s) can be found in square brackets, at 
 the end of each tree. Notice that the trees appear in order of cost in the file, with the most 
 optimal tree appearing last. In this analysis, \phyg returned 50 trees ranging in cost from 
-1005 to 1044 with the cost of the most optimal tree being 1005.
+1003 to 1040 with the cost of the most optimal tree being 1003.
 
 \end{enumerate}
 
@@ -482,53 +482,53 @@ After each round \phyg will \texttt{keep} 10 graphs per input graph.
 	\end{quote}
 	
 \item Now reexamine the reported file \textbf{"chel\_run1.tre"}. Notice that this 
-simple local search has reduced the cost of the initial best tree from 1005 to 998.
+simple local search has reduced the cost of the initial best tree from 1003 to 998.
 
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
-\subsection{Selecting trees}
-\label{subsec:Selecting}
-
-So far we have performed the basic steps of importing character data, building 
-initial trees, and conducting a simple local search. In this tutorial we will select 
-trees at various stages of the analysis. 
-
-\begin{enumerate}
-
-\item It may be useful to \texttt{select} all topologically unique trees during the 
-analysis. Contra \texttt{select()}, which selects topologically unique and optimal 
-trees, \texttt{select(unique)} selects all unique trees (after collapsing zero-length 
-branches), regardless of cost. This is a useful command that ensures that a 
-larger tree space is explored. Modify the script to \texttt{select(unique)} tree(s) 
-following the distance \texttt{build}. If this is used as an option during the 
-search, the user should remember to \texttt{select()} at the end of the run, 
-prior to reporting the results. The remaining trees are deleted from memory.
-
-\item Generally, users will want to \texttt{select} only those trees that are both 
-optimal \textit{and} topologically unique at the end of an analysis. The default 
-setting of the \texttt{select()} does exactly that. Add \texttt{select()} to our script, 
-ensuring that \phyg will select the topologically unique trees of best cost upon 
-completion. For now we will comment out this command as we will only include 
-a pool of topologically unique trees for the next stage of the analysis (Section 
-\ref{subsec:Fusing}).
-
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:50)\\
-	select(unique)\\
-	swap(alternate, keep:10)\\
-	-\/-select()\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
-	\end{quote}
-
-\end{enumerate}
+%\subsection{Selecting trees}
+%\label{subsec:Selecting}
+%
+%So far we have performed the basic steps of importing character data, building 
+%initial trees, and conducting a simple local search. In this tutorial we will select 
+%trees at various stages of the analysis. 
+%
+%\begin{enumerate}
+%
+%\item It may be useful to \texttt{select} all topologically unique trees during the 
+%analysis. Contra \texttt{select()}, which selects topologically unique and optimal 
+%trees, \texttt{select(unique)} selects all unique trees (after collapsing zero-length 
+%branches), regardless of cost. This is a useful command that ensures that a 
+%larger tree space is explored. Modify the script to \texttt{select(unique)} tree(s) 
+%following the distance \texttt{build}. If this is used as an option during the 
+%search, the user should remember to \texttt{select()} at the end of the run, 
+%prior to reporting the results. The remaining trees are deleted from memory.
+%
+%\item Generally, users will want to \texttt{select} only those trees that are both 
+%optimal \textit{and} topologically unique at the end of an analysis. The default 
+%setting of the \texttt{select()} does exactly that. Add \texttt{select()} to our script, 
+%ensuring that \phyg will select the topologically unique trees of best cost upon 
+%completion. For now we will comment out this command as we will only include 
+%a pool of topologically unique trees for the next stage of the analysis (Section 
+%\ref{subsec:Fusing}).
+%
+%	\begin{quote}
+%	-\/-Chel first analysis\\
+%	set(seed:73412305)\\
+%	set(outgroup:"Limulus")\\
+%	read(nucleotide:"chel\_16S.fas")\\
+%	read(nucleotide:"chel\_cox1.fas")\\
+%	build(distance, rdwag, replicates:50)\\
+%	select(unique)\\
+%	swap(alternate, keep:10)\\
+%	-\/-select()\\
+%	report("chel\_cr1.csv", crossrefs, overwrite)\\
+%	report("chel\_data1.csv", data, overwrite)\\
+%	report("chel\_run1.tre", newick, graphs, overwrite)\\
+%	\end{quote}
+%
+%\end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
 \subsection{Performing tree recombination}
@@ -539,8 +539,10 @@ fusing can be used to escape local optima. \texttt{fuse} operates on a collectio
 of graphs performing reciprocal graph recombination between pairs of graphs. 
 Non-identical subgraphs with identical leaf sets are exchanged between graphs 
 and the results evaluated. This process of exchange and evaluation continues 
-until no new graphs are found. Note: more than one tree must be stored in 
-memory in order to perform this operation.
+until no new graphs are found. 
+
+[Note: more than one tree must be stored in 
+memory in order to perform this operation.]
 
 \begin{enumerate}
 
