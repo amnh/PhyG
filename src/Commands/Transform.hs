@@ -42,6 +42,7 @@ module Commands.Transform
   ) where
 
 
+import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Control.Parallel.Strategies
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
@@ -55,7 +56,6 @@ import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
 import Data.Word
 import Debug.Trace
-import Foreign.C.Types              (CUInt)
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
@@ -522,7 +522,6 @@ getBlockLeafDataFromDisplayTree leavePrealigned inDecGraph blockCharInfo =
    (fst3 blockCharInfo , V.fromList transformedLeafBlockData, head transformedBlockInfo)
 
 
-
 -- | pullGraphBlockDataAndTransform takes a DecoratedGraph and block index and pulls
 -- the character data of the block and transforms the leaf data by using implied alignment
 -- feilds for dynamic characters
@@ -580,8 +579,8 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
       -- different types--vector wrangling
       -- missing data fields set if no implied alignment ie missing data
       if inCharType `elem` [SlimSeq, NucSeq] then
-         let gapChar = (0 :: CUInt) `setBit` fromEnum gapIndex
-             missingState = L.foldl' (setBit) (0 :: CUInt)  [0.. alphSize - 1]
+         let gapChar = (0 :: SlimState) `setBit` fromEnum gapIndex
+             missingState = L.foldl' (setBit) (0 :: SlimState)  [0.. alphSize - 1]
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
                                 else
                                   let missingElement = SV.replicate charLength missingState -- if simple all ON then segfault do to lookup outside of cost matrix
@@ -606,8 +605,8 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
             (inCharData {alignedSlimPrelim = impliedAlignChar}, inCharInfo {charType =  AlignedSlim})
 
       else if inCharType `elem` [WideSeq, AminoSeq] then
-         let gapChar = (0 :: Word64) `setBit` fromEnum gapIndex
-             missingState = L.foldl' (setBit) (0 :: Word64)  [0.. alphSize - 1]
+         let gapChar = (0 :: WideState) `setBit` fromEnum gapIndex
+             missingState = L.foldl' (setBit) (0 :: WideState)  [0.. alphSize - 1]
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
                                 else
                                   let missingElement = UV.replicate charLength missingState -- if simple all ON then segfault do to lookup outside of cost matrix 

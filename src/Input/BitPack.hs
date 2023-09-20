@@ -47,6 +47,8 @@ module Input.BitPack
   , minMaxCharDiff
   ) where
 
+import Bio.DynamicCharacter 
+import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.List qualified as L
@@ -1116,6 +1118,7 @@ minMaxPacked64 (lNoChangeCost, lChangeCost) a b =
     if lNoChangeCost == 0.0 then (fromIntegral minVal, fromIntegral maxVal)
     else ((lNoChangeCost * fromIntegral maxVal) + (lChangeCost * fromIntegral minVal), (lNoChangeCost * fromIntegral minVal) + (lChangeCost * fromIntegral maxVal))
 
+
 -- | median2Packed takes two characters of packedNonAddTypes
 -- and retuns new character data based on 2-median and cost
 median2Packed :: CharType -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
@@ -1713,8 +1716,8 @@ recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
         -- )
 
 
--- | packIntoWord64 takes a list of bitvectors for a taxon, the state number and number that can be packed into
--- a Word64 and performs appropriate bit settting and shifting to create  Word64
+-- | packIntoWideState takes a list of bitvectors for a taxon, the state number and number that can be packed into
+-- a WideState and performs appropriate bit settting and shifting to create  WideState
 -- paralle looked to bag out here
 packIntoWord64 :: Int -> Int -> [[Int]] -> [BV.BitVector] -> CharacterData
 packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =

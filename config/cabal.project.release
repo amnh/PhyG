@@ -54,11 +54,26 @@ Preferences:
     unordered-containers >= 0.2.18.0,
 
 Source-Repository-Package
-  Type: git
+  Type:     git
   Location: https://github.com/amnh/PHANE
-  Subdir: pkg/PHANE-PhyloLib
+  Subdir:   pkg/PHANE-alphabet
 
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-dynamic-character-element
 
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-units
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-PhyloLib
+
+  
 ---------------------------------------------------------------------------------
 -- Output paths
 --

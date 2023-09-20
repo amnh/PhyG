@@ -37,6 +37,7 @@ module Data.TCM.Dense.FFI
   , getAlignmentStrategy
   ) where
 
+import Bio.DynamicCharacter.Element (SlimState)
 import Control.DeepSeq
 import Data.Foldable
 import Foreign
@@ -88,10 +89,10 @@ data  CostMatrix2d
                                        -}
     , isMetric            :: CInt      -- if tcm is metric
     , allElems            :: CInt      -- total number of elements
-    , bestCost            :: Ptr CUInt {- The transformation cost matrix, including ambiguities,
+    , bestCost            :: Ptr SlimState {- The transformation cost matrix, including ambiguities,
                                           storing the **best** cost for each ambiguity pair
                                        -}
-    , medians             :: Ptr CUInt {- The matrix of possible medians between elements in the
+    , medians             :: Ptr SlimState {- The matrix of possible medians between elements in the
                                           alphabet. The best possible medians according to the cost
                                            matrix.
                                        -}
@@ -121,8 +122,8 @@ data  CostMatrix3d
     , include_ambiguities3D :: CInt
     , gapOpenCost3D         :: CInt
     , allElems3D            :: CInt
-    , bestCost3D            :: Ptr CUInt
-    , medians3D             :: Ptr CUInt
+    , bestCost3D            :: Ptr SlimState
+    , medians3D             :: Ptr SlimState
     }
     deriving stock    (Eq, Generic)
     deriving anyclass (NFData)
@@ -369,9 +370,9 @@ generateDenseTransitionCostMatrix affineCost alphabetSize costFunction =
 -- _NOTE: /Only considers the first 8 bits of the elements!/_
 lookupPairwise
   :: DenseTransitionCostMatrix
-  -> CUInt
-  -> CUInt
-  -> (CUInt, Word)
+  -> SlimState
+  -> SlimState
+  -> (SlimState, Word)
 lookupPairwise m e1 e2 = unsafePerformIO $ do
     cm2d <- peek $ costMatrix2D m
     let dim = fromEnum $ alphSize cm2d
@@ -390,10 +391,10 @@ lookupPairwise m e1 e2 = unsafePerformIO $ do
 -- _NOTE: /Only considers the first 8 bits of the elements!/_
 lookupThreeway
   :: DenseTransitionCostMatrix
-  -> CUInt
-  -> CUInt
-  -> CUInt
-  -> (CUInt, Word)
+  -> SlimState
+  -> SlimState
+  -> SlimState
+  -> (SlimState, Word)
 lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
     cm3d <- peek $ costMatrix3D dtcm
     let dim = fromEnum $ alphSize3D cm3d

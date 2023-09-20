@@ -46,7 +46,8 @@ module Utilities.ThreeWayFunctions  ( threeMedianFinal
                                     , threeWayGeneric
                                     ) where
 
-import           Bio.DynamicCharacter
+import           Bio.DynamicCharacter (HugeState, extractMedians)
+import           Bio.DynamicCharacter.Element (SlimState, WideState)
 import           Data.Alphabet
 import qualified Data.BitVector.LittleEndian as BV
 import           Data.Bits
@@ -235,7 +236,7 @@ getBestPairCostAndState inCostMatrix maxCost numStates childStateCostV medianSta
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
 -- 4) choosing lowest cost median
-threeWaySlim ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> SV.Vector CUInt
+threeWaySlim ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> SV.Vector SlimState
 threeWaySlim charInfo parent1 parent2 curNode =
    -- trace ("3WSlim: ") (
    let -- pairwise median structures
@@ -271,7 +272,7 @@ threeWaySlim charInfo parent1 parent2 curNode =
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
 -- 4) choosing lowest cost median
-threeWayWide ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> UV.Vector Word64
+threeWayWide ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> UV.Vector WideState
 threeWayWide charInfo parent1 parent2 curNode =
    let -- pairwise median structures
        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
@@ -304,7 +305,7 @@ threeWayWide charInfo parent1 parent2 curNode =
 -- 2) inserting gaps to make all 3 line up
 -- 3) creating 3-medians
 -- 4) choosing lowest cost median
-threeWayHuge ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> V.Vector BV.BitVector
+threeWayHuge ::  CharInfo -> CharacterData -> CharacterData -> CharacterData -> V.Vector HugeState
 threeWayHuge charInfo parent1 parent2 curNode =
    let -- pairwise median structures
        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2

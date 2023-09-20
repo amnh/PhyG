@@ -122,7 +122,9 @@ Common build-defaults
   Default-Extensions:
     BangPatterns
     DerivingStrategies
+    LambdaCase
     NoGeneralizedNewtypeDeriving
+    UnicodeSyntax
 
   Default-Language:
     GHC2021
@@ -266,7 +268,7 @@ Executable phyg
 
   -- If need for a high performance executable was specified,
   -- then at compile-time GHC will allocate additional time and memory
-  -- to explore and apply the most agrressive optimization possible. 
+  -- to explore and apply the most agrressive optimization possible.
   If flag(Super-Optimization)
     GHC-Options:
       -fexcess-precision
@@ -288,6 +290,7 @@ Executable phyg
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character-element,
     PhyG:dynamic-character,
     PhyG:tcm,
     PHANE-PhyloLib,
@@ -297,7 +300,7 @@ Executable phyg
     bimap,
     bv,
     bv-little,
-    bytestring,     
+    bytestring,
 --    clock,
 --    concurrent-hashtable,
     containers >= 0.6,
@@ -349,16 +352,16 @@ Executable phyg
     Paths_PhyG
 
   Other-Modules:
-    CommandLineOptions
-    CommandLineOptions.Display
-    CommandLineOptions.Types
-    Commands.CommandExecution
-    Commands.CommandUtilities
-    Commands.ProcessCommands
-    Commands.Transform
-    Commands.Verify
-    Debug.Debug
-    GraphOptimization.Medians
+                CommandLineOptions
+                CommandLineOptions.Display
+                CommandLineOptions.Types
+                Commands.CommandExecution
+                Commands.CommandUtilities
+                Commands.ProcessCommands
+                Commands.Transform
+                Commands.Verify
+                Debug.Debug
+                GraphOptimization.Medians
     -- GraphOptimization.PostOrderFunctions
     GraphOptimization.PostOrderSoftWiredFunctions
     GraphOptimization.PostOrderSoftWiredFunctionsNew
@@ -431,6 +434,7 @@ Library dynamic-character
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character-element,
     PhyG:tcm,
     PhyG:utility,
     base                     >= 4.11      && < 5.0,
@@ -477,6 +481,7 @@ Library tcm
     lib/tcm/src
 
   Build-Depends:
+    PHANE-dynamic-character-element,
     PhyG:utility,
     binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
@@ -642,6 +647,7 @@ Test-Suite test-dynamic-character
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character-element:quickcheck,
     PhyG:dynamic-character,
     PhyG:tcm,
     base                     >= 4.11      && < 5.0,

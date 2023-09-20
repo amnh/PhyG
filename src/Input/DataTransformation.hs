@@ -48,6 +48,8 @@ module Input.DataTransformation
   , removeAllMissingCharacters
   ) where
 
+import Bio.DynamicCharacter
+import Bio.DynamicCharacter.Element (SlimState, WideState)
 import           Data.Alphabet
 import           Data.Alphabet.Codec
 import           Data.Alphabet.IUPAC
@@ -265,7 +267,7 @@ joinSortFileData inFileLists =
 -- unique, label invariant (but data related so arbitrary but consistent)
 -- Assumes the rawData come in sorted by the data reconciliation process
 -- These used for vertex labels, caching, left/right DO issues
-createBVNames :: [RawData] -> [(T.Text, BV.BitVector)]
+createBVNames :: [RawData] -> [(T.Text, HugeState)]
 createBVNames inDataList =
     let rawDataList   = fmap fst inDataList
         textNameList  = fst <$> head rawDataList
@@ -303,7 +305,7 @@ createBVNames inDataList =
 -- for data output as they haven't been reordered or transformed in any way.
 -- the RawData is a list since it is organized by input file
 -- the list accumulator is to avoid Vector snoc/cons O(n)
-createNaiveData :: GlobalSettings -> [RawData] -> [(T.Text, BV.BitVector)] -> [BlockData] -> ProcessedData
+createNaiveData :: GlobalSettings -> [RawData] -> [(T.Text, HugeState)] -> [BlockData] -> ProcessedData
 createNaiveData inGS inDataList leafBitVectorNames curBlockData =
     -- trace ("CND: " <> (show $ (optimalityCriterion inGS))) $
     if null inDataList
@@ -576,10 +578,10 @@ missingAligned :: CharInfo -> Int -> CharacterData
 missingAligned inChar charLength =
     let inCharType = charType inChar
         alphSize = length $ alphabet inChar
-        missingElementSlim = -- CUInt type
-                             SV.replicate charLength $ setMissingBits (0 :: CUInt) 0 alphSize
-        missingElementWide = -- Word64 type
-                             UV.replicate charLength $ setMissingBits (0 :: Word64) 0 alphSize
+        missingElementSlim = -- SlimState type
+                             SV.replicate charLength $ setMissingBits (0 :: SlimState) 0 alphSize
+        missingElementWide = -- WideState type
+                             UV.replicate charLength $ setMissingBits (0 :: WideState) 0 alphSize
         missingElementHuge = -- bit vector type
                              V.replicate charLength $ (BV.fromBits $ replicate alphSize True)
         in
@@ -611,7 +613,7 @@ setMissingBits inVal curIndex alphSize =
 
 -- | getStateBitVectorList takes the alphabet of a character ([ShorText])
 -- and returns bitvectors (with of size alphabet) for each state in order of states in alphabet
-getStateBitVectorList :: Alphabet ST.ShortText -> V.Vector (ST.ShortText, BV.BitVector)
+getStateBitVectorList :: Alphabet ST.ShortText -> V.Vector (ST.ShortText, HugeState)
 getStateBitVectorList localStates =
     if null localStates then error "Character with empty alphabet in getStateBitVectorList"
     else
@@ -626,7 +628,7 @@ iupacToBVPairs
   :: (IsString s, Ord s)
   => Alphabet s
   -> Bimap (NonEmpty s) (NonEmpty s)
-  -> V.Vector (s, BV.BitVector)
+  -> V.Vector (s, HugeState)
 iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.toAscList iupac
   where
     constructor  = flip BV.fromNumber (0 :: Int)
@@ -634,7 +636,7 @@ iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.t
 
 -- | nucleotideBVPairs for recoding DNA sequences
 -- this done to insure not recalculating everything for each base
-nucleotideBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
+nucleotideBVPairs :: V.Vector (ST.ShortText, HugeState)
 nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
   where
     baseAlphabet = fromSymbols $ ST.fromString <$> "-" :| [ "A", "C", "G", "T" ]
@@ -642,7 +644,7 @@ nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
 -- | aminoAcidBVPairs for recoding protein sequences
 -- this done to insure not recalculating everything for each residue
 -- B, Z, X, ? for ambiguities
-aminoAcidBVPairs :: V.Vector (ST.ShortText, BV.BitVector)
+aminoAcidBVPairs :: V.Vector (ST.ShortText, HugeState)
 aminoAcidBVPairs = iupacToBVPairs acidAlphabet iupacToAminoAcid
   where
     acidAlphabet = fromSymbols $ fromString <$>
@@ -651,7 +653,7 @@ aminoAcidBVPairs = iupacToBVPairs acidAlphabet iupacToAminoAcid
 
 -- | getBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 -- ShortText state
-getBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> BV.BitVector
+getBVCode :: V.Vector (ST.ShortText, HugeState) -> ST.ShortText -> HugeState
 getBVCode bvCodeVect inState =
     let newCode = V.find ((== inState).fst) bvCodeVect
     in
@@ -692,7 +694,7 @@ getAminoAcidSequenceChar isPrealigned stateList =
 -- ShortText state.  These states can be ambiguous as in general sequences
 -- so states need to be parsed first
 -- the AND to all states makes ambiguityoes only observed states
-getGeneralBVCode :: V.Vector (ST.ShortText, BV.BitVector) -> ST.ShortText -> (CUInt, Word64, BV.BitVector)
+getGeneralBVCode :: V.Vector (ST.ShortText, HugeState) -> ST.ShortText -> (SlimState, WideState, HugeState)
 getGeneralBVCode bvCodeVect inState =
     let inStateString = ST.toString inState
     in
@@ -768,7 +770,7 @@ getGeneralSequenceChar inCharInfo stateList =
 
 -- | getStateBitVector takes teh alphabet of a character ([ShorText])
 -- and returns then bitvectorfor that state in order of states in alphabet
-getStateBitVector :: Alphabet ST.ShortText -> ST.ShortText -> BV.BitVector
+getStateBitVector :: Alphabet ST.ShortText -> ST.ShortText -> HugeState
 getStateBitVector localAlphabet = encodeState localAlphabet constructor . (:[])
   where
     constructor  = flip BV.fromNumber (0 :: Int)

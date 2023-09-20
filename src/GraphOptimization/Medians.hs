@@ -71,6 +71,7 @@ module GraphOptimization.Medians  ( median2
                                   ) where
 
 import Bio.DynamicCharacter
+import Bio.DynamicCharacter.Element
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -563,7 +564,7 @@ getDOMedianUnion
   :: Double
   -> S.Matrix Int
   -> TCMD.DenseTransitionCostMatrix
-  -> MR.MetricRepresentation Word64
+  -> MR.MetricRepresentation WideState
   -> MR.MetricRepresentation BV.BitVector
   -> CharType
   -> CharacterData
@@ -639,7 +640,7 @@ getDOMedian
   :: Double
   -> S.Matrix Int
   -> TCMD.DenseTransitionCostMatrix
-  -> MR.MetricRepresentation Word64
+  -> MR.MetricRepresentation WideState
   -> MR.MetricRepresentation BV.BitVector
   -> CharType
   -> CharacterData
@@ -745,7 +746,7 @@ getDynamicUnion :: Bool
                 -> CharacterData
                 -> CharacterData
                 -> TCMD.DenseTransitionCostMatrix
-                -> MR.MetricRepresentation Word64
+                -> MR.MetricRepresentation WideState
                 -> MR.MetricRepresentation BV.BitVector
                 -> CharacterData
 getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWideTCM thisHugeTCM
@@ -1228,14 +1229,14 @@ get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
    let -- this should not be needed some problems at times with IA
        -- len   = GV.length descendantLeftPrelim
        len   = min (GV.length descendantLeftPrelim) (GV.length descendantRightPrelim)
-       vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (CUInt, Word)
+       vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (SlimState, Word)
        gen v = let med i = fst $ v V.! i in GV.generate len med
        add   = V.foldl' (\x e -> x + snd e) 0
    in  (,) <$> gen <*> add $ vt
 
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
-get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> (SV.Vector CUInt, Word)
+get2WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector SlimState -> SV.Vector SlimState -> (SV.Vector SlimState, Word)
 get2WaySlim lSlimTCM = get2WayGeneric (TCMD.lookupPairwise lSlimTCM)
 
 
@@ -1249,7 +1250,7 @@ get2WayWideHuge whTCM = get2WayGeneric (MR.retreivePairwiseTCM whTCM)
 -- information to create a final assingment with out an additional DO call to keep the
 -- creation linear in sequence length.  Since gaps remain--they must be filtered when output or
 -- used as true final sequence assignments using M.createUngappedMedianSequence
-getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt -> SV.Vector CUInt
+getFinal3WaySlim :: TCMD.DenseTransitionCostMatrix -> SV.Vector SlimState -> SV.Vector SlimState -> SV.Vector SlimState -> SV.Vector SlimState
 getFinal3WaySlim lSlimTCM parentFinal descendantLeftPrelim descendantRightPrelim =
    let newFinal = removeGapAndNil $ SV.zipWith3 (local3WaySlim lSlimTCM) parentFinal descendantLeftPrelim descendantRightPrelim
    in
@@ -1273,8 +1274,8 @@ local3WayWideHuge lWideTCM b c d =
    -- trace ((show b) <> " " <> (show c) <> " " <> (show d) <> " => " <> (show median))
    median
 
--- | local3WaySlim takes triple of CUInt and retuns median
-local3WaySlim :: TCMD.DenseTransitionCostMatrix -> CUInt -> CUInt -> CUInt -> CUInt
+-- | local3WaySlim takes triple of SlimState and retuns median
+local3WaySlim :: TCMD.DenseTransitionCostMatrix -> SlimState -> SlimState -> SlimState -> SlimState
 local3WaySlim lSlimTCM b c d =
  -- trace ("L3WS: " <> (show (b,c,d))) (
  let  -- b' = if b == zeroBits then gap else b

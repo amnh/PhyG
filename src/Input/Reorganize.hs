@@ -14,6 +14,7 @@ module Input.Reorganize
   , getRecodingType
   ) where
 
+import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -27,9 +28,7 @@ import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
-import Data.Word
 import Debug.Trace
-import Foreign.C.Types (CUInt)
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Input.BitPack qualified as BP
@@ -120,7 +119,7 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
         -- )
 
 
--- | convert2BVTriple takes CUInt or Word64 and converts to Triple Vector of bitvectors
+-- | convert2BVTriple takes SlimState or WideState and converts to Triple Vector of bitvectors
 convert2BVTriple :: (Integral a, GV.Vector v a) => Word -> v a -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
 convert2BVTriple size inM =
    let inMList = GV.toList inM
@@ -129,7 +128,7 @@ convert2BVTriple size inM =
    in
    (V.fromList inMBV, V.fromList inMBV, V.fromList inMBV)
 
--- | convert2BV takes CUInt or Word64 and converts to Vector of bitvectors
+-- | convert2BV takes SlimState or WideState and converts to Vector of bitvectors
 -- this for leaves so assume M only one needed really
 convert2BV :: (Integral a, GV.Vector v a) => Word -> (v a, v a, v a) -> (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
 convert2BV size (_, inM, _) =
@@ -644,7 +643,7 @@ filterConstantsUV inVarBoolV charVect =
 -- neither bit packed nor nno-exact should het here
 assignNewField :: CharType
                -> CharacterData
-               -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector CUInt, UV.Vector Word64, V.Vector BV.BitVector)
+               -> (V.Vector BV.BitVector, V.Vector (Int, Int), V.Vector (V.Vector MatrixTriple), SV.Vector SlimState, UV.Vector WideState, V.Vector BV.BitVector)
                -> CharacterData
 assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) =
     if inCharType == NonAdd then charData {stateBVPrelim = (nonAddData, nonAddData, nonAddData)}

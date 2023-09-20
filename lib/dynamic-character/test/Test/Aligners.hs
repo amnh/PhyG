@@ -26,10 +26,10 @@ import Data.MetricRepresentation
 import Data.TCM                                   (fromList)
 import Data.TCM.Dense
 import Data.Word
+import Foreign.C.Types (CUInt)
 import DirectOptimization.Pairwise
 import DirectOptimization.Pairwise.Swapping
 import DirectOptimization.Pairwise.Ukkonen
-import Foreign.C.Types                            (CUInt(..))
 import Test.QuickCheck.Instances.DynamicCharacter
 
 
@@ -65,10 +65,10 @@ metricRepresentationToDenseTCM =
 
 translateSlimStateTCM :: MetricRepresentation Word32 -> SlimState -> SlimState -> (SlimState, Word)
 translateSlimStateTCM m =
-      let tcm = retreivePairwiseTCM m
-          c2w = coerce :: SlimState -> Word32
-          w2c = coerce :: Word32 -> SlimState
-      in  \x y -> first w2c $ tcm (c2w x) (c2w y)
+    let tcm = retreivePairwiseTCM m
+        c2w = (toEnum . fromEnum) :: SlimState -> Word32
+        w2c = (toEnum . fromEnum) :: Word32 -> SlimState
+    in  \x y -> first w2c $ tcm (c2w x) (c2w y)
 
 
 metricChoices :: [(String, MetricRepresentation Word32)]

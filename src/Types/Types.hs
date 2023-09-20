@@ -41,6 +41,8 @@ Portability :  portable (I hope)
 
 module Types.Types where
 
+import Bio.DynamicCharacter (OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
+import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Control.DeepSeq
 import Control.Parallel.Strategies
 import Data.Alphabet
@@ -55,8 +57,7 @@ import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
-import Data.Word
-import Foreign.C.Types (CUInt)
+import Data.Word (Word64)
 import GHC.Generics
 import SymMatrix qualified as S
 import Utilities.LocalGraph qualified as LG
@@ -79,7 +80,7 @@ infinity :: Double
 infinity = read "Infinity" :: Double
 
 -- | maxAddStatesToRecode maximum size of addditive character to recode into
---non-additive characters 65 can fit in 4 Word64 since nstates - 1 binaries
+--non-additive characters 65 can fit in 4 WideState since nstates - 1 binaries
 -- prob could be bigger based on cost of optimizing additive versus but this
 -- seems a reasonale number (prob should be timed to verify)
 maxAddStatesToRecode :: Int
@@ -277,7 +278,7 @@ instance NFData GlobalSettings where rnf x = seq x ()
 -- | CharInfo information about characters
 -- null values for these are in Input.FastAC.hs
 --  TCMD.DenseTransitionCostMatrix          => genDiscreteDenseOfDimension (length alphabet)
---  MR.MetricRepresentation Word64          => metricRepresentation <$> TCM.fromRows [[0::Word]]
+--  MR.MetricRepresentation WideState          => metricRepresentation <$> TCM.fromRows [[0::Word]]
 --  MR.MetricRepresentation BV.BitVector    => metricRepresentation <$> TCM.fromRows [[0::Word]]
 -- changeCost and noChange costs are for PMDL costs for packed/non-additive character for
 -- other character types the cost matrix holds this information in comvcert with weight since the matrix values are integers
@@ -287,7 +288,7 @@ data CharInfo = CharInfo { name       :: NameText
                          , weight     :: Double
                          , costMatrix :: S.Matrix Int
                          , slimTCM    :: TCMD.DenseTransitionCostMatrix
-                         , wideTCM    :: MR.MetricRepresentation Word64
+                         , wideTCM    :: MR.MetricRepresentation WideState
                          , hugeTCM    :: MR.MetricRepresentation BV.BitVector
                          , changeCost :: Double
                          , noChangeCost :: Double
@@ -344,7 +345,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- the 'union' fields hold post-order unions of subgraph charcaters (ia for sequence) fir use in uinion threshold
 -- during branch addintion/readdition (e.g swapping)
 data CharacterData = CharacterData { -- for Non-additive
-                                       stateBVPrelim      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)  -- preliminary for Non-additive chars, Sankoff Approx
+                                       stateBVPrelim      :: HugeDynamicCharacter  -- preliminary for Non-additive chars, Sankoff Approx
                                      , stateBVFinal       :: V.Vector BV.BitVector
                                      , stateBVUnion       :: V.Vector BV.BitVector
 
@@ -359,50 +360,50 @@ data CharacterData = CharacterData { -- for Non-additive
                                      , matrixStatesUnion  :: V.Vector (V.Vector MatrixTriple)
 
                                      -- preliminary for m,ultiple seqeunce chars with same TCM
-                                     , slimPrelim         :: SV.Vector CUInt
+                                     , slimPrelim         :: SV.Vector SlimState
                                      -- gapped medians of left, right, and preliminary used in preorder pass
-                                     , slimGapped         :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
-                                     , slimAlignment      :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
-                                     , slimFinal          :: SV.Vector CUInt
-                                     , slimIAPrelim       :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
-                                     , slimIAFinal        :: SV.Vector CUInt
-                                     , slimIAUnion        :: SV.Vector CUInt
+                                     , slimGapped         :: SlimDynamicCharacter
+                                     , slimAlignment      :: SlimDynamicCharacter
+                                     , slimFinal          :: SV.Vector SlimState
+                                     , slimIAPrelim       :: SlimDynamicCharacter
+                                     , slimIAFinal        :: SV.Vector SlimState
+                                     , slimIAUnion        :: SV.Vector SlimState
 
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
-                                     , widePrelim         :: UV.Vector Word64
+                                     , widePrelim         :: UV.Vector WideState
                                      -- gapped median of left, right, and preliminary used in preorder pass
-                                     , wideGapped         :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
-                                     , wideAlignment      :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
-                                     , wideFinal          :: UV.Vector Word64
-                                     , wideIAPrelim       :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
-                                     , wideIAFinal        :: UV.Vector Word64
-                                     , wideIAUnion        :: UV.Vector Word64
+                                     , wideGapped         :: WideDynamicCharacter
+                                     , wideAlignment      :: WideDynamicCharacter
+                                     , wideFinal          :: UV.Vector WideState
+                                     , wideIAPrelim       :: WideDynamicCharacter
+                                     , wideIAFinal        :: UV.Vector WideState
+                                     , wideIAUnion        :: UV.Vector WideState
 
                                      -- vector of individual character costs (Can be used in reweighting-ratchet)
                                      , hugePrelim         :: V.Vector BV.BitVector
                                      -- gapped medians of left, right, and preliminary used in preorder pass
-                                     , hugeGapped         :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
-                                     , hugeAlignment      :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , hugeGapped         :: HugeDynamicCharacter
+                                     , hugeAlignment      :: HugeDynamicCharacter
                                      , hugeFinal          :: V.Vector BV.BitVector
-                                     , hugeIAPrelim       :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , hugeIAPrelim       :: HugeDynamicCharacter
                                      , hugeIAFinal        :: V.Vector BV.BitVector
                                      , hugeIAUnion        :: V.Vector BV.BitVector
 
                                      -- vectors for pre-aligned sequences also used in static approx
-                                     , alignedSlimPrelim  :: (SV.Vector CUInt, SV.Vector CUInt, SV.Vector CUInt)
-                                     , alignedSlimFinal   :: SV.Vector CUInt
-                                     , alignedSlimUnion   :: SV.Vector CUInt
+                                     , alignedSlimPrelim  :: SlimDynamicCharacter
+                                     , alignedSlimFinal   :: SV.Vector SlimState
+                                     , alignedSlimUnion   :: SV.Vector SlimState
 
-                                     , alignedWidePrelim  :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
-                                     , alignedWideFinal   :: UV.Vector Word64
-                                     , alignedWideUnion   :: UV.Vector Word64
+                                     , alignedWidePrelim  :: WideDynamicCharacter
+                                     , alignedWideFinal   :: UV.Vector WideState
+                                     , alignedWideUnion   :: UV.Vector WideState
 
-                                     , alignedHugePrelim  :: (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector)
+                                     , alignedHugePrelim  :: HugeDynamicCharacter
                                      , alignedHugeFinal   :: V.Vector BV.BitVector
                                      , alignedHugeUnion   :: V.Vector BV.BitVector
 
                                      -- coiuld be made Storable later is using C or GPU/Accelerate
-                                     , packedNonAddPrelim :: (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64)
+                                     , packedNonAddPrelim :: OpenDynamicCharacter UV.Vector Word64
                                      , packedNonAddFinal  :: UV.Vector Word64
                                      , packedNonAddUnion  :: UV.Vector Word64
 
