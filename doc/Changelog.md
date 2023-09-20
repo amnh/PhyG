@@ -13,6 +13,18 @@ The changelog is available [on GitHub][2].
 
   * Major codebase layout rearchitecting
 
+  * Modularized and migrated sub-libraries to [PHANE project][GitHub-PHANE]
+
+    - `PHANE-alphabet`
+
+    - `PHANE-dynamic-character`
+
+    - `PHANE-dynamic-character-element`
+
+    - `PHANE-measure-units`
+
+    - `PHANE-PhyloLib`
+
   * Added command line options
 
     - `--credits` To list financial and technical contributors
@@ -36,3 +48,4 @@ The changelog is available [on GitHub][2].
 
 [1]: https://semver.org/spec/v2.0.0.html
 [2]: https://github.com/wardwheeler/PhyGraph/blob/main/doc/Changelog.md
+[GitHub-PHANE]: https://github.com/AMNH/PHANE#readme

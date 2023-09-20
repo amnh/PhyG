@@ -61,6 +61,11 @@ Source-Repository-Package
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-dynamic-character
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-dynamic-character-element
 
 Source-Repository-Package

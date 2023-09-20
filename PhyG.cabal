@@ -290,6 +290,7 @@ Executable phyg
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PhyG:dynamic-character,
     PhyG:tcm,
@@ -352,16 +353,16 @@ Executable phyg
     Paths_PhyG
 
   Other-Modules:
-                CommandLineOptions
-                CommandLineOptions.Display
-                CommandLineOptions.Types
-                Commands.CommandExecution
-                Commands.CommandUtilities
-                Commands.ProcessCommands
-                Commands.Transform
-                Commands.Verify
-                Debug.Debug
-                GraphOptimization.Medians
+    CommandLineOptions
+    CommandLineOptions.Display
+    CommandLineOptions.Types
+    Commands.CommandExecution
+    Commands.CommandUtilities
+    Commands.ProcessCommands
+    Commands.Transform
+    Commands.Verify
+    Debug.Debug
+    GraphOptimization.Medians
     -- GraphOptimization.PostOrderFunctions
     GraphOptimization.PostOrderSoftWiredFunctions
     GraphOptimization.PostOrderSoftWiredFunctionsNew
@@ -434,6 +435,7 @@ Library dynamic-character
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PhyG:tcm,
     PhyG:utility,
@@ -446,9 +448,9 @@ Library dynamic-character
     vector                   >= 0.12.0.3  && < 1.0,
 
   Exposed-Modules:
-    Bio.DynamicCharacter
-    Bio.DynamicCharacter.Measure
-    Bio.DynamicCharacter.HandleGaps
+--    Bio.DynamicCharacter
+--    Bio.DynamicCharacter.Measure
+--    Bio.DynamicCharacter.HandleGaps
     DirectOptimization.Pairwise
     DirectOptimization.Pairwise.Visualization
     DirectOptimization.Pairwise.Swapping
@@ -481,6 +483,7 @@ Library tcm
     lib/tcm/src
 
   Build-Depends:
+    PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PhyG:utility,
     binary                   >= 0.8       && < 1.0,
@@ -647,6 +650,7 @@ Test-Suite test-dynamic-character
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character,
     PHANE-dynamic-character-element:quickcheck,
     PhyG:dynamic-character,
     PhyG:tcm,
