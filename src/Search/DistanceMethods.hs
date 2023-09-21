@@ -40,17 +40,17 @@ I
 
 module Search.DistanceMethods (neighborJoining, wPGMA, doWagnerS, performWagnerRefinement) where
 
-import qualified Data.Number.Transfinite     as NT
-import qualified Data.Vector                 as V
-import           Debug.Trace
-import           ParallelUtilities           as PU
-import qualified Search.DistanceWagner       as W
-import qualified SymMatrix                   as M
-import           Types.DistanceTypes
-import           Utilities.DistanceUtilities
+import Data.Number.Transfinite     as NT
+import Data.Vector qualified as V
+import Debug.Trace
+import ParallelUtilities as PU
+import Search.DistanceWagner qualified as W
+import SymMatrix qualified as M
+import Types.DistanceTypes
+import Utilities.DistanceUtilities
 --import qualified LocalSequence as LS
-import qualified Data.Vector                 as LS
-import           GeneralUtilities
+import Data.Vector qualified as LS
+import GeneralUtilities
 
 
 -- | wPGMA takes a list of leaves and a distance matrixx and returns
@@ -315,8 +315,8 @@ pickUpdateMatrixWPGMA distMatrix  vertInList =
             let -- new vertex is size of distance matrix (0 indexed)
               newVertIndex = M.rows distMatrix
 
-              diMinNewVert = dij /2.0
-              djMinNewVert = dij /2.0
+              diMinNewVert = dij / 2.0
+              djMinNewVert = dij / 2.0
 
               newVertInList = vertInList <> [iMin, jMin]
 

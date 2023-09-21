@@ -37,24 +37,24 @@ Portability :  portable (I hope)
 
 module Utilities.DistanceUtilities where
 
-import qualified Data.Graph.Inductive.Graph        as G
-import qualified Data.Graph.Inductive.PatriciaTree as P
-import           Data.Maybe
-import qualified Data.Number.Transfinite           as NT
-import qualified Data.Set                          as Set
-import qualified Data.Text.Lazy                    as T
-import qualified Data.Vector                       as V
-import           GeneralUtilities
-import qualified GraphFormatUtilities              as PP
-import           ParallelUtilities
-import qualified SymMatrix                         as M
-import           System.IO.Unsafe
-import qualified System.Random                     as Rand
-import qualified System.Random.Shuffle             as RandS
-import           Types.DistanceTypes
+import Data.Graph.Inductive.Graph qualified as G
+import Data.Graph.Inductive.PatriciaTree qualified as P
+import Data.Maybe
+import Data.Number.Transfinite qualified as NT
+import Data.Set qualified as Set
+import Data.Text.Lazy qualified as T
+import Data.Vector qualified as V
+import GeneralUtilities
+import GraphFormatUtilities qualified as PP
+import ParallelUtilities
+import SymMatrix qualified as M
+import System.IO.Unsafe
+import System.Random qualified as Rand
+import System.Random.Shuffle qualified as RandS
+import Types.DistanceTypes
 --import qualified LocalSequence as LS
-import qualified Data.List                         as L
-import qualified Data.Vector                       as LS
+import Data.List qualified as L
+import Data.Vector qualified as LS
 
 
 
@@ -256,8 +256,8 @@ convertToNewickGuts leafNames outGroup wagTree =
       remainderEdges = V.filter (/= foundEdge) edgeVect
   in
   -- this is embarassing bullshit  -- converting  ",,"  to ","
-  if firstVert == outGroup then "(" <> (leafNames V.! outGroup)  <> ":" <> showDouble 8 (weight/2.0) <> "," <> getEdgesNonRoot secondVert remainderEdges (V.length leafNames) leafNames <> ":" <> showDouble 8 (weight/2.0) <> ")"
-  else "(" <> (leafNames V.! outGroup)  <> ":" <> showDouble 8 (weight/2.0) <> "," <> getEdgesNonRoot firstVert remainderEdges (V.length leafNames) leafNames <> ":" <> showDouble 8 (weight/2.0) <> ")"
+  if firstVert == outGroup then "(" <> (leafNames V.! outGroup)  <> ":" <> showDouble 8 (weight / 2.0) <> "," <> getEdgesNonRoot secondVert remainderEdges (V.length leafNames) leafNames <> ":" <> showDouble 8 (weight / 2.0) <> ")"
+  else "(" <> (leafNames V.! outGroup)  <> ":" <> showDouble 8 (weight / 2.0) <> "," <> getEdgesNonRoot firstVert remainderEdges (V.length leafNames) leafNames <> ":" <> showDouble 8 (weight / 2.0) <> ")"
 
 -- | orderEdge takes an Edge and puts high index first then lower
 orderEdge :: Edge -> Edge
