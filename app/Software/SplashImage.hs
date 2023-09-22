@@ -3,6 +3,7 @@ Compile-time embeddings of the ASCII art "splash image" via Template Haskell.
 -}
 
 {-# Language OverloadedStrings #-}
+{-# Language Safe #-}
 {-# Language Strict #-}
 {-# Language TemplateHaskellQuotes #-}
 
