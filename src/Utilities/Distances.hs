@@ -33,7 +33,8 @@ getPairwiseDistances (nameVect, _, blockDataVect)
     let -- get maximum observations and pairwise max observations to normalize distances
         maxDistance = U.getMaxNumberObservations blockDataVect
         pairList = makeIndexPairs True (V.length nameVect) (V.length nameVect) 0 0
-        pairListCosts = fmap (U.getPairwiseObservations blockDataVect) pairList `using` P.myParListChunkRDS
+        --pairListCosts = fmap (U.getPairwiseObservations blockDataVect) pairList `using` P.myParListChunkRDS
+        pairListCosts = P.seqParMap rdeepseq   (U.getPairwiseObservations blockDataVect) pairList 
         normFactorList = fmap (maxDistance /) $ fmap (max 1.0) pairListCosts
         initialFactorMatrix = S.fromLists $ replicate (V.length nameVect) $ replicate (V.length nameVect) 0.0
         (iLst, jList) = unzip pairList
@@ -64,7 +65,7 @@ getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex)  =
     in
     pairCost
 
--- | getPairwiseBlocDistance returns pairwsie distances among vertices for
+-- | getPairwiseBlocDistance returns pairwisee distances among vertices for
 -- a block of data
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
@@ -72,7 +73,8 @@ getPairwiseBlockDistance :: Int -> BlockData-> S.Matrix VertexCost
 getPairwiseBlockDistance numVerts inData  =
     let pairList = makeIndexPairs True numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
-        pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS
+        -- pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS
+        pairListCosts = P.seqParMap rdeepseq  (getBlockDistance inData) pairList 
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList pairListCosts
         newMatrix = S.updateMatrix initialPairMatrix threeList
