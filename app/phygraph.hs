@@ -176,7 +176,8 @@ performSearch inputFilePath = do
                             -- get number of occurences of name in rawData Terminfo lists
                             dataLeafNames''  L.\\ missingToExclude
 
-    hPutStrLn stderr ("Terminals below non-missing data threshold and excluded: " <> (show ((length dataLeafNames'') - (length dataLeafNames))) <> " " <> (show missingToExclude))
+    hPutStrLn stderr ("Terminals above missing data threshold and excluded: " <> (show ((length dataLeafNames'') - (length dataLeafNames))) <> " " <> (show missingToExclude))
+    hPutStrLn stderr ((show $ length dataLeafNames) <> " terminals to be analyzed")
 
     if null dataLeafNames then errorWithoutStackTrace "No leaf data to be analyzed--all excluded"
     else hPutStrLn stderr ""

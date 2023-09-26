@@ -21,7 +21,7 @@ read("chel.ss")
 
 --set(seed:1666899539)
 
-set(missingThreshold:110)
+set(missingThreshold:10)
 
 report("test0-data.csv", data, overwrite)
 

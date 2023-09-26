@@ -251,7 +251,7 @@ data  GlobalSettings
     , graphType               :: GraphType
     , graphFactor             :: GraphFactor -- net penalty/graph complexity
     , lazyParStrat            :: ParallelStrategy -- default parallel strategy to WHNF
-    , missingThreshold        :: Int -- default threshold of missing data to keep in data set 100 (keep all, 0 would be no missing data)
+    , missingThreshold        :: Int -- default threshold of maximum missing data to keep in data set 0 (keep all, 100 would be no missing data)
     , modelComplexity         :: Double -- model cost for PMDL, 0.0 for other criteria
     , multiTraverseCharacters :: Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
     , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
@@ -671,7 +671,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , strictParStrat = RDeepSeq -- high level--basically srtict evaluation
                                      , useNetAddHeuristic = True
                                      , useIA = True
-                                     , missingThreshold = 100
+                                     , missingThreshold = 0
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph

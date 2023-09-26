@@ -96,7 +96,7 @@ checkLeafMissingData theshold inDataList =
     if theshold == 100 then []
     else 
         let numInputFiles = length inDataList
-            criterion = (fromIntegral theshold) / 100.0
+            criterion = (fromIntegral (100 - theshold)) / 100.0
             minOccurence = (ceiling $ criterion * (fromIntegral numInputFiles)) :: Int
             leafList =  fmap fst $ concat $ fmap fst inDataList
             groupedLeafList = L.group $ L.sort leafList
