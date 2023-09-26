@@ -605,15 +605,17 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                 trace ("Graphtype set to " <> head optionList)
                 (globalSettings {graphType = localGraphType}, processedData, inSeedList)
 
-        {-In first to do stuff above
+        -- In first to do stuff above also
         else if head commandList == "missingthreshold"  then
             let localValue = readMaybe (head optionList) :: Maybe Int
             in
             if isNothing localValue then error ("Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> head optionList)
+            else if fromJust localValue == missingThreshold globalSettings then
+                (globalSettings, processedData, inSeedList)
             else
                 trace ("MissingThreshold set to " <> head optionList)
                 (globalSettings {missingThreshold = fromJust localValue}, processedData, inSeedList)
-        -}
+        
 
         else if head commandList == "modelcomplexity"  then
             let localValue = readMaybe (head optionList) :: Maybe Double
