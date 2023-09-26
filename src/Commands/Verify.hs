@@ -55,11 +55,11 @@ module Commands.Verify
     , transformArgList
     ) where
 
-import qualified Data.Char        as C
-import qualified Data.List        as L
-import           GeneralUtilities
-import           Text.Read
-import           Types.Types
+import Data.Char qualified as C
+import Data.List qualified as L
+import GeneralUtilities
+import Text.Read
+import Types.Types
 
 -- import           Debug.Trace
 
@@ -126,7 +126,7 @@ selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
 -- | setArgList contains valid 'set' arguments
     -- joinThreshold and dynamicEpsilon are not intended for users--but could be of course
 setArgList :: [String]
-setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "defparstrat", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "lazyparstrat", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod", "strictparstrat", "usenetaddheuristic", "useia"]
+setArgList = ["bc2", "bc4", "bc5", "bc8", "bc64", "bcgt64", "compressresolutions", "criterion", "defparstrat", "dynamicepsilon", "finalassignment", "graphfactor", "graphssteepest", "graphtype", "jointhreshold", "lazyparstrat", "missingthreshold", "modelcomplexity", "multitraverse", "outgroup", "partitioncharacter", "reportnaive", "rootcost", "seed", "softwiredmethod", "strictparstrat", "usenetaddheuristic", "useia"]
 
 -- | refinement arguments
 supportArgList :: [String]

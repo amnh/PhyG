@@ -277,6 +277,15 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                 trace ("PartitionCharacter set to '" <> head optionList <> "'")
                 (globalSettings {partitionCharacter = localPartitionChar}, processedData, inSeedList)
 
+        else if head commandList == "missingthreshold"  then
+            let localValue = readMaybe (head optionList) :: Maybe Int
+            in
+            if isNothing localValue then errorWithoutStackTrace ("Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> head optionList)
+            else if (fromJust localValue < 0) || (fromJust localValue > 100) then errorWithoutStackTrace ("Set option 'missingThreshold' must be set to an integer value between 0 and 100: " <> head optionList)
+            else
+                trace ("MissingThreshold set to " <> head optionList)
+                (globalSettings {missingThreshold = fromJust localValue}, processedData, inSeedList)
+
         -- sets root cost as well-- need in both places--one to process data and one to
         -- keep in current global
         else if head commandList == "criterion"  then
@@ -595,6 +604,16 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             else
                 trace ("Graphtype set to " <> head optionList)
                 (globalSettings {graphType = localGraphType}, processedData, inSeedList)
+
+        {-In first to do stuff above
+        else if head commandList == "missingthreshold"  then
+            let localValue = readMaybe (head optionList) :: Maybe Int
+            in
+            if isNothing localValue then error ("Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> head optionList)
+            else
+                trace ("MissingThreshold set to " <> head optionList)
+                (globalSettings {missingThreshold = fromJust localValue}, processedData, inSeedList)
+        -}
 
         else if head commandList == "modelcomplexity"  then
             let localValue = readMaybe (head optionList) :: Maybe Double

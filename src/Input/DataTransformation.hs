@@ -46,6 +46,7 @@ module Input.DataTransformation
   , missingAligned
   , setMissingBits
   , removeAllMissingCharacters
+  , checkLeafMissingData
   ) where
 
 import Bio.DynamicCharacter
@@ -83,9 +84,30 @@ import Numeric.Natural
 import Text.Read
 import Utilities.Utilities qualified as U
 
--- import           Debug.Trace
+import           Debug.Trace
 
--- | removeAllMissingCharacters removes charcaters from list in rawData if all taxa are missing
+
+-- | checkLeafMissingData checks missing data in inputs
+-- missing data is defined as not in an input file
+-- if missing number / numInputFiles > threshold then put in list of
+-- leaves to exclude
+checkLeafMissingData :: Int -> [RawData] -> [NameText]
+checkLeafMissingData theshold inDataList =
+    if theshold == 100 then []
+    else 
+        let numInputFiles = length inDataList
+            criterion = (fromIntegral theshold) / 100.0
+            minOccurence = (ceiling $ criterion * (fromIntegral numInputFiles)) :: Int
+            leafList =  fmap fst $ concat $ fmap fst inDataList
+            groupedLeafList = L.group $ L.sort leafList
+            leafOccurence = fmap length groupedLeafList
+            leafNameOccurencePair = zip (fmap head groupedLeafList) leafOccurence
+            leafToExclude = fmap fst $ filter ((< minOccurence) . snd) leafNameOccurencePair
+        in
+        -- trace ("CLMD :" <> (show (theshold, numInputFiles, criterion, minOccurence, leafOccurence, leafToExclude))) $
+        leafToExclude
+
+-- | removeAllMissingCharacters removes characters from list in rawData if all taxa are missing
 -- this can happen when taxa are renamed or added in terminals file
 -- only checks a list length of 1 basically a sequence character
 -- static chars passed on

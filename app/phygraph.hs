@@ -165,8 +165,21 @@ performSearch inputFilePath = do
     -- Uses names from terminal list if non-null, and remove excluded terminals
     let dataLeafNames' = if not $ null terminalsToInclude then L.sort $ L.nub terminalsToInclude
                         else L.sort $ DT.getDataTerminalNames renamedData
-    let dataLeafNames = dataLeafNames' L.\\ terminalsToExclude
-    hPutStrLn stderr ("Data were input for " <> show (length dataLeafNames) <> " terminals")
+    let dataLeafNames'' = dataLeafNames' L.\\ terminalsToExclude
+    hPutStrLn stderr ("Data were input for " <> show (length dataLeafNames'') <> " terminals")
+
+    -- check data for missing data threshold and remove those above 
+    let missingToExclude = DT.checkLeafMissingData (missingThreshold partitionCharOptimalityGlobalSettings) rawData
+    let dataLeafNames = if (missingThreshold partitionCharOptimalityGlobalSettings) == 100 then 
+                            dataLeafNames''
+                        else 
+                            -- get number of occurences of name in rawData Terminfo lists
+                            dataLeafNames''  L.\\ missingToExclude
+
+    hPutStrLn stderr ("Terminals below non-missing data threshold and excluded: " <> (show ((length dataLeafNames'') - (length dataLeafNames))) <> " " <> (show missingToExclude))
+
+    if null dataLeafNames then errorWithoutStackTrace "No leaf data to be analyzed--all excluded"
+    else hPutStrLn stderr ""
 
     -- this created here and passed to command execution later to remove dependency of renamed data in command execution to
     -- reduce memory footprint keeoing that stuff around.

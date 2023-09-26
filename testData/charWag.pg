@@ -1,5 +1,5 @@
 --read(fasta:"metazoa-aa-1.fas")
---read(fasta:"chel.fas")
+read(fasta:"chel.fas")
 read(fasta:"chel-16.fas")
 --set(criterion:NCM)
 --read(prefasta:"chel-prealigned.fas")
@@ -20,6 +20,8 @@ read("chel.ss")
 --transform(weight:0.01, name:"chel.fas#0*")
 
 --set(seed:1666899539)
+
+set(missingThreshold:110)
 
 report("test0-data.csv", data, overwrite)
 
@@ -70,7 +72,7 @@ report("test0-data.csv", data, overwrite)
 
 --transform(staticApprox)
 build(dwag, distance)
-swap()
+--swap()
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)

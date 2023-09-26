@@ -232,44 +232,46 @@ parStrategy parStrat
 
 data  GlobalSettings
     = GlobalSettings
-    { outgroupIndex           :: Int -- Outgroup terminal index, default 0 (first input leaf)
-    , outGroupName            :: T.Text -- Outgroup name
-    , optimalityCriterion     :: OptimalityCriterion
-    , graphType               :: GraphType
-    , compressResolutions     :: Bool -- "nub" resolutions in softwired graph
-    , finalAssignment         :: AssignmentMethod
-    , graphFactor             :: GraphFactor -- net penalty/graph complexity
-    , partitionCharacter      :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
-    , rootCost                :: RootCost
-    , rootComplexity          :: VertexCost -- complexity of root in bits per root for PMDL/ML calculations
-    , graphComplexityList     :: IL.InfList (VertexCost, VertexCost) --complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
-    , modelComplexity         :: Double -- model cost for PMDL, 0.0 for other criteria
-    , seed                    :: Int -- random seed
-    , searchData              :: [SearchData]
-    , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
-    , bc2                     :: (Double, Double) -- PMDL bitCost for 2 states of no-change and change as pair
+    { bc2                     :: (Double, Double) -- PMDL bitCost for 2 states of no-change and change as pair
     , bc4                     :: (Double, Double) -- PMDL bitCost for 4 states of no-change and change as pair
     , bc5                     :: (Double, Double) -- PMDL bitCost for 5 states of no-change and change as pair
     , bc8                     :: (Double, Double) -- PMDL bitCost for 8 states of no-change and change as pair
     , bc64                    :: (Double, Double) -- PMDL bitCost for 64 states of no-change and change as pair
     , bcgt64                  :: (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
-    , fractionDynamic         :: Double -- estimated fraction of character length that are dynamic (actually seqeunce) for setting dynamicEpsilon
+    , compressResolutions     :: Bool -- "nub" resolutions in softwired graph
+    , defaultParStrat         :: ParallelStrategy -- default parallel strategy 
     , dynamicEpsilon          :: Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
+    , finalAssignment         :: AssignmentMethod
+    , fractionDynamic         :: Double -- estimated fraction of character length that are dynamic (actually seqeunce) for setting dynamicEpsilon
+    , graphComplexityList     :: IL.InfList (VertexCost, VertexCost) --complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
     , graphsSteepest          :: Int -- he maximum number of graphs that are evaluated
                                  -- at a step in "steepest" algorithms of swap and network add/delete. Set because can increase
-                                 -- run time of these procedurs by delaying finding "better" solutins to move to.
-    , softWiredMethod         :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
+                                 -- run time of these procedures by delaying finding "better" solutions to move to.
+                                 -- also increases memory footprint
+    , graphType               :: GraphType
+    , graphFactor             :: GraphFactor -- net penalty/graph complexity
+    , lazyParStrat            :: ParallelStrategy -- default parallel strategy to WHNF
+    , missingThreshold        :: Int -- default threshold of missing data to keep in data set 100 (keep all, 0 would be no missing data)
+    , modelComplexity         :: Double -- model cost for PMDL, 0.0 for other criteria
     , multiTraverseCharacters :: Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
+    , numDataLeaves           :: Int --number of leaves  set after data processing--for conveniance really
+    , optimalityCriterion     :: OptimalityCriterion
+    , outgroupIndex           :: Int -- Outgroup terminal index, default 0 (first input leaf)
+    , outGroupName            :: T.Text -- Outgroup name
+    , partitionCharacter      :: String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
     , reportNaiveData         :: Bool -- reports using Naive data so preserves character order and codings.  This comes at a cost in memory footprint.  If False,
                                    -- packed characters are reported--and are somewhat inscrutable. But perhaps 3% of data footprint--useful for large
                                    -- add/non add dat asets liker SNP genomic data
+    , rootComplexity          :: VertexCost -- complexity of root in bits per root for PMDL/ML calculations
+    , rootCost                :: RootCost
+    , searchData              :: [SearchData]
+    , seed                    :: Int -- random seed
+    , softWiredMethod         :: SoftWiredAlgorithm -- algorithm to optimize softwired graphs
+    , strictParStrat          :: ParallelStrategy -- default parallel strategy to Fully evaluate
     , unionThreshold          :: Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhps) character Wagner build
                                     -- as described by Varon and Wheeler (2013) and set to 1.17 experimentally
-    , defaultParStrat         :: ParallelStrategy -- default parallel strategy 
-    , lazyParStrat            :: ParallelStrategy -- default parallel strategy to WHNF
-    , strictParStrat          :: ParallelStrategy -- default parallel strategy to Fully evaluate
-    , useNetAddHeuristic      :: Bool --Netowrk addition heuristic--very coarse currently 
     , useIA                   :: Bool -- turn on/off IA everywhere can (mainly for internal testing)
+    , useNetAddHeuristic      :: Bool --Netowrk addition heuristic--very coarse currently 
     } deriving stock (Show, Eq)
 
 instance NFData GlobalSettings where rnf x = seq x ()
@@ -669,6 +671,7 @@ emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
                                      , strictParStrat = RDeepSeq -- high level--basically srtict evaluation
                                      , useNetAddHeuristic = True
                                      , useIA = True
+                                     , missingThreshold = 100
                                      }
 
 -- | emptyPhylogeneticGraph specifies and empty phylogenetic graph
