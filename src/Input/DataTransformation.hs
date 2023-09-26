@@ -50,37 +50,38 @@ module Input.DataTransformation
 
 import Bio.DynamicCharacter
 import Bio.DynamicCharacter.Element (SlimState, WideState)
-import           Data.Alphabet
-import           Data.Alphabet.Codec
-import           Data.Alphabet.IUPAC
-import           Data.Alphabet.Special
-import           Data.Bifunctor
-import           Data.Bimap                  (Bimap)
-import qualified Data.Bimap                  as BM
-import           Data.Foldable
-import qualified Data.List                   as L
-import           Data.List.NonEmpty          (NonEmpty(..))
-import qualified Data.List.NonEmpty          as NE
-import           Data.Maybe
-import           Data.String
-import qualified Data.Text.Lazy              as T
-import           Types.Types
+import Data.Alphabet
+import Data.Alphabet.Codec
+import Data.Alphabet.IUPAC
+import Data.Alphabet.Special
+import Data.Bifunctor
+import Data.Bimap (Bimap)
+import Data.Bimap qualified as BM
+import Data.Char qualified as C
+import Data.Foldable
+import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty qualified as NE
+import Data.Maybe
+import Data.String
+import Data.Text.Lazy qualified as T
+import Types.Types
 --import qualified Data.BitVector as BV
-import qualified Data.BitVector.LittleEndian as BV
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Vector qualified as V
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
 
-import           Data.Bits
+import Data.Bits
 -- import qualified Data.Hashable               as H
-import qualified Data.Text.Short             as ST
-import           Data.Word
-import           Debug.Trace
-import           Foreign.C.Types
-import           GeneralUtilities
-import           Numeric.Natural
-import           Text.Read
-import qualified Utilities.Utilities         as U
+import Data.Text.Short qualified as ST
+import Data.Word
+import Debug.Trace
+import Foreign.C.Types
+import GeneralUtilities
+import Numeric.Natural
+import Text.Read
+import Utilities.Utilities qualified as U
 
 -- import           Debug.Trace
 
@@ -664,7 +665,7 @@ getNucleotideSequenceChar :: Bool -> [ST.ShortText] -> [CharacterData]
 getNucleotideSequenceChar isPrealigned stateList =
     let sequenceVect
           | null stateList = mempty
-          | otherwise      = SV.fromList $ BV.toUnsignedNumber . getBVCode nucleotideBVPairs <$> stateList
+          | otherwise      = SV.fromList $ BV.toUnsignedNumber . getBVCode nucleotideBVPairs <$> (fmap ST.pack $ fmap (fmap C.toUpper) $ fmap ST.unpack stateList)
         newSequenceChar = if not isPrealigned then
                                  emptyCharacter { slimPrelim         = sequenceVect
                                                 , slimGapped         = (sequenceVect, sequenceVect, sequenceVect)
@@ -679,7 +680,7 @@ getAminoAcidSequenceChar :: Bool -> [ST.ShortText] -> [CharacterData]
 getAminoAcidSequenceChar isPrealigned stateList =
     let sequenceVect
           | null stateList = mempty
-          | otherwise      = UV.fromList $ BV.toUnsignedNumber . getBVCode aminoAcidBVPairs <$> stateList
+          | otherwise      = UV.fromList $ BV.toUnsignedNumber . getBVCode aminoAcidBVPairs <$> (fmap ST.pack $ fmap (fmap C.toUpper) $ fmap ST.unpack stateList)
         newSequenceChar = if not isPrealigned then
                                  emptyCharacter { widePrelim         = sequenceVect
                                                 , wideGapped         = (sequenceVect, sequenceVect, sequenceVect)
@@ -897,7 +898,7 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                 ambiguousStateString = ST.toString ambiguousStateST
                                 stateSTList = fmap ST.singleton ambiguousStateString
                                 stateBVList = fmap (getStateBitVector (alphabet firstCharInfo)) stateSTList
-                                showStuff = show (firstState, ambiguousStateST, ambiguousStateString, stateSTList, stateBVList)
+                                -- showStuff = show (firstState, ambiguousStateST, ambiguousStateString, stateSTList, stateBVList)
                             in
                             -- trace ("GQC: " <> (show ambiguousStateString) <> " " <> (show stateSTList) <> " " <> (show stateBVList))
                             -- traceNoLF ("GQC: " <> showStuff)

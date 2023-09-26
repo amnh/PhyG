@@ -55,19 +55,19 @@ import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.List.NonEmpty qualified as NE
 import Data.MetricRepresentation
-import qualified Data.MetricRepresentation as MR
-import           Data.TCM                  (TCMDiagnosis (..),
-                                            TCMStructure (..))
-import qualified Data.TCM                  as TCM
-import qualified Data.TCM.Dense            as TCMD
-import qualified Data.Text.Lazy            as T
-import qualified Data.Text.Short           as ST
-import qualified Data.Vector               as V
-import           Debug.Trace
-import           GeneralUtilities
-import qualified Input.DataTransformation  as DT
-import qualified SymMatrix                 as S
-import           Types.Types
+import Data.MetricRepresentation qualified as MR
+import Data.TCM (TCMDiagnosis (..),
+                 TCMStructure (..))
+import Data.TCM qualified as TCM
+import Data.TCM.Dense qualified as TCMD
+import Data.Text.Lazy qualified as T
+import Data.Text.Short qualified as ST
+import Data.Vector qualified as V
+import Debug.Trace
+import GeneralUtilities
+import Input.DataTransformation qualified as DT
+import SymMatrix qualified as S
+import Types.Types
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
@@ -142,7 +142,8 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             outData = if seqType `notElem` [NucSeq, AminoSeq] then inData
                       else fmap makeUpperCaseTermData inData
 
-        in  (commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet, outData)
+        in
+        (commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet, outData)
 
 -- | makeUpperCaseTermData
 makeUpperCaseTermData :: TermData -> TermData
@@ -476,7 +477,7 @@ genDiscreteDenseOfDimension
 genDiscreteDenseOfDimension d =
   let n = toEnum $ fromEnum d
       r = [0 .. n - 1]
-      m = [ [ if i==j then 0 else 1 | j <- r] | i <- r]
+      m = [ [ if i == j then 0 else 1 | j <- r] | i <- r]
   in  TCMD.generateDenseTransitionCostMatrix n n . S.getCost $ V.fromList <$> V.fromList m
 
 
