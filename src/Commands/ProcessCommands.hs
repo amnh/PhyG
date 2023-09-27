@@ -54,16 +54,16 @@ module Commands.ProcessCommands
     )
     where
 
-import qualified Commands.Verify      as V
-import           Data.Char
-import           Data.Foldable
-import qualified Data.List            as L
-import           Data.List.Split
-import           Data.Maybe
-import           GeneralUtilities
-import qualified Input.ReadInputFiles as RIF
-import           Types.Types
-import           Debug.Trace
+import Commands.Verify qualified as V
+import Data.Char
+import Data.Foldable
+import Data.List qualified as L
+import Data.List.Split
+import Data.Maybe
+import GeneralUtilities
+import Input.ReadInputFiles qualified as RIF
+import Types.Types
+import Debug.Trace
 
 -- | preprocessOptimalityCriteriaScripts takes a processed command list and
 -- processes for optimlity criteria that change tcms and such for
@@ -83,8 +83,8 @@ expandRunCommands curLines inLines =
             (firstLine, restLine) =  if null firstLineRead then ([],[])
                                      else splitCommandLine $ head firstLineRead
 
-            leftParens = length $ filter (=='(') firstLine
-            rightParens = length $ filter (==')') firstLine
+            leftParens = length $ filter ( == '(') firstLine
+            rightParens = length $ filter ( == ')') firstLine
         in
         --trace ("FL " <> firstLine) (
         -- only deal with run lines
@@ -107,8 +107,8 @@ splitCommandLine :: String -> (String, String)
 splitCommandLine inLine =
     if null inLine then ([],[])
     else
-        let leftParens = length $ filter (=='(') inLine
-            rightParens = length $ filter (==')') inLine
+        let leftParens = length $ filter ( == '(') inLine
+            rightParens = length $ filter ( == ')') inLine
             firstPart = takeWhile (/= '(') inLine
             parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
             firstCommand = firstPart <> parenPart
