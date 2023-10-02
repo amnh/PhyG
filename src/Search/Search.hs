@@ -101,14 +101,16 @@ search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int
 search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
    let (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) = getSearchParams inArgs
 
-       -- If therea re no inpout graphs--make some via distance
+       -- If there are no input graphs--make some via distance
        inGraphList = if (not .null) inGraphList' then inGraphList' 
                      else 
                         let njGraph = head $ B.buildGraph [("distance", ""), ("nj", "")] inGS inData pairwiseDistances rSeed
                             wpgmaGraph =  head $ B.buildGraph  [("distance", ""), ("wpgma", "")] inGS inData pairwiseDistances rSeed
                             dWagGraph =   head $ B.buildGraph [("distance", ""), ("dWag", "")] inGS inData pairwiseDistances rSeed
-                            rdwagGraphList = B.buildGraph [("distance", ""), ("replicates", show (keepNum * keepNum)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]  inGS inData pairwiseDistances rSeed
-                            buildGraphs = [njGraph, wpgmaGraph, dWagGraph] ++ rdwagGraphList
+                            rdwagGraphList = B.buildGraph [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]  inGS inData pairwiseDistances rSeed
+                            -- rdwag at 1000 seems always to beat the others
+                            -- buildGraphs = [njGraph, wpgmaGraph, dWagGraph] ++ rdwagGraphList
+                            buildGraphs = [dWagGraph] ++ rdwagGraphList
                         in
                         take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
 
