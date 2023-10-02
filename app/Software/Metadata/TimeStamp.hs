@@ -4,7 +4,7 @@ Compile-time embedding of the UTC time at which the program was built.
 
 {-# Language Safe #-}
 {-# Language TemplateHaskellQuotes #-}
-{-# Options_GHC -Wno-implicit-lift #-}
+{-# Options_GHC -fforce-recomp -Wno-implicit-lift #-}
 
 module Software.Metadata.TimeStamp
   ( compilationTimeStamp
