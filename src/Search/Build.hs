@@ -42,28 +42,29 @@ https://www.github.com/wardwheeler/wag2020
 module Search.Build  ( buildGraph
                      ) where
 
-import qualified Commands.Verify                as VER
-import           Data.Char
-import qualified Data.List                      as L
-import qualified Data.Text.Lazy                 as TL
-import qualified Data.Vector                    as V
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphOptimization.Traversals   as T
-import qualified Graphs.GraphOperations         as GO
-import qualified ParallelUtilities              as PU
-import qualified Reconciliation.ReconcileGraphs as R
-import qualified Search.DistanceMethods         as DM
-import qualified Search.DistanceWagner          as DW
-import qualified Search.WagnerBuild             as WB
-import qualified SymMatrix                      as M
-import           Text.Read
-import           Types.Types
-import qualified Utilities.DistanceUtilities    as DU
-import qualified Utilities.Distances            as DD
-import qualified Utilities.LocalGraph           as LG
-import qualified Utilities.Utilities            as U
-import           Data.Maybe
+import Control.Parallel.Strategies
+import Commands.Verify qualified as VER
+import Data.Char
+import Data.List qualified as L
+import Data.Maybe
+import Data.Text.Lazy qualified as TL
+import Data.Vector qualified as V
+import Debug.Trace
+import GeneralUtilities
+import GraphOptimization.Traversals qualified as T
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Reconciliation.ReconcileGraphs qualified as R
+import Search.DistanceMethods qualified as DM
+import Search.DistanceWagner qualified as DW
+import Search.WagnerBuild qualified as WB
+import SymMatrix qualified as M
+import Text.Read
+import Types.Types
+import Utilities.DistanceUtilities qualified as DU
+import Utilities.Distances qualified as DD
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
 
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
@@ -361,10 +362,10 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
        charInfoVV = V.map thd3 $ thd3 inData
    in
-   if not simpleTreeOnly then fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
+   if not simpleTreeOnly then fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
    else
       let numTrees = length randomizedAdditionWagnerSimpleGraphList
-          simpleRDWagList = fmap (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
+          simpleRDWagList = fmap (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
       in
       L.zip5 simpleRDWagList (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
 
