@@ -38,7 +38,7 @@ module Commands.CommandUtilities where
 
 import Data.Alphabet
 import Data.Alphabet.Special
-import Data.Bits
+--import Data.Bits
 import Data.Char qualified as C
 import Data.Foldable
 import Data.List qualified as L
@@ -1180,7 +1180,7 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
                               else sequenceString
 
             -- Make lines 50 chars long
-            sequenceChunks = ((<> "\n") <$> SL.chunksOf 50 sequenceString)
+            sequenceChunks = ((<> "\n") <$> SL.chunksOf 50 sequenceString')
 
         in
         if ((not includeMissing) && (isAllGaps sequenceString)) || (blockDatum == emptyCharacter) then 

@@ -76,7 +76,7 @@ import Data.Vector.Unboxed qualified as UV
 import Data.Bits
 -- import qualified Data.Hashable               as H
 import Data.Text.Short qualified as ST
-import Data.Word
+-- import Data.Word
 import Debug.Trace
 import Foreign.C.Types
 import GeneralUtilities

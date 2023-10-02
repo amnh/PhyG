@@ -48,21 +48,21 @@ module Search.Refinement  ( refineGraph
                           , geneticAlgorithmMaster
                           ) where
 
-import           Debug.Trace
-import           GeneralUtilities
-import qualified Graphs.GraphOperations      as GO
-import qualified ParallelUtilities           as PU
-import           Types.Types
+import Debug.Trace
+import GeneralUtilities
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities as PU
+import Types.Types
 -- import qualified Search.Swap as S
-import qualified Commands.Verify             as VER
-import           Data.Char
-import           Data.Maybe
-import qualified Search.Fuse                 as F
-import qualified Search.GeneticAlgorithm     as GA
-import qualified Search.NetworkAddDelete     as N
-import qualified Search.SwapMaster           as SM
-import           Text.Read
-import           Utilities.Utilities         as U
+import Commands.Verify qualified as VER
+import Data.Char
+import Data.Maybe
+import Search.Fuse qualified as F
+import Search.GeneticAlgorithm qualified as GA
+import Search.NetworkAddDelete qualified as N
+import Search.SwapMaster qualified as SM
+import Text.Read
+import Utilities.Utilities as U
 
 -- | swapMaster moved to Search.SwapMaster due to very long (>20') compile times
 -- with --enalble-profinling
