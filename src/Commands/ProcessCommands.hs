@@ -54,16 +54,16 @@ module Commands.ProcessCommands
     )
     where
 
-import qualified Commands.Verify      as V
-import           Data.Char
-import           Data.Foldable
-import qualified Data.List            as L
-import           Data.List.Split
-import           Data.Maybe
-import           GeneralUtilities
-import qualified Input.ReadInputFiles as RIF
-import           Types.Types
-import           Debug.Trace
+import Commands.Verify qualified as V
+import Data.Char
+import Data.Foldable
+import Data.List qualified as L
+import Data.List.Split
+import Data.Maybe
+import GeneralUtilities
+import Input.ReadInputFiles qualified as RIF
+import Types.Types
+import Debug.Trace
 
 -- | preprocessOptimalityCriteriaScripts takes a processed command list and
 -- processes for optimlity criteria that change tcms and such for

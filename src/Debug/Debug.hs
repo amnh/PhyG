@@ -38,9 +38,9 @@ Portability :  portable (I hope)
 
 module Debug.Debug where
 
-import           Types.Types
+import Types.Types
 -- import Data.List
-import qualified Data.Vector as V
+import Data.Vector qualified as V
 
 debugZip :: [a] -> [b] -> [(a,b)]
 debugZip la lb

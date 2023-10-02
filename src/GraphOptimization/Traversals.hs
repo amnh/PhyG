@@ -50,17 +50,17 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     ) where
 
 
-import qualified Data.List                                     as L
-import           Data.Maybe
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import qualified GraphOptimization.PreOrderFunctions           as PRE
-import qualified Graphs.GraphOperations                        as GO
-import qualified ParallelUtilities                             as PU
-import           Types.Types
-import qualified Utilities.LocalGraph                          as LG
-import           Utilities.Utilities                           as U
+import Data.List qualified as L
+import Data.Maybe
+import Debug.Trace
+import GeneralUtilities
+import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
+import GraphOptimization.PreOrderFunctions qualified as PRE
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities as U
 
 
 -- | multiTraverseFullyLabelGraphReduced wrapper to return ReducedPhylogeneticGraph

@@ -59,26 +59,26 @@ module Input.TNTUtilities   (getTNTData
                             , getTNTDataText
                             ) where
 
-import           Data.Alphabet
-import           Data.Char
-import qualified Data.Char                 as C
-import           Data.Foldable
-import qualified Data.List                 as L
+import Data.Alphabet
+import Data.Char
+import Data.Char qualified as C
+import Data.Foldable
+import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty(..))
-import           Data.Maybe
-import           Data.MetricRepresentation
-import qualified Data.Set                  as Set
-import qualified Data.TCM                  as TCM
-import qualified Data.Text.Lazy            as T
-import qualified Data.Text.Short           as ST
-import           Debug.Trace
+import Data.Maybe
+import Data.MetricRepresentation
+import Data.Set qualified as Set
+import Data.TCM qualified as TCM
+import Data.Text.Lazy qualified as T
+import Data.Text.Short qualified as ST
+import Debug.Trace
 --import qualified GeneralUtilities          as GU
-import qualified Data.Vector               as V
-import qualified Input.DataTransformation  as DT
-import qualified Input.FastAC              as FAC
-import qualified SymMatrix                 as SM
-import           Text.Read
-import           Types.Types
+import Data.Vector qualified as V
+import Input.DataTransformation qualified as DT
+import Input.FastAC qualified as FAC
+import SymMatrix qualified as SM
+import Text.Read
+import Types.Types
 
 
 -- getTNTData take file contents and returns raw data and char info form TNT file
