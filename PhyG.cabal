@@ -157,7 +157,7 @@ Common static-build-flags
   If os(darwin)
 --    cc-options:
 
-    GHC-Options:
+--    GHC-Options:
 --      -static
 
 --    ld-options:
@@ -192,7 +192,7 @@ Common static-build-flags
 --      -optl-static-libgcc
 
     -- Options for: Linker
-    LD-Options:
+--    LD-Options:
 --      -pie --tryng for dlopen stuff
 --      -pthread
 --      -static
