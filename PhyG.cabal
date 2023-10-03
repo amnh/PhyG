@@ -334,7 +334,8 @@ Executable phyg
     text-short,
     th-lift-instances,
     time,
-    vector >= 0.12.0.3 && < 0.13.0, 
+--    vector >= 0.12.0.3 && < 0.13.0, 
+    vector >= 0.12.0.3 && < 1.0, 
     -- currently doesn't compile but could be useful
     -- lots of good functions
     -- Graphalyze,
