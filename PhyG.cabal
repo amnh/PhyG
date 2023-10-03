@@ -334,7 +334,7 @@ Executable phyg
     text-short,
     th-lift-instances,
     time,
-    vector >= 0.13.0.0,
+    vector >= 0.12.0.3 && < 0.13.0, 
     -- currently doesn't compile but could be useful
     -- lots of good functions
     -- Graphalyze,
@@ -445,7 +445,7 @@ Library dynamic-character
     matrices                 >= 0.5       && < 1.0,
     monad-loops              >= 0.4       && < 1.0,
     primitive                >= 0.7.1     && < 1.0,
-    vector                   >= 0.12.0.3  && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13.0,
 
   Exposed-Modules:
 --    Bio.DynamicCharacter
@@ -496,7 +496,7 @@ Library tcm
     mono-traversable         >= 1.0       && < 2.0,
     semigroupoids            >= 5.3       && < 5.4,
     stm,
-    vector                   >= 0.12.0.3  && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13.0,
     vector-binary-instances  >= 0.2.5     && < 1.0,
 
   Exposed-Modules:
@@ -613,7 +613,7 @@ Library utility
     pointed                  >= 5.0       && < 6.0,
     QuickCheck               >= 2.14      && < 3.0,
     semigroupoids            >= 5.3       && < 5.4,
-    vector                   >= 0.12.0.3  && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13.0, 
     vector-binary-instances  >= 0.2       && < 1.0,
     vector-instances         >= 3.4       && < 3.5,
 
@@ -660,7 +660,7 @@ Test-Suite test-dynamic-character
     QuickCheck               >= 2.14      && < 3.0,
     tasty                    >= 1.4       && < 2.0,
     tasty-quickcheck         >= 0.10      && < 1.0,
-    vector                   >= 0.12.0.3  && < 1.0,
+    vector                   >= 0.12.0.3  && < 0.13.0, 
 
   Other-Modules:
     DirectOptimization.Pairwise.Test
