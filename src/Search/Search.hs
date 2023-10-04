@@ -707,7 +707,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                                           else if searchBandit == "fuse" then
                                             -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                                             let -- fuse arguments
-                                                inGSgs1 = inGS {graphsSteepest = 1}
+                                                -- this to limit memory footprint of fuse during search
+                                                gsNum = min (graphsSteepest inGS) 5
+                                                inGSgs1 = inGS {graphsSteepest = gsNum}
                                                 fuseArgs = [("none",""), ("all",""), ("unique",""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal","")]
                                             in
                                             -- perform search

@@ -116,9 +116,8 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
          -- ParMap created too large a memory footprint. Parallelism at lower levels
-         -- newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
-
-         newGraphList = fusePairRecursive swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal [] graphPairList
+         newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList) -- `using` PU.myParListChunkRDS)
+         --newGraphList = fusePairRecursive swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal [] graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd5 newGraphList
                     else infinity
