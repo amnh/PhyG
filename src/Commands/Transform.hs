@@ -54,7 +54,7 @@ import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
-import Data.Word
+--import Data.Word
 import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
