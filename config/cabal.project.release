@@ -66,7 +66,22 @@ Source-Repository-Package
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-dynamic-character-alignment
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-dynamic-character-element
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-class
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-transition
 
 Source-Repository-Package
   Type:     git
@@ -76,9 +91,34 @@ Source-Repository-Package
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-class
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-transition
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-units
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-transition-matrix
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-transition-matrix-ffi
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-PhyloLib
 
-  
+
 ---------------------------------------------------------------------------------
 -- Output paths
 --

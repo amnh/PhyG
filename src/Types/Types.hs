@@ -49,9 +49,7 @@ import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.InfList qualified as IL
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.MetricRepresentation as MR
-import Data.TCM qualified as TCM
-import Data.TCM.Dense qualified as TCMD
+import TransitionMatrix qualified as TM
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
@@ -59,6 +57,7 @@ import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
 import Data.Word (Word64)
 import GHC.Generics
+import Measure.Unit.SymbolCount (symbolCount)
 import SymMatrix qualified as S
 import Utilities.LocalGraph qualified as LG
 
@@ -289,9 +288,9 @@ data CharInfo = CharInfo { name       :: NameText
                          , activity   :: Bool
                          , weight     :: Double
                          , costMatrix :: S.Matrix Int
-                         , slimTCM    :: TCMD.DenseTransitionCostMatrix
-                         , wideTCM    :: MR.MetricRepresentation WideState
-                         , hugeTCM    :: MR.MetricRepresentation BV.BitVector
+                         , slimTCM    :: TM.TransitionMatrix SlimState
+                         , wideTCM    :: TM.TransitionMatrix WideState
+                         , hugeTCM    :: TM.TransitionMatrix BV.BitVector
                          , changeCost :: Double
                          , noChangeCost :: Double
                          , alphabet   :: Alphabet ST.ShortText
@@ -785,17 +784,20 @@ dummyEdge = EdgeInfo    { minLength = 0
 
 -- emptyCharInfo for convenience
 emptyCharInfo :: CharInfo
-emptyCharInfo = CharInfo { name       = "EmptyCharName"
+emptyCharInfo =
+    let minAlphabet = fromSymbols $ "0" :| [ "1" ]
+        numSymbols = symbolCount minAlphabet
+    in  CharInfo { name       = "EmptyCharName"
                          , charType   = NonAdd
                          , activity   = True
                          , weight     = 1.0
                          , costMatrix = S.empty
-                         , slimTCM    = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList [[0,1],[1,0]] -- genDiscreteDenseOfDimension 2
-                         , wideTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
-                         , hugeTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+                         , slimTCM    = TM.discreteMetric numSymbols
+                         , wideTCM    = TM.discreteMetric numSymbols
+                         , hugeTCM    = TM.discreteMetric numSymbols
                          , changeCost = 1.0
                          , noChangeCost = 0.0
-                         , alphabet   = fromSymbols $ "0" :| [ "1" ]
+                         , alphabet   = minAlphabet
                          , prealigned = False
                          , origInfo   = V.empty
                          }

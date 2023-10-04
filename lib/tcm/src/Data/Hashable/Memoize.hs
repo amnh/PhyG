@@ -225,7 +225,7 @@ giveHashTableAccess ref key val table = do
 
   
 {-# NOINLINE memoize_Lock #-}
-memoize_Lock :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_Lock :: forall a b. (Hashable a, NFData b) => (a -> b) -> (a -> b)
 memoize_Lock f = unsafePerformIO $ do
 
     let initialSize = 2 ^ (16 :: Word)

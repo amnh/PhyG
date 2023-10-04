@@ -50,23 +50,21 @@ import Control.DeepSeq
 import Data.Alphabet
 import Data.Bits
 import Data.Char qualified as C
+import Data.Foldable1 (Foldable1(toNonEmpty))
 import Data.Hashable
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.List.NonEmpty qualified as NE
-import Data.MetricRepresentation
-import Data.MetricRepresentation qualified as MR
-import Data.TCM (TCMDiagnosis (..),
-                 TCMStructure (..))
-import Data.TCM qualified as TCM
-import Data.TCM.Dense qualified as TCMD
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
 import Debug.Trace
 import GeneralUtilities
 import Input.DataTransformation qualified as DT
-import SymMatrix qualified as S
+import Measure.Unit.SymbolCount (SymbolCount(..), symbolCount)
+-- import Prelude hiding (head, init, last, tail)
+--import SymMatrix qualified as S
+import TransitionMatrix qualified as TM
 import Types.Types
 
 
@@ -84,6 +82,7 @@ getAlphabet curList inList =
         in  getAlphabet (firstChars `L.union` curList) (tail inList)
 
 
+{-
 -- | generateDefaultMatrix takes an alphabet and generates cost matrix (assuming '-'
 --   in already)
 generateDefaultMatrix :: Alphabet ST.ShortText -> Int -> Int -> Int -> [[Int]]
@@ -96,6 +95,8 @@ generateDefaultMatrix inAlph rowCount indelCost substitutionCost
                                 else []
                 in
                 (firstPart <> [0] <> thirdPart) : generateDefaultMatrix inAlph (rowCount + 1) indelCost substitutionCost
+-}
+
 
 -- | getFastaCharInfo get alphabet , names etc from processed fasta data
 -- this doesn't separate ambiguities from elements--processed later
@@ -153,12 +154,13 @@ makeUpperCaseTermData (taxName, dataList) =
     (taxName, fmap ST.pack newData)
 
 
-
 -- | commonFastCharInfo breaks out common functions between fasta and fastc parsing
-commonFastCharInfo :: String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharType -> Alphabet ST.ShortText-> CharInfo
-commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
+commonFastCharInfo :: String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharType -> Alphabet ST.ShortText -> CharInfo
+commonFastCharInfo dataName isPrealigned localTCM@(_localSymbols, _localValues, localWeight) seqType thisAlphabet =
 
-        let
+        let numSymbols = symbolCount thisAlphabet
+
+{-
             localCostMatrix :: S.Matrix Int
             localCostMatrix = if null $ fst3 localTCM then
                                 let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
@@ -166,25 +168,24 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
                                 in
                                 S.fromLists $ generateDefaultMatrix thisAlphabet 0 indelCost substitutionCost
                               else S.fromLists $ snd3 localTCM
+-}
+            tcmWeightFactor = localWeight * fromRational coefficient
 
-            tcmWeightFactor = thd3 localTCM
 
-
-            (additionalWeight, localDenseCostMatrix, localWideTCM, localHugeTCM) =
-                let dimension = fromIntegral $ V.length localCostMatrix
-
+            (coefficient, localSlimTCM, localWideTCM, localHugeTCM) =
+                let
                     -- this 2x2 so if some Show instances are called don't get error
-                    slimMetricNil = genDiscreteDenseOfDimension dimension
-                    wideMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
-                    hugeMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
+                    slimMetricNil = slimTCM emptyCharInfo
+                    wideMetricNil = wideTCM emptyCharInfo
+                    hugeMetricNil = hugeTCM emptyCharInfo
 
-                    slimMetric = TCMD.generateDenseTransitionCostMatrix 0 dimension $ MR.retreiveSCM wideMetric
-                    (wideWeight, wideMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
-                    (hugeWeight, hugeMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
+                    (slimCoefficient, slimMetric) = buildTransitionMatrix numSymbols localTCM
+                    (wideCoefficient, wideMetric) = buildTransitionMatrix numSymbols localTCM
+                    (hugeCoefficient, hugeMetric) = buildTransitionMatrix numSymbols localTCM
 
-                    resultSlim = (         1, slimMetric,    wideMetricNil, hugeMetricNil)
-                    resultWide = (wideWeight, slimMetricNil, wideMetric,    hugeMetricNil)
-                    resultHuge = (hugeWeight, slimMetricNil, wideMetricNil, hugeMetric)
+                    resultSlim = (slimCoefficient, slimMetric,    wideMetricNil, hugeMetricNil)
+                    resultWide = (wideCoefficient, slimMetricNil, wideMetric,    hugeMetricNil)
+                    resultHuge = (hugeCoefficient, slimMetricNil, wideMetricNil, hugeMetric)
 
                 in  case seqType of
                       NucSeq   -> resultSlim
@@ -204,9 +205,9 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
             defaultSeqCharInfo = emptyCharInfo
                                     { charType = alignedSeqType
                                     , activity = True
-                                    , weight = tcmWeightFactor * fromRational additionalWeight
-                                    , costMatrix = localCostMatrix
-                                    , slimTCM    = localDenseCostMatrix
+                                    , weight = tcmWeightFactor
+--                                    , costMatrix = localCostMatrix
+                                    , slimTCM    = localSlimTCM
                                     , wideTCM    = localWideTCM
                                     , hugeTCM    = localHugeTCM
                                     , name = T.pack (filter (/= ' ') dataName <> "#0")
@@ -224,6 +225,7 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
             trace ("Processing TCM data for file : "  <> dataName)
             defaultSeqCharInfo
 
+{-
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
 getTCMMemo
   :: ( FiniteBits b
@@ -233,13 +235,13 @@ getTCMMemo
   => (a, S.Matrix Int)
   -> (Rational, MR.MetricRepresentation b)
 getTCMMemo (_inAlphabet, inMatrix) =
-    let (coefficient, tcm) = fmap transformGapLastToGapFirst . TCM.fromRows $ S.getFullVects inMatrix
-        metric = case tcmStructure $ TCM.diagnoseTcm tcm of
-                   NonAdditive -> discreteMetric
-                   Additive    -> linearNorm . toEnum $ TCM.size tcm
+    let (coefficient, tcm) = fmap transformGapLastToGapFirst . TM.fromRows $ S.getFullVects inMatrix
+        metric = case tcmStructure $ TM.diagnoseTcm tcm of
+                   NonAdditive -> TM.discreteMetric
+                   Additive    -> linearNorm . toEnum $ TM.size tcm
                    _           -> metricRepresentation tcm
     in (coefficient, metric)
-
+-}
 
 -- | getSequenceAphabet take a list of ShortText with information and accumulatiors
 -- For both nonadditive and additve looks for [] to denote ambiguity and splits states
@@ -473,21 +475,58 @@ getRawDataPairsFastC isPreligned inTextList =
 genDiscreteDenseOfDimension
   :: Enum i
   => i
-  -> TCMD.DenseTransitionCostMatrix
-genDiscreteDenseOfDimension d =
-  let n = toEnum $ fromEnum d
-      r = [0 .. n - 1]
-      m = [ [ if i == j then 0 else 1 | j <- r] | i <- r]
-  in  TCMD.generateDenseTransitionCostMatrix n n . S.getCost $ V.fromList <$> V.fromList m
+  -> TM.TransitionMatrix a
+genDiscreteDenseOfDimension = TM.discreteMetric . SymbolCount . toEnum . abs . fromEnum
 
 
-transformGapLastToGapFirst :: TCM.TCM -> TCM.TCM
+swapFirstRowAndColumn :: (Foldable1 f, Foldable1 t) => f (t e) -> NonEmpty (NonEmpty e)
+swapFirstRowAndColumn =
+    let initLast' :: NonEmpty a -> ([a], a)
+        initLast' (x :| xs) = case xs of
+            [] -> ([], x)
+            y:ys ->
+                let (xs', z) = initLast' $ y :| ys
+                in  (x:xs', z)
+
+        rotRow :: Foldable1 f => f e -> NonEmpty e
+        rotRow input =
+            let nel@(r :| rs) = toNonEmpty input
+            in  case rs of
+                    [] -> nel
+                    _ ->
+                        let (rI, rL) = initLast' $ r :| rs
+                        in  rL :| rI
+    in  fmap rotRow . rotRow
+
+
+{-
+transformGapLastToGapFirst :: TM.TCM -> TM.TCM
 transformGapLastToGapFirst tcm =
-  let n = TCM.size tcm
-  in  TCM.generate n $ \case
-        (0,0) -> tcm TCM.! (n - 1, n - 1)
-        (0,j) -> tcm TCM.! (n - 1, j - 1)
-        (i,0) -> tcm TCM.! (i - 1, n - 1)
-        (i,j) -> tcm TCM.! (i - 1, j - 1)
+  let n = TM.size tcm
+  in  TM.generate n $ \case
+        (0,0) -> tcm TM.! (n - 1, n - 1)
+        (0,j) -> tcm TM.! (n - 1, j - 1)
+        (i,0) -> tcm TM.! (i - 1, n - 1)
+        (i,j) -> tcm TM.! (i - 1, j - 1)
+-}
 
+
+buildTransitionMatrix :: (FiniteBits e, Hashable e, NFData e) => SymbolCount -> ([ST.ShortText], [[Int]], Double) -> (Rational, TM.TransitionMatrix e)
+buildTransitionMatrix numSymbols (localSymbols, localValues, _) = case localSymbols of
+    [] -> case localValues of
+        [] -> (1, TM.discreteMetric numSymbols)
+        r:_ -> case r of
+            [] -> (1, TM.discreteMetric numSymbols)
+            v:vs ->
+                let gapCost = toEnum v
+                    subCost = toEnum . NE.head $ v :| vs
+                in  (1, TM.discreteCrossGap numSymbols subCost gapCost)
+
+    _ -> case localValues of
+        [] -> (1, TM.discreteMetric numSymbols)
+        r:rs ->
+            let fullValues = fmap NE.fromList $ r :| rs
+            in  case TM.fromRows $ swapFirstRowAndColumn fullValues of
+                    Left msg -> error $ show msg
+                    Right val -> (TM.factoredCoefficient val, TM.transitionMatrix val)
 

@@ -45,28 +45,30 @@ module Input.ReadInputFiles
  , expandReadCommands
 ) where
 
-import qualified Commands.Verify            as V
-import           Data.Char
-import qualified Data.Char                  as C
-import           Data.Foldable
-import qualified Data.Graph.Inductive.Basic as B
-import qualified Data.List                  as L
-import           Data.Maybe
-import qualified Data.Text.Lazy             as T
-import qualified Data.Text.Lazy.IO          as TIO
-import qualified Data.Text.Short            as ST
-import           Debug.Trace
-import qualified GeneralUtilities           as GU
-import qualified GraphFormatUtilities       as GFU
-import qualified Input.FastAC               as FAC
-import qualified Input.TNTUtilities         as TNT
-import           System.IO
-import qualified System.Path.Glob           as SPG
-import           Text.Read
-import           Types.Types
-import qualified Utilities.LocalGraph       as LG
-import qualified Utilities.Utilities        as U
-
+import Commands.Verify qualified as V
+import Data.Char
+import Data.Char qualified as C
+import Data.Foldable
+import Data.Foldable1
+import Data.Graph.Inductive.Basic qualified as B
+import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty qualified as NE
+import Data.Maybe
+import Data.Text.Lazy qualified as T
+import Data.Text.Lazy.IO qualified as TIO
+import Data.Text.Short qualified as ST
+import Debug.Trace
+import GeneralUtilities qualified as GU
+import GraphFormatUtilities qualified as GFU
+import Input.FastAC qualified as FAC
+import Input.TNTUtilities qualified as TNT
+import System.IO
+import System.Path.Glob qualified as SPG
+import Text.Read
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
 
 
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
@@ -461,3 +463,24 @@ integerizeString maxDecimalPlaces inString =
         if inString == "0" then inString
         else if null decimalPart then inString <> replicate maxDecimalPlaces '0'
         else filter (/= '.') inString <> replicate (maxDecimalPlaces - (length decimalPart - 1)) '0'
+
+
+{-
+swapFirstRowAndColumn :: (Foldable1 f, Foldable1 t) => f (t e) -> NonEmpty (NonEmpty e)
+swapFirstRowAndColumn rowMajor =
+    let initLast' :: [a] -> ([a], a)
+        initLast' [x] = ([], x)
+        initLast' (x:xs) =
+            let (xs', y) = initLast' xs
+            in  (x:xs', y)
+
+        rotRow :: Foldable1 f => f e -> NonEmpty (NonEmpty e)
+        rotRow input =
+            let nel@(r :| rs) = toNonEmpty input
+            in  case rs of
+                    [] -> nel
+                    _ -> 
+                        let (rI, rL) = initLast' $ r : rs
+                        in  rL :| rI
+    in  rotRow $ rotRow <$> rowMajor
+-}
