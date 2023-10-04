@@ -90,19 +90,26 @@ import System.IO.Unsafe
 --
 -- >>> fibM 10000
 --
+#if   USING_CONC == 1
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
-memoize =
-#if   USING_CONC == 1
-    memoize_Conc
+memoize = memoize_Conc
 #elif USING_IO   == 1
-    memoize_IO
+{-# NOINLINE memoize #-}
+memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize = memoize_IO
 #elif USING_LOCK == 1
-    memoize_Lock
+{-# NOINLINE memoize #-}
+memoize :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
+memoize = memoize_Lock
 #elif USING_TVAR == 1
-    memoize_TVar
+{-# NOINLINE memoize #-}
+memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize = memoize_TVar
 #else
-    error "No memoization option specified"
+{-# NOINLINE memoize #-}
+memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize = error "No memoization option specified"
 #endif
 
 
@@ -218,7 +225,7 @@ giveHashTableAccess ref key val table = do
 
   
 {-# NOINLINE memoize_Lock #-}
-memoize_Lock :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_Lock :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
 memoize_Lock f = unsafePerformIO $ do
 
     let initialSize = 2 ^ (16 :: Word)
@@ -303,7 +310,7 @@ memoEntries = unsafePerformIO $ newIORef 0
 -- A memoizing combinator similar to 'memoize' except that it that acts on a
 -- function of two inputs rather than one.
 {-# NOINLINE memoize2 #-}
-memoize2 :: (Eq a, Eq b, Hashable a, Hashable b, NFData c) => (a -> b -> c) -> a -> b -> c
+memoize2 :: (Hashable a, Hashable b, NFData c) => (a -> b -> c) -> a -> b -> c
 memoize2 f = let f' = memoize (uncurry f)
              in curry f'
 
@@ -313,10 +320,7 @@ memoize2 f = let f' = memoize (uncurry f)
 -- function of two inputs rather than one.
 {-# NOINLINE memoize3 #-}
 memoize3
-  :: ( Eq a
-     , Eq b
-     , Eq c
-     , Hashable a
+  :: ( Hashable a
      , Hashable b
      , Hashable c
      , NFData d
@@ -329,7 +333,10 @@ memoize3
 memoize3 f = let f' = memoize (uncurry3 f)
              in curry3 f'
   where
-    curry3   g  x y z  = g (x,y,z)
+    curry3 :: ((a, b, c) -> d) -> a -> b -> c -> d
+    curry3 g x y z = g (x,y,z)
+
+    uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
     uncurry3 g (x,y,z) = g x y z
 
 

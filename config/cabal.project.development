@@ -43,14 +43,19 @@ Allow-Newer:
     semigroupoids,
     template-haskell,
     text,
-    th-abstraction
+    th-abstraction,
+    vector
 
+Constraints:
+    aeson == 2.1.2.1,
+    text == 2.0.2,
+    
 Preferences:
-    aeson >= 2.1.0.0,
+--    aeson >= 2.2.0.0,
     bytestring >= 0.12.0.0,
     filepath >= 1.4.100.0,
     mtl >= 2.3.1,
-    text >= 2.0.1,
+--    text >= 2.1,
     unordered-containers >= 0.2.18.0,
 
 Source-Repository-Package
