@@ -37,26 +37,26 @@ Portability :  portable (I hope)
 module Support.Support  ( supportGraph
                         ) where
 
-import qualified Commands.Verify                as VER
-import           Data.Char
-import qualified Data.List                      as L
-import           Data.Maybe
-import qualified Data.Vector                    as V
-import qualified Data.Vector.Generic            as GV
-import qualified Data.Vector.Unboxed            as UV
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphOptimization.Traversals   as T
-import qualified Graphs.GraphOperations         as GO
-import qualified ParallelUtilities              as PU
-import qualified Reconciliation.ReconcileGraphs as REC
-import qualified Search.Build                   as B
-import qualified Search.NetworkAddDelete        as N
-import qualified Search.Refinement              as R
-import           Text.Read
-import           Types.Types
-import qualified Utilities.Distances            as DD
-import qualified Utilities.LocalGraph           as LG
+import Commands.Verify qualified as VER
+import Data.Char
+import Data.List qualified as L
+import Data.Maybe
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
+import Data.Vector.Unboxed qualified as UV
+import Debug.Trace
+import GeneralUtilities
+import GraphOptimization.Traversals qualified as T
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Reconciliation.ReconcileGraphs qualified as REC
+import Search.Build qualified as B
+import Search.NetworkAddDelete qualified as N
+import Search.Refinement qualified as R
+import Text.Read
+import Types.Types
+import Utilities.Distances qualified as DD
+import Utilities.LocalGraph qualified as LG
 
 -- "High level" paralleization used for overall graphs contruction
 

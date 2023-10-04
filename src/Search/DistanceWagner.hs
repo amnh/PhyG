@@ -257,7 +257,8 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep re
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
         if (length replicateSequences > 10000) then doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
-        else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
+          -- else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
+          else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
 
   else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
 
