@@ -104,8 +104,8 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
        -- If there are no input graphs--make some via distance
        inGraphList = if (not .null) inGraphList' then inGraphList' 
                      else 
-                        let njGraph = head $ B.buildGraph [("distance", ""), ("nj", "")] inGS inData pairwiseDistances rSeed
-                            wpgmaGraph =  head $ B.buildGraph  [("distance", ""), ("wpgma", "")] inGS inData pairwiseDistances rSeed
+                        let -- njGraph = head $ B.buildGraph [("distance", ""), ("nj", "")] inGS inData pairwiseDistances rSeed
+                            -- wpgmaGraph =  head $ B.buildGraph  [("distance", ""), ("wpgma", "")] inGS inData pairwiseDistances rSeed
                             dWagGraph =   head $ B.buildGraph [("distance", ""), ("dWag", "")] inGS inData pairwiseDistances rSeed
                             rdwagGraphList = B.buildGraph [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]  inGS inData pairwiseDistances rSeed
                             -- rdwag at 1000 seems always to beat the others
@@ -150,8 +150,12 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
                trace (iterationHitString) 
                (selectedGraphList, commentList <> [[iterationHitString]])
     )
-    where getMinGraphListCost a = if (not $ null a) then minimum $ fmap snd5 a
-                                  else infinity
+    where
+        getMinGraphListCost :: (Foldable t, Functor t) => t (a, Double, c, d, e) -> Double
+        getMinGraphListCost a
+            | not $ null a = minimum $ fmap snd5 a
+            | otherwise = infinity
+
 
 -- unneeded
 -- instance NFData  (IO (Maybe ([ReducedPhylogeneticGraph], [String]))) where rnf x = seq x ()
