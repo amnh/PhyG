@@ -42,7 +42,7 @@ https://www.github.com/wardwheeler/wag2020
 module Search.Build  ( buildGraph
                      ) where
 
-import Control.Parallel.Strategies
+-- import Control.Parallel.Strategies
 import Commands.Verify qualified as VER
 import Data.Char
 import Data.List qualified as L
@@ -188,6 +188,8 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst5 blockTrees
           -- fullLeafGraphList = fmap (E.makeProcessedGraph fullLeafSet) simpleGraphList
+          
+          reconcileArgList :: forall {a}. [(String, [a])]
           reconcileArgList = if doEUN then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
                              else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
 

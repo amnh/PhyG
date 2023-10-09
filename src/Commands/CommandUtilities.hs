@@ -1,4 +1,4 @@
-{- |
+{- 
 Module      :  CommandUtilities.hs
 Description :  Module helper fiunctions for command rpocessing
 Copyright   :  (c) 2021-2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
@@ -38,7 +38,7 @@ module Commands.CommandUtilities where
 
 import Data.Alphabet
 import Data.Alphabet.Special
---import Data.Bits
+import Data.Bits
 import Data.Char qualified as C
 import Data.Foldable
 import Data.List qualified as L
@@ -116,7 +116,8 @@ processSearchInstance inString =
         in
         if null iterationList then ([], [])
         else (instanceStringList, searchBanditList)
-        where concat4 a b c d = a <> b <> c <> d
+        where concat4 :: forall {a}. Semigroup a => a -> a -> a -> a -> a
+              concat4 a b c d = a <> b <> c <> d
 
 -- | addColumn takea list of strings and adds a list of empty strings after third string in each
 addColumn :: Int -> [String] -> [String]
@@ -450,7 +451,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
         in
         -- trace ("GGD: " <> (show $ snd6 staticGraph))
         [vertexTitle, topHeaderList, [show graphIndex]] <> vertexInfoList <> edgeTitle <> edgeHeaderList <> edgeInfoList <> vertexChangeTitle <> differenceList
-        where concat4 a b c d = a <> b <> c <> d
+        where concat4 :: forall {a}. Semigroup a => a -> a -> a -> a -> a
+              concat4 a b c d = a <> b <> c <> d
 
 -- | getAlignmentBasedChanges' takes two equal length implied Alignments and outputs list of element changes between the two
 -- assumes single String in each list
@@ -591,6 +593,10 @@ makeCharLine useIA (blockDatum, charInfo) =
         -- this to avoid recalculations and list access issues
         lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
         lAVect = V.fromList $ NE.toList $ lANES
+        
+        getCharState :: forall {b}.
+                        (Show b, Bits b) =>
+                        b -> String
         getCharState a = U.bitVectToCharState localAlphabet lANES lAVect a
 
 
@@ -715,6 +721,8 @@ getTNTString inGS inData inGraph graphNumber =
 
                 pruneEdges = False
                 warnPruneEdges = False
+                
+                startVertex :: forall {a}. Maybe a
                 startVertex = Nothing
 
                 newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
@@ -931,7 +939,8 @@ makeMatrixString inAlphabet inMatrix =
 
     in
     costString
-    where notDiag (a,b) = a < b
+    where notDiag :: forall {a}. Ord a => (a, a) -> Bool
+          notDiag (a,b) = a < b
 
 -- | makeCostString takes list of state pairs and list of costs and creates tnt cost string
 makeCostString :: [(String, String)] -> [Int] -> String
@@ -964,11 +973,15 @@ getCharacterString inCharData inCharInfo =
     let inCharType = charType inCharInfo
         localAlphabet = if inCharType /= NonAdd then ST.toString <$> alphabet inCharInfo
                         else fmap ST.toString discreteAlphabet
-        alphSize =  S.rows $ costMatrix inCharInfo
+        -- alphSize =  S.rows $ costMatrix inCharInfo
         
         -- this to avoid recalculations and list access issues
         lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
         lAVect = V.fromList $ NE.toList $ lANES  
+        
+        getCharState :: forall {b}.
+                        (Show b, Bits b) =>
+                        b -> String
         getCharState a = U.bitVectToCharState localAlphabet lANES lAVect a
 
     in
@@ -990,8 +1003,8 @@ getCharacterString inCharData inCharInfo =
     else fmap replaceDashWithQuest charString
     where replaceDashWithQuest s = if s == '-' then '?'
                                        else s
-          nothingToNothing a = if a == '\8220' then '\00'
-                               else a
+          -- nothingToNothing a = if a == '\8220' then '\00'
+          --                     else a
 {-
 -- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
 bitVectToCharStringTNT ::  (Show b, FiniteBits b, Bits b) =>  Alphabet String -> b -> String
@@ -1048,6 +1061,8 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph g
 
                 pruneEdges = False
                 warnPruneEdges = False
+                
+                startVertex :: forall {a}. Maybe a
                 startVertex = Nothing
 
                 newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph)
@@ -1160,6 +1175,10 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
             localAlphabet = (ST.toString <$> alphabet inCharInfo)
             lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
             lAVect = V.fromList $ NE.toList $ lANES  
+            
+            getCharState :: forall {b}.
+                        (Show b, Bits b) =>
+                        b -> String
             getCharState a = U.bitVectToCharState localAlphabet lANES lAVect a
 
             sequenceString = case inCharType of
