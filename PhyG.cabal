@@ -163,7 +163,8 @@ Common static-build-flags
 --    GHC-Options:
 --      -static
 
---    ld-options:
+    Ld-Options:
+      -Wl,-no_fixup_chains
 --        -pie --tryng for dlopen stuff
 
   -- Linux static compilation options
