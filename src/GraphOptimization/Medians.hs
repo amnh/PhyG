@@ -895,6 +895,41 @@ createEdgeUnionOverBlocks useIA filterGaps leftBlockData rightBlockData blockCha
 -- uses IA-type functions for slim/wide/huge
 getPreAligned2Median :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 getPreAligned2Median charInfo nodeChar leftChar rightChar =
+    let setCost cVal r = r
+            { localCost = weight charInfo * fromIntegral cVal
+            , globalCost = sum [ weight charInfo * fromIntegral cVal, globalCost leftChar, globalCost rightChar]
+            }
+
+        setSlimPrelim v r = r { alignedSlimPrelim = v }
+        setWidePrelim v r = r { alignedWidePrelim = v }
+        setHugePrelim v r = r { alignedHugePrelim = v }
+
+        getCharL f = extractMediansGapped $ f leftChar
+        getCharR f = extractMediansGapped $ f rightChar
+
+        (setter, cost) = case charType charInfo of
+            AlignedSlim ->
+                let cL = getCharL alignedSlimPrelim
+                    cR = getCharR alignedSlimPrelim
+                    (cM, score) = get2WaySlim (slimTCM charInfo) cL cR
+                in  (setSlimPrelim (cL, cM, cR), score)
+
+            AlignedWide ->
+                let cL = getCharL alignedWidePrelim
+                    cR = getCharR alignedWidePrelim
+                    (cM, score) = get2WayWideHuge (wideTCM charInfo) cL cR
+                in  (setWidePrelim (cL, cM, cR), score)
+
+            AlignedHuge ->
+                let cL = getCharL alignedHugePrelim
+                    cR = getCharR alignedHugePrelim
+                    (cM, score) = get2WayWideHuge (hugeTCM charInfo) cL cR
+                in  (setHugePrelim (cL, cM, cR), score)
+
+            other -> error $ "Unrecognized character type: " <> show other
+
+    in  setter $ setCost cost nodeChar
+{-
     let characterType = charType charInfo
     in
     if characterType == AlignedSlim then
@@ -923,6 +958,8 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
                  }
 
     else error ("Unrecognized character type " <> show characterType)
+-}
+
 
 -- | getPreAligned2MedianUnionFields takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
 -- uses IA-type functions for slim/wide/huge-- based on union fields
