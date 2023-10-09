@@ -763,10 +763,11 @@ createDisplayTreeTNT inGS inData inGraph =
 
         numTaxa = V.length $ fst3 inData
         ccCodeInfo = getCharacterInfo charInfoVV
-        blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (V.toList $ fth6 inGraph) `using` PU.myParListChunkRDS
+        -- blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (V.toList $ fth6 inGraph) `using` PU.myParListChunkRDS
+        blockDisplayList = PU.seqParMap PU.myStrategyHighLevel  (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (V.toList $ fth6 inGraph)
 
         -- create separate processed data for each block
-        blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
+        blockProcessedDataList = PU.seqParMap PU.myStrategyHighLevel (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
 
         -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
         decoratedBlockTreeList = zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) blockDisplayList `using` PU.myParListChunkRDS
@@ -1091,7 +1092,7 @@ makeFullIAStrings ::  Bool -> V.Vector (V.Vector CharInfo) -> [NameText] -> V.Ve
 makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList =
     let numBlocks = V.length charInfoVV
     in
-    concat (fmap (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) [0.. numBlocks - 1] `using` PU.myParListChunkRDS)
+    concat (PU.seqParMap PU.myStrategyHighLevel (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) [0.. numBlocks - 1])
 
 -- | makeBlockIAStrings extracts data for a block (via index) and calls function to make iaStrings for each character
 makeBlockIAStrings :: Bool -> [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> [String]

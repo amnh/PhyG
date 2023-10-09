@@ -74,18 +74,18 @@ supportGraph inArgs inGS inData rSeed inGraphList =
      if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'support': " <> show inArgs)
      else
          let supportMeasure
-               | any ((=="bootstrap").fst) lcArgList = Bootstrap
-               | any ((=="jackknife").fst) lcArgList = Jackknife
-               | any ((=="goodmanbremer").fst) lcArgList = GoodmanBremer
+               | any (( == "bootstrap").fst) lcArgList = Bootstrap
+               | any (( == "jackknife").fst) lcArgList = Jackknife
+               | any (( == "goodmanbremer").fst) lcArgList = GoodmanBremer
                | otherwise = GoodmanBremer
 
-             useSPR = any ((=="spr").fst) lcArgList 
-             useTBR = any ((=="spr").fst) lcArgList 
+             useSPR = any (( == "spr").fst) lcArgList 
+             useTBR = any (( == "spr").fst) lcArgList 
 
 
-             onlyBuild = any ((=="buildonly").fst) lcArgList
+             onlyBuild = any (( == "buildonly").fst) lcArgList
 
-             jackList   = filter ((=="jackknife").fst) lcArgList
+             jackList   = filter (( == "jackknife").fst) lcArgList
              jackFreq'
               | length jackList > 1 =
                 errorWithoutStackTrace ("Multiple jackknife sampling frequency specifications in support command--can have only one (e.g. jackknife:0.62): " <> show inArgs)
@@ -93,7 +93,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
               | null (snd $ head jackList) = Just 0.6321
               | otherwise = readMaybe (snd $ head jackList) :: Maybe Double
 
-             replicateList   = filter ((=="replicates").fst) lcArgList
+             replicateList   = filter (( == "replicates").fst) lcArgList
              replicates'
               | length replicateList > 1 =
                 errorWithoutStackTrace ("Multiple resampling replicate specifications in support command--can have only one (e.g. replicates:100): " <> show inArgs)
@@ -136,7 +136,7 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                                else goodBremSample
 
                 -- sample trees uniformly at random--or "nth"
-                gbRandomSample = if isJust gbSampleSize then True -- any ((=="atrandom").fst) lcArgList
+                gbRandomSample = if isJust gbSampleSize then True -- any (( == "atrandom").fst) lcArgList
                                  else False
 
                 replicates = if fromJust replicates' < 0 then
@@ -298,7 +298,8 @@ makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharD
       -- cons the vectors for chrater data and character info
       (resampleStaticChars <> resampleDynamicChars, staticCharsInfoV <> resmapleDynamicCharInfo)
       -- )
-      where randIndex a b  = snd $  divMod (abs b) a
+      where randIndex :: forall {b}. Integral b => b -> b -> b
+            randIndex a b  = snd $  divMod (abs b) a
 
 
 -- | subSampleStatic takes a random int list and a static charcter
@@ -338,7 +339,8 @@ subSampleStatic randIntList inCharData inCharInfo =
 
    else error ("Incorrect character type in subSampleStatic: " <> show inCharType)
    -- )
-   where randIndex a b  = snd $  divMod (abs b) a
+   where randIndex :: forall {b}. Integral b => b -> b -> b
+         randIndex a b  = snd $  divMod (abs b) a
 
 -- | makeSampledCharCharInfoVect takes a vector of Int and a vector of charData and a vector of charinfo
 -- if teh data type is not static--the character is returns if Bool is True not otherwise
@@ -435,7 +437,10 @@ resampleBlockJackknife sampleFreq rSeed inData@(nameText, charDataVV, charInfoV)
       else resampleBlockJackknife sampleFreq (head randomIntegerList1) inData
       -- )
 
-   where randAccept b a = let (_, randVal) = divMod (abs a) 1000
+   where randAccept :: forall {p} {a}.
+                      (RealFrac p, Integral a) =>
+                      p -> a -> Bool
+         randAccept b a = let (_, randVal) = divMod (abs a) 1000
                               critVal = floor (1000 * b)
                            in
                            -- trace ("RA : " <> (show (b,a, randVal, critVal, randVal < critVal)))
@@ -477,7 +482,10 @@ getGoodBremGraphs inGS inData rSeed swapType sampleSize sampleAtRandom inGraph =
       -- trace ("GGBG: " <> (show $ length tupleList) <> " -> " <> (show $ length supportEdgeTupleList))
       (simpleGBGraph, snd5 inGraph, thd5 inGraph, fth5 inGraph, fft5 inGraph)
 
-      where tupleToSimpleEdge d (a,b, _, _, c) = (a, b, c - d)
+      where tupleToSimpleEdge :: forall {c1} {a} {b} {c2} {d}.
+                             Num c1 =>
+                             c1 -> (a, b, c2, d, c1) -> (a, b, c1)
+            tupleToSimpleEdge d (a,b, _, _, c) = (a, b, c - d)
 
 -- | getGraphTupleList takes a graph and cost (maybe initialized to infinity) returns tuple list
 getGraphTupleList :: ReducedPhylogeneticGraph -> [(Int, Int, NameBV, NameBV, VertexCost)]
@@ -498,7 +506,8 @@ getGraphTupleList inGraph =
           tupleList = makeGraphEdgeTuples nodeIndexBVPairVect infinity egdeList
       in
       tupleList
-      where makeindexBVPair (a,b) = (a, bvLabel b)
+      where makeindexBVPair :: forall {a}. (a, VertexInfo) -> (a, NameBV)
+            makeindexBVPair (a,b) = (a, bvLabel b)
 
 -- | getGBTuples takes a tuple list from graph containing initialized values and update those values based
 -- on each graph in the inGraph neigborhood
@@ -567,7 +576,10 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
           randomOrder = False
           keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
           rSeed = 0
+          
+          saParams :: forall {a}. Maybe a
           saParams = Nothing
+          
           moveCost = minimum (snd5 <$> N.deleteOneNetAddAll inGS inData (maxBound :: Int) keepNum steepest randomOrder inGraph [(inE, inV)] rSeed saParams)
       in
       (inE, inV, inEBV, inVBV, min inCost moveCost)
@@ -705,7 +717,10 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
          let newGraph = LG.joinGraphOnEdge splitGraph edgeToInvade eBreak
              pruneEdges = False
              warnPruneEdges = False
+             
+             startVertex :: forall {a}. Maybe a
              startVertex = Nothing
+             
              newPhylogeneticGraph
                | (graphType inGS == Tree) || LG.isTree newGraph = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
                | (not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
@@ -745,7 +760,9 @@ makeGraphEdgeTuples :: V.Vector (Int, NameBV) -> VertexCost -> [(Int, Int)] -> [
 makeGraphEdgeTuples nodeBVVect graphCost edgeList =
    -- trace ("MET: " <> (show $ V.length nodeBVVect))
    fmap (make5Tuple nodeBVVect graphCost) edgeList
-   where make5Tuple nv c (a, b) = (a, b, snd (nv V.! a), snd (nv V.! b), c)
+   where make5Tuple :: forall {a} {d} {e}.
+                      V.Vector (a, d) -> e -> (Int, Int) -> (Int, Int, d, d, e)
+         make5Tuple nv c (a, b) = (a, b, snd (nv V.! a), snd (nv V.! b), c)
 
 -- | getLowerGBEdgeCost take a list of edge tuples of (uIndex,vINdex,uBV, vBV, graph cost) from the graph
 -- whose supports are being calculated and a new graph and updates the edge cost (GB value) if that edge

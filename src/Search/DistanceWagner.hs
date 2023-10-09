@@ -258,7 +258,8 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep re
       else
         if (length replicateSequences > 10000) then doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
           -- else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
-          else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
+        --else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
+        else take numToKeep $ L.sortOn thd4 (PU.seqParMap rdeepseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
 
   else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
 
@@ -275,7 +276,7 @@ doWagnerRASProgressive leafNames distMatrix outgroup numToKeep curBestTreeList r
         numToDo = max 1000 (jobFactor * threadNumber)
         replist = take numToDo replicateSequences
         --rasTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS
-        rasTrees = PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replist 
+        rasTrees = PU.seqParMap rpar (getRandomAdditionSequence leafNames distMatrix outgroup) replist 
         newBestList = take numToKeep $ L.sortOn thd4 (rasTrees ++ curBestTreeList)
     in
     --take numToKeep $ L.sortOn thd4 $ PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
