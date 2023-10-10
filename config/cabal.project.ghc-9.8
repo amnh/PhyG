@@ -1,0 +1,186 @@
+---------------------------------------------------------------------------------
+-- Build metadata flags
+--
+-- Sensible alterations from the defaults to improve the build experience during
+-- iterative development. Simultaneously, does not hinder release builds.
+---------------------------------------------------------------------------------
+
+Executable-Static:        False
+Haddock-HTML:             True
+Haddock-Tests:            True
+Haddock-benchmarks:       True
+Haddock-Internal:         True
+Haddock-Hyperlink-Source: True
+Jobs:                     $ncpus
+--keep-going:               True
+Minimize-Conflict-Set:    True
+
+
+---------------------------------------------------------------------------------
+-- Dependency specifications
+--
+-- Always allow a newer version of libraries which are tightly coupled to the GHC
+-- compiler version. This allows the project to build with newer versions of the
+-- compiler without having to tediously tinker with dependencies, both direct and
+-- transitive.
+--
+-- Always allow a newer version of libraries which have had a major release due
+-- to a security or performance patch. Add a `preference` indicating the desire
+-- to use a version greater than or equal to the patch.
+---------------------------------------------------------------------------------
+
+Allow-Newer:
+    aeson,
+    base,
+    base-compat,
+    binary,
+    bytestring,
+    Cabal,
+    containers,
+    deepseq,
+    ghc,
+    ghc-bignum,
+    ghc-prim,
+    hashable,
+    integer-gmp,
+    lens,
+    mtl,
+    pretty,
+    primative,
+    semigroupoids,
+    template-haskell,
+    text,
+    text-builder-linear,
+    th-abstraction,
+    time
+
+Constraints:
+    base installed,
+    ghc installed,
+    ghc-bignum installed,
+    ghc-prim installed,
+    integer-gmp installed,
+    template-haskell installed
+
+Constraints:
+    optparse-applicative -process,
+    tasty -unix
+
+Preferences:
+    aeson >= 2.1.0.0,
+    bytestring >= 0.12.0.0,
+    filepath >= 1.4.100.0,
+    mtl >= 2.3.1,
+    text >= 2.0.1,
+    unordered-containers >= 0.2.18.0,
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-alphabet
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-dynamic-character-element
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-units
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-PhyloLib
+
+---------------------------------------------------------------------------------
+-- Output paths
+--
+-- Place build output(s) in more accessible locations. Binaries should go in `bin`
+-- and log files of the build/benchmarks/tests should go in `log`.
+---------------------------------------------------------------------------------
+
+Builddir:         ./doc
+Symlink-bindir:   ./bin
+Installdir:       ./bin
+Logs-Dir:         ./log
+Install-method:   copy
+Overwrite-Policy: always
+-- Datadir:          ./data
+-- Docdir:           ./doc
+-- HTMLdir:          ./doc/html
+
+
+---------------------------------------------------------------------------------
+-- Package flags (useful defaults)
+--
+-- Instruct all transative dependencies to be built *with both* optimization and
+-- profiling enabled. This reduces rebuilds when debugging while not sacraficing
+-- undue execution speed from imported code.
+--
+-- Contrastingly, *disable both* optimization and profiling when building the
+-- current package's codebase. This improves the frequent recompilation speed
+-- during iterative development.
+--
+-- Finally, enable all warnings and then prune out the undesirable ones. Having
+-- the large litany of warnings enabled forces pre-emptive compatibility with
+-- future breaking changes as well as improving overall code quality.
+---------------------------------------------------------------------------------
+
+Packages: .
+
+-- Applies to *all* packages, not just dependencies...
+Package *
+    Benchmarks:        False
+    Documentation:     True
+    Tests:             False
+    Library-Profiling: False
+    Library-Profiling-detail: all-functions
+    Optimization: 2
+
+-- Applies to *only* the specified package!
+Package PhyG
+    Benchmarks:           True
+    Documentation:        True
+    Tests:                True
+    Executable-Profiling: True
+    Library-Profiling:    True
+    Library-Profiling-detail: all-functions
+    Profiling-Detail:         all-functions
+
+
+---------------------------------------------------------------------------------
+-- GHC-9.8.* comptibility
+--
+-- Updated Hackage references for GHC maintainer patched dependency packages
+--
+-- Also manual source references for other patched dependency packages
+---------------------------------------------------------------------------------
+
+With-Compiler:
+    ghc-9.8.1
+
+Active-Repositories:
+    hackage.haskell.org,
+    head.hackage.ghc.haskell.org:override
+
+Repository head.hackage.ghc.haskell.org
+    url: https://ghc.gitlab.haskell.org/head.hackage/
+    secure: True
+    key-threshold: 3
+    root-keys:
+        f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89
+        26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329
+        7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d
+
+
+--Source-Repository-Package
+--  Type:     git
+--  Location: https://github.com/recursion-ninja/linear-builder
+
+--Source-Repository-Package
+--  Type:     git
+--  Location: https://github.com/andreasabel/microlens/
+--  Subdir:   microlens-th
+--  Tag:      70a9990

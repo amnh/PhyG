@@ -42,7 +42,7 @@ https://www.github.com/wardwheeler/wag2020
 module Search.Build  ( buildGraph
                      ) where
 
-import Control.Parallel.Strategies
+-- import Control.Parallel.Strategies
 import Commands.Verify qualified as VER
 import Data.Char
 import Data.List qualified as L
@@ -188,6 +188,8 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
           -- fullLeafSet = zip [0..(numLeaves - 1)] (V.toList $ fst3 inData)
           simpleGraphList = fmap fst5 blockTrees
           -- fullLeafGraphList = fmap (E.makeProcessedGraph fullLeafSet) simpleGraphList
+          
+          reconcileArgList :: forall {a}. [(String, [a])]
           reconcileArgList = if doEUN then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
                              else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
 
@@ -362,10 +364,13 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
        charInfoVV = V.map thd3 $ thd3 inData
    in
-   if not simpleTreeOnly then fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
+   if not simpleTreeOnly then 
+        -- fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
+        PU.seqParMap PU.myStrategyHighLevel ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList 
    else
       let numTrees = length randomizedAdditionWagnerSimpleGraphList
-          simpleRDWagList = fmap (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
+          -- simpleRDWagList = fmap (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
+          simpleRDWagList = PU.seqParMap PU.myStrategyHighLevel (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList
       in
       L.zip5 simpleRDWagList (replicate numTrees 0.0) (replicate numTrees LG.empty) (replicate numTrees V.empty) (replicate numTrees charInfoVV)
 
