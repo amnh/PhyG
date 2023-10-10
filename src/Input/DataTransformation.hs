@@ -58,6 +58,7 @@ import Data.Alphabet.Special
 import Data.Bifunctor
 import Data.Bimap (Bimap)
 import Data.Bimap qualified as BM
+import Data.Bits
 import Data.Char qualified as C
 import Data.Foldable
 import Data.List qualified as L
@@ -73,7 +74,6 @@ import Data.Vector qualified as V
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
 
-import Data.Bits
 -- import qualified Data.Hashable               as H
 import Data.Text.Short qualified as ST
 -- import Data.Word

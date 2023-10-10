@@ -1275,10 +1275,7 @@ get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
        -- len   = GV.length descendantLeftPrelim
        len   = min (GV.length descendantLeftPrelim) (GV.length descendantRightPrelim)
        vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (SlimState, Word)
-       
-       gen :: forall {v :: * -> *} {a} {b}.
-               GV.Vector v a =>
-               V.Vector (a, b) -> v a
+       gen :: forall {v :: * -> *} {a} {b}. GV.Vector v a => V.Vector (a, b) -> v a
        gen v = let med i = fst $ v V.! i in GV.generate len med
        
        add   = V.foldl' (\x e -> x + snd e) 0

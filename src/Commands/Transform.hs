@@ -584,6 +584,11 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
                                 else
                                   let missingElement = SV.replicate charLength missingState -- if simple all ON then segfault do to lookup outside of cost matrix
+{-
+             impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ slimAlignment inCharData) then slimAlignment inCharData
+                                else
+                                  let missingElement = SV.replicate charLength $ B.complement (0 :: SlimState) -- TRANS.setMissingBits (0 :: SlimState) 0 alphSize
+-}
                                   in
                                   (missingElement, missingElement, missingElement)
 
@@ -609,7 +614,13 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
              missingState = L.foldl' (setBit) (0 :: WideState)  [0.. alphSize - 1]
              impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
                                 else
-                                  let missingElement = UV.replicate charLength missingState -- if simple all ON then segfault do to lookup outside of cost matrix 
+                                  let missingElement = UV.replicate charLength missingState -- if simple all ON then segfault do to lookup outside of cost matrix
+
+{-
+             impliedAlignChar = if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ wideAlignment inCharData)  then wideAlignment inCharData
+                                else
+                                  let missingElement = UV.replicate charLength $ B.complement (0 :: WideState) -- TRANS.setMissingBits (0 :: WideState) 0 alphSize
+-}
                                   in (missingElement, missingElement, missingElement)
 
              newPrelimBV = R.convert2BV 64 impliedAlignChar
