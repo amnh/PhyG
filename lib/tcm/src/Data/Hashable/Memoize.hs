@@ -16,6 +16,7 @@
 {-# Language BangPatterns #-}
 {-# Language CPP #-}
 {-# Language LambdaCase #-}
+{-# LANGUAGE RoleAnnotations #-}
 {-# Language ScopedTypeVariables #-}
 {-# Language StrictData #-}
 
@@ -193,6 +194,9 @@ permitting truly concurrent reads and writes in all but an infintesimal number o
 data HashTableAccess k v = Access {-# UNPACK #-} Bool {-# UNPACK #-} (BasicHashTable k v)
 
 
+type role HashTableAccess representational representational
+
+
 lockAccess :: HashTableAccess k v -> HashTableAccess k v
 lockAccess (Access _ table) = Access False table
 
@@ -223,7 +227,7 @@ giveHashTableAccess ref key val table = do
     insert table key val
     atomically . writeTVar ref $ Access True table
 
-  
+
 {-# NOINLINE memoize_Lock #-}
 memoize_Lock :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
 memoize_Lock f = unsafePerformIO $ do
@@ -330,15 +334,16 @@ memoize3
   -> b
   -> c
   -> d
-memoize3 f = let f' = memoize (uncurry3 f)
-             in curry3 f'
-  where
-    curry3 :: ((a, b, c) -> d) -> a -> b -> c -> d
-    curry3 g x y z = g (x,y,z)
+memoize3 f =
+    let curry3 :: ((a, b, c) -> t) -> a -> b -> c -> t
+        curry3 g x y z = g (x,y,z)
 
-    uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-    uncurry3 g (x,y,z) = g x y z
+        uncurry3 :: (t1 -> t2 -> t3 -> t4) -> (t1, t2, t3) -> t4
+        uncurry3 g (x,y,z) = g x y z
 
+        f' = memoize (uncurry3 f)
+
+    in  curry3 f'
 
 
 {-
