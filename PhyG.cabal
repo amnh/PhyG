@@ -4,9 +4,10 @@ Version:       0.1.3
 Stability:     Alpha
 Build-Type:    Simple
 Tested-With:
-  GHC == 9.2.7
-  GHC == 9.4.5
-  GHC == 9.6.2
+  GHC == 9.2.8
+  GHC == 9.4.7
+  GHC == 9.6.3
+  GHC == 9.8.1
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     © 2015 Ward Wheeler and The American Museum of Natural History
@@ -78,8 +79,11 @@ Flag Use-LLVM
 -- Global deviations from Haskell98
 Common ffi-build-info
 
+--  CC-Options:
+--    -rdynamic --std=c11
+
   CC-Options:
-    -rdynamic --std=c11
+    --std=c11
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
@@ -157,10 +161,11 @@ Common static-build-flags
   If os(darwin)
 --    cc-options:
 
-    GHC-Options:
+--    GHC-Options:
 --      -static
 
---    ld-options:
+    Ld-Options:
+      -Wl,-no_fixup_chains
 --        -pie --tryng for dlopen stuff
 
   -- Linux static compilation options
@@ -192,7 +197,7 @@ Common static-build-flags
 --      -optl-static-libgcc
 
     -- Options for: Linker
-    LD-Options:
+--    LD-Options:
 --      -pie --tryng for dlopen stuff
 --      -pthread
 --      -static
@@ -329,12 +334,12 @@ Executable phyg
 --    sort,
     split,
     template-haskell,
-    text >= 2.0,
-    text-builder-linear,
+    text >= 2.0.1 && < 2.0.2,
+    text-builder-linear >= 0.1.1.1,
     text-short,
     th-lift-instances,
     time,
-    vector >= 0.13.0.0,
+    vector >= 0.13 && < 1.0,
     -- currently doesn't compile but could be useful
     -- lots of good functions
     -- Graphalyze,
@@ -353,16 +358,16 @@ Executable phyg
     Paths_PhyG
 
   Other-Modules:
-    CommandLineOptions
-    CommandLineOptions.Display
-    CommandLineOptions.Types
-    Commands.CommandExecution
-    Commands.CommandUtilities
-    Commands.ProcessCommands
-    Commands.Transform
-    Commands.Verify
-    Debug.Debug
-    GraphOptimization.Medians
+                CommandLineOptions
+                CommandLineOptions.Display
+                CommandLineOptions.Types
+                Commands.CommandExecution
+                Commands.CommandUtilities
+                Commands.ProcessCommands
+                Commands.Transform
+                Commands.Verify
+                Debug.Debug
+                GraphOptimization.Medians
     -- GraphOptimization.PostOrderFunctions
     GraphOptimization.PostOrderSoftWiredFunctions
     GraphOptimization.PostOrderSoftWiredFunctionsNew

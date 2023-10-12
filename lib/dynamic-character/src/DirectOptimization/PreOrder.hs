@@ -1,68 +1,102 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Strict #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -foptimal-applicative-do #-}
 
-module DirectOptimization.PreOrder
-  ( preOrderLogic
-  ) where
+{- HLINT ignore "Redundant pure" -}
+
+module DirectOptimization.PreOrder (
+    preOrderLogic,
+) where
 
 import Bio.DynamicCharacter
 import Control.Monad
+import Control.Monad.ST
 import Data.Bits
 import Data.STRef
 import Data.Vector.Generic (Vector)
 
 
--- |
--- Faithful translation of Algorithm 8 (Non-root Node Alignment) from the
--- "Efficient Implied Alignment" paper found at:
--- <https://doi.org/10.1186/s12859-020-03595-2 10.1186/s12859-020-03595-2 DOI>
+{- |
+Faithful translation of Algorithm 8 (Non-root Node Alignment) from the
+"Efficient Implied Alignment" paper found at:
+<https://doi.org/10.1186/s12859-020-03595-2 10.1186/s12859-020-03595-2 DOI>
+-}
 {-# INLINEABLE preOrderLogic #-}
-{-# SPECIALISE preOrderLogic :: Bool -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter -> SlimDynamicCharacter #-}
-{-# SPECIALISE preOrderLogic :: Bool -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter -> WideDynamicCharacter #-}
-{-# SPECIALISE preOrderLogic :: Bool -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter -> HugeDynamicCharacter #-}
+{-# SPECIALIZE preOrderLogic ∷
+    Bool → SlimDynamicCharacter → SlimDynamicCharacter → SlimDynamicCharacter → SlimDynamicCharacter
+    #-}
+{-# SPECIALIZE preOrderLogic ∷
+    Bool → WideDynamicCharacter → WideDynamicCharacter → WideDynamicCharacter → WideDynamicCharacter
+    #-}
+{-# SPECIALIZE preOrderLogic ∷
+    Bool → HugeDynamicCharacter → HugeDynamicCharacter → HugeDynamicCharacter → HugeDynamicCharacter
+    #-}
 preOrderLogic
-  :: ( FiniteBits a
-     , Vector v a
-     )
-  => Bool
-  -> (v a, v a, v a) -- ^ Parent Final       Alignment
-  -> (v a, v a, v a) -- ^ Parent Preliminary Context
-  -> (v a, v a, v a) -- ^ Child  Preliminary Context
-  -> (v a, v a, v a) -- ^ Child  Final       Alignment
-preOrderLogic isLeftChild pAlignment pContext cContext = forceDynamicCharacter $ unsafeCharacterBuiltByST caLen f
-  where
-    ccLen   = fromEnum $ characterLength cContext
-    caLen   = characterLength pAlignment
-    indices = [ 0 .. fromEnum caLen - 1 ]
+    ∷ ∀ a v
+     . ( FiniteBits a
+       , Vector v a
+       )
+    ⇒ Bool
+    → OpenDynamicCharacter v a
+    -- ^ Parent Final       Alignment
+    → OpenDynamicCharacter v a
+    -- ^ Parent Preliminary Context
+    → OpenDynamicCharacter v a
+    -- ^ Child  Preliminary Context
+    → OpenDynamicCharacter v a
+    -- ^ Child  Final       Alignment
+preOrderLogic isLeftChild pAlignment pContext cContext =
+    let pAlignment' = forceDynamicCharacter pAlignment
+        pContext'   = forceDynamicCharacter pContext
+        cContext'   = forceDynamicCharacter cContext
 
-    f char = pokeTempChar char *> fillTempChar char
+        caLen = characterLength pAlignment'
+        ccLen = fromEnum $ characterLength cContext'
+        range = [0 .. fromEnum caLen - 1]
 
-    -- We set an arbitrary element from the parent alignemnt context to the first element of the temporary character.
-    -- This ensures that at least one element can be querried for the determining "nil" and "gap" values.
-    pokeTempChar char = setFrom pAlignment char 0 0
+        -- Constructor definition supplied to 'unsafeCharacterBuiltByST'.
+        builder ∷ ∀ s. TempOpenDynamicCharacter (ST s) v a → ST s ()
+        builder char = pokeTempChar char *> fillTempChar char
 
-    -- Select character building function
-    fillTempChar
-      | isMissing cContext = missingλ   -- Missing case is all gaps
-      | otherwise          = alignmentλ -- Standard pre-order logic
+        -- We set an arbitrary element from the parent alignment context
+        -- to the first element of the temporary character. This ensures
+        -- that at least one element can be querried for the determining
+        -- "nil" and "gap" values.
+        pokeTempChar ∷ ∀ s. TempOpenDynamicCharacter (ST s) v a → ST s ()
+        pokeTempChar char = setFrom pAlignment' char 0 0
 
-    missingλ char = 
-      forM_ indices (char `setGapped`)
+        -- Select character building function
+        fillTempChar ∷ ∀ s. TempOpenDynamicCharacter (ST s) v a → ST s ()
+        fillTempChar
+            | isMissing cContext' = missingλ -- Missing case is all gaps
+            | otherwise = alignmentλ -- Standard pre-order logic
 
-    alignmentλ char =  do
-        j'  <- newSTRef 0
-        k'  <- newSTRef 0
+        -- Construct a missing character value of appropriate length.
+        missingλ ∷ ∀ s. TempOpenDynamicCharacter (ST s) v a → ST s ()
+        missingλ char =
+            forM_ range (char `setGapped`)
 
-        forM_ indices $ \i -> do
-            k <- readSTRef k'
-            if   k > ccLen || pAlignment `isGapped` i
-            then char `setGapped` i
-            else do
-                j <- readSTRef j'
-                modifySTRef j' succ
-                -- Remember that 'Delete' leaves 'voids' in the 'left' character.
-                if    pAlignment `isAlign` i
-                  || (not isLeftChild && pAlignment `isDelete` i && pContext `isDelete` j)
-                  || (    isLeftChild && pAlignment `isInsert` i && pContext `isInsert` j)
-                then modifySTRef k' succ *> setFrom cContext char k i
-                else char `setGapped` i
+        -- Construct alignment derived from parent pre-order and self post-order.
+        alignmentλ ∷ ∀ s. TempOpenDynamicCharacter (ST s) v a → ST s ()
+        alignmentλ char = do
+            j' ← newSTRef 0
+            k' ← newSTRef 0
+            forM_ range $ \i → do
+                k ← readSTRef k'
+                if k > ccLen || pAlignment' `isGapped` i
+                    then char `setGapped` i
+                    else do
+                        j ← readSTRef j'
+                        modifySTRef j' succ
+                        -- Remember that 'Delete' leaves 'voids' in the 'left' character.
+                        if pAlignment' `isAlign` i
+                            || (not isLeftChild && pAlignment' `isDelete` i && pContext' `isDelete` j)
+                            || (isLeftChild && pAlignment' `isInsert` i && pContext' `isInsert` j)
+                            then modifySTRef k' succ *> setFrom cContext' char k i
+                            else char `setGapped` i
+                pure () -- For ApplicativeDo
+            pure () -- For ApplicativeDo
+    in  forceDynamicCharacter $ unsafeCharacterBuiltByST caLen builder

@@ -70,7 +70,12 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
     else
         -- trace ("In PreOrder\n" <> "Simple:\n" <> (LG.prettify inSimple) <> "Decorated:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) <> "\n" <> (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
-        let preOrderBlockVect = V.fromList (PU.seqParMap (parStrategy $ lazyParStrat inGS) (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList blockCharacterDecoratedVV)))  -- `using` PU.myParListChunkRDS)
+        let preOrderBlockVect =
+              ( PU.seqParMap
+                  (parStrategy $ lazyParStrat inGS)
+                  (doBlockTraversal' inGS finalMethod staticIA rootIndex)
+                  (V.zip inCharInfoVV blockCharacterDecoratedVV)
+              )  -- `using` PU.myParListChunkRDS)
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
@@ -87,17 +92,25 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
 
                                             -- update leaf IA fields with contracted IAs
                                             maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
-                                            blockCharDecNewLeafIA = V.fromList $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (updateLeafIABlock' maxLeafIndex) (zip3 (V.toList preOrderBlockVect)contractedBlockVect (V.toList inCharInfoVV))
+                                            blockCharDecNewLeafIA = PU.seqParMap
+                                                (parStrategy $ lazyParStrat inGS)
+                                                (updateLeafIABlock' maxLeafIndex)
+                                                $ V.zip3
+                                                    preOrderBlockVect
+                                                    (V.fromList contractedBlockVect)
+                                                    inCharInfoVV
 
                                         in
                                         -- holder for now
                                         blockCharDecNewLeafIA
 
 
-            preOrderBlockVect' = if hasNonExact && (graphType inGS /= HardWired ) then
-                                        V.fromList $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeIAUnionAssignments' finalMethod rootIndex) (zip (V.toList softwiredUpdatedLeafIA) (V.toList inCharInfoVV))
-
-                                 else preOrderBlockVect
+            preOrderBlockVect' =
+              if hasNonExact && (graphType inGS /= HardWired )
+              then PU.seqParMap (parStrategy $ lazyParStrat inGS)
+                        (makeIAUnionAssignments' finalMethod rootIndex)
+                        $ V.zip softwiredUpdatedLeafIA inCharInfoVV
+              else preOrderBlockVect
 
             fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
         in
@@ -896,8 +909,11 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         (minCost, maxCost)
 
     else error ("Character type not recognized/unimplemented : " <> show thisCharType)
-    where hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b)
-          equalAndSingleState a b = (a == b) && (popCount a == 1)
+    where
+      hasBVIntersection a b = (not . BV.isZeroVector) (a .&. b)
+
+      equalAndSingleState :: Bits a => a -> a -> Bool
+      equalAndSingleState a b = (a == b) && (popCount a == 1)
 
 
 -- | zero2Gap converts a '0' or no bits set to gap (indel) value
@@ -1026,13 +1042,13 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
         childChar {matrixStatesFinal = setMinCostStatesMatrix (fromEnum symbolCount) (matrixStatesPrelim childChar)}
 
       else if localCharType == AlignedSlim then
-        childChar {alignedSlimFinal = snd3 $ alignedSlimPrelim childChar}
+        childChar {alignedSlimFinal = extractMedians $ alignedSlimPrelim childChar}
 
       else if localCharType == AlignedWide then
-        childChar {alignedWideFinal = snd3 $ alignedWidePrelim childChar}
+        childChar {alignedWideFinal = extractMedians $ alignedWidePrelim childChar}
 
       else if localCharType == AlignedHuge then
-        childChar {alignedHugeFinal = snd3 $ alignedHugePrelim childChar}
+        childChar {alignedHugeFinal = extractMedians $ alignedHugePrelim childChar}
 
       -- need to set both final and alignment for sequence characters
       else if (localCharType == SlimSeq) || (localCharType == NucSeq) then
@@ -1206,9 +1222,9 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         childGapped = (slimGapped childChar, mempty, mempty)
                                         finalAssignmentDONonGapped = fst3 $ getDOFinal charInfo parentFinal childGapped
                                     in
-                                    snd3 finalAssignmentDONonGapped
+                                    extractMedians finalAssignmentDONonGapped
                                     -- really could/should be mempty since overwritten by IA later
-                                 else removeGapAndNil $ snd3 finalGapped
+                                 else removeGapAndNil $ extractMedians finalGapped
          in
          --trace ("TNFinal-Tree:" <> (show (SV.length $ fst3  (slimAlignment parentChar), SV.length $ fst3 finalGapped,isLeft, (slimAlignment parentChar), (slimGapped parentChar) ,(slimGapped childChar))) <> "->" <> (show finalGapped)) (
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
@@ -1228,8 +1244,8 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         childGapped = (mempty, wideGapped childChar, mempty)
                                         finalAssignmentDONonGapped = snd3 $ getDOFinal charInfo parentFinal childGapped
                                     in
-                                    snd3 finalAssignmentDONonGapped
-                                 else removeGapAndNil $ snd3 finalGapped
+                                    extractMedians finalAssignmentDONonGapped
+                                 else removeGapAndNil $ extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { wideFinal = finalAssignmentDO
@@ -1249,7 +1265,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
                                         finalAssignmentDONonGapped = thd3 $ getDOFinal charInfo parentFinal childGapped
                                     in
                                      snd3 finalAssignmentDONonGapped
-                                 else removeGapAndNil $ snd3 finalGapped
+                                 else removeGapAndNil $ extractMedians finalGapped
          in
          if staticIA then M.makeIAFinalCharacter finalMethod charInfo childChar parentChar
          else childChar { hugeFinal = finalAssignmentDO
@@ -1352,6 +1368,7 @@ setFinal inGS finalMethod staticIA childType isLeft charInfo isIn1Out1 isIn2Out1
 doPreOrderWithParentCheck :: (FiniteBits e, GV.Vector v e) => Bool -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e) -> (v e, v e, v e)
 doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
     if not $ GV.null $ extractMediansGapped alignmentParent then
+--    if True then
             DOP.preOrderLogic isLeft alignmentParent gappedParent gappedChild
     else gappedChild
 
@@ -1580,8 +1597,10 @@ nonMinCostStatesToMaxCost stateIndexList tripleVect =
    -- trace ((show stateIndexList) <> " " <> (show $ V.zip tripleVect stateIndexList))
    result
       where
-         modifyStateCost d (a,b,c) e = if a == d then (e,b,c)
-                                       else (maxBound :: StateCost ,b,c)
+        modifyStateCost :: Eq a => a -> (a, b, c) -> StateCost -> (StateCost, b, c)
+        modifyStateCost d (a,b,c) e
+          | a == d = (e,b,c)
+          | otherwise = (maxBound :: StateCost, b, c)
 
 -- | setFinalToPreliminaryStates takes VertexBlockData and sets the final values to Preliminary
 setFinalToPreliminaryStates :: VertexBlockData -> VertexBlockData

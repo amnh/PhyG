@@ -39,22 +39,22 @@ Portability :  portable (I hope)
 module Search.Fuse  ( fuseAllGraphs
                     ) where
 
-import qualified Data.BitVector.LittleEndian                   as BV
-import           Data.Bits
-import qualified Data.InfList                                  as IL
-import qualified Data.List                                     as L
-import qualified Data.Map                                      as MAP
-import           Data.Maybe
-import qualified Data.Text.Lazy                                as TL
-import qualified Data.Vector                                   as V
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphOptimization.PostOrderSoftWiredFunctions as POSW
-import qualified Graphs.GraphOperations                        as GO
-import qualified ParallelUtilities                             as PU
-import qualified Search.Swap                                   as S
-import           Types.Types
-import qualified Utilities.LocalGraph                          as LG
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.InfList qualified as IL
+import Data.List qualified as L
+import Data.Map qualified as MAP
+import Data.Maybe
+import Data.Text.Lazy qualified as TL
+import Data.Vector qualified as V
+import Debug.Trace
+import GeneralUtilities
+import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Search.Swap qualified as S
+import Types.Types
+import Utilities.LocalGraph qualified as LG
 
 -- In general, needs simolification and refactoring
 
@@ -116,9 +116,8 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
          -- ParMap created too large a memory footprint. Parallelism at lower levels
-         -- newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair inGS inData numLeaves charInfoVV inGraphNetPenaltyFactor keepNum maxMoveEdgeDist swapType) graphPairList) -- `using` PU.myParListChunkRDS)
-
-         newGraphList = fusePairRecursive swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal [] graphPairList
+         newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList) -- `using` PU.myParListChunkRDS)
+         --newGraphList = fusePairRecursive swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal [] graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd5 newGraphList
                     else infinity

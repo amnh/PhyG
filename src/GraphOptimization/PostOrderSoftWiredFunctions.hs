@@ -54,20 +54,20 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getNetPenaltyReduced
                                                       ) where
 
-import           Data.Bits
-import qualified Data.List                                        as L
-import           Data.Maybe
-import qualified Data.Text.Lazy                                   as T
-import qualified Data.Vector                                      as V
-import           GeneralUtilities
-import qualified GraphFormatUtilities                             as GFU
-import qualified GraphOptimization.Medians                        as M
-import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
-import qualified Graphs.GraphOperations                           as GO
-import qualified ParallelUtilities                                as PU
-import           Types.Types
-import qualified Utilities.LocalGraph                             as LG
-import qualified Utilities.Utilities                              as U
+import Data.Bits
+import Data.List qualified as L
+import Data.Maybe
+import Data.Text.Lazy qualified as T
+import Data.Vector qualified as V
+import GeneralUtilities
+import GraphFormatUtilities qualified as GFU
+import GraphOptimization.Medians qualified as M
+import GraphOptimization.PostOrderSoftWiredFunctionsNew qualified as NEW
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
 -- import           Debug.Trace
 
 

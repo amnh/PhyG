@@ -73,7 +73,7 @@ getPairwiseBlockDistance :: Int -> BlockData-> S.Matrix VertexCost
 getPairwiseBlockDistance numVerts inData  =
     let pairList = makeIndexPairs True numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
-        -- pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS
+        --pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS
         pairListCosts = P.seqParMap rdeepseq  (getBlockDistance inData) pairList 
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList pairListCosts

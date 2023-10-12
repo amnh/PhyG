@@ -230,7 +230,7 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization useC $ lookupP
         ics = coerce . (toEnum :: Int -> Word64)
         {-# SCC csi #-}
         csi :: CSize -> Int
-        csi = (fromEnum :: Word64 -> Int) . coerce 
+        csi = (fromEnum :: Word64 -> Int) . coerce
 
 
 
@@ -352,9 +352,17 @@ finalizeCharacterBuffer :: Int -> Int -> Vector SlimState -> Vector SlimState
 finalizeCharacterBuffer bufferLength alignedLength =
     let e   = min bufferLength alignedLength
         off = bufferLength - e
-    in  basicUnsafeSlice off e 
+    in  basicUnsafeSlice off e
 
 
+-- |
+-- Read and free the length of the resulting alignment.
+getAlignedLength :: Ptr CSize -> IO Int
+getAlignedLength lenRef =
+    let f = coerce :: CSize -> Word64
+    in  (fromEnum . f <$> peek lenRef) <* free lenRef
+
+{-
 -- |
 -- Allocates space for an align_io struct to be sent to C.
 {-# SCC allocCharacterBuffer #-}
@@ -383,21 +391,6 @@ buildResult bufferLength alignedLength alignedBuffer =
         off = bufferLength - e
         ref = advancePtr alignedBuffer off
     in  (V.fromListN e <$> peekArray e ref) <* free alignedBuffer
-
-
-{-
-buildResult :: Int -> Int -> Ptr SlimState -> IO (Vector SlimState)
-buildResult bufferLength alignedLength alignedBuffer = do
-    let e   = min bufferLength alignedLength
-    let off = bufferLength - e
-    let ref = advancePtr alignedBuffer off
-    (V.fromListN e <$> peekArray e ref) <* free alignedBuffer
-    vector <- mallocArray alignedLength
-    copyArray vector ref e
-    free alignedBuffer
-    fPtr   <- newConcForeignPtr vector (free vector)
-    let res = V.unsafeFromForeignPtr0 fPtr e :: Vector CUInt
-    pure res
 -}
 
 
@@ -412,4 +405,3 @@ buildResult bufferLength alignedLength alignedBuffer = do
 {-# SPECIALISE coerceEnum :: CUInt -> Word  #-}
 coerceEnum :: (Enum a, Enum b) => a -> b
 coerceEnum = toEnum . fromEnum
-

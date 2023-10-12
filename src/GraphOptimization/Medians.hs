@@ -83,9 +83,9 @@ import Data.TCM.Dense qualified as TCMD
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified  as GV
 import Data.Vector.Storable qualified as SV
-import Data.Word
+--import Data.Word
 import DirectOptimization.Pairwise
-import Foreign.C.Types (CUInt)
+--import Foreign.C.Types (CUInt)
 import GeneralUtilities
 import Input.BitPack qualified as BP
 import SymMatrix qualified as S
@@ -895,6 +895,49 @@ createEdgeUnionOverBlocks useIA filterGaps leftBlockData rightBlockData blockCha
 -- uses IA-type functions for slim/wide/huge
 getPreAligned2Median :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 getPreAligned2Median charInfo nodeChar leftChar rightChar =
+    let setCost :: forall {a}.
+                   Integral a =>
+                   a -> CharacterData -> CharacterData
+        setCost cVal r = r
+            { localCost = weight charInfo * fromIntegral cVal
+            , globalCost = sum [ weight charInfo * fromIntegral cVal, globalCost leftChar, globalCost rightChar]
+            }
+
+        setSlimPrelim v r = r { alignedSlimPrelim = v }
+        setWidePrelim v r = r { alignedWidePrelim = v }
+        setHugePrelim v r = r { alignedHugePrelim = v }
+
+        getCharL :: forall {k} {v :: k -> *} {e :: k}.
+                    (CharacterData -> OpenDynamicCharacter v e) -> v e
+        getCharL f = extractMediansGapped $ f leftChar
+        
+        getCharR :: forall {k} {v :: k -> *} {e :: k}.
+                    (CharacterData -> OpenDynamicCharacter v e) -> v e
+        getCharR f = extractMediansGapped $ f rightChar
+
+        (setter, cost) = case charType charInfo of
+            AlignedSlim ->
+                let cL = getCharL alignedSlimPrelim
+                    cR = getCharR alignedSlimPrelim
+                    (cM, score) = get2WaySlim (slimTCM charInfo) cL cR
+                in  (setSlimPrelim (cL, cM, cR), score)
+
+            AlignedWide ->
+                let cL = getCharL alignedWidePrelim
+                    cR = getCharR alignedWidePrelim
+                    (cM, score) = get2WayWideHuge (wideTCM charInfo) cL cR
+                in  (setWidePrelim (cL, cM, cR), score)
+
+            AlignedHuge ->
+                let cL = getCharL alignedHugePrelim
+                    cR = getCharR alignedHugePrelim
+                    (cM, score) = get2WayWideHuge (hugeTCM charInfo) cL cR
+                in  (setHugePrelim (cL, cM, cR), score)
+
+            other -> error $ "Unrecognized character type: " <> show other
+
+    in  setter $ setCost cost nodeChar
+{-
     let characterType = charType charInfo
     in
     if characterType == AlignedSlim then
@@ -923,6 +966,8 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
                  }
 
     else error ("Unrecognized character type " <> show characterType)
+-}
+
 
 -- | getPreAligned2MedianUnionFields takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
 -- uses IA-type functions for slim/wide/huge-- based on union fields
@@ -1224,13 +1269,15 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
      else nodeChar -- error ("Unrecognized character type " <> show characterType)
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
-get2WayGeneric :: (FiniteBits e, GV.Vector v e) => (e -> e -> (e, Word)) -> v e -> v e -> (v e, Word)
+get2WayGeneric :: forall e (v :: * -> *).(FiniteBits e, GV.Vector v e) => (e -> e -> (e, Word)) -> v e -> v e -> (v e, Word)
 get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
    let -- this should not be needed some problems at times with IA
        -- len   = GV.length descendantLeftPrelim
        len   = min (GV.length descendantLeftPrelim) (GV.length descendantRightPrelim)
        vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (SlimState, Word)
+       gen :: forall {v :: * -> *} {a} {b}. GV.Vector v a => V.Vector (a, b) -> v a
        gen v = let med i = fst $ v V.! i in GV.generate len med
+       
        add   = V.foldl' (\x e -> x + snd e) 0
    in  (,) <$> gen <*> add $ vt
 
@@ -1292,10 +1339,11 @@ local3WaySlim lSlimTCM b c d =
  -- | generalSequenceDiff  takes two sequence elemental bit types and retuns min and max integer
 -- cost differences using matrix values
 -- if value has no bits on--it is set to 0th bit on for GAP
-generalSequenceDiff :: (Show a, FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
+generalSequenceDiff :: (FiniteBits a) => S.Matrix Int -> Int -> a -> a -> (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
     -- trace ("GSD: " <> (show (numStates, uState, vState))) (
-    let gapIfNil x
+    let gapIfNil :: forall {a}. Bits a => a -> a
+        gapIfNil x
             | popCount x == 0 = (x `xor` x) `setBit` fromEnum gapIndex
             | otherwise = x
         uState' = gapIfNil uState

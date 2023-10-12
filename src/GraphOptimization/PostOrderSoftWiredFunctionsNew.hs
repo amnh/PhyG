@@ -46,20 +46,20 @@ module GraphOptimization.PostOrderSoftWiredFunctionsNew  ( postDecorateSoftWired
                                                          , backPortBlockTreeNodesToCanonicalGraph
                                                          ) where
 
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits
-import qualified Data.List                   as L
-import           Data.Maybe
-import qualified Data.Text.Lazy              as T
-import qualified Data.Vector                 as V
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphOptimization.Medians   as M
-import qualified Graphs.GraphOperations      as GO
-import qualified ParallelUtilities           as PU
-import           Types.Types
-import qualified Utilities.LocalGraph        as LG
-import qualified Utilities.Utilities         as U
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.List qualified as L
+import Data.Maybe
+import Data.Text.Lazy qualified as T
+import Data.Vector qualified as V
+import Debug.Trace
+import GeneralUtilities
+import GraphOptimization.Medians qualified as M
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
 
 {-Intial Postorder softwired pass.  All functions with 'New" appended-}
 
