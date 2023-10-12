@@ -43,6 +43,7 @@ module Commands.CommandExecution
   , getDataListList
   ) where
 
+import Control.Logger.Simple
 import Commands.CommandUtilities
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
@@ -54,6 +55,7 @@ import Data.List qualified as L
 import Data.List.Split qualified as SL
 import Data.Maybe
 import Data.Ord
+import Data.Text qualified as LogT
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Version qualified as DV
@@ -96,6 +98,7 @@ executeCommands
 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList commandList = do
     if null commandList then return (curGraphs, globalSettings, seedList, supportGraphList)
     else do
+        
         let (firstOption, firstArgs) = head commandList
 
         -- skip "Read" and "Rename "commands already processed
@@ -155,7 +158,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             if null reportString then do
                 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
             else  do
-                hPutStrLn stderr ("Report writing to " <> outFile)
+                hPutStrLn stdout ("Report writing to " <> outFile)
 
                 if doDotPDF then do
                     let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = none];\n" reportString
@@ -163,7 +166,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                     executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
 
                 else do
-                    if outFile == "stderr" then hPutStr stderr reportString
+                    if outFile == "stdout" then hPutStr stdout reportString
                     else if outFile == "stdout" then putStr reportString
                     else if writeMode == "overwrite" then writeFile outFile reportString
                     else if writeMode == "append" then appendFile outFile reportString
@@ -187,7 +190,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let typeSelected = if null firstArgs then "best"
                                else fmap C.toLower $ fst $ head firstArgs
 
-            hPutStrLn stderr ("Selecting " <> typeSelected <> " graphs")
+            hPutStrLn stdout ("Selecting " <> typeSelected <> " graphs")
             executeCommands (globalSettings {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
 
         else if firstOption == Set then
@@ -793,7 +796,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
     if length outFileNameList > 1 then errorWithoutStackTrace ("Report can only have one file name: " <> show outFileNameList <> " " <> show argList)
     else
         let checkCommandList = checkCommandArgs "report" commandList VER.reportArgList
-            outfileName = if null outFileNameList then "stderr"
+            outfileName = if null outFileNameList then "stdout"
                           else tail $ L.init $ head outFileNameList
             writeMode = if "overwrite" `elem` commandList then "overwrite"
                         else "append"

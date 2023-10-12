@@ -40,6 +40,7 @@ Portability :  portable (I hope)
 module Main (main) where
 
 import Control.Logger.Simple
+import Control.Monad.Extra
 import CommandLineOptions
 import Commands.CommandExecution qualified as CE
 import Commands.ProcessCommands qualified as PC
@@ -82,11 +83,10 @@ Main entry point
 main :: IO ()
 main = withGlobalLogging (LogConfig (Just "logfile.txt") True) $ do
     hSetEncoding stdout utf8
-    hSetEncoding stderr utf8
+    hSetEncoding stdout utf8
     opts <- getArgsCLI <$> parseCommandLineOptions
     either printInformationDisplay performSearch opts
-
-
+    
 {- |
 Perform phylogenetic search using the supplied input file.
 -}
@@ -95,14 +95,14 @@ performSearch inputFilePath = do
 
     printProgramPreamble
   
-    hPutStr stderr $ "\nCommand script file: '" <> inputFilePath <> "'"
-
+    hPutStr stdout $ "\nCommand script file: '" <> inputFilePath <> "'"
+    
     -- System time for Random seed
     timeD <- getSystemTimeSeconds
     timeCD <- getCurrentTime
-    hPutStrLn stderr ("Initial random seed set to " <> show timeD)
+    hPutStrLn stdout ("Initial random seed set to " <> show timeD)
 
-    -- hPutStrLn stderr ("Current time is " <> show timeD)
+    -- hPutStrLn stdout ("Current time is " <> show timeD)
     let seedList = randomIntList timeD
 
     -- Process commands to get list of actions
@@ -111,7 +111,7 @@ performSearch inputFilePath = do
     -- Process run commands to create one list of things to do
     commandContents' <- PC.expandRunCommands [] (lines commandContents)
     let thingsToDo'' = PC.getCommandList  commandContents'
-    --mapM_ (hPutStrLn stderr) (fmap show thingsToDo')
+    --mapM_ (hPutStrLn stdout) (fmap show thingsToDo')
 
     -- preprocess commands for non-parsimony optimality criteria
     let thingsToDo' = PC.preprocessOptimalityCriteriaScripts thingsToDo''
@@ -122,20 +122,20 @@ performSearch inputFilePath = do
 
     -- sort added to sort input read commands for left right consistancy
     let thingsToDo = L.sort (concat expandedReadCommands) <> filter ((/= Read) . fst) thingsToDo'
-    --hPutStrLn stderr (show $ concat expandedReadCommands)
+    --hPutStrLn stdout (show $ concat expandedReadCommands)
 
     -- check commands and options for basic correctness
-    hPutStrLn stderr "\tChecking command file syntax"
+    hPutStrLn stdout "\tChecking command file syntax"
     let !commandsOK = V.verifyCommands thingsToDo [] []
 
-    if commandsOK then hPutStrLn stderr "Commands appear to be properly specified--file availability and contents not checked.\n"
+    if commandsOK then hPutStrLn stdout "Commands appear to be properly specified--file availability and contents not checked.\n"
     else errorWithoutStackTrace "Commands not properly specified"
 
     dataGraphList <- mapM RIF.executeReadCommands $ fmap (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs then errorWithoutStackTrace "\n\nNeither data nor graphs entered.  Nothing can be done."
-    else hPutStrLn stderr ("Entered " <> show (length rawData) <> " data file(s) and " <> show (length rawGraphs) <> " input graphs")
+    else hPutStrLn stdout ("Entered " <> show (length rawData) <> " data file(s) and " <> show (length rawGraphs) <> " input graphs")
 
     -- get set partitions character from Set commands early, the enpty seed list puts in first section--only processing a few fields
     -- confusing and should be changed
@@ -147,8 +147,8 @@ performSearch inputFilePath = do
 
     -- Process Rename Commands
     newNamePairList <- CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
-    if not $ null newNamePairList then hPutStrLn stderr ("Renaming " <> show (length newNamePairList) <> " terminals")
-    else hPutStrLn stderr "No terminals to be renamed"
+    if not $ null newNamePairList then hPutStrLn stdout ("Renaming " <> show (length newNamePairList) <> " terminals")
+    else hPutStrLn stdout "No terminals to be renamed"
 
     let renamedData   = fmap (DT.renameData newNamePairList) rawDataSplit
     let renamedGraphs = fmap (GFU.relabelGraphLeaves  newNamePairList) rawGraphs
@@ -160,16 +160,16 @@ performSearch inputFilePath = do
     -- Reconcile Data and Graphs (if input) including ladderization
         -- could be sorted, but no real need
         -- get taxa to include in analysis
-    if not $ null terminalsToInclude then hPutStrLn stderr ("Terminals to include:" <> concatMap (<> " ") (fmap Text.unpack terminalsToInclude))
-    else hPutStrLn stderr ""
-    if not $ null terminalsToExclude then hPutStrLn stderr ("Terminals to exclude:" <> concatMap (<> " ") (fmap Text.unpack terminalsToExclude))
-    else hPutStrLn stderr ""
+    if not $ null terminalsToInclude then hPutStrLn stdout ("Terminals to include:" <> concatMap (<> " ") (fmap Text.unpack terminalsToInclude))
+    else hPutStrLn stdout ""
+    if not $ null terminalsToExclude then hPutStrLn stdout ("Terminals to exclude:" <> concatMap (<> " ") (fmap Text.unpack terminalsToExclude))
+    else hPutStrLn stdout ""
 
     -- Uses names from terminal list if non-null, and remove excluded terminals
     let dataLeafNames' = if not $ null terminalsToInclude then L.sort $ L.nub terminalsToInclude
                         else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames'' = dataLeafNames' L.\\ terminalsToExclude
-    hPutStrLn stderr ("Data were input for " <> show (length dataLeafNames'') <> " terminals")
+    hPutStrLn stdout ("Data were input for " <> show (length dataLeafNames'') <> " terminals")
 
     -- check data for missing data threshold and remove those above 
     let missingToExclude = DT.checkLeafMissingData (missingThreshold partitionCharOptimalityGlobalSettings) rawData
@@ -180,12 +180,12 @@ performSearch inputFilePath = do
                             dataLeafNames''  L.\\ missingToExclude
 
     if (not $ null missingToExclude) then
-        hPutStrLn stderr ("Terminals above missing data threshold and excluded: " <> (show ((length dataLeafNames'') - (length dataLeafNames))) <> " " <> (show missingToExclude)
+        hPutStrLn stdout ("Terminals above missing data threshold and excluded: " <> (show ((length dataLeafNames'') - (length dataLeafNames))) <> " " <> (show missingToExclude)
             <> "\n" <> ((show $ length dataLeafNames) <> " terminals remain to be analyzed"))
-    else hPutStrLn stderr ""
+    else hPutStrLn stdout ""
 
     if null dataLeafNames then errorWithoutStackTrace "No leaf data to be analyzed--all excluded"
-    else hPutStrLn stderr ""
+    else hPutStrLn stdout ""
 
     -- this created here and passed to command execution later to remove dependency of renamed data in command execution to
     -- reduce memory footprint keeoing that stuff around.
@@ -203,7 +203,7 @@ performSearch inputFilePath = do
     let taxaDataSizeList = filter ((== 0) . snd) $ zip dataLeafNames $ foldl1 (zipWith (+)) $ fmap (fmap (snd3 . U.filledDataFields (0,0)) . fst) reconciledData
     if not (null taxaDataSizeList) then errorWithoutStackTrace ("\nError: There are taxa without any data: "
             <> L.intercalate ", " (fmap (Text.unpack . fst) taxaDataSizeList) <> "\n")
-    else hPutStrLn stderr "All taxa contain data"
+    else hPutStrLn stdout "All taxa contain data"
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
     -- chained netowrk nodes should never be introduced later so only checked no
@@ -278,7 +278,7 @@ performSearch inputFilePath = do
                                                     , fractionDynamic = fractionDynamicData
                                                     , dynamicEpsilon = 1.0 + ((dynamicEpsilon emptyGlobalSettings - 1.0) * fractionDynamicData)
                                                     }
-    -- hPutStrLn stderr ("Fraction characters that are dynamic: " <> (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
+    -- hPutStrLn stdout ("Fraction characters that are dynamic: " <> (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
 
     let initialSetCommands = filter ((== Set).fst) thingsToDoAfterReblock
     let commandsAfterInitialDiagnose = filter ((/= Set).fst) thingsToDoAfterReblock
@@ -308,11 +308,11 @@ performSearch inputFilePath = do
     (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) (terminalsToExclude, renameFilePairs) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString <> commandsAfterInitialDiagnose)
 
     -- print global setting just to check
-    --hPutStrLn stderr (show _finalGlobalSettings)
+    --hPutStrLn stdout (show _finalGlobalSettings)
 
     -- Add in model and root cost if optimality criterion needs it
-    -- if (rootComplexity initialGlobalSettings) /= 0.0 then hPutStrLn stderr ("\tUpdating final graph with any root priors")
-    -- else hPutStrLn stderr ""
+    -- if (rootComplexity initialGlobalSettings) /= 0.0 then hPutStrLn stdout ("\tUpdating final graph with any root priors")
+    -- else hPutStrLn stdout ""
 
     -- rediagnose for NCM due to packing, in most cases not required, just being sure etc
     let rediagnoseWithReportingdata = True
@@ -322,24 +322,24 @@ performSearch inputFilePath = do
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
 
 
-    -- final results reporting to stderr
-    hPutStrLn stderr ("Execution returned " <> show (length finalGraphList') <> " graph(s) at cost range " <> show (minCost, maxCost))
+    -- final results reporting to stdout
+    hPutStrLn stdout ("Execution returned " <> show (length finalGraphList') <> " graph(s) at cost range " <> show (minCost, maxCost))
 
-    -- Final Stderr report
+    -- Final stdout report
     timeCPUEnd <- getCPUTime
     timeCDEnd <- getCurrentTime
 
-    --hPutStrLn stderr ("CPU Time " <> (show timeCPUEnd))
+    --hPutStrLn stdout ("CPU Time " <> (show timeCPUEnd))
     let wallClockDuration = floor (1000000000000 * nominalDiffTimeToSeconds (diffUTCTime timeCDEnd timeCD)) :: Integer
-    --hPutStrLn stderr ("Current time " <>  (show wallClockDuration))
+    --hPutStrLn stdout ("Current time " <>  (show wallClockDuration))
     let cpuUsage = fromIntegral timeCPUEnd / fromIntegral wallClockDuration :: Double
-    --hPutStrLn stderr ("CPU % " <> (show cpuUsage))
+    --hPutStrLn stdout ("CPU % " <> (show cpuUsage))
 
-    hPutStrLn stderr ("\n\tWall-Clock time " <> show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0) <> " second(s)"
+    hPutStrLn stdout ("\n\tWall-Clock time " <> show ((fromIntegral wallClockDuration :: Double) / 1000000000000.0) <> " second(s)"
         <> "\n\tCPU time " <> show ((fromIntegral timeCPUEnd :: Double) / 1000000000000.0) <> " second(s)"
         <> "\n\tCPU usage " <> show (floor (100.0 * cpuUsage) :: Integer) <> "%"
         )
 
 
 printProgramPreamble :: IO ()
-printProgramPreamble = preambleText >>= TIO.hPutStrLn stderr . runBuilder 
+printProgramPreamble = preambleText >>= TIO.hPutStrLn stdout . runBuilder 

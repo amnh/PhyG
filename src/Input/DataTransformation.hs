@@ -51,6 +51,7 @@ module Input.DataTransformation
 
 import Bio.DynamicCharacter
 import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Control.Logger.Simple
 import Data.Alphabet
 import Data.Alphabet.Codec
 import Data.Alphabet.IUPAC
@@ -81,10 +82,10 @@ import Debug.Trace
 import Foreign.C.Types
 import GeneralUtilities
 import Numeric.Natural
+import System.IO
 import Text.Read
 import Utilities.Utilities qualified as U
 
-import           Debug.Trace
 
 
 -- | checkLeafMissingData checks missing data in inputs
@@ -107,6 +108,7 @@ checkLeafMissingData theshold inDataList =
         -- trace ("CLMD :" <> (show (theshold, numInputFiles, criterion, minOccurence, leafOccurence, leafToExclude))) $
         leafToExclude
 
+
 -- | removeAllMissingCharacters removes characters from list in rawData if all taxa are missing
 -- this can happen when taxa are renamed or added in terminals file
 -- only checks a list length of 1 basically a sequence character
@@ -123,8 +125,8 @@ removeAllMissingCharacters inData =
     if length charData /= 1 || ((charType $ head charData) `elem` exactCharacterTypes) then [inData]
     else
         if (not . null) lengthCheck then [inData]
-        else
-            trace ("Warning: Input file " <> (T.unpack $ name $ head charData) <> " contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped.")
+        else 
+            pureWarn (showText $ "Warning: Input file " <> (T.unpack $ name $ head charData) <> " contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped.") $
             []
     -- )
 
@@ -156,7 +158,7 @@ partitionSequences partChar inDataList =
 
        -- split data
        else
-           trace ("\nPartitioning " <> T.unpack (name $ head charInfoList) <> " into " <> show firstPartNumber <> " segments\n") (
+           pureInfo (showText $ "\nPartitioning " <> T.unpack (name $ head charInfoList) <> " into " <> show firstPartNumber <> " segments\n") (
 
            -- make new structures to create RawData list
            let leafNameListList = replicate firstPartNumber leafNameList
@@ -333,15 +335,15 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
     -- trace ("CND: " <> (show $ (optimalityCriterion inGS))) $
     if null inDataList
     then --trace ("Naive data with " <> (show $ length curBlockData) <> " blocks and " <> (show $ fmap length $ fmap V.head $ fmap snd3 curBlockData) <> " characters")
-        ( V.fromList $ fmap fst leafBitVectorNames
-        , V.fromList $ fmap snd leafBitVectorNames
-        , V.fromList $ reverse curBlockData
-        )
+               ( V.fromList $ fmap fst leafBitVectorNames
+                , V.fromList $ fmap snd leafBitVectorNames
+                , V.fromList $ reverse curBlockData
+                )
     else
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then trace "Empty CharInfo" createNaiveData inGS (tail inDataList) leafBitVectorNames curBlockData
+        if null firstCharInfo then pureInfo (showText "Empty CharInfo") createNaiveData inGS (tail inDataList) leafBitVectorNames curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block
@@ -387,8 +389,9 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
             if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " <> (takeWhile (/= '#') $ T.unpack thisBlockName') <> "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " <> (show nameMinPairList) <> "\nNon Minimum length taxa: " <> (show nameNonMinPairList) )
             -- trace ("CND:" <> (show $ fmap snd firstData)) (
             else
-                trace ("Recoding input block: " <> T.unpack thisBlockName')
-                createNaiveData inGS (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
+                --do 
+                    --hPutStrLn stdout ("Recoding input block: " <> T.unpack thisBlockName')
+                    pureNote (showText $ "Recoding input block: " <> T.unpack thisBlockName') $ createNaiveData inGS (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
             -- )
 
 -- | reweightNCM takes character info and reweights via NCM (Tuffley and Steel, 1997) -log_10 1/(alphabet size)
