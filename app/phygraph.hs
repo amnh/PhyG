@@ -39,6 +39,7 @@ Portability :  portable (I hope)
 
 module Main (main) where
 
+import Control.Logger.Simple
 import CommandLineOptions
 import Commands.CommandExecution qualified as CE
 import Commands.ProcessCommands qualified as PC
@@ -76,8 +77,10 @@ import Utilities.Utilities qualified as U
 {- |
 Main entry point
 -}
+
+
 main :: IO ()
-main = do
+main = withGlobalLogging (LogConfig (Just "logfile.txt") True) $ do
     hSetEncoding stdout utf8
     hSetEncoding stderr utf8
     opts <- getArgsCLI <$> parseCommandLineOptions

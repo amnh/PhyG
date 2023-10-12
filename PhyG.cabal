@@ -331,6 +331,7 @@ Executable phyg
     process,
     random,
     random-shuffle,
+    simple-logger,
 --    sort,
     split,
     template-haskell,
@@ -340,9 +341,7 @@ Executable phyg
     th-lift-instances,
     time,
     vector >= 0.13 && < 1.0,
-    -- currently doesn't compile but could be useful
-    -- lots of good functions
-    -- Graphalyze,
+    
 
   -- include the source files needed in src for github library
   -- this for local library files
@@ -368,52 +367,51 @@ Executable phyg
                 Commands.Verify
                 Debug.Debug
                 GraphOptimization.Medians
-    -- GraphOptimization.PostOrderFunctions
-    GraphOptimization.PostOrderSoftWiredFunctions
-    GraphOptimization.PostOrderSoftWiredFunctionsNew
-    GraphOptimization.PreOrderFunctions
-    GraphOptimization.Traversals
-    Graphs.GraphOperations
-    Input.BitPack
-    Input.DataTransformation
-    Input.FastAC
-    Input.ReadInputFiles
-    Input.Reorganize
-    Input.TNTUtilities
-    PackageInfo_PhyG
-    Paths_PhyG
-    Reconciliation.Adams
-    Reconciliation.Eun
-    Reconciliation.ReconcileGraphs
-    Search.Build
-    Search.DistanceMethods
-    Search.DistanceWagner
-    Search.Fuse
-    Search.GeneticAlgorithm
-    Search.NetworkAddDelete
-    Search.Refinement
-    Search.Search
-    Search.Swap
-    Search.SwapMaster
-    Search.WagnerBuild
-    Software.Credits
-    Software.License
-    Software.Metadata
-    Software.Metadata.Embedded
-    Software.Metadata.TimeStamp
-    Software.Preamble
-    Software.SplashImage
-    Support.Support
-    System.Timing
-    Types.DistanceTypes
-    Types.Types
-    Utilities.Distances
-    Utilities.DistanceUtilities
-    Utilities.LocalGraph
-    Utilities.LocalSequence
-    Utilities.TcmHash
-    Utilities.ThreeWayFunctions
-    Utilities.Utilities
+                GraphOptimization.PostOrderSoftWiredFunctions
+                GraphOptimization.PostOrderSoftWiredFunctionsNew
+                GraphOptimization.PreOrderFunctions
+                GraphOptimization.Traversals
+                Graphs.GraphOperations
+                Input.BitPack
+                Input.DataTransformation
+                Input.FastAC
+                Input.ReadInputFiles
+                Input.Reorganize
+                Input.TNTUtilities
+                PackageInfo_PhyG
+                Paths_PhyG
+                Reconciliation.Adams
+                Reconciliation.Eun
+                Reconciliation.ReconcileGraphs
+                Search.Build
+                Search.DistanceMethods
+                Search.DistanceWagner
+                Search.Fuse
+                Search.GeneticAlgorithm
+                Search.NetworkAddDelete
+                Search.Refinement
+                Search.Search
+                Search.Swap
+                Search.SwapMaster
+                Search.WagnerBuild
+                Software.Credits
+                Software.License
+                Software.Metadata
+                Software.Metadata.Embedded
+                Software.Metadata.TimeStamp
+                Software.Preamble
+                Software.SplashImage
+                Support.Support
+                System.Timing
+                Types.DistanceTypes
+                Types.Types
+                Utilities.Distances
+                Utilities.DistanceUtilities
+                Utilities.LocalGraph
+                Utilities.LocalSequence
+                Utilities.TcmHash
+                Utilities.ThreeWayFunctions
+                Utilities.Utilities
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --

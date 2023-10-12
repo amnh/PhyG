@@ -84,7 +84,7 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
         if (joinType swapParams) == JoinAll || isJust inSimAnnealParams then
             swapSPRTBR' (swapParams {joinType = JoinAll}) inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
         else
-            -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
+            -- join with union pruning first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
             let (firstList, firstCounter) = swapSPRTBR' (swapParams {joinType = JoinPruned}) inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
 
                 -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
