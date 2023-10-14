@@ -297,6 +297,7 @@ Executable phyg
     PHANE-alphabet,
     PHANE-dynamic-character,
     PHANE-dynamic-character-element,
+    PHANE-evaluation,
     PhyG:dynamic-character,
     PhyG:tcm,
     PHANE-PhyloLib,
