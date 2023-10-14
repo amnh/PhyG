@@ -36,6 +36,9 @@ import SymMatrix qualified as S
 import Text.Read
 import Types.Types
 import Utilities.Utilities qualified as U
+import TransitionMatrix.Metricity
+
+import Debug.Trace
 
 
 {- | optimizePrealignedData convert
@@ -62,7 +65,7 @@ optimizePrealignedData inGS inData@(_, _, blockDataVect) =
 
 
 {- | convertPrealignedToNonAdditive converts prealigned data to non-additive
-if homogeneous TCM (all 1's non-diagnoal)
+if homogeneous TCM (all 1's non-diagonal)
 -}
 convertPrealignedToNonAdditive ∷ ProcessedData → ProcessedData
 convertPrealignedToNonAdditive (nameVect, bvNameVect, blockDataVect) = (nameVect, bvNameVect, fmap convertPrealignedToNonAdditiveBlock blockDataVect)
@@ -73,7 +76,8 @@ this is done taxon by taxon and character by character since can convert with on
 -}
 convertPrealignedToNonAdditiveBlock ∷ BlockData → BlockData
 convertPrealignedToNonAdditiveBlock (nameBlock, charDataVV, charInfoV) =
-    let codingTypeV = fmap fst $ fmap getRecodingType (fmap costMatrix charInfoV)
+    let codingTypeV = (metricity <$> charInfoV)
+--        codingTypeV = fmap fst $ fmap getRecodingType (fmap costMatrix charInfoV)
         (newCharDataVV, newCharInfoVV) = V.unzip $ fmap (convertTaxonPrealignedToNonAdd charInfoV codingTypeV) charDataVV
     in  (nameBlock, newCharDataVV, V.head newCharInfoVV)
 
@@ -82,7 +86,7 @@ convertPrealignedToNonAdditiveBlock (nameBlock, charDataVV, charInfoV) =
 and recodes prealigned as non-additve if tcm's all 1s
 -}
 convertTaxonPrealignedToNonAdd
-    ∷ V.Vector CharInfo → V.Vector String → V.Vector CharacterData → (V.Vector CharacterData, V.Vector CharInfo)
+    ∷ V.Vector CharInfo → V.Vector Metricity → V.Vector CharacterData → (V.Vector CharacterData, V.Vector CharInfo)
 convertTaxonPrealignedToNonAdd charInfoV codingTypeV charDataV =
     V.unzip $ V.zipWith3 convertTaxonPrealignedToNonAddCharacter charInfoV codingTypeV charDataV
 
@@ -90,49 +94,27 @@ convertTaxonPrealignedToNonAdd charInfoV codingTypeV charDataV =
 {- | convertTaxonPrealignedToNonAddCharacter takes a taxon character and char info and cost matrix type
 and transforms to non-additive if all tcms are 1's
 -}
-convertTaxonPrealignedToNonAddCharacter ∷ CharInfo → String → CharacterData → (CharacterData, CharInfo)
-convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData =
-    -- trace ("CTP: " <> (show $ charType charInfo) <> " " <> (show $ matrixType)) (
-    if charType charInfo `notElem` prealignedCharacterTypes
-        then (charData, charInfo)
-        else
-            if matrixType /= "nonAdd"
-                then (charData, charInfo)
-                else -- this coefficient do to reducion by integer factors in matrix representation
-                -- need to be multipled or 2:2 goes to 1:1 and weigh/cost incorrect (non for slim--ffi etc)
+convertTaxonPrealignedToNonAddCharacter ∷ CharInfo → Metricity → CharacterData → (CharacterData, CharInfo)
+convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData
+    | charType charInfo `notElem` prealignedCharacterTypes = (charData, charInfo)
+    | otherwise =
+        let charWeight = weight charInfo
+            newStateBV = case charType charInfo of
+                AlignedSlim -> convert2BVTriple 32 $ (snd3 . alignedSlimPrelim) charData
+                AlignedWide -> convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
+                AlignedHuge -> error "No point in converting huge--can't pack anyway"
+                _ -> error $ "Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " <>
+                        show (charType charInfo)
+                
+            modifiedChar = emptyCharacter{ stateBVPrelim = newStateBV }
+            modifiedType = charInfo
+                { charType = NonAdd
+                , weight = charWeight
+                }
+        in  case matrixType of
+            Special (DiscreteMetric _) -> ( modifiedChar, modifiedType ) 
+            _ -> (charData, charInfo)
 
-                    let matrixCoefficient =
-                            if (charType charInfo) == AlignedSlim
-                                then 1
-                                else
-                                    if (charType charInfo) == AlignedWide
-                                        then Measure.minEdit (wideTCM charInfo)
-                                        else
-                                            if (charType charInfo) == AlignedHuge
-                                                then Measure.minEdit (hugeTCM charInfo)
-                                                else error ("Unrecognized--unimplemented character type in convertTaxonPrealignedToNonAddCharacter: " <> (show $ charType charInfo))
-
-                        charWeight = weight charInfo
-
-                        newStateBV =
-                            if charType charInfo == AlignedSlim
-                                then convert2BVTriple 32 $ (snd3 . alignedSlimPrelim) charData
-                                else
-                                    if charType charInfo == AlignedWide
-                                        then convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
-                                        else -- no point in huge recoding--with not be packed anyway
-
-                                            if charType charInfo == AlignedHuge
-                                                then error "No point in converting huge--can't pack anyway"
-                                                else -- this is wrong for some reason--creates incorrect IA
-                                                -- (snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData, snd3 $ alignedHugePrelim charData)
-                                                    error ("Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " <> (show $ charType charInfo))
-                    in  ( emptyCharacter{stateBVPrelim = newStateBV}
-                        , charInfo{charType = NonAdd, weight = charWeight * (fromIntegral $ fromEnum matrixCoefficient)}
-                        )
-
-
--- )
 
 -- | convert2BVTriple takes SlimState or WideState and converts to Triple Vector of bitvectors
 convert2BVTriple
