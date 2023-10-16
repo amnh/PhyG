@@ -324,6 +324,7 @@ Executable phyg
     inflist,
     logfloat,
     MissingH >= 1.4.3,
+    MonadRandom >= 0.6 && < 1.0,
     mmark,
     modern-uri,
     optparse-applicative,

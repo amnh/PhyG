@@ -44,6 +44,7 @@ module Types.Types where
 import Bio.DynamicCharacter (OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
 import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Control.DeepSeq
+import Control.Evaluation
 import Control.Parallel.Strategies
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
@@ -85,6 +86,11 @@ infinity = read "Infinity" :: Double
 -- seems a reasonale number (prob should be timed to verify)
 maxAddStatesToRecode :: Int
 maxAddStatesToRecode = 129
+
+{- |
+Core monad transformer stack for evaluating computations within the application PhyG.
+-}
+type PhyG = Evaluation ()
 
 -- | Types for timed searches
 type Days = Int
