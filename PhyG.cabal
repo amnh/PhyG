@@ -83,7 +83,7 @@ Common ffi-build-info
 
   If !os(darwin)
     CC-Options:
-      -rdynamic --std=c11
+      -fPIC -rdynamic --std=c11
 
   Else:
     CC-Options:
