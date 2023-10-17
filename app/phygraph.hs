@@ -82,7 +82,8 @@ performSearch initialSeed inputFilePath = do
 
     -- Process run commands to create one list of things to do
     commandContents' ← liftIO $ PC.expandRunCommands [] (lines commandContents)
-    let thingsToDo'' = PC.getCommandList commandContents'
+    thingsToDo'' <- PC.getCommandList commandContents' 
+    --let thingsToDo'' = PC.getCommandList commandContents'
     -- mapM_ (logWith LogTech . show) thingsToDo'
 
     -- preprocess commands for non-parsimony optimality criteria
@@ -97,11 +98,11 @@ performSearch initialSeed inputFilePath = do
     -- logWith LogDump . show $ fold expandedReadCommands
 
     -- check commands and options for basic correctness
-    logWith LogMore "\tChecking command file syntax"
+    logWith LogMore "\nChecking command file syntax"
     let !commandsOK = V.verifyCommands thingsToDo [] []
 
     if commandsOK
-        then logWith LogMore "Commands appear to be properly specified--file availability and contents not checked.\n"
+        then logWith LogMore "\tCommands appear to be properly specified--file availability and contents not checked.\n"
         else failWithPhase Parsing "Commands not properly specified"
 
     dataGraphList ← liftIO . mapM RIF.executeReadCommands $ fmap (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)

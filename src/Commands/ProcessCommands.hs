@@ -55,6 +55,8 @@ module Commands.ProcessCommands
     where
 
 import Commands.Verify qualified as V
+import Control.Evaluation
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Char
 import Data.Foldable
 import Data.List qualified as L
@@ -62,8 +64,9 @@ import Data.List.Split
 import Data.Maybe
 import GeneralUtilities
 import Input.ReadInputFiles qualified as RIF
+import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
-import Debug.Trace
+--import Debug.Trace
 
 -- | preprocessOptimalityCriteriaScripts takes a processed command list and
 -- processes for optimlity criteria that change tcms and such for
@@ -83,8 +86,8 @@ expandRunCommands curLines inLines =
             (firstLine, restLine) =  if null firstLineRead then ([],[])
                                      else splitCommandLine $ head firstLineRead
 
-            leftParens = length $ filter (=='(') firstLine
-            rightParens = length $ filter (==')') firstLine
+            leftParens = length $ filter ( == '(') firstLine
+            rightParens = length $ filter ( == ')') firstLine
         in
         --trace ("FL " <> firstLine) (
         -- only deal with run lines
@@ -107,8 +110,8 @@ splitCommandLine :: String -> (String, String)
 splitCommandLine inLine =
     if null inLine then ([],[])
     else
-        let leftParens = length $ filter (=='(') inLine
-            rightParens = length $ filter (==')') inLine
+        let leftParens = length $ filter ( == '(') inLine
+            rightParens = length $ filter ( == ')') inLine
             firstPart = takeWhile (/= '(') inLine
             parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
             firstCommand = firstPart <> parenPart
@@ -129,28 +132,32 @@ checkFileNames inName
 -- | getCommandList takes a String from a file and returns a list of commands and their arguments
 -- these are syntactically verified, but any input files are not checked
 -- commands in lines one to a line
-getCommandList  :: [String] -> [Command]
+getCommandList  :: [String] -> PhyG [Command]
 getCommandList  rawContents =
-    if null rawContents then errorWithoutStackTrace "Error: Empty command file"
+    if null rawContents then do
+        -- errorWithoutStackTrace "Error: Empty command file"
+        failWithPhase Parsing "Empty command file"
     else
         let rawList = removeComments $ fmap (filter (/= ' ')) rawContents
             -- expand for read wildcards here--cretge a new, potentially longer list
             processedCommands = concatMap parseCommand rawList
 
-            reportCommands = filter ((== Report) . fst) processedCommands
+            reportCommands = filter (( ==  Report) . fst) processedCommands
 
-            reportGraphsArgs = filter (== "graphs") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
-            reportNewickArgs = filter (== "newick") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
-            reportDotArgs = filter (== "dot") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+            reportGraphsArgs = filter ( ==  "graphs") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+            reportNewickArgs = filter ( ==  "newick") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+            reportDotArgs = filter ( ==  "dot") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
 
         in
         if null reportCommands || null (reportGraphsArgs <> reportNewickArgs <> reportDotArgs) then
-            trace ("Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'") $
+            -- trace ("Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'") $
             let addedReport = (Report, [("graphs",[]), ([], "_defaultGraph.dot_"), ("dotpdf",[])])
-            in 
-            processedCommands <> [addedReport]
+            in do
+            logWith LogWarn "Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'"
+            return (processedCommands <> [addedReport])
         --trace (show rawList)
-        else processedCommands
+        else do 
+            return processedCommands
 
 
 -- | removeComments deletes anyhting on line (including line)
@@ -315,8 +322,8 @@ movePrealignedTCM :: [Argument] -> [Argument]
 movePrealignedTCM inArgList =
     if null inArgList then []
     else
-        let firstPart = filter ((== "prealigned").fst) inArgList
-            secondPart = filter ((== "tcm").fst) inArgList
+        let firstPart = filter (( ==  "prealigned").fst) inArgList
+            secondPart = filter (( ==  "tcm").fst) inArgList
             restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
         in
         if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" <> show inArgList <> "': can only specify a single tcm file")
