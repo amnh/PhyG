@@ -45,28 +45,31 @@ module Input.ReadInputFiles
  , expandReadCommands
 ) where
 
-import qualified Commands.Verify            as V
-import           Data.Char
-import qualified Data.Char                  as C
-import           Data.Foldable
-import qualified Data.Graph.Inductive.Basic as B
-import qualified Data.List                  as L
-import           Data.Maybe
-import qualified Data.Text.Lazy             as T
-import qualified Data.Text.Lazy.IO          as TIO
-import qualified Data.Text.Short            as ST
-import           Debug.Trace
-import qualified GeneralUtilities           as GU
-import qualified GraphFormatUtilities       as GFU
-import qualified Input.FastAC               as FAC
-import qualified Input.TNTUtilities         as TNT
-import           System.IO
-import qualified System.Path.Glob           as SPG
-import           Text.Read
-import           Types.Types
-import qualified Utilities.LocalGraph       as LG
-import qualified Utilities.Utilities        as U
-
+import Commands.Verify qualified as V
+import Control.Evaluation
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
+import Data.Char
+import Data.Char qualified as C
+import Data.Foldable
+import Data.Graph.Inductive.Basic qualified as B
+import Data.List qualified as L
+import Data.Maybe
+import Data.Text.Lazy qualified as T
+import Data.Text.Lazy.IO qualified as TIO
+import Data.Text.Short qualified as ST
+import GeneralUtilities qualified as GU
+import GraphFormatUtilities qualified as GFU
+import Input.FastAC qualified as FAC
+import Input.TNTUtilities qualified as TNT
+import System.ErrorPhase (ErrorPhase (..))
+import System.IO
+import System.Path.Glob qualified as SPG
+import Text.Read
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified      as U
+ 
+-- import Debug.Trace
 
 
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
@@ -221,8 +224,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
 
                         else if toLower firstChar == 'x' then
                             let tntData = TNT.getTNTDataText fileContents firstFile
-                            in
-                            trace ("\tTrying to parse " <> firstFile <> " as TNT")
+                            in do
+                            hPutStrLn stderr ("\tTrying to parse " <> firstFile <> " as TNT")
                             executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else
                             let fileContents' =  T.unlines $ filter (not . T.null) $ T.takeWhile (/= ';') <$> T.lines fileContents
@@ -237,14 +240,14 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                 if isJust hasSpaces then
                                     let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
-                                    in
-                                    trace ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input.")
+                                    in do
+                                    hPutStrLn stderr ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input.")
                                     executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                                 else
                                     let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
                                         (fastaCharInfo, fastaData)  = FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
-                                    in
-                                    trace ("\tTrying to parse " <> firstFile <> " as fasta")
+                                    in do
+                                    hPutStrLn stderr ("\tTrying to parse " <> firstFile <> " as fasta")
                                     executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                         else errorWithoutStackTrace ("Cannot determine file type for " <> firstFile <> " need to prepend type")
