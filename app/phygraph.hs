@@ -116,7 +116,7 @@ performSearch initialSeed inputFilePath = do
     -- confusing and should be changed
     let setCommands = filter ((== Set) . fst) thingsToDo
     (_, partitionCharOptimalityGlobalSettings, _, _) ←
-        liftIO $ CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
+        CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
 
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
@@ -286,7 +286,6 @@ performSearch initialSeed inputFilePath = do
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings, seedList', _) ←
-        liftIO $
             CE.executeCommands
                 defaultGlobalSettings
                 (terminalsToExclude, renameFilePairs)
@@ -338,7 +337,6 @@ performSearch initialSeed inputFilePath = do
 
     -- Execute Following Commands (searches, reports etc)
     (finalGraphList, _, _, _) ←
-        liftIO $
             CE.executeCommands
                 (initialGlobalSettings{searchData = [inputGraphProcessing, inputProcessingData]})
                 (terminalsToExclude, renameFilePairs)

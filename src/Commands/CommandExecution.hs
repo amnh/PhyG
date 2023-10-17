@@ -46,6 +46,10 @@ module Commands.CommandExecution
 import Commands.CommandUtilities
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.CSV qualified as CSV
 import Data.Char
 import Data.Char qualified as C
@@ -68,6 +72,7 @@ import Search.Refinement qualified as REF
 import Search.Search qualified as S
 import Support.Support qualified as SUP
 import System.CPU qualified as SC
+import System.ErrorPhase (ErrorPhase (..))
 import System.IO
 import System.IO.Unsafe qualified as SIOU
 import System.Info qualified as SI
@@ -92,7 +97,7 @@ executeCommands
   -> [Int]
   -> [ReducedPhylogeneticGraph]
   -> [Command]
-  -> IO ([ReducedPhylogeneticGraph], GlobalSettings, [Int], [ReducedPhylogeneticGraph])
+  -> PhyG ([ReducedPhylogeneticGraph], GlobalSettings, [Int], [ReducedPhylogeneticGraph])
 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList commandList = do
     if null commandList then return (curGraphs, globalSettings, seedList, supportGraphList)
     else do
@@ -155,23 +160,23 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             if null reportString then do
                 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
             else  do
-                hPutStrLn stderr ("Report writing to " <> outFile)
+                logWith LogInfo ("Report writing to " <> outFile)
 
                 if doDotPDF then do
                     let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = none];\n" reportString
-                    printGraphVizDot reportString' outFile
+                    liftIO $ printGraphVizDot reportString' outFile
                     executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
 
                 else do
-                    if outFile == "stderr" then hPutStr stderr reportString
-                    else if outFile == "stdout" then putStr reportString
-                    else if writeMode == "overwrite" then writeFile outFile reportString
-                    else if writeMode == "append" then appendFile outFile reportString
-                    else error ("Error 'read' command not properly formatted" <> show reportStuff)
+                    if outFile == "stderr" then  liftIO $ hPutStr stderr reportString
+                    else if outFile == "stdout" then liftIO $ putStr reportString
+                    else if writeMode == "overwrite" then liftIO $ writeFile outFile reportString
+                    else if writeMode == "append" then liftIO $ appendFile outFile reportString
+                    else failWithPhase Parsing  ("Error 'read' command not properly formatted" <> show reportStuff)
                     executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList (tail commandList)
 
         else if firstOption == Search then do
-            (elapsedSeconds, output) <- timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+            (elapsedSeconds, output) <- liftIO $ timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
                 --in pure result
             -- (newGraphList, serchInfoList) <- S.search firstArgs globalSettings origProcessedData processedData reportingDatapairwiseDist (head seedList) curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs (fst output) (fromIntegral $ toMilliseconds elapsedSeconds) (concatMap (L.intercalate "\n") (snd output))
@@ -187,7 +192,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let typeSelected = if null firstArgs then "best"
                                else fmap C.toLower $ fst $ head firstArgs
 
-            hPutStrLn stderr ("Selecting " <> typeSelected <> " graphs")
+            logWith LogInfo ("Selecting " <> typeSelected <> " graphs")
             executeCommands (globalSettings {searchData = newSearchData}) excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData newGraphList pairwiseDist (tail seedList) supportGraphList (tail commandList)
 
         else if firstOption == Set then
