@@ -25,12 +25,13 @@ module Software.Metadata
   , timeOfCompilation
   ) where
 
+import Data.Functor ((<&>))
 import Data.Foldable (toList)
 import Data.String
 import Data.Version (showVersion)
 import Development.GitRev (gitCommitCount, gitHash)
 import PackageInfo_PhyG (name, version)
-import Software.Metadata.TimeStamp (compilationTimeStamp)
+import Software.Metadata.TimeStamp (compilationTimeStamp, renderTimeStampAsLocalTime)
 
 
 {- |
@@ -84,7 +85,7 @@ Full description of the software version.
 Uses @TemplateHaskell@ to splice in git hash and commit count information
 from the compilation environment.
 -}
-fullVersionInformation :: (IsString s, Monoid s) => s
+fullVersionInformation :: (IsString s, Monoid s) => IO s
 fullVersionInformation =
     let intercalate' :: (Foldable f, Monoid s) => s -> f s -> s
         intercalate' sep =
@@ -98,19 +99,21 @@ fullVersionInformation =
         lessName = "(" <> nameAbbreviation softwareName <> ")"
         longName = nameExpansion softwareName
 
-    in  intercalate' " "
+        
+
+    in  timeOfCompilation <&> \time -> intercalate' " "
             [ longName
             , lessName
             , shortVersionInformation
             , hashInfo
             , commits
-            , "on"
-            , timeOfCompilation
+            , "@"
+            , time
             ]
 
 
 {- |
 The UTC system time at which (this module of) the binary was compiled.
 -}
-timeOfCompilation :: IsString s => s
-timeOfCompilation = fromString $$(compilationTimeStamp)
+timeOfCompilation :: IsString s => IO s
+timeOfCompilation = renderTimeStampAsLocalTime $$(compilationTimeStamp)
