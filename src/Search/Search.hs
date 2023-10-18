@@ -41,7 +41,12 @@ import Commands.Transform qualified as TRANS
 import Commands.Verify    qualified as VER
 import Control.Concurrent.Async
 import Control.DeepSeq
+import Control.Evaluation
 import Control.Exception
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
+import Data.Char
 import Data.Bifunctor (bimap)
 import Data.Char
 import Data.Foldable
@@ -55,6 +60,7 @@ import Debug.Trace
 import Graphs.GraphOperations qualified as GO
 import Search.Build qualified as B
 import Search.Refinement qualified as R
+import System.ErrorPhase (ErrorPhase (..))
 import System.IO
 import System.Random
 import System.Timing
@@ -97,22 +103,10 @@ uncurry3' :: (Functor f, NFData d) => (a -> b -> c -> f d) -> (a, b, c) -> f d
 uncurry3' f (a, b, c) = force <$> f a b c
 
 -- | search timed randomized search returns graph list and comment list with info String for each search instance
-search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [ReducedPhylogeneticGraph] -> IO ([ReducedPhylogeneticGraph], [[String]])
+search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int -> [ReducedPhylogeneticGraph] -> PhyG ([ReducedPhylogeneticGraph], [[String]])
 search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
    let (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) = getSearchParams inArgs
 
-       -- If there are no input graphs--make some via distance
-       inGraphList = if (not . null) inGraphList' then inGraphList'
-                     else
-                        let -- njGraph = head $ B.buildGraph [("distance", ""), ("nj", "")] inGS inData pairwiseDistances rSeed
-                            -- wpgmaGraph =  head $ B.buildGraph  [("distance", ""), ("wpgma", "")] inGS inData pairwiseDistances rSeed
-                            dWagGraph =   head $ B.buildGraph [("distance", ""), ("dWag", "")] inGS inData pairwiseDistances rSeed
-                            rdwagGraphList = B.buildGraph [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]  inGS inData pairwiseDistances rSeed
-                            -- rdwag at 1000 seems always to beat the others
-                            -- buildGraphs = [njGraph, wpgmaGraph, dWagGraph] ++ rdwagGraphList
-                            buildGraphs = [dWagGraph] ++ rdwagGraphList
-                        in
-                        take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
 
        -- flatThetaList is the initial prior list (flat) of search (bandit) choices
        -- can also be used in search for non-Thomspon search
@@ -134,11 +128,19 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
    in
    trace ("Randomized seach for " <> (show searchTime) <> " seconds with " <> (show instances) <> " instances keeping at most " <> (show keepNum) <> " graphs") (
 
-        do  --  threadCount <- (max 1) <$> getNumCapabilities
+        do  
+           -- if initial graph list is empty make some
+           dWagGraphList <- B.buildGraph [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]  inGS inData pairwiseDistances rSeed
+           let inGraphList = if (not . null) inGraphList' then inGraphList'
+                             else take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) dWagGraphList
+
+           --  threadCount <- (max 1) <$> getNumCapabilities
            let threadCount = instances -- <- (max 1) <$> getNumCapabilities
            let startGraphs = replicate threadCount (inGraphList, mempty)
            let threadInits = zip3 infoIndices seadStreams startGraphs
-           resultList <- mapConcurrently searchTimed threadInits
+           resultList <- liftIO $ mapConcurrently searchTimed threadInits-- If there are no input graphs--make some via distance
+           
+           
            pure $
                let (newGraphList, commentList) = unzip resultList
                    newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
@@ -521,86 +523,13 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
       in
 
-      -- This can't happen any more--added distance builds if graph list empty at beginningof search
-        -- this to remove "sucesses" of initial builds form affecting Thompson values
-      -- no input graphs so must build to start
-      -- chooses NJ (n^3), dWag (n^3), WPGMA (n^2), or rdWag (n^2 but lots so n^4 here)
-      if null inGraphList' then
-
-         let distanceMethod =  chooseElementAtRandomPair (randDoubleVect V.! 16) [("nj", 0.25), ("dwag", 0.25), ("wpgma", 0.25), ("rdwag", 0.25)]
-             noGraphsWagnerOptions = [("replicates", show numToDistBuild), (distanceMethod, ""), ("best", show numDistToKeep), ("return", show numToCharBuild)]
-             buildArgs = [(buildType, "")] <> noGraphsWagnerOptions <> blockOptions
-
-             buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
-             uniqueGraphs = take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
-
-             buildString = if searchBandit `elem` ["buildCharacter", "buildDistance"] then searchBandit
-                           else if buildType == "character" then "buildCharacter"
-                           else "buildDistance"
-
-
-             -- string of delta cost of graphs
-             -- delta of zero if no inputs so not weight too strongly in favor of initial builds
-             deltaString = if null inGraphList' then "0.0"
-                           else show ((minimum $ fmap snd5 inGraphList') - (minimum $ fmap snd5 uniqueGraphs))
-
-             currentBestString = if (not $ null uniqueGraphs) then show $ minimum $ fmap snd5 uniqueGraphs
-                                 else show infinity
-
-             transString = if (not transformToStaticApproximation && not transformMultiTraverse) then ""
-                                           else if transformToStaticApproximation then
-                                               ",Dynamic"
-                                           else
-                                               ",MultiTraverse:True"
-
-             searchString = "," <> buildString <> "," <> deltaString <> "," <> currentBestString <> "," <> (show $ toSeconds inTime) <> "," <> (L.intercalate "," $ fmap showArg buildArgs) <> transformString <> transString
-
-
-         in  (uniqueGraphs, [searchString <> thompsonString])
-
-
-      -- already have some input graphs
-      -- choose a method and parameters at random
-      -- fuse on single graph will build a couple more first
-      else
-        {-
-         let -- unless fuse or genetic algorithm, only operate on "best" input graphs
-             -- this to reduce memory footrpint when have multiple iterations
-             inGraphList'' = if searchBandit `notElem` ["fuse", "fuseSPR", "fuseTBR","geneticAlgorithm"] then
-                                GO.selectGraphs Best keepNum 0.0 (-1) inGraphList'
-                             else inGraphList'
-
-
-
-             -- apply graph evaluation bandit
-             transformToStaticApproximation = if U.getNumberNonExactCharacters (thd3 inData') == 0 then False
-                                              else if graphEvaluationBandit == "StaticApproximation" then True
-                                              else False
-
-             transformMultiTraverse = if graphEvaluationBandit == "SingleTraverse" then True
-                                      else False
-
-             -- Can't do both static approx and multitraverse:False
-             ((inGS, origData, inData, inGraphList), transformString) = if transformToStaticApproximation && (useIA inGS') then
-                                                                            (TRANS.transform [("staticapprox",[])] inGS' inData' inData' 0 inGraphList'', ",StaticApprox")
-                                                                        else if transformMultiTraverse then
-                                                                            (TRANS.transform [("multitraverse","false")] inGS' inData' inData' 0 inGraphList'', ",MultiTraverse:False")
-                                                                        else
-                                                                            ((inGS', inData', inData', inGraphList''), "")
-
-
-
-
-         in
-         -}
          -- bandit list with search arguments set
          -- primes (') for build to start with untransformed data
-         let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then
-                                            let -- build options
-                                                buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                                            in
+         let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then do
+                                            let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
                                             -- search
-                                            (B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0), buildArgs)
+                                            graphList <- B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                                            (graphList, buildArgs)
 
                                           else if searchBandit == "buildDistance" then
                                             let -- build options
@@ -611,7 +540,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                                             -- reducing to unique best cost trees--but is a memory pig
                                             let graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
                                             in
-                                            (take numToCharBuild $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) graphList, buildArgs)
+                                            (graphList, buildArgs)
 
                                           else if searchBandit == "buildSPR" then
                                             let -- build part
@@ -776,7 +705,6 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
-
 
                                           else error ("Unknown/unimplemented method in search: " <> searchBandit)
 

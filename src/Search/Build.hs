@@ -44,6 +44,10 @@ module Search.Build  ( buildGraph
 
 -- import Control.Parallel.Strategies
 import Commands.Verify qualified as VER
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Char
 import Data.List qualified as L
 import Data.Maybe
@@ -59,6 +63,7 @@ import Search.DistanceMethods qualified as DM
 import Search.DistanceWagner qualified as DW
 import Search.WagnerBuild qualified as WB
 import SymMatrix qualified as M
+import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Types.Types
 import Utilities.DistanceUtilities qualified as DU
@@ -69,7 +74,7 @@ import Utilities.Utilities qualified as U
 -- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 -- with appropriate options
 -- transforms graph type to Tree for builds then back to initial graph type
-buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> [ReducedPhylogeneticGraph]
+buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> PhyG [ReducedPhylogeneticGraph]
 buildGraph inArgs inGS inData pairwiseDistances rSeed =
    let fstArgList = fmap (fmap toLower . fst) inArgs
        sndArgList = fmap (fmap toLower . snd) inArgs
@@ -166,16 +171,18 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                 errorWithoutStackTrace ("Return number specifications in build not an integer: " <> show (snd $ head returnList))
 
        else
-            trace returnString (
+            trace returnString $
             if inputGraphType == Tree || (not . null) buildBlock then
               -- trace ("BB: " <> (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
-              if null buildBlock then firstGraphs
-              else trace (costString) firstGraphs
+              if null buildBlock then do return firstGraphs
+              else do 
+                logWith LogInfo costString 
+                return firstGraphs
               -- )
-            else
-              trace ("\tRediagnosing as " <> (show (graphType inGS)))
-              PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst5 firstGraphs) -- `using` PU.myParListChunkRDS
-            )
+            else do
+              logWith LogInfo ("\tRediagnosing as " <> (show (graphType inGS)))
+              return $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst5 firstGraphs) -- `using` PU.myParListChunkRDS
+            
 
 
 -- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them

@@ -103,15 +103,15 @@ performSearch initialSeed inputFilePath = do
 
     if commandsOK
         then logWith LogMore "\tCommands appear to be properly specified--file availability and contents not checked.\n"
-        else failWithPhase Parsing "Commands not properly specified"
+        else failWithPhase Parsing "Commands not properly specified\n"
 
     movedPrealignedList <- mapM (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)
     dataGraphList ← mapM RIF.executeReadCommands movedPrealignedList
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs
-        then failWithPhase Unifying "\n\nNeither data nor graphs entered.  Nothing can be done."
-        else logWith LogInfo $ unwords ["Entered", show (length rawData), "data file(s) and", show (length rawGraphs), "input graphs"]
+        then failWithPhase Unifying "\n\nNeither data nor graphs entered.  Nothing can be done.\n"
+        else logWith LogInfo $ unwords ["Entered", show (length rawData), "data file(s) and", show (length rawGraphs), "input graphs\n"]
 
     -- get set partitions character from Set commands early, the enpty seed list puts in first section--only processing a few fields
     -- confusing and should be changed
