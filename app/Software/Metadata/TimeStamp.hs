@@ -35,5 +35,10 @@ compilationTimeStamp = (show <$> runIO getCurrentTime) `bindCode` (\time -> [|| 
 renderTimeStampAsLocalTime ∷ (IsString s) ⇒ String → IO s
 renderTimeStampAsLocalTime timeStr =
     let timeStamp = read timeStr
-        formatTimeStamp = formatTime defaultTimeLocale "%Y-%m-%d %T (local time)"
-    in  fromString . formatTimeStamp . flip utcToLocalTime timeStamp <$> getTimeZone timeStamp
+        formatTimeLocal = formatTime defaultTimeLocale "%Y-%m-%d @ %T"
+        formatTimeZoned = formatTime defaultTimeLocale "%EZ"
+        formatTimeStamp zone =
+            let time = utcToLocalTime zone timeStamp
+            in  unwords [ formatTimeLocal time, formatTimeZoned zone]  
+    in  fromString . formatTimeStamp <$> getTimeZone timeStamp
+            
