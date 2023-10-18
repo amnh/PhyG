@@ -107,7 +107,7 @@ fullVersionInformation =
             , shortVersionInformation
             , hashInfo
             , commits
-            , "@"
+            , "on"
             , time
             ]
 
