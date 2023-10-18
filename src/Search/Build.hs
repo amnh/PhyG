@@ -89,7 +89,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            displayBlock = filter ((== "displaytrees").fst) lcArgList
            numDisplayTrees
                 | length displayBlock > 1 =
-                  do failWithPhase Parsing  ("Multiple displayTree number specifications in command--can have only one: " <> show inArgs)
+                    error ("Multiple displayTree number specifications in command--can have only one: " <> show inArgs)
                 | null displayBlock = Just 10
                 | null (snd $ head displayBlock) = Just 10
                 | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
@@ -98,7 +98,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            returnList = filter ((== "return").fst) lcArgList
            numReturnTrees
                 | length returnList > 1 =
-                  do failWithPhase Parsing  ("Multiple 'return' number specifications in command--can have only one: " <> show inArgs)
+                  error  ("Multiple 'return' number specifications in command--can have only one: " <> show inArgs)
                 | null returnList = Just (maxBound :: Int)
                 | null (snd $ head returnList) = Just (maxBound :: Int)
                 | otherwise = readMaybe (snd $ head returnList) :: Maybe Int

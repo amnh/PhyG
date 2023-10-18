@@ -527,11 +527,12 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
          -- primes (') for build to start with untransformed data
          let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then 
                                             let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
+                                            --    graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
                                             in do
                                             -- search
                                             graphList <- B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
                                             (graphList, buildArgs)
-{-
+
                                           else if searchBandit == "buildDistance" then
                                             let -- build options
                                                 buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
@@ -706,7 +707,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
--}
+
                                           else error ("Unknown/unimplemented method in search: " <> searchBandit)
 
              -- process
