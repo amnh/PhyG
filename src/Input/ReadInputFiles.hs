@@ -86,23 +86,23 @@ expandReadCommands _newReadList inCommand@(commandType, argList') =
     if commandType /= Read then error ("Incorrect command type in expandReadCommands: " <> show inCommand)
     else do
         globbedFileNames <- liftIO $ mapM SPG.glob fileNames
-        if all null globbedFileNames then errorWithoutStackTrace ("File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''): " <> show fileNames)
-        else
-            let newArgPairs = makeNewArgs <$> zip modifierList globbedFileNames
-                commandList = replicate (length newArgPairs) commandType
-                tcmArgListL = replicate (length newArgPairs) tcmArgList
-            in
+        if all null globbedFileNames then do failWithPhase Inputting ("File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''): " <> show fileNames)
+        else do
+            newArgPairs <- mapM makeNewArgs (zip modifierList globbedFileNames)
+
+            let commandList = replicate (length newArgPairs) commandType
+            let tcmArgListL = replicate (length newArgPairs) tcmArgList
+            
             return $ zip commandList (zipWith (<>) newArgPairs tcmArgListL)
     -- )
 
 -- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
 -- globbed file name list to create a list of arguments
-makeNewArgs :: (String, [String]) -> [(String, String)]
+makeNewArgs :: (String, [String]) -> PhyG [(String, String)]
 makeNewArgs (modifier, fileNameList) =
-    if null fileNameList then error ("Null filename list in makeNewArgs: " <> show (modifier, fileNameList))
+    if null fileNameList then do failWithPhase Inputting ("Null filename list in makeNewArgs: " <> show (modifier, fileNameList))
     else let modList = replicate (length fileNameList) modifier
-         in  zip modList fileNameList
-
+         in do return $ zip modList fileNameList
 
 {-
 Added strictness on read so could close files after reading to
@@ -128,7 +128,7 @@ extractInputTuple dataGraphList =
 
 -- | executeReadCommands wrapper for executeReadCommands' with out all the empty list imput
 executeReadCommands :: [Argument]
-                    -> IO ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
+                    -> PhyG ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
 executeReadCommands = executeReadCommands' [] [] [] [] [] [] False ([],[],1.0)
 
 -- | executeReadCommands' reads input files and returns raw data, input graphs, and terminal taxa to include
@@ -143,11 +143,11 @@ executeReadCommands' :: [RawData]
                     -> Bool
                     -> ([ST.ShortText], [[Int]], Double)
                     -> [Argument]
-                    -> IO ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
+                    -> PhyG ([RawData], [SimpleGraph], [NameText], [NameText], [(NameText, NameText)], [(NameText, NameText)])
 executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs _ tcmPair argList = do
     if null argList then return (curData, curGraphs, curTerminals, curExcludeList, curRenamePairs, curReBlockPairs)
     else do
-        -- hPutStrLn stderr ("ERC: " <> (show argList) <> " " <> (show tcmPair))
+        -- logWith LogInfo ("ERC: " <> (show argList) <> " " <> (show tcmPair))
         let isPrealigned'= False  --removed this option and m,asde specific to sequence types
         --      | isPrealigned = True
         --      | "prealigned" `elem`  fmap fst argList = True
@@ -159,29 +159,29 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
         --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
         -- else do
         do
-            fileHandle <- if ',' `notElem` firstFile then openFile firstFile ReadMode
-                          else return (stdin :: Handle)
-            canBeReadFrom <- hIsReadable fileHandle
-            if not canBeReadFrom then errorWithoutStackTrace ("\n\n'Read' error: file " <> firstFile <> " cannot be read")
+            fileHandle <- liftIO $ if ',' `notElem` firstFile then openFile firstFile ReadMode
+                                   else return (stdin :: Handle)
+            canBeReadFrom <- liftIO $ hIsReadable fileHandle
+            if not canBeReadFrom then do failWithPhase Inputting ("\n\n'Read' error: file " <> firstFile <> " cannot be read")
             else
-                if not $ null firstOption then hPutStrLn stderr ("Reading " <> firstFile <> " with option " <> firstOption)
-                else hPutStrLn stderr ("Reading " <> firstFile <> " with no options")
+                if not $ null firstOption then do logWith LogInfo ("Reading " <> firstFile <> " with option " <> firstOption)
+                else do logWith LogInfo ("Reading " <> firstFile <> " with no options")
 
             -- this is awkward but need to use dot utilities
             if firstOption == "dot" then do
-                dotGraph <- LG.hGetDotLocal fileHandle
+                dotGraph <- liftIO $ LG.hGetDotLocal fileHandle
                 let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
                 let hasLoops = B.hasLoop inputDot
-                if hasLoops then errorWithoutStackTrace ("Input graph in " <> firstFile <> "  has loops/self-edges")
-                else hPutStr stderr ""
+                if hasLoops then do failWithPhase Parsing  ("Input graph in " <> firstFile <> "  has loops/self-edges")
+                else do logWith LogInfo ""
                 let hasCycles = GFU.cyclic inputDot
-                if hasCycles then errorWithoutStackTrace ("Input graph in " <> firstFile <> " has at least one cycle")
+                if hasCycles then do failWithPhase Parsing("Input graph in " <> firstFile <> " has at least one cycle")
                 else executeReadCommands' curData (inputDot : curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
             -- not "dot" files
             else do
-                -- hPutStrLn stderr ("FC1: " <> firstFile)
-                fileContents <- if ',' `notElem` firstFile then TIO.hGetContents fileHandle
-                                else return (T.pack firstFile)
+                -- logWith LogInfo ("FC1: " <> firstFile)
+                fileContents <- liftIO $ if ',' `notElem` firstFile then TIO.hGetContents fileHandle
+                                         else return (T.pack firstFile)
 
                 {--Strict version--don't think necessary--but could getvinot open fikle number issues?
                  -- destroys lazyness but allows closing right away
@@ -190,48 +190,47 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                 hClose fileHandle
                 -}
 
-                if T.null fileContents then errorWithoutStackTrace ("Error: Input file " <> firstFile <> " is empty")
+                if T.null fileContents then do failWithPhase Inputting ("Error: Input file " <> firstFile <> " is empty")
                 else
                     -- try to figure out file type based on first and following characters
-                    if firstOption == "tcm" then
-                        let newTCMPair = processTCMContents (',' `elem` firstFile) (T.unpack fileContents) firstFile
-                        in
+                    if firstOption == "tcm" then do
+                        newTCMPair <- processTCMContents (',' `elem` firstFile) (T.unpack fileContents) firstFile
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' newTCMPair (tail argList)
                     else if null firstOption then
                         let firstChar = T.head $ T.dropWhile (== ' ') fileContents
                         in
                         if (toLower firstChar == '/') || (toLower firstChar == 'd') || (toLower firstChar == 'g')then do
-                            hPutStrLn stderr ("\tTrying to parse " <> firstFile <> " as dot")
+                            logWith LogInfo ("\tTrying to parse " <> firstFile <> " as dot")
                             -- destroys lazyness but allows closing right away
                             -- this so don't have huge numbers of open files for large data sets
-                            fileHandle2 <- openFile  firstFile ReadMode
-                            dotGraph    <- LG.hGetDotLocal fileHandle2
-                            hClose fileHandle2
+                            fileHandle2 <- liftIO $ openFile  firstFile ReadMode
+                            dotGraph    <- liftIO $ LG.hGetDotLocal fileHandle2
+                            liftIO $ hClose fileHandle2
                             let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
                             let hasLoops = B.hasLoop inputDot
-                            if hasLoops then errorWithoutStackTrace ("Input graph in " <> firstFile <> "  has loops/self-edges")
-                            else hPutStr stderr ""
+                            if hasLoops then do failWithPhase Parsing ("Input graph in " <> firstFile <> "  has loops/self-edges")
+                            else do logWith LogInfo ""
                             let hasCycles = GFU.cyclic inputDot
-                            if hasCycles then errorWithoutStackTrace ("Input graph in " <> firstFile <> " has at least one cycle")
+                            if hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
                             else executeReadCommands' curData (inputDot : curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
                             let thisGraphList = getFENewickGraphText fileContents
                                 hasCycles = filter id $ fmap GFU.cyclic thisGraphList
                                 hasLoops = filter id $ fmap B.hasLoop thisGraphList
                             in
-                            if not $ null hasLoops then errorWithoutStackTrace ("Input graph in " <> firstFile <> "  has loops/self-edges")
-                            else if not $ null hasCycles then errorWithoutStackTrace ("Input graph in " <> firstFile <> " has at least one cycle")
+                            if not $ null hasLoops then do failWithPhase Parsing ("Input graph in " <> firstFile <> "  has loops/self-edges")
+                            else if not $ null hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
                             else executeReadCommands' curData (thisGraphList <> curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                         else if toLower firstChar == 'x' then
                             let tntData = TNT.getTNTDataText fileContents firstFile
                             in do
-                            hPutStrLn stderr ("\tTrying to parse " <> firstFile <> " as TNT")
+                            logWith LogInfo ("\tTrying to parse " <> firstFile <> " as TNT")
                             executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else
                             let fileContents' =  T.unlines $ filter (not . T.null) $ T.takeWhile (/= ';') <$> T.lines fileContents
                             in
-                              if T.null (T.dropWhile (== ' ') fileContents') then errorWithoutStackTrace ("Null file '" <> firstFile <> "' input")
+                              if T.null (T.dropWhile (== ' ') fileContents') then do failWithPhase Parsing ("Null file '" <> firstFile <> "' input")
                               else if T.head (T.dropWhile (== ' ') fileContents') == '>' then
                                 let secondLine = T.lines fileContents' !! 1
                                     hasSpaces = T.find (== ' ') secondLine
@@ -242,16 +241,16 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                     let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
                                         fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     in do
-                                    hPutStrLn stderr ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input.")
+                                    logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input.")
                                     executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                                 else
                                     let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
                                         (fastaCharInfo, fastaData)  = FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
                                     in do
-                                    hPutStrLn stderr ("\tTrying to parse " <> firstFile <> " as fasta")
+                                    logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fasta")
                                     executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
-                        else errorWithoutStackTrace ("Cannot determine file type for " <> firstFile <> " need to prepend type")
+                        else do failWithPhase Parsing ("Cannot determine file type for " <> firstFile <> " need to prepend type")
                     -- fasta
                     else if firstOption `elem` ["fasta", "nucleotide", "aminoacid", "hugeseq"] then
                         let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
@@ -292,8 +291,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             hasLoops = filter id $ fmap B.hasLoop thisGraphList
                             hasCycles = filter id $ fmap GFU.cyclic thisGraphList
                         in
-                        if not $ null hasLoops then errorWithoutStackTrace ("Input graphin " <> firstFile <> "  has loops/self-edges")
-                        else if not $ null hasCycles then errorWithoutStackTrace ("Input graph in " <> firstFile <> " has at least one cycle")
+                        if not $ null hasLoops then do failWithPhase Parsing ("Input graphin " <> firstFile <> "  has loops/self-edges")
+                        else if not $ null hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
                         else executeReadCommands' curData (thisGraphList <> curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     -- reading terminals list to include--must be "new" names if taxa are renamed
@@ -305,34 +304,36 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         let excludeList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments (T.unpack <$> T.lines fileContents))
                         in
                         executeReadCommands' curData curGraphs curTerminals (excludeList <> curExcludeList) curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else if firstOption == "rename"  then
+                    else if firstOption == "rename"  then do
                         let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
-                            namePairs = concatMap (makeNamePairs firstFile) renameLines
-                        in
+                        namePairsLL <- mapM (makeNamePairs firstFile) renameLines
+                        let namePairs = concat namePairsLL
+                        
                         executeReadCommands' curData curGraphs curTerminals curExcludeList (namePairs <> curRenamePairs) curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else if firstOption == "block"  then
+                    else if firstOption == "block"  then do
                         let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
-                            blockPairs = concatMap (makeNamePairs firstFile) renameLines
-                        in
+                        blockPairsLL <- mapM (makeNamePairs firstFile) renameLines
+                        let blockPairs = concat blockPairsLL
+                        
                         executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs (blockPairs <> curReBlockPairs) isPrealigned' tcmPair (tail argList)
                     --else if firstOption == "prealigned" then
                     --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                    else errorWithoutStackTrace ("\n\n'Read' command error: option " <> firstOption <> " not recognized/implemented")
+                    else do failWithPhase Parsing ("\n\n'Read' command error: option " <> firstOption <> " not recognized/implemented")
 
 -- | makeNamePairs takes lines of rename or reblock file and returns pairs of names
 -- for renaming or reblocking
-makeNamePairs :: String -> String -> [(T.Text, T.Text)]
+makeNamePairs :: String -> String -> PhyG [(T.Text, T.Text)]
 makeNamePairs inFileName inLine =
-    if null inLine then []
+    if null inLine then do return []
     else
         let lineWords = fmap T.strip $ T.words $ T.pack $ filter (/= '"') $ filter C.isPrint inLine
         in
-        if length lineWords < 2 then errorWithoutStackTrace ("Rename file " <> inFileName <> " line needs at least two Strings to rename the second as the first: " <> inLine)
+        if length lineWords < 2 then failWithPhase Parsing ("Rename file " <> inFileName <> " line needs at least two Strings to rename the second as the first: " <> inLine)
         else
             let targetNameList = replicate (length $ tail lineWords) (head lineWords)
                 renamePairList = zip targetNameList (tail lineWords)
-            in
-            renamePairList
+            in do
+            return renamePairList
 
 
 
@@ -391,9 +392,9 @@ getFENewickGraphText fileString =
 
 -- | processTCMContents
 -- functionality added to integerize tcm and add weight factor to allow for decimal tcm values
-processTCMContents :: Bool -> String -> String -> ([ST.ShortText], [[Int]], Double)
+processTCMContents :: Bool -> String -> String -> PhyG ([ST.ShortText], [[Int]], Double)
 processTCMContents indelGap inContents fileName =
-    if null inContents then errorWithoutStackTrace ("\n\n'Read' 'tcm' command error: empty tcmfile `" <> fileName)
+    if null inContents then do failWithPhase Parsing ("\n\n'Read' 'tcm' command error: empty tcmfile `" <> fileName)
     else
         if indelGap then
             let indelString = L.takeWhile (/= ',') inContents
@@ -401,32 +402,32 @@ processTCMContents indelGap inContents fileName =
                 indelMaybe = readMaybe indelString :: Maybe Int
                 substMaybe = readMaybe substString :: Maybe Int
             in
-            if isNothing indelMaybe then errorWithoutStackTrace ("Specification of indel cost must be an Integer (Indel cost, Substitution cost): " <> indelString)
-            else if isNothing substMaybe then errorWithoutStackTrace ("Specification of substitution cost must be an Integer (Indel cost, Substitution cost): " <> substString)
-            else
-                ([], [[fromJust indelMaybe, fromJust substMaybe],[]], 1.0)
+            if isNothing indelMaybe then do failWithPhase Parsing ("Specification of indel cost must be an Integer (Indel cost, Substitution cost): " <> indelString)
+            else if isNothing substMaybe then do failWithPhase Parsing ("Specification of substitution cost must be an Integer (Indel cost, Substitution cost): " <> substString)
+            else do
+                return ([], [[fromJust indelMaybe, fromJust substMaybe],[]], 1.0)
         --First line is alphabet
-        else
+        else do
             let tcmLines = lines inContents
-                localAlphabet =  fmap ST.pack $ words $ head tcmLines
-                -- to account for '-'
-                numElements = 1 + length localAlphabet
-                costMatrixStrings = words <$> tail tcmLines
-                -- localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
-                (scaleFactor, localCostMatrix) = getCostMatrixAndScaleFactor fileName costMatrixStrings
-                numLines = length localCostMatrix
-                lengthRowList = fmap length localCostMatrix
-                rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
-            in
-            if ST.singleton '-' `elem` localAlphabet then errorWithoutStackTrace "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
-            else if numLines /= numElements then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from "
-                <> fileName <> " this could be due to a missing element symbol line at the beginning of the file (e.g. A C G T, '-' is assumed) or there is a mismatch in the dimensions of the tcm (including '-') " <> show numElements <> " elements are implied and there are " <> show numLines)
-            else if not rowsCorrectLength then errorWithoutStackTrace ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from "
-                <> fileName <> " there should be (including '-') " <> show numElements)
+            let localAlphabet =  fmap ST.pack $ words $ head tcmLines
+            -- to account for '-'
+            let numElements = 1 + length localAlphabet
+            let costMatrixStrings = words <$> tail tcmLines
+            -- localCostMatrix = filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) costMatrixStrings
+            (scaleFactor, localCostMatrix) <- getCostMatrixAndScaleFactor fileName costMatrixStrings
+            let numLines = length localCostMatrix
+            let lengthRowList = fmap length localCostMatrix
+            let rowsCorrectLength = foldl' (&&) True $ fmap (==  numElements) lengthRowList
+            
+            if ST.singleton '-' `elem` localAlphabet then do failWithPhase Parsing "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
+            else if numLines /= numElements then do 
+                failWithPhase Parsing ("\n\n'Read' 'tcm' file format error: incorrect number of lines in matrix from " <> fileName <> " this could be due to a missing element symbol line at the beginning of the file (e.g. A C G T, '-' is assumed) or there is a mismatch in the dimensions of the tcm (including '-') " <> show numElements <> " elements are implied and there are " <> show numLines)
+            else if not rowsCorrectLength then do 
+                failWithPhase Parsing ("\n\n'Read' 'tcm' file format error: incorrect lines length(s) in matrix from " <> fileName <> " there should be (including '-') " <> show numElements)
             else
                 --trace (show (scaleFactor, localCostMatrix))
                 -- trace (show localAlphabet <> "\n" <> show localCostMatrix)
-                (localAlphabet <> [ST.singleton '-'], localCostMatrix, scaleFactor)
+                return (localAlphabet <> [ST.singleton '-'], localCostMatrix, scaleFactor)
 
 
 -- | getCostMatrixAndScaleFactor takes [[String]] and returns cost matrix as
@@ -434,18 +435,19 @@ processTCMContents indelGap inContents fileName =
 -- cost matrix are integerized by multiplication by 1/scaleFactor
 -- scaleFactor will alway be a factor of 10 to allow for easier
 -- compilation of tcm charcaters later (weights the same...)
-getCostMatrixAndScaleFactor :: String -> [[String]] -> (Double, [[Int]])
+getCostMatrixAndScaleFactor :: String -> [[String]] -> PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName inStringListList =
-    if null inStringListList then error "Empty list in inStringListList"
+    if null inStringListList then failWithPhase Parsing "Empty list in inStringListList"
     else
         let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
             scaleFactor = if maxDecimalPlaces == 0 then 1.0
                           else 0.1 ** fromIntegral maxDecimalPlaces
             in
-            if maxDecimalPlaces == 0 then (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
-            else
+            if maxDecimalPlaces == 0 then do
+                return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
+            else do
                 let newStringListList = fmap (fmap (integerizeString maxDecimalPlaces)) inStringListList
-                in (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) newStringListList)
+                return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) newStringListList)
 
 
 -- | getDecimals returns the number of decimal places in a string rep of a number

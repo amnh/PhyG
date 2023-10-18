@@ -106,7 +106,7 @@ performSearch initialSeed inputFilePath = do
         else failWithPhase Parsing "Commands not properly specified"
 
     movedPrealignedList <- mapM (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)
-    dataGraphList ← liftIO $ mapM RIF.executeReadCommands movedPrealignedList
+    dataGraphList ← mapM RIF.executeReadCommands movedPrealignedList
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs
