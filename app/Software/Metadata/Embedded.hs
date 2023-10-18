@@ -4,8 +4,6 @@ Compile-time embedding of the UTC time at which the program was built.
 
 {-# Language TemplateHaskell #-}
 
-{-# OPTIONS_GHC -fforce-recomp #-}
-
 module Software.Metadata.Embedded
   ( embeddedDataFiles
   ) where

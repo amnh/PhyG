@@ -12,7 +12,6 @@ module Software.Preamble
   ) where
 
 import Data.Foldable (fold)
-import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.String (IsString(fromString))
 import Data.Text.Builder.Linear
@@ -36,20 +35,23 @@ preambleText =
 
         above = encloseAbove :| []
         below = encloseBelow :| []
-        inner progName = fmap encloseLine $
-            fullVersionInformation :|
-            [ ""
-            , copywriting
-            , "The program '" <> fromString progName <> "' comes with ABSOLUTELY NO WARRANTY;"
-            , "This is free software, and may be redistributed under the " <> licenseName <> "."
-            , ""
-            , description
-            , "For more information, see: " <> homepageURL
-            ]
+        inner progName =
+            let makeMainBlock = flip (:|)
+                    [ ""
+                    , copywriting
+                    , "The program '" <> fromString progName <> "' comes with ABSOLUTELY NO WARRANTY;"
+                    , "This is free software, and may be redistributed under the " <> licenseName <> "."
+                    , ""
+                    , description
+                    , "For more information, see: " <> homepageURL
+                    ]
+            in  fmap encloseLine . makeMainBlock <$> fullVersionInformation
 
-        content n = above <> inner n <> below
+        surround x = above <> x <> below
 
-    in  getProgName <&> intercalate' "\n" . content
+        topProgBlock = fmap surround . inner
+
+    in  getProgName >>= fmap (intercalate' "\n") . topProgBlock
 
 
 enclosing :: Char -> String -> String -> String -> Builder
@@ -78,7 +80,9 @@ encloseLine = enclosing ' ' "│ " " │"
 getLicenseLine :: Word -> String
 getLicenseLine lineNum =
     let n = fromEnum lineNum
-    in  unpack . head . drop (n - 1) . take n $ T.lines licenseText
+    in  case drop (n - 1) . take n $ T.lines licenseText of
+          [] -> mempty
+          x:_ -> unpack x
 
 
 intercalate' :: Builder -> NonEmpty Builder -> Builder
