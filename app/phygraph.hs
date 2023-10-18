@@ -81,7 +81,7 @@ performSearch initialSeed inputFilePath = do
     commandContents ← liftIO $ readFile inputFilePath
 
     -- Process run commands to create one list of things to do
-    commandContents' ← liftIO $ PC.expandRunCommands [] (lines commandContents)
+    commandContents' ← PC.expandRunCommands [] (lines commandContents)
     thingsToDo'' <- PC.getCommandList commandContents' 
     --let thingsToDo'' = PC.getCommandList commandContents'
     -- mapM_ (logWith LogTech . show) thingsToDo'
@@ -91,7 +91,7 @@ performSearch initialSeed inputFilePath = do
 
     -- Process Read commands (with prealigned and tcm flags first)
     -- expand read commands for wildcards
-    expandedReadCommands ← liftIO . mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
+    expandedReadCommands ← mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
 
     -- sort added to sort input read commands for left right consistency
     let thingsToDo = L.sort (fold expandedReadCommands) <> filter ((/= Read) . fst) thingsToDo'
@@ -105,7 +105,8 @@ performSearch initialSeed inputFilePath = do
         then logWith LogMore "\tCommands appear to be properly specified--file availability and contents not checked.\n"
         else failWithPhase Parsing "Commands not properly specified"
 
-    dataGraphList ← liftIO . mapM RIF.executeReadCommands $ fmap (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)
+    movedPrealignedList <- mapM (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)
+    dataGraphList ← liftIO $ mapM RIF.executeReadCommands movedPrealignedList
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
 
     if null rawData && null rawGraphs

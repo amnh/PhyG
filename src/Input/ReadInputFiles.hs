@@ -47,6 +47,7 @@ module Input.ReadInputFiles
 
 import Commands.Verify qualified as V
 import Control.Evaluation
+import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Char
 import Data.Char qualified as C
@@ -74,7 +75,7 @@ import Utilities.Utilities qualified      as U
 
 -- | expandReadCommands expands read commands to multiple satisfying wild cards
 -- read command can have multiple file names
-expandReadCommands ::  [Command] -> Command -> IO [Command]
+expandReadCommands ::  [Command] -> Command -> PhyG [Command]
 expandReadCommands _newReadList inCommand@(commandType, argList') =
     let argList = filter ((`notElem` ["tcm"]) . fst) argList'
         tcmArgList = filter ((`elem` ["tcm"]) . fst) argList'
@@ -84,7 +85,7 @@ expandReadCommands _newReadList inCommand@(commandType, argList') =
     -- trace ("ERC: " <> (show fileNames)) (
     if commandType /= Read then error ("Incorrect command type in expandReadCommands: " <> show inCommand)
     else do
-        globbedFileNames <- mapM SPG.glob fileNames
+        globbedFileNames <- liftIO $ mapM SPG.glob fileNames
         if all null globbedFileNames then errorWithoutStackTrace ("File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''): " <> show fileNames)
         else
             let newArgPairs = makeNewArgs <$> zip modifierList globbedFileNames
@@ -339,33 +340,37 @@ makeNamePairs inFileName inLine =
 -- should allow mulitple files and gracefully error check
 -- also allows tcm file specification (limit 1 tcm per command?)
 -- as fasta, fastc, tnt, tcm, prealigned
-getReadArgs :: String -> [(String, String)] -> [Argument]
+getReadArgs :: String -> [(String, String)] -> PhyG [Argument]
 getReadArgs fullCommand argList =
-    if null argList then []
+    if null argList then return []
     else
         -- trace ("GRA: " <> fullCommand <> " " <> (show argList)) (
         let (firstPart, secondPart) = head argList
-        in
+        in do
+        restPart <- getReadArgs fullCommand (tail argList)
+            
         -- command in wrong place like prealigned or rename after file name
         if (not . null) firstPart && null secondPart then
-            errorWithoutStackTrace ("\n\n'Read' command error: possibly incorrect placement of option specification '" <> firstPart
-                <> "' should be before filename as in '" <> firstPart <> ":filename'")
+            failWithPhase Parsing ("\n\n'Read' command error: possibly incorrect placement of option specification '" <> firstPart
+                <> "' should be before filename as in '" <> firstPart <> ":filename'\n")
 
         -- plain file name with no modifier
         else if null firstPart then
-            if (head secondPart == '"') || (last secondPart == '"') then (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
-            else errorWithoutStackTrace ("\n\n'Read' command error: '" <> secondPart <>"' : Need to specify filename in double quotes")
+            if (head secondPart == '"') || (last secondPart == '"') then do
+                return $ (firstPart, init $ tail secondPart) : restPart
+            else failWithPhase Parsing  ("\n\n'Read' command error: '" <> secondPart <>"' : Need to specify filename in double quotes\n")
 
         -- Change to allowed modifiers
         else if fmap toLower firstPart `notElem` V.readArgList then
-            errorWithoutStackTrace ("\n\n'Read' command error: " <> fullCommand <> " contains unrecognized option '" <> firstPart <> "'")
+            failWithPhase Parsing  ("\n\n'Read' command error: " <> fullCommand <> " contains unrecognized option '" <> firstPart <> "'\n")
 
-        else if null secondPart && (firstPart == "prealigned")  then
-            (firstPart, []) : getReadArgs fullCommand (tail argList)
+        else if null secondPart && (firstPart == "prealigned")  then do
+            return $ (firstPart, []) : restPart
 
-        else if null (tail secondPart) then argList
+        else if null (tail secondPart) then return argList
 
-        else (firstPart, init $ tail secondPart) : getReadArgs fullCommand (tail argList)
+        else do 
+            return $ (firstPart, init $ tail secondPart) : restPart
         -- )
 
 {-  Not used when migrated to Text input from String

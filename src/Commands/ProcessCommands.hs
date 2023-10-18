@@ -56,6 +56,7 @@ module Commands.ProcessCommands
 
 import Commands.Verify qualified as V
 import Control.Evaluation
+import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Char
 import Data.Foldable
@@ -77,38 +78,38 @@ preprocessOptimalityCriteriaScripts inCommandList = inCommandList
 -- | expandRunCommands takes raw coomands and if a "run" command is found it reads that file
 -- and adds those commands in place
 -- ensures one command per line
-expandRunCommands :: [String] -> [String] -> IO [String]
+expandRunCommands :: [String] -> [String] -> PhyG [String]
 expandRunCommands curLines inLines =
     --trace ("EXP " <> (show curLines) <> show inLines) (
     if null inLines then return $ reverse curLines
-    else
+    else do
         let firstLineRead = removeComments [filter (/= ' ') $ head inLines]
-            (firstLine, restLine) =  if null firstLineRead then ([],[])
-                                     else splitCommandLine $ head firstLineRead
+        (firstLine, restLine) <- if null firstLineRead then return ([],[])
+                                 else splitCommandLine $ head firstLineRead
 
-            leftParens = length $ filter ( == '(') firstLine
-            rightParens = length $ filter ( == ')') firstLine
-        in
+        let leftParens = length $ filter ( == '(') firstLine
+        let rightParens = length $ filter ( == ')') firstLine
+        
         --trace ("FL " <> firstLine) (
         -- only deal with run lines
-        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " <> firstLine)
+        if leftParens /= rightParens then do failWithPhase Parsing ("Command line with unbalances parens '()': " <> firstLine <> "\n")
         else if null firstLine then expandRunCommands curLines (tail inLines)
         else if take 3 (fmap toLower firstLine) /= "run" then expandRunCommands (firstLine : curLines) (restLine : tail inLines)
         else do -- is a "run command"
-             let (_, runFileList) = head $ parseCommand firstLine
-             let runFileNames = fmap (checkFileNames . snd) runFileList
-             fileListContents <- mapM readFile runFileNames
+             parsedFirst <- parseCommand firstLine
+             let (_, runFileList) = head parsedFirst
+             runFileNames <- mapM (checkFileNames . snd) runFileList
+             fileListContents <- liftIO $ mapM readFile runFileNames
              let newLines = concatMap lines fileListContents
              expandRunCommands (newLines <> curLines)  (restLine : tail inLines)
              --)
         --)
 
-
 -- | splitCommandLine takes a line with potentially multiple commands and splits
 -- between the first command and all others.
-splitCommandLine :: String -> (String, String)
+splitCommandLine :: String -> PhyG (String, String)
 splitCommandLine inLine =
-    if null inLine then ([],[])
+    if null inLine then return ([],[])
     else
         let leftParens = length $ filter ( == '(') inLine
             rightParens = length $ filter ( == ')') inLine
@@ -117,16 +118,16 @@ splitCommandLine inLine =
             firstCommand = firstPart <> parenPart
             restPart = drop (length firstCommand) inLine
         in
-        if leftParens /= rightParens then errorWithoutStackTrace ("Command line with unbalances parens '()': " <> inLine)
-        else (firstCommand, restPart)
+        if leftParens /= rightParens then do failWithPhase Parsing ("Command line with unbalances parens '()': " <> inLine <> "\n")
+        else return (firstCommand, restPart)
 
 -- | checkFileNames checks if first and last element of String are double quotes and removes them
-checkFileNames :: String -> String
+checkFileNames :: String -> PhyG String
 checkFileNames inName
-  | null inName = errorWithoutStackTrace "Error: Null file name"
-  | head inName /= '"' = errorWithoutStackTrace ("Error: File name must be in double quotes (b): " <> inName)
-  | last inName /= '"' = errorWithoutStackTrace ("Error: File name must be in double quotes (e): " <> inName)
-  | otherwise = init $ tail inName
+  | null inName = do failWithPhase Parsing "Error: Null file name"
+  | head inName /= '"' = do failWithPhase Parsing ("Error: File name must be in double quotes (b): " <> inName <> "\n")
+  | last inName /= '"' = do failWithPhase Parsing ("Error: File name must be in double quotes (e): " <> inName <> "\n")
+  | otherwise = return $ init $ tail inName
 
 
 -- | getCommandList takes a String from a file and returns a list of commands and their arguments
@@ -137,18 +138,18 @@ getCommandList  rawContents =
     if null rawContents then do
         -- errorWithoutStackTrace "Error: Empty command file"
         failWithPhase Parsing "Empty command file"
-    else
+    else do
         let rawList = removeComments $ fmap (filter (/= ' ')) rawContents
-            -- expand for read wildcards here--cretge a new, potentially longer list
-            processedCommands = concatMap parseCommand rawList
+        -- expand for read wildcards here--cretge a new, potentially longer list
+        parsedRaw <- mapM parseCommand rawList
+        let processedCommands = concat parsedRaw
 
-            reportCommands = filter (( ==  Report) . fst) processedCommands
+        let reportCommands = filter (( ==  Report) . fst) processedCommands
 
-            reportGraphsArgs = filter ( ==  "graphs") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
-            reportNewickArgs = filter ( ==  "newick") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
-            reportDotArgs = filter ( ==  "dot") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+        let reportGraphsArgs = filter ( ==  "graphs") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+        let reportNewickArgs = filter ( ==  "newick") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
+        let reportDotArgs = filter ( ==  "dot") $ fmap (fmap toLower) $ fmap fst $ concatMap snd reportCommands
 
-        in
         if null reportCommands || null (reportGraphsArgs <> reportNewickArgs <> reportDotArgs) then
             -- trace ("Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'") $
             let addedReport = (Report, [("graphs",[]), ([], "_defaultGraph.dot_"), ("dotpdf",[])])
@@ -180,45 +181,50 @@ removeComments inLineList =
 
 -- | getInstruction returns the command type from an input String
 -- all operations on lower case
-getInstruction :: String -> [String] -> Instruction
+getInstruction :: String -> [String] -> PhyG Instruction
 getInstruction inString possibleCommands
-    | null inString = error "Empty command String"
-    | fmap toLower inString == "build"     = Build
-    | fmap toLower inString == "fuse"      = Fuse
-    | fmap toLower inString == "read"      = Read
-    | fmap toLower inString == "reblock"   = Reblock
-    | fmap toLower inString == "refine"    = Refine
-    | fmap toLower inString == "rename"    = Rename
-    | fmap toLower inString == "report"    = Report
-    | fmap toLower inString == "run"       = Run
-    | fmap toLower inString == "search"    = Search
-    | fmap toLower inString == "select"    = Select
-    | fmap toLower inString == "set"       = Set
-    | fmap toLower inString == "support"   = Support
-    | fmap toLower inString == "swap"      = Swap
-    | fmap toLower inString == "transform" = Transform
+    | null inString = do failWithPhase Parsing "Empty command String"
+    | fmap toLower inString == "build"     = return Build
+    | fmap toLower inString == "fuse"      = return Fuse
+    | fmap toLower inString == "read"      = return Read
+    | fmap toLower inString == "reblock"   = return Reblock
+    | fmap toLower inString == "refine"    = return Refine
+    | fmap toLower inString == "rename"    = return Rename
+    | fmap toLower inString == "report"    = return Report
+    | fmap toLower inString == "run"       = return Run
+    | fmap toLower inString == "search"    = return Search
+    | fmap toLower inString == "select"    = return Select
+    | fmap toLower inString == "set"       = return Set
+    | fmap toLower inString == "support"   = return Support
+    | fmap toLower inString == "swap"      = return Swap
+    | fmap toLower inString == "transform" = return Transform
     | otherwise =
         let errorMatch = snd $ getBestMatch (maxBound :: Int ,"no suggestion") possibleCommands inString
-        in  errorWithoutStackTrace $ fold
+        in do
+         failWithPhase Parsing $ fold
               ["\nError: Unrecognized command. By \'", inString, "\' did you mean \'", errorMatch, "\'?\n"]
 
 
 -- | parseCommand takes a command file line and processes the String into a command and its arguemnts
 -- assumes single command per line
-parseCommand :: String -> [Command]
+parseCommand :: String -> PhyG [Command]
 parseCommand inLine =
-    if null inLine then []
+    if null inLine then return []
     else
         let (firstString, restString) =  getSubCommand inLine False
             instructionString = takeWhile (/= '(') firstString --inLine
-            -- this doesn not allow recursive multi-option arguments
-            -- NEED TO FIX
-            -- make in to a more sophisticated split outside of parens
-            argList = argumentSplitter inLine $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
-            localInstruction = getInstruction instructionString V.allowedCommandList
-            processedArg = parseCommandArg firstString localInstruction argList
-        in
-        (localInstruction, processedArg) : parseCommand restString
+               
+        in do   
+        -- this doesn not allow recursive multi-option arguments
+        -- NEED TO FIX
+        -- make in to a more sophisticated split outside of parens
+        argList <- argumentSplitter inLine $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString 
+        
+        localInstruction <- getInstruction instructionString V.allowedCommandList
+        processedArg <- parseCommandArg firstString localInstruction argList
+        parsedRest <-  parseCommand restString
+        
+        return $ (localInstruction, processedArg) : parsedRest
 
 
 -- | getSubCommand takes a string and extracts the first occurrence of the
@@ -256,77 +262,86 @@ getBalancedParenPart curString inString countLeft countRight =
 -- | argumentSplitter takes argument string and returns individual strings of arguments
 -- which can include null, single, multiple or sub-command arguments
 -- these are each pairs of an option string (could be null) and a subarguments String (also could be null)
-argumentSplitter :: String -> String -> [(String, String)]
+argumentSplitter :: String -> String -> PhyG [(String, String)]
 argumentSplitter commandLineString inString
-  | null inString = []
-  | not (freeOfSimpleErrors inString) = errorWithoutStackTrace "Error in command specification format"
+  | null inString = return []
   | otherwise =
     let commaIndex = fromMaybe (maxBound :: Int) (L.elemIndex ',' inString)
         semiIndex = fromMaybe (maxBound :: Int) (L.elemIndex ':' inString)
         leftParenIndex = fromMaybe (maxBound :: Int) (L.elemIndex '(' inString)
         firstDivider = minimum [commaIndex, semiIndex, leftParenIndex]
-    in
+    in do
+    checkErrors <- freeOfSimpleErrors inString
+    if not checkErrors then do failWithPhase Parsing "Error in command specification format\n"
     -- simple no argument arg
-    if firstDivider == (maxBound :: Int) then
-        if head inString == '"' then [([], inString)]
-        else [(inString, [])]
+    else if firstDivider == (maxBound :: Int) then
+        if head inString == '"' then return [([], inString)]
+        else return [(inString, [])]
     else if commaIndex == firstDivider then
         -- no arg
-        if null (take firstDivider inString) then errorWithoutStackTrace ("Error in command '" <> commandLineString <> "' perhaps due to extraneous commas (',')")
-        else if head (take firstDivider inString) == '"' then ([], take firstDivider inString) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
-        else (take firstDivider inString, []) : argumentSplitter commandLineString (drop (firstDivider + 1) inString)
+        if null (take firstDivider inString) then do failWithPhase Parsing ("Error in command '" <> commandLineString <> "' perhaps due to extraneous commas (',')\n")
+        else if head (take firstDivider inString) == '"' then do
+            restPart <- argumentSplitter commandLineString (drop (firstDivider + 1) inString)
+            return $ ([], take firstDivider inString) : restPart
+        else do
+            restPart <- argumentSplitter commandLineString (drop (firstDivider + 1) inString)
+            return $ (take firstDivider inString, []) : restPart
     else if semiIndex == firstDivider then
         -- has arg after ':'
-        if inString !! (semiIndex + 1) == '(' then
-            (take firstDivider inString,takeWhile (/= ')') (drop (firstDivider + 1) inString) <> ")") : argumentSplitter commandLineString (drop 2 $ dropWhile (/= ')') inString)
+        if inString !! (semiIndex + 1) == '(' then do
+            restPart <- argumentSplitter commandLineString (drop 2 $ dropWhile (/= ')') inString)
+            return $ (take firstDivider inString,takeWhile (/= ')') (drop (firstDivider + 1) inString) <> ")") : restPart
         else
             let nextStuff =  dropWhile (/= ',') inString
                 remainder = if null nextStuff then [] else tail nextStuff
-            in
-            (take firstDivider inString, takeWhile (/= ',') (drop (firstDivider + 1) inString)) : argumentSplitter commandLineString remainder
+            in do
+            restPart <- argumentSplitter commandLineString remainder
+            return $ (take firstDivider inString, takeWhile (/= ',') (drop (firstDivider + 1) inString)) : restPart
     else -- arg is sub-commnd
         let (subCommand, remainderString) = getSubCommand inString True
-        in
-        (subCommand, []) : argumentSplitter commandLineString remainderString
+        in do
+        restPart <- argumentSplitter commandLineString remainderString
+        return $  (subCommand, []) : restPart
 
 
 -- | freeOfSimpleErrors take command string and checks for simple for atting errors
 -- lack of separators ',' between args
 -- add as new errors are found
-freeOfSimpleErrors :: String -> Bool
+freeOfSimpleErrors :: String -> PhyG Bool
 freeOfSimpleErrors commandString
   | null commandString = errorWithoutStackTrace "\n\nError in command string--empty"
-  | isSequentialSubsequence  ['"','"'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly missing comma ',' between arguments or extra double quotes'\"'.")
-  | isSequentialSubsequence  [',',')'] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly terminal comma ',' after or within arguments.")
-  | isSequentialSubsequence  [',','('] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly comma ',' before '('.")
-  | isSequentialSubsequence  ['(',','] commandString = errorWithoutStackTrace ("\n\nCommand format error: " <> commandString <> "\n\tPossibly starting comma ',' before arguments.")
+  | isSequentialSubsequence  ['"','"'] commandString = do failWithPhase Parsing ("\n\nCommand format error: " <> commandString <> "\n\tPossibly missing comma ',' between arguments or extra double quotes'\"'.")
+  | isSequentialSubsequence  [',',')'] commandString = do failWithPhase Parsing ("\n\nCommand format error: " <> commandString <> "\n\tPossibly terminal comma ',' after or within arguments.")
+  | isSequentialSubsequence  [',','('] commandString = do failWithPhase Parsing ("\n\nCommand format error: " <> commandString <> "\n\tPossibly comma ',' before '('.")
+  | isSequentialSubsequence  ['(',','] commandString = do failWithPhase Parsing ("\n\nCommand format error: " <> commandString <> "\n\tPossibly starting comma ',' before arguments.")
   | otherwise =
     let beforeDoubleQuotes = dropWhile (/= '"') commandString
     in
-    if null beforeDoubleQuotes then True
+    if null beforeDoubleQuotes then do return True
         -- likely more conditions to develop
-    else True
+    else do return True
 
 
 -- | parseCommandArg takes an Instruction and arg list of Strings and returns list
 -- of parsed srguments for that instruction
-parseCommandArg :: String -> Instruction -> [(String, String)] -> [Argument]
+parseCommandArg :: String -> Instruction -> [(String, String)] -> PhyG [Argument]
 parseCommandArg fullCommand localInstruction argList
     | localInstruction == Read = if not $ null argList then RIF.getReadArgs fullCommand argList
-                            else errorWithoutStackTrace ("\n\n'Read' command error '" <> fullCommand <> "': Need to specify at least one filename in double quotes")
-    | otherwise                = argList
+                                 else failWithPhase Parsing ("\n\n'Read' command error '" <> fullCommand <> "': Need to specify at least one filename in double quotes")
+    | otherwise                = return argList
+
 
 
 -- | movePrealignedTCM move prealigned and tcm commands to front of argument list
-movePrealignedTCM :: [Argument] -> [Argument]
+movePrealignedTCM :: [Argument] -> PhyG [Argument]
 movePrealignedTCM inArgList =
-    if null inArgList then []
+    if null inArgList then return []
     else
         let firstPart = filter (( ==  "prealigned").fst) inArgList
             secondPart = filter (( ==  "tcm").fst) inArgList
             restPart = filter ((/= "tcm").fst) $ filter ((/= "prealigned").fst) inArgList
         in
-        if length secondPart > 1 then errorWithoutStackTrace ("\n\n'Read' command error '" <> show inArgList <> "': can only specify a single tcm file")
-        else firstPart <> secondPart <> restPart
+        if length secondPart > 1 then failWithPhase Parsing ("\n\n'Read' command error '" <> show inArgList <> "': can only specify a single tcm file")
+        else return $ firstPart <> secondPart <> restPart
 
 
