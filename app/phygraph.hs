@@ -72,8 +72,8 @@ Perform phylogenetic search using the supplied input file.
 performSearch ∷ RandomSeed → FilePath → PhyG ()
 performSearch initialSeed inputFilePath = do
     printProgramPreamble
-    logWith LogInfo $ "\nCommand script file: '" <> inputFilePath <> "'"
-    logWith LogInfo $ "Initial random seed set to " <> show initialSeed
+    logWith LogInfo $ "\nCommand script file: '" <> inputFilePath <> "'\n"
+    logWith LogInfo $ "Initial random seed set to " <> show initialSeed <> "\n"
     timeCDBegin ← liftIO getCurrentTime
     seedList ← getRandoms
 
@@ -98,7 +98,7 @@ performSearch initialSeed inputFilePath = do
     -- logWith LogDump . show $ fold expandedReadCommands
 
     -- check commands and options for basic correctness
-    logWith LogMore "\nChecking command file syntax"
+    logWith LogMore "\nChecking command file syntax\n"
     let !commandsOK = V.verifyCommands thingsToDo [] []
 
     if commandsOK
@@ -124,8 +124,8 @@ performSearch initialSeed inputFilePath = do
     -- Process Rename Commands
     newNamePairList ← liftIO $ CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
     if thereExistsSome newNamePairList
-        then logWith LogInfo $ unwords ["Renaming", show $ length newNamePairList, "terminals"]
-        else logWith LogInfo "No terminals to be renamed"
+        then logWith LogInfo $ unwords ["Renaming", show $ length newNamePairList, "terminals\n"]
+        else logWith LogInfo "No terminals to be renamed\n"
 
     let renamedData = fmap (DT.renameData newNamePairList) rawDataSplit
     let renamedGraphs = fmap (GFU.relabelGraphLeaves newNamePairList) rawGraphs
@@ -137,7 +137,7 @@ performSearch initialSeed inputFilePath = do
     -- Reconcile Data and Graphs (if input) including ladderization
     -- could be sorted, but no real need
     -- get taxa to include in analysis
-    let renderTerminals pref = (("Terminals to " <> pref <> ": ") <>) . unwords . fmap Text.unpack
+    let renderTerminals pref = (<> "\n") . (("Terminals to " <> pref <> ": ") <>) . unwords . fmap Text.unpack
     when (thereExistsSome terminalsToInclude)
         . logWith LogInfo
         $ renderTerminals "include" terminalsToInclude
@@ -152,7 +152,7 @@ performSearch initialSeed inputFilePath = do
                 then L.sort $ L.nub terminalsToInclude
                 else L.sort $ DT.getDataTerminalNames renamedData
     let dataLeafNames'' = dataLeafNames' L.\\ terminalsToExclude
-    logWith LogInfo ("Data were input for " <> show (length dataLeafNames'') <> " terminals")
+    logWith LogInfo ("Data were input for " <> show (length dataLeafNames'') <> " terminals\n")
 
     -- check data for missing data threshold and remove those above
     let missingToExclude = DT.checkLeafMissingData (missingThreshold partitionCharOptimalityGlobalSettings) rawData
@@ -199,7 +199,7 @@ performSearch initialSeed inputFilePath = do
                     <> L.intercalate ", " (fmap (Text.unpack . fst) taxaDataSizeList)
                     <> "\n"
                 )
-        else logWith LogInfo "All taxa contain data"
+        else logWith LogInfo "All taxa contain data\n"
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
     -- chained network nodes should never be introduced later so only checked no
@@ -366,9 +366,13 @@ performSearch initialSeed inputFilePath = do
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
 
     -- final results reporting to stderr
-    logWith
-        LogInfo
-        ("Execution returned " <> show (length finalGraphList') <> " graph(s) at cost range " <> show (minCost, maxCost))
+    logWith LogInfo $ unwords
+        [ "Execution returned"
+        , show $ length finalGraphList'
+        , "graph(s) at cost range"
+        , show (minCost, maxCost)
+        , "\n"
+        ]
 
     -- Final Stderr report
     timeCPUEnd ← liftIO getCPUTime
@@ -380,18 +384,11 @@ performSearch initialSeed inputFilePath = do
     let cpuUsage = fromIntegral timeCPUEnd / fromIntegral wallClockDuration ∷ Double
     -- logWith LogInfo ("CPU % " <> (show cpuUsage))
 
-    logWith
-        LogInfo
-        ( "\n\tWall-Clock time "
-            <> show ((fromIntegral wallClockDuration ∷ Double) / 1000000000000.0)
-            <> " second(s)"
-            <> "\n\tCPU time "
-            <> show ((fromIntegral timeCPUEnd ∷ Double) / 1000000000000.0)
-            <> " second(s)"
-            <> "\n\tCPU usage "
-            <> show (floor (100.0 * cpuUsage) ∷ Integer)
-            <> "%"
-        )
+    logWith LogInfo . unlines $ ("\t" <>) <$> 
+        [ unwords [ "Wall-Clock time ", show ((fromIntegral wallClockDuration ∷ Double) / 1000000000000.0), "second(s)" ]
+        , unwords [ "CPU time", show ((fromIntegral timeCPUEnd ∷ Double) / 1000000000000.0), "second(s)" ]
+        , unwords [ "CPU usage", show (floor (100.0 * cpuUsage) ∷ Integer) <> "%" ]
+        ]
 
 
 thereExistsSome ∷ (Foldable f) ⇒ f a → Bool
@@ -399,4 +396,4 @@ thereExistsSome = not . null
 
 
 printProgramPreamble ∷ PhyG ()
-printProgramPreamble = liftIO preambleText >>= logWith LogDone . runBuilder . (fromString "\n" <>)
+printProgramPreamble = liftIO preambleText >>= logWith LogDone . runBuilder . (fromString "\n\n" <>)
