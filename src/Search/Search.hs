@@ -402,7 +402,7 @@ performSearch :: GlobalSettings
                -> Int
                -> CPUTime
                -> ([ReducedPhylogeneticGraph], [String])
-               -> ([ReducedPhylogeneticGraph], [String])
+               -> PhyG ([ReducedPhylogeneticGraph], [String])
 performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdges rSeed inTime (inGraphList', _) =
       -- set up basic parameters for search/refine methods
       let thetaList = drop 3 totalThetaList
@@ -525,12 +525,13 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
          -- bandit list with search arguments set
          -- primes (') for build to start with untransformed data
-         let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then do
+         let (searchGraphs, searchArgs) = if searchBandit == "buildCharacter" then 
                                             let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
+                                            in do
                                             -- search
                                             graphList <- B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
                                             (graphList, buildArgs)
-
+{-
                                           else if searchBandit == "buildDistance" then
                                             let -- build options
                                                 buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
@@ -705,7 +706,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                                             in
                                             -- perform search
                                             (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
-
+-}
                                           else error ("Unknown/unimplemented method in search: " <> searchBandit)
 
              -- process
