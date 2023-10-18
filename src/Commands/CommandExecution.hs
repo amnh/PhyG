@@ -240,7 +240,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                     if doDotPDF
                                                                                         then do
                                                                                             let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = none];\n" reportString
-                                                                                            liftIO $ printGraphVizDot reportString' outFile
+                                                                                            printGraphVizDot reportString' outFile
                                                                                             executeCommands
                                                                                                 globalSettings
                                                                                                 excludeRename

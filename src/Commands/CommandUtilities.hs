@@ -36,6 +36,10 @@ Portability :  portable (I hope)
 
 module Commands.CommandUtilities where
 
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.Alphabet.Special
 import Data.Bits
@@ -60,6 +64,7 @@ import Input.Reorganize qualified as IR
 import SymMatrix qualified as S
 import System.Directory
 import System.IO
+import System.ErrorPhase (ErrorPhase (..))
 import System.Info
 import System.Process
 import Types.Types
@@ -201,23 +206,23 @@ changePreamble' findString newString accumList inLineList =
 --last so can print small to large all the way so easier to read
 -- eps on OSX because ps gets cutt off for some reason and no pdf onOSX
 -- -O foir multiple graphs I htink
-printGraphVizDot :: String -> String -> IO ()
+printGraphVizDot :: String -> String -> PhyG ()
 printGraphVizDot graphDotString dotFile =
-    if null graphDotString then error "No graph to report"
+    if null graphDotString then do failWithPhase Outputting "No graph to report"
     else do
-        myHandle <- openFile dotFile WriteMode
-        if os /= "darwin" then hPutStrLn  stderr ("\tOutputting graphviz to " <> dotFile <> ".pdf.")
-        else hPutStrLn  stderr ("\tOutputting graphviz to " <> dotFile <> ".eps.")
+        myHandle <- liftIO $ openFile dotFile WriteMode
+        if os /= "darwin" then do logWith LogInfo ("\tOutputting graphviz to " <> dotFile <> ".pdf.\n")
+        else  do logWith LogInfo ("\tOutputting graphviz to " <> dotFile <> ".eps.\n")
         let outputType = if os == "darwin" then "-Teps"
                          else "-Tpdf"
         --hPutStrLn myHandle "digraph G {"
         --hPutStrLn myHandle "\trankdir = LR;"
         --hPutStrLn myHandle "\tnode [ shape = rect];"
         --hPutStr myHandle $ (unlines . tail . lines) graphDotString
-        hPutStr myHandle graphDotString
+        liftIO $ hPutStr myHandle graphDotString
         -- hPutStrLn myHandle "}"
-        hClose myHandle
-        pCode <- findExecutable "dot" --system "dot" --check for Graphviz
+        liftIO $ hClose myHandle
+        pCode <- liftIO $ findExecutable "dot" --system "dot" --check for Graphviz
         {-
         hPutStrLn stderr
             (if isJust pCode then --pCode /= Nothing then
@@ -225,10 +230,10 @@ printGraphVizDot graphDotString dotFile =
                 "Graphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download")
         -}
         if isJust pCode then do
-            _  <- createProcess (proc "dot" [outputType, dotFile, "-O"])
-            hPutStrLn stderr ("\tExecuted dot " <> outputType <> " " <> dotFile <> " -O ")
+            liftIO $ createProcess (proc "dot" [outputType, dotFile, "-O"])
+            logWith LogInfo ("\tExecuted dot " <> outputType <> " " <> dotFile <> " -O \n")
         else
-            hPutStrLn stderr "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download"
+            logWith LogInfo "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download\n"
 
 
 -- | showSearchFields creates a String list for SearchData Fields
