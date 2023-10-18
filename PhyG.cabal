@@ -55,6 +55,11 @@ Flag Enforce-Sanity
    Default:     False
    Manual:      True
 
+Flag Enforce-Timestamp
+   Description: Disable multi-threading
+   Default:     True
+   Manual:      False
+
 Flag Forego-Sanity
    Description: Disable extensive and helpful compiler warnings
    Default:     False
@@ -79,13 +84,11 @@ Flag Use-LLVM
 -- Global deviations from Haskell98
 Common ffi-build-info
 
-
-
   If !os(darwin)
     CC-Options:
-      -fPIC -rdynamic --std=c11
+      -rdynamic --std=c11
 
-  Else:
+  Else
     CC-Options:
       --std=c11
 
@@ -127,6 +130,15 @@ Common ffi-build-info
 -- Global build directives
 Common build-defaults
 
+  -- If we want to enforce that the compile-time timestamp is accurate,
+  -- then we must ensure that we recompile the appropriate module(s).
+  -- This sets the CPP flag so that the modules can query if they should
+  -- always be recompield and then ask GHC to recompile them.
+  If flag(Enforce-Timestamp)
+    CPP-Options:
+      -DENFORCE_TIMESTAMP
+
+  -- We want these Language Extensions enabled in *all* modules by default.      
   Default-Extensions:
     BangPatterns
     DerivingStrategies
@@ -136,6 +148,10 @@ Common build-defaults
 
   Default-Language:
     GHC2021
+
+  If flag(Enforce-Sanity)
+    GHC-Options:
+      -Werror
 
   If !flag(Forego-Sanity)
     GHC-Options:
@@ -154,61 +170,9 @@ Common build-defaults
       -Wno-type-defaults
       -Wno-unsafe
 
-  If flag(Enforce-Sanity)
-    GHC-Options:
-      -Werror
-
-
-Common static-build-flags
-
-  -- MacOS static compilation options
   If os(darwin)
---    cc-options:
-
---    GHC-Options:
---      -static
-
     Ld-Options:
       -Wl,-no_fixup_chains
---        -pie --tryng for dlopen stuff
-
-  -- Linux static compilation options
-  Else
-    -- Options for: C Compiler
---    CC-Options:
---      -pthread
---      -static
-
-    extra-bundled-libraries:
-      HSprocess,
-      HSunix,
-
-    Extra-Lib-Dirs:
-      /usr/lib/x86_64-linux-gnu
-
-    Extra-Lib-Dirs-Static:
-      /usr/lib/x86_64-linux-gnu
-
-    -- Options for: GHC
-    GHC-Options:
-      -static
---      -staticlib
---      -optc-pthread
---      -optc-static
---      -optl-static
---      -optl-pthread
---      -optl-lglibc
---      -optl-static-libgcc
-
-    -- Options for: Linker
---    LD-Options:
---      -pie --tryng for dlopen stuff
---      -pthread
---      -static
---      -static-libgcc
-
-
--- at command line "--enable-executable-static" for static binaries
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -238,7 +202,6 @@ Executable phyg
   Import:
     build-defaults,
     ffi-build-info,
-    static-build-flags
 
   Main-Is:
     phygraph.hs
@@ -325,7 +288,7 @@ Executable phyg
     graphviz   >=2999.20,
     hashable,
     inflist,
-    logfloat,
+    logfloat,     
     MissingH >= 1.4.3,
     mmark,
     modern-uri,
@@ -355,6 +318,7 @@ Executable phyg
     src
 
   Other-Extensions:
+    CPP
     TemplateHaskell
 
   Autogen-Modules:
@@ -696,7 +660,6 @@ Test-Suite test-dynamic-character
 --
 --  Import:
 --    build-defaults,
---    static-build-flags
 --
 --  Scope:
 --    private

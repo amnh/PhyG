@@ -41,20 +41,20 @@ printInformationDisplay =
                   [] -> joined
                   _ -> endcap <> joined <> endcap
 
-        getBuilder :: DisplayInfoBlock -> Builder
+        getBuilder :: DisplayInfoBlock -> IO Builder
         getBuilder = \case
             DisplayVersion -> builderVersionInfo
-            DisplayLicense -> builderLicenseText
-            DisplaySplash  -> builderSplashImage
-            DisplayCredits -> builderCreditsRoll
+            DisplayLicense -> pure builderLicenseText
+            DisplaySplash  -> pure builderSplashImage
+            DisplayCredits -> pure builderCreditsRoll
 
         joinBuilders :: NonEmpty Builder -> Builder
         joinBuilders = encloseNonSingle bordering (intercalate' delimiter)
 
-        printBuilder :: Builder -> IO ()
-        printBuilder = putStrLn . runBuilder
+        printBuilder :: IO Builder -> IO ()
+        printBuilder b = fmap runBuilder b >>= putStrLn
 
-    in  printBuilder . joinBuilders . fmap getBuilder . sort
+    in  printBuilder . fmap joinBuilders . traverse getBuilder . sort
 
 
 builderLicenseText :: Builder
@@ -65,7 +65,7 @@ builderCreditsRoll :: Builder
 builderCreditsRoll = contributors
 
 
-builderVersionInfo :: Builder
+builderVersionInfo :: IO Builder
 builderVersionInfo = fullVersionInformation
 
 
