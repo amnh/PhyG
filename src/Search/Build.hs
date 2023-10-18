@@ -82,14 +82,14 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
        checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
    in
        -- check for valid command options
-   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
+   if not checkCommandList then do failWithPhase Parsing ("Unrecognized command in 'build': " <> show inArgs)
    else
        let -- block build options including number of display trees to return
            buildBlock = filter ((== "block").fst) lcArgList
            displayBlock = filter ((== "displaytrees").fst) lcArgList
            numDisplayTrees
                 | length displayBlock > 1 =
-                  errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " <> show inArgs)
+                  do failWithPhase Parsing  ("Multiple displayTree number specifications in command--can have only one: " <> show inArgs)
                 | null displayBlock = Just 10
                 | null (snd $ head displayBlock) = Just 10
                 | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
@@ -98,7 +98,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            returnList = filter ((== "return").fst) lcArgList
            numReturnTrees
                 | length returnList > 1 =
-                  errorWithoutStackTrace ("Multiple 'return' number specifications in command--can have only one: " <> show inArgs)
+                  do failWithPhase Parsing  ("Multiple 'return' number specifications in command--can have only one: " <> show inArgs)
                 | null returnList = Just (maxBound :: Int)
                 | null (snd $ head returnList) = Just (maxBound :: Int)
                 | otherwise = readMaybe (snd $ head returnList) :: Maybe Int
