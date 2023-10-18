@@ -79,11 +79,15 @@ Flag Use-LLVM
 -- Global deviations from Haskell98
 Common ffi-build-info
 
---  CC-Options:
---    -rdynamic --std=c11
 
-  CC-Options:
-    --std=c11
+
+  If !os(darwin)
+    CC-Options:
+      -fPIC -rdynamic --std=c11
+
+  Else:
+    CC-Options:
+      --std=c11
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
