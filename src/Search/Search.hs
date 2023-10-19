@@ -221,11 +221,11 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
         logWarning :: b -> [String] -> PhyG b
         logWarning val tokens = logWith LogWarn (unwords $ "Thread" : show refIndex : tokens) $> val
 
-        runForDuration :: PhyG (IO a) -> PhyG (Maybe a)
-        runForDuration = join . traverse (liftIO . timeout timeLimit)
+        runForDuration :: PhyG a -> PhyG (Maybe a)
+        runForDuration = liftIOOp (timeout timeLimit)
 
-        searchingInnerOp :: IO (PhyG ([ReducedPhylogeneticGraph], [String]))
-        searchingInnerOp = evaluate . force $ performSearch
+        searchingInnerOp :: PhyG ([ReducedPhylogeneticGraph], [String])
+        searchingInnerOp = force $ performSearch
             inGS
             inData
             pairwiseDistances
@@ -240,7 +240,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
         searchingForDuration :: PhyG ([ReducedPhylogeneticGraph], [String])
         searchingForDuration = do
             -- result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
-            result <- runForDuration $ sequenceA searchingInnerOp 
+            result <- runForDuration searchingInnerOp 
             case result of
                 Nothing -> logWarning (inGraphList, []) ["terminated due to time" ]
                 Just gs -> logWarning gs [ "is OK", show allotedSeconds, "->", show . fromIntegral $ toMicroseconds allotedSeconds]
