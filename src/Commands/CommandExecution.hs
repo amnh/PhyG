@@ -117,9 +117,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
 
                                             if firstOption == Build
                                                 then do
-                                                    (elapsedSeconds, newGraphList) ←
+                                                    (elapsedSeconds, newGraphList') ←
                                                         timeOp $ pure $ B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
 
+                                                    newGraphList <- newGraphList'
                                                     let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                     let newSearchData = searchInfo : searchData globalSettings
 
@@ -284,7 +285,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                             if firstOption == Search
                                                                                 then do
                                                                                     (elapsedSeconds, output) ←
-                                                                                        liftIO $ timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+                                                                                        timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
                                                                                     -- in pure result
                                                                                     -- (newGraphList, serchInfoList) <- S.search firstArgs globalSettings origProcessedData processedData reportingDatapairwiseDist (head seedList) curGraphs
                                                                                     let searchInfo =
@@ -392,9 +393,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                                         else
                                                                                                             if firstOption == Support
                                                                                                                 then do
-                                                                                                                    (elapsedSeconds, newSupportGraphList) ←
+                                                                                                                    (elapsedSeconds, newSupportGraphList') ←
                                                                                                                         timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData (head seedList) curGraphs
 
+                                                                                                                    newSupportGraphList <- newSupportGraphList'
                                                                                                                     let searchInfo =
                                                                                                                             makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                                                                     let newSearchData = searchInfo : searchData globalSettings
