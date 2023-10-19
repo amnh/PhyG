@@ -1283,7 +1283,12 @@
 			\end{description}
 		
 		%\item[modelcomplexity] \hl{details}
-			
+		\item[missingThreshold:[Int]] Sets the maximum percentage of missing data in a terminal.
+		The default setting is 100, leaving all terminals in the data set.  Terminal taxa
+		with more than the missing fraction are deleted.  The \texttt{missingThreshold} value is determined 
+		by the number of input blocks (files).  Hence, a taxon with all missing values in a TNT file
+		will be counted as not missing for this purpose.   
+		
 		\item[multiTraverse:[BOOL]] Controls the multi-traverse character optimization 
 		option. If \texttt{True}, character trees are traversed from each edge as in 
 		\citep{VaronandWheeler2012,VaronandWheeler2013, POY4, POY5}, but 
