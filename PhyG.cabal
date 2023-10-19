@@ -308,6 +308,8 @@ Executable phyg
     text-short,
     th-lift-instances,
     time,
+    unliftio >= 0.2 && < 1.0,
+    unliftio-core >= 0.2 && < 1.0,
     vector >= 0.13 && < 1.0,
     -- currently doesn't compile but could be useful
     -- lots of good functions
