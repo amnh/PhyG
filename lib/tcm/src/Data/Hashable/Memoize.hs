@@ -206,8 +206,8 @@ newHashTableAccess size = newTVarIO =<< fmap (Access True) (newSized size :: IO 
 
 
 readHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> IO (Maybe v)
-readHashTableAccess ref key = do
-    t <- atomically $ do
+readHashTableAccess ref key = {-# SCC readHashTableAccess #-} do
+    t <- atomically $ {-# SCC readHashTableAccess_Atomic_Block #-} do
             Access access table <- readTVar ref
             check access
             pure table
@@ -215,7 +215,7 @@ readHashTableAccess ref key = do
 
 
 takeHashTableAccess :: TVar (HashTableAccess k v) -> IO (BasicHashTable k v)
-takeHashTableAccess ref = atomically $ do
+takeHashTableAccess ref = {-# SCC takeHashTableAccess #-} atomically $ do
     Access access table <- readTVar ref
     check access
     modifyTVar' ref lockAccess
@@ -223,7 +223,7 @@ takeHashTableAccess ref = atomically $ do
 
 
 giveHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
-giveHashTableAccess ref key val table = do
+giveHashTableAccess ref key val table = {-# SCC giveHashTableAccess #-} do
     insert table key val
     atomically . writeTVar ref $ Access True table
 
@@ -244,9 +244,9 @@ memoize_Lock f = unsafePerformIO $ do
     -- this creates a new memoized reference to f.
     -- The technique should be safe for all pure functions, probably, I think.
     pure $ \k -> unsafeDupablePerformIO $ do
-        readHashTableAccess tabRef k >>= \case
-              Just v  -> pure v
-              Nothing ->
+        readHashTableAccess tabRef k >>= {-# SCC memoize_Lock_CASE #-} \case
+              Just v  -> {-# SCC memoize_Lock_GET #-} pure v
+              Nothing -> {-# SCC memoize_Lock_PUT #-}
                 let v = force $ f k
                 in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
 #endif
