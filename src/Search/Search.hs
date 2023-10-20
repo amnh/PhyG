@@ -17,7 +17,7 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Bifunctor (bimap)
 import Data.Char
-import Data.Functor (($>))
+import Data.Functor (($>), (<&>))
 import Data.Foldable
 import Data.List qualified as L
 import Data.List.Split qualified as LS
@@ -556,8 +556,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
         thompsonString = "," <> (show totalThetaList)
 
         -- get infinite lists if integers and doubles
+        -- TODO: This is problemetic since the source of randomness (rSeed) is used twice).
         randIntList = randomIntList rSeed
         randDoubleList = randoms (mkStdGen rSeed) ∷ [Double]
+        randSeed0 = randIntList !! 0
+        randSeed1 = randIntList !! 1
 
         -- this for constant access to random doubles need take for infinite list
         -- need to update as more random doubles are needed
@@ -700,10 +703,10 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
             (searchGraphs, searchArgs) <- case searchBandit of
                 "buildCharacter" →
                     let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                    in  --    graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                    in  --    graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                         do
                             -- search
-                            graphList ← B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                            graphList ← B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                             pure (graphList, buildArgs)
                 "buildDistance" →
                     let -- build options
@@ -711,39 +714,39 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
                         -- this line in here to allow for returning lots of rediagnosed distance trees, then
                         -- reducing to unique best cost trees--but is a memory pig
-                    in  (\gList -> (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                    in  (\gList -> (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                 "buildSPR" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                         -- swap options
                         swapType = "spr"
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
                         do  buildGraphs' <- GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
-                            pure (R.swapMaster swapArgs inGS inData (randIntList !! 1) buildGraphs', buildArgs <> swapArgs)
+                            pure (R.swapMaster swapArgs inGS inData randSeed1 buildGraphs', buildArgs <> swapArgs)
                 "buildAlternate" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances (randIntList !! 0)
+                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                         -- swap options
                         swapType = "alternate" -- default anyway
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
                         do  buildGraphs' <- GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
-                            pure (R.swapMaster swapArgs inGS inData (randIntList !! 1) buildGraphs', buildArgs <> swapArgs)
+                            pure (R.swapMaster swapArgs inGS inData randSeed1 buildGraphs', buildArgs <> swapArgs)
                 "swapSPR" →
                     let -- swap options
                         swapType = "spr"
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
-                        pure (R.swapMaster swapArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
+                        pure (R.swapMaster swapArgs inGS inData randSeed1 inGraphList, swapArgs)
                 "swapAlternate" →
                     let -- swap options
                         swapType = "alternate" -- default anyway
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
-                        pure (R.swapMaster swapArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
+                        pure (R.swapMaster swapArgs inGS inData randSeed1 inGraphList, swapArgs)
                 -- drift only best graphs
                 "driftSPR" →
                     let -- swap args
@@ -752,7 +755,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with drift (common) arguments
                         swapDriftArgs = swapArgs <> driftArgs
                     in  -- perform search
-                        pure (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapArgs)
+                        pure (R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList, swapArgs)
                 -- drift only best graphs
                 "driftAlternate" →
                     let -- swap args
@@ -761,7 +764,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with drift (common) arguments
                         swapDriftArgs = swapArgs <> driftArgs
                     in  -- perform search
-                        pure (R.swapMaster swapDriftArgs inGS inData (randIntList !! 1) inGraphList, swapDriftArgs)
+                        pure (R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList, swapDriftArgs)
                 -- anneal only best graphs
                 "annealSPR" →
                     let -- swap args
@@ -770,7 +773,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with anneal (common) arguments
                         swapAnnealArgs = swapArgs <> annealArgs
                     in  -- perform search
-                        pure (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
+                        pure (R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList, swapAnnealArgs)
                 -- anneal only best graphs
                 "annealAlternate" →
                     let -- swap args
@@ -779,11 +782,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with anneal (common) arguments
                         swapAnnealArgs = swapArgs <> annealArgs
                     in  -- perform search
-                        pure (R.swapMaster swapAnnealArgs inGS inData (randIntList !! 1) inGraphList, swapAnnealArgs)
+                        pure (R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList, swapAnnealArgs)
                 "geneticAlgorithm" →
                     -- args from above
                     -- perform search
-                    pure (R.geneticAlgorithmMaster gaArgs inGS inData (randIntList !! 1) inGraphList, gaArgs)
+                    pure (R.geneticAlgorithmMaster gaArgs inGS inData randSeed1 inGraphList, gaArgs)
                 "fuse" →
                     -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                     let -- fuse arguments
@@ -793,51 +796,51 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         fuseArgs =
                             [("none", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
                     in  -- perform search
-                        pure (R.fuseGraphs fuseArgs inGSgs1 inData (randIntList !! 1) inGraphList, fuseArgs)
+                        R.fuseGraphs fuseArgs inGSgs1 inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
                 "fuseSPR" →
                     let -- fuse arguments
                         inGSgs1 = inGS{graphsSteepest = 1}
                         fuseArgs =
                             [("spr", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
                     in  -- perform search
-                        pure (R.fuseGraphs fuseArgs inGSgs1 inData (randIntList !! 1) inGraphList, fuseArgs)
+                        R.fuseGraphs fuseArgs inGSgs1 inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
                 "fuseTBR" →
                     let -- fuse arguments
                         inGSgs1 = inGS{graphsSteepest = 1}
                         fuseArgs =
                             [("tbr", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
                     in  -- perform search
-                        pure (R.fuseGraphs fuseArgs inGSgs1 inData (randIntList !! 1) inGraphList, fuseArgs)
+                        R.fuseGraphs fuseArgs inGSgs1 inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
                 "networkAdd" →
                     let -- network add args
                         netEditArgs = netAddArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
+                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
                 "networkDelete" →
                     let -- network delete args
                         netEditArgs = netDelArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
+                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
                 "networkAddDelete" →
                     let -- network add/delete args
                         netEditArgs = netAddDelArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
+                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
                 "networkMove" →
                     let -- network move args
                         netEditArgs = netMoveArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
+                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
                 "driftNetwork" →
                     let -- network add/delete  + drift args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> driftArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
+                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
                 "annealNetwork" →
                     let -- network add/delete  + annealing  args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> annealArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData (randIntList !! 1) inGraphList, netEditArgs)
+                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
                 _ → error ("Unknown/unimplemented method in search: " <> searchBandit)
 
             -- process

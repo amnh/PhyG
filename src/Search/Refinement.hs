@@ -1,42 +1,10 @@
 {- |
-Module      :  Refinement.hs
-Description :  Module controlling graph refinement functions
-Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module controlling graph refinement functions
 -}
 
 {--
-This is a mnmory pig and rather slow.  Probbaly because it doens't just take the
-first "better" graph.  
+This is a memory pig and rather slow.
+Probably because it doens't just take the first "better" graph.  
 
 For now--graphsteepest set to 1 to reduce memory footprint.
 --}
@@ -49,7 +17,10 @@ module Search.Refinement  ( refineGraph
                           ) where
 
 import Debug.Trace
+import Control.Evaluation
+import Control.Monad.Logger (Logger(..), LogLevel(..))
 import GeneralUtilities
+import Data.Functor (($>))
 import Graphs.GraphOperations qualified as GO
 import ParallelUtilities as PU
 import Types.Types
@@ -227,82 +198,97 @@ fuseGraphs :: [Argument]
            -> ProcessedData 
            -> Int 
            -> [ReducedPhylogeneticGraph] 
-           -> [ReducedPhylogeneticGraph]
+           -> PhyG [ReducedPhylogeneticGraph]
 fuseGraphs inArgs inGS inData rSeed inGraphList
-  | null inGraphList = trace "Fusing--skipped: No graphs to fuse" []
-  | length inGraphList == 1 = trace "Fusing--skipped: Need > 1 graphs to fuse" inGraphList
-  -- | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
-  | otherwise = trace ("Fusing " <> show (length inGraphList) <> " input graph(s) with minimum cost " <> show (minimum $ fmap snd5 inGraphList)) (
+    | null inGraphList = logWith LogMore "Fusing--skipped: No graphs to fuse" $> []
+    | length inGraphList == 1 = logWith LogMore "Fusing--skipped: Need > 1 graphs to fuse" $> inGraphList
+    {- | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList -}
+    | otherwise =
+        -- process args for fuse placement
+        let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
 
-     -- process args for fuse placement
-           let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
+            -- steepest off by default due to wanteing to check all addition points
+            doSteepest' = any ((== "steepest") . fst) lcArgList
+            doAll = any ((== "all") . fst) lcArgList
+    
+            doSteepest
+                | (not doSteepest' && not doAll) = True
+                | (doSteepest' && doAll) = True
+                | doAll = False
+                | otherwise = doSteepest'
+    
+            -- readdition options, specified as swap types
+            -- no alternate or nni for fuse--not really meaningful
+    
+            swapType
+              | any ((== "tbr") . fst) lcArgList = TBR
+              | any ((== "spr") . fst) lcArgList = SPR
+              | otherwise = None
+    
+            -- turn off union selection of rejoin--default to do both, union first
+            joinType
+              | any ((== "joinall") . fst) lcArgList = JoinAll
+              | any ((== "joinpruned") . fst) lcArgList = JoinPruned
+              | otherwise = JoinAlternate
+    
+            -- set implied alignment swapping
+            doIA' = any ((== "ia") . fst) lcArgList
+            getDoIA
+                | (graphType inGS /= Tree) && doIA' = logWith LogWarn "\tIgnoring 'IA' swap option for non-Tree" $> False
+                | otherwise = pure doIA'
+    
+            returnBest = any ((== "best") . fst) lcArgList
+            returnUnique = (not returnBest) || (any ((== "unique") . fst) lcArgList)
+            doSingleRound = any ((== "once") . fst) lcArgList
+            randomPairs = any ((== "atrandom") . fst) lcArgList
+            fusePairs'
+                | fusePairs == Just (maxBound :: Int) = Nothing
+                | otherwise = fusePairs
+    
+            -- this for exchange or one dirction transfer of sub-graph--one half time for noreciprocal
+            reciprocal' = any ((== "reciprocal") . fst) lcArgList
+            notReciprocal = any ((== "notreciprocal") . fst) lcArgList
+            reciprocal
+                | not reciprocal' = False
+                | notReciprocal = False
+                | otherwise = True
+    
+            seedList = randomIntList rSeed
+    
+            -- populate SwapParams structure
+            swapParams withIA = SwapParams
+                { swapType = swapType
+                , joinType = joinType 
+                , atRandom = randomPairs -- really same as swapping at random not so important here
+                , keepNum  = (fromJust keepNum)
+                , maxMoveEdgeDist = (2 * fromJust maxMoveEdgeDist)
+                , steepest = doSteepest
+                , joinAlternate = False -- join prune alternates--turned off for now
+                , doIA = withIA
+                , returnMutated = False -- no SA/Drift swapping in Fuse
+                }
+        in  do  logWith LogInfo $ unwords
+                    [ "Fusing"
+                    ,  show $ length inGraphList
+                    , "input graph(s) with minimum cost"
+                    , show . minimum $ fmap snd5 inGraphList
+                    ]
 
-               -- steepest off by default due to wanteing to check all addition points
-               doSteepest' = any ((== "steepest") . fst) lcArgList
-               doAll = any ((== "all") . fst) lcArgList
+                withIA <- getDoIA
 
-               doSteepest
-                 | (not doSteepest' && not doAll) = True
-                 | (doSteepest' && doAll) = True
-                 | doAll = False
-                 | otherwise = doSteepest'
-
-               -- readdition options, specified as swap types
-               -- no alternate or nni for fuse--not really meaningful
-
-               swapType
-                 | any ((== "tbr") . fst) lcArgList = TBR
-                 | any ((== "spr") . fst) lcArgList = SPR
-                 | otherwise = None
-
-               -- turn off union selection of rejoin--default to do both, union first
-               joinType
-                 | any ((== "joinall") . fst) lcArgList = JoinAll
-                 | any ((== "joinpruned") . fst) lcArgList = JoinPruned
-                 | otherwise = JoinAlternate
-
-               -- set implied alignment swapping
-               doIA' = any ((== "ia") . fst) lcArgList
-               doIA = if (graphType inGS /= Tree) && doIA' then trace "\tIgnoring 'IA' swap option for non-Tree" False
-                      else doIA'
-
-               returnBest = any ((== "best") . fst) lcArgList
-               returnUnique = (not returnBest) || (any ((== "unique") . fst) lcArgList)
-               doSingleRound = any ((== "once") . fst) lcArgList
-               randomPairs = any ((== "atrandom") . fst) lcArgList
-               fusePairs' = if fusePairs == Just (maxBound :: Int) then Nothing
-                            else fusePairs
-
-               -- this for exchange or one dirction transfer of sub-graph--one half time for noreciprocal
-               reciprocal' = any ((== "reciprocal") . fst) lcArgList
-               notReciprocal = any ((== "notreciprocal") . fst) lcArgList
-               reciprocal
-                 | not reciprocal' = False
-                 | notReciprocal = False
-                 | otherwise = True
-
-               seedList = randomIntList rSeed
-
-               -- populate SwapParams structure
-               swapParams = SwapParams {  swapType = swapType
-                                             , joinType = joinType 
-                                             , atRandom = randomPairs -- really same as swapping at random not so important here
-                                             , keepNum  = (fromJust keepNum)
-                                             , maxMoveEdgeDist = (2 * fromJust maxMoveEdgeDist)
-                                             , steepest = doSteepest
-                                             , joinAlternate = False -- join prune alternates--turned off for now
-                                             , doIA = doIA
-                                             , returnMutated = False -- no SA/Drift swapping in Fuse
-                                             }
-           in
-           -- perform graph fuse operations
-           -- sets graphsSteepest to 1 to reduce memory footprintt
-           let (newGraphList, counterFuse) = F.fuseAllGraphs swapParams (inGS {graphsSteepest = 1}) inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
-
-           in
-           trace ("\tAfter fusing: " <> show (length newGraphList) <> " resulting graphs with minimum cost " <> show (minimum $ fmap snd5 newGraphList) <> " after fuse rounds (total): " <> show counterFuse)
-           newGraphList
-      )
+                -- perform graph fuse operations
+                -- sets graphsSteepest to 1 to reduce memory footprintt
+                let (newGraphList, counterFuse) = F.fuseAllGraphs (swapParams withIA) (inGS {graphsSteepest = 1}) inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
+    
+                logWith LogMore $ unwords
+                     [ "\tAfter fusing:"
+                     , show $ length newGraphList
+                     , "resulting graphs with minimum cost"
+                     , show . minimum $ fmap snd5 newGraphList
+                     , " after fuse rounds (total): "
+                     , show counterFuse
+                     ]
+                pure newGraphList
 
 -- | getFuseGraphParams returns fuse parameters from arglist
 getFuseGraphParams :: [Argument] 

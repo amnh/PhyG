@@ -163,7 +163,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                             if firstOption == Fuse
                                                                 then do
                                                                     (elapsedSeconds, newGraphList) ←
-                                                                        timeOp $ pure $ REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
+                                                                        timeOp $ REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
 
                                                                     let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                     let newSearchData = searchInfo : searchData globalSettings
