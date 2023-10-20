@@ -115,10 +115,14 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                          else if randomPairs then (takeRandom (head rSeedList) (fromJust fusePairs) graphPairList', " randomized")
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
-         -- ParMap created too large a memory footprint. Parallelism at lower levels
-         -- newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList) -- `using` PU.myParListChunkRDS)
-         newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList) -- `using` PU.myParListChunkRDS)
-         --newGraphList = fusePairRecursive swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal [] graphPairList
+         {-
+         TODO: Refactor to reenable paralleism given from the Evaluation monad.
+            *   Old implementation (unsafe parallel):
+                -- ParMap created too large a memory footprint. Parallelism at lower levels
+                -- newGraphList = concat $ PU.seqParMap PU.myStrategy (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
+            *   New implementation (safe sequential):
+         -}
+         newGraphList = foldMap (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
 
          fuseBest = if not (null newGraphList) then  minimum $ fmap snd5 newGraphList
                     else infinity
@@ -430,8 +434,19 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
           progressString = if firstBestCost < recursiveBestCost then ("\t->" <> (show newRecursiveBestCost)) else ""
 
           result = firstRejoinResult <> rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
-      in  traceNoLF progressString result
-      
+      -- Unconditional printing, conditional output payload.
+      in  trace progressString result
+{-
+      -- Doing a conditional print like this still results in a <<loop>> exception
+      -- This is a really confision and cryptic  error condition,
+      -- however it is 100% related to unsafe printing and parallelism.
+      -- So we gotta refactor to do logging properly and then refactor to correctly
+      -- enable parallism in order to fully address this class of issues!
+
+      in  if firstBestCost < recursiveBestCost
+          then trace ("\t->" <> show newRecursiveBestCost) result
+          else result
+-}
 
 
 -- | getNetworkPentaltyFactor get scale network penalty for graph
