@@ -116,6 +116,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                          else (takeNth (fromJust fusePairs) graphPairList', "")
 
          -- ParMap created too large a memory footprint. Parallelism at lower levels
+         -- newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList) -- `using` PU.myParListChunkRDS)
          newGraphList = concat (PU.seqParMap PU.myStrategy  (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList) -- `using` PU.myParListChunkRDS)
          --newGraphList = fusePairRecursive swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal [] graphPairList
 
@@ -427,10 +428,10 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
           newRecursiveBestCost = min recursiveBestCost firstBestCost
 
           progressString = if firstBestCost < recursiveBestCost then ("\t->" <> (show newRecursiveBestCost)) else ""
-      in
-      traceNoLF progressString (
-      firstRejoinResult <> rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
-      )
+
+          result = firstRejoinResult <> rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
+      in  traceNoLF progressString result
+      
 
 
 -- | getNetworkPentaltyFactor get scale network penalty for graph
@@ -483,13 +484,11 @@ getCompatibleNonIdenticalSplits :: Int
                                 -> Bool
                                 -> BV.BitVector
                                 -> Bool
-getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV = 
-
-   -- traceNoLF ("GCNIS: " <> (show leftRightMatch) <> " " <> (show $ popCount leftPrunedGraphBV) <> " ") $
-   if not leftRightMatch then False
-   else if popCount leftPrunedGraphBV < 3 then False
-   else if popCount leftPrunedGraphBV > (numLeaves - 3) then False
-   else True
+getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV
+    | not leftRightMatch = False
+    | popCount leftPrunedGraphBV < 3 = False
+    | popCount leftPrunedGraphBV > numLeaves - 3 = False
+    | otherwise = True
    
    {-
       -- check for pruned components non-identical

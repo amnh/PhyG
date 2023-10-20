@@ -923,7 +923,6 @@ getQualitativeCharacters inCharInfoList inStateList curCharList =
                                 -- showStuff = show (firstState, ambiguousStateST, ambiguousStateString, stateSTList, stateBVList)
                             in
                             -- trace ("GQC: " <> (show ambiguousStateString) <> " " <> (show stateSTList) <> " " <> (show stateBVList))
-                            -- traceNoLF ("GQC: " <> showStuff)
                             L.foldl1' (.|.) stateBVList
                 newCharacter = emptyCharacter {  stateBVPrelim = (V.singleton stateBV, V.singleton stateBV, V.singleton stateBV) }
                 in

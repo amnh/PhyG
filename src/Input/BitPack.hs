@@ -1728,9 +1728,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
         -- pack each chunk
         packedWordVect = UV.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
 
-    in
-    -- traceNoLF ("PIW64 chunks/values: " <> (show $ (stateNumber, numToPack, length packIndexLL, fmap length packIndexLL))) $
-    emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
+    in  emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
                    , packedNonAddFinal = packedWordVect
                    }
 

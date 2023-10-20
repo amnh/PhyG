@@ -1009,7 +1009,6 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
 -- | makeIAUnionPrelimLeaf makes union and sets for leaf characters--leaves alignment fields unchanged
 makeIAUnionPrelimLeaf :: CharInfo -> CharacterData -> CharacterData
 makeIAUnionPrelimLeaf charInfo nodeChar  =
-    --traceNoLF ("In makeIAUnionPrelimLeaf") (
     let characterType = charType charInfo
     in
     if characterType == NonAdd then
@@ -1078,7 +1077,6 @@ makeIAUnionPrelimLeaf charInfo nodeChar  =
         nodeChar {packedNonAddUnion = prelimState}
 
     else error ("Unrecognized character type " <> show characterType)
-    --)
 
 -- | unionBVOrMissing returns leaf algnment state, if all '-' converts to missing characters
 --  so BV unions and IAFinal get a zero cost as opposed to checking against all '-' seqquence
@@ -1152,7 +1150,6 @@ getNonExactUnionFields charInfo nodeChar leftChar rightChar =
 -- union fields are unions of parent states (aligned, or IA, or static)
 makeIAPrelimCharacter :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
 makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
-     --traceNoLF ("In makeIAPrelimCharacter") (
      let characterType = charType charInfo
      in
      if characterType == NonAdd then
@@ -1225,7 +1222,7 @@ makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
                 , globalCost = sum [ weight charInfo * fromIntegral minCost, globalCost leftChar, globalCost rightChar]
                 }
     else nodeChar --error ("Unrecognized character type " <> show characterType)
-    -- )
+
 
 -- | orBVOrMissingIntersection takes two uninBV seqs and returns union or intersectino if one/both missing
 orBVOrMissingIntersection :: (FiniteBits e, GV.Vector v e) => Int -> v e -> v e -> v e
