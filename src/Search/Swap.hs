@@ -811,16 +811,36 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
             -- fmap over all edges in base graph
             if not (steepest swapParams) then
                let -- rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdges `using` PU.myParListChunkRDS
-                   rejoinGraphList = concat $ fmap fst $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdges
+{-
+-}
+                    {-
+                    TODO: Add back safe parallelism here
+                        * Old implementation (unsafe paralel):
+                          rejoinGraphList = concat $ fmap fst $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdges
+                        * New implementation (safe sequential):
+                    -}
+                    rejoinOperation = fst . singleJoin
+                        swapParams
+                        inGS
+                        inData
+                        reoptimizedSplitGraph
+                        splitGraphSimple
+                        splitGraphCost
+                        prunedGraphRootIndex
+                        originalConnectionOfPruned
+                        curBestCost
+                        edgesInPrunedGraph
+                        inSimAnnealParams
+                    rejoinGraphList = foldMap rejoinOperation rejoinEdges
 
-                   {-Checking only min but seems to make slower
-                   newMinCost = if null rejoinGraphList then infinity
-                                else minimum $ fmap snd rejoinGraphList
-                   (minEstCostNewGraphList, _) = unzip $ filter ((== newMinCost) . snd) rejoinGraphList
-                   -}
+                    {-Checking only min but seems to make slower
+                    newMinCost = if null rejoinGraphList then infinity
+                                 else minimum $ fmap snd rejoinGraphList
+                    (minEstCostNewGraphList, _) = unzip $ filter ((== newMinCost) . snd) rejoinGraphList
+                    -}
 
-                   -- newGraphList = fmap (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
-                   newGraphList' = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) rejoinGraphList -- newGraphList
+                    -- newGraphList = fmap (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
+                    newGraphList' = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) rejoinGraphList -- newGraphList
                in
                -- will only return graph if <= curBest cost
                if null rejoinGraphList then ([], inSimAnnealParams)
