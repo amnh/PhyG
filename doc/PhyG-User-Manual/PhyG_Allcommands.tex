@@ -137,7 +137,7 @@
 		\item{\texttt{build(distance, dWag, nj, wpgma)} \\ 
 		Builds a single `best' distance Wagner build, a Neighbor-Joining tree, and a 
 		WPGMA tree. As the option \texttt{block} is not specified, the distance trees 
-		are built using all the data. A total of three trees is returned. }
+		are built using all the data. A total of three trees is returned.}
 		
 		\item{\texttt{build(distance, dWag, replicates:1000, best:10)}\\
 		Builds 1000 distance Wagner builds and returns 10 of the lowest cost distance trees.
@@ -229,15 +229,18 @@
 			
 	\begin{example}
 		\item{\texttt{fuse(best, once)}\\Fuses input graphs and returns best graphs after a single round of 
-		fusing. \hl{is it also performing none and reciprocal?}}
+		fusing. No branch swapping style rearrangements are performed and the exchange and evaluation 
+		of graphs occurs in a reciprocal manner (the default).}
 		
 		\item{\texttt{fuse(tbr, keep:10)} \\Fuses input graphs and performs TBR-style replacement and 
-		rerooting of pruned components returning up to 10 best cost graphs.}
+		rerooting of pruned components returning up to 10 best cost graphs. The exchange and evaluation 
+		  of graphs occurs in a reciprocal manner (the default).}
 		
 		\item{\texttt{fuse(spr:3, pairs:5, unique)} \\Fuses input graphs and performs SPR-style swapping, 
 		with the exchange of subgraphs being tried at multiple positions up to 3 edges away from their 
 		initial position. The number of graph pairs to be fused is limited to 5. All unique graphs found
-		during this operation are returned.}
+		during this operation are returned. The exchange and evaluation of graphs occurs in a reciprocal 
+		manner (the default)}.
 	\end{example}
 
 %---------------------------------------------
@@ -500,6 +503,10 @@
 		\item{\texttt{read(rename:"RenameFile.txt")}\\ Reads the file ``\textbf{RenameFile.txt}'' 
 		that contains a list synonyms, where the name of the item listed first will be substituted 
 		for all the subsequently listed names. }
+		
+		\item{\texttt{read(newick:"squamata\_run1.tre", "squamata\_run2.tre")}\\ Reads the
+		Newick graph files ``\textbf{squamata\_run1.tre}'' and ``\textbf{squamata\_run2.tre}.}
+		
 	\end{example}
 		
 %---------------------------------------------
@@ -576,7 +583,7 @@
 		determined by the probability\\ $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
 		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current 
 		best graph, $k$ is the step number, and $k_{max}$ is the maximum number of 
-		steps (set by the \texttt{steps:m}, default 10).
+		steps (set by the \texttt{steps:INT}, default 10).
 
 			\begin{description}
 			\item[steps:INT] Specifies the number of temperature steps performed 
@@ -589,11 +596,11 @@
 		explored.
 
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
-		annealing optimization \citep{goloboff1999} are performed. This is done in concert 
+		annealing optimization \citep{goloboff1999} that are performed. This is done in concert 
 		with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance of candidate 
 		graphs is determined by the probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost 
 		of the candidate graph, $c_b$ is the cost of the current best graph, and $wf$ is the 
-		\texttt{acceptWorse} (set by the \texttt{acceptWorse:m}, default 1.0) option. Equal 
+		\texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, default 1.0) option. Equal 
 		cost graphs are accepted with probability set by the \texttt{acceptEqual} option. 
 		\texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps to modify 
 		acceptance probabilities. The maximum number of graph changes is set by 
@@ -620,7 +627,8 @@
 			
 			\item[stop:INT] Causes the \texttt{ga} to terminate after the number of 
 			generations as specified by the integer value without improvement in graph 
-			cost.  Default is to only terminate when the number generations has been completed.
+			cost.  By default, this procedure will only terminate when the number of specified 
+			generations has been completed.
 			\end{description}
 		
 		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always traversed 
@@ -643,7 +651,6 @@
 			edit operations.
 			\end{description}
 			
-		
 		\item[netdel] Deletes network edges from input graphs one at a time until no better 
 		cost 	graph is found.
 			
@@ -657,16 +664,17 @@
 	\end{description}
 
 	\subsubsection{Defaults}
-		\texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, \phyg will
-		perform Genetic Algorithm refine, with its associated default options, if no other arguments
-		are specified.} 
+		\texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, 
+	  	  \phyg will perform Genetic Algorithm refinement, with its associated default options, 
+		   if no other arguments are specified.} 
 	
 	\begin{example}
 		\item{\texttt{refine(netadddel, rounds:3, maxnetedges:5)}\\
 		 Consecutively adds and then deletes network edges from input graphs until 
 		 either no improvement (graph cost) is found in a round or until the number of 
-		 rounds of addition and deletions (in \texttt{rounds:n}) is reached. The maximum 
-		 number of edges is still specified by \texttt{maxnetedges:n} within each round.}
+		 rounds of addition and deletions (as indicated by \texttt{rounds:INT}) is reached. 
+		    The maximum number of edges is still specified by \texttt{maxnetedges:INT} 
+		    within each round.}
 		
 		\item{\texttt{refine(netmove, atrandom, steepest)} \\ Moves existing network 
 		edges in input graphs one at a time to new positions until there are no more 
@@ -674,6 +682,8 @@
 		path, abandoning the neighborhood of the current graph when a better graph
 		of lower cost is found. During this operation, the network edit neighborhoods
 		are traversed at random. }
+		
+		%add ga and drift examples
 	\end{example}
 %---------------------------------------------
 %rename
@@ -710,7 +720,8 @@
 	\subsubsection{Arguments}
 	
 	\begin{description}
-		\item [STRING list]  The first argument is the ``new name'' for the remainder of the following arguments.
+		\item [STRING list]  The first argument is the ``new name'' for the remainder of the 
+		following arguments.
 	\end{description}
 		
 	\subsubsection{Defaults}
@@ -758,7 +769,7 @@
 		follow the terminal names, separated by a colon. In eps and pdf files, 
 		branch lengths appear above the branches. In ASCII and dot files, branch 
 		lengths follow the terminal labels. Compare with \texttt{nobranchlengths}. 
-		This is the default. \hl{is this okay?}
+		This is the default.
 
 		\item[collapse] Specifies that zero length branches are collapsed. Compare 
 		with the \texttt{nocollapse} argument. If a dotpdf graph is specified, the 
@@ -814,7 +825,7 @@
 		other graph type is specified. 
 		
 		\item[dotpdf] Outputs two files---a graph file in dot format, along with either
-		an eps (onMacOS) or pdf (on Linux) (see also \texttt{dot}). The eps and pdf 
+		an eps (on MacOS) or pdf (on Linux) (see also \texttt{dot}). The eps and pdf 
 		files can be read in \textit{Adobe Illustrator}, \textit{Apple Preview} or any 
 		vectorial image edition program.  By default, when \texttt{dotpdf} is specified,
 		edges are collapsed (contracted) if they have a minimum weight 
@@ -831,9 +842,8 @@
 		
 		\item[impliedalignment] Outputs the implied alignments of the specified 
 		set of characters in FASTA or FASTC (depending on sequence type) format. 
-		This argument is synonymous with 
-		the argument \texttt{ia}. By default, an implied alignment is reported for 
-		each block of input data. 
+		This argument is synonymous with the argument \texttt{ia}. By default, 
+		an implied alignment is reported for each block of input data. 
 		
 		\begin{description}
 			\item[concatenate] This optional argument can be used with \texttt{ia}
@@ -841,18 +851,18 @@
 			for each block of input data, it will report a file with all the implied 
 			alignments concatenated into a single file.
 			
-			\item[includemissing] Outputs a fasta or (fastc depending on sequence type), 
+			\item[includemissing] Outputs a FASTA or (FASTC depending on sequence type), 
 			including taxa in the implied
 			alignment, which are missing data for that particular block of data.
 			In this case, \phyg will print `?' characters for the missing taxon in 
 			this block of the implied alignment. This option interacts nicely with 
-			\texttt{concatenate} in creating prealigned fasta (implied alignments) 
+			\texttt{concatenate} in creating prealigned FASTA (implied alignments) 
 			with all the terminals included for all the data. By default, taxa with 
 			missing data are not included.
 			
 		\end{description}
 				
-		\item[newick] Outputs graphs in the E/Newick format, with the terminals
+		\item[newick] Outputs graphs in the eNewick or Newick format, with the terminals
 		separated with commas, and graphs separated with semicolons. Branch
 		lengths follow terminals, separated by a colon.
 		
@@ -874,10 +884,10 @@
 		This option can not be applied to eNewick graph. Compare with the argument 
 		\texttt{htulabels}.
 		
-		\item[overwrite] By default, when reporting data or graphs to a file, this 
-		information is appended to the end of the file. The option \texttt{overwrite} 
-		overrides this default and rewrites the file rather than appending to the 
-		existing information.
+		\item[overwrite] By default, when reporting data or graphs to a file, the 
+		information is appended to the end of the file (see \texttt{append}). The 
+		  option \texttt{overwrite} overrides this default and rewrites the file rather 
+		  than appending to the existing information.
 
 		\item[pairdist] Outputs a taxon pairwise distance matrix in csv format. 
 		
@@ -892,27 +902,31 @@
 						
 			\begin{description}
 				\item[combinable] Group comparison are made by identical match 
-				[(A, (B,C))$\neq$(A,B,C)]. This is the default.	
+				[(A,(B,C))$\neq$(A,B,C)]. This is the default.	
 								
-				\item[identity] Group comparison are made by combinable sensu \cite{Nelson1979}
-				 [(A, (B,C)) consistent with (A,B,C)]. This option can be used to specify `semi-strict' 
-				 consensus \citep{Bremer1990}.
+				\item[identity] Group comparison are made by combinable components sensu 
+				     \cite{Nelson1979} [(A,(B,C)) consistent with (A,B,C)]. This option can be used 
+				     to specify `semi-strict' consensus \citep{Bremer1990}.
 			\end{description}
 			
 			\item [Connect:BOOL] Specifies that the output graph be connected 
 			(single component), potentially creating a root node and new edges labeled 
 			with ``0.0''. The default value is TRUE. This option will connect any forest elements
-			into a single graph.
+			into a single graph. 
 			
-			\item [Method:] Specifies the type of output graph. 
+			\item [Method:] Specifies the reconciliation method when more than a single
+			   graph is returned.
 			
 			\begin{description}
+				\item[Adams] Specifies that returned graphs should be reconciled using the Adams II 
+				consensus \citep{Adams1972} method.
+				
 				\item[cun] Graphs are reconciled using the Cluster Union Network 
-				\citep{Baroni2005} method. This argument can used in conjunction with 
+				\citep{Baroni2005} method. This argument can be used in conjunction with 
 				\texttt{threshold}. 
 				
 				\item[eun] Graphs are reconciled using the Edge-Union-Network method of 
-				\citep{MiyagiandWheeler2019}. This argument can used in conjunction with 
+				\citep{MiyagiandWheeler2019}. This argument can be used in conjunction with 
 				\texttt{threshold}. This is the default.
 				
 				\item[majority] Specifies that values between 0 and 100 of either vertices or 
@@ -920,11 +934,15 @@
 				be the Majority-Rule Consensus \citep{MargushandMcMorris1981}. This
 				argument is used in conjunction with \texttt{threshold}.
 
-				\item[strict] Strict requires all vertices be present to be included in the final graph. 
+				\item[strict] This option requires all vertices are present to be included in the final graph. 
 				If all inputs are graphs with the same leaf set this will be the Strict Consensus 
 				\citep{Schuhandpolhemus1980}. 
+				
+				\item [Threshold:INT] Specifies the threshold frequency (between 0 and 100) 
+				of vertex or edge occurrence in input graphs to be included in the output graph. 
+				This value affects the behavior of `eun,' `cun,' and `majority'. The 
+				default value 	is $0$.
 
-				\item[Adams] Adams denotes the Adams II consensus \citep{Adams1972}.
 			\end{description}
 		
 			\item [EdgeLabel:BOOL] Specifies the output graph have edges 
@@ -933,10 +951,6 @@
 			\item [VertexLabel:BOOL] Specifies the output graph have vertices 
 			labeled with their subtree leaf set. The default value is FALSE.
 						
-		\item [Threshold:INT] Specifies the threshold  (between 0 and 100) 
-		frequency of vertex or edge occurrence in input graphs to be included 
-		in the output graph. Affects the behavior of `eun,' `cun,' and `majority'. The default value
-		is $0$.
 		\end{description}	
 				
 		\item[search] Outputs search statistics in csv format. See Section 
@@ -948,7 +962,7 @@
 		arguments are specified, a graph in dot format, along with an eps or pdf 
 		file (depending on the operating system) will be reported to a file named 
 		`\textbf{defaultGraph}'. By default files are appended to the report, rather 
-		than overwritten. See \texttt{overwrite}.
+		than overwritten (see \texttt{overwrite}).
 				
 		\item[support] Outputs support graphs (see Section \ref{subsec:support})
 		that have been previously calculated by the command \texttt{support}. 
@@ -963,7 +977,7 @@
 		of the \textit{Terminal} window, and output a `dot' file that can be processed 
 		later.
 		
-		\item[tnt] Outputs a file in TNT \citep{Goloboffetal2008} format (see 
+		\item[tnt] Outputs a file in TNT \citep{Goloboffetal2008} format (see Section
 		\ref{subsec:TNT}) using \texttt{impliedAlignment} for unaligned sequences.
 				 
 	\end{description}			
@@ -972,11 +986,8 @@
 		\texttt{report(dot, append, branchlengths, htulabels, collapse)}
 		The default graph representation is \texttt{dot}. A dot file will only be 
 		reported if no other graph type is indicated. When writing to a file, the 
-		information is appended to the end of the file (see \texttt{overwrite} for 
-		details). Branch lengths and HTU labels are printed in the output files 
-		(see \texttt{nobranchlengths} and \texttt{nohtulables} respectively
-		for details). Zero length branches are collapsed (see \texttt{nocollapse}
-		for details). 
+		information is appended to the end of the file. Branch lengths and HTU 
+		   labels are printed in the output files. Zero length branches are collapsed. 
 		
 		
 	\begin{example}
