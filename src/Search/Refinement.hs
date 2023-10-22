@@ -53,9 +53,11 @@ refineGraph :: [Argument]
             -> ProcessedData 
             -> Int 
             -> [ReducedPhylogeneticGraph] 
-            -> [ReducedPhylogeneticGraph]
+            -> PhyG [ReducedPhylogeneticGraph]
 refineGraph inArgs inGS inData rSeed inGraphList =
-   if null inGraphList then errorWithoutStackTrace "No graphs input to refine"
+   if null inGraphList then do
+        logWith LogInfo "No graphs input to refine"
+        return []
    else
       let fstArgList = fmap (fmap toLower . fst) inArgs
           sndArgList = fmap (fmap toLower . snd) inArgs
@@ -63,7 +65,7 @@ refineGraph inArgs inGS inData rSeed inGraphList =
           checkCommandList = checkCommandArgs "refineGraph" fstArgList VER.refineArgList
      in
      -- check for valid command options
-     if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'GeneticAlgorithm': " <> show inArgs)
+     if not checkCommandList then failWithPhase Parsing ("Unrecognized command in 'GeneticAlgorithm': " <> show inArgs)
      else
       let doNetAdd = any ((== "netadd") . fst) lcArgList
           doNetDel = any ((== "netdel") . fst) lcArgList || any ((== "netdelete") . fst) lcArgList
@@ -74,15 +76,17 @@ refineGraph inArgs inGS inData rSeed inGraphList =
 
       -- network edge edits
       if doNetAdd || doNetDel || doNetAddDel || doNetMov then
-         netEdgeMaster inArgs inGS inData rSeed inGraphList
+         return $ netEdgeMaster inArgs inGS inData rSeed inGraphList
 
       -- genetic algorithm
-      else if doGenAlg then
-         geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+      else if doGenAlg then do 
+         gaReturn <- geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+         pure gaReturn
 
      -- genetic algorithm default
-      else 
-        geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+      else do
+         gaReturn <- geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+         pure gaReturn
         -- error "No refinement operation specified"
 
 -- | geneticAlgorithmMaster takes arguments and performs genetic algorithm on input graphs
@@ -102,19 +106,23 @@ geneticAlgorithmMaster :: [Argument]
                        -> ProcessedData 
                        -> Int 
                        -> [ReducedPhylogeneticGraph] 
-                       -> [ReducedPhylogeneticGraph]
+                       -> PhyG [ReducedPhylogeneticGraph]
 geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
-   if null inGraphList then trace "No graphs to undergo Genetic Algorithm" []
-   else
-      trace ("Genetic Algorithm operating on population of " <> show (length inGraphList) <> " input graph(s) with cost range (" <> show (minimum $ fmap snd5 inGraphList) <> "," <> show (maximum $ fmap snd5 inGraphList) <> ")") (
+   if null inGraphList then do
+    logWith LogInfo "No graphs to undergo Genetic Algorithm" 
+    return []
+   else do
+      logWith LogInfo ("Genetic Algorithm operating on population of " <> show (length inGraphList) <> " input graph(s) with cost range (" <> show (minimum $ fmap snd5 inGraphList) <> "," <> show (maximum $ fmap snd5 inGraphList) <> ")") 
 
       -- process args
       let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
-          (newGraphList, generationCounter) = GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) 0 stopNum inGraphList
-      in
-      trace ("\tGenetic Algorithm: " <> show (length newGraphList) <> " resulting graphs with cost range (" <> show (minimum $ fmap snd5 newGraphList) <> "," <> show (maximum $ fmap snd5 newGraphList) <> ")" <> " after " <> show generationCounter <> " generation(s)")
-      newGraphList
-      )
+      
+      (newGraphList, generationCounter) <- GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) 0 stopNum inGraphList
+      
+      logWith LogInfo ("\tGenetic Algorithm: " <> show (length newGraphList) <> " resulting graphs with cost range (" <> show (minimum $ fmap snd5 newGraphList) <> "," <> show (maximum $ fmap snd5 newGraphList) <> ")" <> " after " <> show generationCounter <> " generation(s)")
+      
+      pure newGraphList
+      
 
 -- | getGeneticAlgParams returns paramlist from arglist
 getGeneticAlgParams :: [Argument] 
@@ -224,7 +232,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
         let swapType
               | any ((== "tbr") . fst) lcArgList = TBR
               | any ((== "spr") . fst) lcArgList = SPR
-              | otherwise = None
+              | otherwise = NoSwap
     
             -- turn off union selection of rejoin--default to do both, union first
         let joinType
@@ -279,7 +287,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
 
                 -- perform graph fuse operations
                 -- sets graphsSteepest to 1 to reduce memory footprintt
-        let (newGraphList, counterFuse) = F.fuseAllGraphs (swapParams withIA) (inGS {graphsSteepest = 1}) inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
+        (newGraphList, counterFuse) <- F.fuseAllGraphs (swapParams withIA) (inGS {graphsSteepest = 1}) inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
     
         logWith LogMore $ unwords
                      [ "\tAfter fusing:"

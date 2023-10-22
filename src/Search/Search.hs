@@ -784,9 +784,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     in  -- perform search
                         pure (R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList, swapAnnealArgs)
                 "geneticAlgorithm" →
+                    do
                     -- args from above
                     -- perform search
-                    pure (R.geneticAlgorithmMaster gaArgs inGS inData randSeed1 inGraphList, gaArgs)
+                        gaReturn <- R.geneticAlgorithmMaster gaArgs inGS inData randSeed1 inGraphList
+                        pure (gaReturn, gaArgs)
                 "fuse" →
                     -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                     let -- fuse arguments

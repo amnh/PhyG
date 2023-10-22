@@ -798,7 +798,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
 
    else
       -- this is for no  swapping option in fuse and genetic algorithm-fuse
-      let rejoinEdges = if (swapType swapParams) == None then take 6 rejoinEdges'
+      let rejoinEdges = if (swapType swapParams) == NoSwap then take 6 rejoinEdges'
                         else rejoinEdges'
       in
       -- regular swapping

@@ -37,12 +37,17 @@ Portability :  portable (I hope)
 module Search.GeneticAlgorithm ( geneticAlgorithm
                                ) where
 
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Debug.Trace
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import Search.Fuse qualified as F
 import Search.NetworkAddDelete qualified as N
 import Search.Swap qualified as S
+import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 
@@ -73,11 +78,11 @@ geneticAlgorithm :: GlobalSettings
                  -> Int
                  -> Int
                  -> [ReducedPhylogeneticGraph]
-                 -> ([ReducedPhylogeneticGraph], Int)
+                 -> PhyG ([ReducedPhylogeneticGraph], Int)
 geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
-    if null inGraphList then ([], 0)
-    else if generationCounter == generations then  (inGraphList, generationCounter)
-    else if stopCount >= stopNum then (inGraphList, generationCounter)
+    if null inGraphList then return ([], 0)
+    else if generationCounter == generations then return (inGraphList, generationCounter)
+    else if stopCount >= stopNum then return (inGraphList, generationCounter)
     else
         trace ("Genetic algorithm generation: " <> (show generationCounter)) (
         let seedList = randomIntList rSeed
@@ -100,7 +105,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (mutatedGraphList <> inGraphList)
 
             -- recombine elite with mutated and mutated with mutated
-            recombineSwap = getRandomElement (seedList !! 4) [None, NNI, SPR] --  these take too long, "tbr", "alternate"]
+            recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
 
             -- options to join via union choices or all in fuse
             -- this is ignored for now in fuse--JoinAll is what it does
@@ -126,20 +131,15 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                                     , returnMutated = False 
                                     }
 
-
-            (recombinedGraphList, _) = F.fuseAllGraphs swapParams inGS inData (drop 6 seedList) 0 returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
+        in 
+        do
+        (recombinedGraphList, _) <- F.fuseAllGraphs swapParams inGS inData (drop 6 seedList) 0 returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
 
             -- selection of graphs population
             -- unique sorted on cost so getting unique with lowest cost
-            selectedGraphs = GO.selectGraphs Unique popSize 0.0 (-1) recombinedGraphList
-            newCost = snd5 $ head selectedGraphs
+        let selectedGraphs = GO.selectGraphs Unique popSize 0.0 (-1) recombinedGraphList
+        let newCost = snd5 $ head selectedGraphs
 
-        in
-        {-
-        trace ("\tGA " <> (show $ snd5 $ head initialEliteList) <> " -> " <> (show newCost) <> "\nInGraphs " <> (show $ L.sort $ fmap snd5 inGraphList)
-            <> "\nMutated " <> (show $  L.sort $ fmap snd5 mutatedGraphList)
-            <> "\nRecombined " <> recombineSwap <> " " <> (show $  L.sort $ fmap snd5 recombinedGraphList)) (
-        -}
         -- if new graphs better cost then take those
         if newCost < (snd5 $ head initialEliteList) then
             geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations 0 stopNum selectedGraphs

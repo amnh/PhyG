@@ -7,6 +7,10 @@ module Search.Fuse (
     fuseAllGraphs,
 ) where
 
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.InfList qualified as IL
@@ -21,6 +25,7 @@ import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import Graphs.GraphOperations qualified as GO
 import ParallelUtilities qualified as PU
 import Search.Swap qualified as S
+import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 
@@ -46,10 +51,10 @@ fuseAllGraphs
     → Bool
     → Bool
     → [ReducedPhylogeneticGraph]
-    → ([ReducedPhylogeneticGraph], Int)
+    → PhyG ([ReducedPhylogeneticGraph], Int)
 fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList = case inGraphList of
-    [] → ([], counter)
-    [x] → (inGraphList, counter)
+    [] → return ([], counter)
+    [x] → return (inGraphList, counter)
     _ →
         let -- getting values to be passed for graph diagnorsis later
             numLeaves = V.length $ fst3 inData
@@ -116,12 +121,12 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                     else infinity
 
             swapTypeString =
-                if swapType swapParams == None
+                if swapType swapParams == NoSwap
                     then "out"
                     else " " <> (show $ swapType swapParams)
         in  trace ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping") $
                 if null newGraphList
-                    then (inGraphList, counter + 1)
+                    then return (inGraphList, counter + 1)
                     else
                         if returnUnique
                             then
@@ -144,12 +149,12 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                                 randomPairs
                                                 reciprocal
                                                 uniqueList
-                                        else (uniqueList, counter + 1)
+                                        else return (uniqueList, counter + 1)
                             else -- return best
                             -- only do one round of fusing
 
                                 if singleRound
-                                    then (GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList), counter + 1)
+                                    then return (GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList), counter + 1)
                                     else -- recursive rounds
 
                                     -- need unique list to keep going
@@ -157,25 +162,11 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                         let allBestList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
                                         in  -- found better
                                             if fuseBest < curBest
-                                                then -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
-
-                                                    trace
-                                                        ("\n")
-                                                        fuseAllGraphs
-                                                        swapParams
-                                                        inGS
-                                                        inData
-                                                        (drop 2 rSeedList)
-                                                        (counter + 1)
-                                                        returnBest
-                                                        returnUnique
-                                                        singleRound
-                                                        fusePairs
-                                                        randomPairs
-                                                        reciprocal
-                                                        allBestList
+                                                then 
+                                                    trace ("\n")
+                                                    fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
                                                 else -- equal or worse cost just return--could keep finding equal
-                                                    (allBestList, counter + 1)
+                                                    return (allBestList, counter + 1)
 
 
 {- | fusePairRecursive wraps around fusePair recursively traversing through fuse pairs as oppose
