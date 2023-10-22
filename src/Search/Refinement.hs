@@ -32,6 +32,7 @@ import Search.Fuse qualified as F
 import Search.GeneticAlgorithm qualified as GA
 import Search.NetworkAddDelete qualified as N
 import Search.SwapMaster qualified as SM
+import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Utilities.Utilities as U
 
@@ -203,15 +204,15 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
     | null inGraphList = logWith LogMore "Fusing--skipped: No graphs to fuse" $> []
     | length inGraphList == 1 = logWith LogMore "Fusing--skipped: Need > 1 graphs to fuse" $> inGraphList
     {- | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList -}
-    | otherwise =
+    | otherwise = do
         -- process args for fuse placement
-        let (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) = getFuseGraphParams inArgs
+        (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) <- getFuseGraphParams inArgs
 
             -- steepest off by default due to wanteing to check all addition points
-            doSteepest' = any ((== "steepest") . fst) lcArgList
-            doAll = any ((== "all") . fst) lcArgList
+        let doSteepest' = any ((== "steepest") . fst) lcArgList
+        let doAll = any ((== "all") . fst) lcArgList
     
-            doSteepest
+        let doSteepest
                 | (not doSteepest' && not doAll) = True
                 | (doSteepest' && doAll) = True
                 | doAll = False
@@ -220,43 +221,43 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
             -- readdition options, specified as swap types
             -- no alternate or nni for fuse--not really meaningful
     
-            swapType
+        let swapType
               | any ((== "tbr") . fst) lcArgList = TBR
               | any ((== "spr") . fst) lcArgList = SPR
               | otherwise = None
     
             -- turn off union selection of rejoin--default to do both, union first
-            joinType
+        let joinType
               | any ((== "joinall") . fst) lcArgList = JoinAll
               | any ((== "joinpruned") . fst) lcArgList = JoinPruned
               | otherwise = JoinAlternate
     
             -- set implied alignment swapping
-            doIA' = any ((== "ia") . fst) lcArgList
-            getDoIA
+        let doIA' = any ((== "ia") . fst) lcArgList
+        let getDoIA
                 | (graphType inGS /= Tree) && doIA' = logWith LogWarn "\tIgnoring 'IA' swap option for non-Tree" $> False
                 | otherwise = pure doIA'
     
-            returnBest = any ((== "best") . fst) lcArgList
-            returnUnique = (not returnBest) || (any ((== "unique") . fst) lcArgList)
-            doSingleRound = any ((== "once") . fst) lcArgList
-            randomPairs = any ((== "atrandom") . fst) lcArgList
-            fusePairs'
+        let returnBest = any ((== "best") . fst) lcArgList
+        let returnUnique = (not returnBest) || (any ((== "unique") . fst) lcArgList)
+        let doSingleRound = any ((== "once") . fst) lcArgList
+        let randomPairs = any ((== "atrandom") . fst) lcArgList
+        let fusePairs'
                 | fusePairs == Just (maxBound :: Int) = Nothing
                 | otherwise = fusePairs
     
             -- this for exchange or one dirction transfer of sub-graph--one half time for noreciprocal
-            reciprocal' = any ((== "reciprocal") . fst) lcArgList
-            notReciprocal = any ((== "notreciprocal") . fst) lcArgList
-            reciprocal
+        let reciprocal' = any ((== "reciprocal") . fst) lcArgList
+        let notReciprocal = any ((== "notreciprocal") . fst) lcArgList
+        let reciprocal
                 | not reciprocal' = False
                 | notReciprocal = False
                 | otherwise = True
     
-            seedList = randomIntList rSeed
+        let seedList = randomIntList rSeed
     
             -- populate SwapParams structure
-            swapParams withIA = SwapParams
+        let swapParams withIA = SwapParams
                 { swapType = swapType
                 , joinType = joinType 
                 , atRandom = randomPairs -- really same as swapping at random not so important here
@@ -267,20 +268,20 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                 , doIA = withIA
                 , returnMutated = False -- no SA/Drift swapping in Fuse
                 }
-        in  do  logWith LogInfo $ unwords
+        logWith LogInfo $ unwords
                     [ "Fusing"
                     ,  show $ length inGraphList
                     , "input graph(s) with minimum cost"
                     , show . minimum $ fmap snd5 inGraphList
                     ]
 
-                withIA <- getDoIA
+        withIA <- getDoIA
 
                 -- perform graph fuse operations
                 -- sets graphsSteepest to 1 to reduce memory footprintt
-                let (newGraphList, counterFuse) = F.fuseAllGraphs (swapParams withIA) (inGS {graphsSteepest = 1}) inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
+        let (newGraphList, counterFuse) = F.fuseAllGraphs (swapParams withIA) (inGS {graphsSteepest = 1}) inData seedList 0 returnBest returnUnique doSingleRound fusePairs' randomPairs reciprocal inGraphList
     
-                logWith LogMore $ unwords
+        logWith LogMore $ unwords
                      [ "\tAfter fusing:"
                      , show $ length newGraphList
                      , "resulting graphs with minimum cost"
@@ -288,11 +289,11 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                      , " after fuse rounds (total): "
                      , show counterFuse
                      ]
-                pure newGraphList
+        pure newGraphList
 
 -- | getFuseGraphParams returns fuse parameters from arglist
 getFuseGraphParams :: [Argument] 
-                   -> (Maybe Int, Maybe Int, Maybe Int, [(String, String)])
+                   -> PhyG (Maybe Int, Maybe Int, Maybe Int, [(String, String)])
 getFuseGraphParams inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
@@ -304,35 +305,32 @@ getFuseGraphParams inArgs =
      else
          let keepList = filter ((== "keep") . fst) lcArgList
              keepNum
-              | length keepList > 1 =
-                errorWithoutStackTrace ("Multiple 'keep' number specifications in fuse command--can have only one: " <> show inArgs)
               | null keepList = Just 10
               | otherwise = readMaybe (snd $ head keepList) :: Maybe Int
 
              -- this is awkward syntax but works to chejkc fpor multiple swapping limit commands
              moveLimitList = filter (not . null) (snd <$> filter ((`notElem` ["keep", "pairs"]) . fst) lcArgList)
              maxMoveEdgeDist
-              | length moveLimitList > 1 =
-                errorWithoutStackTrace ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " <> show inArgs)
               | null moveLimitList = Just ((maxBound :: Int) `div` 3)
               | otherwise = readMaybe (head moveLimitList) :: Maybe Int
 
              pairList = filter ((== "pairs") . fst) lcArgList
              fusePairs
-              | length pairList > 1 =
-                errorWithoutStackTrace ("Multiple 'pair' number specifications in fuse command--can have only one: " <> show inArgs)
               | null pairList = Just (maxBound :: Int)
               | otherwise = readMaybe (snd $ head pairList) :: Maybe Int
 
         in
 
         --check arguments
-        if isNothing keepNum then errorWithoutStackTrace ("Keep specification not an integer in swap: "  <> show (head keepList))
-        else if isNothing maxMoveEdgeDist then errorWithoutStackTrace ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  <> show (head moveLimitList))
-        else if isNothing fusePairs then errorWithoutStackTrace ("fusePairs specification not an integer in fuse: "  <> show (head pairList))
+        if length keepList > 1 then failWithPhase Parsing ("Multiple 'keep' number specifications in fuse command--can have only one: " <> show inArgs)
+        else if length moveLimitList > 1 then failWithPhase Parsing  ("Multiple maximum edge distance number specifications in fuse command--can have only one (e.g. spr:2): " <> show inArgs)
+        else if length pairList > 1 then failWithPhase Parsing ("Multiple 'pair' number specifications in fuse command--can have only one: " <> show inArgs)
+        else if isNothing keepNum then failWithPhase Parsing ("Keep specification not an integer in swap: "  <> show (head keepList))
+        else if isNothing maxMoveEdgeDist then failWithPhase Parsing ("Maximum edge move distance specification in fuse command not an integer (e.g. spr:2): "  <> show (head moveLimitList))
+        else if isNothing fusePairs then failWithPhase Parsing ("fusePairs specification not an integer in fuse: "  <> show (head pairList))
 
         else
-            (keepNum, maxMoveEdgeDist, fusePairs, lcArgList)
+            return (keepNum, maxMoveEdgeDist, fusePairs, lcArgList)
 
 -- | netEdgeMaster overall master for add/delete net edges
 netEdgeMaster :: [Argument] 
