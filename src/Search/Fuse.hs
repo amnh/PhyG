@@ -19,7 +19,6 @@ import Data.Map qualified as MAP
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
-import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import Graphs.GraphOperations qualified as GO
@@ -28,6 +27,7 @@ import Search.Swap qualified as S
 import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
+--import Debug.Trace
 
 
 -- In general, needs simolification and refactoring
@@ -113,65 +113,54 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                    -- newGraphList = concat $ PU.seqParMap PU.myStrategy (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
                *   New implementation (safe sequential):
             -}
-            newGraphList = foldMap (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
+        in
+        do
+        newGraphList' <- mapM (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
+        let newGraphList = concat newGraphList'
 
-            fuseBest =
+        let fuseBest =
                 if not (null newGraphList)
                     then minimum $ fmap snd5 newGraphList
                     else infinity
 
-            swapTypeString =
+        let swapTypeString =
                 if swapType swapParams == NoSwap
                     then "out"
                     else " " <> (show $ swapType swapParams)
-        in  trace ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping") $
-                if null newGraphList
-                    then return (inGraphList, counter + 1)
-                    else
-                        if returnUnique
-                            then
-                                let uniqueList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
-                                in  if fuseBest < curBest
-                                        then -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
+        
+        logWith LogInfo ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping") 
+        if null newGraphList then return (inGraphList, counter + 1)
+        else
+                if returnUnique then
+                    let uniqueList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
+                    in
+                    if fuseBest < curBest then -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
+                        do
+                        logWith LogInfo ("\n")
+                        fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
+                    else return (uniqueList, counter + 1)
+                else -- return best
+                     -- only do one round of fusing
+                    if singleRound then return (GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList), counter + 1)
+                    else -- recursive rounds
+                        do
+                        -- need unique list to keep going
 
-                                            trace
-                                                ("\n")
-                                                fuseAllGraphs
-                                                swapParams
-                                                inGS
-                                                inData
-                                                (drop 2 rSeedList)
-                                                (counter + 1)
-                                                returnBest
-                                                returnUnique
-                                                singleRound
-                                                fusePairs
-                                                randomPairs
-                                                reciprocal
-                                                uniqueList
-                                        else return (uniqueList, counter + 1)
-                            else -- return best
-                            -- only do one round of fusing
-
-                                if singleRound
-                                    then return (GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList), counter + 1)
-                                    else -- recursive rounds
-
-                                    -- need unique list to keep going
-
-                                        let allBestList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
-                                        in  -- found better
-                                            if fuseBest < curBest
-                                                then 
-                                                    trace ("\n")
-                                                    fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
-                                                else -- equal or worse cost just return--could keep finding equal
-                                                    return (allBestList, counter + 1)
+                        let allBestList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
+                                         -- found better
+                        if fuseBest < curBest then 
+                            do
+                                logWith LogInfo ("\n")
+                                fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
+                        else -- equal or worse cost just return--could keep finding equal
+                            return (allBestList, counter + 1)
 
 
 {- | fusePairRecursive wraps around fusePair recursively traversing through fuse pairs as oppose
 to parMapping at once creating a large memory footprint
 needs to be refactored (left right are same)
+
+-- this logic is wrong and needs to be fixed
 -}
 fusePairRecursive
     ∷ SwapParams
@@ -183,41 +172,36 @@ fusePairRecursive
     → Bool
     → [ReducedPhylogeneticGraph]
     → [(ReducedPhylogeneticGraph, ReducedPhylogeneticGraph)]
-    → [ReducedPhylogeneticGraph]
+    → PhyG [ReducedPhylogeneticGraph]
 fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore reciprocal resultList leftRightList =
     if null leftRightList
-        then resultList
+        then return resultList
         else
             let -- parallel here blows up memory
                 numPairsToExamine = min (graphsSteepest inGS) PU.getNumThreads
-
+            in
+            do
                 -- paralleized high level
                 -- fusePairResult = concat $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) (take numPairsToExamine leftRightList)
-                fusePairResult = foldMap (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) $ take numPairsToExamine leftRightList
-
+            fusePairResult' <- mapM (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) $ take numPairsToExamine leftRightList
+            let fusePairResult = concat fusePairResult'
                 -- fusePairResult = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (head leftRightList)
 
-                bestResultList =
+            let bestResultList =
                     if graphType inGS == Tree
                         then GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) fusePairResult
                         else -- check didn't make weird network
-
                             GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ (filter (LG.isPhylogeneticGraph . fst5)) fusePairResult
 
-                pairScore =
+            let pairScore =
                     if (not . null) bestResultList
                         then snd5 $ head bestResultList
                         else infinity
 
-                newCurBestScore = min curBestScore pairScore
+            let newCurBestScore = min curBestScore pairScore
 
-                bestResultList' =
-                    if pairScore <= curBestScore
-                        then bestResultList
-                        else []
-            in  -- paralle removed due to memory blow-up
-                bestResultList'
-                    <> fusePairRecursive
+            {-bestResultList'
+                    <- fusePairRecursive
                         swapParams
                         inGS
                         inData
@@ -227,6 +211,15 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
                         reciprocal
                         resultList
                         (drop numPairsToExamine leftRightList)
+            -}
+
+            let bestResultList' =
+                    if pairScore <= curBestScore
+                        then bestResultList
+                        else []
+            
+
+            return bestResultList'
 
 
 -- bestResultList' <> fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (tail leftRightList)
@@ -246,13 +239,13 @@ fusePair
     → VertexCost
     → Bool
     → (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph)
-    → [ReducedPhylogeneticGraph]
+    → PhyG [ReducedPhylogeneticGraph]
 fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (leftGraph, rightGraph) =
     if (LG.isEmpty $ fst5 leftGraph) || (LG.isEmpty $ fst5 rightGraph)
         then error "Empty graph in fusePair"
         else
             if (fst5 leftGraph) == (fst5 rightGraph)
-                then []
+                then return []
                 else -- split graphs at all bridge edges (all edges for Tree)
 
                     let -- left graph splits on all edges
@@ -385,52 +378,23 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                             min
                                 (getNetworkPentaltyFactor inGS inData (snd5 leftGraph) leftGraph)
                                 (getNetworkPentaltyFactor inGS inData (snd5 rightGraph) rightGraph)
-
+                    in
+                    do
                         -- left and right root indices should be the same
-                        leftRightFusedGraphList =
-                            recombineComponents
-                                swapParams
-                                inGS
-                                inData
-                                curBetterCost
-                                curBestScore
-                                leftRightOptimizedSplitGraphCostList'
-                                leftRightPrunedRootIndexList'
-                                leftRightPrunedParentRootIndexList'
-                                leftRightOriginalConnectionOfPrunedList'
-                                leftRootIndex
-                                networkCostFactor
-                                leftOriginalEdgeList
-                        rightLeftFusedGraphList =
-                            recombineComponents
-                                swapParams
-                                inGS
-                                inData
-                                curBetterCost
-                                curBestScore
-                                rightLeftOptimizedSplitGraphCostList'
-                                rightLeftPrunedRootIndexList'
-                                rightLeftPrunedParentRootIndexList'
-                                rightLeftOriginalConnectionOfPrunedList'
-                                rightRootIndex
-                                networkCostFactor
-                                rightOriginalEdgeList
+                    leftRightFusedGraphList <- recombineComponents swapParams inGS inData curBetterCost curBestScore leftRightOptimizedSplitGraphCostList' leftRightPrunedRootIndexList' leftRightPrunedParentRootIndexList' leftRightOriginalConnectionOfPrunedList' leftRootIndex networkCostFactor leftOriginalEdgeList
+                    rightLeftFusedGraphList <- recombineComponents swapParams inGS inData curBetterCost curBestScore rightLeftOptimizedSplitGraphCostList' rightLeftPrunedRootIndexList' rightLeftPrunedParentRootIndexList' rightLeftOriginalConnectionOfPrunedList' rightRootIndex networkCostFactor rightOriginalEdgeList
 
                         -- get "best" fused graphs from leftRight and rightLeft
-                        bestFusedGraphs =
-                            if reciprocal
-                                then GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (leftRightFusedGraphList <> rightLeftFusedGraphList)
-                                else GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) leftRightFusedGraphList
-                    in  -- \| get fuse graphs via swap function
+                    let bestFusedGraphs =
+                            if reciprocal then 
+                                GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (leftRightFusedGraphList <> rightLeftFusedGraphList)
+                            else 
+                                GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) leftRightFusedGraphList
+                      -- \| get fuse graphs via swap function
 
-                        if null leftValidTupleList
-                            then []
-                            else {-
-                                 trace ("FP: " <> (show (length leftValidTupleList, length rightValidTupleList)) <> " num (Left,Right) " <> (show (length leftSplitTupleList, length rightSplitTupleList))
-                                    <> "\nLeftRight splitCost " <> (show $ fmap snd leftRightOptimizedSplitGraphCostList)
-                                    <> "\nrightLeft splitCost " <> (show $ fmap snd rightLeftOptimizedSplitGraphCostList))
-                                 -}
-                                bestFusedGraphs
+                    if null leftValidTupleList
+                        then return []
+                        else return bestFusedGraphs
     where
         first4of6 (a, b, c, d, _, _) = (a, b, c, d)
 
@@ -453,13 +417,13 @@ recombineComponents
     → LG.Node
     → VertexCost
     → [LG.LEdge EdgeInfo]
-    → [ReducedPhylogeneticGraph]
+    → PhyG [ReducedPhylogeneticGraph]
 recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplitGraphCostPairList prunedRootIndexList prunedParentRootIndexList _ graphRoot networkCostFactor originalSplitEdgeList =
     -- check and see if any reconnecting to do
     -- trace ("RecombineComponents " <> (show $ length splitGraphCostPairList)) (
     let splitGraphCostPairList = filter ((not . LG.isEmpty) . fst) inSplitGraphCostPairList
     in  if null splitGraphCostPairList
-            then []
+            then return []
             else -- top line to cover SPR HarWired bug
 
                 let -- since splits not created together, IA won't be consistent between components
@@ -489,23 +453,23 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                             rejoinEdgesList
                             edgesInPrunedList
                             netPenaltyFactorList
-
+                in
+                do
                     -- do "all additions" -
                     -- recombinedGraphList = concat $ PU.seqParMap PU.myStrategy  (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
-                    recombinedGraphList = rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
+                recombinedGraphList <- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
 
                     -- this based on heuristic deltas
-                    bestFuseCost =
+                let bestFuseCost =
                         if null recombinedGraphList
                             then infinity
                             else minimum $ fmap snd5 recombinedGraphList
-                in  -- trace ("Checking in fusing") (
-                    if null recombinedGraphList
-                        then []
-                        else
-                            if bestFuseCost <= curBetterCost
-                                then GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) recombinedGraphList
-                                else []
+                if null recombinedGraphList
+                    then return []
+                    else
+                        if bestFuseCost <= curBetterCost
+                            then return $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) recombinedGraphList
+                            else return []
 
 
 -- )
@@ -524,10 +488,10 @@ rejoinGraphTupleRecursive
     → VertexCost
     → Maybe SAParams
     → [(DecoratedGraph, SimpleGraph, VertexCost, LG.Node, LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)]
-    → [ReducedPhylogeneticGraph]
+    → PhyG [ReducedPhylogeneticGraph]
 rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost inSimAnnealParams graphDataList =
     if null graphDataList
-        then []
+        then return []
         else
             let firstGraphData = head graphDataList
                 -- update with unions for rejoining
@@ -557,12 +521,14 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
                 newRecursiveBestCost = min recursiveBestCost firstBestCost
 
                 progressString = if firstBestCost < recursiveBestCost then ("\t->" <> (show newRecursiveBestCost)) else ""
-
-                result =
-                    firstRejoinResult
-                        <> rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
             in  -- Unconditional printing, conditional output payload.
-                trace progressString result
+
+                do
+                rejoinResult <- rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
+                let result = firstRejoinResult <> rejoinResult
+             
+                logWith LogInfo progressString 
+                return result
 
 
 {-
