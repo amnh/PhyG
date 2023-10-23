@@ -178,7 +178,7 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
         then return resultList
         else
             let -- parallel here blows up memory
-                numPairsToExamine = min (graphsSteepest inGS) PU.getNumThreads
+                numPairsToExamine = graphsSteepest inGS -- min (graphsSteepest inGS) PU.getNumThreads
             in
             do
                 -- paralleized high level
