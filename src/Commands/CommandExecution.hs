@@ -373,7 +373,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                                     if firstOption == Swap
                                                                                                         then do
                                                                                                             (elapsedSeconds, newGraphList) ←
-                                                                                                                timeOp $ pure $ REF.swapMaster firstArgs globalSettings processedData (head seedList) curGraphs
+                                                                                                                timeOp $ REF.swapMaster firstArgs globalSettings processedData (head seedList) curGraphs
 
                                                                                                             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                                                             let newSearchData = searchInfo : searchData globalSettings

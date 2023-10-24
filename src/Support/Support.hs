@@ -301,9 +301,10 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
                 let netGraphList = case graphType inGS of
                         Tree → bestBuildGraphList
                         _ → R.netEdgeMaster netAddArgs inGS newData (randomIntegerList1 !! 2) bestBuildGraphList
+                swapGraphs <- R.swapMaster swapOptions inGS newData (randomIntegerList1 !! 3) netGraphList
                 let swapGraphList
                         | null swapOptions = netGraphList
-                        | otherwise = R.swapMaster swapOptions inGS newData (randomIntegerList1 !! 3) netGraphList
+                        | otherwise = swapGraphs
                 pure $ head swapGraphList
 
 

@@ -43,7 +43,7 @@ swapMaster :: [Argument]
             -> ProcessedData
             -> Int
             -> [ReducedPhylogeneticGraph]
-            -> [ReducedPhylogeneticGraph]
+            -> PhyG [ReducedPhylogeneticGraph]
 swapMaster = SM.swapMaster
 
 
