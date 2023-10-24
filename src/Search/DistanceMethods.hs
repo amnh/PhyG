@@ -40,44 +40,51 @@ I
 
 module Search.DistanceMethods (neighborJoining, wPGMA, doWagnerS, performWagnerRefinement) where
 
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.Logger (LogLevel (..), Logger (..))
 import Data.Number.Transfinite     as NT
 import Data.Vector qualified as V
 import Debug.Trace
+import GeneralUtilities
 import ParallelUtilities as PU
 import Search.DistanceWagner qualified as W
 import SymMatrix qualified as M
+import System.ErrorPhase (ErrorPhase (..))
 import Types.DistanceTypes
+import Types.Types
 import Utilities.DistanceUtilities
 --import qualified LocalSequence as LS
-import Data.Vector qualified as LS
-import GeneralUtilities
 
 
 -- | wPGMA takes a list of leaves and a distance matrixx and returns
 -- an WGPGMA tree
 -- WPGMA not UPGMA since the linkages are from the two descendent linkages and not weighted by
 -- the number of taxa in each group as in https://en.wikipedia.org/wiki/WPGMA
-wPGMA :: V.Vector String -> M.Matrix Double -> Int -> TreeWithData
+wPGMA :: V.Vector String -> M.Matrix Double -> Int -> PhyG TreeWithData
 wPGMA leafNames distMatrix outgroup =
   if M.null distMatrix then error "Null matrix in WPGMA"
   else
-    trace "\n\tBuilding WPGMA tree" (
     let numLeaves = V.length leafNames
         leafVertexVect = V.fromList [0..(numLeaves - 1)]
-        ((vertexVect, edgeVect), finalMatrix) = addTaxaWPGMA distMatrix numLeaves (leafVertexVect, V.empty) []
-        wPGMATree' = convertLinkagesToEdgeWeights vertexVect (V.toList edgeVect) (V.toList edgeVect) [] numLeaves
-        -- linkage leves are not same as edgeweights so need to be converted
-        newickString = convertToNewick leafNames outgroup wPGMATree'
-        treeCost = getTreeCost wPGMATree'
     in
-    --trace (show wPGMATree <> "\n" <> show wPGMATree')
-    (take (length newickString - 3) newickString <> "[" <> show treeCost <> "];\n", wPGMATree', treeCost, finalMatrix)
-    )
+      do
+        ((vertexVect, edgeVect), finalMatrix) <- addTaxaWPGMA distMatrix numLeaves (leafVertexVect, V.empty) []
+        let wPGMATree' = convertLinkagesToEdgeWeights vertexVect (V.toList edgeVect) (V.toList edgeVect) [] numLeaves
+        -- linkage leves are not same as edgeweights so need to be converted
+        let newickString = convertToNewick leafNames outgroup wPGMATree'
+        let treeCost = getTreeCost wPGMATree'
+    
+        logWith LogInfo "\n\tBuilding WPGMA tree" 
+        --trace (show wPGMATree <> "\n" <> show wPGMATree')
+        return $ (take (length newickString - 3) newickString <> "[" <> show treeCost <> "];\n", wPGMATree', treeCost, finalMatrix)
+    
 
 -- | pulls dWagner function from module Wagner
-doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> [TreeWithData]
+doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
 doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
-  trace ("\tBuilding " <> show (length replicateSequences) <> " Wagner tree(s)")
+  do 
+  logWith LogInfo ("\tBuilding " <> show (length replicateSequences) <> " Wagner tree(s)")
   W.doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences
 
 -- | pulls Wagner refinement from Wagner module
@@ -86,22 +93,21 @@ performWagnerRefinement = W.performRefinement
 
 -- | neighborJoining takes a list of leaves and a distance matrixx and returns
 -- an NJ tree
-neighborJoining :: V.Vector String -> M.Matrix Double -> Int -> TreeWithData
+neighborJoining :: V.Vector String -> M.Matrix Double -> Int -> PhyG TreeWithData
 neighborJoining leafNames distMatrix outgroup =
     if M.null distMatrix then error "Null matrix in neighborJoining"
     else
-        trace "\n\tBuilding NJ tree" (
+      do
+        logWith LogInfo "\n\tBuilding NJ tree" 
         -- get intial matrices
-        let -- initialBigDMatrix = makeDMatrix distMatrix [] -- 0 0 []
-            numLeaves = V.length leafNames
-            leafVertexVect = V.fromList [0..(numLeaves - 1)]
-            (nJTree, finalLittleDMatrix) = addTaxaNJ distMatrix numLeaves (leafVertexVect, V.empty) []
-            newickString = convertToNewick leafNames outgroup nJTree
-            treeCost = getTreeCost nJTree
-        in
-        --trace (show nJTree)
-        (take (length newickString - 3) newickString <> "[" <> show treeCost <> "];\n", nJTree, treeCost, finalLittleDMatrix)
-        )
+        let numLeaves = V.length leafNames
+        let leafVertexVect = V.fromList [0..(numLeaves - 1)]
+        (nJTree, finalLittleDMatrix) <- addTaxaNJ distMatrix numLeaves (leafVertexVect, V.empty) []
+        let newickString = convertToNewick leafNames outgroup nJTree
+        let treeCost = getTreeCost nJTree
+        
+        return $ (take (length newickString - 3) newickString <> "[" <> show treeCost <> "];\n", nJTree, treeCost, finalLittleDMatrix)
+        
 
 -- | sumAvail sums the row only thos values not already added to tree
 sumAvail :: [Int] -> Int -> [Double] -> Double
@@ -114,12 +120,12 @@ sumAvail vertInList index distList
   firstDist + sumAvail vertInList (index + 1) (tail distList)
 
 -- | makeDMatrixRow make a single row of the bif D matrix
-makeDMatrixRow :: M.Matrix Double -> [Int] -> Int -> Int -> V.Vector Double -- LS.Seq Double
+makeDMatrixRow :: M.Matrix Double -> [Int] -> Int -> Int -> V.Vector Double -- V.Seq Double
 makeDMatrixRow inObsMatrix vertInList column row
   | M.null inObsMatrix = error "Null matrix in makeInitialDMatrix"
-  | row `elem` vertInList = LS.replicate (LS.length (inObsMatrix LS.! row)) NT.infinity
-  | column == LS.length (inObsMatrix LS.! row) = LS.empty
-  | column == row = LS.cons 0.0 (makeDMatrixRow inObsMatrix vertInList (column + 1) row)
+  | row `elem` vertInList = V.replicate (V.length (inObsMatrix V.! row)) NT.infinity
+  | column == V.length (inObsMatrix V.! row) = V.empty
+  | column == row = V.cons 0.0 (makeDMatrixRow inObsMatrix vertInList (column + 1) row)
   | column `notElem` vertInList =
     let dij = inObsMatrix M.! (row, column)
         divisor = (fromIntegral (M.rows inObsMatrix) - 2) - fromIntegral (length vertInList)
@@ -127,8 +133,8 @@ makeDMatrixRow inObsMatrix vertInList column row
         rj  = (sumAvail vertInList 0 $ M.getFullRow inObsMatrix column)
         bigDij = dij - ((ri + rj) / divisor)
     in
-    LS.cons bigDij (makeDMatrixRow inObsMatrix vertInList (column + 1) row)
-      | otherwise = LS.cons NT.infinity (makeDMatrixRow inObsMatrix vertInList (column + 1) row)
+    V.cons bigDij (makeDMatrixRow inObsMatrix vertInList (column + 1) row)
+      | otherwise = V.cons NT.infinity (makeDMatrixRow inObsMatrix vertInList (column + 1) row)
 
 
 -- | makeIDMatrix makes adjusted matrix (D) from observed (d) values
@@ -143,31 +149,7 @@ makeDMatrix inObsMatrix vertInList  =
   else
       let newMatrix = PU.seqParMap PU.myStrategyRDS (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)] -- `using` PU.myParListChunkRDS
       in
-      LS.fromList newMatrix
-
-
-{-
--- | makeIDMatrix makes adjusted matrix (D) from observed (d) values
--- assumes matrix is square and symmetrical
--- makes values Infinity if already added
-  -- adjust ri and rj to bew based on on values not in termInList
-makeDMatrix' :: M.Matrix Double -> [Int] -> Int -> Int -> [(Int, Int, Double)] -> M.Matrix Double
-makeDMatrix' inObsMatrix vertInList row column updateList
-  | M.null inObsMatrix = error "Null matrix in makeInitialDMatrix"
-  | row == M.rows inObsMatrix = M.updateMatrix inObsMatrix updateList
-  | column == M.cols inObsMatrix = makeDMatrix' inObsMatrix vertInList (row + 1) 0 updateList
-  | column == row = makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, 0.0) : updateList)
-  | (column `elem` vertInList) || (row `elem` vertInList) =
-      makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, NT.infinity) : updateList)
-  | otherwise =
-    let dij = inObsMatrix M.! (row, column)
-        divisor = (fromIntegral (M.rows inObsMatrix) - 2) - fromIntegral (length vertInList)
-        ri  = (sumAvail vertInList 0 $ M.getFullRow inObsMatrix row)
-        rj  = (sumAvail vertInList 0 $ M.getFullRow inObsMatrix column)
-        bigDij = dij - ((ri + rj) / divisor)
-    in
-    makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, bigDij) : updateList)
--}
+      V.fromList newMatrix
 
 -- | pickNearestUpdateMatrix takes d and D matrices, pickes nearest based on D
 -- then updates d and D to reflect new node and distances created
@@ -202,7 +184,7 @@ pickNearestUpdateMatrixNJ littleDMatrix  vertInList
           -- get distances to existing vertices
           otherVertList = [0..(M.rows littleDMatrix - 1)]
           newLittleDRow = PU.seqParMap PU.myStrategyR0 (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
-          newLittleDMatrix = M.addMatrixRow littleDMatrix (LS.fromList $ newLittleDRow <> [0.0])
+          newLittleDMatrix = M.addMatrixRow littleDMatrix (V.fromList $ newLittleDRow <> [0.0])
           -- recalculate whole D matrix since new row affects all the original ones  (except those merged)
           -- included vertex values set to infinity so won't be chosen later
           -- newBigDMatrix = makeDMatrix newLittleDMatrix newVertInList -- 0 0 []
@@ -227,7 +209,7 @@ getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert otherVert
 
 -- | addTaxaNJ recursively calls pickNearestUpdateMatrix untill all internal nodes are created
 -- recursively called until all (n - 2) internal vertices are created.
-addTaxaNJ :: M.Matrix Double -> Int -> Tree -> [Int] -> (Tree, M.Matrix Double)
+addTaxaNJ :: M.Matrix Double -> Int -> Tree -> [Int] -> PhyG (Tree, M.Matrix Double)
 addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
   if V.length vertexVect == (2 * numLeaves) - 2 then
     let --(iMin, jMin, _) = getMatrixMinPairTabu  (makeDMatrix littleDMatrix vertInList) vertInList
@@ -245,7 +227,7 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
       <> " edge: "
       <> (show lastEdge) <> " vertInList: " <> show vertInList)
       -}
-    ((vertexVect, edgeVect `V.snoc` lastEdge), littleDMatrix)
+    return ((vertexVect, edgeVect `V.snoc` lastEdge), littleDMatrix)
     -- more to add
   else
     let !(newLittleDMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList) = pickNearestUpdateMatrixNJ littleDMatrix vertInList
@@ -259,13 +241,14 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
         (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
     in
     if decileRemainder == 0 && oddRemainder == 0 then
-        traceNoLF ("\t" <> show (10 * decileNumber) <> "%")
-        addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+        do 
+          logWith LogInfo  ("\t" <> show (10 * decileNumber) <> "%")
+          addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
     else addTaxaNJ newLittleDMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
 
 -- | addTaxaWPGMA perfomrs recursive reduction of distance matrix until all internal vertices are created
-addTaxaWPGMA :: M.Matrix Double -> Int -> Tree -> [Int] -> (Tree, M.Matrix Double)
+addTaxaWPGMA :: M.Matrix Double -> Int -> Tree -> [Int] -> PhyG (Tree, M.Matrix Double)
 addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
   if V.length vertexVect == (2 * numLeaves) - 2 then
     let --(iMin, jMin, _) = getMatrixMinPairTabu distMatrix vertInList -- (-1, -1, NT.infinity) 0 0
@@ -280,7 +263,7 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
       <> (show lastEdge) <> " vertInList: " <> (show vertInList)
       <> " all edges " <> show (edgeVect `V.snoc` lastEdge))
       -}
-    ((vertexVect, edgeVect `V.snoc` lastEdge), distMatrix)
+    return ((vertexVect, edgeVect `V.snoc` lastEdge), distMatrix)
 
   else -- building
     let !(newDistMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList) = pickUpdateMatrixWPGMA distMatrix  vertInList
@@ -294,9 +277,11 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
         (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
     in
     if decileRemainder == 0 && oddRemainder == 0 then
-        traceNoLF ("\t" <> show (10 * decileNumber) <> "%")
+        do
+        logWith LogInfo ("\t" <> show (10 * decileNumber) <> "%")
         addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
-    else addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
+    else do
+      addTaxaWPGMA newDistMatrix numLeaves (newVertexVect, newEdgeVect) newVertInList
 
 
 -- | pickUpdateMatrixWPGMA takes d matrix, pickes closesst based on d
@@ -323,7 +308,7 @@ pickUpdateMatrixWPGMA distMatrix  vertInList =
               -- get distances to existing vertices
               otherVertList = [0..(M.rows distMatrix - 1)]
               newDistRow = PU.seqParMap PU.myStrategyR0 (getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
-              newDistMatrix = M.addMatrixRow distMatrix (LS.fromList $ newDistRow <> [0.0])
+              newDistMatrix = M.addMatrixRow distMatrix (V.fromList $ newDistRow <> [0.0])
 
               -- create new edges
               newEdgeI = (newVertIndex, iMin, diMinNewVert)

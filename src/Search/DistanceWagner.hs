@@ -42,19 +42,22 @@ Need to integerize costs for swapping very slow on Double values
 
 module Search.DistanceWagner (doWagnerS, performRefinement) where
 
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.Logger (LogLevel (..), Logger (..))
+import Control.Parallel.Strategies
+import Data.List qualified as L 
 import Data.Maybe
 import Data.Number.Transfinite qualified as NT
 import Data.Vector qualified as V
-import Debug.Trace
 import GeneralUtilities
 import ParallelUtilities qualified as PU
 import SymMatrix qualified as M
+import System.ErrorPhase (ErrorPhase (..))
 import Types.DistanceTypes
+import Types.Types
 import Utilities.DistanceUtilities
---import qualified LocalSequence as LS
-import Data.Vector qualified as LS
-import Control.Parallel.Strategies
-import Data.List qualified as L 
+
 
 -- | getStartingPair returns starying pair for Wagner build
 --  closts mnimal cost pair
@@ -148,7 +151,7 @@ getBestLeafAdd addPosVect curBestCost curBestLeaf =
 
 -- | wagBest takes distMatrix, and intial tree of two leaves, a vector of leavesToAdd, the input nuber of leaves
 -- and returns the Farris 1972 distance Wagner adding the "closest" leaf at each iteration
-wagBest :: M.Matrix Double -> Tree -> V.Vector Int -> Int -> Int ->  V.Vector Int -> String -> (Tree, V.Vector Int, M.Matrix Double)
+wagBest :: M.Matrix Double -> Tree -> V.Vector Int -> Int -> Int ->  V.Vector Int -> String -> PhyG (Tree, V.Vector Int, M.Matrix Double)
 wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
   | length leavesToAdd == nOTUs =
   let (eVertex, uVertex, edgeWeight) =  orderEdge $ getStartingPair choiceOpt distMatrix
@@ -156,7 +159,7 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
       leavesToAdd' = V.filter (/= eVertex) $ V.filter (/= uVertex) leavesToAdd
   in
   wagBest distMatrix initialTree leavesToAdd' nOTUs nOTUs leavesToAdd' choiceOpt
-  | V.null leavesToAdd = (inTree, leavesToAdd, distMatrix)
+  | V.null leavesToAdd = return (inTree, leavesToAdd, distMatrix)
   | otherwise =
   let addPosVect = V.map (addTaxonToTree distMatrix inTree leavesToAdd newVertexIndex) leavesToMap
       (firstLeafCost, _, _, _ ) = V.head addPosVect -- To initialize below
@@ -167,17 +170,20 @@ wagBest distMatrix inTree leavesToAdd nOTUs newVertexIndex leavesToMap choiceOpt
       (decileNumber, decileRemainder) = divMod percentAdded 10
       (_, oddRemainder) = divMod (newVertexIndex - nOTUs) 2
   in
-  --trace (show (percentAdded, decileNumber, decileRemainder)) (
+  do
   if decileRemainder == 0  && oddRemainder == 0 then
-      traceNoLF ("\t" <> show (10 * decileNumber) <> "%")
+    do
+      logWith LogInfo ("\t" <> show (10 * decileNumber) <> "%")
       wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
-  else wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
+  else
+    do 
+    wagBest augmentedDistMatrix newTree newLeavesToAdd nOTUs (newVertexIndex + 1) newLeavesToAdd choiceOpt
   --)
 
 
 -- | calculateWagnerTrees takes an input distance matrix (and options later) and returns
 -- a tree (V,E) discription of Wagner tree with labelled internal veritices and branch lengths
-calculateWagnerTrees :: M.Matrix Double -> String -> (Tree, M.Matrix Double)
+calculateWagnerTrees :: M.Matrix Double -> String -> PhyG (Tree, M.Matrix Double)
 calculateWagnerTrees distMatrix choiceOpt =
   if M.dim distMatrix == (0,0) then errorWithoutStackTrace "Null distance matrix"
   else
@@ -185,9 +191,9 @@ calculateWagnerTrees distMatrix choiceOpt =
     let nOTUs = M.cols distMatrix
         allLeaves = V.fromList [0..(nOTUs - 1)]
     in
-    let (newTree, _, endMatrix) = wagBest distMatrix (V.empty, V.empty) allLeaves nOTUs nOTUs allLeaves choiceOpt
-    in
-    (newTree, endMatrix)
+    do
+    (newTree, _, endMatrix) <- wagBest distMatrix (V.empty, V.empty) allLeaves nOTUs nOTUs allLeaves choiceOpt
+    return (newTree, endMatrix)
 
 -- | makeTreeFromOrder  takes an input order and other arguemnts and cretes tree using a single additoin
 -- seqeunce, best plaecment for the leaf each round
@@ -230,18 +236,19 @@ getRandomAdditionSequence leafNames distMatrix outgroup initiaLeavesToAdd =
 
 -- | doWagnerS takes user options and produces the Wagner tree methods desired (best, asis, or random)
 -- outputs newick rep list
-doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> [TreeWithData]
+doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
 doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
   let nOTUs = V.length leafNames
   in
   if addSequence == "best" then
-     let wagnerResult = calculateWagnerTrees distMatrix firstPairMethod
+     do 
+     wagnerResult <- calculateWagnerTrees distMatrix firstPairMethod
          -- (_, edgeVect) = fst wagnerResult
-         treeCost = getTreeCost $ fst wagnerResult --- V.sum $ V.map getEdgeCost edgeVect
-         newickTree = convertToNewick leafNames outgroup (fst wagnerResult)
-         newickTree' = take (length newickTree - 3) newickTree <> "[" <> showDouble precision treeCost <> "]" <> ";"
-      in
-      [(newickTree', fst wagnerResult, treeCost, snd wagnerResult)]
+     let treeCost = getTreeCost $ fst wagnerResult --- V.sum $ V.map getEdgeCost edgeVect
+     let newickTree = convertToNewick leafNames outgroup (fst wagnerResult)
+     let newickTree' = take (length newickTree - 3) newickTree <> "[" <> showDouble precision treeCost <> "]" <> ";"
+     
+     return $ [(newickTree', fst wagnerResult, treeCost, snd wagnerResult)]
 
   else if addSequence == "asis" then
       let initialTree = (V.fromList [0, 1],V.fromList [(0, 1, distMatrix M.! (0,1))])
@@ -251,15 +258,17 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep re
           newickTree = convertToNewick leafNames outgroup (fst asIsResult)
           newickTree' = take (length newickTree - 3) newickTree <> "[" <> showDouble precision treeCost <> "]" <> ";"
       in
-      [(newickTree', fst asIsResult, treeCost, snd asIsResult)]
+      return $ [(newickTree', fst asIsResult, treeCost, snd asIsResult)]
 
   else if head addSequence == 'r' then
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
-        if (length replicateSequences > 10000) then doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
+        if (length replicateSequences > 10000) then 
+          return $ doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
           -- else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
         --else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
-        else take numToKeep $ L.sortOn thd4 (PU.seqParMap rdeepseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
+        else 
+          return $ take numToKeep $ L.sortOn thd4 (PU.seqParMap rdeepseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
 
   else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
 
@@ -453,9 +462,9 @@ getDistance origDist addCost eVertLeafDist uVertLeafDist leafIndex eVertex uVert
 -- adds a single new row (minus last 0.0 as new row at end) which is appended
 getNewDistMatrix :: M.Matrix Double -> Double -> Double -> Double -> Int -> Int -> Int -> M.Matrix Double
 getNewDistMatrix origDist addCost eVertLeafDist uVertLeafDist eVertex uVertex leafIndex =
-    let columnHolder = LS.fromList [0..(M.rows origDist - 1)] -- List of HTU and OTU indices in pairwise dist matrix
-        newDistRow = LS.map (getDistance origDist addCost eVertLeafDist uVertLeafDist leafIndex eVertex uVertex) columnHolder
-        newDistRow' = newDistRow `LS.snoc` (0.0 :: Double)
+    let columnHolder = V.fromList [0..(M.rows origDist - 1)] -- List of HTU and OTU indices in pairwise dist matrix
+        newDistRow = V.map (getDistance origDist addCost eVertLeafDist uVertLeafDist leafIndex eVertex uVertex) columnHolder
+        newDistRow' = newDistRow `V.snoc` (0.0 :: Double)
     in
     M.addMatrixRow origDist newDistRow'
 
@@ -483,7 +492,7 @@ getNewDistMatrixInternal inMatrix newEdgeVect =
         newDistColumnI = fmap (enterNewEdgeCost numIn newEdgeVect) columnHolder <> [0.0]
         newDistColumnII = fmap (enterNewEdgeCost (numIn + 1) newEdgeVect) columnHolder <> [enterNewEdgeCost numIn newEdgeVect (numIn + 1), 0.0]
     in
-    M.addMatrices inMatrix  (LS.fromList [LS.fromList newDistColumnI, LS.fromList newDistColumnII])
+    M.addMatrices inMatrix  (V.fromList [V.fromList newDistColumnI, V.fromList newDistColumnII])
 
 -- | connectEdges takes two vectors of edges and adds and edge between the two in edgesToConnect
 -- this deletes the two old edges from the edge Vectors and creates a new tree with the five new edges
@@ -856,13 +865,13 @@ getGeneralSwapSteepestOne :: String -> (String -> Double -> V.Vector String -> I
 getGeneralSwapSteepestOne refineType swapFunction leafNames outGroup inTreeList savedTrees =
   if null inTreeList then savedTrees
   else
-      trace ("In " <> refineType <> " Swap (steepest) with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
+      --trace ("In " <> refineType <> " Swap (steepest) with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
       let steepTreeList = PU.seqParMap PU.myStrategyHighLevel  (splitJoinWrapper swapFunction refineType leafNames outGroup) inTreeList -- `using` myParListChunkRDS
           steepCost = minimum $ fmap thd4 steepTreeList
       in
       --this to maintina the trajectories untill final swap--otherwise could converge down to single tree prematurely
       keepTrees steepTreeList "unique" "first" steepCost
-      )
+      
 
 -- | getGeneralSwap performs a "re-add" of terminal identical to wagner build addition to available edges
 -- performed on all splits recursively until no more better/equal cost trees found
@@ -874,7 +883,7 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
   in
   if null inTreeList then savedTrees
   else
-      trace ("In " <> refineType <> " Swap with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
+      --trace ("In " <> refineType <> " Swap with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
       let curFullTree = head inTreeList
           overallBestCost = minimum $ fmap thd4 savedTrees
           (_, curTree, curTreeCost, curTreeMatrix) = curFullTree
@@ -902,7 +911,7 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
       in
       getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave $ savedTrees <> firstTreeList')
    else getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees)
-        ) -- )
+         -- )
 
 -- | performRefinement takes input trees in TRE and Newick format and performs different forms of tree refinement
 -- at present just OTU (remove leaves and re-add), SPR and TBR
@@ -918,7 +927,7 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
       else [inTree]
     else if not (null newTrees') then newTrees'
     else
-      trace "OTU swap did not find any new trees"
+      --trace "OTU swap did not find any new trees"
       [inTree]
   | refinement == "spr" =
     let newTrees = getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
@@ -930,7 +939,7 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
       else [inTree]
     else if not (null newTrees'') then newTrees''
     else
-      trace "SPR swap did not find any new trees"
+      --trace "SPR swap did not find any new trees"
       [inTree]
   | refinement == "tbr" =
     let newTrees = getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
@@ -943,6 +952,6 @@ performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
       else [inTree]
     else if not (null newTrees''') then newTrees'''
     else
-      trace "TBR swap did not find any new trees"
+      --trace "TBR swap did not find any new trees"
       [inTree]
   | otherwise = errorWithoutStackTrace ("Unrecognized refinement method: " <> refinement)
