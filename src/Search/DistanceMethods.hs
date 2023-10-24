@@ -45,7 +45,6 @@ import Control.Monad (when)
 import Control.Monad.Logger (LogLevel (..), Logger (..))
 import Data.Number.Transfinite     as NT
 import Data.Vector qualified as V
-import Debug.Trace
 import GeneralUtilities
 import ParallelUtilities as PU
 import Search.DistanceWagner qualified as W
