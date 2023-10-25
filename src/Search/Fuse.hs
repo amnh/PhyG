@@ -113,9 +113,21 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                    -- newGraphList = concat $ PU.seqParMap PU.myStrategy (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
                *   New implementation (safe sequential):
             -}
+{--}
+            action
+                :: (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph)
+                -> PhyG [ReducedPhylogeneticGraph]
+            action x = do
+                logWith LogInfo "Running parallel 'action'\n"
+                fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal x
+{--}
         in
         do
-        newGraphList' <- mapM (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
+--        newGraphList' <- mapM (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
+{--}
+        pTraverse <- getParallelChunkTraverse
+        newGraphList' <- pTraverse action graphPairList
+{--}
         let newGraphList = concat newGraphList'
 
         let fuseBest =
