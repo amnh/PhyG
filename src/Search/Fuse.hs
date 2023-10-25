@@ -463,12 +463,21 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                             rejoinEdgesList
                             edgesInPrunedList
                             netPenaltyFactorList
+
+
+                    
                 in
                 do
-                    -- do "all additions" -
+                -- do "all additions" -
+                --action :: (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) -> PhyG [ReducedPhylogeneticGraph]
+                let action = S.rejoinGraphTuplePhyG swapParams inGS inData overallBestCost [] inSimAnnealParams 
+                pTraverse <- getParallelChunkTraverse
+                recombinedGraphList' <- pTraverse action graphDataList
+                let recombinedGraphList = concat recombinedGraphList'
+
                 -- TODO
                     -- recombinedGraphList = concat $ PU.seqParMap PU.myStrategy  (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
-                recombinedGraphList <- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
+                -- recombinedGraphList <- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
 
                     -- this based on heuristic deltas
                 let bestFuseCost =

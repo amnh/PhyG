@@ -37,6 +37,7 @@ Portability :  portable (I hope)
 module Search.Swap  ( swapSPRTBR
                     , reoptimizeSplitGraphFromVertexTuple
                     , rejoinGraphTuple
+                    , rejoinGraphTuplePhyG
                     , getUnionRejoinEdgeList
                     ) where
 
@@ -653,6 +654,19 @@ getUnionDistance union1 union2 charInfoVV =
 
    in
    newUnionCost
+
+-- | rejoinGraphTuplePhyG wrapps evaluation monad around rejoinGraphTuple
+rejoinGraphTuplePhyG   :: SwapParams 
+                       -> GlobalSettings
+                       -> ProcessedData
+                       -> VertexCost
+                       -> [ReducedPhylogeneticGraph]
+                       -> Maybe SAParams
+                       -> (DecoratedGraph, SimpleGraph, VertexCost, LG.Node,LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)
+                       -> PhyG [ReducedPhylogeneticGraph]
+rejoinGraphTuplePhyG swapParams inGS inData curBestCost curBestGraphs inSimAnnealParams (reoptimizedSplitGraph, splitGraphSimple, splitGraphCost, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, rejoinEdges, edgesInPrunedGraph, netPenaltyFactor) =
+   pure $ fst $ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor reoptimizedSplitGraph splitGraphSimple splitGraphCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph inSimAnnealParams
+
 
 -- | rejoinGraphTuple is a wrapper around rejoinGraph for fmapping--only returns graph list not simulated annealing params
 rejoinGraphTuple :: SwapParams 
