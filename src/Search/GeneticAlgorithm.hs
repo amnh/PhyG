@@ -89,38 +89,40 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
 
             -- get elite list of best solutions
             initialEliteList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) inGraphList
+        in do
+        
+        -- mutate input graphs, produces number input, limited to popsize
+        mutatedGraphList' <- mapM (mutateGraph inGS inData maxNetEdges) $ zip (randomIntList $ head seedList) (takeRandom (seedList !! 1) popSize inGraphList)
 
-            -- mutate input graphs, produces number input, limited to popsize
-            mutatedGraphList' = zipWith (mutateGraph inGS inData maxNetEdges) (randomIntList $ head seedList) $ takeRandom (seedList !! 1) popSize inGraphList
+        let numShort = popSize - (length mutatedGraphList')
+        let randList = (randomIntList $ seedList !! 2) 
+        let graphList = takeRandom (seedList !! 3) numShort inGraphList
 
-            -- adjust to correct populationsize if input number < popSize
-            mutatedGraphList = if length mutatedGraphList' >= popSize then mutatedGraphList'
-                               else
-                                    let numShort = popSize - (length mutatedGraphList')
-                                        additionalMutated = zipWith (mutateGraph inGS inData maxNetEdges) (randomIntList $ seedList !! 2) $ takeRandom (seedList !! 3) numShort inGraphList
-                                    in
-                                    mutatedGraphList' <> additionalMutated
+        additionalMutated <- mapM (mutateGraph inGS inData maxNetEdges) (zip randList graphList)
+        -- adjust to correct populationsize if input number < popSize
+        let mutatedGraphList = if length mutatedGraphList' >= popSize then mutatedGraphList'
+                               else mutatedGraphList' <> additionalMutated
 
-            -- get unique graphs, no point in recombining repetitions
-            uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (mutatedGraphList <> inGraphList)
+        -- get unique graphs, no point in recombining repetitions
+        let uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (mutatedGraphList <> inGraphList)
 
-            -- recombine elite with mutated and mutated with mutated
-            recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
+        -- recombine elite with mutated and mutated with mutated
+        let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
 
-            -- options to join via union choices or all in fuse
-            -- this is ignored for now in fuse--JoinAll is what it does
-            joinType =  getRandomElement (seedList !! 6) [JoinAlternate, JoinAll ]
+        -- options to join via union choices or all in fuse
+        -- this is ignored for now in fuse--JoinAll is what it does
+        let joinType =  getRandomElement (seedList !! 6) [JoinAlternate, JoinAll ]
 
-            doSteepest = True
-            returnBest = False
-            returnUnique = True
-            singleRound = False
-            fusePairs = Just recombinations
-            randomPairs = True
-            reciprocal = False
+        let doSteepest = True
+        let returnBest = False
+        let returnUnique = True
+        let singleRound = False
+        let fusePairs = Just recombinations
+        let randomPairs = True
+        let reciprocal = False
 
-            -- populate SwapParams structure
-            swapParams = SwapParams { swapType = recombineSwap
+        -- populate SwapParams structure
+        let swapParams = SwapParams { swapType = recombineSwap
                                     , joinType = joinType 
                                     , atRandom = True -- randomize swap order
                                     , keepNum  = (2 * popSize)
@@ -131,8 +133,6 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                                     , returnMutated = False 
                                     }
 
-        in 
-        do
         (recombinedGraphList, _) <- F.fuseAllGraphs swapParams inGS inData (drop 6 seedList) 0 returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueMutatedGraphList
 
             -- selection of graphs population
@@ -152,8 +152,8 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
         )
 
 -- | mutateGraph mutates a graph using drift functionality
-mutateGraph :: GlobalSettings -> ProcessedData -> Int -> Int -> ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
-mutateGraph inGS inData maxNetEdges rSeed inGraph =
+mutateGraph :: GlobalSettings -> ProcessedData -> Int -> (Int, ReducedPhylogeneticGraph) -> PhyG ReducedPhylogeneticGraph
+mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
     if LG.isEmpty (fst5 inGraph) then error "Empty graph in mutateGraph"
     else
         let joinType = JoinAll -- keep selection of rejoins based on all possibilities
@@ -205,21 +205,22 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
 
         -- only swap mutation stuff for tree
         if graphType inGS == Tree || netEditType `notElem`  ["netAdd", "netDelete", "netAddDelete", "netMove"] then
+            do
             -- trace ("1")
-            let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph][(randList, inSimAnnealParams, inGraph)]
-            in
-            if (not . null) newGraphList then head newGraphList
-            else inGraph
+            (newGraphList, _) <-  S.swapSPRTBR swapParams inGS inData 0 [inGraph][(randList, inSimAnnealParams, inGraph)]
+            if (not . null) newGraphList then 
+                pure $ head newGraphList
+            else pure inGraph
             -- head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
 
         -- graphs choose what type of mutation at random
         else
-            if editType == "swap" then
+            if editType == "swap" then do
                 -- trace ("2")
-                let (newGraphList, _) =  S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(randList,inSimAnnealParams, inGraph)]
-                in
-                if (not . null) newGraphList then head newGraphList
-                else inGraph
+                (newGraphList, _) <- S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(randList,inSimAnnealParams, inGraph)]
+                if (not . null) newGraphList then
+                    pure $ head newGraphList
+                else pure inGraph
                 -- head $ fst $ S.swapSPRTBR swapType inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated (inSimAnnealParams, inGraph)
 
             else
@@ -228,8 +229,10 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
                     -- trace ("3")
                     let (newGraphList, _) =  N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
                     in
-                    if (not . null) newGraphList then head newGraphList
-                    else inGraph
+                    if (not . null) newGraphList then do 
+                        pure $ head newGraphList
+                    else do
+                        pure inGraph
                     -- head $ fst $ N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
 
@@ -239,24 +242,30 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
                         -- trace ("4")
                         let (newGraphList, _) =  N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
                         in
-                        if (not . null) newGraphList then head newGraphList
-                        else inGraph
+                        if (not . null) newGraphList then do
+                            pure $ head newGraphList
+                        else do
+                            pure inGraph
                         -- head $ fst $ N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
                     else if netEditType == "netAdd" then
                         -- trace ("5")
                         let (newGraphList, _) =  N.insertAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
                         in
-                        if (not . null) newGraphList then head newGraphList
-                        else inGraph
+                        if (not . null) newGraphList then do
+                            pure $ head newGraphList
+                        else do
+                            pure inGraph
                         -- head $ fst $ N.insertAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
                     else if netEditType == "netAddDelete" then
                         -- trace ("6")
                         let (newGraphList, _) =  N.addDeleteNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
                         in
-                        if (not . null) newGraphList then head newGraphList
-                        else inGraph
+                        if (not . null) newGraphList then do
+                            pure $ head newGraphList
+                        else do
+                            pure inGraph
                         -- head $ fst $ N.addDeleteNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
                     -- net delete
@@ -264,6 +273,8 @@ mutateGraph inGS inData maxNetEdges rSeed inGraph =
                         -- trace ("7")
                         let (newGraphList, _) =  N.deleteAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
                         in
-                        if (not . null) newGraphList then head newGraphList
-                        else inGraph
+                        if (not . null) newGraphList then do
+                            pure $ head newGraphList
+                        else do
+                            pure inGraph
                         -- head $ fst $ N.deleteAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])

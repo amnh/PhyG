@@ -210,7 +210,7 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
 
             let newCurBestScore = min curBestScore pairScore
 
-            {-bestResultList'
+            bestResultList'
                     <- fusePairRecursive
                         swapParams
                         inGS
@@ -221,15 +221,15 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
                         reciprocal
                         resultList
                         (drop numPairsToExamine leftRightList)
-            -}
+            
 
-            let bestResultList' =
+            let bestResultList'' =
                     if pairScore <= curBestScore
-                        then bestResultList
+                        then bestResultList'
                         else []
             
 
-            return bestResultList'
+            pure bestResultList''
 
 
 -- bestResultList' <> fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (tail leftRightList)
@@ -466,6 +466,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                 in
                 do
                     -- do "all additions" -
+                -- TODO
                     -- recombinedGraphList = concat $ PU.seqParMap PU.myStrategy  (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
                 recombinedGraphList <- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
 

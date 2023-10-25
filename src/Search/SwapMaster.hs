@@ -65,7 +65,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
    if null inGraphListInput then 
     do
       logWith LogInfo "No graphs to swap" 
-      return []
+      pure []
    -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
    else
 
@@ -156,7 +156,11 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                  | otherwise = "Drifting (Swapping) " <> show (rounds $ fromJust simAnnealParams) <> " rounds with " <> show (driftMaxChanges $ fromJust simAnnealParams) <> " maximum changes per round on " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs"
 
             logWith LogInfo progressString
-            let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
+            -- TODO 
+            --let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
+
+            let simAnnealList = (fmap (:[]) (zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList))
+            graphPairList <- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
 
             let (graphListList, counterList) = unzip graphPairList
             let (newGraphList, counter) = (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
@@ -175,7 +179,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
 
             
             logWith LogInfo (endString <> fullBuffWarning)
-            return finalGraphList
+            pure finalGraphList
 
 
 -- | getSimumlatedAnnealingParams returns SA parameters
@@ -232,10 +236,10 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
        in
        if doDrift && doAnnealing then do
           logWith LogWarn "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting."
-          return $ Just saValues
+          pure $ Just saValues
        else do
           logWith LogInfo ""
-          return $ Just saValues
+          pure $ Just saValues
        
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
