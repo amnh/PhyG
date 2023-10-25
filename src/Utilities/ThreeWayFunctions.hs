@@ -1,38 +1,6 @@
 {- |
-Module      :  ThreeWayFunctions.hs
-Description :  Module specifying three way optimization functions for use in pre-order
-               optimization of HardWired graphs and iterative pass-type optimization for Trees
-Copyright   :  (c) 2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module specifying three way optimization functions for use in pre-order of
+HardWired graphs and iterative pass-type optimization for Trees
 -}
 
 {-
@@ -46,26 +14,24 @@ module Utilities.ThreeWayFunctions  ( threeMedianFinal
                                     , threeWayGeneric
                                     ) where
 
-import           Bio.DynamicCharacter (HugeState, extractMedians)
-import           Bio.DynamicCharacter.Element (SlimState, WideState)
-import           Data.Alphabet
-import qualified Data.BitVector.LittleEndian as BV
-import           Data.Bits
-import qualified Data.List                   as L
-import qualified Data.MetricRepresentation   as MR
-import qualified Data.TCM.Dense              as TCMD
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Generic         as GV
-import qualified Data.Vector.Storable        as SV
-import qualified Data.Vector.Unboxed         as UV
-import           Data.Word
-import           Foreign.C.Types             (CUInt)
-import           GeneralUtilities
-import qualified GraphOptimization.Medians   as M
-import qualified Input.BitPack               as BP
-import qualified SymMatrix                   as S
-import           Types.Types
--- import           Debug.Trace
+import Bio.DynamicCharacter (HugeState, extractMedians)
+import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Data.Alphabet
+import Data.BitVector.LittleEndian qualified as BV
+import Data.Bits
+import Data.List qualified as L
+import Data.MetricRepresentation qualified as MR
+import Data.TCM.Dense qualified as TCMD
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
+import GeneralUtilities
+import GraphOptimization.Medians qualified as M
+import Input.BitPack qualified as BP
+import SymMatrix qualified as S
+import Types.Types
+
 
 -- | threeMedianFinal calculates a 3-median for data types in a single character
 -- for dynamic characters this is done by 3 min-trees
@@ -183,53 +149,70 @@ threeWayMatrix inCostMatrix parent1 parent2 curNode =
 -- if either parent or child has maxbound cost then that state get max bound cost
 getMinStatePair :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> V.Vector StateCost -> V.Vector StateCost -> V.Vector (StateCost, [ChildStateIndex], [ChildStateIndex])
 getMinStatePair inCostMatrix maxCost numStates p1CostV p2CostV curCostV =
-   let -- get costs to parents-- will assume parent costs are 0 or max
-       bestMedianP1Cost = fmap (getBestPairCost inCostMatrix maxCost numStates p1CostV) [0..(numStates - 1)]
-       bestMedianP2Cost = fmap (getBestPairCost inCostMatrix maxCost numStates p2CostV) [0..(numStates - 1)]
+   let f :: Num a => a -> a -> a -> a
+       f a b c = a + b + c
 
+       range = [0 .. numStates - 1]
+
+       bestMedianCost vec = getBestPairCost inCostMatrix maxCost numStates vec <$> range
+
+       -- get costs to parents-- will assume parent costs are 0 or max
+       bestMedianCostP1 = bestMedianCost p1CostV
+       bestMedianCostP2 = bestMedianCost p2CostV
 
        -- get costs to single child via preliminary states
-       medianChildCostPairVect = fmap (getBestPairCostAndState inCostMatrix maxCost numStates curCostV) [0..(numStates - 1)]
+       medianChildCostPairVect =
+           getBestPairCostAndState inCostMatrix maxCost numStates curCostV <$> range
 
        -- get 3 sum costs and best state value
-       threeWayStateCostList = zipWith3 f bestMedianP1Cost bestMedianP2Cost (fmap fst medianChildCostPairVect)
+       threeWayStateCostList = zipWith3 f bestMedianCostP1 bestMedianCostP2 (fmap fst medianChildCostPairVect)
        minThreeWayCost = minimum threeWayStateCostList
 
        finalStateCostL = zipWith (assignBestMax minThreeWayCost maxCost) threeWayStateCostList medianChildCostPairVect
 
-   in
-   V.fromList finalStateCostL
-   where f a b c = a + b + c
+   in  V.fromList finalStateCostL
 
--- | assignBestMax checks 3-way median state cost and if minimum sets to that otherwise sets to max
--- double 2nd field for 2-child type asumption
+
+{- |
+assignBestMax checks 3-way median state cost and if minimum sets to that otherwise sets to max
+double 2nd field for 2-child type asumption
+-}
 assignBestMax :: StateCost -> StateCost -> StateCost -> (StateCost, [ChildStateIndex]) -> (StateCost, [ChildStateIndex], [ChildStateIndex])
-assignBestMax minCost maxCost stateCost (_, stateChildList) =
-   if stateCost == minCost then (minCost, stateChildList, stateChildList)
-   else (maxCost, stateChildList, stateChildList)
+assignBestMax minCost maxCost stateCost (_, stateChildList)
+    | stateCost == minCost = (minCost, stateChildList, stateChildList)
+    | otherwise =  (maxCost, stateChildList, stateChildList)
 
--- | getBestPairCost gets the baest cost for a state to each of parent states--does not keep parent state
+
+{- |
+getBestPairCost gets the baest cost for a state to each of parent states--does not keep parent state
+-}
 getBestPairCost :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> Int -> StateCost
 getBestPairCost inCostMatrix maxCost numStates parentStateCostV medianStateIndex =
-   let stateCost = V.minimum $ V.zipWith (g inCostMatrix maxCost medianStateIndex)parentStateCostV (V.fromList [0..(numStates - 1)])
-   in
-   stateCost
+    let stateCost = V.minimum $ V.zipWith (g inCostMatrix maxCost medianStateIndex)parentStateCostV (V.fromList [0..(numStates - 1)])
 
-   where g cM mC mS pC pS = if pC == mC then mC
-                               else cM S.! (mS, pS)
+        g :: Eq a => S.Matrix a -> a -> Int -> a -> Int -> a
+        g cM mC mS pC pS
+            | pC == mC = mC
+            | otherwise = cM S.! (mS, pS)
+    in  stateCost
 
--- | getBestPairCostAndState gets best pair of median state and chikd states based on preliminarr states of node
+
+{- |
+getBestPairCostAndState gets best pair of median state and chikd states based on preliminarr states of node
+-}
 getBestPairCostAndState :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> Int -> (StateCost, [ChildStateIndex])
 getBestPairCostAndState inCostMatrix maxCost numStates childStateCostV medianStateIndex =
-   let statecostV = V.zipWith (g inCostMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0..(numStates - 1)])
-       minStateCost = V.minimum $ fmap fst statecostV
-       bestPairs = V.filter ((== minStateCost) . fst) statecostV
-       bestChildStates = V.toList $ fmap snd bestPairs
-   in
-   (minStateCost, L.sort bestChildStates)
+    let g :: Eq a => S.Matrix a -> a -> Int -> a -> Int -> (a, Int)
+        g cM mC mS pC pS
+            | pC == mC = (mC, pS)
+            | otherwise = (cM S.! (mS, pS), pS)
 
-   where g cM mC mS pC pS = if pC == mC then (mC, pS)
-                               else (cM S.! (mS, pS), pS)
+        statecostV = V.zipWith (g inCostMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0..(numStates - 1)])
+        minStateCost = V.minimum $ fmap fst statecostV
+        bestPairs = V.filter ((== minStateCost) . fst) statecostV
+        bestChildStates = V.toList $ fmap snd bestPairs
+    in  (minStateCost, L.sort bestChildStates)
+
 
 -- | threeWaySlim take charInfo, 2 parents, and curNOde and creates 3 median via
 -- 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
@@ -370,12 +353,16 @@ slideRegap reGappedNode gappedNode gappedLeft gappedRight newLeftList newRightLi
 
 
 -- | get3WayGeneric takes thee vectors and produces a (median, cost) pair
-get3WayGeneric :: (FiniteBits e, GV.Vector v e) => (e -> e -> e -> (e, Word)) -> v e -> v e -> v e -> (v e, Word)
+get3WayGeneric :: (GV.Vector v e) => (e -> e -> e -> (e, Word)) -> v e -> v e -> v e -> (v e, Word)
 get3WayGeneric tcm in1 in2 in3 =
    let len   = GV.length in1
        vt    = V.generate len $ \i -> tcm (in1 GV.! i) (in2 GV.! i) (in3 GV.! i)
+
+       gen :: GV.Vector v a => V.Vector (a, b) -> v a
        gen v = let med i = fst $ v V.! i in GV.generate len med
-       add   = V.foldl' (\x e -> x + snd e) 0
+
+       add :: Num b => V.Vector (a, b) -> b
+       add = V.foldl' (\x e -> x + snd e) 0
    in  (,) <$> gen <*> add $ vt
 
 
