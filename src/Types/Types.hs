@@ -83,7 +83,7 @@ infinity = read "Infinity" :: Double
 -- | maxAddStatesToRecode maximum size of addditive character to recode into
 --non-additive characters 65 can fit in 4 WideState since nstates - 1 binaries
 -- prob could be bigger based on cost of optimizing additive versus but this
--- seems a reasonale number (prob should be timed to verify)
+-- seems a reasonable number (prob should be timed to verify)
 maxAddStatesToRecode :: Int
 maxAddStatesToRecode = 129
 

@@ -238,14 +238,15 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                 -- spaces between alphabet elements suggest fastc
                                 if isJust hasSpaces then
                                     let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
-                                        fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     in do
+                                    fastcCharInfo <- FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                                     logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input.")
                                     executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                                else
+                                else 
                                     let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
-                                        (fastaCharInfo, fastaData) = {-# SCC "getFastaCharInfo_1" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
+                                        
                                     in do
+                                    (fastaCharInfo, fastaData) <- {-# SCC "getFastaCharInfo_1" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
                                     logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fasta")
                                     executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
@@ -253,30 +254,29 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                     -- fasta
                     else if firstOption `elem` ["fasta", "nucleotide", "aminoacid", "hugeseq"] then
                         let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
-                            (fastaCharInfo, fastaData) = {-# SCC "getFastaCharInfo_2" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
-                        in
+                        in do
+                        (fastaCharInfo, fastaData) <- {-# SCC "getFastaCharInfo_2" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- fastc
                     else if firstOption == "fastc"  then
                         let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
-                            fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
-                        in
+                        in do
+                        fastcCharInfo <- FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     --prealigned fasta
                     else if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid", "prehugeseq"] then
                         let fastaData' = FAC.getFastAText fileContents firstFile True
-                            (fastaCharInfo, fastaData) = {-# SCC "getFastaCharInfo_3" #-} FAC.getFastaCharInfo 
-                                fastaData' firstFile firstOption True tcmPair
-                        in
+                        in do
+                        (fastaCharInfo, fastaData) <- {-# SCC "getFastaCharInfo_3" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption True tcmPair
                         -- trace ("POSTREAD:" <> (show fastaCharInfo) <> "\n" <> (show fastaData))
                         executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                     -- prealigned fastc
                     else if firstOption == "prefastc"  then
                         let fastcData = FAC.getFastCText fileContents firstFile True
-                            fastcCharInfo = FAC.getFastcCharInfo fastcData firstFile True tcmPair
-                        in
+                        in do
+                        fastcCharInfo <- FAC.getFastcCharInfo fastcData firstFile True tcmPair
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- tnt
                     -- tnt

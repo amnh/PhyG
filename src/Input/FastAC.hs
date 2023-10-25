@@ -47,6 +47,10 @@ module Input.FastAC
   ) where
 
 import Control.DeepSeq
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.Bits
 import Data.Char qualified as C
@@ -66,6 +70,7 @@ import Data.Vector qualified as V
 import GeneralUtilities
 import Input.DataTransformation qualified as DT
 import SymMatrix qualified as S
+import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 --import Debug.Trace
 
@@ -101,9 +106,10 @@ generateDefaultMatrix inAlph rowCount indelCost substitutionCost
 -- this doesn't separate ambiguities from elements--processed later
 -- need to read in TCM or default
 -- only for single character element sequecnes
-getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> (CharInfo, [TermData])
+getFastaCharInfo :: [TermData] -> String -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> PhyG (CharInfo, [TermData])
 getFastaCharInfo inData dataName dataType isPrealigned localTCM =
-    if null inData then error "Empty inData in getFastaCharInfo"
+    if null inData then 
+        error "Empty inData in getFastaCharInfo"
     else
         let nucleotideAlphabet = fmap ST.fromString ["A","C","G","T","U","R","Y","S","W","K","M","B","D","H","V","N","?","-"]
             lAminoAcidAlphabet  = fmap ST.fromString ["A","B","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","X","Y","Z", "-","?"]
@@ -142,8 +148,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             outData = if seqType `notElem` [NucSeq, AminoSeq] then inData
                       else fmap makeUpperCaseTermData inData
 
-        in
-        (commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet, outData)
+        in do
+        case seqType of
+            NucSeq -> logWith LogInfo ("File " <> dataName <> " is nucleotide data.") 
+            AminoSeq -> logWith LogInfo ("File " <> dataName <> " is aminoacid data.") 
+            HugeSeq -> logWith LogInfo ("File " <> dataName <> " is large alphabet data.") 
+            WideSeq -> logWith LogInfo ("File " <> dataName <> " is wide alphabet data.") 
+            SlimSeq -> logWith LogInfo ("File " <> dataName <> " is slim alphabet data.") 
+            _ -> failWithPhase Parsing ("File " <> dataName <> " is of unknown data type.") 
+
+        processedCharInfo <- commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet
+        pure (processedCharInfo, outData)
 
 -- | makeUpperCaseTermData
 makeUpperCaseTermData :: TermData -> TermData
@@ -155,7 +170,7 @@ makeUpperCaseTermData (taxName, dataList) =
 
 
 -- | commonFastCharInfo breaks out common functions between fasta and fastc parsing
-commonFastCharInfo :: String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharType -> Alphabet ST.ShortText-> CharInfo
+commonFastCharInfo :: String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharType -> Alphabet ST.ShortText-> PhyG CharInfo
 commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
 
         let
@@ -170,6 +185,7 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
 
             localCostMatrixTransformed = transformGapLastToGapFirst' localCostMatrix
 
+            scmForSlim :: forall {a1} {a2} . (Enum a1, Enum a2) => a1 -> a2 -> Word
             scmForSlim i j = localCostMatrixTransformed S.! (fromEnum i, fromEnum j)
 
             tcmWeightFactor = thd3 localTCM
@@ -223,11 +239,12 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
         --trace ("GFCI: " <> (show localHugeTCM)) (
         --trace ("FCI " <> (show $ length thisAlphabet) <> " alpha size" <> show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM then
-            -- trace ("Warning: no tcm file specified for use with fasta/c file : " <> dataName <> ". Using default, all 1 diagonal 0 cost matrix.")
-            defaultSeqCharInfo
-        else
-            -- trace ("Processing TCM data for file : "  <> dataName)
-            defaultSeqCharInfo
+            do
+            logWith LogWarn ("Warning: no tcm file specified for use with fasta/c file : " <> dataName <> ". Using default, all 1 diagonal 0 cost matrix.")
+            pure defaultSeqCharInfo
+        else do
+            logWith LogInfo ("Processing TCM data for file : "  <> dataName)
+            pure defaultSeqCharInfo
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
 getTCMMemo
@@ -280,7 +297,7 @@ getSequenceAphabet newAlph inStates =
 
 --Not correct with default alphabet and matrix now after tcm recodeing added to low for decmials I htink.
 -- only for multi-character element seqeunces
-getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> CharInfo
+getFastcCharInfo :: [TermData] -> String -> Bool -> ([ST.ShortText], [[Int]], Double) -> PhyG CharInfo
 getFastcCharInfo inData dataName isPrealigned localTCM =
     if null inData then error "Empty inData in getFastcCharInfo"
     else
@@ -299,27 +316,6 @@ getFastcCharInfo inData dataName isPrealigned localTCM =
 
         in
         commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet
-{-
--- | getFastA processes fasta file
--- assumes single character alphabet
--- deletes '-' (unless "prealigned"), and spaces
-getFastA :: String -> String -> Bool-> [TermData]
-getFastA fileContents' fileName isPreligned =
-    if null fileContents' then errorWithoutStackTrace "\n\n'Read' command error: empty file"
-    else
-        -- removes ';' comments
-        let fileContents =  unlines $ filter (not.null) $ fmap (takeWhile (/= ' ')) $ takeWhile (/= ';') <$> lines fileContents'
-        in
-        if head fileContents /= '>' then errorWithoutStackTrace "\n\n'Read' command error: fasta file must start with '>'"
-        else
-            let terminalSplits = T.split (== '>') $ T.pack fileContents
-                pairData =  getRawDataPairsFastA isPreligned (tail terminalSplits)
-                (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals pairData
-            in
-            -- tail because initial split will an empty text
-            if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
-            else pairData
--}
 
 -- | getFastAText processes fasta file
 -- assumes single character alphabet
@@ -499,7 +495,7 @@ transformGapLastToGapFirst' mat =
 
   in  S.fromLists [ [ fromIntegral $ f i j | j <- [ 0 .. n - 1 ] ] | i <- [ 0 .. n - 1]]
 
-
+{-
 transformGapLastToGapFirst :: TCM.TCM -> TCM.TCM
 transformGapLastToGapFirst tcm =
   let n = TCM.size tcm
@@ -508,5 +504,5 @@ transformGapLastToGapFirst tcm =
         (0,j) -> tcm TCM.! (n - 1, j - 1)
         (i,0) -> tcm TCM.! (i - 1, n - 1)
         (i,j) -> tcm TCM.! (i - 1, j - 1)
-
+-}
 
