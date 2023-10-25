@@ -89,7 +89,9 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                     processedDataList = U.getProcessDataByBlock True inData
                 let distanceMatrixList ∷ [[[VertexCost]]]
                     distanceMatrixList
-                        | buildDistance = PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList
+                       -- | buildDistance = PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList
+                       -- TODO
+                        | buildDistance = fmap DD.getPairwiseDistances processedDataList
                         | otherwise = replicate (length processedDataList) []
 
                 blockTrees ← fmap fold . traverse (buildTree' True inArgs treeGS rSeed) $ zip distanceMatrixList processedDataList
@@ -97,7 +99,9 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                 -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
                 returnGraphs ← reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN
                 -- seqParMap ∷ (Traversable t) ⇒ Strategy b → (a → b) → t a → t b
-                pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
+                -- TODO
+                --pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
+                pure $ fmap (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
     in  do
             -- check for valid command options
             failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
@@ -380,9 +384,12 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
     randomizedAdditionWagnerTreeList <- DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" numToKeep randomizedAdditionSequences
     let randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
     let randomizedAdditionWagnerTreeList'' =
-            head
-                <$> PU.seqParMap
-                    PU.myStrategyHighLevel
+            head <$>
+               {- PU.seqParMap
+               --     PU.myStrategyHighLevel
+               TODO
+               -}
+                    fmap
                     (DW.performRefinement refinement "best:1" "first" leafNames outgroupValue)
                     randomizedAdditionWagnerTreeList'
         randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''

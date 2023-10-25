@@ -204,7 +204,7 @@ lockAccess (Access _ table) = Access False table
 newHashTableAccess :: Int -> IO (TVar (HashTableAccess k v))
 newHashTableAccess size = newTVarIO =<< fmap (Access True) (newSized size :: IO (BasicHashTable a b))
 
-
+--
 readHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> IO (Maybe v)
 readHashTableAccess ref key = {-# SCC readHashTableAccess #-} do
     t <- atomically $ {-# SCC readHashTableAccess_Atomic_Block #-} do
@@ -212,6 +212,15 @@ readHashTableAccess ref key = {-# SCC readHashTableAccess #-} do
             check access
             pure table
     t `lookup` key
+
+
+updateHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> IO ()
+updateHashTableAccess ref key val = {-# SCC updateHashTableAccess #-} atomically $ do
+    Access access table <- readTVar ref
+    check access
+    modifyTVar' ref lockAccess
+    unsafeIOToSTM $ insert table key val
+    writeTVar ref $ Access True table
 
 
 takeHashTableAccess :: TVar (HashTableAccess k v) -> IO (BasicHashTable k v)
@@ -224,7 +233,7 @@ takeHashTableAccess ref = {-# SCC takeHashTableAccess #-} atomically $ do
 
 giveHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
 giveHashTableAccess ref key val table = {-# SCC giveHashTableAccess #-} do
-    insert table key val
+    {-# SCC giveHashTableAccess_INSERT #-} insert table key val
     atomically . writeTVar ref $ Access True table
 
 
@@ -248,7 +257,8 @@ memoize_Lock f = unsafePerformIO $ do
               Just v  -> {-# SCC memoize_Lock_GET #-} pure v
               Nothing -> {-# SCC memoize_Lock_PUT #-}
                 let v = force $ f k
-                in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
+                in  updateHashTableAccess tabRef k v $> v
+--                in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
 #endif
 
 

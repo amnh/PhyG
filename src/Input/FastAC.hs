@@ -63,11 +63,11 @@ import Data.TCM.Dense qualified as TCMD
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
-import Debug.Trace
 import GeneralUtilities
 import Input.DataTransformation qualified as DT
 import SymMatrix qualified as S
 import Types.Types
+--import Debug.Trace
 
 
 -- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
@@ -112,17 +112,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
             sequenceData = getAlphabet [] $ foldMap snd inData
 
             seqType
-              | dataType == "nucleotide" = trace ("File " <> dataName <> " is nucleotide data.")  NucSeq
-              | dataType == "aminoacid" = trace ("File " <> dataName <> " is aminoacid data.") AminoSeq
-              | dataType == "hugeseq" = trace ("File " <> dataName <> " is large alphabet data.") HugeSeq
-              | dataType == "custom_alphabet" = trace ("File " <> dataName <> " is large alphabet data.") HugeSeq
-              | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = trace ("Assuming file " <> dataName
-                <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") NucSeq
-              | (sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData) = trace ("Assuming file " <> dataName
-                <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") AminoSeq
-              | length sequenceData <=  8 = trace ("File " <> dataName <> " is small alphabet data.") SlimSeq
-              | length sequenceData <= 64 = trace ("File " <> dataName <> " is wide alphabet data.") WideSeq
-              | otherwise = trace ("File " <> dataName <> " is large alphabet data.") HugeSeq
+              | dataType == "nucleotide" = {- trace ("File " <> dataName <> " is nucleotide data.") -}  NucSeq
+              | dataType == "aminoacid" = {- trace ("File " <> dataName <> " is aminoacid data.") -} AminoSeq
+              | dataType == "hugeseq" = {- trace ("File " <> dataName <> " is large alphabet data.") -} HugeSeq
+              | dataType == "custom_alphabet" = {- trace ("File " <> dataName <> " is large alphabet data.") -} HugeSeq
+              | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData) = {- trace ("Assuming file " <> dataName
+                <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") -} NucSeq
+              | (sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData) = {- trace ("Assuming file " <> dataName
+                <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") -} AminoSeq
+              | length sequenceData <=  8 = {- trace ("File " <> dataName <> " is small alphabet data.") -} SlimSeq
+              | length sequenceData <= 64 = {- trace ("File " <> dataName <> " is wide alphabet data.") -} WideSeq
+              | otherwise = {- trace ("File " <> dataName <> " is large alphabet data.") -} HugeSeq
 
             seqAlphabet = fromSymbols seqSymbols
 
@@ -160,27 +160,32 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
 
         let
             localCostMatrix :: S.Matrix Int
-            localCostMatrix = if null $ fst3 localTCM then
+            localCostMatrix = force $ 
+                if null $ fst3 localTCM then
                                 let (indelCost, substitutionCost) = if null $ snd3 localTCM then (1,1)
                                                                     else ((head . head . snd3) localTCM,  (last . head . snd3) localTCM)
                                 in
                                 S.fromLists $ generateDefaultMatrix thisAlphabet 0 indelCost substitutionCost
-                              else S.fromLists $ snd3 localTCM
+                else S.fromLists $ snd3 localTCM
+
+            localCostMatrixTransformed = transformGapLastToGapFirst' localCostMatrix
+
+            scmForSlim i j = localCostMatrixTransformed S.! (fromEnum i, fromEnum j)
 
             tcmWeightFactor = thd3 localTCM
 
 
             (additionalWeight, localDenseCostMatrix, localWideTCM, localHugeTCM) =
-                let dimension = fromIntegral $ V.length localCostMatrix
+                let dimension = force . fromIntegral $ V.length localCostMatrix
 
                     -- this 2x2 so if some Show instances are called don't get error
                     slimMetricNil = genDiscreteDenseOfDimension dimension
                     wideMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
                     hugeMetricNil = metricRepresentation . snd $ TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
 
-                    slimMetric = TCMD.generateDenseTransitionCostMatrix 0 dimension $ MR.retreiveSCM wideMetric
-                    (wideWeight, wideMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
-                    (hugeWeight, hugeMetric) = getTCMMemo (thisAlphabet, localCostMatrix)
+                    slimMetric = TCMD.generateDenseTransitionCostMatrix 0 dimension scmForSlim
+                    (wideWeight, wideMetric) = {-# SCC "getTCMMemo_WIDE" #-} getTCMMemo (thisAlphabet, localCostMatrixTransformed)
+                    (hugeWeight, hugeMetric) = getTCMMemo (thisAlphabet, localCostMatrixTransformed)
 
                     resultSlim = (         1, slimMetric,    wideMetricNil, hugeMetricNil)
                     resultWide = (wideWeight, slimMetricNil, wideMetric,    hugeMetricNil)
@@ -189,8 +194,8 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
                 in  case seqType of
                       NucSeq   -> resultSlim
                       SlimSeq  -> resultSlim
-                      WideSeq  -> resultWide
-                      AminoSeq -> resultWide
+                      WideSeq  -> {-# SCC "seqType_WideSeq" #-} resultWide
+                      AminoSeq -> {-# SCC "seqType_AminoSeq" #-} resultWide
                       HugeSeq  -> resultHuge
                       _        -> error $ "getFastaCharInfo: Failure proceesing the CharType: '" <> show seqType <> "'"
 
@@ -218,10 +223,10 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
         --trace ("GFCI: " <> (show localHugeTCM)) (
         --trace ("FCI " <> (show $ length thisAlphabet) <> " alpha size" <> show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM then
-            trace ("Warning: no tcm file specified for use with fasta/c file : " <> dataName <> ". Using default, all 1 diagonal 0 cost matrix.")
+            -- trace ("Warning: no tcm file specified for use with fasta/c file : " <> dataName <> ". Using default, all 1 diagonal 0 cost matrix.")
             defaultSeqCharInfo
         else
-            trace ("Processing TCM data for file : "  <> dataName)
+            -- trace ("Processing TCM data for file : "  <> dataName)
             defaultSeqCharInfo
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
@@ -229,15 +234,16 @@ getTCMMemo
   :: ( FiniteBits b
      , Hashable b
      , NFData b
+     , Integral i
      )
-  => (a, S.Matrix Int)
+  => (a, S.Matrix i)
   -> (Rational, MR.MetricRepresentation b)
 getTCMMemo (_inAlphabet, inMatrix) =
-    let (coefficient, tcm) = fmap transformGapLastToGapFirst . TCM.fromRows $ S.getFullVects inMatrix
+    let (coefficient, tcm) = force . TCM.fromRows $ S.getFullVects inMatrix
         metric = case tcmStructure $ TCM.diagnoseTcm tcm of
                    NonAdditive -> discreteMetric
                    Additive    -> linearNorm . toEnum $ TCM.size tcm
-                   _           -> metricRepresentation tcm
+                   _           -> {-# SCC "tcmStructure_OTHER" #-} metricRepresentation tcm
     in (coefficient, metric)
 
 
@@ -479,6 +485,19 @@ genDiscreteDenseOfDimension d =
       r = [0 .. n - 1]
       m = [ [ if i == j then 0 else 1 | j <- r] | i <- r]
   in  TCMD.generateDenseTransitionCostMatrix n n . S.getCost $ V.fromList <$> V.fromList m
+
+
+transformGapLastToGapFirst' :: S.Matrix Int -> S.Matrix Word
+transformGapLastToGapFirst' mat =
+  let (n, _) = S.dim mat
+      m = S.getFullVects mat 
+
+      f 0 0 = m S.! (n - 1, n - 1)
+      f 0 j = m S.! (n - 1, j - 1)
+      f i 0 = m S.! (i - 1, n - 1)
+      f i j = m S.! (i - 1, j - 1)
+
+  in  S.fromLists [ [ fromIntegral $ f i j | j <- [ 0 .. n - 1 ] ] | i <- [ 0 .. n - 1]]
 
 
 transformGapLastToGapFirst :: TCM.TCM -> TCM.TCM
