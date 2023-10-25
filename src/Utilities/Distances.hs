@@ -34,7 +34,9 @@ getPairwiseDistances (nameVect, _, blockDataVect)
         maxDistance = U.getMaxNumberObservations blockDataVect
         pairList = makeIndexPairs True (V.length nameVect) (V.length nameVect) 0 0
         --pairListCosts = fmap (U.getPairwiseObservations blockDataVect) pairList `using` P.myParListChunkRDS
-        pairListCosts = P.seqParMap rdeepseq   (U.getPairwiseObservations blockDataVect) pairList 
+        --TODO
+        -- pairListCosts = P.seqParMap rdeepseq   (U.getPairwiseObservations blockDataVect) pairList 
+        pairListCosts = fmap  (U.getPairwiseObservations blockDataVect) pairList 
         normFactorList = fmap (maxDistance /) $ fmap (max 1.0) pairListCosts
         initialFactorMatrix = S.fromLists $ replicate (V.length nameVect) $ replicate (V.length nameVect) 0.0
         (iLst, jList) = unzip pairList
@@ -74,7 +76,9 @@ getPairwiseBlockDistance numVerts inData  =
     let pairList = makeIndexPairs True numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
         --pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS
-        pairListCosts = P.seqParMap rdeepseq  (getBlockDistance inData) pairList 
+        --pairListCosts = P.seqParMap rdeepseq  (getBlockDistance inData) pairList 
+        -- TODO 
+        pairListCosts = fmap  (getBlockDistance inData) pairList 
         (iLst, jList) = unzip pairList
         threeList = zip3 iLst jList pairListCosts
         newMatrix = S.updateMatrix initialPairMatrix threeList
