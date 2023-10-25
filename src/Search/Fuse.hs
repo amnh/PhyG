@@ -520,15 +520,16 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
 
                 newRecursiveBestCost = min recursiveBestCost firstBestCost
 
-                progressString = if firstBestCost < recursiveBestCost then ("\t->" <> (show newRecursiveBestCost)) else ""
+                progressString = "\t->" <> show newRecursiveBestCost
             in  -- Unconditional printing, conditional output payload.
 
                 do
                 rejoinResult <- rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
                 let result = firstRejoinResult <> rejoinResult
              
-                logWith LogInfo progressString 
-                return result
+                when (firstBestCost < recursiveBestCost) $
+                    logWith LogInfo progressString 
+                pure result
 
 
 {-
