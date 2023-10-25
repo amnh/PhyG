@@ -117,9 +117,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
             action
                 :: (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph)
                 -> PhyG [ReducedPhylogeneticGraph]
-            action x = do
-                logWith LogInfo "Running parallel 'action'\n"
-                fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal x
+            action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
 {--}
         in
         do
