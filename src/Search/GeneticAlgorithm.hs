@@ -41,7 +41,6 @@ import Control.Evaluation
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
-import Debug.Trace
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import Search.Fuse qualified as F
@@ -50,6 +49,7 @@ import Search.Swap qualified as S
 import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
+import Debug.Trace
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs

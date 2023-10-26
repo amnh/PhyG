@@ -690,15 +690,17 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                 then True
                 else False
 
-        -- Can't do both static approx and multitraverse:False
-        ((inGS, origData, inData, inGraphList), transformString) =
-            if transformToStaticApproximation && (useIA inGS')
-                then (TRANS.transform [("staticapprox", [])] inGS' inData' inData' 0 inGraphList'', ",StaticApprox")
-                else
-                    if transformMultiTraverse
-                        then (TRANS.transform [("multitraverse", "false")] inGS' inData' inData' 0 inGraphList'', ",MultiTraverse:False")
-                        else ((inGS', inData', inData', inGraphList''), "")
-    in  do  -- bandit list with search arguments set
+    in do
+            -- Can't do both static approx and multitraverse:False
+            newDataMTF <- TRANS.transform [("multitraverse", "false")] inGS' inData' inData' 0 inGraphList''
+            newDataSA  <- TRANS.transform [("staticapprox", [])] inGS' inData' inData' 0 inGraphList''
+            let ((inGS, origData, inData, inGraphList), transformString) =
+                    if transformToStaticApproximation && (useIA inGS') then (newDataSA, ",StaticApprox")
+                    else
+                        if transformMultiTraverse
+                            then (newDataMTF, ",MultiTraverse:False")
+                            else ((inGS', inData', inData', inGraphList''), "")
+            -- bandit list with search arguments set
             -- primes (') for build to start with untransformed data
             (searchGraphs, searchArgs) <- case searchBandit of
                 "buildCharacter" →
@@ -855,10 +857,12 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
             -- process
             let uniqueGraphs' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (searchGraphs <> inGraphList)
+            newDataMT <- TRANS.transform [("multiTraverse", "true")] inGS origData inData 0 uniqueGraphs'
+            newDataT  <- TRANS.transform [("dynamic", [])] inGS' origData inData 0 uniqueGraphs'
             let (uniqueGraphs, transString)
                     | (not transformToStaticApproximation && not transformMultiTraverse) = (uniqueGraphs', "")
-                    | transformToStaticApproximation = (fth4 $ TRANS.transform [("dynamic", [])] inGS' origData inData 0 uniqueGraphs', ",Dynamic")
-                    | otherwise = (fth4 $ TRANS.transform [("multiTraverse", "true")] inGS origData inData 0 uniqueGraphs', ",MultiTraverse:True")
+                    | transformToStaticApproximation = (fth4 newDataT, ",Dynamic")
+                    | otherwise = (fth4  newDataMT, ",MultiTraverse:True")
 
             -- string of delta and cost of graphs
             let deltaString

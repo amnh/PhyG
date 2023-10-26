@@ -16,7 +16,6 @@ module Search.Refinement  ( refineGraph
                           , geneticAlgorithmMaster
                           ) where
 
-import Debug.Trace
 import Control.Evaluation
 import Control.Monad.Logger (Logger(..), LogLevel(..))
 import GeneralUtilities
@@ -35,6 +34,8 @@ import Search.SwapMaster qualified as SM
 import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Utilities.Utilities as U
+import Debug.Trace
+
 
 -- | swapMaster moved to Search.SwapMaster due to very long (>20') compile times
 -- with --enalble-profinling

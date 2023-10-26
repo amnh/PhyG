@@ -419,7 +419,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                                                     if firstOption == Transform
                                                                                                                         then do
                                                                                                                             (elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) ←
-                                                                                                                                timeOp $ pure $ TRANS.transform firstArgs globalSettings origProcessedData processedData (head seedList) curGraphs
+                                                                                                                                timeOp $ TRANS.transform firstArgs globalSettings origProcessedData processedData (head seedList) curGraphs
 
                                                                                                                             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphs (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                                                                             let newSearchData = searchInfo : searchData globalSettings
