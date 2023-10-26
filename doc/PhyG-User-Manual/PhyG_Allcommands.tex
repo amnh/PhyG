@@ -985,18 +985,20 @@
 	\subsubsection{Defaults}
 		\texttt{report(dot, append, branchlengths, htulabels, collapse)}
 		The default graph representation is \texttt{dot}. A dot file will only be 
-		reported if no other graph type is indicated. When writing to a file, the 
-		information is appended to the end of the file. Branch lengths and HTU 
-		   labels are printed in the output files. Zero length branches are collapsed. 
-		
+		reported if no other graph type is indicated. Branch lengths and HTU 
+		labels are printed in the output files. Zero length branches are collapsed. 
+		When writing to a file, the information is appended to the end of the file. 
 		
 	\begin{example}
-		\item{\texttt{report("outFile.tre", newick, overwrite)}\\ Outputs graphs in newick format to 
-		the file ``\textbf{outFile.tre}'', overwriting any existing information.}
+		\item{\texttt{report("outFile.tre", newick, overwrite)}\\ Outputs graphs in newick 
+		format to the file ``\textbf{outFile.tre}'', overwriting any existing information.
+		In addition, zero length branches are collapses and branch lengths and HTU 
+		labels are printed in the output files (the default).}
 		
-		\item{\texttt{report("outFile\_cr.csv", crossrefs)}\\ Outputs a cross reference file, with
-		data pertaining to the presence and absence for taxa in input files. This information
-		is appended to the end of the file, if existing information exists.}
+		\item{\texttt{report("outFile\_cr.csv", crossrefs)}\\ Outputs the cross reference file 
+		``\textbf{outFile\_cr.csv}'' with data pertaining to the presence and absence of 
+		taxa in the input files. This information is appended to the end of the file, if existing 
+		information exists (the default), as \texttt{overwrite} was not specified.}
 		
 		\item{\texttt{report("outFile", dot, reconcile, method:eun, threshold:51)}\\ Outputs a
 		graph which has been reconciled using the Edge-Union-Network method with a 
