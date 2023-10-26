@@ -49,7 +49,7 @@ import Search.Swap qualified as S
 import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
-import Debug.Trace
+-- import Debug.Trace
 
 
 -- | geneticAlgorithm takes arguments and performs genetic algorithm on input graphs
@@ -84,12 +84,13 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
     else if generationCounter == generations then return (inGraphList, generationCounter)
     else if stopCount >= stopNum then return (inGraphList, generationCounter)
     else
-        trace ("Genetic algorithm generation: " <> (show generationCounter)) (
         let seedList = randomIntList rSeed
 
             -- get elite list of best solutions
             initialEliteList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) inGraphList
         in do
+
+        logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter)) 
         
         -- mutate input graphs, produces number input, limited to popsize
         mutatedGraphList' <- mapM (mutateGraph inGS inData maxNetEdges) $ zip (randomIntList $ head seedList) (takeRandom (seedList !! 1) popSize inGraphList)
@@ -149,7 +150,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             let newGraphList = GO.selectGraphs Unique keepNum 0.0 (-1) (initialEliteList <> selectedGraphs)
             in
             geneticAlgorithm inGS inData (seedList !! 5) doElitist maxNetEdges keepNum popSize generations (generationCounter + 1) severity recombinations (stopCount + 1) stopNum newGraphList
-        )
+        
 
 -- | mutateGraph mutates a graph using drift functionality
 mutateGraph :: GlobalSettings -> ProcessedData -> Int -> (Int, ReducedPhylogeneticGraph) -> PhyG ReducedPhylogeneticGraph
@@ -225,10 +226,9 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
 
             else
                 -- move only for Hardwired
-                if (graphType inGS) == HardWired then
+                if (graphType inGS) == HardWired then do
                     -- trace ("3")
-                    let (newGraphList, _) =  N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
-                    in
+                    (newGraphList, _) <-  N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
                     if (not . null) newGraphList then do 
                         pure $ head newGraphList
                     else do
@@ -238,30 +238,30 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
 
                 -- SoftWired
                 else
-                    if netEditType == "netMove" then
+                    if netEditType == "netMove" then do
                         -- trace ("4")
-                        let (newGraphList, _) =  N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
-                        in
+                        (newGraphList, _) <-  N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        
                         if (not . null) newGraphList then do
                             pure $ head newGraphList
                         else do
                             pure inGraph
                         -- head $ fst $ N.moveAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
-                    else if netEditType == "netAdd" then
+                    else if netEditType == "netAdd" then do
                         -- trace ("5")
-                        let (newGraphList, _) =  N.insertAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
-                        in
+                        (newGraphList, _) <-  N.insertAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        
                         if (not . null) newGraphList then do
                             pure $ head newGraphList
                         else do
                             pure inGraph
                         -- head $ fst $ N.insertAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
-                    else if netEditType == "netAddDelete" then
+                    else if netEditType == "netAddDelete" then do
                         -- trace ("6")
-                        let (newGraphList, _) =  N.addDeleteNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
-                        in
+                        (newGraphList, _) <-  N.addDeleteNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        
                         if (not . null) newGraphList then do
                             pure $ head newGraphList
                         else do
@@ -269,10 +269,10 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                         -- head $ fst $ N.addDeleteNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep maxRounds 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
 
                     -- net delete
-                    else
+                    else do
                         -- trace ("7")
-                        let (newGraphList, _) =  N.deleteAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
-                        in
+                        (newGraphList, _) <-  N.deleteAllNetEdges inGS inData (randList !! 7) maxNetEdges numToKeep 0 returnMutated steepest doRandomOrder ([], infinity) (inSimAnnealParams, [inGraph])
+                        
                         if (not . null) newGraphList then do
                             pure $ head newGraphList
                         else do

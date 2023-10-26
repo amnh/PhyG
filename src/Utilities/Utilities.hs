@@ -57,7 +57,6 @@ import Data.Text.Lazy  qualified            as T
 import Data.Text.Short    qualified         as ST
 import Data.Vector.Storable  qualified      as SV
 import Data.Vector.Unboxed   qualified      as UV
-import Debug.Trace
 import GeneralUtilities
 import GeneralUtilities  qualified          as GU
 import SymMatrix     qualified              as S
@@ -65,6 +64,7 @@ import Types.Types
 import Utilities.LocalGraph  qualified      as LG
 import Control.Parallel.Strategies
 import ParallelUtilities qualified as P
+--import Debug.Trace
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
@@ -455,10 +455,10 @@ vectMaybeHead inVect =
 -- and returns Just a or V.empty
 vectResolveMaybe :: V.Vector (Maybe a) -> V.Vector a
 vectResolveMaybe inVect =
-    trace ("VRM " <> show (length inVect)) (
+    --trace ("VRM " <> show (length inVect)) $
     if isNothing (V.head inVect) then V.empty
     else V.singleton $ fromJust $ V.head inVect
-    )
+    
 
 -- | getNumberPrealignedCharacters takes processed data and returns the number of prealigned sequence characters
 -- used to special case procedurs with prealigned sequences

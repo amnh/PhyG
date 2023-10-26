@@ -49,24 +49,28 @@ module Search.NetworkAddDelete  ( deleteAllNetEdges
                                 , heuristicAddDelta'
                                 ) where
 
-import           Data.Bits
-import qualified Data.InfList                                     as IL
-import           Data.Maybe
-import qualified Data.Text.Lazy                                   as TL
-import qualified Data.Vector                                      as V
-import           Debug.Trace
-import           GeneralUtilities
-import qualified GraphOptimization.Medians                        as M
-import qualified GraphOptimization.PostOrderSoftWiredFunctions    as POSW
-import qualified GraphOptimization.PostOrderSoftWiredFunctionsNew as NEW
-import qualified GraphOptimization.PreOrderFunctions              as PRE
-import qualified GraphOptimization.Traversals                     as T
-import qualified Graphs.GraphOperations                           as GO
-import qualified ParallelUtilities                                as PU
-import           Types.Types
-import qualified Utilities.LocalGraph                             as LG
-import qualified Utilities.Utilities                              as U
--- import qualified Data.List                            as L
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
+import Data.Bits
+import Data.InfList qualified as IL
+import Data.Maybe
+import Data.Text.Lazy qualified as TL
+import Data.Vector qualified as V
+import GeneralUtilities
+import GraphOptimization.Medians qualified as M
+import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
+import GraphOptimization.PostOrderSoftWiredFunctionsNew qualified as NEW
+import GraphOptimization.PreOrderFunctions qualified as PRE
+import GraphOptimization.Traversals qualified as T
+import Graphs.GraphOperations qualified as GO
+import ParallelUtilities qualified as PU
+import System.ErrorPhase (ErrorPhase (..))
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
+-- import Debug.Trace
 
 
 -- | addDeleteNetEdges is a wrapper for addDeleteNetEdges' allowing for multiple simulated annealing rounds
@@ -82,18 +86,21 @@ addDeleteNetEdges :: GlobalSettings
                   -> Bool
                   -> ([ReducedPhylogeneticGraph], VertexCost)
                   -> (Maybe SAParams, [ReducedPhylogeneticGraph])
-                  -> ([ReducedPhylogeneticGraph], Int)
+                  -> PhyG ([ReducedPhylogeneticGraph], Int)
 addDeleteNetEdges inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
-   if isNothing inSimAnnealParams then addDeleteNetEdges' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList
+   if isNothing inSimAnnealParams then do
+      addDeleteNetEdges' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList
    else
       let -- create list of params with unique list of random values for rounds of annealing
          annealingRounds = rounds $ fromJust inSimAnnealParams
          saPAramList = (U.generateUniqueRandList annealingRounds inSimAnnealParams) -- (replicate annealingRounds inPhyloGraphList)
+      in do
+         -- TODO
+         addDeleteResult <- mapM (addDeleteNetEdges'' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList))
+         let (annealRoundsList, counterList) = unzip addDeleteResult
+         -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (addDeleteNetEdges'' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
 
-         (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (addDeleteNetEdges'' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
-
-      in
-      (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
+         pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
 
 -- | addDeleteNetEdges'' is wrapper around addDeleteNetEdges' to use parmap
 addDeleteNetEdges'' :: GlobalSettings
@@ -108,7 +115,7 @@ addDeleteNetEdges'' :: GlobalSettings
                     -> Bool
                     -> ([ReducedPhylogeneticGraph], VertexCost)
                     -> (Maybe SAParams, [ReducedPhylogeneticGraph])
-                    -> ([ReducedPhylogeneticGraph], Int)
+                    -> PhyG ([ReducedPhylogeneticGraph], Int)
 addDeleteNetEdges'' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    addDeleteNetEdges' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
 
@@ -129,50 +136,51 @@ addDeleteNetEdges' :: GlobalSettings
                    -> ([ReducedPhylogeneticGraph], VertexCost)
                    -> Maybe SAParams
                    -> [ReducedPhylogeneticGraph]
-                   -> ([ReducedPhylogeneticGraph], Int)
+                   -> PhyG ([ReducedPhylogeneticGraph], Int)
 addDeleteNetEdges' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList =
-   if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
+   if null inPhyloGraphList then do
+      pure (take numToKeep curBestGraphList, counter)
 
    -- if hit maxmimum rounds then return
-   else if counter == maxRounds then (take numToKeep curBestGraphList, counter)
+   else if counter == maxRounds then do
+      pure (take numToKeep curBestGraphList, counter)
 
    -- other wise add/delete
-   else
+   else do
       -- trace ("\tRound " <> (show counter)) (
-      let -- insert edges first
-          randIntList = randomIntList rSeed
-          (insertGraphList, _) = insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList
+         -- insert edges first
+         let randIntList = randomIntList rSeed
+         (insertGraphList, _) <- insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList
 
           -- this to update randlists in SAPArams for subsequent calls
-          updatedSAParamList = if isJust inSimAnnealParams then U.generateUniqueRandList 2 inSimAnnealParams
-                               else [Nothing, Nothing]
+         let updatedSAParamList = if isJust inSimAnnealParams then U.generateUniqueRandList 2 inSimAnnealParams
+                                  else [Nothing, Nothing]
 
          -- if no better--take input for delte phase
-          randIntList2 = randomIntList (randIntList !! 1)
-          (insertGraphList', insertGraphCost, toDeleteList) = if null insertGraphList then (curBestGraphList, curBestGraphCost, inPhyloGraphList)
-                                                              else
-                                                                  let newList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) insertGraphList
-                                                                  in
-                                                                  (newList, snd5 $ head newList, newList)
-
+         let randIntList2 = randomIntList (randIntList !! 1)
+         let (insertGraphList', insertGraphCost, toDeleteList) = if null insertGraphList then (curBestGraphList, curBestGraphCost, inPhyloGraphList)
+                                                                 else
+                                                                   let newList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) insertGraphList
+                                                                   in
+                                                                   (newList, snd5 $ head newList, newList)
          -- delete edges
-          (deleteGraphList, _) =  deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (insertGraphList', insertGraphCost) randIntList2 (head updatedSAParamList) toDeleteList
+         (deleteGraphList, _) <-  deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (insertGraphList', insertGraphCost) randIntList2 (head updatedSAParamList) toDeleteList
 
          -- gather beter if any
-          (newBestGraphList, newBestGraphCost, graphsToDoNext) = if null deleteGraphList then (curBestGraphList, curBestGraphCost, inPhyloGraphList)
-                                                                 else
+         let (newBestGraphList, newBestGraphCost, graphsToDoNext) = if null deleteGraphList then (curBestGraphList, curBestGraphCost, inPhyloGraphList)
+                                                                    else
                                                                       let newDeleteGraphs = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) deleteGraphList
                                                                       in
                                                                       (newDeleteGraphs, snd5 $ head newDeleteGraphs, newDeleteGraphs)
-      in
-      -- check is same then return
-      if newBestGraphCost == curBestGraphCost then
-         (take numToKeep curBestGraphList, counter)
 
-      -- if better (or nothing) keep going
-      else
-         addDeleteNetEdges' inGS inData (randIntList !! 2) maxNetEdges numToKeep maxRounds (counter + 1) returnMutated doSteepest doRandomOrder (newBestGraphList, newBestGraphCost) (last updatedSAParamList) graphsToDoNext
-      -- )
+         -- check is same then return
+         if newBestGraphCost == curBestGraphCost then do
+            pure (take numToKeep curBestGraphList, counter)
+
+         -- if better (or nothing) keep going
+         else do
+            addDeleteNetEdges' inGS inData (randIntList !! 2) maxNetEdges numToKeep maxRounds (counter + 1) returnMutated doSteepest doRandomOrder (newBestGraphList, newBestGraphCost) (last updatedSAParamList) graphsToDoNext
+         -- )
 
 -- | moveAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 moveAllNetEdges :: GlobalSettings
@@ -186,18 +194,21 @@ moveAllNetEdges :: GlobalSettings
                 -> Bool
                 -> ([ReducedPhylogeneticGraph], VertexCost)
                 -> (Maybe SAParams, [ReducedPhylogeneticGraph])
-                -> ([ReducedPhylogeneticGraph], Int)
+                -> PhyG ([ReducedPhylogeneticGraph], Int)
 moveAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
-   if isNothing inSimAnnealParams then moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList
+   if isNothing inSimAnnealParams then do
+      moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList
    else
       let -- create list of params with unique list of random values for rounds of annealing
          annealingRounds = rounds $ fromJust inSimAnnealParams
          saPAramList = (U.generateUniqueRandList annealingRounds inSimAnnealParams) -- (replicate annealingRounds inPhyloGraphList)
-
-         (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
-
-      in
-      (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
+      in do
+         -- TODO
+         -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
+         moveResult <- mapM (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList))
+         let (annealRoundsList, counterList) = unzip moveResult
+      
+         pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
 
 -- | moveAllNetEdges'' is wrapper around moveAllNetEdges' to use parmap
 moveAllNetEdges'' :: GlobalSettings
@@ -211,7 +222,7 @@ moveAllNetEdges'' :: GlobalSettings
                   -> Bool
                   -> ([ReducedPhylogeneticGraph], VertexCost)
                   -> (Maybe SAParams, [ReducedPhylogeneticGraph])
-                  -> ([ReducedPhylogeneticGraph], Int)
+                  -> PhyG ([ReducedPhylogeneticGraph], Int)
 moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
 
@@ -230,9 +241,10 @@ moveAllNetEdges' :: GlobalSettings
                  -> ([ReducedPhylogeneticGraph], VertexCost)
                  -> Maybe SAParams
                  -> [ReducedPhylogeneticGraph]
-                 -> ([ReducedPhylogeneticGraph], Int)
+                 -> PhyG ([ReducedPhylogeneticGraph], Int)
 moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList =
-   if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
+   if null inPhyloGraphList then do 
+      pure (take numToKeep curBestGraphList, counter)
    else if LG.isEmpty $ fst5 $ head inPhyloGraphList then 
       moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams (tail inPhyloGraphList)
    else
@@ -244,80 +256,84 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
                            LG.labNetEdges (thd5 firstPhyloGraph)
                         else
                            permuteList rSeed $ LG.labNetEdges (thd5 firstPhyloGraph)
+      in do
+         -- TODO
+         -- newGraphList' =  concat $ PU.seqParMap (parStrategy $ strictParStrat inGS) (deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph rSeed inSimAnnealParams) (fmap LG.toEdge netEdgeList) 
+         deleteResult <- mapM (deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph rSeed inSimAnnealParams) (fmap LG.toEdge netEdgeList)
+         let  newGraphList' =  concat deleteResult
 
-          
-          newGraphList' =  concat $ PU.seqParMap (parStrategy $ strictParStrat inGS) (deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph rSeed inSimAnnealParams) (fmap LG.toEdge netEdgeList) 
-
-          -- newGraphList' =  deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph (fmap LG.toEdge netEdgeList) rSeed inSimAnnealParams
+         -- newGraphList' =  deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph (fmap LG.toEdge netEdgeList) rSeed inSimAnnealParams
 
 
-          newGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList'
-          newGraphCost = if (not . null) newGraphList' then snd5 $ head newGraphList
-                         else infinity
-      in
+         let newGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList'
+         let newGraphCost = if (not . null) newGraphList' then snd5 $ head newGraphList
+                            else infinity
+   
+         -- if graph is a tree no edges to delete
+         if null netEdgeList then do
+            logWith LogInfo ("\t\tGraph in move has no network edges to move--skipping") 
+            pure (inPhyloGraphList, counter)
 
-      -- if graph is a tree no edges to delete
-      if null netEdgeList then trace ("\t\tGraph in move has no network edges to move--skipping") (inPhyloGraphList, counter)
+         -- regular move keeping best
+         else if isNothing inSimAnnealParams then
+            if newGraphCost > currentCost then do
+               -- trace ("\t MANE : Worse")
+               moveAllNetEdges' inGS inData maxNetEdges rSeed numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstPhyloGraph : curBestGraphList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
+            else if newGraphCost < currentCost then
+               -- trace ("\tMANE-> " <> (show newGraphCost)) (
+               if doSteepest then do
+                  moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams newGraphList
+               else do
+                  moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams (newGraphList <> (tail inPhyloGraphList))
+               -- )
 
-      -- regular move keeping best
-      else if isNothing inSimAnnealParams then
-         if newGraphCost > currentCost then
-            -- trace ("\t MANE : Worse")
-            moveAllNetEdges' inGS inData maxNetEdges rSeed numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstPhyloGraph : curBestGraphList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
-         else if newGraphCost < currentCost then
-            -- trace ("\tMANE-> " <> (show newGraphCost)) (
-            if doSteepest then
-               moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams newGraphList
-            else
-               moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) inSimAnnealParams (newGraphList <> (tail inPhyloGraphList))
-            -- )
+            else do
+               -- new graph list contains the input graph if equal and filterd unique already in moveAllNetEdges
+               let newCurSameBestList = GO.selectGraphs Unique numToKeep 0.0 (-1) (curBestGraphList <> newGraphList)
 
+               -- trace ("\t MANE : Equal")
+               moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newCurSameBestList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
+
+         -- sim anneal choice
+         else if True then errorWithoutStackTrace "Simulated Annealing/Drift not implemented for Network Move"
          else
-            -- new graph list contains the input graph if equal and filterd unique already in moveAllNetEdges
-            let newCurSameBestList = GO.selectGraphs Unique numToKeep 0.0 (-1) (curBestGraphList <> newGraphList)
-            in
-            -- trace ("\t MANE : Equal")
-            moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newCurSameBestList, currentCost) inSimAnnealParams (tail inPhyloGraphList)
+               let -- abstract stopping criterion to continue
+                  numDone = if (method $ fromJust inSimAnnealParams) == SimAnneal then currentStep $ fromJust inSimAnnealParams
+                            else driftChanges $ fromJust inSimAnnealParams
+                  numMax  = if (method $ fromJust inSimAnnealParams) == SimAnneal then numberSteps $ fromJust inSimAnnealParams
+                            else driftMaxChanges $ fromJust inSimAnnealParams
 
-      -- sim anneal choice
-      else if True then errorWithoutStackTrace "Simulated Annealing/Drift not implemented for Network Move"
-      else
-            let -- abstract stopping criterion to continue
-               numDone = if (method $ fromJust inSimAnnealParams) == SimAnneal then currentStep $ fromJust inSimAnnealParams
-                         else driftChanges $ fromJust inSimAnnealParams
-               numMax  = if (method $ fromJust inSimAnnealParams) == SimAnneal then numberSteps $ fromJust inSimAnnealParams
-                         else driftMaxChanges $ fromJust inSimAnnealParams
-
-               -- get acceptance based on heuristic costs
-               uniqueGraphList = GO.selectGraphs Unique numToKeep 0.0 (-1) newGraphList'
-               annealBestCost = if (not . null) uniqueGraphList then min curBestGraphCost (snd5 $ head uniqueGraphList)
-                                 else curBestGraphCost
-               (acceptFirstGraph, newSAParams) = if (not . null) uniqueGraphList then U.simAnnealAccept inSimAnnealParams annealBestCost (snd5 $ head uniqueGraphList)
-                                                  else (False, U.incrementSimAnnealParams inSimAnnealParams)
-            in
-            -- trace ("ACG" <> (show acceptFirstGraph) <> " " <> (show $ snd5 $ head uniqueGraphList)) (
-            if (numDone < numMax) then
-               -- this fixes tail fail
-               let nextUniqueList = if (not . null) uniqueGraphList then tail uniqueGraphList
-                                    else []
+                  -- get acceptance based on heuristic costs
+                  uniqueGraphList = GO.selectGraphs Unique numToKeep 0.0 (-1) newGraphList'
+                  annealBestCost = if (not . null) uniqueGraphList then min curBestGraphCost (snd5 $ head uniqueGraphList)
+                                    else curBestGraphCost
+                  (acceptFirstGraph, newSAParams) = if (not . null) uniqueGraphList then U.simAnnealAccept inSimAnnealParams annealBestCost (snd5 $ head uniqueGraphList)
+                                                     else (False, U.incrementSimAnnealParams inSimAnnealParams)
                in
+               -- trace ("ACG" <> (show acceptFirstGraph) <> " " <> (show $ snd5 $ head uniqueGraphList)) (
+               if (numDone < numMax) then
+                  -- this fixes tail fail
+                  let nextUniqueList = if (not . null) uniqueGraphList then tail uniqueGraphList
+                                       else []
+                  in
 
-               if acceptFirstGraph then
-                  moveAllNetEdges' inGS inData rSeed maxNetEdges  numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head uniqueGraphList) :  curBestGraphList, annealBestCost) newSAParams (nextUniqueList <> (tail inPhyloGraphList))
-               else
-                  moveAllNetEdges' inGS inData rSeed maxNetEdges  numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (curBestGraphList, annealBestCost) newSAParams (nextUniqueList <> (tail inPhyloGraphList))
+                  if acceptFirstGraph then do
+                     moveAllNetEdges' inGS inData rSeed maxNetEdges  numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head uniqueGraphList) :  curBestGraphList, annealBestCost) newSAParams (nextUniqueList <> (tail inPhyloGraphList))
+                  else do
+                     moveAllNetEdges' inGS inData rSeed maxNetEdges  numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (curBestGraphList, annealBestCost) newSAParams (nextUniqueList <> (tail inPhyloGraphList))
 
-            -- if want non-optimized list for GA or whatever
-            else if returnMutated then (take numToKeep curBestGraphList, counter)
+               -- if want non-optimized list for GA or whatever
+               else if returnMutated then do
+                  pure (take numToKeep curBestGraphList, counter)
 
-            -- optimize list and return
-            else
-               let (bestMoveList', counter') =  moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) False doSteepest doRandomOrder ([], annealBestCost) Nothing (take numToKeep curBestGraphList)
-                   bestMoveList = GO.selectGraphs Best numToKeep 0.0 (-1) bestMoveList'
-               in
-               --trace ("BM: " <> (show $ snd5 $ head  bestMoveList))
-               (take numToKeep bestMoveList, counter')
-      -- )
+               -- optimize list and return
+               else do
+                  (bestMoveList', counter') <-  moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep (counter + 1) False doSteepest doRandomOrder ([], annealBestCost) Nothing (take numToKeep curBestGraphList)
+                  let bestMoveList = GO.selectGraphs Best numToKeep 0.0 (-1) bestMoveList'
+
+                  --trace ("BM: " <> (show $ snd5 $ head  bestMoveList))
+                  pure (take numToKeep bestMoveList, counter')
+         -- )
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 insertAllNetEdges :: GlobalSettings
@@ -332,34 +348,38 @@ insertAllNetEdges :: GlobalSettings
                   -> Bool
                   -> ([ReducedPhylogeneticGraph], VertexCost)
                   -> (Maybe SAParams, [ReducedPhylogeneticGraph])
-                  -> ([ReducedPhylogeneticGraph], Int)
+                  -> PhyG ([ReducedPhylogeneticGraph], Int)
 insertAllNetEdges inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if isNothing inSimAnnealParams then
 
       -- check for multiple rounds of addition--if > 1 then need to randomize order
       if maxRounds == 1 then
             insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (randomIntList rSeed) Nothing inPhyloGraphList
-      else
+      else do
          -- need to concat and send different randomization lists for each "round"
          let randSeedList = take maxRounds (randomIntList rSeed)
-             randIntListList = fmap randomIntList randSeedList
-             (insertGraphList, counterList) = unzip $ PU.seqParMap (parStrategy $ strictParStrat inGS) (insertAllNetEdgesRand inGS inData maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList) randIntListList
-         in
+         let randIntListList = fmap randomIntList randSeedList
+             -- TODO
+             --(insertGraphList, counterList) = unzip $ PU.seqParMap (parStrategy $ strictParStrat inGS) (insertAllNetEdgesRand inGS inData maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList) randIntListList
+         insertGraphResult <- mapM (insertAllNetEdgesRand inGS inData maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList) randIntListList
+         let (insertGraphList, counterList) = unzip insertGraphResult
          -- insert functions take care of returning "better" or empty
          -- should be empty if nothing better
-         (GO.selectGraphs Best numToKeep 0.0 (-1) (concat insertGraphList), sum counterList)
+         pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat insertGraphList), sum counterList)
    else
       let -- create list of params with unique list of random values for rounds of annealing
           annealingRounds = rounds $ fromJust inSimAnnealParams
           annealParamGraphList = U.generateUniqueRandList annealingRounds inSimAnnealParams
           replicateRandIntList = fmap randomIntList (take annealingRounds (randomIntList rSeed))
-
-          (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (insertAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
-      in
-      if (not returnMutated) || isNothing inSimAnnealParams then
-         (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
-      else
-         (GO.selectGraphs Unique numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
+      in do
+         -- TODO
+         -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (insertAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
+         insertGraphResult <- mapM (insertAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList))
+         let (annealRoundsList, counterList) = unzip insertGraphResult
+         if (not returnMutated) || isNothing inSimAnnealParams then do
+            pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
+         else do
+            pure (GO.selectGraphs Unique numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
 
 -- | insertAllNetEdgesRand is a wrapper around insertAllNetEdges'' to pass unique randomLists to insertAllNetEdges'
 insertAllNetEdgesRand :: GlobalSettings
@@ -373,7 +393,7 @@ insertAllNetEdgesRand :: GlobalSettings
                       -> Maybe SAParams
                       -> [ReducedPhylogeneticGraph]
                       -> [Int]
-                      -> ([ReducedPhylogeneticGraph], Int)
+                      -> PhyG ([ReducedPhylogeneticGraph], Int)
 insertAllNetEdgesRand inGS inData maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList randIntList =
    insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest True (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList
 
@@ -388,7 +408,7 @@ insertAllNetEdges'' :: GlobalSettings
                     -> Bool
                     -> ([ReducedPhylogeneticGraph], VertexCost)
                     -> ([Int], Maybe SAParams, [ReducedPhylogeneticGraph])
-                    -> ([ReducedPhylogeneticGraph], Int)
+                    -> PhyG ([ReducedPhylogeneticGraph], Int)
 insertAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (randIntList, inSimAnnealParams, inPhyloGraphList) =
       insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList
 
@@ -408,12 +428,13 @@ insertAllNetEdges' :: GlobalSettings
                    -> [Int]
                    -> Maybe SAParams
                    -> [ReducedPhylogeneticGraph]
-                   -> ([ReducedPhylogeneticGraph], Int)
+                   -> PhyG ([ReducedPhylogeneticGraph], Int)
 insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList =
    if null inPhyloGraphList then
       -- this logic so don't return mutated if finish insertion before hitting other stopping points
       -- and don't want mutated--straight deletion on current best graphs
-      if isNothing inSimAnnealParams || returnMutated then (take numToKeep curBestGraphList, counter)
+      if isNothing inSimAnnealParams || returnMutated then do
+         pure (take numToKeep curBestGraphList, counter)
       else
          deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter False doSteepest doRandomOrder ([], curBestGraphCost) (randomIntList $ head randIntList) Nothing (take numToKeep curBestGraphList)
    else
@@ -421,50 +442,48 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
 
            --check for max net edges
           (_, _, _, netNodes) = LG.splitVertexList (thd5 $ head inPhyloGraphList)
-
-          (newGraphList, _, newSAParams) = insertEachNetEdge inGS inData (head randIntList) maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams (head inPhyloGraphList)
-
-
-          bestNewGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList
-          newGraphCost = if (not . null) bestNewGraphList then snd5 $ head bestNewGraphList
-                         else infinity
-
-      in
-      trace ("\t\tNumber of network edges: " <> (show $ length netNodes)) (
-      -- trace ("IANE: " <> (show $ length netNodes)) (
-      if length netNodes >= maxNetEdges then
-         trace ("Maximum number of network edges reached: " <> (show $ length netNodes))
-         (take numToKeep curBestGraphList, counter)
+      in do
+            (newGraphList, _, newSAParams) <- insertEachNetEdge inGS inData (head randIntList) maxNetEdges numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams (head inPhyloGraphList)
 
 
-      else if null newGraphList then
-         trace ("\t\tNumber of network edges: " <> (show $ length netNodes))
-         (take numToKeep curBestGraphList, counter)
+            let bestNewGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList
+            let newGraphCost = if (not . null) bestNewGraphList then snd5 $ head bestNewGraphList
+                             else infinity
 
-      -- regular insert keeping best
-      else if isNothing inSimAnnealParams then
-         postProcessNetworkAdd inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams netNodes currentCost (tail inPhyloGraphList)
+            logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes)) 
+            -- trace ("IANE: " <> (show $ length netNodes)) (
+            if length netNodes >= maxNetEdges then do
+               logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes))
+               pure (take numToKeep curBestGraphList, counter)
 
-      -- simulated annealing--needs new SAParams
-      else
-         -- trace ("IANE: " <> (show $ method $ fromJust inSimAnnealParams)) (
-         let (saGraphs, saCounter) = postProcessNetworkAddSA inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (newGraphList, newGraphCost) (tail randIntList) newSAParams netNodes currentCost (tail inPhyloGraphList)
-         in
 
-         --if want mutated then return
-         if returnMutated then (saGraphs, saCounter)
+            else if null newGraphList then do
+               logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes))
+               pure (take numToKeep curBestGraphList, counter)
 
-         -- delete non-minimal edges if any
-         -- not sim anneal/drift regular optimal searching
-         else
-            let annealBestCost = minimum $ fmap snd5 saGraphs
-                (bestList', counter') =  deleteAllNetEdges' inGS inData maxNetEdges numToKeep saCounter False doSteepest doRandomOrder (saGraphs, annealBestCost) (randomIntList $ head randIntList) Nothing saGraphs
-                bestList = GO.selectGraphs Best numToKeep 0.0 (-1) bestList'
-            in
-            (bestList, counter')
-         -- )
-      )
+            -- regular insert keeping best
+            else if isNothing inSimAnnealParams then do
+               postProcessNetworkAdd inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (newGraphList, newGraphCost) (tail randIntList) inSimAnnealParams netNodes currentCost (tail inPhyloGraphList)
 
+            -- simulated annealing--needs new SAParams
+            else do
+               -- trace ("IANE: " <> (show $ method $ fromJust inSimAnnealParams)) (
+               (saGraphs, saCounter) <- postProcessNetworkAddSA inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (newGraphList, newGraphCost) (tail randIntList) newSAParams netNodes currentCost (tail inPhyloGraphList)
+               
+
+               --if want mutated then return
+               if returnMutated then do
+                  return (saGraphs, saCounter)
+
+               -- delete non-minimal edges if any
+               -- not sim anneal/drift regular optimal searching
+               else do
+                  let annealBestCost = minimum $ fmap snd5 saGraphs
+                  (bestList', counter') <-  deleteAllNetEdges' inGS inData maxNetEdges numToKeep saCounter False doSteepest doRandomOrder (saGraphs, annealBestCost) (randomIntList $ head randIntList) Nothing saGraphs
+                  let bestList = GO.selectGraphs Best numToKeep 0.0 (-1) bestList'
+                  pure (bestList, counter')
+               
+      
 
 -- | postProcessNetworkAddSA processes simaneal/drift
 -- assumes SAParams are updated during return of graph list above
@@ -483,7 +502,7 @@ postProcessNetworkAddSA :: GlobalSettings
                       -> [LG.LNode VertexInfo]
                       -> VertexCost
                       -> [ReducedPhylogeneticGraph]
-                      -> ([ReducedPhylogeneticGraph], Int)
+                      -> PhyG ([ReducedPhylogeneticGraph], Int)
 postProcessNetworkAddSA inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (newGraphList, newGraphCost) randIntList inSimAnnealParams _ _ inPhyloGraphList =
 
    -- trace ("\t\tNumber of network edges: " <> (show $ length netNodes)) (
@@ -495,20 +514,20 @@ postProcessNetworkAddSA inGS inData maxNetEdges numToKeep counter returnMutated 
    in
 
    -- always accept if found better
-   if newGraphCost < curBestGraphCost then
-      trace ("\t-> " <> (show newGraphCost))
+   if newGraphCost < curBestGraphCost then do
+      logWith LogInfo ("\t-> " <> (show newGraphCost))
       insertAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) randIntList inSimAnnealParams graphsToInsert
 
    -- check if hit max change/ cooling steps
-   else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then
+   else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then do
          --trace ("PPA return: " <> (show (newMinCost, curBestCost)))
-         (GO.selectGraphs Unique numToKeep 0.0 (-1) (newGraphList <> curBestGraphList), counter)
+         pure $ (GO.selectGraphs Unique numToKeep 0.0 (-1) (newGraphList <> curBestGraphList), counter)
 
 
     -- more to do
-    else
+    else 
        let annealBestCost = min curBestGraphCost newGraphCost
-       in
+       in do
        insertAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstNewGraphList <>  curBestGraphList, annealBestCost) randIntList inSimAnnealParams (nextNewGraphList <> inPhyloGraphList)
 
        -- )
@@ -529,7 +548,7 @@ postProcessNetworkAdd :: GlobalSettings
                       -> [LG.LNode VertexInfo]
                       -> VertexCost
                       -> [ReducedPhylogeneticGraph]
-                      -> ([ReducedPhylogeneticGraph], Int)
+                      -> PhyG ([ReducedPhylogeneticGraph], Int)
 postProcessNetworkAdd inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, _) (newGraphList, newGraphCost) randIntList inSimAnnealParams _ currentCost inPhyloGraphList =
 
    -- "steepest style descent" abandons existing list if better cost found
@@ -538,26 +557,25 @@ postProcessNetworkAdd inGS inData maxNetEdges numToKeep counter returnMutated do
       -- check if graph OK--done in insert function
       let --- isCyclicList = filter (== True) $ fmap LG.cyclic $ fmap thd5 newGraphList
           --- hasDupEdges = filter (== True) $ fmap LG.hasDuplicateEdge $ fmap thd5 newGraphList
-          graphsToInsert = if doSteepest then newGraphList
+          graphsToInsert = if doSteepest then do newGraphList
                            else take numToKeep $ newGraphList <> inPhyloGraphList
-      in
-      trace ("\t-> " <> (show newGraphCost))
+      in do
+      logWith LogInfo ("\t-> " <> (show newGraphCost))
       insertAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) randIntList inSimAnnealParams graphsToInsert
 
    -- worse graphs found--go on
-   else if  newGraphCost > currentCost then
+   else if  newGraphCost > currentCost then do
       -- trace ("IANE: Worse")
       insertAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (curBestGraphList, currentCost) randIntList inSimAnnealParams inPhyloGraphList
 
    -- equal cost
    -- not sure if should add new graphs to queue to do edge deletion again
-   else
+   else do
       -- new graph list contains the input graph if equal and filterd unique already in insertAllNetEdges
       let newCurSameBestList = GO.selectGraphs Unique numToKeep 0.0 (-1) (curBestGraphList <> newGraphList)
-      in
       -- trace ("IANE: same " <> (show $ length (tail inPhyloGraphList)))
       insertAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newCurSameBestList, currentCost) randIntList inSimAnnealParams inPhyloGraphList
-      -- )
+   
 
 
 -- | insertEachNetEdge takes a phylogenetic graph and inserts all permissible network edges one at time
@@ -574,7 +592,7 @@ insertEachNetEdge :: GlobalSettings
                   -> Maybe VertexCost
                   -> Maybe SAParams
                   -> ReducedPhylogeneticGraph
-                  -> ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+                  -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
 insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost inSimAnnealParams inPhyloGraph =
    if LG.isEmpty $ fst5 inPhyloGraph then error "Empty input insertEachNetEdge graph in deleteAllNetEdges"
    else
@@ -589,71 +607,77 @@ insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrd
           rSeedList = randomIntList rSeed
           candidateNetworkEdgeList = if doRandomOrder then permuteList (head rSeedList) candidateNetworkEdgeList'
                                      else candidateNetworkEdgeList'
+      in do
 
-          -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
-          (newGraphList, newSAParams) = if not doSteepest then
+      -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
+      inNetEdRList <- insertNetEdgeRecursive inGS inData (tail rSeedList) maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams candidateNetworkEdgeList
+      inNetEdRListMAP <- mapM (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList
+      let (newGraphList, newSAParams) = if not doSteepest then
                                              let genNewSimAnnealParams = if isNothing inSimAnnealParams then Nothing
                                                                          else U.incrementSimAnnealParams inSimAnnealParams
                                              in
-                                             (filter (/= emptyReducedPhylogeneticGraph) (PU.seqParMap (parStrategy $ lazyParStrat inGS) (insertNetEdge inGS inData inPhyloGraph preDeleteCost) candidateNetworkEdgeList), genNewSimAnnealParams)
-                                        else insertNetEdgeRecursive inGS inData (tail rSeedList) maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams candidateNetworkEdgeList
-
-          minCost = if null candidateNetworkEdgeList || null newGraphList then infinity
+                                             -- TODO
+                                             (filter (/= emptyReducedPhylogeneticGraph) inNetEdRListMAP, genNewSimAnnealParams)
+                                        else inNetEdRList
+      let minCost = if null candidateNetworkEdgeList || null newGraphList then infinity
                     else minimum $ fmap snd5 newGraphList
-      in
-      trace ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs") (
+      
+      logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs") 
 
       -- no network edges to insert
       -- trace ("IENE: " <> (show minCost)) (
-      if length netNodes >= maxNetEdges then
-            trace ("Maximum number of network edges reached: " <> (show $ length netNodes))
-            ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
+      if (length netNodes >= maxNetEdges) then do
+            logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes))
+            pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
 
       -- no edges to add
-      else if null candidateNetworkEdgeList then
+      else if null candidateNetworkEdgeList then do
          -- trace ("IENE num cand edges:" <> (show $ length candidateNetworkEdgeList))
-         ([inPhyloGraph], currentCost, newSAParams)
+         pure ([inPhyloGraph], currentCost, newSAParams)
 
       -- single if steepest so no need to unique
-      else if doSteepest then
+      else if doSteepest then do
          --  trace ("IENE: All " <> (show minCost))
-         (GO.selectGraphs Best numToKeep 0.0 (-1) $ newGraphList, minCost, newSAParams)
+         pure (GO.selectGraphs Best numToKeep 0.0 (-1) $ newGraphList, minCost, newSAParams)
 
       -- "all" option needs to recurse since does all available edges at each step
       -- logic is here since not in the deleteNetEdge function
       else if isNothing inSimAnnealParams then
-         if minCost < currentCost then
-            let  annealParamList = U.generateUniqueRandList (length newGraphList) newSAParams
-                 allRandIntList = take (length newGraphList) (randomIntList (rSeedList !! 1))
-                 (allGraphListList, costList, allSAParamList) = unzip3 $ PU.seqParMap (parStrategy $ lazyParStrat inGS)  (insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost) (zip3 allRandIntList annealParamList newGraphList)
-                 (allMinCost, allMinCostGraphs)  = if (not . null . concat) allGraphListList then
+         if minCost < currentCost then do
+            let annealParamList = U.generateUniqueRandList (length newGraphList) newSAParams
+            let allRandIntList = take (length newGraphList) (randomIntList (rSeedList !! 1))
+            --TODO 
+            -- (allGraphListList, costList, allSAParamList) = unzip3 $ PU.seqParMap (parStrategy $ lazyParStrat inGS)  (insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost) (zip3 allRandIntList annealParamList newGraphList)
+            insertResult <- mapM  (insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost) (zip3 allRandIntList annealParamList newGraphList)
+            let (allGraphListList, costList, allSAParamList) = unzip3 insertResult
+            let (allMinCost, allMinCostGraphs) = if (not . null . concat) allGraphListList then
                                                   (minimum costList, GO.selectGraphs Unique numToKeep 0.0 (-1) $ concat allGraphListList)
-                                                   else (infinity, [])
-            in
-            (allMinCostGraphs, allMinCost, U.incrementSimAnnealParams $ head allSAParamList)
+                                                 else (infinity, [])
+            
+            pure (allMinCostGraphs, allMinCost, U.incrementSimAnnealParams $ head allSAParamList)
 
-         else
-            (GO.selectGraphs Unique numToKeep 0.0 (-1) $ newGraphList, minCost, newSAParams)
+         else do
+            pure (GO.selectGraphs Unique numToKeep 0.0 (-1) $ newGraphList, minCost, newSAParams)
 
       -- SA anneal/Drift
       else
          -- always take better
-         if minCost < currentCost then
-               (newGraphList, minCost, newSAParams)
+         if minCost < currentCost then do
+               pure (newGraphList, minCost, newSAParams)
 
          -- check if hit step limit--more for SA than drift
-         else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then
-               ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
+         else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then do
+               pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
 
          -- otherwise do the anneal/Drift accept, or keep going on input graph
          else
             let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams currentCost minCost
             in
-            if acceptGraph then
-               (newGraphList, minCost, newSAParams)
-            else
+            if acceptGraph then do
+               pure (newGraphList, minCost, newSAParams)
+            else do
                insertEachNetEdge inGS inData (head $ randomIntList rSeed) maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost nextSAParams inPhyloGraph
-      ) -- )
+      
 
 -- | insertEachNetEdge' is a wrapper around insertEachNetEdge to allow for parmapping with multiple parameters
 insertEachNetEdge'   :: GlobalSettings
@@ -664,7 +688,7 @@ insertEachNetEdge'   :: GlobalSettings
                      -> Bool
                      -> Maybe VertexCost
                      -> (Int, Maybe SAParams, ReducedPhylogeneticGraph)
-                     -> ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+                     -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
 insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost (rSeed, inSimAnnealParams, inPhyloGraph) =
    insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost inSimAnnealParams inPhyloGraph
 
@@ -680,10 +704,11 @@ insertNetEdgeRecursive :: GlobalSettings
                        -> Maybe VertexCost
                        -> Maybe SAParams
                        -> [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo)]
-                       -> ([ReducedPhylogeneticGraph], Maybe SAParams)
+                       -> PhyG ([ReducedPhylogeneticGraph], Maybe SAParams)
 insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams inEdgePairList =
    -- trace ("Edges pairs to go : " <> (show $ length edgePairList)) (
-   if null inEdgePairList then ([inPhyloGraph], inSimAnnealParams)
+   if null inEdgePairList then do
+      pure([inPhyloGraph], inSimAnnealParams)
    else
       -- don't want to over saturate the parallel thread system
       let {-saRounds = if isNothing inSimAnnealParams then 1
@@ -697,65 +722,66 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
 
           --check for max net edges
           (_, _, _, netNodes) = LG.splitVertexList (thd5 inPhyloGraph)
-
-          -- need to check display/character trees not conical graph
-          -- newGraph = insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost firstEdgePair
-          -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
-          newGraphList'' = PU.seqParMap (parStrategy $ lazyParStrat inGS) (insertNetEdge inGS inData inPhyloGraph preDeleteCost) edgePairList
-          newGraphList' = filter (/= emptyReducedPhylogeneticGraph) newGraphList''
-          newGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) newGraphList'
-          newGraphCost = snd5 $ head newGraphList
-
-
-
-      in
-      -- traceNoLF ("*")  (      -- trace ("INER: " <> (show $ snd5 newGraph) <> " " <> (show preDeleteCost)) (
-      if length netNodes >= maxNetEdges then
-         trace ("Maximum number of network edges reached: " <> (show $ length netNodes))
-         ([inPhyloGraph], inSimAnnealParams)
-
-      -- malformed graph--returns nothing for either regular or simAnneal/drift
-      else if null newGraphList' then
-         -- trace ("INER: Empty more to go : " <> (show $ length $ tail edgePairList))
-         insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams (drop numGraphsToExamine inEdgePairList)
-
-      -- "regular" insert, within steepest
-      else if isNothing inSimAnnealParams then
-         -- better cost
-         if newGraphCost < snd5 inPhyloGraph then
-            -- cyclic check in insert edge function
-            -- trace ("INER: Better -> " <> (show $ snd5 newGraph))
-            (newGraphList, inSimAnnealParams)
-
-         -- not better
-         else -- trace ("INER: Really Not Better")
-            insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams (drop numGraphsToExamine inEdgePairList)
-
-      -- sim annealing/drift
-      else
-         -- trace ("IENR:" <> (show (newGraphCost, snd5 inPhyloGraph)) <> " params: " <> (show (currentStep $ fromJust inSimAnnealParams, numberSteps $ fromJust inSimAnnealParams, driftChanges $ fromJust inSimAnnealParams, driftMaxChanges $ fromJust inSimAnnealParams))) (
-         -- if better always accept
-         if newGraphCost < snd5 inPhyloGraph then
-            -- cyclic check in insert edge function
-            -- trace ("INER: Better -> " <> (show $ snd5 newGraph))
+      in do
+            -- need to check display/character trees not conical graph
+            -- newGraph = insertNetEdge inGS inData leafGraph inPhyloGraph preDeleteCost firstEdgePair
             -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
-            let (_, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
-            in
-            (newGraphList, nextSAParams)
+            -- TODO
+            --newGraphList'' = PU.seqParMap (parStrategy $ lazyParStrat inGS) (insertNetEdge inGS inData inPhyloGraph preDeleteCost) edgePairList
+            newGraphList'' <- mapM (insertNetEdge inGS inData inPhyloGraph preDeleteCost) edgePairList
+            let newGraphList' = filter (/= emptyReducedPhylogeneticGraph) newGraphList''
+            let newGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) newGraphList'
+            let newGraphCost = snd5 $ head newGraphList
+ 
+            -- traceNoLF ("*")  (      -- trace ("INER: " <> (show $ snd5 newGraph) <> " " <> (show preDeleteCost)) (
+            if length netNodes >= maxNetEdges then do
+               logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes))
+               pure ([inPhyloGraph], inSimAnnealParams)
 
-         -- check if hit step limit--more for SA than drift
-         else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then
-                  ([inPhyloGraph], inSimAnnealParams)
+            -- malformed graph--returns nothing for either regular or simAnneal/drift
+            else if null newGraphList' then do
+               -- trace ("INER: Empty more to go : " <> (show $ length $ tail edgePairList))
+               insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams (drop numGraphsToExamine inEdgePairList)
 
-         -- otherwise do the anneal/Drift accept
-         else
-            let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
-            in
-            if acceptGraph then (newGraphList, nextSAParams)
-            else insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost nextSAParams (drop numGraphsToExamine inEdgePairList)
+            -- "regular" insert, within steepest
+            else if isNothing inSimAnnealParams then 
+               -- better cost
+               if newGraphCost < snd5 inPhyloGraph then do
+                  -- cyclic check in insert edge function
+                  -- trace ("INER: Better -> " <> (show $ snd5 newGraph))
+                  pure (newGraphList, inSimAnnealParams)
 
-      -- )
-      -- )
+               -- not better
+               else do -- trace ("INER: Really Not Better")
+                  insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost inSimAnnealParams (drop numGraphsToExamine inEdgePairList)
+
+            -- sim annealing/drift
+            else
+               -- trace ("IENR:" <> (show (newGraphCost, snd5 inPhyloGraph)) <> " params: " <> (show (currentStep $ fromJust inSimAnnealParams, numberSteps $ fromJust inSimAnnealParams, driftChanges $ fromJust inSimAnnealParams, driftMaxChanges $ fromJust inSimAnnealParams))) (
+               -- if better always accept
+               if newGraphCost < snd5 inPhyloGraph then
+                  -- cyclic check in insert edge function
+                  -- trace ("INER: Better -> " <> (show $ snd5 newGraph))
+                  -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
+                  let (_, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
+                  in do
+                  pure (newGraphList, nextSAParams)
+
+               -- check if hit step limit--more for SA than drift
+               else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then do
+                        pure ([inPhyloGraph], inSimAnnealParams)
+
+               -- otherwise do the anneal/Drift accept
+               else
+                  let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
+                  in
+                  if acceptGraph then do 
+                     pure (newGraphList, nextSAParams)
+                  else do
+                     insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrder inPhyloGraph preDeleteCost nextSAParams (drop numGraphsToExamine inEdgePairList)
+
+            -- )
+            -- )
 
 -- | insertNetEdge inserts an edge between two other edges, creating 2 new nodes and rediagnoses graph
 -- contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
@@ -769,7 +795,7 @@ insertNetEdge :: GlobalSettings
               -> ReducedPhylogeneticGraph
               -> Maybe VertexCost
               -> (LG.LEdge b, LG.LEdge b)
-              -> ReducedPhylogeneticGraph
+              -> PhyG ReducedPhylogeneticGraph
 insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
    if LG.isEmpty $ thd5 inPhyloGraph then error "Empty input phylogenetic graph in insNetEdge"
 
@@ -816,16 +842,19 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
 
       in
        -- remove these checks when working
-      if not $ LG.isPhylogeneticGraph newSimple then
-         emptyReducedPhylogeneticGraph
+      if not $ LG.isPhylogeneticGraph newSimple then do
+         pure emptyReducedPhylogeneticGraph
        
       else
          if metHeuristicThreshold then 
             -- if (GO.parentsInChainGraph . thd5) newPhyloGraph then emptyPhylogeneticGraph
             -- else 
-            if (snd5 newPhyloGraph <= snd5 inPhyloGraph) then newPhyloGraph
-            else emptyReducedPhylogeneticGraph
-         else emptyReducedPhylogeneticGraph
+            if (snd5 newPhyloGraph <= snd5 inPhyloGraph) then do
+               pure newPhyloGraph
+            else do
+               pure emptyReducedPhylogeneticGraph
+         else do
+            pure emptyReducedPhylogeneticGraph
       
 
 
@@ -841,20 +870,22 @@ deleteAllNetEdges :: GlobalSettings
                   -> Bool
                   -> ([ReducedPhylogeneticGraph], VertexCost)
                   -> (Maybe SAParams, [ReducedPhylogeneticGraph])
-                  -> ([ReducedPhylogeneticGraph], Int)
+                  -> PhyG ([ReducedPhylogeneticGraph], Int)
 deleteAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
    if isNothing inSimAnnealParams then
       deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (randomIntList rSeed) inSimAnnealParams inPhyloGraphList
-   else
+   else 
       let -- create list of params with unique list of random values for rounds of annealing
           annealingRounds = rounds $ fromJust inSimAnnealParams
           annealParamGraphList = U.generateUniqueRandList annealingRounds inSimAnnealParams
           replicateRandIntList = fmap randomIntList (take annealingRounds (randomIntList rSeed))
 
-          -- (annealRoundsList, counterList) = unzip (zipWith3 (deleteAllNetEdges' inGS inData leafGraph maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList) `using` PU.myParListChunkRDS)
-          (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
-      in
-      (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
+      in do
+         -- TODO
+         deleteResult <- mapM (deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList))
+         -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
+         let (annealRoundsList, counterList) = unzip deleteResult
+         pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList) , sum counterList)
 
 
 -- | deleteAllNetEdges'' is a wrapper around deleteAllNetEdges' to allow use of seqParMap
@@ -868,7 +899,7 @@ deleteAllNetEdges'' :: GlobalSettings
                     -> Bool
                     -> ([ReducedPhylogeneticGraph], VertexCost)
                     -> ([Int], Maybe SAParams, [ReducedPhylogeneticGraph])
-                    -> ([ReducedPhylogeneticGraph], Int)
+                    -> PhyG ([ReducedPhylogeneticGraph], Int)
 deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (randIntList, inSimAnnealParams, inPhyloGraphList) =
       deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList
 
@@ -888,53 +919,55 @@ deleteAllNetEdges' :: GlobalSettings
                    -> [Int]
                    -> Maybe SAParams
                    -> [ReducedPhylogeneticGraph]
-                   -> ([ReducedPhylogeneticGraph], Int)
+                   -> PhyG ([ReducedPhylogeneticGraph], Int)
 deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList =
    -- trace ("In deleteAllNetEdges " <> (show $ length inPhyloGraphList)) (
-   if null inPhyloGraphList then (take numToKeep curBestGraphList, counter)
-   else if LG.isEmpty (fst5 $ head inPhyloGraphList) then 
+   if null inPhyloGraphList then do
+      pure (take numToKeep curBestGraphList, counter)
+   else if LG.isEmpty (fst5 $ head inPhyloGraphList) then do
       deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams (tail inPhyloGraphList)
-   else
+   else do
       let currentCost = min curBestGraphCost (snd5 $ head inPhyloGraphList)
 
-          (newGraphList', _, newSAParams) = deleteEachNetEdge inGS inData (head randIntList) numToKeep doSteepest doRandomOrder False inSimAnnealParams (head inPhyloGraphList)
+      (newGraphList', _, newSAParams) <- deleteEachNetEdge inGS inData (head randIntList) numToKeep doSteepest doRandomOrder False inSimAnnealParams (head inPhyloGraphList)
 
-          newGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList'
-          newGraphCost = if (not . null) newGraphList then snd5 $ head newGraphList
+      let newGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList'
+      let newGraphCost = if (not . null) newGraphList then snd5 $ head newGraphList
                          else infinity
 
-      in
       -- trace ("DANE: " <> (show (newGraphCost, length newGraphList))) (
       -- if graph is a tree no edges to delete
-      if LG.isTree (fst5 $ head inPhyloGraphList) then
+      if LG.isTree (fst5 $ head inPhyloGraphList) then do
          -- let (a,b,c,d) = LG.splitVertexList (fst5 $ head inPhyloGraphList)
          -- in
-         trace ("\tGraph in delete network edges is tree--skipping") --  :" <> (show $ (snd5 $ head inPhyloGraphList, length a, length b, length c, length d)))
+         logWith  LogInfo ("\tGraph in delete network edges is tree--skipping") --  :" <> (show $ (snd5 $ head inPhyloGraphList, length a, length b, length c, length d)))
          deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
 
       -- is this an issue for SA?
-      else if null newGraphList then (take numToKeep curBestGraphList, counter + 1)
+      else if null newGraphList then do
+         pure (take numToKeep curBestGraphList, counter + 1)
 
       -- regular delete wihtout simulated annealing
-      else if isNothing inSimAnnealParams then
+      else if isNothing inSimAnnealParams then do
             postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (tail randIntList) inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost
 
       -- simulated annealing
-      else
-         let (saGraphs, saCounter) = postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (tail randIntList) newSAParams inPhyloGraphList newGraphList newGraphCost currentCost
-         in
+      else do
+         (saGraphs, saCounter) <- postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (tail randIntList) newSAParams inPhyloGraphList newGraphList newGraphCost currentCost
 
          --if want mutated then return
-         if returnMutated then (saGraphs, saCounter)
+         if returnMutated then do
+            pure (saGraphs, saCounter)
 
          -- insert non-minimal edges if any
          -- not sim anneal/drift regular optimal searching
-         else
+         else do
             let annealBestCost = minimum $ fmap snd5 saGraphs
-                (bestList', counter') =  insertAllNetEdges' inGS inData maxNetEdges numToKeep saCounter False doSteepest doRandomOrder (saGraphs, annealBestCost) (randomIntList $ head randIntList) Nothing saGraphs
-                bestList = GO.selectGraphs Best numToKeep 0.0 (-1) bestList'
-            in
-            (bestList, counter')
+            insertedGraphs <- insertAllNetEdges' inGS inData maxNetEdges numToKeep saCounter False doSteepest doRandomOrder (saGraphs, annealBestCost) (randomIntList $ head randIntList) Nothing saGraphs
+            let (bestList', counter') = insertedGraphs
+            let bestList = GO.selectGraphs Best numToKeep 0.0 (-1) bestList'
+            
+            pure (bestList, counter')
 
 
 -- | postProcessNetworkDeleteSA postprocesses results from delete actions for non-annealing/Drift network delete operations
@@ -954,7 +987,7 @@ postProcessNetworkDeleteSA :: GlobalSettings
                          -> [ReducedPhylogeneticGraph]
                          -> VertexCost
                          -> VertexCost
-                         -> ([ReducedPhylogeneticGraph], Int)
+                         -> PhyG ([ReducedPhylogeneticGraph], Int)
 postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) randIntList inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
 
    -- this to deal with empty list issues if nothing found
@@ -965,19 +998,19 @@ postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutat
    in
 
    -- always accept if found better
-   if newGraphCost < currentCost then
-      trace ("\t-> " <> (show newGraphCost))
+   if newGraphCost < currentCost then do
+      logWith  LogInfo  ("\t-> " <> (show newGraphCost))
       deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) randIntList inSimAnnealParams graphsToDelete
 
    -- check if hit max change/ cooling steps
-   else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then
+   else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then do
          --trace ("PPA return: " <> (show (newMinCost, curBestCost)))
-         (GO.selectGraphs Unique numToKeep 0.0 (-1) (newGraphList <> curBestGraphList), counter)
+        pure (GO.selectGraphs Unique numToKeep 0.0 (-1) (newGraphList <> curBestGraphList), counter)
 
    -- more to do
     else
        let annealBestCost = min curBestGraphCost newGraphCost
-       in
+       in do
        deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (firstNewGraphList <>  curBestGraphList, annealBestCost) randIntList inSimAnnealParams (nextNewGraphList <> inPhyloGraphList)
 
 
@@ -997,27 +1030,28 @@ postProcessNetworkDelete :: GlobalSettings
                          -> [ReducedPhylogeneticGraph]
                          -> VertexCost
                          -> VertexCost
-                         -> ([ReducedPhylogeneticGraph], Int)
+                         -> PhyG ([ReducedPhylogeneticGraph], Int)
 postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, _) randIntList inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
 
    -- worse graphs found--go on
-   if  newGraphCost > currentCost then deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) randIntList inSimAnnealParams (tail inPhyloGraphList)
+   if  newGraphCost > currentCost then do
+      deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) randIntList inSimAnnealParams (tail inPhyloGraphList)
 
    -- "steepest style descent" abandons existing list if better cost found
-   else if newGraphCost < currentCost then
-      trace ("\t-> " <> (show newGraphCost)) (
-      if doSteepest then
+   else if newGraphCost < currentCost then do
+      logWith  LogInfo ("\t-> " <> (show newGraphCost)) 
+      if doSteepest then do
          deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) randIntList inSimAnnealParams newGraphList
-      else
+      else do
          deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newGraphList, newGraphCost) randIntList inSimAnnealParams (newGraphList <> (tail inPhyloGraphList))
-      )
+      
 
    -- equal cost
    -- not sure if should add new graphs to queue to do edge deletion again
    else
       -- new graph list contains the input graph if equal and filterd unique already in deleteEachNetEdge
       let newCurSameBestList =  GO.selectGraphs Unique numToKeep 0.0 (-1) (curBestGraphList <> newGraphList)
-      in
+      in do
       deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder (newCurSameBestList, currentCost) randIntList inSimAnnealParams (tail inPhyloGraphList)
 
 -- | deleteOneNetAddAll' wrapper on deleteOneNetAddAll to allow for parmap
@@ -1031,7 +1065,7 @@ deleteOneNetAddAll'  :: GlobalSettings
                       -> Int
                       -> Maybe SAParams
                       -> LG.Edge
-                      -> [ReducedPhylogeneticGraph]
+                      -> PhyG [ReducedPhylogeneticGraph]
 deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph rSeed inSimAnnealParams edgeToDelete = 
    deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph [edgeToDelete] rSeed inSimAnnealParams 
 
@@ -1048,25 +1082,23 @@ deleteOneNetAddAll :: GlobalSettings
                    -> [LG.Edge]
                    -> Int
                    -> Maybe SAParams
-                   -> [ReducedPhylogeneticGraph]
+                   -> PhyG [ReducedPhylogeneticGraph]
 deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph edgeToDeleteList rSeed inSimAnnealParams =
-   if null edgeToDeleteList then
+   if null edgeToDeleteList then do
       -- trace ("\tGraph has no edges to move---skipping")
-      [inPhyloGraph]
+      pure [inPhyloGraph]
    else if LG.isEmpty $ thd5 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
-   else
+   else do
       -- trace ("DONAA-New: " <> (show $ snd5 inPhyloGraph) <> " Steepest:" <> (show doSteepest)) (
-      trace ("Moving " <> (show $ length edgeToDeleteList) <> " network edges, current best cost: " <> (show $ snd5 inPhyloGraph)) (
+      logWith LogInfo  ("Moving " <> (show $ length edgeToDeleteList) <> " network edges, current best cost: " <> (show $ snd5 inPhyloGraph)) 
       -- start with initial graph cost
       let inGraphCost = snd5 inPhyloGraph
 
           -- get deleted simple graphs and bool for changed
-          delGraphBoolPair = deleteNetworkEdge (fst5 inPhyloGraph) (head edgeToDeleteList)
-
-      in
+      delGraphBoolPair <- deleteNetworkEdge (fst5 inPhyloGraph) (head edgeToDeleteList)
 
       -- no change in network structure
-      if snd delGraphBoolPair == False then
+      if snd delGraphBoolPair == False then do
          deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph (tail edgeToDeleteList) rSeed inSimAnnealParams
 
       else
@@ -1083,22 +1115,23 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
               -- keep same cost and just keep better--check if better than original later
               graphToInsert' = T.updatePhylogeneticGraphCostReduced graphToInsert inGraphCost
 
+          in do
+              insertedGraphTripleList <- insertEachNetEdge inGS inData rSeed (curNumNetNodes + 1) numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams graphToInsert'
 
-              insertedGraphTripleList = insertEachNetEdge inGS inData rSeed (curNumNetNodes + 1) numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams graphToInsert'
+              let newMinimumCost = snd3 insertedGraphTripleList
 
-              newMinimumCost = snd3 insertedGraphTripleList
+              let newBestGraphs = filter ((== newMinimumCost) . snd5) $ fst3 insertedGraphTripleList
 
-              newBestGraphs = filter ((== newMinimumCost) . snd5) $ fst3 insertedGraphTripleList
+          
+              -- trace ("DONAA-New: " <> (show (inGraphCost, fmap snd5 graphsToInsert, fmap snd5 graphsToInsert', newMinimumCost))) (
+              if newMinimumCost < inGraphCost then do
+                -- trace ("DONA-> ")
+                pure newBestGraphs
 
-          in
-          -- trace ("DONAA-New: " <> (show (inGraphCost, fmap snd5 graphsToInsert, fmap snd5 graphsToInsert', newMinimumCost))) (
-          if newMinimumCost < inGraphCost then
-             -- trace ("DONA-> ")
-             newBestGraphs
+              else do
+                deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph (tail edgeToDeleteList) rSeed inSimAnnealParams
 
-          else deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph (tail edgeToDeleteList) rSeed inSimAnnealParams
-
-          ) -- )
+          
 
 
 -- | getPermissibleEdgePairs takes a DecoratedGraph and returns the list of all pairs
@@ -1376,10 +1409,11 @@ deleteEachNetEdge :: GlobalSettings
                   -> Bool
                   -> Maybe SAParams
                   -> ReducedPhylogeneticGraph
-                  -> ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+                  -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
 deleteEachNetEdge inGS inData rSeed numToKeep doSteepest doRandomOrder force inSimAnnealParams inPhyloGraph =
    -- trace ("DENE start") (
-   if LG.isEmpty $ thd5 inPhyloGraph then ([], infinity, inSimAnnealParams) -- error "Empty input phylogenetic graph in deleteAllNetEdges"
+   if LG.isEmpty $ thd5 inPhyloGraph then do
+      pure ([], infinity, inSimAnnealParams) -- error "Empty input phylogenetic graph in deleteAllNetEdges"
    else
       let currentCost = snd5 inPhyloGraph
 
@@ -1388,59 +1422,68 @@ deleteEachNetEdge inGS inData rSeed numToKeep doSteepest doRandomOrder force inS
           networkEdgeList = if not doRandomOrder then networkEdgeList'
                             else permuteList rSeed networkEdgeList'
 
+      in do
+            delNetEdgeList <- mapM (deleteNetEdge inGS inData inPhyloGraph force) networkEdgeList
+            deleteNetEdgeRecursiveList <- deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams networkEdgeList
+            let (newGraphList, newSAParams) = if not doSteepest then 
+                                          -- TODO 
+                                          -- (PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteNetEdge inGS inData inPhyloGraph force) networkEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
+                                          (delNetEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
+                                        else deleteNetEdgeRecursiveList
+                                          
 
-          (newGraphList, newSAParams) = if not doSteepest then
-                                          (PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteNetEdge inGS inData inPhyloGraph force) networkEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
-                                        else
-                                          deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams networkEdgeList
+            let bestCostGraphList = filter ((/= infinity) . snd5) $ GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList
+            let minCost = if null bestCostGraphList then infinity
+                        else minimum $ fmap snd5 bestCostGraphList
+   
+            -- no network edges to delete
+            if null networkEdgeList then do
+               logWith LogInfo ("\tNo network edges to delete") 
+               pure ([inPhyloGraph], currentCost, inSimAnnealParams)
 
-          bestCostGraphList = filter ((/= infinity) . snd5) $ GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList
-          minCost = if null bestCostGraphList then infinity
-                    else minimum $ fmap snd5 bestCostGraphList
-      in
-      -- no network edges to delete
-      if null networkEdgeList then trace ("\tNo network edges to delete") ([inPhyloGraph], currentCost, inSimAnnealParams)
-
-      else
-         -- single if steepest so no neeed to unique--and have run through all options (including SA stuff) via recursive call
-         if doSteepest then
-            (newGraphList, minCost, newSAParams)
-
-      -- "all" option needs to recurse since does all available edges at each step
-      -- logic is here since not in the deleteNetEdge function
-      else if isNothing inSimAnnealParams then
-         if minCost < currentCost then
-            -- trace ("DENE--Delete net edge return:" <> (show (minCost,length uniqueCostGraphList))) (
-            let newRandIntList = take (length bestCostGraphList) (randomIntList rSeed)
-                annealParamList = U.generateUniqueRandList (length bestCostGraphList) newSAParams
-                nextGraphTripleList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force) (zip3 annealParamList newRandIntList bestCostGraphList)
-
-                newMinCost = minimum $ fmap snd3 nextGraphTripleList
-                newGraphListBetter = filter ((== newMinCost) . snd5) $ concatMap fst3 nextGraphTripleList
-            in
-            (GO.selectGraphs Unique numToKeep 0.0 (-1) $ newGraphListBetter, newMinCost, newSAParams)
-
-         else
-            (bestCostGraphList, currentCost, newSAParams)
-
-      -- SA anneal/Drift
-      else
-            -- always take better
-            if minCost < currentCost then
-               (bestCostGraphList, minCost, newSAParams)
-
-            -- check if hit step limit--more for SA than drift
-            else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then
-                  ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
-
-            -- otherwise do the anneal/Drift accept, or keep going on input graph
             else
-               let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams currentCost minCost
-               in
-               if acceptGraph then
-                  (bestCostGraphList, minCost, newSAParams)
-               else
-                  deleteEachNetEdge inGS inData (head $ randomIntList rSeed) numToKeep doSteepest doRandomOrder force nextSAParams inPhyloGraph
+               -- single if steepest so no neeed to unique--and have run through all options (including SA stuff) via recursive call
+               if doSteepest then do
+                  pure (newGraphList, minCost, newSAParams)
+
+            -- "all" option needs to recurse since does all available edges at each step
+            -- logic is here since not in the deleteNetEdge function
+            else if isNothing inSimAnnealParams then
+               if minCost < currentCost then
+                  -- trace ("DENE--Delete net edge return:" <> (show (minCost,length uniqueCostGraphList))) (
+                  let newRandIntList = take (length bestCostGraphList) (randomIntList rSeed)
+                      annealParamList = U.generateUniqueRandList (length bestCostGraphList) newSAParams
+                  in do
+                      -- TODO
+                      -- nextGraphTripleList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force) (zip3 annealParamList newRandIntList bestCostGraphList)
+                      nextGraphTripleList <- mapM (deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force) (zip3 annealParamList newRandIntList bestCostGraphList)
+
+                      let newMinCost = minimum $ fmap snd3 nextGraphTripleList
+                      let newGraphListBetter = filter ((== newMinCost) . snd5) $ concatMap fst3 nextGraphTripleList
+                  
+                      pure (GO.selectGraphs Unique numToKeep 0.0 (-1) $ newGraphListBetter, newMinCost, newSAParams)
+
+               else do
+                  pure (bestCostGraphList, currentCost, newSAParams)
+
+            -- SA anneal/Drift
+            else
+                  -- always take better
+                  if minCost < currentCost then do
+                     pure (bestCostGraphList, minCost, newSAParams)
+
+                  -- check if hit step limit--more for SA than drift
+                  else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then do
+                        pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
+
+                  -- otherwise do the anneal/Drift accept, or keep going on input graph
+                  else
+                     let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams currentCost minCost
+                     in
+                     if acceptGraph then do
+                        pure (bestCostGraphList, minCost, newSAParams)
+                     else do
+                        deleteEachNetEdge inGS inData (head $ randomIntList rSeed) numToKeep doSteepest doRandomOrder force nextSAParams inPhyloGraph
 
 -- | deleteEachNetEdge' is a wrapper around deleteEachNetEdge to allow for zipping new random seeds for each
 -- replicate
@@ -1451,7 +1494,7 @@ deleteEachNetEdge' :: GlobalSettings
                   -> Bool
                   -> Bool
                   -> (Maybe SAParams, Int, ReducedPhylogeneticGraph)
-                  -> ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+                  -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
 deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force (inSimAnnealParams, rSeed, inPhyloGraph) =
    deleteEachNetEdge inGS inData rSeed numToKeep doSteepest doRandomOrder force inSimAnnealParams inPhyloGraph
 
@@ -1466,9 +1509,10 @@ deleteNetEdgeRecursive :: GlobalSettings
                        -> Bool
                        -> Maybe SAParams
                        -> [LG.Edge]
-                       -> ([ReducedPhylogeneticGraph], Maybe SAParams)
+                       -> PhyG ([ReducedPhylogeneticGraph], Maybe SAParams)
 deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeToDeleteList =
-   if null inEdgeToDeleteList then ([], inSimAnnealParams)
+   if null inEdgeToDeleteList then do
+      pure ([], inSimAnnealParams)
    else
        let {- Unclear if should adjust to number of rounds if already limiting to graphsSteepest value
             saRounds = if isNothing inSimAnnealParams then 1
@@ -1479,21 +1523,23 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
            numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
            -- edgeToDelete = head inEdgeToDeleteList
            edgeToDeleteList = take numGraphsToExamine inEdgeToDeleteList
-
+       in do
            -- calls general funtion to remove network graph edge
            -- (delSimple, wasModified) = deleteNetworkEdge (fst5 inPhyloGraph) edgeToDelete
-           simpleGraphList = fmap fst $ filter ((== True) . snd) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteNetworkEdge (fst5 inPhyloGraph)) edgeToDeleteList
+           -- TODO 
+           simpleGraphList' <- mapM (deleteNetworkEdge (fst5 inPhyloGraph)) edgeToDeleteList
+           let simpleGraphList = fmap fst $ filter ((== True) . snd) simpleGraphList' -- $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteNetworkEdge (fst5 inPhyloGraph)) edgeToDeleteList
 
            -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst5 inPhyloGraph
 
            -- prune other edges if now unused
-           pruneEdges = False
+           let pruneEdges = False
 
            -- don't warn that edges are being pruned
-           warnPruneEdges = False
+           let warnPruneEdges = False
 
            -- graph optimization from root
-           startVertex = Nothing
+           let startVertex = Nothing
 
            -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
            -- heuristicDelta = 0.0
@@ -1502,64 +1548,63 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
            -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
 
            -- full two-pass optimization
-           leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
+           let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
                                  
-           newPhyloGraphList' = if (graphType inGS == SoftWired) then
+           let newPhyloGraphList' = if (graphType inGS == SoftWired) then
                                   PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex) simpleGraphList
                                  else if (graphType inGS == HardWired) then
                                     PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex) simpleGraphList
                                  else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
 
-           newPhyloGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) newPhyloGraphList'
+           let newPhyloGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) newPhyloGraphList'
 
-       in
-       -- if not modified return original graph
-       -- This check seems to be issue with delete not functioning properly
-       if null simpleGraphList then ([inPhyloGraph], inSimAnnealParams)
+           -- if not modified return original graph
+           -- This check seems to be issue with delete not functioning properly
+           if null simpleGraphList then do
+             pure ([inPhyloGraph], inSimAnnealParams)
 
-       -- forcing delete for move
-       else if force then
-         -- trace ("DNERec forced")
-         (newPhyloGraphList, inSimAnnealParams)
+           -- forcing delete for move
+           else if force then do
+               -- trace ("DNERec forced")
+               pure (newPhyloGraphList, inSimAnnealParams)
 
-       -- regular search not sim anneal/drift
-       else if (isNothing inSimAnnealParams) then
+             -- regular search not sim anneal/drift
+           else if (isNothing inSimAnnealParams) then
 
-          --return if better
-          if (snd5 $ head newPhyloGraphList) < (snd5 inPhyloGraph) then
-            -- trace  ("DNERec Better -> " <> (show $ snd5 newPhyloGraph))
-            (newPhyloGraphList, inSimAnnealParams)
+                --return if better
+              if (snd5 $ head newPhyloGraphList) < (snd5 inPhyloGraph) then do
+                     -- trace  ("DNERec Better -> " <> (show $ snd5 newPhyloGraph))
+                     pure (newPhyloGraphList, inSimAnnealParams)
 
-          else
-            -- need to update edge list for new graph
-            -- potentially randomize order of list
-            deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (drop numGraphsToExamine inEdgeToDeleteList)
+              else do
+                     -- need to update edge list for new graph
+                     -- potentially randomize order of list
+                     deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (drop numGraphsToExamine inEdgeToDeleteList)
 
-      -- sim anneal/drift
-      else
-
-         -- if better always accept
-         if (snd5 $ head newPhyloGraphList) < (snd5 inPhyloGraph) then
-            -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
-            let (_, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) (snd5 $ head newPhyloGraphList)
-            in
-            (newPhyloGraphList, nextSAParams)
-
-
-         -- check if hit step limit--more for SA than drift
-         else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then
-                  ([inPhyloGraph], inSimAnnealParams)
+              -- sim anneal/drift
+           else
+                  -- if better always accept
+                  if (snd5 $ head newPhyloGraphList) < (snd5 inPhyloGraph) then
+                     -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
+                     let (_, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) (snd5 $ head newPhyloGraphList)
+                     in do
+                     pure (newPhyloGraphList, nextSAParams)
 
 
-          -- otherwise do the anneal/Drift accept
-         else
-            let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) (snd5 $ head newPhyloGraphList)
-            in
-            if acceptGraph then
-                (newPhyloGraphList, nextSAParams)
+                  -- check if hit step limit--more for SA than drift
+                  else if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams)) || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams)) then do
+                     pure ([inPhyloGraph], inSimAnnealParams)
 
-            else
-               deleteNetEdgeRecursive inGS inData inPhyloGraph force nextSAParams (drop numGraphsToExamine inEdgeToDeleteList)
+
+                   -- otherwise do the anneal/Drift accept
+                  else
+                     let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) (snd5 $ head newPhyloGraphList)
+                     in
+                     if acceptGraph then do
+                        pure (newPhyloGraphList, nextSAParams)
+
+                     else do
+                        deleteNetEdgeRecursive inGS inData inPhyloGraph force nextSAParams (drop numGraphsToExamine inEdgeToDeleteList)
 
 -- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 -- contacts in=out=1 edgfes and removes node, reindexing nodes and edges
@@ -1572,54 +1617,57 @@ deleteNetEdge :: GlobalSettings
               -> ReducedPhylogeneticGraph 
               -> Bool 
               -> LG.Edge 
-              -> ReducedPhylogeneticGraph
+              -> PhyG ReducedPhylogeneticGraph
 deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
-   if LG.isEmpty $ thd5 inPhyloGraph then error "Empty input phylogenetic graph in deleteNetEdge"
-   else if not (LG.isNetworkEdge (fst5 inPhyloGraph) edgeToDelete) then error ("Edge to delete: " <> (show edgeToDelete) <> " not in graph:\n" <> (LG.prettify $ fst5 inPhyloGraph))
-   else
-       -- trace ("DNE: " <> (show edgeToDelete)) (
-       let (delSimple, wasModified)  = deleteNetworkEdge (fst5 inPhyloGraph) edgeToDelete
+   if LG.isEmpty $ thd5 inPhyloGraph then 
+      error "Empty input phylogenetic graph in deleteNetEdge"
+   else if not (LG.isNetworkEdge (fst5 inPhyloGraph) edgeToDelete) then 
+      error ("Edge to delete: " <> (show edgeToDelete) <> " not in graph:\n" <> (LG.prettify $ fst5 inPhyloGraph))
+   else 
+      do
+      -- trace ("DNE: " <> (show edgeToDelete)) (
+      (delSimple, wasModified) <- deleteNetworkEdge (fst5 inPhyloGraph) edgeToDelete
 
            -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst5 inPhyloGraph
 
            -- prune other edges if now unused
-           pruneEdges = False
+      let pruneEdges = False
 
            -- don't warn that edges are being pruned
-           warnPruneEdges = False
+      let warnPruneEdges = False
 
-           -- graph optimization from root
-           startVertex = Nothing
+      -- graph optimization from root
+      let startVertex = Nothing
 
-           -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
-
-
-           -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+      -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
 
 
-           -- full two-pass optimization--cycles checked in edge deletion function
-           leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
+      -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+
+
+      -- full two-pass optimization--cycles checked in edge deletion function
+      let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
                                  
-           newPhyloGraph = if (graphType inGS == SoftWired) then
+      let newPhyloGraph = if (graphType inGS == SoftWired) then
                               T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
                            else if (graphType inGS == HardWired) then
                               T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
-       in
        --check if deletino modified graph
-       if not wasModified then inPhyloGraph
+      if not wasModified then do 
+         pure inPhyloGraph
 
        -- else if force || (graphType inGS) == HardWired then
-       else if force then
+      else if force then do
          -- trace ("DNE forced")
-         newPhyloGraph
-       else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
-         if (snd5 newPhyloGraph) < (snd5 inPhyloGraph) then
+         pure newPhyloGraph
+      else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
+         if (snd5 newPhyloGraph) < (snd5 inPhyloGraph) then do
             -- trace ("DNE Better: " <> (show $ snd5 newPhyloGraph))
-            newPhyloGraph
-         else
+            pure newPhyloGraph
+      else do
             -- trace ("DNE Not Better: " <> (show $ snd5 newPhyloGraph))
-            inPhyloGraph
+            pure inPhyloGraph
       -- )
 
 -- | deleteNetworkEdge deletes a network edges from a simple graph
@@ -1632,7 +1680,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
 -- checks for cycles now
 -- shouldn't need for check for creating a node with children that are both network nodes
 -- since that would require that condition coming in and shodl be there--ie checked earlier in addition and input
-deleteNetworkEdge :: SimpleGraph -> LG.Edge -> (SimpleGraph, Bool)
+deleteNetworkEdge :: SimpleGraph -> LG.Edge -> PhyG (SimpleGraph, Bool)
 deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
    if LG.isEmpty inGraph then error ("Cannot delete edge from empty graph")
    else
@@ -1654,22 +1702,23 @@ deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
       else if length parentsNodeToDelete /= 2 then error ("Cannot delete non-network edge in deleteNetworkEdge (2): " <> (show inEdge) <> "\n" <> (LG.prettyIndices inGraph))
 
       -- warning if chained on input, skip if chained net edges in output
-      else if (LG.isNetworkNode inGraph p1) then
+      else if (LG.isNetworkNode inGraph p1) then do
          -- error ("Error: Chained network nodes in deleteNetworkEdge : " <> (show inEdge) <> "\n" <> (LG.prettyIndices inGraph) <> " skipping")
-         trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion")
-         (LG.empty, False)
+         logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion")
+         pure (LG.empty, False)
 
-      else if LG.hasChainedNetworkNodes newGraph'' then
-         trace ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)")
-         (LG.empty, False)
+      else if LG.hasChainedNetworkNodes newGraph'' then do
+         logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)")
+         pure (LG.empty, False)
 
-      else if LG.isEmpty newGraph'' then (LG.empty, False)
+      else if LG.isEmpty newGraph'' then do
+         pure (LG.empty, False)
 
-      else
+      else do
          {-trace ("DNE: Edge to delete " <> (show inEdge) <> " cnd " <> (show childrenNodeToDelete) <> " pnd " <> (show parentsNodeToDelete) <> " pntk " <> (show parentNodeToKeep)
             <> " ne " <> (show newEdge) <> "\nInGraph: " <> (LG.prettyIndices inGraph) <> "\nNewGraph: " <> (LG.prettyIndices newGraph) <> "\nNewNewGraph: "
             <> (LG.prettyIndices newGraph')) -}
-         (newGraph'', True)
+         pure (newGraph'', True)
 
 
 -- | heuristicDeleteDelta takes the existing graph, edge to delete,

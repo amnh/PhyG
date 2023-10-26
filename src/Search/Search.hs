@@ -24,7 +24,6 @@ import Data.List.Split qualified as LS
 import Data.Maybe
 -- import qualified GraphOptimization.Traversals as T
 import Data.Vector qualified as V
-import Debug.Trace
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import Search.Build qualified as B
@@ -39,6 +38,7 @@ import Types.Types
 import UnliftIO.Async (pooledMapConcurrently)
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import Debug.Trace
 
 
 -- Bandit lists are concateenated for each of use andd update--first 3 are graph evaluation
@@ -827,32 +827,32 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     let -- network add args
                         netEditArgs = netAddArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
                 "networkDelete" →
                     let -- network delete args
                         netEditArgs = netDelArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
                 "networkAddDelete" →
                     let -- network add/delete args
                         netEditArgs = netAddDelArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
                 "networkMove" →
                     let -- network move args
                         netEditArgs = netMoveArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
                 "driftNetwork" →
                     let -- network add/delete  + drift args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> driftArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
                 "annealNetwork" →
                     let -- network add/delete  + annealing  args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> annealArgs
                     in  -- perform search
-                        pure (R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList, netEditArgs)
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
                 _ → error ("Unknown/unimplemented method in search: " <> searchBandit)
 
             -- process
