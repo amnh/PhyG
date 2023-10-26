@@ -1,37 +1,5 @@
 {- |
-Module      :  DataTransformation.hs
-Description :  Module with functionality to transform phylogenetic data
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module with functionality to transform phylogenetic data
 -}
 
 
@@ -55,6 +23,9 @@ import Data.Alphabet
 import Data.Alphabet.Codec
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special
+import Control.Evaluation
+import Control.Monad.Logger
+import Data.Functor (($>))
 import Data.Bifunctor
 import Data.Bimap (Bimap)
 import Data.Bimap qualified as BM
@@ -111,22 +82,20 @@ checkLeafMissingData theshold inDataList =
 -- this can happen when taxa are renamed or added in terminals file
 -- only checks a list length of 1 basically a sequence character
 -- static chars passed on
-removeAllMissingCharacters :: RawData -> [RawData]
-removeAllMissingCharacters inData =
-    let termData = fst inData
-        charData = snd inData
-        lengthCheck = filter (> 0) $ fmap length $ fmap snd termData
-    in
-    -- trace ("RAMC: " <> (T.unpack $ name $ head charData) <> (show (length termData, length charData))) (
-    -- if length charData /= 1 then error ("removeAllMissingCharacters assumes a single character input and has " <> (show $ length charData))
-    -- check for non-single sequence character
-    if length charData /= 1 || ((charType $ head charData) `elem` exactCharacterTypes) then [inData]
-    else
-        if (not . null) lengthCheck then [inData]
-        else
-            trace ("Warning: Input file " <> (T.unpack $ name $ head charData) <> " contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped.")
-            []
-    -- )
+removeAllMissingCharacters :: RawData -> PhyG [RawData]
+removeAllMissingCharacters inData@(termData, charData) =
+    let lengthCheck = exists . filter (> 0) $ length . snd <$>termData
+        -- check for non-single sequence character
+        multipleSeqChar = length charData /= 1 || ((charType $ head charData) `elem` exactCharacterTypes)
+        warnMessage = unwords
+            [ "Input file", T.unpack . name $ head charData
+            , "contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped."
+            ]
+        result
+            | multipleSeqChar || lengthCheck = pure [inData]
+            | otherwise = logWith LogWarn warnMessage $> []
+    in result
+
 
 -- | partitionSequences takes a character to split sequnces, usually '#'' as in POY, but can be changed
 -- and divides the seqeunces into corresponding partitions.  Replicate character info appending
@@ -187,7 +156,7 @@ removeTaxaWithNoData :: [TermData] -> [TermData]
 removeTaxaWithNoData inTermData =
     if null inTermData then []
     else
-        let newData = filter ((not . null).snd) inTermData
+        let newData = filter (exists . snd) inTermData
         in
         --trace ((show $ length inTermData) <> " -> " <> (show $ length newData))
         newData
@@ -328,11 +297,12 @@ createBVNames inDataList =
 -- for data output as they haven't been reordered or transformed in any way.
 -- the RawData is a list since it is organized by input file
 -- the list accumulator is to avoid Vector snoc/cons O(n)
-createNaiveData :: GlobalSettings -> [RawData] -> [(T.Text, HugeState)] -> [BlockData] -> ProcessedData
+createNaiveData :: GlobalSettings -> [RawData] -> [(T.Text, HugeState)] -> [BlockData] -> PhyG ProcessedData
 createNaiveData inGS inDataList leafBitVectorNames curBlockData =
     -- trace ("CND: " <> (show $ (optimalityCriterion inGS))) $
     if null inDataList
     then --trace ("Naive data with " <> (show $ length curBlockData) <> " blocks and " <> (show $ fmap length $ fmap V.head $ fmap snd3 curBlockData) <> " characters")
+        pure
         ( V.fromList $ fmap fst leafBitVectorNames
         , V.fromList $ fmap snd leafBitVectorNames
         , V.fromList $ reverse curBlockData
@@ -385,11 +355,8 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
             in
             -- trace ("CND:" <> (show $ fmap length $ (fmap snd firstData))) (
             if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " <> (takeWhile (/= '#') $ T.unpack thisBlockName') <> "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " <> (show nameMinPairList) <> "\nNon Minimum length taxa: " <> (show nameNonMinPairList) )
-            -- trace ("CND:" <> (show $ fmap snd firstData)) (
-            else
-                trace ("Recoding input block: " <> T.unpack thisBlockName')
-                createNaiveData inGS (tail inDataList) leafBitVectorNames  (thisBlockData : curBlockData)
-            -- )
+            else logWith LogInfo ("Recoding input block: " <> T.unpack thisBlockName') *>
+                createNaiveData inGS (tail inDataList) leafBitVectorNames (thisBlockData : curBlockData)
 
 -- | reweightNCM takes character info and reweights via NCM (Tuffley and Steel, 1997) -log_10 1/(alphabet size)
 reweightNCM :: CharInfo -> CharInfo
@@ -642,7 +609,7 @@ getStateBitVectorList localStates =
     else
         let stateCount     = toEnum $ length localStates
             stateIndexList = [0 .. stateCount - 1]
-            genNum = (2^) :: Word -> Natural
+            genNum = (2 ^) :: Word -> Natural
             bvList = fmap (BV.fromNumber stateCount . genNum) stateIndexList
         in  V.fromList $ zip (toList localStates) bvList
 
@@ -994,3 +961,7 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
                             error "Mismatch in number of characters and character info"
                 else  getQualitativeCharacters inCharInfoList rawDataList []
                 -- )
+
+
+exists :: Foldable f => f a -> Bool
+exists = not . null

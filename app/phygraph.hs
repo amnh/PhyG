@@ -179,17 +179,17 @@ performSearch initialSeed inputFilePath = do
     let crossReferenceString = CSV.genCsvFile $ CE.getDataListList renamedData dataLeafNames
 
     -- add in missing terminals to raw data where required
-    let reconciledData' = fmap (DT.addMissingTerminalsToInput dataLeafNames []) renamedData
+    let reconciledData' = DT.addMissingTerminalsToInput dataLeafNames [] <$> renamedData
 
     -- check for data file with all missing data--as in had no terminals with data in termainals list
-    let reconciledData = foldMap DT.removeAllMissingCharacters reconciledData'
+    reconciledData <- fold <$> traverse DT.removeAllMissingCharacters reconciledData'
 
     let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames . GFU.checkGraphsAndData dataLeafNames) renamedGraphs
 
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList =
-            filter ((== 0) . snd) $
-                zip dataLeafNames $
+            filter ((== 0) . snd) .
+                zip dataLeafNames .
                     foldl1 (zipWith (+)) $
                         fmap (fmap (snd3 . U.filledDataFields (0, 0)) . fst) reconciledData
     if not (null taxaDataSizeList)
@@ -226,7 +226,7 @@ performSearch initialSeed inputFilePath = do
 
     -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
     -- Need to check data for equal in character number
-    let naiveData = DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
+    naiveData <- DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
 
     -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
     let reportingData =
