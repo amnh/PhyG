@@ -539,7 +539,7 @@
 	\begin{example}
 
 		\item{\texttt{reblock("a","b\#0","c\#0")}\\ Assigns input data from file ``\textbf{b}'' and 
-		``\textbf{c} to block ``\textbf{a}'', provided each of these files contain a single block 
+		``\textbf{c}'' to block ``\textbf{a}'', provided each of these files contain a single block 
 		of data.}
 	
 	\end{example}
@@ -553,9 +553,9 @@
 		\texttt{refine([argument list])}
 		
 	\begin{phygdescription}
-		{Performs Genetic Algorithm for any graph type. In addition, it performs edit operations 
-		(addition, deletion, and move) on network edges that only applies to softwired 
-		and hardwired graphs.}
+		{Performs Genetic Algorithm \citep{Holland1975} for any graph type. In addition, 
+		it performs edit operations (addition, deletion, and move) on network edges that 
+		only applies to softwired and hardwired graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
@@ -570,7 +570,6 @@
 		is the cost of the current best graph, and $wf$ is the values as specified by the float 
 		(default 1.0). This argument can be applied to \texttt{drift} 	and \texttt{annealing}.
 	
-
 		\item[all] Turns off all preference strategies to make network edits, by simply trying 
 		all possible edits to the graph. This is a memory intensive refinement.
 		The refinement examines the entire rearrangement neighborhood of the current graph 
@@ -638,7 +637,7 @@
 		integer value. 
 		
 		\item[maxnetedges:INT] Specifies the maximum number of network edges, as indicated 
-		by the integer value.
+		by the integer value. % The number of edges visited?
 		
 		\item[netadd] Adds network edges to existing input graphs at all possible positions 
 		until no better cost graph is found.
@@ -655,7 +654,7 @@
 		cost 	graph is found.
 			
 		\item[netmove] Moves existing network edges in input graphs one at a time to new 
-		positions 	until no better cost graph is found.
+		positions until no better cost graph is found.
 		
 	%	\item[returnmutated] 
 		
@@ -682,6 +681,8 @@
 		path, abandoning the neighborhood of the current graph when a better graph
 		of lower cost is found. During this operation, the network edit neighborhoods
 		are traversed at random. }
+		
+		\item {\texttt{refine(netmove, atrandom, steepest)}\\
 		
 		%add ga and drift examples
 	\end{example}
