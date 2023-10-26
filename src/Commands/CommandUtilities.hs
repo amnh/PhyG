@@ -55,7 +55,6 @@ import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
-import Debug.Trace
 import GeneralUtilities
 import GraphFormatUtilities
 import GraphOptimization.Traversals qualified as TRAV
@@ -74,6 +73,7 @@ import Data.List.NonEmpty qualified as NE
 import Control.Parallel.Strategies
 import ParallelUtilities qualified as PU
 -- import Commands.Transform qualified as DT
+-- import Debug.Trace
 
 
 -- | processSearchFields takes a [String] and reformats the String associated with the
@@ -663,8 +663,8 @@ getEdgeInfo inEdge =
 -- key to keep cost matrices and weights
 -- Uses Phylogenetic graph to noit repeat functions for display and charcter trees
 
-getTNTString :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> Int -> String
-getTNTString inGS inData inGraph graphNumber =
+getTNTString :: GlobalSettings -> ProcessedData -> (PhylogeneticGraph, Int) -> PhyG String
+getTNTString inGS inData (inGraph, graphNumber) =
     if LG.isEmpty (fst6 inGraph) then error "No graphs for create TNT data for in getTNTString"
     else
         let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
@@ -690,35 +690,36 @@ getTNTString inGS inData inGraph graphNumber =
 
                 -- get character strings
                 blockStringListstList = V.toList $ V.zipWith (getTaxonCharStringList charInfoVV) leafDataList (V.fromList leafNameList)
-                interleavedBlocks = concat $ makePairInterleave blockStringListstList charTypeList 
+            in do
+            interleavedBlocks' <- makePairInterleave blockStringListstList charTypeList 
+            let interleavedBlocks = concat interleavedBlocks'
+            -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString charInfoVV) leafDataList
+            -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
-                -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString charInfoVV) leafDataList
-                -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
+            -- length information for cc code extents
+            let charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) charInfoVV
 
-                -- length information for cc code extents
-                charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) charInfoVV
+            -- Block/Character names for use in comment to show sources of new characters
+            let charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
 
-                -- Block/Character names for use in comment to show sources of new characters
-                charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
+            let nameLengthPairList = zip charNameList charLengthList
+            let nameLengthString = concat $ pairListToStringList nameLengthPairList 0
 
-                nameLengthPairList = zip charNameList charLengthList
-                nameLengthString = concat $ pairListToStringList nameLengthPairList 0
-
-                -- merge lengths and cc codes
-                ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
-            in
+            -- merge lengths and cc codes
+            let ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
+            
             -- trace ("GTNTS:" <> (show charLengthList))
-            headerString  <> nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
+            pure $ headerString  <> nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
                 <> interleavedBlocks <> ";\n" <> ccCodeString <> tntTreeString <> finalString
 
 
         -- for softwired networks--use display trees
-        else if graphType inGS == SoftWired then
+        else if graphType inGS == SoftWired then do
 
             -- get display trees for each data block-- takes first of potentially multiple
-            let middleStuffString = createDisplayTreeTNT inGS inData inGraph
-            in
-            headerString <> middleStuffString <> tntTreeString <> finalString
+            middleStuffString <- createDisplayTreeTNT inGS inData inGraph
+            
+            pure $ headerString <> middleStuffString <> tntTreeString <> finalString
 
         -- for hard-wired networks--transfoirm to softwired and use display trees
         else if graphType inGS == HardWired then
@@ -732,25 +733,27 @@ getTNTString inGS inData inGraph graphNumber =
 
                 newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
 
-                middleStuffString = createDisplayTreeTNT inGS inData newGraph
+               
 
-            in
-            trace "There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation"
+            in do
+            middleStuffString <- createDisplayTreeTNT inGS inData newGraph
+
+            logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation"
             --headerString <> nameLengthString <> "'\n" <> (show $ sum charLengthList) <> " " <> (show numTaxa) <> "\n"
             --    <> nameCharStringList <> ";\n" <> ccCodeString <> finalString
-            headerString <> middleStuffString <> tntTreeString <> finalString
+            pure $ headerString <> middleStuffString <> tntTreeString <> finalString
 
-        else
-            trace ("TNT  not yet implemented for graphtype " <> show (graphType inGS))
-            ("There is no implied alignment for " <> show (graphType inGS))
+        else do
+            logWith LogWarn ("TNT  not yet implemented for graphtype " <> show (graphType inGS))
+            pure $ ("There is no implied alignment for " <> show (graphType inGS))
 
 
 -- | makePairInterleave creates interleave block strings from character name block list
 -- list of taxa and blocck with taxon name
-makePairInterleave :: [[String]] -> [CharType] -> [String]
+makePairInterleave :: [[String]] -> [CharType] -> PhyG [String]
 makePairInterleave inTaxCharStringList alphabetType = -- concat $ fmap concat inTaxCharStringList
-    if null inTaxCharStringList then []
-    else if null $ head inTaxCharStringList then []
+    if null inTaxCharStringList then do pure []
+    else if null $ head inTaxCharStringList then do pure []
     else
         let firstInterleave = concatMap (<> "\n") $ fmap head inTaxCharStringList
             remainder = fmap tail inTaxCharStringList
@@ -758,14 +761,18 @@ makePairInterleave inTaxCharStringList alphabetType = -- concat $ fmap concat in
                 | head alphabetType `elem` exactCharacterTypes = "& [num]"
                 | head alphabetType `elem` [NucSeq, AlignedSlim] = "& [dna gaps]"
                 | head alphabetType `elem` [AminoSeq, AlignedWide] = "& [prot gaps]"
-                | otherwise = 
-                    trace ("Warning--sequence data in tnt ouput not of type TNT accepts") 
-                    "& [other]"
-        in
-        (interleaveMarkerString <> "\n") : (firstInterleave : makePairInterleave remainder (tail alphabetType))
+                | otherwise = "& [other]"
+        in do
+        endString <- makePairInterleave remainder (tail alphabetType)
+        let returnString = (interleaveMarkerString <> "\n") : (firstInterleave : endString)
+        if (head alphabetType `notElem` (exactCharacterTypes <> [NucSeq, AlignedSlim] <> [AminoSeq, AlignedWide])) then do
+            logWith LogWarn ("Warning--sequence data in tnt ouput not of type TNT accepts") 
+            pure returnString
+        else do
+            pure returnString
 
 -- | createDisplayTreeTNT take a softwired graph and creates TNT data string
-createDisplayTreeTNT :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> String
+createDisplayTreeTNT :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> PhyG String
 createDisplayTreeTNT inGS inData inGraph =
     let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
         leafNameList = fmap ((<> "\t") . T.unpack) (fmap (vertName . snd) leafList)
@@ -790,24 +797,26 @@ createDisplayTreeTNT inGS inData inGraph =
 
         -- get character block strings as interleaved groups
         blockStringListstList = zipWith (getTaxonCharStringList charInfoVV) (V.toList leafDataList) leafNameList `using` PU.myParListChunkRDS
-        interleavedBlocks = concat $ makePairInterleave blockStringListstList charTypeList 
+    in do
+
+        interleavedBlocks' <- makePairInterleave blockStringListstList charTypeList 
+        let interleavedBlocks = concat interleavedBlocks' 
         
         -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString mergedCharInfoVV) leafDataList
         -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
         -- length information for cc code extents
-        charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) mergedCharInfoVV
+        let charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) mergedCharInfoVV
 
         -- Block/Character names for use in comment to show sources of new characters
-        charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
+        let charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
 
-        nameLengthPairList = zip charNameList charLengthList
-        nameLengthString = concat $ pairListToStringList nameLengthPairList 0
+        let nameLengthPairList = zip charNameList charLengthList
+        let nameLengthString = concat $ pairListToStringList nameLengthPairList 0
 
         -- merge lengths and cc codes
-        ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
-    in
-    nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
+        let ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
+        pure $ nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
                 <> interleavedBlocks <> ";\n" <> ccCodeString
 
 
@@ -1028,18 +1037,19 @@ getImpliedAlignmentString :: GlobalSettings
                           -> Bool 
                           -> Bool 
                           -> ProcessedData 
-                          -> ReducedPhylogeneticGraph 
-                          -> Int 
-                          -> String
-getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph graphNumber =
+                          -> (ReducedPhylogeneticGraph, Int) 
+                          -> PhyG String
+getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph, graphNumber) =
     if LG.isEmpty (fst5 inReducedGraph) then error "No graphs for create IAs for in getImpliedAlignmentStrings"
     else
         let headerString = "Implied Alignments for Graph " <> show graphNumber <> "\n"
             inGraph = GO.convertReduced2PhylogeneticGraph inReducedGraph
         in
         if graphType inGS == Tree then
-            if not concatSeqs then headerString <> getTreeIAString includeMissing inGraph
-            else headerString <> U.concatFastas (getTreeIAString includeMissing inGraph)
+            if not concatSeqs then do
+                pure $ headerString <> getTreeIAString includeMissing inGraph
+            else do
+                pure $ headerString <> U.concatFastas (getTreeIAString includeMissing inGraph)
 
         -- for softwired networks--use display trees
         else if graphType inGS == SoftWired then
@@ -1056,8 +1066,10 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph g
                 diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
 
             in
-            if not concatSeqs then headerString <> concat diplayIAStringList
-            else headerString <> U.concatFastas (concat diplayIAStringList)
+            if not concatSeqs then do
+                pure $ headerString <> concat diplayIAStringList
+            else do 
+                pure $ headerString <> U.concatFastas (concat diplayIAStringList)
 
         -- There is no IA for Hardwired at least as of yet
         -- so convert to softwired and use display trees
@@ -1082,15 +1094,17 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph g
 
                 -- extract IA strings as if mutiple graphs
                 diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
-            in
-            trace "There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way" (
-            if not concatSeqs then headerString <> concat diplayIAStringList
-            else headerString <> U.concatFastas (concat diplayIAStringList)
-            )
+            in do
+            logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way" 
+            if not concatSeqs then do
+                pure $ headerString <> concat diplayIAStringList
+            else do
+                pure $ headerString <> U.concatFastas (concat diplayIAStringList)
+            
 
-        else
-            trace ("IA  not yet implemented for graphtype " <> show (graphType inGS))
-            ("There is no implied alignment for " <>  show (graphType inGS))
+        else do
+            logWith LogWarn ("IA  not yet implemented for graphtype " <> show (graphType inGS))
+            pure $ "There is no implied alignment for " <>  show (graphType inGS)
 
 -- | getTreeIAString takes a Tree Decorated Graph and returns Implied AlignmentString
 getTreeIAString :: Bool -> PhylogeneticGraph -> String

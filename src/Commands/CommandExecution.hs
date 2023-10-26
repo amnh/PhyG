@@ -97,7 +97,7 @@ executeCommands
     → PhyG ([ReducedPhylogeneticGraph], GlobalSettings, [Int], [ReducedPhylogeneticGraph])
 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs pairwiseDist seedList supportGraphList commandList = do
     if null commandList
-        then return (curGraphs, globalSettings, seedList, supportGraphList)
+        then pure (curGraphs, globalSettings, seedList, supportGraphList)
         else do
             let (firstOption, firstArgs) = head commandList
 
@@ -504,7 +504,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                         ("Error in 'set' command. Partitioncharacter '" <> show localPartitionChar <> "' must be a single character")
                                                 else do
                                                     logWith LogInfo ("PartitionCharacter set to '" <> head optionList <> "'")
-                                                    return (globalSettings{partitionCharacter = localPartitionChar}, processedData, inSeedList)
+                                                    pure (globalSettings{partitionCharacter = localPartitionChar}, processedData, inSeedList)
                                     else
                                         if head commandList == "missingthreshold"
                                             then
@@ -520,7 +520,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                     failWithPhase Parsing ("Set option 'missingThreshold' must be set to an integer value between 0 and 100: " <> head optionList)
                                                                 else do
                                                                     logWith LogInfo ("MissingThreshold set to " <> head optionList)
-                                                                    return (globalSettings{missingThreshold = fromJust localValue}, processedData, inSeedList)
+                                                                    pure (globalSettings{missingThreshold = fromJust localValue}, processedData, inSeedList)
                                             else -- sets root cost as well-- need in both places--one to process data and one to
                                             -- keep in current global
 
@@ -565,7 +565,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                 then do
                                                                                     failWithPhase Parsing ("Optimality criterion not recognized: " <> show localCriterion)
                                                                                 else
-                                                                                    return
+                                                                                    pure
                                                                                         ( globalSettings
                                                                                             { optimalityCriterion = fromJust localCriterion
                                                                                             , graphComplexityList = fromJust lGraphComplexityList
@@ -609,8 +609,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                     if bc2 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                         then do
                                                                                                             logWith LogInfo ("bit cost 2 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                            return (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                        else return (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                            pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                        else pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                             else
                                                                 if head commandList == "bc4"
                                                                     then
@@ -641,8 +641,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                     if bc4 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                         then do
                                                                                                             logWith LogInfo ("bit cost 4 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                            return (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                        else return (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                            pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                        else pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                                     else
                                                                         if head commandList == "bc5"
                                                                             then
@@ -673,8 +673,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                             if bc5 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                                 then do
                                                                                                                     logWith LogInfo ("bit cost 5 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                                    return (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                                else return (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                    pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                else pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                                             else
                                                                                 if head commandList == "bc8"
                                                                                     then
@@ -705,8 +705,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                     if bc8 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                                         then do
                                                                                                                             logWith LogInfo ("bit cost 8 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                                            return (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                                        else return (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                            pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                        else pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                                                     else
                                                                                         if head commandList == "bc64"
                                                                                             then
@@ -737,8 +737,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                             if bc64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                                                 then do
                                                                                                                                     logWith LogInfo ("bit cost 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                                                    return (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                                                else return (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                                    pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                                else pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                                                             else
                                                                                                 if head commandList == "bcgt64"
                                                                                                     then
@@ -769,12 +769,12 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                     if bcgt64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                                                         then do
                                                                                                                                             logWith LogInfo ("bit cost > 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                                                            return (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                                                        else do return (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                                            pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                                        else do pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                                                                     else -- partition character to reset
                                                                                                     do
                                                                                                         -- trace ("PartitionCharacter set to '" <> (partitionCharacter globalSettings) <> "'")
-                                                                                                        return (globalSettings, processedData, inSeedList)
+                                                                                                        pure (globalSettings, processedData, inSeedList)
                             else -- regular command stuff not initial at start
 
                                 if head commandList == "bc2"
@@ -810,8 +810,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                             if bc2 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                 then do
                                                                                     logWith LogInfo ("bit cost 2 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                    return (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                else return (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                    pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                else pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                     else
                                         if head commandList == "bc4"
                                             then
@@ -842,8 +842,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                             if bc4 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                 then do
                                                                                     logWith LogInfo ("bit cost 4 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                    return (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                else return (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                    pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                else pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                             else
                                                 if head commandList == "bc5"
                                                     then
@@ -874,8 +874,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                     if bc5 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                         then do
                                                                                             logWith LogInfo ("bit cost 5 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                            return (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                        else return (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                            pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                        else pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                     else
                                                         if head commandList == "bc8"
                                                             then
@@ -906,8 +906,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                             if bc8 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                 then do
                                                                                                     logWith LogInfo ("bit cost 8 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                    return (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                else return (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                    pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                else pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                             else
                                                                 if head commandList == "bc64"
                                                                     then
@@ -938,8 +938,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                     if bc64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                         then do
                                                                                                             logWith LogInfo ("bit cost 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                            return (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                        else return (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                            pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                        else pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                                     else
                                                                         if head commandList == "bcgt64"
                                                                             then
@@ -970,8 +970,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                             if bcgt64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
                                                                                                                 then do
                                                                                                                     logWith LogInfo ("bit cost > 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue))
-                                                                                                                    return (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
-                                                                                                                else return (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                    pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
+                                                                                                                else pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData, inSeedList)
                                                                             else -- processed above, but need here since put in different value
 
                                                                                 if head commandList == "criterion" -- (globalSettings, processedData, inSeedList)
@@ -1017,7 +1017,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                 then do
                                                                                                                     failWithPhase Parsing ("Optimality criterion not recognized: " <> show localCriterion)
                                                                                                                 else
-                                                                                                                    return
+                                                                                                                    pure
                                                                                                                         ( globalSettings
                                                                                                                             { optimalityCriterion = fromJust localCriterion
                                                                                                                             , graphComplexityList = fromJust lGraphComplexityList
@@ -1042,7 +1042,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                             failWithPhase Parsing ("Error in 'set' command. CompressResolutions '" <> head optionList <> "' is not 'true' or 'false'")
                                                                                                         else do
                                                                                                             logWith LogInfo ("CompressResolutions set to " <> head optionList)
-                                                                                                            return (globalSettings{compressResolutions = fromJust localCriterion}, processedData, inSeedList)
+                                                                                                            pure (globalSettings{compressResolutions = fromJust localCriterion}, processedData, inSeedList)
                                                                                             else -- this not intended to be for users
 
                                                                                                 if head commandList == "dynamicepsilon"
@@ -1057,7 +1057,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                 ("Set option 'dynamicEpsilon' must be set to a double value >= 0.0 (e.g. dynamicepsilon:0.02): " <> head optionList)
                                                                                                                         else do
                                                                                                                             logWith LogInfo ("Dynamic Epsilon factor set to " <> head optionList)
-                                                                                                                            return
+                                                                                                                            pure
                                                                                                                                 (globalSettings{dynamicEpsilon = 1.0 + (fromJust localValue * fractionDynamic globalSettings)}, processedData, inSeedList)
                                                                                                     else
                                                                                                         if head commandList == "finalassignment"
@@ -1078,14 +1078,14 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                             if graphType globalSettings == Tree
                                                                                                                                 then do
                                                                                                                                     logWith LogInfo ("FinalAssignment set to " <> head optionList)
-                                                                                                                                    return (globalSettings{finalAssignment = fromJust localMethod}, processedData, inSeedList)
+                                                                                                                                    pure (globalSettings{finalAssignment = fromJust localMethod}, processedData, inSeedList)
                                                                                                                                 else
                                                                                                                                     if localMethod == Just DirectOptimization
                                                                                                                                         then do
-                                                                                                                                            return (globalSettings{finalAssignment = fromJust localMethod}, processedData, inSeedList)
+                                                                                                                                            pure (globalSettings{finalAssignment = fromJust localMethod}, processedData, inSeedList)
                                                                                                                                         else do
                                                                                                                                             logWith LogInfo "FinalAssignment set to DO (ignoring IA option) for non-Tree graphs"
-                                                                                                                                            return (globalSettings{finalAssignment = DirectOptimization}, processedData, inSeedList)
+                                                                                                                                            pure (globalSettings{finalAssignment = DirectOptimization}, processedData, inSeedList)
                                                                                                             else
                                                                                                                 if head commandList == "graphfactor"
                                                                                                                     then
@@ -1102,7 +1102,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                         ("Error in 'set' command. GraphFactor  '" <> head optionList <> "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'")
                                                                                                                                 else do
                                                                                                                                     logWith LogInfo ("GraphFactor set to " <> show localMethod)
-                                                                                                                                    return (globalSettings{graphFactor = fromJust localMethod}, processedData, inSeedList)
+                                                                                                                                    pure (globalSettings{graphFactor = fromJust localMethod}, processedData, inSeedList)
                                                                                                                     else
                                                                                                                         if head commandList == "graphssteepest"
                                                                                                                             then
@@ -1114,7 +1114,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                 ("Set option 'graphsSteepest' must be set to an integer value (e.g. graphsSteepest:5): " <> head optionList)
                                                                                                                                         else do
                                                                                                                                             logWith LogInfo ("GraphsStreepest set to " <> head optionList)
-                                                                                                                                            return (globalSettings{graphsSteepest = fromJust localValue}, processedData, inSeedList)
+                                                                                                                                            pure (globalSettings{graphsSteepest = fromJust localValue}, processedData, inSeedList)
                                                                                                                             else
                                                                                                                                 if head commandList == "graphtype"
                                                                                                                                     then
@@ -1137,14 +1137,14 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                         else graphFactor globalSettings
 
                                                                                                                                                             logWith LogInfo ("Graphtype set to " <> head optionList <> " with graph factor NoPenalty and final assignment to DO")
-                                                                                                                                                            return
+                                                                                                                                                            pure
                                                                                                                                                                 ( globalSettings{graphType = fromJust localGraphType, finalAssignment = DirectOptimization, graphFactor = netPenalty}
                                                                                                                                                                 , processedData
                                                                                                                                                                 , inSeedList
                                                                                                                                                                 )
                                                                                                                                                         else do
                                                                                                                                                             logWith LogInfo ("Graphtype set to " <> head optionList)
-                                                                                                                                                            return (globalSettings{graphType = fromJust localGraphType}, processedData, inSeedList)
+                                                                                                                                                            pure (globalSettings{graphType = fromJust localGraphType}, processedData, inSeedList)
                                                                                                                                     else -- In first to do stuff above also
 
                                                                                                                                         if head commandList == "missingthreshold"
@@ -1154,10 +1154,10 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                         then error ("Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> head optionList)
                                                                                                                                                         else
                                                                                                                                                             if fromJust localValue == missingThreshold globalSettings
-                                                                                                                                                                then return (globalSettings, processedData, inSeedList)
+                                                                                                                                                                then pure (globalSettings, processedData, inSeedList)
                                                                                                                                                                 else do
                                                                                                                                                                     logWith LogInfo ("MissingThreshold set to " <> head optionList)
-                                                                                                                                                                    return (globalSettings{missingThreshold = fromJust localValue}, processedData, inSeedList)
+                                                                                                                                                                    pure (globalSettings{missingThreshold = fromJust localValue}, processedData, inSeedList)
                                                                                                                                             else
                                                                                                                                                 if head commandList == "modelcomplexity"
                                                                                                                                                     then
@@ -1166,7 +1166,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                 then error ("Set option 'modelComplexity' must be set to a double value (e.g. modelComplexity:123.456): " <> head optionList)
                                                                                                                                                                 else do
                                                                                                                                                                     logWith LogInfo ("Model Complexity set to " <> head optionList)
-                                                                                                                                                                    return (globalSettings{modelComplexity = fromJust localValue}, processedData, inSeedList)
+                                                                                                                                                                    pure (globalSettings{modelComplexity = fromJust localValue}, processedData, inSeedList)
                                                                                                                                                     else -- modify the behavior of rerooting character trees for all graph types
 
                                                                                                                                                         if head commandList == "multitraverse"
@@ -1180,7 +1180,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                     then do failWithPhase Parsing ("Error in 'set' command. MultiTraverse '" <> head optionList <> "' is not 'true' or 'false'")
                                                                                                                                                                     else do
                                                                                                                                                                         logWith LogInfo ("MultiTraverse set to " <> head optionList)
-                                                                                                                                                                        return (globalSettings{multiTraverseCharacters = fromJust localCriterion}, processedData, inSeedList)
+                                                                                                                                                                        pure (globalSettings{multiTraverseCharacters = fromJust localCriterion}, processedData, inSeedList)
                                                                                                                                                             else
                                                                                                                                                                 if head commandList == "outgroup"
                                                                                                                                                                     then
@@ -1197,7 +1197,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                         )
                                                                                                                                                                                 else do
                                                                                                                                                                                     logWith LogInfo ("Outgroup set to " <> T.unpack outTaxonName)
-                                                                                                                                                                                    return (globalSettings{outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData, inSeedList)
+                                                                                                                                                                                    pure (globalSettings{outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData, inSeedList)
                                                                                                                                                                     else
                                                                                                                                                                         if head commandList == "partitioncharacter"
                                                                                                                                                                             then
@@ -1210,8 +1210,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                             if localPartitionChar /= partitionCharacter globalSettings
                                                                                                                                                                                                 then do
                                                                                                                                                                                                     logWith LogInfo ("PartitionCharacter set to '" <> head optionList <> "'")
-                                                                                                                                                                                                    return (globalSettings{partitionCharacter = localPartitionChar}, processedData, inSeedList)
-                                                                                                                                                                                                else return (globalSettings, processedData, inSeedList)
+                                                                                                                                                                                                    pure (globalSettings{partitionCharacter = localPartitionChar}, processedData, inSeedList)
+                                                                                                                                                                                                else pure (globalSettings, processedData, inSeedList)
                                                                                                                                                                             else
                                                                                                                                                                                 if head commandList == "reportnaivedata"
                                                                                                                                                                                     then do
@@ -1222,7 +1222,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                     errorWithoutStackTrace ("Error in 'set' command. NeportNaive  '" <> head optionList <> "' is not 'True' or 'False'")
 
                                                                                                                                                                                         logWith LogInfo ("ReportNaiveData set to " <> show localMethod)
-                                                                                                                                                                                        return (globalSettings{reportNaiveData = localMethod}, processedData, inSeedList)
+                                                                                                                                                                                        pure (globalSettings{reportNaiveData = localMethod}, processedData, inSeedList)
                                                                                                                                                                                     else
                                                                                                                                                                                         if head commandList == "rootcost"
                                                                                                                                                                                             then do
@@ -1240,7 +1240,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                         | otherwise = error ("Root cost method not recognized: " <> show localMethod)
 
                                                                                                                                                                                                 logWith LogInfo ("RootCost set to " <> show localMethod <> " " <> show lRootComplexity <> " bits")
-                                                                                                                                                                                                return (globalSettings{rootCost = localMethod, rootComplexity = lRootComplexity}, processedData, inSeedList)
+                                                                                                                                                                                                pure (globalSettings{rootCost = localMethod, rootComplexity = lRootComplexity}, processedData, inSeedList)
                                                                                                                                                                                             else
                                                                                                                                                                                                 if head commandList == "seed"
                                                                                                                                                                                                     then
@@ -1249,7 +1249,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                 then error ("Set option 'seed' must be set to an integer value (e.g. seed:123): " <> head optionList)
                                                                                                                                                                                                                 else do
                                                                                                                                                                                                                     logWith LogInfo ("Random Seed set to " <> head optionList)
-                                                                                                                                                                                                                    return (globalSettings{seed = fromJust localValue}, processedData, randomIntList (fromJust localValue))
+                                                                                                                                                                                                                    pure (globalSettings{seed = fromJust localValue}, processedData, randomIntList (fromJust localValue))
                                                                                                                                                                                                     else
                                                                                                                                                                                                         if head commandList == "softwiredmethod"
                                                                                                                                                                                                             then do
@@ -1262,7 +1262,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                                 ("Error in 'set' command. SoftwiredMethod  '" <> head optionList <> "' is not 'Exhaustive' or 'ResolutionCache'")
 
                                                                                                                                                                                                                 logWith LogInfo ("SoftwiredMethod " <> show localMethod)
-                                                                                                                                                                                                                return (globalSettings{softWiredMethod = localMethod}, processedData, inSeedList)
+                                                                                                                                                                                                                pure (globalSettings{softWiredMethod = localMethod}, processedData, inSeedList)
                                                                                                                                                                                                             else -- modify the use of Network Add heurisitcs in network optimization
 
                                                                                                                                                                                                                 if head commandList == "usenetaddheuristic"
@@ -1274,7 +1274,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                                     errorWithoutStackTrace ("Error in 'set' command. UseNetAddHeuristic '" <> head optionList <> "' is not 'true' or 'false'")
 
                                                                                                                                                                                                                         logWith LogInfo ("UseNetAddHeuristic set to " <> head optionList)
-                                                                                                                                                                                                                        return (globalSettings{useNetAddHeuristic = localCriterion}, processedData, inSeedList)
+                                                                                                                                                                                                                        pure (globalSettings{useNetAddHeuristic = localCriterion}, processedData, inSeedList)
                                                                                                                                                                                                                     else -- these not intended for users
 
                                                                                                                                                                                                                         if head commandList == "jointhreshold"
@@ -1289,7 +1289,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                                                         ("Set option 'joinThreshold' must be set to a double value >= 1.0 (e.g. joinThreshold:1.17): " <> head optionList)
                                                                                                                                                                                                                                                 else do
                                                                                                                                                                                                                                                     logWith LogInfo ("JoinThreshold set to " <> head optionList)
-                                                                                                                                                                                                                                                    return (globalSettings{unionThreshold = fromJust localValue}, processedData, inSeedList)
+                                                                                                                                                                                                                                                    pure (globalSettings{unionThreshold = fromJust localValue}, processedData, inSeedList)
                                                                                                                                                                                                                             else -- parallel strategy settings options
 
                                                                                                                                                                                                                                 if head commandList == "defparstrat"
@@ -1304,7 +1304,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                                                         ("Error in 'set' command. DefParStrat  '" <> head optionList <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
 
                                                                                                                                                                                                                                         logWith LogInfo ("DefParStrat set to " <> show localMethod)
-                                                                                                                                                                                                                                        return (globalSettings{defaultParStrat = localMethod}, processedData, inSeedList)
+                                                                                                                                                                                                                                        pure (globalSettings{defaultParStrat = localMethod}, processedData, inSeedList)
                                                                                                                                                                                                                                     else
                                                                                                                                                                                                                                         if head commandList == "lazyparstrat"
                                                                                                                                                                                                                                             then do
@@ -1318,7 +1318,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                                                                 ("Error in 'set' command. LazyParStrat  '" <> head optionList <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
 
                                                                                                                                                                                                                                                 logWith LogInfo ("LazyParStrat set to " <> show localMethod)
-                                                                                                                                                                                                                                                return (globalSettings{lazyParStrat = localMethod}, processedData, inSeedList)
+                                                                                                                                                                                                                                                pure (globalSettings{lazyParStrat = localMethod}, processedData, inSeedList)
                                                                                                                                                                                                                                             else
                                                                                                                                                                                                                                                 if head commandList == "strictparstrat"
                                                                                                                                                                                                                                                     then do
@@ -1332,7 +1332,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                                                                         ("Error in 'set' command. StrictParStrat  '" <> head optionList <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'")
 
                                                                                                                                                                                                                                                         logWith LogInfo ("StrictParStrat set to " <> show localMethod)
-                                                                                                                                                                                                                                                        return (globalSettings{strictParStrat = localMethod}, processedData, inSeedList)
+                                                                                                                                                                                                                                                        pure (globalSettings{strictParStrat = localMethod}, processedData, inSeedList)
                                                                                                                                                                                                                                                     else -- modify the use of implied alkignemnt in heuristics
 
                                                                                                                                                                                                                                                         if head commandList == "useia"
@@ -1343,10 +1343,10 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                                                                                         | otherwise = errorWithoutStackTrace ("Error in 'set' command. UseIA '" <> head optionList <> "' is not 'true' or 'false'")
 
                                                                                                                                                                                                                                                                 logWith LogInfo ("UseIA set to " <> head optionList)
-                                                                                                                                                                                                                                                                return (globalSettings{useIA = localCriterion}, processedData, inSeedList)
+                                                                                                                                                                                                                                                                pure (globalSettings{useIA = localCriterion}, processedData, inSeedList)
                                                                                                                                                                                                                                                             else do
                                                                                                                                                                                                                                                                 logWith LogInfo ("Warning: Unrecognized/missing 'set' option in " <> show argList)
-                                                                                                                                                                                                                                                                return (globalSettings, processedData, inSeedList)
+                                                                                                                                                                                                                                                                pure (globalSettings, processedData, inSeedList)
 
 
 {- | reportCommand takes report options, current data and graphs and returns a
@@ -1395,7 +1395,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                             if "crossrefs" `elem` commandList
                                 then
                                     let dataString = crossReferenceString
-                                    in  return (dataString, outfileName, writeMode)
+                                    in  pure (dataString, outfileName, writeMode)
                                 else
                                     if "data" `elem` commandList
                                         then
@@ -1424,7 +1424,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                         else [[" ", "None", "None"]]
                                                 renameField = ["Renamed taxa:", "New Name", "Original Name"] : renamePairList
                                                 charInfoFields = ["Index", "Block", "Name", "Type", "Activity", "Weight", "Prealigned", "Alphabet", "TCM"]
-                                            in  return
+                                            in  pure
                                                     ( CSV.genCsvFile
                                                         (baseData <> [[""]] <> leafField <> [[""]] <> excludedField <> [[""]] <> renameField <> [[""]] <> (charInfoFields : dataString))
                                                     , outfileName
@@ -1446,12 +1446,12 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                     in  if null curGraphs
                                                             then do
                                                                 logWith LogInfo "No graphs to diagnose"
-                                                                return ("No graphs to diagnose", outfileName, writeMode)
+                                                                pure ("No graphs to diagnose", outfileName, writeMode)
                                                             else do
                                                                 logWith
                                                                     LogInfo
                                                                     ("Diagnosing " <> show (length curGraphs) <> " graphs at minimum cost " <> show (minimum $ fmap snd5 curGraphs))
-                                                                return (dataString, outfileName, writeMode)
+                                                                pure (dataString, outfileName, writeMode)
                                                 else
                                                     if "displaytrees" `elem` commandList
                                                         then -- need to specify -O option for multiple graphs
@@ -1480,8 +1480,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                 if null curGraphs || graphType globalSettings /= SoftWired
                                                                     then do
                                                                         logWith LogInfo "No soft-wired graphs to report display trees"
-                                                                        return ("No soft-wired graphs to report display trees", outfileName, writeMode)
-                                                                    else return (displayInfoString <> "\n" <> blockStringList, outfileName, writeMode)
+                                                                        pure ("No soft-wired graphs to report display trees", outfileName, writeMode)
+                                                                    else pure (displayInfoString <> "\n" <> blockStringList, outfileName, writeMode)
                                                         else
                                                             if "graphs" `elem` commandList
                                                                 then -- else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
@@ -1490,38 +1490,35 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                     in  if null curGraphs
                                                                             then do
                                                                                 logWith LogInfo "No graphs to report"
-                                                                                return ("No graphs to report", outfileName, writeMode)
+                                                                                pure ("No graphs to report", outfileName, writeMode)
                                                                             else do
                                                                                 logWith
                                                                                     LogInfo
                                                                                     ("Reporting " <> show (length curGraphs) <> " graph(s) at minimum cost " <> show (minimum $ fmap snd5 curGraphs))
-                                                                                return (graphString, outfileName, writeMode)
+                                                                                pure (graphString, outfileName, writeMode)
                                                                 else
                                                                     if "ia" `elem` commandList || "impliedalignment" `elem` commandList
                                                                         then
                                                                             if null curGraphs
                                                                                 then do
                                                                                     logWith LogInfo "No graphs to create implied alignments"
-                                                                                    return ("No impliedAlgnments to report", outfileName, writeMode)
+                                                                                    pure ("No impliedAlgnments to report", outfileName, writeMode)
                                                                                 else
                                                                                     let includeMissing = elem "includemissing" commandList
                                                                                         concatSeqs = elem "concatenate" commandList
-                                                                                        iaContentList =
-                                                                                            zipWith
-                                                                                                (getImpliedAlignmentString globalSettings (includeMissing || concatSeqs) concatSeqs processedData)
-                                                                                                curGraphs
-                                                                                                [0 .. (length curGraphs - 1)]
+                                                                                        
                                                                                     in  do
-                                                                                            logWith
+                                                                                        iaContentList <- mapM (getImpliedAlignmentString globalSettings (includeMissing || concatSeqs) concatSeqs processedData) (zip curGraphs [0 .. (length curGraphs - 1)])
+                                                                                        logWith
                                                                                                 LogInfo
                                                                                                 "\tWarning: Prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additive characters and will not appear in implied alignment output."
-                                                                                            return (concat iaContentList, outfileName, writeMode)
+                                                                                        pure (concat iaContentList, outfileName, writeMode)
                                                                         else
                                                                             if "pairdist" `elem` commandList
                                                                                 then
                                                                                     let nameData = L.intercalate "," (V.toList (T.unpack <$> fst3 processedData)) <> "\n"
                                                                                         dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
-                                                                                    in  return (nameData <> dataString, outfileName, writeMode)
+                                                                                    in  pure (nameData <> dataString, outfileName, writeMode)
                                                                                 else
                                                                                     if "reconcile" `elem` commandList
                                                                                         then
@@ -1529,8 +1526,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                             in  if null curGraphs
                                                                                                     then do
                                                                                                         logWith LogInfo "No graphs to reconcile"
-                                                                                                        return ([], outfileName, writeMode)
-                                                                                                    else return (reconcileString, outfileName, writeMode)
+                                                                                                        pure ([], outfileName, writeMode)
+                                                                                                    else pure (reconcileString, outfileName, writeMode)
                                                                                         else
                                                                                             if "search" `elem` commandList
                                                                                                 then
@@ -1575,7 +1572,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                             , "CPU time (secs)"
                                                                                                             , "Comment"
                                                                                                             ]
-                                                                                                    in  return (baseData <> CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
+                                                                                                    in  pure (baseData <> CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)
                                                                                                 else
                                                                                                     if "support" `elem` commandList
                                                                                                         then
@@ -1584,10 +1581,10 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                 if null supportGraphs
                                                                                                                     then do
                                                                                                                         logWith LogInfo "\tNo support graphs to report"
-                                                                                                                        return ([], outfileName, writeMode)
+                                                                                                                        pure ([], outfileName, writeMode)
                                                                                                                     else do
                                                                                                                         logWith LogInfo ("Reporting " <> show (length curGraphs) <> " support graph(s)")
-                                                                                                                        return (graphString, outfileName, writeMode)
+                                                                                                                        pure (graphString, outfileName, writeMode)
                                                                                                         else -- )
 
                                                                                                             if "tnt" `elem` commandList
@@ -1595,7 +1592,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                     if null curGraphs
                                                                                                                         then do
                                                                                                                             logWith LogInfo "No graphs to create implied alignments for TNT output"
-                                                                                                                            return ("No impliedAlgnments for TNT to report", outfileName, writeMode)
+                                                                                                                            pure ("No impliedAlgnments for TNT to report", outfileName, writeMode)
                                                                                                                         else
                                                                                                                             let curGraphs' =
                                                                                                                                     if not (reportNaiveData globalSettings)
@@ -1605,20 +1602,22 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                                                 (parStrategy $ strictParStrat globalSettings)
                                                                                                                                                 (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing)
                                                                                                                                                 (fmap fst5 curGraphs)
-                                                                                                                                tntContentList = concat $ zipWith (getTNTString globalSettings processedData) curGraphs' [0 .. (length curGraphs' - 1)]
-                                                                                                                            in  return (tntContentList, outfileName, writeMode)
+                                                                                                                            in do
+                                                                                                                            tntContentList' <- mapM (getTNTString globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
+                                                                                                                            let tntContentList = concat tntContentList'
+                                                                                                                            pure (tntContentList, outfileName, writeMode)
                                                                                                                 else do
                                                                                                                     logWith LogWarn ("\nUnrecognized/missing report option in " <> show commandList <> " defaulting to 'graphs'")
                                                                                                                     let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
                                                                                                                     if null curGraphs
                                                                                                                         then do
                                                                                                                             logWith LogInfo "No graphs to report"
-                                                                                                                            return ("No graphs to report", outfileName, writeMode)
+                                                                                                                            pure ("No graphs to report", outfileName, writeMode)
                                                                                                                         else do
                                                                                                                             logWith
                                                                                                                                 LogInfo
                                                                                                                                 ("Reporting " <> show (length curGraphs) <> " graph(s) at minimum cost " <> show (minimum $ fmap snd5 curGraphs) <> "\n")
-                                                                                                                            return (graphString, outfileName, writeMode)
+                                                                                                                            pure (graphString, outfileName, writeMode)
     where
         bracketToCurly a =
             if a == '('
