@@ -43,7 +43,6 @@ module Search.WagnerBuild  ( wagnerTreeBuild
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
-import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
@@ -55,6 +54,7 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 --import  Search.Swap         qualified                as S
+import Debug.Trace
 
 
 -- Haven't added in unions--but prob should
@@ -74,11 +74,12 @@ rasWagnerBuild inGS inData rSeed numReplicates =
           leafDecGraph = GO.makeLeafGraph inData
 
           hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
-      in
+      in 
       trace ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates")
       -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
+      -- TODO
       PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
       -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
 
