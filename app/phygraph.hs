@@ -254,7 +254,7 @@ performSearch initialSeed inputFilePath = do
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList ← liftIO $ CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
 
-    let reBlockedNaiveData = R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
+    reBlockedNaiveData <- R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) . fst) $ filter ((/= Rename) . fst) thingsToDoAfterReadRename
 
     -- Combines data of exact types into single vectors in each block
@@ -361,7 +361,7 @@ performSearch initialSeed inputFilePath = do
 
     -- rediagnose for NCM due to packing, in most cases not required, just being sure etc
     let rediagnoseWithReportingdata = True
-    let finalGraphList' = T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+    finalGraphList' <- T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd5 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'

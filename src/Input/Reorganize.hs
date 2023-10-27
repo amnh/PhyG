@@ -15,6 +15,10 @@ module Input.Reorganize
   ) where
 
 import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -28,15 +32,17 @@ import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
-import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Input.BitPack qualified as BP
 import ParallelUtilities qualified as PU
 import SymMatrix qualified as S
+import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Types.Types
 import Utilities.Utilities qualified as U
+
+-- import Debug.Trace
 
 
 {- | optimizePrealignedData convert
@@ -179,10 +185,12 @@ getRecodingType inMatrix =
 -- | reBlockData takes original block assignments--each input file is a block--
 -- and combines, creates new, deletes empty blocks from user input
 -- reblock pair names may contain wildcards
-reBlockData :: [(NameText, NameText)] -> ProcessedData -> ProcessedData
+reBlockData :: [(NameText, NameText)] -> ProcessedData -> PhyG ProcessedData
 reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
     -- trace ("RBD:" <> (show $ fmap fst3 blockDataV )) (
-    if null reBlockPairs then trace "Character Blocks as input files" inData
+    if null reBlockPairs then do
+        logWith LogInfo "Character Blocks as input files" 
+        pure inData
     else
         let -- those block to be reassigned--nub in case repeated names
             toBeReblockedNames = fmap (T.filter (/= '"')) $ L.nub $ fmap snd reBlockPairs
@@ -190,10 +198,10 @@ reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
             blocksToChange = V.filter ((`elemWildcards` toBeReblockedNames).fst3) blockDataV
             newBlocks = makeNewBlocks reBlockPairs blocksToChange []
             reblockedBlocks = unChangedBlocks <> V.fromList newBlocks
-        in
-        trace ("\nReblocking: " <> show toBeReblockedNames <> " leaving unchanged: " <> show (fmap fst3 unChangedBlocks)
+        in do
+        logWith LogInfo  ("\nReblocking: " <> show toBeReblockedNames <> " leaving unchanged: " <> show (fmap fst3 unChangedBlocks)
             <> "\n\tNew blocks: " <> show (fmap fst3 reblockedBlocks) <> "\n")
-        (leafNames, leafBVs, reblockedBlocks)
+        pure (leafNames, leafBVs, reblockedBlocks)
         -- )
 
 -- | makeNewBlocks takes lists of reblock pairs and existing relevant blocks and creates new blocks returned as a list
@@ -427,7 +435,9 @@ removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
 removeConstantBlockPrealigned :: BlockData -> BlockData
 removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInfoV) =
     -- check for null data--really reallyu shouldn't happen
-    if V.null taxVectByCharVect then trace ("Warning: Null block data in removeConstantBlockPrealigned") inBlockData
+    if V.null taxVectByCharVect then 
+        -- trace ("Warning: Null block data in removeConstantBlockPrealigned") 
+        inBlockData
 
     -- check for prealigned data in block
     else if U.getNumberPrealignedCharacters (V.singleton inBlockData) == 0 then inBlockData

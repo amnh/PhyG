@@ -205,10 +205,12 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                             -- reporting collapsed
                                                                             -- reverse sorting graphs by cost
                                                                             let rediagnoseWithReportingData = optimalityCriterion globalSettings == NCM && U.has4864PackedChars (thd3 processedData)
+                                                                            updatedCostGraphs <- TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs'
                                                                             let graphsWithUpdatedCosts =
                                                                                     L.sortOn
                                                                                         (Data.Ord.Down . snd5)
-                                                                                        (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
+                                                                                        updatedCostGraphs
+                                                                                        -- (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
                                                                             reportStuff@(reportString, outFile, writeMode) ←
                                                                                 reportCommand
                                                                                     globalSettings

@@ -50,17 +50,22 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     ) where
 
 
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.List qualified as L
 import Data.Maybe
-import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.PreOrderFunctions qualified as PRE
 import Graphs.GraphOperations qualified as GO
 import ParallelUtilities qualified as PU
+import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
+-- import Debug.Trace
 
 
 -- | multiTraverseFullyLabelGraphReduced wrapper to return ReducedPhylogeneticGraph
@@ -304,34 +309,37 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
             contractedSimple = GO.contractIn1Out1EdgesRename newSimpleGraph
         in
         if warnPruneEdges then
-            trace ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
+            -- too lazy to thread PhyG logging throuhg everything
+            -- trace ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
             multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
         else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
 -- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
 -- updates NCM with roig data due to weights of bitpacking
-updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
+updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [ReducedPhylogeneticGraph] -> PhyG [ReducedPhylogeneticGraph]
 updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList =
-    if optimalityCriterion inGS == Parsimony then inGraphList
+    if optimalityCriterion inGS == Parsimony then do
+        pure inGraphList
 
-    else if optimalityCriterion inGS `elem` [SI, MAPA] then
-        trace ("\tFinalizing graph cost with root priors")
-        updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
+    else if optimalityCriterion inGS `elem` [SI, MAPA] then do
+        logWith LogInfo ("\tFinalizing graph cost with root priors")
+        pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
 
     else if optimalityCriterion inGS `elem` [NCM] then
-        trace ("\tFinalizing graph cost (updating NCM) with root priors") $
         let updatedGraphList = if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData)) then
                                  -- trace ("\t\tCannot update cost with original data--skipping")
                                  updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
                                else
                                 let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                 in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
-        in updatedGraphList
+        in do
+            logWith LogInfo  ("\tFinalizing graph cost (updating NCM) with root priors") 
+            pure updatedGraphList
 
     else if optimalityCriterion inGS == PMDL then
         -- trace ("\tFinalizing graph cost with model and root complexities")
-        updatePhylogeneticGraphCostList ((rootComplexity inGS) + (modelComplexity inGS)) inGraphList
+        pure $ updatePhylogeneticGraphCostList ((rootComplexity inGS) + (modelComplexity inGS)) inGraphList
 
     else error ("Optimality criterion not recognized/implemented: " <> (show $ optimalityCriterion inGS))
 
