@@ -636,9 +636,17 @@
 		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
 		integer value. 
 		
-		\item[maxnetedges:INT] Specifies the maximum number of network edges, as indicated 
-		by the integer value. % The number of edges visited?
-		
+		\item[maxnetedges:INT] Used in conjunction with the network edit operations 
+		\texttt{netadd}, \texttt{netdel} and \texttt{netadddel}, this specifies the maximum 
+		number of network edges involved in the edit operation. When used in conjunction 
+		with \texttt{netadd}, the maximum number of network edges added to the graph, 
+		is determined by the associated integer value. Note: when deciding the number of
+		maximum edges, the user should be aware that the addition of network edges 
+		exponentially increases the time taken to optimize the graph 
+		\cite{WheelerandWashburn2023}. In the case of \texttt{netdel}, a maximum of network 
+		edges, as specified by the integer value, will be deleted from the input graphs.
+		When used with \texttt{netadddel} \hl{...}
+				
 		\item[netadd] Adds network edges to existing input graphs at all possible positions 
 		until no better cost graph is found.
 			
@@ -682,7 +690,7 @@
 		of lower cost is found. During this operation, the network edit neighborhoods
 		are traversed at random. }
 		
-		\item {\texttt{refine(netmove, atrandom, steepest)}\\
+		%\item {\texttt{refine(netmove, atrandom, steepest)}\\
 		
 		%add ga and drift examples
 	\end{example}
@@ -772,10 +780,10 @@
 		lengths follow the terminal labels. Compare with \texttt{nobranchlengths}. 
 		This is the default.
 
-		\item[collapse] Specifies that zero length branches are collapsed. Compare 
-		with the \texttt{nocollapse} argument. If a dotpdf graph is specified, the 
-		branches are collapsed by default. If ASCII, Newick, eNewick and dot are 
-		specified, the zero length branches are not collapsed by default.  		
+		\item[collapse] Specifies that zero length branches are collapsed. If a dotpdf 
+		graph is specified, the branches are collapsed by default. If ASCII, Newick, 
+		eNewick and dot are specified, the zero length branches are not collapsed by 
+		default. Compare with the \texttt{nocollapse} argument.  		
 		
 		\item[crossrefs] Reports whether data are present or absent for each terminal 
 		in each of the imported data files. The argument will report a table with terminals 
@@ -784,7 +792,9 @@
 		indicates that it is absent. This provides a comprehensive visual overview of the 
 		completeness of the data. It will highlight missing data, as well as inconsistencies 
 		in the spelling of taxon names in different data files (see Figure \ref{crossrefs}).  
-		The reported file is in csv format.
+		This information will be directed to a file, in csv format, if a file name (in quotes), 
+		followed by a comma, is included in the argument list of report. If no file name is 
+		specified, this information will be printed to the stderr.
 		
 		\begin{figure}
 		\centering
@@ -794,9 +804,9 @@
 		\label{crossrefs}
 		\end{figure}
 			
-		\item[data] Outputs a summary of the input data and terminals. This file summarizes 
-		information relating to the input data (number of terminals, number of input files, 
-		number of character blocks and the total number of characters). It also provides
+		\item[data] Outputs a summary of the input data and terminals. Information relating 
+		to the input data (number of terminals, number of input files, number of character 
+		blocks and the total number of characters) is summariazed. It also provides
 		information relating to the terminal taxa included in the analysis, including the 
 		names of the taxa, a list of the excluded taxa (if any), and whether any terminals 
 		were renamed. In this file you will also see information relating to ``Index'', ``Block'', 
@@ -809,13 +819,20 @@
 		sequence character (e.g. amino acids) is to treated as prealigned or not, 
 		``Alphabet'' the elements of a sequence character, ``TCM'' is the transition cost 
 		matrix specifying costs among sequence elements and ``gap'' or insertion-deletion.
-		The reported file is in csv format.
+		This information will be directed to a file, in csv format, if a file name (in quotes), 
+		followed by a comma, is included in the argument list of report. If no file name is 
+		specified, this information will be printed to the stderr.
 	
 		\item[diagnosis] Outputs graph diagnosis information such as vertex, states 
-		and edge statistics. The reported file is in csv format. 
+		and edge statistics. This information will be directed to a file, in csv format, if a 
+		file name (in quotes), followed by a comma, is included in the argument list of 
+		report. If no file name is specified, this information will be printed to the stderr.
 		
 		\item[displaytrees] Reports graph information for softwired networks. The 
-		`display' trees are output for each data block. 
+		`display' trees are output for each data block. This information will be directed 
+		to a file, \hl{in text format}, if a file name (in quotes), followed by a comma, is 
+		included in the argument list of report. If no file name is specified, this information 
+		will be printed to the stderr.
 		
 		\item[dot] Outputs a graph in dot format. The dot file can be viewed (and 
 		modified) in \textit{Graphviz} (see also \texttt{dotpdf}). In order to output pdf 
@@ -833,8 +850,8 @@
 		(length) of 0.
 		
 		\item[graphs] Outputs a graph in the format specified by the other arguments 
-		in the command. These are either Newick, eNewick, ASCII, dot, and depending 
-		on the operating system, eps (on MacOS) or pdf (on Linux) formats.
+		in the command. These are either Newick, eNewick, ASCII, dot, and dotpdf, 
+		which will output a graph in eps (on MacOS) or pdf (on Linux) format.
 		
 		\item[htulabels] Labels the HTUs in the output files (compare with 
 		\texttt{nohtulabels}). This is the default.
@@ -875,12 +892,13 @@
 		\texttt{nobranchlengths} will override this default and branch lengths 
 		of graphs are not reported.
 		
-		\item[nocollapse] By default, if a dotpdf graph is specified, the zero-length
-		branches are collapsed. Compare with the \texttt{collapse} argument. If 
-		ASCII, Newick, eNewick and dot are specified, the zero length branches are 
-		not collapsed by default.  If \texttt{nocollapse} is specified, zero length branches 
-		are not collapsed for output graphs.
-		
+		\item[nocollapse] Specifies that zero length branches are not collapsed.
+		If ASCII, Newick, eNewick and dot graphs are specified, the zero length 
+		branches are not collapsed by default. In contrast, if a dotpdf graph is specified, 
+		the zero-length branches are collapsed. Note: by specifying 
+		a dotpdf file, this will by default output a dot file with zero length branches not 
+		collapsed. Compare with the \texttt{collapse} argument. 
+				
 		\item[nohtulabels] Labels of the HTUs are not included in the output files. 
 		This option can not be applied to eNewick graph. Compare with the argument 
 		\texttt{htulabels}.
@@ -984,7 +1002,7 @@
 	\end{description}			
 		
 	\subsubsection{Defaults}
-		\texttt{report(dot, append, branchlengths, htulabels, collapse)}
+		\texttt{report(append, branchlengths, collapse, dot, htulabels)}
 		The default graph representation is \texttt{dot}. A dot file will only be 
 		reported if no other graph type is indicated. Branch lengths and HTU 
 		labels are printed in the output files. Zero length branches are collapsed. 
