@@ -24,7 +24,9 @@ import Data.Alphabet.Codec
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special
 import Control.Evaluation
-import Control.Monad.Logger
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Functor (($>))
 import Data.Bifunctor
 import Data.Bimap (Bimap)
@@ -39,23 +41,19 @@ import Data.Maybe
 import Data.String
 import Data.Text.Lazy qualified as T
 import Types.Types
---import qualified Data.BitVector as BV
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Vector qualified as V
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
-
--- import qualified Data.Hashable               as H
 import Data.Text.Short qualified as ST
--- import Data.Word
-import Debug.Trace
 import Foreign.C.Types
 import GeneralUtilities
 import Numeric.Natural
+import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Utilities.Utilities qualified as U
 
-import           Debug.Trace
+-- import Debug.Trace
 
 
 -- | checkLeafMissingData checks missing data in inputs
@@ -101,53 +99,61 @@ removeAllMissingCharacters inData@(termData, charData) =
 -- and divides the seqeunces into corresponding partitions.  Replicate character info appending
 -- a number to character name
 -- assumes that input rawdata are a single character (as in form a single file) for sequence data
-partitionSequences :: ST.ShortText -> [RawData] -> [RawData]
+partitionSequences :: ST.ShortText -> [RawData] -> PhyG [RawData]
 partitionSequences partChar inDataList =
-    if null inDataList then []
+    if null inDataList then do
+        pure []
     else
         let firstRawData@(taxDataList, charInfoList) = head inDataList
         in
         -- for raw seqeunce data this will always be a single character
-        if (length charInfoList > 1) || (charType (head charInfoList) `notElem` sequenceCharacterTypes) then firstRawData : partitionSequences partChar (tail inDataList) else (
-       let (leafNameList, leafDataList) = unzip taxDataList
-           partitionCharList = fmap (U.splitSequence partChar) leafDataList
-           partitionCharListByPartition = makePartitionList partitionCharList
-           firstPartNumber = length $ head partitionCharList
-           allSame = filter (== firstPartNumber) $ length <$> tail partitionCharList
-           pairPartitions = zip (fmap T.unpack leafNameList) (fmap length partitionCharList)
-       in
-
-       -- check partition numbers consistent + 1 because of tail
-       if (length allSame + 1) /= length partitionCharList then errorWithoutStackTrace ("Number of sequence partitions not consistent in " <> T.unpack (name $ head charInfoList) <> " " <> (show pairPartitions) <> "\n\tThis may be due to occurence of the partition character '" <> (show partChar) <> "' in sequence data.  This value can be changed with the 'set' command.")
-
-       -- if single partition then nothing to do
-       else if firstPartNumber == 1 then firstRawData : partitionSequences partChar (tail inDataList)
-
-       -- split data
-       else
-           trace ("\nPartitioning " <> T.unpack (name $ head charInfoList) <> " into " <> show firstPartNumber <> " segments\n") (
-
-           -- make new structures to create RawData list
-           let leafNameListList = replicate firstPartNumber leafNameList
-
-               -- these filtered from terminal partitions
-               leafDataListList = fmap (fmap (filter (/= partChar))) partitionCharListByPartition
-
-               -- create TermData
-               newTermDataList = joinLists leafNameListList leafDataListList
-
-               -- filter out taxa with empty data-- so can be reconciled proerly later
-               newTermDataList' = fmap removeTaxaWithNoData newTermDataList
-
-               -- create final [RawData]
-               charInfoListList = replicate firstPartNumber charInfoList
-               newRawDataList = zip newTermDataList' charInfoListList
+        if (length charInfoList > 1) || (charType (head charInfoList) `notElem` sequenceCharacterTypes) then do
+            restStuff <- partitionSequences partChar (tail inDataList) 
+            pure $ firstRawData : restStuff
+        else (
+           let (leafNameList, leafDataList) = unzip taxDataList
+               partitionCharList = fmap (U.splitSequence partChar) leafDataList
+               partitionCharListByPartition = makePartitionList partitionCharList
+               firstPartNumber = length $ head partitionCharList
+               allSame = filter (== firstPartNumber) $ length <$> tail partitionCharList
+               pairPartitions = zip (fmap T.unpack leafNameList) (fmap length partitionCharList)
            in
-           --trace (" NCI " <> (show $ newTermDataList'))
-           newRawDataList <> partitionSequences partChar (tail inDataList)
 
-           --firstRawData : (partitionSequences partChar (tail inDataList))
-           ))
+           -- check partition numbers consistent + 1 because of tail
+           if (length allSame + 1) /= length partitionCharList then 
+                errorWithoutStackTrace ("Number of sequence partitions not consistent in " <> T.unpack (name $ head charInfoList) <> " " <> (show pairPartitions) <> "\n\tThis may be due to occurence of the partition character '" <> (show partChar) <> "' in sequence data.  This value can be changed with the 'set' command.")
+
+           -- if single partition then nothing to do
+           else if firstPartNumber == 1 then do
+
+            restStuff <- partitionSequences partChar (tail inDataList)
+            pure $ firstRawData : restStuff
+
+           -- split data
+           else
+               -- make new structures to create RawData list
+               let leafNameListList = replicate firstPartNumber leafNameList
+
+                   -- these filtered from terminal partitions
+                   leafDataListList = fmap (fmap (filter (/= partChar))) partitionCharListByPartition
+
+                   -- create TermData
+                   newTermDataList = joinLists leafNameListList leafDataListList
+
+                   -- filter out taxa with empty data-- so can be reconciled proerly later
+                   newTermDataList' = fmap removeTaxaWithNoData newTermDataList
+
+                   -- create final [RawData]
+                   charInfoListList = replicate firstPartNumber charInfoList
+                   newRawDataList = zip newTermDataList' charInfoListList
+               in do
+                    logWith LogInfo ("\nPartitioning " <> T.unpack (name $ head charInfoList) <> " into " <> show firstPartNumber <> " segments\n") 
+                    restStuff <- partitionSequences partChar (tail inDataList)
+                    --trace (" NCI " <> (show $ newTermDataList'))
+                    pure $ newRawDataList <> restStuff
+
+                   
+            )
 
 -- | removeTaxaWithNoData takes a single TermData list and removes taxa with empty data
 -- these can be created from paritioning sequences where there are no data in a
@@ -311,7 +317,9 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
         let (firstData, firstCharInfo) = head inDataList
         in
         -- empty file should have been caught earlier, but avoids some head/tail errors
-        if null firstCharInfo then trace "Empty CharInfo" createNaiveData inGS (tail inDataList) leafBitVectorNames curBlockData
+        if null firstCharInfo then 
+            -- trace "Empty CharInfo" 
+            createNaiveData inGS (tail inDataList) leafBitVectorNames curBlockData
         else
             -- process data as come in--each of these should be from a single file
             -- and initially assigned to a single, unique block

@@ -120,7 +120,7 @@ performSearch initialSeed inputFilePath = do
         CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
 
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
-    let rawDataSplit = DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
+    rawDataSplit <- DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
 
     -- Process Rename Commands
     newNamePairList ← liftIO $ CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
