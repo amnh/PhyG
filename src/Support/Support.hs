@@ -37,8 +37,12 @@ module Support.Support (
 ) where
 
 import Commands.Verify qualified as VER
-import Control.Monad (guard)
-import Control.Monad.Logger
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
+--import Control.Monad (guard)
+--import Control.Monad.Logger
 import Data.Char
 import Data.List qualified as L
 import Data.Maybe
@@ -53,11 +57,12 @@ import Reconciliation.ReconcileGraphs qualified as REC
 import Search.Build qualified as B
 import Search.NetworkAddDelete qualified as N
 import Search.Refinement qualified as R
+import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Types.Types
 import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
-import Debug.Trace
+-- import Debug.Trace
 
 -- "High level" paralleization used for overall graphs contruction
 
@@ -137,12 +142,12 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                                                 else
                                                     let thisMethod
                                                             | (supportMeasure == Bootstrap) && ((not . null) jackList && null goodBremList) =
-                                                                trace
-                                                                    "Bootstrap and Jackknife specified--defaulting to Jackknife"
+                                                                --trace
+                                                                --    "Bootstrap and Jackknife specified--defaulting to Jackknife"
                                                                     Jackknife
                                                             | (supportMeasure == Bootstrap) || ((not . null) jackList && (not . null) goodBremList) =
-                                                                trace
-                                                                    "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer"
+                                                                --trace
+                                                                --    "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer"
                                                                     GoodmanBremer
                                                             | supportMeasure == Bootstrap = Bootstrap
                                                             | (not . null) jackList = Jackknife
@@ -161,14 +166,13 @@ supportGraph inArgs inGS inData rSeed inGraphList =
 
                                                         replicates =
                                                             if fromJust replicates' < 0
-                                                                then
-                                                                    trace
-                                                                        "Negative replicates number--defaulting to 100"
-                                                                        100
+                                                                then 
+                                                                    -- logWith LogWarn "Negative replicates number--defaulting to 100"
+                                                                    100
                                                                 else fromJust replicates'
                                                         jackFreq =
                                                             if fromJust jackFreq' <= 0 || fromJust jackFreq' >= 1.0 then
-                                                                    trace "Jackknife frequency must be on (0.0, 1.0) defaulting to 0.6321"
+                                                                    -- trace "Jackknife frequency must be on (0.0, 1.0) defaulting to 0.6321"
                                                                     0.6321
                                                             else fromJust jackFreq'
 
@@ -212,7 +216,20 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                                                                             logWith LogTech $ "Generating Goodman-Bremer support" <> extraString
                                                                             -- TODO
                                                                             mapM (getGoodBremGraphs inGS inData rSeed neighborhood gbSampleSize gbRandomSample) inGraphList
-                                                    in  supportGraphList
+                                                    in do  
+
+                                                    -- Option warnings 
+                                                    if (supportMeasure == Bootstrap) && ((not . null) jackList && null goodBremList) then do
+                                                        logWith LogWarn "Bootstrap and Jackknife specified--defaulting to Jackknife"
+                                                    else if (supportMeasure == Bootstrap) || ((not . null) jackList && (not . null) goodBremList) then do
+                                                        logWith LogWarn "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer"
+                                                    else if fromJust replicates' < 0 then do 
+                                                        logWith LogWarn "Negative replicates number--defaulting to 100"
+                                                    else if fromJust jackFreq' <= 0 || fromJust jackFreq' >= 1.0 then
+                                                         logWith LogWarn  "Jackknife frequency must be on (0.0, 1.0) defaulting to 0.6321"
+                                                    else do logWith LogInfo ""
+                                                    
+                                                    supportGraphList
 
 
 -- | getResampledGraphs performs resampling and search for Bootstrap and jackknife support
