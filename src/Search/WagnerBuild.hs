@@ -39,7 +39,10 @@ module Search.WagnerBuild  ( wagnerTreeBuild
                            , rasWagnerBuild
                      ) where
 
--- import Data.List                           as L
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
@@ -50,11 +53,11 @@ import GraphOptimization.PreOrderFunctions qualified as PRE
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import ParallelUtilities qualified as PU
+import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
---import  Search.Swap         qualified                as S
-import Debug.Trace
+-- import Debug.Trace
 
 
 -- Haven't added in unions--but prob should
@@ -62,9 +65,10 @@ import Debug.Trace
 
 -- | rasWagnerBuild generates a series of random addition sequences and then calls wagnerTreeBuild to construct them.
 -- Does not filter by best, unique etc.  That happens with the select() command specified separately.
-rasWagnerBuild :: GlobalSettings -> ProcessedData -> Int -> Int -> [ReducedPhylogeneticGraph]
+rasWagnerBuild :: GlobalSettings -> ProcessedData -> Int -> Int -> PhyG [ReducedPhylogeneticGraph]
 rasWagnerBuild inGS inData rSeed numReplicates =
-   if numReplicates == 0 then []
+   if numReplicates == 0 then do
+      pure []
    else
       let numLeaves = V.length $ fst3 inData
           randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0..numLeaves - 1]
@@ -74,29 +78,31 @@ rasWagnerBuild inGS inData rSeed numReplicates =
           leafDecGraph = GO.makeLeafGraph inData
 
           hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
-      in 
-      trace ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates")
+      in do
+      logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates")
       -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
       -- TODO
-      PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
+      rasResult <- mapM (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
+      -- PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
       -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
+      pure rasResult
 
 
--- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallation--(zipWith not doing so well?)
-wagnerTreeBuild' :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> (V.Vector Int, Int) -> ReducedPhylogeneticGraph
-wagnerTreeBuild' inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars (additionSequence, replicateIndex) =
-   GO.convertPhylogeneticGraph2Reduced $ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex
+-- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallelization--(zipWith not doing so well?)
+wagnerTreeBuild' :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> (V.Vector Int, Int) -> PhyG ReducedPhylogeneticGraph
+wagnerTreeBuild' inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars (additionSequence, replicateIndex) = do
+   wagResult <- wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex
+   pure $ GO.convertPhylogeneticGraph2Reduced $ wagResult
 
 -- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition)
 -- from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network
 -- afterwards
 -- basic procs is to add edges to unresolved tree
 -- currently naive wrt candidate tree costs
-wagnerTreeBuild :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> V.Vector Int -> Int -> PhylogeneticGraph
+wagnerTreeBuild :: GlobalSettings -> ProcessedData -> SimpleGraph -> DecoratedGraph -> Int -> Bool -> V.Vector Int -> Int -> PhyG PhylogeneticGraph
 wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactChars additionSequence replicateIndex =
-   trace ("\tBuilding Wagner replicate " <> show replicateIndex) (
    let rootHTU = (numLeaves, TL.pack $ "HTU" <> show numLeaves)
        nextHTU = (numLeaves + 1, TL.pack $ "HTU" <> show (numLeaves + 1))
 
@@ -119,11 +125,11 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
 
        wagnerTree = recursiveAddEdgesWagner maxDistance (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
-   in
-   -- trace ("Initial Tree:\n" <> (LG.prettify initialTree) <> "FDT at cost " <> (show $ snd6 initialFullyDecoratedTree) <>":\n"
-   --    <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd6 initialFullyDecoratedTree))
-   wagnerTree
-   )
+   in do
+      logWith LogInfo ("\tBuilding Wagner replicate " <> show replicateIndex) 
+   
+      pure wagnerTree
+   
 
 
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph

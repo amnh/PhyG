@@ -245,6 +245,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
         buildDistance = hasKey "distance"
         buildCharacter = hasKey "character"
 
+        {-
         -- character build
         performBuildCharacter ∷ Int → PhyG [ReducedPhylogeneticGraph]
         performBuildCharacter numReplicates =
@@ -255,6 +256,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
             in  do
                     logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList'
                     pure treeList'
+        -}
 
         -- distance build
         performBuildDistance ∷ Int → Int → PhyG [ReducedPhylogeneticGraph]
@@ -336,7 +338,19 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
 
             if buildDistance
                 then performBuildDistance numReplicates numToSave
-                else performBuildCharacter numReplicates
+                -- else performBuildCharacter numReplicates
+            else do
+                    -- character build
+                    treeList <- WB.rasWagnerBuild inGS inData rSeed numReplicates
+                    let treeList' = GO.selectGraphs Best 1 0.0 (-1) treeList
+                    if simpleTreeOnly then do 
+                        logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList'
+                        pure treeList'
+                    else do
+                        logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList
+                        pure treeList
+                    
+                
 
 
 {- | distanceWagner takes Processed data and pairwise distance matrix and returns
