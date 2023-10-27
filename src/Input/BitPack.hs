@@ -58,11 +58,11 @@ import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Unboxed qualified as UV
 import Data.Word
-import Debug.Trace
 import GeneralUtilities
 import ParallelUtilities qualified as PU
 import Types.Types
 import Utilities.Utilities qualified as U
+-- import Debug.Trace
 
 
 {-
