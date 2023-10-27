@@ -52,7 +52,6 @@ import Data.List qualified as L
 import Data.Maybe
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
-import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Graphs.GraphOperations qualified as GO
@@ -60,6 +59,7 @@ import ParallelUtilities qualified as PU
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+-- import Debug.Trace
 
 {-Intial Postorder softwired pass.  All functions with 'New" appended-}
 
@@ -344,7 +344,8 @@ addNodeEdgeToResolutionList newNode newEdge _ inResData resolutionIndex =
 
         -- this check for redundant edges in resolution cash from combinations
         newEdgeList = if newEdge `notElem` inEdgeList then newEdge : inEdgeList
-                      else trace "Should not happen: Extra edge in addNodeEdgeToResolutionListNew" inEdgeList
+                      else --trace "Should not happen: Extra edge in addNodeEdgeToResolutionListNew" 
+                        inEdgeList
         newFirstData = inResData { displaySubGraph  = (newNodeList, newEdgeList)
                                    -- both set because can be a display node left right added to 2 child resolutoins
                                   , childResolutionIndices = (Just resolutionIndex, Just resolutionIndex)

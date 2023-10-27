@@ -63,7 +63,6 @@ import Data.Maybe
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
-import Debug.Trace
 import GeneralUtilities
 import GraphFormatUtilities qualified as GFU
 import GraphOptimization.Medians qualified as M
@@ -72,6 +71,7 @@ import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+-- import Debug.Trace
 
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
 convertPhylogeneticGraph2Reduced :: PhylogeneticGraph -> ReducedPhylogeneticGraph
@@ -538,11 +538,11 @@ resolveNode inGraph curNode inOutPair@(inEdgeList, outEdgeList) (inNum, outNum) 
     in
     -- isolated node -- throw warning and delete
     if inNum == 0 && outNum == 0 then
-      trace ("Warning: ResolveNode deleting isolated vertex " <> show curNode) ( --  <> " in graph\n" <> LG.prettify inGraph )
+      -- this is  debug info
+      -- trace ("Warning: ResolveNode deleting isolated vertex " <> show curNode) ( --  <> " in graph\n" <> LG.prettify inGraph )
       let newGraph = LG.delNode curNode inGraph
       in
       newGraph
-      )
 
      -- node with too many parents and too many children
     -- converts to tree node--biased in that direction

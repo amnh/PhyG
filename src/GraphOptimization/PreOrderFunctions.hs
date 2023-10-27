@@ -25,7 +25,6 @@ import Data.Maybe
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Unboxed qualified as UV
-import Debug.Trace
 import DirectOptimization.PreOrder qualified as DOP
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
@@ -37,6 +36,7 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.ThreeWayFunctions qualified as TW
 import Utilities.Utilities qualified as U
+-- import Debug.Trace
 
 
 {- |
@@ -444,10 +444,11 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstLabel = snd firstNode
             firstNodeType' = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
-                            else
+                            else NetworkNode
                                 -- not issue if hardwired I don't think
-                                if graphType inGS /= HardWired then trace ("NetNode:" <> show (LG.getInOutDeg inGraph firstNode) <> " DuplicateEdges (?): " <> show (LG.getDuplicateEdges inGraph)) NetworkNode
-                                else NetworkNode
+                                -- this really a debug sort of issue
+                                -- if graphType inGS /= HardWired then trace ("NetNode:" <> show (LG.getInOutDeg inGraph firstNode) <> " DuplicateEdges (?): " <> show (LG.getDuplicateEdges inGraph)) NetworkNode
+                                -- else NetworkNode
             firstVertData = vertData firstLabel
 
             -- get node parent data--check if more than one
