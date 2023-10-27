@@ -55,10 +55,13 @@ One Big thing--
             NEED TO FIX
 -}
 
-module Input.TNTUtilities   (getTNTData
-                            , getTNTDataText
+module Input.TNTUtilities   ( getTNTDataText
                             ) where
 
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.Char
 import Data.Char qualified as C
@@ -71,25 +74,18 @@ import Data.Set qualified as Set
 import Data.TCM qualified as TCM
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
-import Debug.Trace
---import qualified GeneralUtilities          as GU
 import Data.Vector qualified as V
 import Input.DataTransformation qualified as DT
 import Input.FastAC qualified as FAC
 import SymMatrix qualified as SM
+import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Types.Types
+--import Debug.Trace
 
-
--- getTNTData take file contents and returns raw data and char info form TNT file
-getTNTData :: String -> String -> RawData
-getTNTData inString fileName =
-    if null inString then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--empty file")
-    else
-        getTNTDataText (T.pack inString) fileName
 
 -- getTNTDataText take file contents and returns raw data and char info form TNT file
-getTNTDataText :: T.Text -> String -> RawData
+getTNTDataText :: T.Text -> String -> PhyG RawData
 getTNTDataText inString fileName =
     if T.null inString then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--empty file")
     else
@@ -122,7 +118,6 @@ getTNTDataText inString fileName =
             else if isNothing numCharM then errorWithoutStackTrace ("n\nTNT input file " <> fileName <> " processing error--number of characters:" <> show (T.unpack firstNum))
             else if isNothing numTaxM then errorWithoutStackTrace ("n\nTNT input file " <> fileName <> " processing error--number of taxa:" <> show (T.unpack secondNum))
             else
-                trace ("\nTNT file file " <> fileName <> " message : " <> T.unpack quotedMessage <> " with " <> show numTax <> " taxa and " <> show numChar <> " characters") (
                 let semiColonLineNumber = L.findIndex ((== ';').T.head) restFile -- (== T.pack ";") restFile
                 in
                 if isNothing semiColonLineNumber then  errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--can't find ';' to end data block" <> show restFile)
@@ -143,26 +138,28 @@ getTNTDataText inString fileName =
                             incorrectLengthList = filter ((/= numChar).snd) nameLengthList
                             (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
                             renamedDefaultCharInfo = renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
-                            charInfoData = getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
-                            checkInfo = length charInfoData == numChar
-                    in
-                    -- trace ("Sorted data:" <> show sortedData) (
-                    --trace ("Alph2  " <> (show $ fmap alphabet charInfoData)) (
-                    if not checkInfo then error ("Character information number not equal to input character number: " <> show numChar <> " v " <> show (length charInfoData))
-                    else if not $ null incorrectLengthList then errorWithoutStackTrace ("\tInput file " <> fileName <> " has terminals with incorrect or varying numbers of characters (should be "
-                        <> show numChar <> "):" <> show  incorrectLengthList)
-                    else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
-                    else
-                        -- check non-Additive alphabet to be numbers
-                        -- integerize and reweight additive chars (including in ambiguities)
-                        let curNames = fmap ((T.filter (/= '"') . T.filter C.isPrint) . fst) sortedData
-                            curData = fmap snd sortedData
-                            (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
-                        in
-                        -- trace (show (curNames, curData'))
-                        (zip curNames curData',charInfoData')
-                    ) -- ) )
-                    where printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
+                            
+                    in do
+                        charInfoData <- getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
+                        let checkInfo = length charInfoData == numChar
+                            
+                        -- trace ("Sorted data:" <> show sortedData) (
+                        --trace ("Alph2  " <> (show $ fmap alphabet charInfoData)) (
+                        if not checkInfo then error ("Character information number not equal to input character number: " <> show numChar <> " v " <> show (length charInfoData))
+                        else if not $ null incorrectLengthList then errorWithoutStackTrace ("\tInput file " <> fileName <> " has terminals with incorrect or varying numbers of characters (should be "
+                            <> show numChar <> "):" <> show  incorrectLengthList)
+                        else if hasDupTerminals then errorWithoutStackTrace ("\tInput file " <> fileName <> " has duplicate terminals: " <> show dupList)
+                        else do
+                            -- check non-Additive alphabet to be numbers
+                            -- integerize and reweight additive chars (including in ambiguities)
+                            let curNames = fmap ((T.filter (/= '"') . T.filter C.isPrint) . fst) sortedData
+                            let curData = fmap snd sortedData
+                            let (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
+                            logWith LogInfo ("\nTNT file file " <> fileName <> " message : " <> T.unpack quotedMessage <> " with " <> show numTax <> " taxa and " <> show numChar <> " characters") 
+                            -- trace (show (curNames, curData'))
+                            pure $ (zip curNames curData',charInfoData')
+                         -- ) )
+                        where printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
 -- | removeNCharNTax removes teh first two "words" of nchar and ntax, but leaves text  with line feeds so can use
 -- lines later
@@ -292,9 +289,10 @@ renameTNTChars fileName charIndex inCharInfo =
 
 -- | getTNTCharInfo numChar charInfoBlock
 -- bit of  but needs to update as it goes along
-getTNTCharInfo :: String -> Int -> [CharInfo] -> [T.Text] -> [CharInfo]
+getTNTCharInfo :: String -> Int -> [CharInfo] -> [T.Text] -> PhyG [CharInfo]
 getTNTCharInfo fileName charNumber curCharInfo inLines =
-    if null inLines then curCharInfo
+    if null inLines then do
+        pure curCharInfo
     else
         let firstLine' = T.strip $ head inLines
             multipleCommandsInLine = fmap ((T.reverse . T.cons ';') . T.reverse) (filter ((>0).T.length) $ T.strip <$> T.splitOn (T.pack ";") firstLine')
@@ -304,19 +302,21 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
         -- trace (show multipleCommandsInLine) (
         if T.null firstLine then getTNTCharInfo fileName charNumber curCharInfo (tail inLines)
         -- hit 'proc /;' line at end
-        else if T.head firstLine == 'p' then curCharInfo
+        else if T.head firstLine == 'p' then do
+            pure curCharInfo
         else if T.last firstLine /= ';' then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--ccode/costs lines must end with semicolon ';': " <> T.unpack firstLine)
-        else -- have a valid line
+        else do
+            -- have a valid line
             let wordList = T.words $ T.init firstLine
-                command2 = T.toLower $ T.take 2 $ head wordList
-                localCharInfo  = if command2 == T.pack "cc" then getCCodes fileName charNumber (tail wordList) curCharInfo
-                               else curCharInfo
-                localCharInfo' = if command2 == T.pack "co" then getCosts fileName charNumber (tail wordList) localCharInfo
-                               else localCharInfo
+            let command2 = T.toLower $ T.take 2 $ head wordList
+            localCharInfoResult <- getCCodes fileName charNumber (tail wordList) curCharInfo
+            let localCharInfo  = if command2 == T.pack "cc" then localCharInfoResult
+                             else curCharInfo
+            let localCharInfo' = if command2 == T.pack "co" then getCosts fileName charNumber (tail wordList) localCharInfo
+                             else localCharInfo
 
-            in
-            if  (command2 /= T.pack "cc") && (command2 /= T.pack "co") then
-                 trace ("\n\nWarning: TNT input file " <> fileName <> " unrecognized/not implemented command ignored : " <> T.unpack firstLine)
+            if  (command2 /= T.pack "cc") && (command2 /= T.pack "co") then do
+                 logWith LogInfo ("\n\nWarning: TNT input file " <> fileName <> " unrecognized/not implemented command ignored : " <> T.unpack firstLine)
                  getTNTCharInfo fileName charNumber curCharInfo (tail multipleCommandsInLine <> tail inLines)
             else getTNTCharInfo fileName charNumber localCharInfo' (tail multipleCommandsInLine <> tail inLines)
             -- )
@@ -329,9 +329,10 @@ ccodeChars = ['+', '-', '[', ']', '(', ')', '/']
 -- assumes single command (ccodeChars) per line
 -- could sort and num so only hit each char once--but would be n^2 then.
 -- the singleton stuff for compount things like "+."
-getCCodes :: String -> Int -> [T.Text] -> [CharInfo] -> [CharInfo]
+getCCodes :: String -> Int -> [T.Text] -> [CharInfo] -> PhyG [CharInfo]
 getCCodes fileName charNumber commandWordList curCharInfo =
-    if null curCharInfo then []
+    if null curCharInfo then do
+        pure []
     else
         let charStatus =  if T.length (head commandWordList) == 1 then head commandWordList
                           else T.singleton $ T.head $ head commandWordList
@@ -343,12 +344,13 @@ getCCodes fileName charNumber commandWordList curCharInfo =
                         else
                             T.unwords (tail $ T.words $ T.tail (head commandWordList)) : tail commandWordList
             charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
-            updatedCharInfo = getNewCharInfo fileName curCharInfo charStatus (head commandWordList) charIndices 0 []
-        in
-        --trace (show charStatus <> " " <> (show scopeList) <> " " <> show charIndices)
-        --if T.length charStatus > 1 then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " character status processing error:  option not recognized/implemented " <> (T.unpack charStatus))
-        --else
-        updatedCharInfo
+            
+        in do
+            updatedCharInfo <- getNewCharInfo fileName curCharInfo charStatus (head commandWordList) charIndices 0 []
+            --trace (show charStatus <> " " <> (show scopeList) <> " " <> show charIndices)
+            --if T.length charStatus > 1 then errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " character status processing error:  option not recognized/implemented " <> (T.unpack charStatus))
+            --else
+            pure updatedCharInfo
 
 
 -- | getCosts takes a line from TNT and modifies characters according to cc-code option
@@ -497,14 +499,16 @@ scopeToIndex fileName numChars scopeText =
 -- in a single pass.
 -- if nothing to do (and nothing done so curCharLIst == []) then return original charInfo
 -- othewise return the reverse since new values are prepended
-getNewCharInfo :: String -> [CharInfo] -> T.Text -> T.Text -> [Int] -> Int -> [CharInfo] -> [CharInfo]
+getNewCharInfo :: String -> [CharInfo] -> T.Text -> T.Text -> [Int] -> Int -> [CharInfo] -> PhyG [CharInfo]
 getNewCharInfo fileName inCharList newStatus newStatusFull indexList charIndex curCharList =
     --trace (show charIndex <> " " <> show indexList <> " " <> (show $ length inCharList)) (
-    if null inCharList then reverse curCharList
+    if null inCharList then do
+        pure $ reverse curCharList
     else if null indexList then
-        if null curCharList then inCharList
-        else
-            reverse curCharList <> inCharList
+        if null curCharList then do
+            pure inCharList
+        else do
+            pure $ reverse curCharList <> inCharList
     else
         let firstIndex = head indexList
             firstCharInfo =  head inCharList
@@ -525,9 +529,10 @@ getNewCharInfo fileName inCharList newStatus newStatusFull indexList charIndex c
                      if isNothing newWeight then errorWithoutStackTrace ("\n\nTNT file " <> fileName <> " ccode processing error: weight " <> tail (T.unpack newStatusFull) <> " not a double")
                      else firstCharInfo {weight = fromJust newWeight}
                   | otherwise =
-                     trace ("Warning: TNT file " <> fileName <> " ccodes command " <> T.unpack newStatus <> " is unrecognized/not implemented--skipping")
+                     -- trace ("Warning: TNT file " <> fileName <> " ccodes command " <> T.unpack newStatus <> " is unrecognized/not implemented--skipping")
                      firstCharInfo
-            in
+            in do
+            when ((T.unpack newStatus `notElem` ["-","+" ,"[","]","(",")" ]) && (T.head newStatus /=  '/')) $ logWith LogWarn ("Warning: TNT file " <> fileName <> " ccodes command " <> T.unpack newStatus <> " is unrecognized/not implemented--skipping")
             getNewCharInfo fileName (tail inCharList) newStatus newStatusFull (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
 
 

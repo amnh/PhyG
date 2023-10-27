@@ -78,67 +78,69 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
         (returnRandomDisplayTrees, _)
             | returnRandomDisplayTrees' || returnFirst' = (returnRandomDisplayTrees', returnFirst')
             | otherwise = (True, False)
-
+    in do
+        --let processedDataList ∷ [ProcessedData]
+        let processedDataList = U.getProcessDataByBlock True inData
+        parwiseDistanceResult <- mapM DD.getPairwiseDistances processedDataList
+    
         -- initial build of trees from combined data--or by blocks
-        initialBuild numDisplayTrees
-            | hasKey "filter" = buildTree True inArgs treeGS inData pairwiseDistances rSeed
-            | otherwise = do
-                -- removing taxa with missing data for block
-                logWith LogInfo "Block building initial graph(s)"
-                let processedDataList ∷ [ProcessedData]
-                    processedDataList = U.getProcessDataByBlock True inData
-                let distanceMatrixList ∷ [[[VertexCost]]]
-                    distanceMatrixList
+        let initialBuild numDisplayTrees
+                | hasKey "filter" = buildTree True inArgs treeGS inData pairwiseDistances rSeed
+                | otherwise = do
+                 -- removing taxa with missing data for block
+                 logWith LogInfo "Block building initial graph(s)"
+                 let distanceMatrixList ∷ [[[VertexCost]]]
+                     distanceMatrixList
                        -- | buildDistance = PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList
                        -- TODO
-                        | buildDistance = fmap DD.getPairwiseDistances processedDataList
-                        | otherwise = replicate (length processedDataList) []
+                         | buildDistance = parwiseDistanceResult
+                         | otherwise = replicate (length processedDataList) []
 
-                blockTrees ← fmap fold . traverse (buildTree' True inArgs treeGS rSeed) $ zip distanceMatrixList processedDataList
-                -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' True inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
-                -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
-                returnGraphs ← reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN
-                -- seqParMap ∷ (Traversable t) ⇒ Strategy b → (a → b) → t a → t b
-                -- TODO
-                --pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
-                pure $ fmap (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
-    in  do
-            -- check for valid command options
-            failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
+                 blockTrees ← fmap fold . traverse (buildTree' True inArgs treeGS rSeed) $ zip distanceMatrixList processedDataList
+                 -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' True inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
+                 -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
+                 returnGraphs ← reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN
+                 -- seqParMap ∷ (Traversable t) ⇒ Strategy b → (a → b) → t a → t b
+                 -- TODO
+                 --pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
+                 pure $ fmap (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
 
-            numDisplayTrees ← case filterKey "displaytrees" of
-                [] → pure 10
-                [x] → case readMaybe x ∷ Maybe Int of
-                    Just i → pure i
-                    Nothing → failParseKeyInteger "displayTree" x
-                _ → failParseKeyDuplicates "displayTree" inArgs
+        -- check for valid command options
+        failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
 
-            numReturnTrees ← case filterKey "return" of
-                [] → pure 10
-                [x] → case readMaybe x ∷ Maybe Int of
-                    Just i → pure i
-                    Nothing → failParseKeyInteger "return" x
-                _ → failParseKeyDuplicates "return" inArgs
+        numDisplayTrees ← case filterKey "displaytrees" of
+            [] → pure 10
+            [x] → case readMaybe x ∷ Maybe Int of
+                Just i → pure i
+                Nothing → failParseKeyInteger "displayTree" x
+            _ → failParseKeyDuplicates "displayTree" inArgs
 
-            -- initial build of trees from combined data--or by blocks
-            firstGraphs' ← initialBuild numDisplayTrees
+        numReturnTrees ← case filterKey "return" of
+            [] → pure 10
+            [x] → case readMaybe x ∷ Maybe Int of
+                Just i → pure i
+                Nothing → failParseKeyInteger "return" x
+            _ → failParseKeyDuplicates "return" inArgs
 
-            -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
-            let firstGraphs
-                    | not $ hasKey "filter" = GO.selectGraphs Unique numReturnTrees 0.0 (-1) firstGraphs'
-                    | otherwise = firstGraphs'
+        -- initial build of trees from combined data--or by blocks
+        firstGraphs' ← initialBuild numDisplayTrees
 
-            -- reporting info
-            logWith LogMore $ getBuildLogMessage "Block" "returned" "graphs" firstGraphs
-            if inputGraphType == Tree || hasKey "filter"
-                then return firstGraphs
-                else do
-                    logWith LogInfo $ unwords ["\tRediagnosing as", show $ graphType inGS]
-                    pure $
-                        PU.seqParMap
-                            PU.myStrategyHighLevel
-                            (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing)
-                            (fmap fst5 firstGraphs) -- `using` PU.myParListChunkRDS
+        -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
+        let firstGraphs
+                | not $ hasKey "filter" = GO.selectGraphs Unique numReturnTrees 0.0 (-1) firstGraphs'
+                | otherwise = firstGraphs'
+
+        -- reporting info
+        logWith LogMore $ getBuildLogMessage "Block" "returned" "graphs" firstGraphs
+        if inputGraphType == Tree || hasKey "filter"
+            then return firstGraphs
+            else do
+                logWith LogInfo $ unwords ["\tRediagnosing as", show $ graphType inGS]
+                pure $
+                    PU.seqParMap
+                        PU.myStrategyHighLevel
+                        (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing)
+                        (fmap fst5 firstGraphs) -- `using` PU.myParListChunkRDS
 
 
 {- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them

@@ -221,9 +221,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             else if not $ null hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
                             else executeReadCommands' curData (thisGraphList <> curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
-                        else if toLower firstChar == 'x' then
-                            let tntData = TNT.getTNTDataText fileContents firstFile
-                            in do
+                        else if toLower firstChar == 'x' then do
+                            tntData <- TNT.getTNTDataText fileContents firstFile
                             logWith LogInfo ("\tTrying to parse " <> firstFile <> " as TNT")
                             executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else
@@ -280,9 +279,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- tnt
                     -- tnt
-                    else if firstOption == "tnt" then
-                        let tntData = TNT.getTNTDataText fileContents firstFile
-                        in
+                    else if firstOption == "tnt" then do
+                        tntData <- TNT.getTNTDataText fileContents firstFile
                         executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- else if firstOption == "prealigned" then executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     -- FENEwick

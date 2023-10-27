@@ -297,16 +297,17 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
     let randomIntegerList1 = randomIntList rSeed
         -- create resampled data
         newData = resampleData (head randomIntegerList1) resampleType jackFreq inData
-
+    in do
         -- pairwise distances for distance analysis
-        pairwiseDistances = DD.getPairwiseDistances newData
+        pairwiseDistances <- DD.getPairwiseDistances newData
 
-        buildGraphs = B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList1 !! 1)
-        bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
+        let buildGraphs = B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList1 !! 1)
+        let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
 
         -- if not a tree then try to add net edges
-        netAddArgs = [("netadd", ""), ("keep", show (1 ∷ Int)), ("steepest", ""), ("atrandom", ""), ("maxnetedges", "5")]
-    in  -- simple swap refinement
+        let netAddArgs = [("netadd", ""), ("keep", show (1 ∷ Int)), ("steepest", ""), ("atrandom", ""), ("maxnetedges", "5")]
+        
+        -- simple swap refinement
         if V.null $ thd3 newData
             then pure emptyReducedPhylogeneticGraph
             else do
