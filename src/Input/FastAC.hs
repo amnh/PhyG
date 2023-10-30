@@ -150,12 +150,12 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
 
         in do
         case seqType of
-            NucSeq -> logWith LogInfo ("File " <> dataName <> " is nucleotide data.") 
-            AminoSeq -> logWith LogInfo ("File " <> dataName <> " is aminoacid data.") 
-            HugeSeq -> logWith LogInfo ("File " <> dataName <> " is large alphabet data.") 
-            WideSeq -> logWith LogInfo ("File " <> dataName <> " is wide alphabet data.") 
-            SlimSeq -> logWith LogInfo ("File " <> dataName <> " is slim alphabet data.") 
-            _ -> failWithPhase Parsing ("File " <> dataName <> " is of unknown data type.") 
+            NucSeq -> logWith LogInfo ("File " <> dataName <> " is nucleotide data." <> "\n") 
+            AminoSeq -> logWith LogInfo ("File " <> dataName <> " is aminoacid data." <> "\n") 
+            HugeSeq -> logWith LogInfo ("File " <> dataName <> " is large alphabet data." <> "\n") 
+            WideSeq -> logWith LogInfo ("File " <> dataName <> " is wide alphabet data." <> "\n") 
+            SlimSeq -> logWith LogInfo ("File " <> dataName <> " is slim alphabet data." <> "\n") 
+            _ -> failWithPhase Parsing ("File " <> dataName <> " is of unknown data type." <> "\n") 
 
         processedCharInfo <- commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet
         pure (processedCharInfo, outData)
@@ -240,10 +240,10 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
         --trace ("FCI " <> (show $ length thisAlphabet) <> " alpha size" <> show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM then
             do
-            logWith LogWarn ("Warning: no tcm file specified for use with fasta/c file : " <> dataName <> ". Using default, all 1 diagonal 0 cost matrix.")
+            logWith LogWarn ("Warning: no tcm file specified for use with fasta/c file : " <> dataName <> ". Using default, all 1 diagonal 0 cost matrix." <> "\n")
             pure defaultSeqCharInfo
         else do
-            logWith LogInfo ("Processing TCM data for file : "  <> dataName)
+            logWith LogInfo ("Processing TCM data for file : "  <> dataName <> "\n")
             pure defaultSeqCharInfo
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences

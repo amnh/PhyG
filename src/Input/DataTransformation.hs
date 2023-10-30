@@ -88,6 +88,7 @@ removeAllMissingCharacters inData@(termData, charData) =
         warnMessage = unwords
             [ "Input file", T.unpack . name $ head charData
             , "contains all missing data (perhaps due to renaming or adding/deleting terminals) and has been skipped."
+            , "\n"
             ]
         result
             | multipleSeqChar || lengthCheck = pure [inData]
@@ -363,7 +364,7 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
             in
             -- trace ("CND:" <> (show $ fmap length $ (fmap snd firstData))) (
             if not prealignedDataEqualLength then errorWithoutStackTrace ("Error on input of prealigned sequence characters in file " <> (takeWhile (/= '#') $ T.unpack thisBlockName') <> "--not equal length [(Taxon, Length)]: \nMinimum length taxa: " <> (show nameMinPairList) <> "\nNon Minimum length taxa: " <> (show nameNonMinPairList) )
-            else logWith LogInfo ("Recoding input block: " <> T.unpack thisBlockName') *>
+            else logWith LogInfo ("Recoding input block: " <> T.unpack thisBlockName' <> "\n") *>
                 createNaiveData inGS (tail inDataList) leafBitVectorNames (thisBlockData : curBlockData)
 
 -- | reweightNCM takes character info and reweights via NCM (Tuffley and Steel, 1997) -log_10 1/(alphabet size)

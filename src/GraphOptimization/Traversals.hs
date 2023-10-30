@@ -323,7 +323,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
         pure inGraphList
 
     else if optimalityCriterion inGS `elem` [SI, MAPA] then do
-        logWith LogInfo ("\tFinalizing graph cost with root priors")
+        logWith LogInfo ("\tFinalizing graph cost with root priors" <> "\n")
         pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
 
     else if optimalityCriterion inGS `elem` [NCM] then
@@ -334,7 +334,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                                 let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                 in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
         in do
-            logWith LogInfo  ("\tFinalizing graph cost (updating NCM) with root priors") 
+            logWith LogInfo  ("\tFinalizing graph cost (updating NCM) with root priors" <> "\n") 
             pure updatedGraphList
 
     else if optimalityCriterion inGS == PMDL then

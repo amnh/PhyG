@@ -189,7 +189,7 @@ reBlockData :: [(NameText, NameText)] -> ProcessedData -> PhyG ProcessedData
 reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
     -- trace ("RBD:" <> (show $ fmap fst3 blockDataV )) (
     if null reBlockPairs then do
-        logWith LogInfo "Character Blocks as input files" 
+        logWith LogInfo "Character Blocks as input files\n" 
         pure inData
     else
         let -- those block to be reassigned--nub in case repeated names

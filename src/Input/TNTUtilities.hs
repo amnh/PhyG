@@ -155,7 +155,7 @@ getTNTDataText inString fileName =
                             let curNames = fmap ((T.filter (/= '"') . T.filter C.isPrint) . fst) sortedData
                             let curData = fmap snd sortedData
                             let (curData',charInfoData') = checkAndRecodeCharacterAlphabets fileName curData charInfoData [] []
-                            logWith LogInfo ("\nTNT file file " <> fileName <> " message : " <> T.unpack quotedMessage <> " with " <> show numTax <> " taxa and " <> show numChar <> " characters") 
+                            logWith LogInfo ("\nTNT file file " <> fileName <> " message : " <> T.unpack quotedMessage <> " with " <> show numTax <> " taxa and " <> show numChar <> " characters" <> "\n") 
                             -- trace (show (curNames, curData'))
                             pure $ (zip curNames curData',charInfoData')
                          -- ) )
@@ -316,7 +316,7 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
                              else localCharInfo
 
             if  (command2 /= T.pack "cc") && (command2 /= T.pack "co") then do
-                 logWith LogInfo ("\n\nWarning: TNT input file " <> fileName <> " unrecognized/not implemented command ignored : " <> T.unpack firstLine)
+                 logWith LogInfo ("\n\nWarning: TNT input file " <> fileName <> " unrecognized/not implemented command ignored : " <> T.unpack firstLine <> "\n")
                  getTNTCharInfo fileName charNumber curCharInfo (tail multipleCommandsInLine <> tail inLines)
             else getTNTCharInfo fileName charNumber localCharInfo' (tail multipleCommandsInLine <> tail inLines)
             -- )
@@ -532,7 +532,7 @@ getNewCharInfo fileName inCharList newStatus newStatusFull indexList charIndex c
                      -- trace ("Warning: TNT file " <> fileName <> " ccodes command " <> T.unpack newStatus <> " is unrecognized/not implemented--skipping")
                      firstCharInfo
             in do
-            when ((T.unpack newStatus `notElem` ["-","+" ,"[","]","(",")" ]) && (T.head newStatus /=  '/')) $ logWith LogWarn ("Warning: TNT file " <> fileName <> " ccodes command " <> T.unpack newStatus <> " is unrecognized/not implemented--skipping")
+            when ((T.unpack newStatus `notElem` ["-","+" ,"[","]","(",")" ]) && (T.head newStatus /=  '/')) $ logWith LogWarn ("Warning: TNT file " <> fileName <> " ccodes command " <> T.unpack newStatus <> " is unrecognized/not implemented--skipping" <> "\n")
             getNewCharInfo fileName (tail inCharList) newStatus newStatusFull (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
 
 
