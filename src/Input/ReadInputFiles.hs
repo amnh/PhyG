@@ -163,18 +163,18 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
             canBeReadFrom <- liftIO $ hIsReadable fileHandle
             if not canBeReadFrom then do failWithPhase Inputting ("\n\n'Read' error: file " <> firstFile <> " cannot be read")
             else
-                if not $ null firstOption then do logWith LogInfo ("Reading " <> firstFile <> " with option " <> firstOption)
-                else do logWith LogInfo ("Reading " <> firstFile <> " with no options")
+                if not $ null firstOption then do logWith LogInfo ("Reading " <> firstFile <> " with option " <> firstOption <> "\n")
+                else do logWith LogInfo ("Reading " <> firstFile <> " with no options" <> "\n")
 
             -- this is awkward but need to use dot utilities
             if firstOption == "dot" then do
                 dotGraph <- liftIO $ LG.hGetDotLocal fileHandle
                 let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
                 let hasLoops = B.hasLoop inputDot
-                if hasLoops then do failWithPhase Parsing  ("Input graph in " <> firstFile <> "  has loops/self-edges")
+                if hasLoops then do failWithPhase Parsing  ("Input graph in " <> firstFile <> "  has loops/self-edges" <> "\n")
                 else do logWith LogInfo ""
                 let hasCycles = GFU.cyclic inputDot
-                if hasCycles then do failWithPhase Parsing("Input graph in " <> firstFile <> " has at least one cycle")
+                if hasCycles then do failWithPhase Parsing("Input graph in " <> firstFile <> " has at least one cycle" <> "\n")
                 else executeReadCommands' curData (inputDot : curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
             -- not "dot" files
             else do
@@ -199,7 +199,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         let firstChar = T.head $ T.dropWhile (== ' ') fileContents
                         in
                         if (toLower firstChar == '/') || (toLower firstChar == 'd') || (toLower firstChar == 'g')then do
-                            logWith LogInfo ("\tTrying to parse " <> firstFile <> " as dot")
+                            logWith LogInfo ("\tTrying to parse " <> firstFile <> " as dot" <> "\n")
                             -- destroys lazyness but allows closing right away
                             -- this so don't have huge numbers of open files for large data sets
                             fileHandle2 <- liftIO $ openFile  firstFile ReadMode
@@ -207,23 +207,23 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             liftIO $ hClose fileHandle2
                             let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
                             let hasLoops = B.hasLoop inputDot
-                            if hasLoops then do failWithPhase Parsing ("Input graph in " <> firstFile <> "  has loops/self-edges")
+                            if hasLoops then do failWithPhase Parsing ("Input graph in " <> firstFile <> "  has loops/self-edges" <> "\n")
                             else do logWith LogInfo ""
                             let hasCycles = GFU.cyclic inputDot
-                            if hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
+                            if hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle" <> "\n")
                             else executeReadCommands' curData (inputDot : curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else if (toLower firstChar == '<') || (toLower firstChar == '(')  then
                             let thisGraphList = getFENewickGraphText fileContents
                                 hasCycles = filter id $ fmap GFU.cyclic thisGraphList
                                 hasLoops = filter id $ fmap B.hasLoop thisGraphList
                             in
-                            if not $ null hasLoops then do failWithPhase Parsing ("Input graph in " <> firstFile <> "  has loops/self-edges")
-                            else if not $ null hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
+                            if not $ null hasLoops then do failWithPhase Parsing ("Input graph in " <> firstFile <> "  has loops/self-edges" <> "\n")
+                            else if not $ null hasCycles then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle" <> "\n")
                             else executeReadCommands' curData (thisGraphList <> curGraphs) curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                         else if toLower firstChar == 'x' then do
                             tntData <- TNT.getTNTDataText fileContents firstFile
-                            logWith LogInfo ("\tTrying to parse " <> firstFile <> " as TNT")
+                            logWith LogInfo ("\tTrying to parse " <> firstFile <> " as TNT" <> "\n")
                             executeReadCommands' (tntData : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                         else
                             let fileContents' =  T.unlines $ filter (not . T.null) $ T.takeWhile (/= ';') <$> T.lines fileContents
@@ -239,14 +239,14 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                     let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
                                     in do
                                     fastcCharInfo <- FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
-                                    logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input.")
+                                    logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fastc--if it should be fasta specify 'fasta:' on input." <> "\n")
                                     executeReadCommands' ((fastcData, [fastcCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                                 else 
                                     let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
                                         
                                     in do
                                     (fastaCharInfo, fastaData) <- {-# SCC "getFastaCharInfo_1" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
-                                    logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fasta")
+                                    logWith LogInfo ("\tTrying to parse " <> firstFile <> " as fasta" <> "\n")
                                     executeReadCommands' ((fastaData, [fastaCharInfo]) : curData) curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
 
                         else do failWithPhase Parsing ("Cannot determine file type for " <> firstFile <> " need to prepend type")

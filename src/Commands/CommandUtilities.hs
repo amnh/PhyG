@@ -738,13 +738,13 @@ getTNTString inGS inData (inGraph, graphNumber) =
             in do
             middleStuffString <- createDisplayTreeTNT inGS inData newGraph
 
-            logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation"
+            logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation\n"
             --headerString <> nameLengthString <> "'\n" <> (show $ sum charLengthList) <> " " <> (show numTaxa) <> "\n"
             --    <> nameCharStringList <> ";\n" <> ccCodeString <> finalString
             pure $ headerString <> middleStuffString <> tntTreeString <> finalString
 
         else do
-            logWith LogWarn ("TNT  not yet implemented for graphtype " <> show (graphType inGS))
+            logWith LogWarn ("TNT  not yet implemented for graphtype " <> show (graphType inGS) <> "\n")
             pure $ ("There is no implied alignment for " <> show (graphType inGS))
 
 
@@ -766,7 +766,7 @@ makePairInterleave inTaxCharStringList alphabetType = -- concat $ fmap concat in
         endString <- makePairInterleave remainder (tail alphabetType)
         let returnString = (interleaveMarkerString <> "\n") : (firstInterleave : endString)
         if (head alphabetType `notElem` (exactCharacterTypes <> [NucSeq, AlignedSlim] <> [AminoSeq, AlignedWide])) then do
-            logWith LogWarn ("Warning--sequence data in tnt ouput not of type TNT accepts") 
+            logWith LogWarn ("Warning--sequence data in tnt ouput not of type TNT accepts" <> "\n") 
             pure returnString
         else do
             pure returnString
@@ -1095,7 +1095,7 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
                 -- extract IA strings as if mutiple graphs
                 diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
             in do
-            logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way" 
+            logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way\n" 
             if not concatSeqs then do
                 pure $ headerString <> concat diplayIAStringList
             else do
@@ -1103,7 +1103,7 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
             
 
         else do
-            logWith LogWarn ("IA  not yet implemented for graphtype " <> show (graphType inGS))
+            logWith LogWarn ("IA  not yet implemented for graphtype " <> show (graphType inGS) <> "\n")
             pure $ "There is no implied alignment for " <>  show (graphType inGS)
 
 -- | getTreeIAString takes a Tree Decorated Graph and returns Implied AlignmentString
