@@ -31,6 +31,7 @@ import Search.WagnerBuild qualified as WB
 import SymMatrix qualified as M
 import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
+import Types.DistanceTypes
 import Types.Types
 import Utilities.DistanceUtilities qualified as DU
 import Utilities.Distances qualified as DD
@@ -78,17 +79,32 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
         (returnRandomDisplayTrees, _)
             | returnRandomDisplayTrees' || returnFirst' = (returnRandomDisplayTrees', returnFirst')
             | otherwise = (True, False)
+
+        -- set up parallel actions 
+        buildTreeAction :: ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
+        buildTreeAction = buildTree' True inArgs treeGS rSeed
+
+        traverseGraphAction :: SimpleGraph -> ReducedPhylogeneticGraph
+        traverseGraphAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
+
+        pairWiseDistAction :: ProcessedData ->  PhyG [[VertexCost]]
+        pairWiseDistAction = DD.getPairwiseDistances 
+
     in do
         --let processedDataList ∷ [ProcessedData]
         let processedDataList = U.getProcessDataByBlock True inData
-        parwiseDistanceResult <- mapM DD.getPairwiseDistances processedDataList
+
+        -- TODO? parallelized enough in distances?
+        pairwiseDistFunction <- getParallelChunkTraverse
+        parwiseDistanceResult <- pairwiseDistFunction pairWiseDistAction processedDataList
+        -- parwiseDistanceResult <- mapM DD.getPairwiseDistances processedDataList
     
         -- initial build of trees from combined data--or by blocks
         let initialBuild numDisplayTrees
                 | hasKey "filter" = buildTree True inArgs treeGS inData pairwiseDistances rSeed
                 | otherwise = do
                  -- removing taxa with missing data for block
-                 logWith LogInfo "Block building initial graph(s)"
+                 logWith LogInfo "Block building initial graph(s)\n"
                  let distanceMatrixList ∷ [[[VertexCost]]]
                      distanceMatrixList
                        -- | buildDistance = PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList
@@ -96,14 +112,23 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                          | buildDistance = parwiseDistanceResult
                          | otherwise = replicate (length processedDataList) []
 
-                 blockTrees ← fmap fold . traverse (buildTree' True inArgs treeGS rSeed) $ zip distanceMatrixList processedDataList
-                 -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' True inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
+                 -- blockTrees ← fmap fold . traverse (buildTree' True inArgs treeGS rSeed) $ zip distanceMatrixList processedDataList
+                 -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' True inArgs treeGS rSeed) (zip distanceMatrixList processedDataList))
+                 blockTreesFunction <- getParallelChunkTraverse
+                 blockTrees' <- blockTreesFunction buildTreeAction (zip distanceMatrixList processedDataList)
+                 let blockTrees = concat blockTrees'
+                 
                  -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
                  returnGraphs ← reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph returnRandomDisplayTrees doEUN
+                 
                  -- seqParMap ∷ (Traversable t) ⇒ Strategy b → (a → b) → t a → t b
                  -- TODO
                  --pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
-                 pure $ fmap (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
+                 traverseFunction <- getParallelChunkMap
+                 let reoptimizedGraphs = traverseFunction traverseGraphAction returnGraphs
+
+                 -- pure $ fmap (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
+                 pure reoptimizedGraphs
 
         -- check for valid command options
         failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
@@ -136,11 +161,9 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
             then return firstGraphs
             else do
                 logWith LogInfo $ unwords ["\tRediagnosing as", show $ graphType inGS]
-                pure $
-                    PU.seqParMap
-                        PU.myStrategyHighLevel
-                        (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing)
-                        (fmap fst5 firstGraphs) -- `using` PU.myParListChunkRDS
+                traverseFunction <- getParallelChunkMap
+                let reoptimizedGraphs = traverseFunction traverseGraphAction (fmap fst5 firstGraphs) 
+                pure reoptimizedGraphs
 
 
 {- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
@@ -395,49 +418,77 @@ randomizedDistanceWagner
     → String
     → PhyG [ReducedPhylogeneticGraph]
 randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates rSeed numToKeep refinement =
-    do
-    let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. (length leafNames - 1)]
-    randomizedAdditionWagnerTreeList <- DM.doWagnerS inGS leafNames distMatrix "random" outgroupValue "random" numToKeep randomizedAdditionSequences
-    let randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
-    let randomizedAdditionWagnerTreeList'' =
-            head <$>
-               {- PU.seqParMap
-               --     PU.myStrategyHighLevel
-               TODO
-               -}
-                    fmap
-                    (DW.performRefinement refinement "best:1" "first" leafNames outgroupValue)
-                    randomizedAdditionWagnerTreeList'
-        randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
-    let charInfoVV = V.map thd3 $ thd3 inData
-    if not simpleTreeOnly
-            then -- fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
-                do
-                return $ PU.seqParMap
-                    PU.myStrategyHighLevel
-                    ( ( T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
-                            . GO.renameSimpleGraphNodes
-                            . GO.dichotomizeRoot outgroupValue
-                      )
-                        . LG.switchRootTree (length leafNames)
-                    )
-                    randomizedAdditionWagnerSimpleGraphList
-            else
-                let numTrees = length randomizedAdditionWagnerSimpleGraphList
-                    -- simpleRDWagList = fmap (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
-                    simpleRDWagList =
-                        PU.seqParMap
-                            PU.myStrategyHighLevel
-                            (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames))
-                            randomizedAdditionWagnerSimpleGraphList
-                in  
-                do 
-                    return $ L.zip5
-                        simpleRDWagList
-                        (replicate numTrees 0.0)
-                        (replicate numTrees LG.empty)
-                        (replicate numTrees V.empty)
-                        (replicate numTrees charInfoVV)
+    -- set up parallel structures 
+    let refineAction ::  TreeWithData -> [TreeWithData]
+        refineAction = DW.performRefinement refinement "best:1" "first" leafNames outgroupValue
+
+        traverseGraphAction :: SimpleGraph -> ReducedPhylogeneticGraph
+        traverseGraphAction =  (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)
+
+        dichotomizeAction :: SimpleGraph -> SimpleGraph
+        dichotomizeAction = GO.dichotomizeRoot outgroupValue . (LG.switchRootTree (length leafNames))
+                        
+    in do
+
+        let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. (length leafNames - 1)]
+        randomizedAdditionWagnerTreeList <- DM.doWagnerS inGS leafNames distMatrix "random" outgroupValue "random" numToKeep randomizedAdditionSequences
+
+        let randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
+
+        refineFunction <- getParallelChunkMap 
+        let rasTreeList = refineFunction refineAction randomizedAdditionWagnerTreeList'
+
+        let randomizedAdditionWagnerTreeList'' =
+                head rasTreeList
+                   {- PU.seqParMap
+                   --     PU.myStrategyHighLevel
+                   TODO
+                   -}
+                        -- fmap
+                        -- (DW.performRefinement refinement "best:1" "first" leafNames outgroupValue)
+                        -- randomizedAdditionWagnerTreeList'
+            randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
+        let charInfoVV = V.map thd3 $ thd3 inData
+
+
+
+        if not simpleTreeOnly
+                then -- fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
+                    do
+                    traverseFunction <- getParallelChunkMap
+                    let reOptimizedGraphList = traverseFunction traverseGraphAction randomizedAdditionWagnerSimpleGraphList
+                    pure reOptimizedGraphList
+                    {-
+                    return $ PU.seqParMap
+                        PU.myStrategyHighLevel
+                        ( ( T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
+                                . GO.renameSimpleGraphNodes
+                                . GO.dichotomizeRoot outgroupValue
+                          )
+                            . LG.switchRootTree (length leafNames)
+                        )
+                        randomizedAdditionWagnerSimpleGraphList
+                    -}
+                else
+                    let numTrees = length randomizedAdditionWagnerSimpleGraphList
+                        -- simpleRDWagList = fmap (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
+                        {-
+                        simpleRDWagList =
+                            PU.seqParMap
+                                PU.myStrategyHighLevel
+                                (GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames))
+                                randomizedAdditionWagnerSimpleGraphList
+                        -}
+                    in  
+                    do 
+                        traverseFunction <- getParallelChunkMap
+                        let simpleRDWagList = traverseFunction dichotomizeAction randomizedAdditionWagnerSimpleGraphList
+                        return $ L.zip5
+                            simpleRDWagList
+                            (replicate numTrees 0.0)
+                            (replicate numTrees LG.empty)
+                            (replicate numTrees V.empty)
+                            (replicate numTrees charInfoVV)
 
 
 {- | neighborJoin takes Processed data and pairwise distance matrix and returns

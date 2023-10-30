@@ -8,6 +8,7 @@ module Utilities.Distances
   , getPairwiseBlockDistance
   ) where
 
+import Control.Evaluation
 import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Vector qualified as V
 import GeneralUtilities
@@ -26,6 +27,7 @@ and retuns a matrix (list of lists of Double) of pairwise
 distances among vertices in data set over blocks ans all character types
 sums over blocks
 -}
+
 getPairwiseDistances :: ProcessedData ->  PhyG [[VertexCost]]
 getPairwiseDistances (nameVect, _, blockDataVect)
   | V.null nameVect = error "Null name vector in getPairwiseDistances"
@@ -37,24 +39,37 @@ getPairwiseDistances (nameVect, _, blockDataVect)
         --pairListCosts = fmap (U.getPairwiseObservations blockDataVect) pairList `using` P.myParListChunkRDS
         --TODO
         -- pairListCosts = P.seqParMap rdeepseq   (U.getPairwiseObservations blockDataVect) pairList 
-        pairListCosts = fmap  (U.getPairwiseObservations blockDataVect) pairList 
-        normFactorList = fmap (maxDistance /) $ fmap (max 1.0) pairListCosts
-        initialFactorMatrix = S.fromLists $ replicate (V.length nameVect) $ replicate (V.length nameVect) 0.0
-        (iLst, jList) = unzip pairList
-        threeList = zip3 iLst jList normFactorList
-        factorMatrix = S.updateMatrix initialFactorMatrix threeList
+        --pairListCosts = fmap  (U.getPairwiseObservations blockDataVect) pairList 
+
+
+        action ::  (Int, Int) -> VertexCost
+        action = U.getPairwiseObservations blockDataVect
+
+    in do 
+        pTraverse <- getParallelChunkMap
+        let pairListCosts = pTraverse action pairList
+        
+
+        let normFactorList = fmap (maxDistance /) $ fmap (max 1.0) pairListCosts
+        let initialFactorMatrix = S.fromLists $ replicate (V.length nameVect) $ replicate (V.length nameVect) 0.0
+        let (iLst, jList) = unzip pairList
+        let threeList = zip3 iLst jList normFactorList
+        let factorMatrix = S.updateMatrix initialFactorMatrix threeList
 
 
         -- get pairwise distances
-        blockDistancesList =  V.toList $ V.map (getPairwiseBlockDistance (V.length nameVect)) blockDataVect
-        summedBlock = L.foldl1' (S.zipWith (+)) blockDistancesList
+        -- let blockDistancesList =  V.toList $ V.map (getPairwiseBlockDistance (V.length nameVect)) blockDataVect
+        blockDistancesList' <- mapM (getPairwiseBlockDistance (V.length nameVect)) blockDataVect
+        let blockDistancesList =  V.toList blockDistancesList'
+
+        let summedBlock = L.foldl1' (S.zipWith (+)) blockDistancesList
 
         -- rescaled pairwsie distances 
-        rescaledDistanceMatrix = S.zipWith (*) factorMatrix summedBlock
-    in do
-    -- trace ("Factor:" <> show maxDistance <> " : "  <> (show normFactorList))
-    logWith LogInfo  ("\tGenerating pairwise distances for " <> show (V.length blockDataVect) <> " character blocks\n") 
-    pure $ S.toFullLists rescaledDistanceMatrix -- summedBlock
+        let rescaledDistanceMatrix = S.zipWith (*) factorMatrix summedBlock
+    
+        -- trace ("Factor:" <> show maxDistance <> " : "  <> (show normFactorList))
+        logWith LogInfo  ("\tGenerating pairwise distances for " <> show (V.length blockDataVect) <> " character blocks\n") 
+        pure $ S.toFullLists rescaledDistanceMatrix -- summedBlock
 
 
 
@@ -72,18 +87,24 @@ getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex)  =
 -- a block of data
 -- this can be done for ;leaves only or all via the input processed
 -- data leaves are first--then HTUs follow
-getPairwiseBlockDistance :: Int -> BlockData-> S.Matrix VertexCost
+getPairwiseBlockDistance :: Int -> BlockData-> PhyG (S.Matrix VertexCost)
 getPairwiseBlockDistance numVerts inData  =
     let pairList = makeIndexPairs True numVerts numVerts 0 0
         initialPairMatrix = S.fromLists $ replicate numVerts $ replicate numVerts 0.0
         --pairListCosts = fmap (getBlockDistance inData) pairList `using` P.myParListChunkRDS
         --pairListCosts = P.seqParMap rdeepseq  (getBlockDistance inData) pairList 
         -- TODO 
-        pairListCosts = fmap  (getBlockDistance inData) pairList 
-        (iLst, jList) = unzip pairList
-        threeList = zip3 iLst jList pairListCosts
-        newMatrix = S.updateMatrix initialPairMatrix threeList
-    in
-    --trace ("NM:\n" <> (show threeList) <> "\n" <>(show $ S.toFullLists newMatrix))
-    newMatrix
+        -- pairListCosts = fmap  (getBlockDistance inData) pairList 
+        action ::  (Int, Int) -> VertexCost
+        action = getBlockDistance inData
+    in do
+        pTraverse <- getParallelChunkMap
+        let pairListCosts = pTraverse action pairList
+        
+        let (iLst, jList) = unzip pairList
+        let threeList = zip3 iLst jList pairListCosts
+        let newMatrix = S.updateMatrix initialPairMatrix threeList
+    
+        --trace ("NM:\n" <> (show threeList) <> "\n" <>(show $ S.toFullLists newMatrix))
+        pure newMatrix
 
