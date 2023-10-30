@@ -311,7 +311,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 let treeList4 = if (hasKey "doWPGMA") then [wPGMATree]
                                 else mempty
                 let treeListFull = fold [treeList1, treeList2, treeList3, treeList4]
-                logWith LogInfo "\tBuilding Distance Wagner"
+                logWith LogInfo "\tBuilding Distance Wagner\n"
                 case treeListFull of
                     [] → failWithPhase Computing $ "Distance build is specified, but without any method: " <> show inArgs
                     xs → do
@@ -506,7 +506,7 @@ getBuildLogMessage pref verb obj list =
             [] → mempty
             x : xs →
                 let costValues = snd5 <$> x :| xs
-                in  "at cost range " <> show (minimum costValues, maximum costValues)
+                in  "at cost range " <> show (minimum costValues, maximum costValues)  <> "\n"
     in  unwords ["\t" <> pref, "build", verb, listLength, obj, costRangeStr]
 
 
