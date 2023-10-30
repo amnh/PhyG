@@ -122,60 +122,91 @@ memoize = error "No memoization option specified"
 Consider another implementation which only locks on *resize,*
 permitting truly concurrent reads and writes in all but an infintesimal number of cases.
 -}
-data HashTableAccess k v = Access {-# UNPACK #-} Bool {-# UNPACK #-} (BasicHashTable k v)
+data HashTableAccess k v = Access
+    { canRead :: {-# UNPACK #-} Bool
+    , hashTable :: {-# UNPACK #-} BasicHashTable k v
+    }
+
+data Lockbox k v = Lockbox
+    { readQueue :: TQueue ()
+    , lockToken :: TMVar ()
+    , memoTable :: TVar (HashTableAccess k v)
+    }
 
 
 type role HashTableAccess representational representational
 
 
-lockAccess :: HashTableAccess k v -> HashTableAccess k v
-lockAccess (Access _ table) = table `seq` Access False table
+newHashTableAccess :: Int -> IO (Lockbox k v)
+newHashTableAccess size = do
+    token <- newTMVarIO ()
+    table <- newTVarIO =<< (Access True <$> (newSized size :: IO (BasicHashTable a b)))
+    queue <- newTQueueIO
+    pure $ Lockbox
+        { readQueue = queue
+        , lockToken = token
+        , memoTable = table
+        }
 
 
-unlockAccess :: HashTableAccess k v -> HashTableAccess k v
-unlockAccess (Access _ table) = table `seq` Access True table
+forbidReadAccess :: HashTableAccess k v -> HashTableAccess k v
+forbidReadAccess (Access _ table) = table `seq` Access False table
 
 
-newHashTableAccess :: Int -> IO (TVar (HashTableAccess k v))
-newHashTableAccess size = newTVarIO =<< fmap (Access True) (newSized size :: IO (BasicHashTable a b))
-
---
-readHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> IO (Maybe v)
-readHashTableAccess ref key = {-# SCC readHashTableAccess #-} do
-    t <- atomically $ {-# SCC readHashTableAccess_Atomic_Block #-} do
-            Access access table <- readTVar ref
-            check access
-            pure table
-    t `lookup` key
+permitReadAccess :: HashTableAccess k v -> HashTableAccess k v
+permitReadAccess (Access _ table) = table `seq` Access True table
 
 
-updateHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> IO ()
-updateHashTableAccess ref key val = {-# SCC updateHashTableAccess #-} atomically $ do
-    Access access table <- readTVar ref
-    check access
-    modifyTVar' ref lockAccess
-    unsafeIOToSTM $ insert table key val
-    modifyTVar' ref unlockAccess
+{-
+forbidWriteAccess :: HashTableAccess k v -> HashTableAccess k v
+forbidWriteAccess (Access r _ table) = table `seq` Access r False table
 
 
-takeHashTableAccess :: TVar (HashTableAccess k v) -> IO (BasicHashTable k v)
-takeHashTableAccess ref = {-# SCC takeHashTableAccess #-} atomically $ do
-    Access access table <- readTVar ref
-    check access
-    modifyTVar' ref lockAccess
-    pure table
+permitWriteAccess :: HashTableAccess k v -> HashTableAccess k v
+permitWriteAccess (Access r _ table) = table `seq` Access r True table
+-}
 
 
-giveHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
-giveHashTableAccess ref key val table = {-# SCC giveHashTableAccess #-} atomically $ do
-    unsafeIOToSTM $ {-# SCC giveHashTableAccess_INSERT #-} insert table key val
-    modifyTVar' ref unlockAccess
+readHashTableAccess :: Hashable k => Lockbox k v -> k -> IO (Maybe v)
+readHashTableAccess lockbox@(Lockbox queue _ _) key = {-# SCC readHashTableAccess #-} do
+    tab <- {-# SCC readHashTableAccess_Atomic_Block #-} getReadableTable lockbox
+    val <- tab `lookup` key
+    atomically $ readTQueue queue $> val
 
 
-giveHashTableAccess_old :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
-giveHashTableAccess_old ref key val table = {-# SCC giveHashTableAccess #-} do
-    {-# SCC giveHashTableAccess_INSERT #-} insert table key val
-    atomically $ modifyTVar' ref unlockAccess
+updateHashTableAccess :: Hashable k => Lockbox k v -> k -> v -> IO ()
+updateHashTableAccess lockbox key val = {-# SCC updateHashTableAccess #-} do
+    markWriteableTable lockbox
+    tab <- gainWriteableTable lockbox
+    insert tab key val
+    freeWriteableTable lockbox
+
+
+getReadableTable :: Lockbox k v -> IO (BasicHashTable k v)
+getReadableTable (Lockbox queue token table) = atomically $ do
+    Access readable memo <- readTVar table
+    check readable
+    writeTQueue queue ()
+    pure memo
+
+
+markWriteableTable :: Lockbox k v -> IO ()
+markWriteableTable (Lockbox queue token table) = atomically $ do
+    takeTMVar token
+    modifyTVar' table forbidReadAccess
+
+
+gainWriteableTable :: Lockbox k v -> IO (BasicHashTable k v)
+gainWriteableTable (Lockbox queue _ table) = atomically $ do
+    check =<< isEmptyTQueue queue
+    Access _ memo <- readTVar table
+    pure memo
+
+
+freeWriteableTable :: Lockbox k v -> IO ()
+freeWriteableTable (Lockbox _ token table) = atomically $ do
+    modifyTVar' table permitReadAccess
+    putTMVar token ()
 
 
 {-# NOINLINE memoize_Lock #-}
