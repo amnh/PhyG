@@ -46,7 +46,7 @@ import Control.Monad.Logger (LogLevel (..), Logger (..))
 import Data.Number.Transfinite     as NT
 import Data.Vector qualified as V
 import GeneralUtilities
-import ParallelUtilities as PU
+-- import ParallelUtilities as PU
 import Search.DistanceWagner qualified as W
 import SymMatrix qualified as M
 import System.ErrorPhase (ErrorPhase (..))
@@ -87,7 +87,7 @@ doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKe
   W.doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences
 
 -- | pulls Wagner refinement from Wagner module
-performWagnerRefinement :: String -> String -> String -> V.Vector String -> Int -> TreeWithData -> [TreeWithData]
+performWagnerRefinement :: String -> String -> String -> V.Vector String -> Int -> TreeWithData -> PhyG [TreeWithData]
 performWagnerRefinement = W.performRefinement
 
 -- | neighborJoining takes a list of leaves and a distance matrixx and returns
@@ -142,25 +142,34 @@ makeDMatrixRow inObsMatrix vertInList column row
 -- adjust ri and rj to bew based on on values not in termInList
 -- does by row so can be parallelized call with column = 0 update list []
 -- makes DMatrix direclty not via M.updateMatrix
-makeDMatrix :: M.Matrix Double -> [Int] -> M.Matrix Double
+makeDMatrix :: M.Matrix Double -> [Int] -> PhyG (M.Matrix Double)
 makeDMatrix inObsMatrix vertInList  =
   if M.null inObsMatrix then error "Null matrix in makeInitialDMatrix"
-  else
-      let newMatrix = PU.seqParMap PU.myStrategyRDS (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)] -- `using` PU.myParListChunkRDS
-      in
-      V.fromList newMatrix
+  else 
+      let -- newMatrix = PU.seqParMap PU.myStrategyRDS (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)] -- `using` PU.myParListChunkRDS
+
+          makeRowAction :: Int -> V.Vector Double 
+          makeRowAction = makeDMatrixRow inObsMatrix vertInList 0
+      in do
+
+        makeDRowPar <- getParallelChunkMap
+        let newMatrix = makeDRowPar makeRowAction [0..(M.rows inObsMatrix - 1)] 
+
+        pure $ V.fromList newMatrix
 
 -- | pickNearestUpdateMatrix takes d and D matrices, pickes nearest based on D
 -- then updates d and D to reflect new node and distances created
 -- updates teh column/row for vertices that are joined to be infinity so
 -- won't be chosen to join again
-pickNearestUpdateMatrixNJ :: M.Matrix Double -> [Int] -> (M.Matrix Double, Vertex, Edge, Edge, [Int])
-pickNearestUpdateMatrixNJ littleDMatrix  vertInList
-  | M.null littleDMatrix = error "Null d matrix in pickNearestUpdateMatrix"
-  | otherwise =
-    let (iMin, jMin, distIJ) = getMatrixMinPairTabu (makeDMatrix littleDMatrix vertInList) vertInList
+pickNearestUpdateMatrixNJ :: M.Matrix Double -> [Int] -> PhyG (M.Matrix Double, Vertex, Edge, Edge, [Int])
+pickNearestUpdateMatrixNJ littleDMatrix  vertInList =
+  if M.null littleDMatrix then error "Null d matrix in pickNearestUpdateMatrix"
+  else do
+    newMatrix <- makeDMatrix littleDMatrix vertInList
+    minPairResult <- getMatrixMinPairTabu newMatrix vertInList
+    let (iMin, jMin, distIJ) = minPairResult
         --(iMin, jMin, distIJ) = getMatrixMinPairTabu (makeDMatrix' littleDMatrix vertInList 0 0 []) vertInList
-    in
+    
     --trace ("First pair " <> show (iMin, jMin, distIJ) <> " matrix: " <> (show (makeDMatrix littleDMatrix vertInList))
     --  <> "\nVertsIn: " <> show vertInList <> " matrix': " <> show (makeDMatrix' littleDMatrix vertInList 0 0 [])) (
     if distIJ == NT.infinity then error "No minimum found in pickNearestUpdateMatrix"
@@ -182,17 +191,24 @@ pickNearestUpdateMatrixNJ littleDMatrix  vertInList
 
           -- get distances to existing vertices
           otherVertList = [0..(M.rows littleDMatrix - 1)]
-          newLittleDRow = PU.seqParMap PU.myStrategyR0 (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
-          newLittleDMatrix = M.addMatrixRow littleDMatrix (V.fromList $ newLittleDRow <> [0.0])
+
+          getNewDistAction :: Int -> Double
+          getNewDistAction = getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert
+
+        in do 
+          newDistPar <- getParallelChunkMap 
+          let newLittleDRow = newDistPar getNewDistAction otherVertList
+          -- newLittleDRow = PU.seqParMap PU.myStrategyR0 (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
+          let newLittleDMatrix = M.addMatrixRow littleDMatrix (V.fromList $ newLittleDRow <> [0.0])
           -- recalculate whole D matrix since new row affects all the original ones  (except those merged)
           -- included vertex values set to infinity so won't be chosen later
           -- newBigDMatrix = makeDMatrix newLittleDMatrix newVertInList -- 0 0 []
 
           -- create new edges
-          newEdgeI = (newVertIndex, iMin, diMinNewVert)
-          newEdgeJ = (newVertIndex, jMin, djMinNewVert)
-        in
-        (newLittleDMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList)
+          let newEdgeI = (newVertIndex, iMin, diMinNewVert)
+          let newEdgeJ = (newVertIndex, jMin, djMinNewVert)
+        
+          pure (newLittleDMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList)
     --)
 
 -- | getNewDist get ditance of new vertex to existing vertices
@@ -228,17 +244,18 @@ addTaxaNJ littleDMatrix numLeaves (vertexVect, edgeVect) vertInList =
       -}
     return ((vertexVect, edgeVect `V.snoc` lastEdge), littleDMatrix)
     -- more to add
-  else
-    let !(newLittleDMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList) = pickNearestUpdateMatrixNJ littleDMatrix vertInList
-        newVertexVect = vertexVect `V.snoc` newVertIndex
-        newEdgeVect = edgeVect <> V.fromList [newEdgeI, newEdgeJ]
-    in
+  else do
+    pickNearestResult <- pickNearestUpdateMatrixNJ littleDMatrix vertInList
+    let (newLittleDMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList) = pickNearestResult
+    let newVertexVect = vertexVect `V.snoc` newVertIndex
+    let newEdgeVect = edgeVect <> V.fromList [newEdgeI, newEdgeJ]
+    
     --trace (M.showMatrixNicely newLittleDMatrix <> "\n" <> M.showMatrixNicely bigDMatrix)
     let -- progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
-        (percentAdded, _) = divMod (100 * (V.length vertexVect - numLeaves)) (numLeaves - 2)
-        (decileNumber, decileRemainder) = divMod percentAdded 10
-        (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
-    in
+    let (percentAdded, _) = divMod (100 * (V.length vertexVect - numLeaves)) (numLeaves - 2)
+    let (decileNumber, decileRemainder) = divMod percentAdded 10
+    let (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
+    
     if decileRemainder == 0 && oddRemainder == 0 then
         do 
           logWith LogInfo  ("\t" <> show (10 * decileNumber) <> "%")
@@ -262,19 +279,20 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
       <> (show lastEdge) <> " vertInList: " <> (show vertInList)
       <> " all edges " <> show (edgeVect `V.snoc` lastEdge))
       -}
-    return ((vertexVect, edgeVect `V.snoc` lastEdge), distMatrix)
+    pure ((vertexVect, edgeVect `V.snoc` lastEdge), distMatrix)
 
-  else -- building
-    let !(newDistMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList) = pickUpdateMatrixWPGMA distMatrix  vertInList
-        newVertexVect = vertexVect `V.snoc` newVertIndex
-        newEdgeVect = edgeVect <> V.fromList [newEdgeI, newEdgeJ]
-    in
+  else do -- building
+    upfdateResult <- pickUpdateMatrixWPGMA distMatrix  vertInList
+    let (newDistMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList) = upfdateResult
+    let newVertexVect = vertexVect `V.snoc` newVertIndex
+    let newEdgeVect = edgeVect <> V.fromList [newEdgeI, newEdgeJ]
+    
     --trace (M.showMatrixNicely distMatrix)
     let -- progress = takeWhile (/='.') $ show ((fromIntegral (100 * (V.length vertexVect - numLeaves))/fromIntegral (numLeaves - 2)) :: Double)
-        (percentAdded, _) = divMod (100 * (V.length vertexVect - numLeaves)) (numLeaves - 2)
-        (decileNumber, decileRemainder) = divMod percentAdded 10
-        (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
-    in
+    let (percentAdded, _) = divMod (100 * (V.length vertexVect - numLeaves)) (numLeaves - 2)
+    let (decileNumber, decileRemainder) = divMod percentAdded 10
+    let (_, oddRemainder) = divMod (V.length vertexVect - numLeaves) 2
+    
     if decileRemainder == 0 && oddRemainder == 0 then
         do
         logWith LogInfo ("\t" <> show (10 * decileNumber) <> "%")
@@ -287,12 +305,13 @@ addTaxaWPGMA distMatrix numLeaves (vertexVect, edgeVect) vertInList =
 -- then updates d  to reflect new node and distances created
 -- updates the column/row for vertices that are joined to be infinity so
 -- won't be chosen to join again
-pickUpdateMatrixWPGMA :: M.Matrix Double -> [Int] -> (M.Matrix Double, Vertex, Edge, Edge, [Int])
+pickUpdateMatrixWPGMA :: M.Matrix Double -> [Int] -> PhyG (M.Matrix Double, Vertex, Edge, Edge, [Int])
 pickUpdateMatrixWPGMA distMatrix  vertInList =
     if M.null distMatrix then error "Null d matrix in pickNearestUpdateMatrix"
-    else
-        let (iMin, jMin, dij) = getMatrixMinPairTabu distMatrix vertInList  -- (-1, -1, NT.infinity) 0 0
-        in
+    else do
+        minPairResult <- getMatrixMinPairTabu distMatrix vertInList  -- (-1, -1, NT.infinity) 0 0
+        let (iMin, jMin, dij) =minPairResult
+        
         --trace ("First pair " <> show (iMin, jMin, dij)) (
         if dij == NT.infinity then error "No minimum found in pickNearestUpdateMatrix"
         else
@@ -306,15 +325,22 @@ pickUpdateMatrixWPGMA distMatrix  vertInList =
 
               -- get distances to existing vertices
               otherVertList = [0..(M.rows distMatrix - 1)]
-              newDistRow = PU.seqParMap PU.myStrategyR0 (getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
-              newDistMatrix = M.addMatrixRow distMatrix (V.fromList $ newDistRow <> [0.0])
+
+              wpgmaAction :: Int -> Double
+              wpgmaAction = getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert 
+
+            in do
+              wpgmaPar <- getParallelChunkMap
+              let newDistRow = wpgmaPar wpgmaAction otherVertList
+              -- newDistRow = PU.seqParMap PU.myStrategyR0 (getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
+              let newDistMatrix = M.addMatrixRow distMatrix (V.fromList $ newDistRow <> [0.0])
 
               -- create new edges
-              newEdgeI = (newVertIndex, iMin, diMinNewVert)
-              newEdgeJ = (newVertIndex, jMin, djMinNewVert)
-            in
-            (newDistMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList)
-            --)
+              let newEdgeI = (newVertIndex, iMin, diMinNewVert)
+              let newEdgeJ = (newVertIndex, jMin, djMinNewVert)
+            
+              pure (newDistMatrix, newVertIndex, newEdgeI, newEdgeJ, newVertInList)
+            
 
 -- | getNewDistWPGMA get ditance of new vertex to existing vertices WPGMA--cluster levels
 getNewDistWPGMA :: M.Matrix Double -> Int -> Int -> Double -> Double -> Int -> Double

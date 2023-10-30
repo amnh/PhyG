@@ -51,7 +51,7 @@ import Data.Maybe
 import Data.Number.Transfinite qualified as NT
 import Data.Vector qualified as V
 import GeneralUtilities
-import ParallelUtilities qualified as PU
+-- import ParallelUtilities qualified as PU
 import SymMatrix qualified as M
 import System.ErrorPhase (ErrorPhase (..))
 import Types.DistanceTypes
@@ -239,6 +239,8 @@ getRandomAdditionSequence leafNames distMatrix outgroup initiaLeavesToAdd =
 doWagnerS :: GlobalSettings -> V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
 doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
   let nOTUs = V.length leafNames
+      rasAction :: V.Vector Int -> TreeWithData
+      rasAction = getRandomAdditionSequence leafNames distMatrix outgroup
   in
   if addSequence == "best" then
      do 
@@ -264,33 +266,41 @@ doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKe
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
         if (length replicateSequences > 10000) then 
-          return $ doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep [] replicateSequences
+          doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep [] replicateSequences
           -- else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
         --else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
-        else 
-          return $ take numToKeep $ L.sortOn thd4 (PU.seqParMap rdeepseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
+        else do
+          rasPar <- getParallelChunkMap
+          let rasResult = rasPar rasAction replicateSequences
+          pure $ take numToKeep $ L.sortOn thd4 rasResult -- (PU.seqParMap rdeepseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
 
   else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
 
 
 -- | doWagnerRASProgressive performs RAS distance Wagner in chunks to reduce memory footprint 
 -- for large numner of replicates
-doWagnerRASProgressive :: GlobalSettings -> V.Vector String -> M.Matrix Double -> Int -> Int -> [TreeWithData] -> [V.Vector Int]-> [TreeWithData]
+doWagnerRASProgressive :: GlobalSettings -> V.Vector String -> M.Matrix Double -> Int -> Int -> [TreeWithData] -> [V.Vector Int]-> PhyG [TreeWithData]
 doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep curBestTreeList replicateSequences =
-  if null replicateSequences then curBestTreeList
+  if null replicateSequences then pure curBestTreeList
   else 
     let threadNumber = graphsSteepest inGS -- PU.getNumThreads
         -- this number can be tweaked to incrase or reduce memory usage and efficiency
         jobFactor = 20 
         numToDo = max 1000 (jobFactor * threadNumber)
         replist = take numToDo replicateSequences
+
+        rasAction :: V.Vector Int -> TreeWithData
+        rasAction = getRandomAdditionSequence leafNames distMatrix outgroup
+
+    in do
+        rasPar <- getParallelChunkMap
+        let rasTrees = rasPar rasAction replist
+        
         --rasTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS
-        rasTrees = PU.seqParMap rpar (getRandomAdditionSequence leafNames distMatrix outgroup) replist 
-        newBestList = take numToKeep $ L.sortOn thd4 (rasTrees ++ curBestTreeList)
-    in
-    --take numToKeep $ L.sortOn thd4 $ PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
-    --take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS)
-    doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep newBestList (drop numToDo replicateSequences)
+        --rasTrees = PU.seqParMap rpar (getRandomAdditionSequence leafNames distMatrix outgroup) replist 
+        let newBestList = take numToKeep $ L.sortOn thd4 (rasTrees ++ curBestTreeList)
+    
+        doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep newBestList (drop numToDo replicateSequences)
 
 
 -- | edgeHasVertex takes an vertex and an edge and returns Maybe Int
@@ -861,97 +871,130 @@ splitJoinWrapper swapFunction refineType leafNames outGroup curTreeWithData@(_, 
 -- | getGeneralSwapSteepestOne performs refinement as in getGeneralSwap but saves on a single tree (per split/swap) and
 -- immediately accepts a Better (shorter) tree and resumes the search on that new tree
 -- relies heavily on laziness of splitTree so not parallel at this level
-getGeneralSwapSteepestOne :: String -> (String -> Double -> V.Vector String -> Int -> SplitTreeData -> TreeWithData -> TreeWithData) -> V.Vector String -> Int -> [TreeWithData] -> [TreeWithData] -> [TreeWithData]
+getGeneralSwapSteepestOne :: String 
+                          -> (String -> Double -> V.Vector String -> Int -> SplitTreeData -> TreeWithData -> TreeWithData) 
+                          -> V.Vector String 
+                          -> Int 
+                          -> [TreeWithData] 
+                          -> [TreeWithData] 
+                          -> PhyG [TreeWithData]
 getGeneralSwapSteepestOne refineType swapFunction leafNames outGroup inTreeList savedTrees =
-  if null inTreeList then savedTrees
+  if null inTreeList then pure savedTrees
   else
       --trace ("In " <> refineType <> " Swap (steepest) with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
-      let steepTreeList = PU.seqParMap PU.myStrategyHighLevel  (splitJoinWrapper swapFunction refineType leafNames outGroup) inTreeList -- `using` myParListChunkRDS
-          steepCost = minimum $ fmap thd4 steepTreeList
-      in
-      --this to maintina the trajectories untill final swap--otherwise could converge down to single tree prematurely
-      keepTrees steepTreeList "unique" "first" steepCost
+      let -- steepTreeList = PU.seqParMap PU.myStrategyHighLevel  (splitJoinWrapper swapFunction refineType leafNames outGroup) inTreeList -- `using` myParListChunkRDS
+          splitAction :: TreeWithData -> TreeWithData
+          splitAction = splitJoinWrapper swapFunction refineType leafNames outGroup
+      in do
+        splitJoinPar <- getParallelChunkMap
+        let steepTreeList = splitJoinPar splitAction inTreeList
+        let steepCost = minimum $ fmap thd4 steepTreeList
+          
+        --this to maintain the trajectories untill final swap--otherwise could converge down to single tree prematurely
+        pure $ keepTrees steepTreeList "unique" "first" steepCost
       
 
 -- | getGeneralSwap performs a "re-add" of terminal identical to wagner build addition to available edges
 -- performed on all splits recursively until no more better/equal cost trees found
 -- this won't work to save "all" just unique and best and unique of best
 -- add "steep-est" descent
-getGeneralSwap :: String -> (String -> Double -> V.Vector String -> Int -> SplitTreeData -> [TreeWithData]) -> String -> String -> V.Vector String -> Int -> [TreeWithData] -> [TreeWithData] -> [TreeWithData]
+getGeneralSwap :: String 
+               -> (String -> Double -> V.Vector String -> Int -> SplitTreeData -> [TreeWithData]) 
+               -> String 
+               -> String 
+               -> V.Vector String 
+               -> Int 
+               -> [TreeWithData] 
+               -> [TreeWithData] 
+               -> PhyG [TreeWithData]
 getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup inTreeList savedTrees =
-  let maxNumSave = getSaveNumber saveMethod
-  in
-  if null inTreeList then savedTrees
+  if null inTreeList then pure savedTrees
   else
-      --trace ("In " <> refineType <> " Swap with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
-      let curFullTree = head inTreeList
+      let maxNumSave = getSaveNumber saveMethod
+          splitAction :: Edge -> SplitTreeData
+          splitAction = splitTree curTreeMatrix curTree curTreeCost
+
+          swapAction :: SplitTreeData -> [TreeWithData]
+          swapAction = swapFunction refineType curTreeCost leafNames outGroup
+      
+          --trace ("In " <> refineType <> " Swap with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
+          curFullTree = head inTreeList
           overallBestCost = minimum $ fmap thd4 savedTrees
           (_, curTree, curTreeCost, curTreeMatrix) = curFullTree
-          -- parallelize here
-          splitTreeList = PU.seqParMap PU.myStrategyHighLevel   (splitTree curTreeMatrix curTree curTreeCost) (V.toList $ snd curTree)  -- `using` myParListChunkRDS
-          firstTreeList = PU.seqParMap PU.myStrategyHighLevel   (swapFunction refineType curTreeCost leafNames outGroup) splitTreeList  -- `using` myParListChunkRDS
-          firstTreeList' = filterNewTreesOnCost overallBestCost  (curFullTree : concat firstTreeList) savedTrees -- keepTrees (concat $ V.toList firstTreeList) saveMethod overallBestCost
-      in
-      -- Work around for negative NT.infinity tree costs (could be dst matrix issue)
-      if NT.isInfinite curTreeCost || null firstTreeList' then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees else (
-   let (_, _, costOfFoundTrees, _) = head firstTreeList'
-   in
-   --workaround for negatrive NT.infinity trees
-   if NT.isInfinite costOfFoundTrees then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
-   else if costOfFoundTrees < overallBestCost then
-     let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing ) $ fmap (filterNewTrees inTreeList) firstTreeList'
-         treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
-     in
-     getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave firstTreeList')
-   else if costOfFoundTrees == overallBestCost then
-     if length savedTrees >= maxNumSave then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
-     else
-      let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing ) $ fmap (filterNewTrees inTreeList) firstTreeList'
-          treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
-      in
-      getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave $ savedTrees <> firstTreeList')
-   else getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees)
-         -- )
+      in do
+         -- parallelize here
+         splitPar <- getParallelChunkMap
+         swapPar <- getParallelChunkMap
+         let splitTreeList = splitPar splitAction  (V.toList $ snd curTree) 
+         -- splitTreeList = PU.seqParMap PU.myStrategyHighLevel   (splitTree curTreeMatrix curTree curTreeCost) (V.toList $ snd curTree)  -- `using` myParListChunkRDS
+         let firstTreeList = swapPar swapAction splitTreeList
+         --firstTreeList = PU.seqParMap PU.myStrategyHighLevel   (swapFunction refineType curTreeCost leafNames outGroup) splitTreeList  -- `using` myParListChunkRDS
+         let firstTreeList' = filterNewTreesOnCost overallBestCost  (curFullTree : concat firstTreeList) savedTrees -- keepTrees (concat $ V.toList firstTreeList) saveMethod overallBestCost
+      
+         -- Work around for negative NT.infinity tree costs (could be dst matrix issue)
+         if NT.isInfinite curTreeCost || null firstTreeList' then 
+            getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees 
+         else 
+           let (_, _, costOfFoundTrees, _) = head firstTreeList'
+           in
+           --workaround for negatrive NT.infinity trees
+           if NT.isInfinite costOfFoundTrees then 
+            getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
+           else if costOfFoundTrees < overallBestCost then
+             let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing ) $ fmap (filterNewTrees inTreeList) firstTreeList'
+                 treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
+             in
+             getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave firstTreeList')
+           else if costOfFoundTrees == overallBestCost then
+             if length savedTrees >= maxNumSave then 
+              getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
+             else
+              let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing ) $ fmap (filterNewTrees inTreeList) firstTreeList'
+                  treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
+              in
+              getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave $ savedTrees <> firstTreeList')
+           else getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
+                 
 
 -- | performRefinement takes input trees in TRE and Newick format and performs different forms of tree refinement
 -- at present just OTU (remove leaves and re-add), SPR and TBR
-performRefinement :: String -> String -> String -> V.Vector String -> Int -> TreeWithData -> [TreeWithData]
-performRefinement refinement saveMethod keepMethod leafNames outGroup inTree
-  | refinement == "none" = [inTree]
-  | refinement == "otu" =
-    let newTrees = getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
-        newTrees' = getGeneralSwap "otu" reAddTerminals saveMethod keepMethod leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
-    in
-    if refinement == "best:1" then
-      if not $ null newTrees then newTrees
-      else [inTree]
-    else if not (null newTrees') then newTrees'
-    else
-      --trace "OTU swap did not find any new trees"
-      [inTree]
-  | refinement == "spr" =
-    let newTrees = getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
-        newTrees' = getGeneralSwapSteepestOne "spr" doSPRTBRSteep leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
-        newTrees'' = getGeneralSwap "spr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
-    in
-    if saveMethod == "best:1" then
-      if not $ null newTrees' then newTrees'
-      else [inTree]
-    else if not (null newTrees'') then newTrees''
-    else
-      --trace "SPR swap did not find any new trees"
-      [inTree]
-  | refinement == "tbr" =
-    let newTrees = getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
-        newTrees' = getGeneralSwapSteepestOne "spr" doSPRTBRSteep leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
-        newTrees'' = getGeneralSwapSteepestOne "tbr" doSPRTBRSteep leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
-        newTrees''' = getGeneralSwap "tbr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees'' [([],(V.empty,V.empty), NT.infinity, M.empty)]
-    in
-    if saveMethod == "best:1" then
-      if not $ null newTrees' then newTrees''
-      else [inTree]
-    else if not (null newTrees''') then newTrees'''
-    else
-      --trace "TBR swap did not find any new trees"
-      [inTree]
-  | otherwise = errorWithoutStackTrace ("Unrecognized refinement method: " <> refinement)
+performRefinement :: String -> String -> String -> V.Vector String -> Int -> TreeWithData -> PhyG [TreeWithData]
+performRefinement refinement saveMethod keepMethod leafNames outGroup inTree =
+  if refinement == "none" then pure [inTree]
+  else if refinement == "otu" then do
+        newTrees <- getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
+        newTrees' <- getGeneralSwap "otu" reAddTerminals saveMethod keepMethod leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
+    
+        if refinement == "best:1" then
+          if not $ null newTrees then pure newTrees
+          else pure [inTree]
+        else if not (null newTrees') then pure newTrees'
+        else
+          --trace "OTU swap did not find any new trees"
+          pure [inTree]
+  else if refinement == "spr" then do
+        newTrees <- getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
+        newTrees' <- getGeneralSwapSteepestOne "spr" doSPRTBRSteep leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
+        newTrees'' <- getGeneralSwap "spr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
+    
+        if saveMethod == "best:1" then do
+          if not $ null newTrees' then pure newTrees'
+          else pure [inTree]
+        else if not (null newTrees'') then pure newTrees''
+        else
+          --trace "SPR swap did not find any new trees"
+          pure [inTree]
+  else if refinement == "tbr" then do
+        newTrees <- getGeneralSwapSteepestOne "otu" reAddTerminalsSteep leafNames outGroup [inTree] [([],(V.empty,V.empty), NT.infinity, M.empty)]
+        newTrees' <- getGeneralSwapSteepestOne "spr" doSPRTBRSteep leafNames outGroup newTrees [([],(V.empty,V.empty), NT.infinity, M.empty)]
+        newTrees'' <- getGeneralSwapSteepestOne "tbr" doSPRTBRSteep leafNames outGroup newTrees' [([],(V.empty,V.empty), NT.infinity, M.empty)]
+        newTrees''' <- getGeneralSwap "tbr" doSPRTBR saveMethod keepMethod leafNames outGroup newTrees'' [([],(V.empty,V.empty), NT.infinity, M.empty)]
+    
+        if saveMethod == "best:1" then do
+          if not $ null newTrees' then pure newTrees''
+          else pure [inTree]
+        else if not (null newTrees''') then pure newTrees'''
+        else
+          --trace "TBR swap did not find any new trees"
+          pure [inTree]
+  else errorWithoutStackTrace ("Unrecognized refinement method: " <> refinement)

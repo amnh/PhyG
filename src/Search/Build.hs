@@ -23,7 +23,7 @@ import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
+-- import ParallelUtilities qualified as PU
 import Reconciliation.ReconcileGraphs qualified as R
 import Search.DistanceMethods qualified as DM
 import Search.DistanceWagner qualified as DW
@@ -385,7 +385,8 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
     do
     distWagTreeList <- DM.doWagnerS inGS leafNames distMatrix "closest" outgroupValue "best" 1 []
     let distWagTree = head distWagTreeList
-    let distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree
+    dWagRefined <- DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree
+    let distWagTree' = head dWagRefined
     let distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
     let charInfoVV = V.map thd3 $ thd3 inData
     if not simpleTreeOnly
@@ -419,7 +420,7 @@ randomizedDistanceWagner
     → PhyG [ReducedPhylogeneticGraph]
 randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates rSeed numToKeep refinement =
     -- set up parallel structures 
-    let refineAction ::  TreeWithData -> [TreeWithData]
+    let refineAction ::  TreeWithData -> PhyG [TreeWithData]
         refineAction = DW.performRefinement refinement "best:1" "first" leafNames outgroupValue
 
         traverseGraphAction :: SimpleGraph -> ReducedPhylogeneticGraph
@@ -427,7 +428,10 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
 
         dichotomizeAction :: SimpleGraph -> SimpleGraph
         dichotomizeAction = GO.dichotomizeRoot outgroupValue . (LG.switchRootTree (length leafNames))
-                        
+
+        directedGraphAction :: TreeWithData -> SimpleGraph
+        directedGraphAction = DU.convertToDirectedGraphText leafNames outgroupValue . snd4
+
     in do
 
         let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. (length leafNames - 1)]
@@ -435,8 +439,8 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
 
         let randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
 
-        refineFunction <- getParallelChunkMap 
-        let rasTreeList = refineFunction refineAction randomizedAdditionWagnerTreeList'
+        refineFunction <- getParallelChunkTraverse 
+        rasTreeList <- refineFunction refineAction randomizedAdditionWagnerTreeList'
 
         let randomizedAdditionWagnerTreeList'' =
                 head rasTreeList
@@ -447,10 +451,11 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
                         -- fmap
                         -- (DW.performRefinement refinement "best:1" "first" leafNames outgroupValue)
                         -- randomizedAdditionWagnerTreeList'
-            randomizedAdditionWagnerSimpleGraphList = fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
+
+        directedGraphFunction <- getParallelChunkMap  
+        let randomizedAdditionWagnerSimpleGraphList = directedGraphFunction directedGraphAction randomizedAdditionWagnerTreeList'' 
+            -- fmap (DU.convertToDirectedGraphText leafNames outgroupValue . snd4) randomizedAdditionWagnerTreeList''
         let charInfoVV = V.map thd3 $ thd3 inData
-
-
 
         if not simpleTreeOnly
                 then -- fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
@@ -499,7 +504,8 @@ neighborJoin
 neighborJoin simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
     do
     njTree <- DM.neighborJoining leafNames distMatrix outgroupValue
-    let njTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue njTree
+    njRefined <- DW.performRefinement refinement "best:1" "first" leafNames outgroupValue njTree
+    let njTree' = head njRefined
     let njSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 njTree')
     let charInfoVV = V.map thd3 $ thd3 inData
     if not simpleTreeOnly
@@ -527,7 +533,8 @@ wPGMA
 wPGMA simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement = 
     do
     wpgmaTree <- DM.wPGMA leafNames distMatrix outgroupValue
-    let wpgmaTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue wpgmaTree
+    wpgmaRefined <- DW.performRefinement refinement "best:1" "first" leafNames outgroupValue wpgmaTree
+    let wpgmaTree' = head wpgmaRefined
     let wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
     let charInfoVV = V.map thd3 $ thd3 inData
     if not simpleTreeOnly

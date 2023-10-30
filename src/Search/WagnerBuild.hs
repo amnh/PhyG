@@ -52,7 +52,7 @@ import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.PreOrderFunctions qualified as PRE
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
+-- import ParallelUtilities qualified as PU
 import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
@@ -78,13 +78,21 @@ rasWagnerBuild inGS inData rSeed numReplicates =
           leafDecGraph = GO.makeLeafGraph inData
 
           hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
+
+          wagnerTreeAction :: (V.Vector Int, Int) -> PhyG ReducedPhylogeneticGraph
+          wagnerTreeAction = wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars
+
       in do
       logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
       -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
+
       -- TODO
-      rasResult <- mapM (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
+      wagnerTreeActionTraverse <- getParallelChunkTraverse
+      rasResult <- wagnerTreeActionTraverse wagnerTreeAction (zip randomizedAdditionSequences [0..numReplicates - 1])
+     
+      -- rasResult <- mapM (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
       -- PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
       -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
       pure rasResult
@@ -123,11 +131,10 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        calculateBranchLengths = False -- must be True for delata using existing edge
        initialPostOrderTree = POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
        initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
-
-       wagnerTree = recursiveAddEdgesWagner maxDistance (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
+       
    in do
       logWith LogInfo ("\tBuilding Wagner replicate " <> show replicateIndex <> "\n") 
-   
+      wagnerTree <- recursiveAddEdgesWagner maxDistance (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
       pure wagnerTree
    
 
@@ -135,11 +142,12 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 -- | recursiveAddEdgesWagner adds edges until 2n -1 (n leaves) vertices in graph
 -- this tested by null additin sequence list
 -- interface will change with correct final states--using post-order pass for now
-recursiveAddEdgesWagner :: VertexCost -> Bool -> V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhylogeneticGraph
+recursiveAddEdgesWagner :: VertexCost -> Bool -> V.Vector Int -> Int -> Int -> GlobalSettings -> ProcessedData -> Bool -> DecoratedGraph -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts inGS inData hasNonExactChars leafDecGraph inGraph@(inSimple, _, inDecGraph, _, _, charInfoVV) =
    -- all edges/ taxa in graph
    -- trace ("To go " <> (show additionSequence) <> " verts " <> (show numVerts)) (
-   if null additionSequence then inGraph
+   if null additionSequence then 
+      pure inGraph
    else
       -- trace ("RAEW-In: " <> (show $ length additionSequence)) (
       -- edges/taxa to add, but not the edges that leads to outgroup--redundant with its sister edge
@@ -156,28 +164,36 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
           unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
           -}
 
-          candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
-          minDelta = minimum $ fmap fst4 candidateEditList
-          (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
+          addTaxonAction :: LG.LEdge EdgeInfo -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
+          addTaxonAction = addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd
 
-          -- create new tree
-          newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
+      in do
+          --- TODO 
+          addTaxonWagnerPar <- getParallelChunkMap
+          let candidateEditList = addTaxonWagnerPar addTaxonAction edgesToInvade
+          -- let candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
 
-          -- this reroot since could add taxon sister to outgroup
-          newSimple' = LG.rerootTree (outgroupIndex inGS) newSimple
+          let minDelta = minimum $ fmap fst4 candidateEditList
+          let (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
 
-          -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
-          -- False flag for static IA--can't do when adding in new leaves
-          calculateBranchLengths = False -- must be True for delata using existing edge
-          newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
+              -- create new tree
+          let newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
+
+              -- this reroot since could add taxon sister to outgroup
+          let newSimple' = LG.rerootTree (outgroupIndex inGS) newSimple
+
+              -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
+              -- False flag for static IA--can't do when adding in new leaves
+          let calculateBranchLengths = False -- must be True for delata using existing edge
+          let newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
                           if V.length additionSequence > 1 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                           else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
-      in
-      if isNothing (LG.lab inDecGraph leafToAdd) then error "Missing label data for vertices"
-      else
-         recursiveAddEdgesWagner maxDistance useIA (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
-      -- )
+            
+          if isNothing (LG.lab inDecGraph leafToAdd) then error "Missing label data for vertices"
+          else
+                  recursiveAddEdgesWagner maxDistance useIA (V.tail additionSequence)  numLeaves (numVerts + 1) inGS inData hasNonExactChars leafDecGraph newPhyloGraph
+            -- )
 
 -- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
 -- to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
