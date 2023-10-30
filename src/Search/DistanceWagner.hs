@@ -236,8 +236,8 @@ getRandomAdditionSequence leafNames distMatrix outgroup initiaLeavesToAdd =
 
 -- | doWagnerS takes user options and produces the Wagner tree methods desired (best, asis, or random)
 -- outputs newick rep list
-doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
-doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
+doWagnerS :: GlobalSettings -> V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
+doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
   let nOTUs = V.length leafNames
   in
   if addSequence == "best" then
@@ -264,7 +264,7 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep re
       if null replicateSequences then errorWithoutStackTrace "Zero replicate additions specified--could be error in configuration file"
       else
         if (length replicateSequences > 10000) then 
-          return $ doWagnerRASProgressive leafNames distMatrix outgroup numToKeep [] replicateSequences
+          return $ doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep [] replicateSequences
           -- else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
         --else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences) 
         else 
@@ -275,11 +275,11 @@ doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep re
 
 -- | doWagnerRASProgressive performs RAS distance Wagner in chunks to reduce memory footprint 
 -- for large numner of replicates
-doWagnerRASProgressive :: V.Vector String -> M.Matrix Double -> Int -> Int -> [TreeWithData] -> [V.Vector Int]-> [TreeWithData]
-doWagnerRASProgressive leafNames distMatrix outgroup numToKeep curBestTreeList replicateSequences =
+doWagnerRASProgressive :: GlobalSettings -> V.Vector String -> M.Matrix Double -> Int -> Int -> [TreeWithData] -> [V.Vector Int]-> [TreeWithData]
+doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep curBestTreeList replicateSequences =
   if null replicateSequences then curBestTreeList
   else 
-    let threadNumber = PU.getNumThreads
+    let threadNumber = graphsSteepest inGS -- PU.getNumThreads
         -- this number can be tweaked to incrase or reduce memory usage and efficiency
         jobFactor = 20 
         numToDo = max 1000 (jobFactor * threadNumber)
@@ -290,7 +290,7 @@ doWagnerRASProgressive leafNames distMatrix outgroup numToKeep curBestTreeList r
     in
     --take numToKeep $ L.sortOn thd4 $ PU.seqParMap rdeepseq (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences
     --take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS)
-    doWagnerRASProgressive leafNames distMatrix outgroup numToKeep newBestList (drop numToDo replicateSequences)
+    doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep newBestList (drop numToDo replicateSequences)
 
 
 -- | edgeHasVertex takes an vertex and an edge and returns Maybe Int

@@ -716,7 +716,7 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
           (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
           -}
 
-          numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
+          numGraphsToExamine = graphsSteepest inGS -- min (graphsSteepest inGS) PU.getNumThreads
           -- firstEdgePair = head edgePairList
           edgePairList = take numGraphsToExamine inEdgePairList
 
@@ -1520,7 +1520,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
 
             (numGraphsToExamine, _) = divMod PU.getNumThreads saRounds -- this may not "drift" if finds alot better, but that's how its supposed to work
            -}
-           numGraphsToExamine = min (graphsSteepest inGS) PU.getNumThreads
+           numGraphsToExamine = graphsSteepest inGS -- min (graphsSteepest inGS) PU.getNumThreads
            -- edgeToDelete = head inEdgeToDeleteList
            edgeToDeleteList = take numGraphsToExamine inEdgeToDeleteList
        in do

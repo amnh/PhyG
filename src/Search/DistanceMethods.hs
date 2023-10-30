@@ -80,11 +80,11 @@ wPGMA leafNames distMatrix outgroup =
     
 
 -- | pulls dWagner function from module Wagner
-doWagnerS :: V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
-doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
+doWagnerS :: GlobalSettings -> V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
+doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
   do 
   logWith LogInfo ("\tBuilding " <> show (length replicateSequences) <> " Wagner tree(s)")
-  W.doWagnerS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences
+  W.doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences
 
 -- | pulls Wagner refinement from Wagner module
 performWagnerRefinement :: String -> String -> String -> V.Vector String -> Int -> TreeWithData -> [TreeWithData]

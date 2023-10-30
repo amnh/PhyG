@@ -789,26 +789,26 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                     let -- fuse arguments
                         -- this to limit memory footprint of fuse during search
-                        gsNum = min (graphsSteepest inGS) 5
-                        inGSgs1 = inGS{graphsSteepest = gsNum}
+                        --gsNum = min (graphsSteepest inGS) 5
+                        --inGSgs1 = inGS{graphsSteepest = gsNum}
                         fuseArgs =
                             [("none", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGSgs1 inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
                 "fuseSPR" →
                     let -- fuse arguments
-                        inGSgs1 = inGS{graphsSteepest = 1}
+                        --inGSgs1 = inGS{graphsSteepest = 1}
                         fuseArgs =
                             [("spr", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGSgs1 inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
                 "fuseTBR" →
                     let -- fuse arguments
-                        inGSgs1 = inGS{graphsSteepest = 1}
+                        --inGSgs1 = inGS{graphsSteepest = 1}
                         fuseArgs =
                             [("tbr", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGSgs1 inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
                 "networkAdd" →
                     let -- network add args
                         netEditArgs = netAddArgs

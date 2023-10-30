@@ -360,7 +360,7 @@ distanceWagner
     ∷ Bool → GlobalSettings → ProcessedData → V.Vector String → M.Matrix Double → Int → String → PhyG ReducedPhylogeneticGraph
 distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
     do
-    distWagTreeList <- DM.doWagnerS leafNames distMatrix "closest" outgroupValue "best" 1 []
+    distWagTreeList <- DM.doWagnerS inGS leafNames distMatrix "closest" outgroupValue "best" 1 []
     let distWagTree = head distWagTreeList
     let distWagTree' = head $ DW.performRefinement refinement "best:1" "first" leafNames outgroupValue distWagTree
     let distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
@@ -397,7 +397,7 @@ randomizedDistanceWagner
 randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates rSeed numToKeep refinement =
     do
     let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. (length leafNames - 1)]
-    randomizedAdditionWagnerTreeList <- DM.doWagnerS leafNames distMatrix "random" outgroupValue "random" numToKeep randomizedAdditionSequences
+    randomizedAdditionWagnerTreeList <- DM.doWagnerS inGS leafNames distMatrix "random" outgroupValue "random" numToKeep randomizedAdditionSequences
     let randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
     let randomizedAdditionWagnerTreeList'' =
             head <$>

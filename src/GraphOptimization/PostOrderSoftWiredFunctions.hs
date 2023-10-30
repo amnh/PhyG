@@ -132,9 +132,10 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
         -- take first graph
         let -- get number of threads for parallel evaluation of display trees
             -- can set +RTS -N1 if CPUTime is off
-            numDisplayTreesToEvaluate = PU.getNumThreads
-
+            
+            numDisplayTreesToEvaluate = graphsSteepest inGS -- PU.getNumThreads
             firstGraphList = take numDisplayTreesToEvaluate displayTreeList
+            
 
             -- diagnose post order as Tree
             staticIA = False
