@@ -114,6 +114,97 @@ memoize = error "No memoization option specified"
 #endif
 
 
+#if USING_LOCK == 1
+{-
+-=-=-=-=-=-=-=-
+    T O D O
+-=-=-=-=-=-=-=-
+Consider another implementation which only locks on *resize,*
+permitting truly concurrent reads and writes in all but an infintesimal number of cases.
+-}
+data HashTableAccess k v = Access {-# UNPACK #-} Bool {-# UNPACK #-} (BasicHashTable k v)
+
+
+type role HashTableAccess representational representational
+
+
+lockAccess :: HashTableAccess k v -> HashTableAccess k v
+lockAccess (Access _ table) = table `seq` Access False table
+
+
+unlockAccess :: HashTableAccess k v -> HashTableAccess k v
+unlockAccess (Access _ table) = table `seq` Access True table
+
+
+newHashTableAccess :: Int -> IO (TVar (HashTableAccess k v))
+newHashTableAccess size = newTVarIO =<< fmap (Access True) (newSized size :: IO (BasicHashTable a b))
+
+--
+readHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> IO (Maybe v)
+readHashTableAccess ref key = {-# SCC readHashTableAccess #-} do
+    t <- atomically $ {-# SCC readHashTableAccess_Atomic_Block #-} do
+            Access access table <- readTVar ref
+            check access
+            pure table
+    t `lookup` key
+
+
+updateHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> IO ()
+updateHashTableAccess ref key val = {-# SCC updateHashTableAccess #-} atomically $ do
+    Access access table <- readTVar ref
+    check access
+    modifyTVar' ref lockAccess
+    unsafeIOToSTM $ insert table key val
+    modifyTVar' ref unlockAccess
+
+
+takeHashTableAccess :: TVar (HashTableAccess k v) -> IO (BasicHashTable k v)
+takeHashTableAccess ref = {-# SCC takeHashTableAccess #-} atomically $ do
+    Access access table <- readTVar ref
+    check access
+    modifyTVar' ref lockAccess
+    pure table
+
+
+giveHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
+giveHashTableAccess ref key val table = {-# SCC giveHashTableAccess #-} atomically $ do
+    unsafeIOToSTM $ {-# SCC giveHashTableAccess_INSERT #-} insert table key val
+    modifyTVar' ref unlockAccess
+
+
+giveHashTableAccess_old :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
+giveHashTableAccess_old ref key val table = {-# SCC giveHashTableAccess #-} do
+    {-# SCC giveHashTableAccess_INSERT #-} insert table key val
+    atomically $ modifyTVar' ref unlockAccess
+
+
+{-# NOINLINE memoize_Lock #-}
+memoize_Lock :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_Lock f = unsafePerformIO $ do
+
+    let initialSize = 2 ^ (16 :: Word)
+--    let initialSize = 2 ^ (3 :: Word)
+
+    -- Create a TVar which holds the HashTable
+    !tabRef <- newHashTableAccess initialSize
+    -- This is the returned closure of a memozized f
+    -- The closure captures the "mutable" reference to the hashtable above
+    -- through the TVar.
+    --
+    -- Once the mutable hashtable reference is escaped from the IO monad,
+    -- this creates a new memoized reference to f.
+    -- The technique should be safe for all pure functions, probably, I think.
+    pure $ \k -> unsafeDupablePerformIO $ do
+        readHashTableAccess tabRef k >>= {-# SCC memoize_Lock_CASE #-} \case
+              Just v  -> {-# SCC memoize_Lock_GET #-} pure v
+              Nothing -> {-# SCC memoize_Lock_PUT #-}
+                let v = force $ f k
+                in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
+--                in  updateHashTableAccess tabRef k v $> v
+--                in  (takeHashTableAccess tabRef >>= giveHashTableAccess_old tabRef k v) $> v
+#endif
+
+
 #if USING_CONC == 1
 {-# NOINLINE memoize_Conc #-}
 memoize_Conc :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
@@ -180,85 +271,6 @@ memoize_IO f = unsafePerformIO $ do
                   -- After performing the update side effects,
                   -- we return the value associated with the key
                   pure v
-#endif
-
-
-#if USING_LOCK == 1
-{-
--=-=-=-=-=-=-=-
-    T O D O
--=-=-=-=-=-=-=-
-Consider another implementation which only locks on *resize,*
-permitting truly concurrent reads and writes in all but an infintesimal number of cases.
--}
-data HashTableAccess k v = Access {-# UNPACK #-} Bool {-# UNPACK #-} (BasicHashTable k v)
-
-
-type role HashTableAccess representational representational
-
-
-lockAccess :: HashTableAccess k v -> HashTableAccess k v
-lockAccess (Access _ table) = Access False table
-
-
-newHashTableAccess :: Int -> IO (TVar (HashTableAccess k v))
-newHashTableAccess size = newTVarIO =<< fmap (Access True) (newSized size :: IO (BasicHashTable a b))
-
---
-readHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> IO (Maybe v)
-readHashTableAccess ref key = {-# SCC readHashTableAccess #-} do
-    t <- atomically $ {-# SCC readHashTableAccess_Atomic_Block #-} do
-            Access access table <- readTVar ref
-            check access
-            pure table
-    t `lookup` key
-
-
-updateHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> IO ()
-updateHashTableAccess ref key val = {-# SCC updateHashTableAccess #-} atomically $ do
-    Access access table <- readTVar ref
-    check access
-    modifyTVar' ref lockAccess
-    unsafeIOToSTM $ insert table key val
-    writeTVar ref $ Access True table
-
-
-takeHashTableAccess :: TVar (HashTableAccess k v) -> IO (BasicHashTable k v)
-takeHashTableAccess ref = {-# SCC takeHashTableAccess #-} atomically $ do
-    Access access table <- readTVar ref
-    check access
-    modifyTVar' ref lockAccess
-    pure table
-
-
-giveHashTableAccess :: Hashable k => TVar (HashTableAccess k v) -> k -> v -> BasicHashTable k v -> IO ()
-giveHashTableAccess ref key val table = {-# SCC giveHashTableAccess #-} do
-    {-# SCC giveHashTableAccess_INSERT #-} insert table key val
-    atomically . writeTVar ref $ Access True table
-
-
-{-# NOINLINE memoize_Lock #-}
-memoize_Lock :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
-memoize_Lock f = unsafePerformIO $ do
-
-    let initialSize = 2 ^ (16 :: Word)
-
-    -- Create a TVar which holds the HashTable
-    !tabRef <- newHashTableAccess initialSize
-    -- This is the returned closure of a memozized f
-    -- The closure captures the "mutable" reference to the hashtable above
-    -- through the TVar.
-    --
-    -- Once the mutable hashtable reference is escaped from the IO monad,
-    -- this creates a new memoized reference to f.
-    -- The technique should be safe for all pure functions, probably, I think.
-    pure $ \k -> unsafeDupablePerformIO $ do
-        readHashTableAccess tabRef k >>= {-# SCC memoize_Lock_CASE #-} \case
-              Just v  -> {-# SCC memoize_Lock_GET #-} pure v
-              Nothing -> {-# SCC memoize_Lock_PUT #-}
-                let v = force $ f k
-                in  updateHashTableAccess tabRef k v $> v
---                in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
 #endif
 
 

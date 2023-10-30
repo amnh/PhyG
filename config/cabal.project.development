@@ -63,8 +63,11 @@ Constraints:
     template-haskell installed
 
 Constraints:
-    optparse-applicative -process,
-    tasty -unix
+--    hashtables +debug,
+--    hashtables -unsafe-tricks,
+    hashtables +bounds-checking,
+    optparse-applicative +process,
+    tasty +unix
 
 Preferences:
     aeson >= 2.1.0.0,
