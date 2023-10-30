@@ -315,7 +315,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 case treeListFull of
                     [] → failWithPhase Computing $ "Distance build is specified, but without any method: " <> show inArgs
                     xs → do
-                        logWith LogMore $ getBuildLogMessage "Distance" "yielded" "trees" $ xs
+                        logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs)  <> "\n"
                         if not simpleTreeOnly
                             then pure xs
                             else pure $ GO.selectGraphs Best 1 0.0 (-1) xs
@@ -344,10 +344,10 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                     treeList <- WB.rasWagnerBuild inGS inData rSeed numReplicates
                     let treeList' = GO.selectGraphs Best 1 0.0 (-1) treeList
                     if simpleTreeOnly then do 
-                        logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList'
+                        logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList')  <> "\n"
                         pure treeList'
                     else do
-                        logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList
+                        logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList)  <> "\n"
                         pure treeList
                     
                 
