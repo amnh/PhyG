@@ -199,8 +199,8 @@ memoize_Lock f = unsafePerformIO $ do
               Just v  -> {-# SCC memoize_Lock_GET #-} pure v
               Nothing -> {-# SCC memoize_Lock_PUT #-}
                 let v = force $ f k
-                in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
---                in  updateHashTableAccess tabRef k v $> v
+--                in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
+                in  updateHashTableAccess tabRef k v $> v
 --                in  (takeHashTableAccess tabRef >>= giveHashTableAccess_old tabRef k v) $> v
 #endif
 
