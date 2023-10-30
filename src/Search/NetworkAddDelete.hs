@@ -271,7 +271,7 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
    
          -- if graph is a tree no edges to delete
          if null netEdgeList then do
-            logWith LogInfo ("\t\tGraph in move has no network edges to move--skipping") 
+            logWith LogInfo ("\t\tGraph in move has no network edges to move--skipping" <> "\n") 
             pure (inPhyloGraphList, counter)
 
          -- regular move keeping best
@@ -450,15 +450,15 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
             let newGraphCost = if (not . null) bestNewGraphList then snd5 $ head bestNewGraphList
                              else infinity
 
-            logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes)) 
+            logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes) <> "\n") 
             -- trace ("IANE: " <> (show $ length netNodes)) (
             if length netNodes >= maxNetEdges then do
-               logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes))
+               logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
                pure (take numToKeep curBestGraphList, counter)
 
 
             else if null newGraphList then do
-               logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes))
+               logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes) <> "\n")
                pure (take numToKeep curBestGraphList, counter)
 
             -- regular insert keeping best
@@ -622,12 +622,12 @@ insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrd
       let minCost = if null candidateNetworkEdgeList || null newGraphList then infinity
                     else minimum $ fmap snd5 newGraphList
       
-      logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs") 
+      logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n") 
 
       -- no network edges to insert
       -- trace ("IENE: " <> (show minCost)) (
       if (length netNodes >= maxNetEdges) then do
-            logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes))
+            logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
             pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
 
       -- no edges to add
@@ -735,7 +735,7 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
  
             -- traceNoLF ("*")  (      -- trace ("INER: " <> (show $ snd5 newGraph) <> " " <> (show preDeleteCost)) (
             if length netNodes >= maxNetEdges then do
-               logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes))
+               logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
                pure ([inPhyloGraph], inSimAnnealParams)
 
             -- malformed graph--returns nothing for either regular or simAnneal/drift
@@ -940,7 +940,7 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
       if LG.isTree (fst5 $ head inPhyloGraphList) then do
          -- let (a,b,c,d) = LG.splitVertexList (fst5 $ head inPhyloGraphList)
          -- in
-         logWith  LogInfo ("\tGraph in delete network edges is tree--skipping") --  :" <> (show $ (snd5 $ head inPhyloGraphList, length a, length b, length c, length d)))
+         logWith  LogInfo ("\tGraph in delete network edges is tree--skipping" <> "\n") --  :" <> (show $ (snd5 $ head inPhyloGraphList, length a, length b, length c, length d)))
          deleteAllNetEdges' inGS inData maxNetEdges numToKeep (counter + 1) returnMutated doSteepest doRandomOrder ((head inPhyloGraphList) : curBestGraphList, currentCost) (tail randIntList) inSimAnnealParams (tail inPhyloGraphList)
 
       -- is this an issue for SA?
@@ -1090,7 +1090,7 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
    else if LG.isEmpty $ thd5 inPhyloGraph then error "Empty graph in deleteOneNetAddAll"
    else do
       -- trace ("DONAA-New: " <> (show $ snd5 inPhyloGraph) <> " Steepest:" <> (show doSteepest)) (
-      logWith LogInfo  ("Moving " <> (show $ length edgeToDeleteList) <> " network edges, current best cost: " <> (show $ snd5 inPhyloGraph)) 
+      logWith LogInfo  ("Moving " <> (show $ length edgeToDeleteList) <> " network edges, current best cost: " <> (show $ snd5 inPhyloGraph) <> "\n") 
       -- start with initial graph cost
       let inGraphCost = snd5 inPhyloGraph
 
@@ -1438,7 +1438,7 @@ deleteEachNetEdge inGS inData rSeed numToKeep doSteepest doRandomOrder force inS
    
             -- no network edges to delete
             if null networkEdgeList then do
-               logWith LogInfo ("\tNo network edges to delete") 
+               logWith LogInfo ("\tNo network edges to delete" <> "\n") 
                pure ([inPhyloGraph], currentCost, inSimAnnealParams)
 
             else
@@ -1704,11 +1704,11 @@ deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
       -- warning if chained on input, skip if chained net edges in output
       else if (LG.isNetworkNode inGraph p1) then do
          -- error ("Error: Chained network nodes in deleteNetworkEdge : " <> (show inEdge) <> "\n" <> (LG.prettyIndices inGraph) <> " skipping")
-         logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion")
+         logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion" <> "\n")
          pure (LG.empty, False)
 
       else if LG.hasChainedNetworkNodes newGraph'' then do
-         logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)")
+         logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)" <> "\n")
          pure (LG.empty, False)
 
       else if LG.isEmpty newGraph'' then do

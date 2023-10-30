@@ -74,7 +74,7 @@ wPGMA leafNames distMatrix outgroup =
         let newickString = convertToNewick leafNames outgroup wPGMATree'
         let treeCost = getTreeCost wPGMATree'
     
-        logWith LogInfo "\n\tBuilding WPGMA tree" 
+        logWith LogInfo "\n\tBuilding WPGMA tree\n" 
         --trace (show wPGMATree <> "\n" <> show wPGMATree')
         return $ (take (length newickString - 3) newickString <> "[" <> show treeCost <> "];\n", wPGMATree', treeCost, finalMatrix)
     
@@ -83,7 +83,7 @@ wPGMA leafNames distMatrix outgroup =
 doWagnerS :: GlobalSettings -> V.Vector String -> M.Matrix Double -> String -> Int -> String -> Int -> [V.Vector Int]-> PhyG [TreeWithData]
 doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences =
   do 
-  logWith LogInfo ("\tBuilding " <> show (length replicateSequences) <> " Wagner tree(s)")
+  logWith LogInfo ("\tBuilding " <> show (length replicateSequences) <> " Wagner tree(s)" <> "\n")
   W.doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKeep replicateSequences
 
 -- | pulls Wagner refinement from Wagner module
@@ -97,7 +97,7 @@ neighborJoining leafNames distMatrix outgroup =
     if M.null distMatrix then error "Null matrix in neighborJoining"
     else
       do
-        logWith LogInfo "\n\tBuilding NJ tree" 
+        logWith LogInfo "\n\tBuilding NJ tree\n" 
         -- get intial matrices
         let numLeaves = V.length leafNames
         let leafVertexVect = V.fromList [0..(numLeaves - 1)]

@@ -57,7 +57,7 @@ refineGraph :: [Argument]
             -> PhyG [ReducedPhylogeneticGraph]
 refineGraph inArgs inGS inData rSeed inGraphList =
    if null inGraphList then do
-        logWith LogInfo "No graphs input to refine"
+        logWith LogInfo "No graphs input to refine\n"
         pure []
    else
       let fstArgList = fmap (fmap toLower . fst) inArgs
@@ -110,17 +110,17 @@ geneticAlgorithmMaster :: [Argument]
                        -> PhyG [ReducedPhylogeneticGraph]
 geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then do
-    logWith LogInfo "No graphs to undergo Genetic Algorithm" 
+    logWith LogInfo "No graphs to undergo Genetic Algorithm\n" 
     pure []
    else do
-      logWith LogInfo ("Genetic Algorithm operating on population of " <> show (length inGraphList) <> " input graph(s) with cost range (" <> show (minimum $ fmap snd5 inGraphList) <> "," <> show (maximum $ fmap snd5 inGraphList) <> ")") 
+      logWith LogInfo ("Genetic Algorithm operating on population of " <> show (length inGraphList) <> " input graph(s) with cost range (" <> show (minimum $ fmap snd5 inGraphList) <> "," <> show (maximum $ fmap snd5 inGraphList) <> ")" <> "\n") 
 
       -- process args
       let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
       
       (newGraphList, generationCounter) <- GA.geneticAlgorithm inGS inData rSeed doElitist (fromJust maxNetEdges) (fromJust keepNum) (fromJust popSize) (fromJust generations) 0 (fromJust severity) (fromJust recombinations) 0 stopNum inGraphList
       
-      logWith LogInfo ("\tGenetic Algorithm: " <> show (length newGraphList) <> " resulting graphs with cost range (" <> show (minimum $ fmap snd5 newGraphList) <> "," <> show (maximum $ fmap snd5 newGraphList) <> ")" <> " after " <> show generationCounter <> " generation(s)")
+      logWith LogInfo ("\tGenetic Algorithm: " <> show (length newGraphList) <> " resulting graphs with cost range (" <> show (minimum $ fmap snd5 newGraphList) <> "," <> show (maximum $ fmap snd5 newGraphList) <> ")" <> " after " <> show generationCounter <> " generation(s)" <> "\n")
       
       pure newGraphList
       
@@ -210,8 +210,8 @@ fuseGraphs :: [Argument]
            -> [ReducedPhylogeneticGraph] 
            -> PhyG [ReducedPhylogeneticGraph]
 fuseGraphs inArgs inGS inData rSeed inGraphList
-    | null inGraphList = logWith LogMore "Fusing--skipped: No graphs to fuse" $> []
-    | length inGraphList == 1 = logWith LogMore "Fusing--skipped: Need > 1 graphs to fuse" $> inGraphList
+    | null inGraphList = logWith LogMore "Fusing--skipped: No graphs to fuse\n" $> []
+    | length inGraphList == 1 = logWith LogMore "Fusing--skipped: Need > 1 graphs to fuse\n" $> inGraphList
     {- | graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList -}
     | otherwise = do
         -- process args for fuse placement
@@ -244,7 +244,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
             -- set implied alignment swapping
         let doIA' = any ((== "ia") . fst) lcArgList
         let getDoIA
-                | (graphType inGS /= Tree) && doIA' = logWith LogWarn "\tIgnoring 'IA' swap option for non-Tree" $> False
+                | (graphType inGS /= Tree) && doIA' = logWith LogWarn "\tIgnoring 'IA' swap option for non-Tree\n" $> False
                 | otherwise = pure doIA'
     
         let returnBest = any ((== "best") . fst) lcArgList
@@ -282,6 +282,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                     ,  show $ length inGraphList
                     , "input graph(s) with minimum cost"
                     , show . minimum $ fmap snd5 inGraphList
+                    , "\n"
                     ]
 
         withIA <- getDoIA
@@ -297,6 +298,7 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                      , show . minimum $ fmap snd5 newGraphList
                      , " after fuse rounds (total): "
                      , show counterFuse
+                     , "\n"
                      ]
         pure newGraphList
 
@@ -350,10 +352,10 @@ netEdgeMaster :: [Argument]
               -> PhyG [ReducedPhylogeneticGraph]
 netEdgeMaster inArgs inGS inData rSeed inGraphList =
    if null inGraphList then do
-    logWith LogInfo "No graphs to edit network edges" 
+    logWith LogInfo "No graphs to edit network edges\n" 
     pure []
    else if graphType inGS == Tree then do
-    logWith LogWarn "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired" 
+    logWith LogWarn "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n" 
     pure inGraphList
 
    -- process args for netEdgeMaster
@@ -454,13 +456,13 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
 
             in do
                 if doDrift && doAnnealing then do 
-                        logWith LogWarn "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting."
+                        logWith LogWarn "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
                 else logWith LogInfo ""
                 if graphType inGS == HardWired then 
                     if doNetDelete then do 
-                        logWith LogInfo "Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping"
+                        logWith LogInfo "Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
                     else if doAddDelete then do
-                        logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
+                        logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
                     else logWith LogInfo ""
                 else logWith LogInfo ""
                 logWith LogInfo bannerText 

@@ -90,7 +90,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
             initialEliteList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) inGraphList
         in do
 
-        logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter)) 
+        logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter) <> "\n") 
         
         -- mutate input graphs, produces number input, limited to popsize
         mutatedGraphList' <- mapM (mutateGraph inGS inData maxNetEdges) $ zip (randomIntList $ head seedList) (takeRandom (seedList !! 1) popSize inGraphList)

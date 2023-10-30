@@ -79,7 +79,7 @@ rasWagnerBuild inGS inData rSeed numReplicates =
 
           hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
       in do
-      logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates")
+      logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
       -- seqParMap better for high level parallel stuff
       -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
       -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
@@ -126,7 +126,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 
        wagnerTree = recursiveAddEdgesWagner maxDistance (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
    in do
-      logWith LogInfo ("\tBuilding Wagner replicate " <> show replicateIndex) 
+      logWith LogInfo ("\tBuilding Wagner replicate " <> show replicateIndex <> "\n") 
    
       pure wagnerTree
    
