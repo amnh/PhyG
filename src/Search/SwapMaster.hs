@@ -64,7 +64,7 @@ swapMaster ::  [Argument]
 swapMaster inArgs inGS inData rSeed inGraphListInput =
    if null inGraphListInput then 
     do
-      logWith LogInfo "No graphs to swap" 
+      logWith LogInfo "No graphs to swap\n" 
       pure []
    -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
    else
@@ -151,9 +151,9 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
             let newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
 
             let progressString
-                 | (not doAnnealing && not doDrift) = ("Swapping " <> show (length inGraphListInput) <> " input graph(s) with " <> show replicates <> " trajectories at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs per input graph")
-                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " <> show (rounds $ fromJust simAnnealParams) <> " rounds with " <> show (numberSteps $ fromJust simAnnealParams) <> " cooling steps " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs")
-                 | otherwise = "Drifting (Swapping) " <> show (rounds $ fromJust simAnnealParams) <> " rounds with " <> show (driftMaxChanges $ fromJust simAnnealParams) <> " maximum changes per round on " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs"
+                 | (not doAnnealing && not doDrift) = ("Swapping " <> show (length inGraphListInput) <> " input graph(s) with " <> show replicates <> " trajectories at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs per input graph" <> "\n")
+                 | method (fromJust simAnnealParams) == SimAnneal = ("Simulated Annealing (Swapping) " <> show (rounds $ fromJust simAnnealParams) <> " rounds with " <> show (numberSteps $ fromJust simAnnealParams) <> " cooling steps " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs" <> "\n")
+                 | otherwise = "Drifting (Swapping) " <> show (rounds $ fromJust simAnnealParams) <> " rounds with " <> show (driftMaxChanges $ fromJust simAnnealParams) <> " maximum changes per round on " <> show (length inGraphList) <> " input graph(s) at minimum cost " <> show (minimum $ fmap snd5 inGraphList) <> " keeping maximum of " <> show (fromJust keepNum) <> " graphs"  <> "\n"
 
             logWith LogInfo progressString
             -- TODO 
@@ -178,7 +178,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                   | otherwise = "\n\tAfter Drifting: " <> show (length finalGraphList) <> " resulting graphs with minimum cost " <> show (minimum $ fmap snd5 finalGraphList) <> " with swap rounds (total): " <> show counter <> " " <> show swapType
 
             
-            logWith LogInfo (endString <> fullBuffWarning)
+            logWith LogInfo (endString <> fullBuffWarning <> "\n")
             pure finalGraphList
 
 
@@ -233,13 +233,11 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                                , driftMaxChanges   = changes
                                , driftChanges      = 0
                                }
-       in
-       if doDrift && doAnnealing then do
-          logWith LogWarn "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting."
-          pure $ Just saValues
-       else do
-          logWith LogInfo ""
-          pure $ Just saValues
+       in do
+       when (doDrift && doAnnealing) $
+          logWith LogWarn "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
+       
+       pure $ Just saValues
        
 
 -- | getSwapParams takes areg list and preocesses returning parameter values

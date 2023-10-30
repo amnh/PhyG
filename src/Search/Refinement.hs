@@ -17,6 +17,7 @@ module Search.Refinement  ( refineGraph
                           ) where
 
 import Control.Evaluation
+import Control.Monad (when)
 import Control.Monad.Logger (Logger(..), LogLevel(..))
 import GeneralUtilities
 import Data.Functor (($>))
@@ -455,17 +456,13 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                  | otherwise = ""
 
             in do
-                if doDrift && doAnnealing then do 
+                when (doDrift && doAnnealing) $ 
                         logWith LogWarn "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
-                else logWith LogInfo ""
-                if graphType inGS == HardWired then 
-                    if doNetDelete then do 
+                when ((graphType inGS == HardWired) && doNetDelete) $
                         logWith LogInfo "Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
-                    else if doAddDelete then do
+                when ((graphType inGS == HardWired) && doAddDelete) $ 
                         logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
-                    else logWith LogInfo ""
-                else logWith LogInfo ""
-                logWith LogInfo bannerText 
+                logWith LogInfo (bannerText <> "\n")
                 -- TODO 
                 -- graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
                 graphPairList1 <- mapM (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) 
@@ -530,7 +527,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                       else GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) newGraphList'''
     
                 logWith LogInfo ("\tAfter network edge add/delete/move: " <> show (length resultGraphList) <> " resulting graphs at cost " <> show (minimum $ fmap snd5 resultGraphList) <> " with add/delete/move rounds (total): " <> show counterAdd <> " Add, "
-                    <> show counterDelete <> " Delete, " <> show counterMove <> " Move, " <> show counterAddDelete <> " AddDelete")
+                    <> show counterDelete <> " Delete, " <> show counterMove <> " Move, " <> show counterAddDelete <> " AddDelete" <> "\n")
                 pure resultGraphList
                 
 

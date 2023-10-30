@@ -130,7 +130,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
         let infoIndices = [1 ..]
         let seadStreams = randomIntList <$> randomIntList rSeed
     
-        logWith LogInfo ("Randomized seach for " <> (show searchTime) <> " seconds with " <> (show instances) <> " instances keeping at most " <> (show keepNum) <> " graphs")
+        logWith LogInfo ("Randomized seach for " <> (show searchTime) <> " seconds with " <> (show instances) <> " instances keeping at most " <> (show keepNum) <> " graphs" <> "\n")
         -- if initial graph list is empty make some
         dWagGraphList ←
             B.buildGraph
@@ -152,7 +152,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
         let (newGraphList, commentList) = unzip resultList
         let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
 
-        let iterationHitString = ("Hit minimum cost " <> (show $ minimum $ fmap snd5 $ concat newGraphList) <> " in " <> (show $ length $ head newCostList) <> " of " <> (show $ length newGraphList) <> " iterations")
+        let iterationHitString = ("Hit minimum cost " <> (show $ minimum $ fmap snd5 $ concat newGraphList) <> " in " <> (show $ length $ head newCostList) <> " of " <> (show $ length newGraphList) <> " iterations" <> "\n")
         let completeGraphList = inGraphList <> fold newGraphList
         let filteredGraphList = GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) completeGraphList
         let selectedGraphList = take keepNum filteredGraphList
@@ -206,7 +206,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
         inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) inGraphList
 
         logWarning :: b -> [String] -> PhyG b
-        logWarning val tokens = logWith LogWarn (unwords $ "Thread" : show refIndex : tokens) $> val
+        logWarning val tokens = logWith LogWarn ((unwords $ "Thread" : show refIndex : tokens)  <> "\n") $> val
 
         runForDuration :: PhyG a -> PhyG (Maybe a)
         runForDuration = liftIOOp (timeout timeLimit)
@@ -282,6 +282,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                 , "Alloted  \t" <> show allotedSeconds
                 , "Ellapsed \t" <> show elapsedSeconds
                 , "Remaining\t" <> show remainingTime
+                , "\n"
                 ]
 
             if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum || (null $ snd output)
@@ -356,7 +357,7 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
                                     else 0
                             stopString =
                                  if newStopCount >= stopNum
-                                    then ("\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command")
+                                    then ("\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n")
                                  else ""
                         in  if thisBandit == SearchBandit
                                 then do
@@ -396,7 +397,7 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
 
                             stopString =
                                 if newStopCount >= stopNum
-                                    then ("\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command")
+                                    then ("\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n")
                                     else ""
                         in  -- check error
                             if isNothing indexBandit'
@@ -1007,7 +1008,7 @@ getSearchParams inArgs =
                                                                                                         else seconds
                                                                                                 searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
                                                                                             in  do
-                                                                                                when (mLinear && mExponential) $ logWith LogWarn ("Thompson recency function specification has both 'linear' and 'exponential', defaulting to 'linear'")
+                                                                                                when (mLinear && mExponential) $ logWith LogWarn ("Thompson recency function specification has both 'linear' and 'exponential', defaulting to 'linear'\n")
                                                                                                 pure $ ( searchTime
                                                                                                         , fromJust keepNum
                                                                                                         , fromJust instances
