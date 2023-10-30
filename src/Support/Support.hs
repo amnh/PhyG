@@ -213,21 +213,21 @@ supportGraph inArgs inGS inData rSeed inGraphList =
                                                                                 then " using " <> neighborhood <> " based on " <> show (fromJust gbSampleSize) <> " samples at random"
                                                                                 else " using " <> neighborhood
                                                                     in  do
-                                                                            logWith LogTech $ "Generating Goodman-Bremer support" <> extraString
+                                                                            logWith LogTech $ "Generating Goodman-Bremer support" <> extraString <> "\n"
                                                                             -- TODO
                                                                             mapM (getGoodBremGraphs inGS inData rSeed neighborhood gbSampleSize gbRandomSample) inGraphList
                                                     in do  
 
                                                     -- Option warnings 
-                                                    if (supportMeasure == Bootstrap) && ((not . null) jackList && null goodBremList) then do
+                                                    when ((supportMeasure == Bootstrap) && ((not . null) jackList && null goodBremList)) $
                                                         logWith LogWarn "Bootstrap and Jackknife specified--defaulting to Jackknife"
-                                                    else if (supportMeasure == Bootstrap) || ((not . null) jackList && (not . null) goodBremList) then do
+                                                    when ((supportMeasure == Bootstrap) || ((not . null) jackList && (not . null) goodBremList)) $
                                                         logWith LogWarn "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer"
-                                                    else if fromJust replicates' < 0 then do 
+                                                    when (fromJust replicates' < 0) $ 
                                                         logWith LogWarn "Negative replicates number--defaulting to 100"
-                                                    else if fromJust jackFreq' <= 0 || fromJust jackFreq' >= 1.0 then
+                                                    when (fromJust jackFreq' <= 0 || fromJust jackFreq' >= 1.0) $ 
                                                          logWith LogWarn  "Jackknife frequency must be on (0.0, 1.0) defaulting to 0.6321"
-                                                    else do logWith LogInfo ""
+                                                    
                                                     
                                                     supportGraphList
 
