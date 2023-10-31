@@ -13,7 +13,6 @@ import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
-import ParallelUtilities qualified as P
 import SymMatrix qualified as S
 import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
