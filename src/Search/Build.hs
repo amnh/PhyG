@@ -183,9 +183,10 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
             if doEUN
                 then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
                 else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
-
+    in do
         -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
-        reconciledGraphInitial = snd $ R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
+        reconciledGraphInitial' <- R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
+        let reconciledGraphInitial = snd reconciledGraphInitial'
 
         -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
         {-
@@ -196,37 +197,37 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
         reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" contractedGraph -}
 
         -- chained was separate in past, now in convertGeneralGraphToPhylogeneticGraph
-        reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph True reconciledGraphInitial
+        let reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph True reconciledGraphInitial
 
         -- this for non-convertable graphs
-        reconciledGraph'
-            | not $ LG.isEmpty reconciledGraph = reconciledGraph
-            | otherwise = reconciledGraphInitial
+        let reconciledGraph' 
+                | not $ LG.isEmpty reconciledGraph = reconciledGraph
+                | otherwise = reconciledGraphInitial
 
-        displayGraphs'
-            | not returnRandomDisplayTrees = take numDisplayTrees $ LG.generateDisplayTrees True reconciledGraph'
-            | otherwise = LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
+        let displayGraphs'
+                | not returnRandomDisplayTrees = take numDisplayTrees $ LG.generateDisplayTrees True reconciledGraph'
+                | otherwise = LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
 
         -- need this to fix up some graphs after other stuff changed
-        displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
+        let displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
 
         -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
-        numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
-        strNetNodes =
-            fold
-                [ "Reconciled graph has "
-                , show numNetNodes
-                , " network nodes hence up to 2^"
-                , show numNetNodes
-                , " display trees"
-                ]
-    in  do
-            when (LG.isEmpty reconciledGraph && not returnTrees) $
+        let numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
+        let strNetNodes =
+                fold
+                    [ "Reconciled graph has "
+                    , show numNetNodes
+                    , " network nodes hence up to 2^"
+                    , show numNetNodes
+                    , " display trees"
+                    ]
+
+        when (LG.isEmpty reconciledGraph && not returnTrees) $
                 failWithPhase
                     Unifying
                     "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
 
-            if not (LG.isEmpty reconciledGraph) && not returnTrees
+        if not (LG.isEmpty reconciledGraph) && not returnTrees
                 then logWith LogMore (strNetNodes <> " for softwired network") $> [reconciledGraph]
                 else
                     if not returnGraph && returnTrees

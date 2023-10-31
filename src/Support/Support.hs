@@ -63,8 +63,7 @@ import Types.Types
 import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
 -- import Debug.Trace
-
--- "High level" paralleization used for overall graphs contruction
+-- import ParallelUtilities qualified as PU
 
 -- | driver for overall support
 supportGraph ∷ [Argument] → GlobalSettings → ProcessedData → Int → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
@@ -265,15 +264,23 @@ getResampleGraph inGS inData rSeed resampleType replicates buildOptions swapOpti
                 , ("threshold", "51")
                 , ("outformat", "dot")
                 ]
+        -- parallel stuff
+        action :: Int -> PhyG ReducedPhylogeneticGraph
+        action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq
+
     in  -- majority ruke consensus if no args
         do
-            resampledGraphList ←
+            actionPar <- getParallelChunkTraverse
+            resampledGraphList <- actionPar action (take replicates $ randomIntList rSeed)
+            {-resampledGraphList ←
                 sequenceA $
                     PU.seqParMap
                         (parStrategy $ strictParStrat inGS)
                         (makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq)
                         (take replicates $ randomIntList rSeed)
-            let (_, reconciledGraph) = REC.makeReconcileGraph VER.reconcileArgList reconcileArgs (fmap fst5 resampledGraphList)
+            -}
+            recResult <-  REC.makeReconcileGraph VER.reconcileArgList reconcileArgs (fmap fst5 resampledGraphList)
+            let (_, reconciledGraph) = recResult
 
             -- trace ("GRG: \n" <> reconciledGraphString) (
             -- generate resampled graph
@@ -314,7 +321,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
                 -- build graphs
                 buildGraphs ← B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList1 !! 1)
                 let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) buildGraphs
-                edgeGraphList <-  R.netEdgeMaster netAddArgs inGS newData (randomIntegerList1 !! 2) bestBuildGraphList
+                edgeGraphList <- R.netEdgeMaster netAddArgs inGS newData (randomIntegerList1 !! 2) bestBuildGraphList
                 let netGraphList = case graphType inGS of
                         Tree → bestBuildGraphList
                         _ → edgeGraphList
@@ -716,28 +723,38 @@ getGBTuples
     → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
 getGBTuples inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
     -- traverse swap (SPR/TBR) neighborhood optimizing each graph fully
-    let swapTuples = performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph
+    let -- parallel stuff
+        deleteAction :: (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
+        deleteAction = updateDeleteTuple inGS inData inGraph
+
+        moveAction :: (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
+        moveAction = updateMoveTuple inGS inData inGraph
     in do
+        swapTuples <- performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph
+        
         -- network edge support if not Tree
+        deletePar <- getParallelChunkTraverse
+        updateDelResult <- deletePar deleteAction swapTuples -- mapM (updateDeleteTuple inGS inData inGraph) swapTuples 
 
-    updateDelResult <- mapM (updateDeleteTuple inGS inData inGraph) swapTuples 
-    updateMoveResult <- mapM (updateMoveTuple inGS inData inGraph) swapTuples
-    let netTuples =
-            if (graphType inGS == Tree) || LG.isTree (fst5 inGraph)
-                then swapTuples -- swap only for Tree-do nothing
-                    
-                else -- SoftWired => delete edge -- could add net move if needed
+        movePar <- getParallelChunkTraverse
+        updateMoveResult <- movePar moveAction swapTuples -- mapM (updateMoveTuple inGS inData inGraph) swapTuples
 
-                    if graphType inGS == SoftWired
-                        -- TODO
-                        -- then PU.seqParMap (parStrategy $ strictParStrat inGS) (updateDeleteTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
-                        then updateDelResult
-                        else  -- HardWired => move edge
+        let netTuples =
+                if (graphType inGS == Tree) || LG.isTree (fst5 inGraph)
+                    then swapTuples -- swap only for Tree-do nothing
+                        
+                    else -- SoftWired => delete edge -- could add net move if needed
+
+                        if graphType inGS == SoftWired
                             -- TODO
-                            updateMoveResult
-                            -- PU.seqParMap (parStrategy $ strictParStrat inGS) (updateMoveTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                            -- then PU.seqParMap (parStrategy $ strictParStrat inGS) (updateDeleteTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
+                            then updateDelResult
+                            else  -- HardWired => move edge
+                                -- TODO
+                                updateMoveResult
+                                -- PU.seqParMap (parStrategy $ strictParStrat inGS) (updateMoveTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
 
-    pure netTuples
+        pure netTuples
 
 
 {- | updateDeleteTuple take a graph and and edge and delete a network edge (or retunrs tuple if not network)
@@ -805,7 +822,7 @@ performGBSwap
     → Bool
     → [(Int, Int, NameBV, NameBV, VertexCost)]
     → ReducedPhylogeneticGraph
-    → [(Int, Int, NameBV, NameBV, VertexCost)]
+    → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
 performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList inGraph =
     if LG.isEmpty (fst5 inGraph)
         then error "Null graph in performGBSwap"
@@ -837,17 +854,24 @@ performGBSwap inGS inData rSeed swapType sampleSize sampleAtRandom inTupleList i
                             floor
                                 ((1000.0 * fromIntegral (fromJust sampleSize)) / ((2.0 * fromIntegral (length leafList - length netVertList)) ** 3) ∷ Double)
 
+                splitRejoinAction :: ([Int], LG.LEdge Double) → [(Int, Int, NameBV, NameBV, VertexCost)]
+                splitRejoinAction = splitRejoinGB' inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList
+
+            in do
+                splitRejoinPar <- getParallelChunkMap
+
                 -- generate tuple lists for each break edge parallelized at this level
-                tupleListList =
-                    PU.seqParMap
+                let tupleListList = splitRejoinPar splitRejoinAction (zip randomIntegerListList breakEdgeList)
+                    {-PU.seqParMap
                         (parStrategy $ strictParStrat inGS)
                         (splitRejoinGB' inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList)
                         (zip randomIntegerListList breakEdgeList) -- `using` PU.myParListChunkRDS
+                    -}
 
                 -- merge tuple lists--should all be in same order
-                newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
-            in  -- trace ("PGBS:" <> (show $ fmap length tupleListList) <> " -> " <> (show $ length newTupleList))
-                newTupleList
+                let newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
+                -- trace ("PGBS:" <> (show $ fmap length tupleListList) <> " -> " <> (show $ length newTupleList))
+                pure newTupleList
 
 
 -- | splitRejoinGB' is  wrapper for splitRejoinGB to allow for seqParMap

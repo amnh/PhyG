@@ -30,13 +30,13 @@ import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Graphs.GraphOperations qualified as GO
 import Input.BitPack qualified as BP
-import ParallelUtilities qualified as PU
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.ThreeWayFunctions qualified as TW
 import Utilities.Utilities qualified as U
 -- import Debug.Trace
+import ParallelUtilities qualified as PU
 
 
 {- |

@@ -42,27 +42,31 @@ module Reconciliation.Eun ( reconcile
                           , addGraphLabels)
                           where
 
-import           Control.Parallel.Strategies
-import qualified Data.BitVector                    as BV
-import qualified Data.Bits                         as B
-import qualified Data.Graph.Inductive.Graph        as G
-import qualified Data.Graph.Inductive.PatriciaTree as P
-import qualified Data.Graph.Inductive.Query.BFS    as BFS
-import           Data.GraphViz                     as GV
-import           Data.GraphViz.Printing
-import qualified Data.List                         as L
-import qualified Data.Map.Strict                   as Map
-import           Data.Maybe
-import qualified Data.Set                          as S
-import qualified Data.Text.Lazy                    as T
-import qualified Data.Vector                       as V
-import qualified GraphFormatUtilities              as PhyP
-import qualified Graphs.GraphOperations            as GO
-import           ParallelUtilities                 as PU
-import qualified Reconciliation.Adams              as A
-import           Types.Types
-import qualified Utilities.LocalGraph              as LG
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
+import Control.Parallel.Strategies
+import Data.BitVector    qualified                as BV
+import Data.Bits   qualified                      as B
+import Data.Graph.Inductive.Graph   qualified     as G
+import Data.Graph.Inductive.PatriciaTree qualified as P
+import Data.Graph.Inductive.Query.BFS  qualified  as BFS
+import Data.GraphViz                     as GV
+import Data.GraphViz.Printing
+import Data.List     qualified                    as L
+import Data.Map.Strict   qualified                as Map
+import Data.Maybe
+import Data.Set       qualified                   as S
+import Data.Text.Lazy  qualified                  as T
+import Data.Vector    qualified                   as V
+import GraphFormatUtilities   qualified           as PhyP
+import Graphs.GraphOperations qualified           as GO
+import Reconciliation.Adams   qualified           as A
+import Types.Types
+import Utilities.LocalGraph  qualified            as LG
 --import           Debug.Trace
+--import           ParallelUtilities                 as PU
 
 {-
 -- | turnOnOutZeroBit turns on the bit 'nleaves" signifying that
@@ -140,25 +144,32 @@ getUnConnectedNodes inGraph nLeaves nodeList =
 -- | makeNodeFromChildren gets bit vectors as union of children in a post order traversal from leaves
 -- the prepending of a single 'On' bit if there is only once child (setOutDegreeOneBit)
 -- is modified to allow for multiple outdegree 1 vertices as parent of single vertex
-makeNodeFromChildren :: P.Gr String String -> Int -> V.Vector (G.LNode BV.BV) -> [Int] -> Int -> [G.LNode BV.BV]
+makeNodeFromChildren :: P.Gr String String -> Int -> V.Vector (G.LNode BV.BV) -> [Int] -> Int -> PhyG [G.LNode BV.BV]
 makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList myVertex =
-  if myVertex < nLeaves then [leafNodes V.! myVertex]
-    else
+  if myVertex < nLeaves then pure [leafNodes V.! myVertex]
+  else
       let myChildren = G.suc inGraph myVertex
-          myChildrenNodes = PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
+          -- parallel
+          action :: Int -> PhyG [G.LNode BV.BV]
+          action = makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList
 
-          rawBV = BV.or $ fmap (snd . head) myChildrenNodes
-          myBV = if length myChildren /= 1 then rawBV
-                 else setOutDegreeOneBits rawBV out1VertexList myVertex
-      in
-      (myVertex, myBV) : concat myChildrenNodes
+      in do
+          recursePar <- getParallelChunkTraverse
+          myChildrenNodes <- recursePar action myChildren
+            -- PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
+
+          let rawBV = BV.or $ fmap (snd . head) myChildrenNodes
+          let myBV = if length myChildren /= 1 then rawBV
+                     else setOutDegreeOneBits rawBV out1VertexList myVertex
+      
+          pure $ (myVertex, myBV) : concat myChildrenNodes
 
 -- | getNodesFromARoot follows nodes connected to a root.
 -- can be fmapped over roots to hit all--should be ok if multiple hits on nodes
 -- since all labeled by BV.BVs  need to fuse them if multiple roots to make sure nodes are consistent
 -- and only one per root--should be ok for multikple jhists of nodes since BVs are from childre
 -- just wasted work.  Should L.nub after to maeksure only unique (by BV) nodes in list at end
-getNodesFromARoot :: P.Gr String String -> Int -> [G.LNode BV.BV] -> Int -> [G.LNode BV.BV]
+getNodesFromARoot :: P.Gr String String -> Int -> [G.LNode BV.BV] -> Int -> PhyG [G.LNode BV.BV]
 getNodesFromARoot inGraph nLeaves leafNodes rootVertex =
   if  G.isEmpty inGraph then error "Input graph is empty in getLabelledNodes"
   else
@@ -167,32 +178,41 @@ getNodesFromARoot inGraph nLeaves leafNodes rootVertex =
         -- get outdree = 1 node list for creting prepended bit vectors
         out1VertexList = L.sort $ filter ((==1).G.outdeg inGraph) $ G.nodes inGraph
 
+         -- parallel
+        action :: Int -> PhyG [G.LNode BV.BV]
+        action = makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList
+    in do
         -- recurse to children since assume only leaves can be labbeled with BV.BVs
         -- fmap becasue could be > 2 (as in at root)
-        rootChildNewNodes = PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList) rootChildVerts -- `using` PU.myParListChunkRDS
+        recursePar <- getParallelChunkTraverse
+        rootChildNewNodes <- recursePar action rootChildVerts
+            -- rootChildNewNodes = PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList) rootChildVerts -- `using` PU.myParListChunkRDS
 
         -- check if outdegree = 1
-        rawBV = BV.or $ fmap (snd . head) rootChildNewNodes
-        rootBV = if length rootChildVerts /= 1 then rawBV
-                 else setOutDegreeOneBits rawBV out1VertexList rootVertex
-    in
-    (rootVertex, rootBV) : concat rootChildNewNodes
+        let rawBV = BV.or $ fmap (snd . head) rootChildNewNodes
+        let rootBV = if length rootChildVerts /= 1 then rawBV
+                     else setOutDegreeOneBits rawBV out1VertexList rootVertex
+    
+        pure $ (rootVertex, rootBV) : concat rootChildNewNodes
 
 -- | getLabelledNodes labels nodes with bit vectors union of subtree leaves via post order traversal
 -- adds nodes to reDoneNodes as they are preocessed
 -- reorder NOdes is n^2 should be figured out how to keep them in order more efficeintly
-getLabelledNodes :: P.Gr String String -> Int -> [G.LNode BV.BV] -> [G.LNode BV.BV]
+getLabelledNodes :: P.Gr String String -> Int -> [G.LNode BV.BV] -> PhyG [G.LNode BV.BV]
 getLabelledNodes inGraph nLeaves leafNodes  =
   -- trace ("getLabbeled graph with " <> (show $ G.noNodes inGraph) <> " nodes in " <> (showGraph inGraph)) (
   if  G.isEmpty inGraph then error "Input graph is empty in getLabelledNodes"
   else
     let rootVertexList = getRoots inGraph (G.nodes inGraph)
-        htuList = L.nub $ concatMap (getNodesFromARoot inGraph nLeaves leafNodes) rootVertexList
-    in
-     -- this for adding in missing data
-    let unConnectedNodeList = getUnConnectedNodes inGraph nLeaves (G.nodes inGraph)
-    in
-    reorderLNodes (htuList <> unConnectedNodeList)  0
+
+    in do
+        htuList' <- mapM (getNodesFromARoot inGraph nLeaves leafNodes) rootVertexList
+        let htuList = L.nub $ concat htuList'
+    
+         -- this for adding in missing data
+        let unConnectedNodeList = getUnConnectedNodes inGraph nLeaves (G.nodes inGraph)
+        
+        pure $ reorderLNodes (htuList <> unConnectedNodeList)  0
 
 
 -- | findLNode takes an index and looks for node with that as vertex and retuirns that node
@@ -327,7 +347,7 @@ checkNodesSequential prevNode inNodeList
 -}
 
 -- | reAnnotateGraphs takes parsed graph input and reformats for EUN
-reAnnotateGraphs :: P.Gr String String -> P.Gr BV.BV (BV.BV, BV.BV)
+reAnnotateGraphs :: P.Gr String String -> PhyG (P.Gr BV.BV (BV.BV, BV.BV))
 reAnnotateGraphs inGraph =
   -- trace ("Reannotating " <> (showGraph inGraph)) (
   if G.isEmpty inGraph then error "Input graph is empty in reAnnotateGraphs"
@@ -338,11 +358,12 @@ reAnnotateGraphs inGraph =
         leafIntegers = fmap B.bit leafVerts
         leafBitVects =  leafIntegers  -- fmap (BV.bitVec nLeaves) leafIntegers
         leafNodes = Prelude.zip leafVerts leafBitVects
-        allNodes = getLabelledNodes inGraph nLeaves leafNodes
-        allEdges = fmap (relabelEdge (V.fromList allNodes)) (G.labEdges inGraph)
-    in
-    -- assign HTU BV via postorder pass.
-    G.mkGraph allNodes allEdges
+    in do
+
+        allNodes <- getLabelledNodes inGraph nLeaves leafNodes
+        let allEdges = fmap (relabelEdge (V.fromList allNodes)) (G.labEdges inGraph)
+        -- assign HTU BV via postorder pass.
+        pure $ G.mkGraph allNodes allEdges
 
 -- | checkBVs looks at BV.BV of node and retuns FALSE if found True if not
 checkBVs :: BV.BV -> [G.LNode BV.BV] -> Bool
@@ -419,14 +440,18 @@ testEdge fullGraph candidateEdge@(e,u,_) =
 
 -- | makeEUN take list of nodes and edges, deletes each edge (e,u) in turn makes graph,
 -- checks for path between nodes e and u, if there is delete edge otherwise keep edge in list for new graph
-makeEUN ::  (Eq b, NFData b) => [G.LNode a] -> [G.LEdge b] -> P.Gr a b -> P.Gr a b
+makeEUN ::  (Eq b, NFData b) => [G.LNode a] -> [G.LEdge b] -> P.Gr a b -> PhyG (P.Gr a b)
 makeEUN nodeList fullEdgeList fullGraph =
   let -- counterList = [0..(length fullEdgeList - 1)]
       -- requiredEdges = concat $ fmap (testEdge nodeList fullEdgeList) counterList
-      requiredEdges = PU.seqParMap PU.myStrategyRDS (testEdge fullGraph) fullEdgeList -- `using` PU.myParListChunkRDS
-      newGraph = G.mkGraph nodeList (concat requiredEdges)
-  in
-  newGraph
+      -- parallel 
+      -- action :: G.LEdge b -> [G.LEdge b]
+      action = testEdge fullGraph
+  in do
+      testPar <- getParallelChunkMap
+      let requiredEdges = testPar action fullEdgeList -- PU.seqParMap PU.myStrategyRDS (testEdge fullGraph) fullEdgeList -- `using` PU.myParListChunkRDS
+      let newGraph = G.mkGraph nodeList (concat requiredEdges)
+      pure newGraph
 
 -- | getLeafLabelMatches tyakes the total list and looks for elements in the smaller local leaf set
 -- retuns int index of the match or (-1) if not found so that leaf can be added in orginal order
@@ -458,30 +483,36 @@ reIndexLEdge vertexMap inEdge =
 -- new node set in teh total leaf set form all graphs plus teh local HTUs renumbered up based on added leaves
 -- the map contains leaf mappings based on label of leaf, the HTUs extend that map with stright integers.
 -- edges are re-indexed based on that map
-reIndexAndAddLeavesEdges :: [G.LNode String] -> ([G.LNode String], P.Gr a b) -> P.Gr String String
+reIndexAndAddLeavesEdges :: [G.LNode String] -> ([G.LNode String], P.Gr a b) -> PhyG (P.Gr String String)
 reIndexAndAddLeavesEdges totallLeafSet (inputLeafList, inGraph) =
-  if G.isEmpty inGraph then G.empty
+  if G.isEmpty inGraph then pure G.empty
   else
       -- reindex nodes and edges and add in new nodes (total leaf set + local HTUs)
       -- create a map between inputLeafSet and totalLeafSet which is the canonical enumeration
       -- then add in local HTU nodes and for map as well
       -- trace ("Original graph: " <> (showGraph inGraph)) (
-      let correspondanceList = PU.seqParMap PU.myStrategyRDS (getLeafLabelMatches inputLeafList) totallLeafSet -- `using` PU.myParListChunkRDS
-          matchList = filter ((/=(-1)).fst) correspondanceList
+      let --parallel
+          action :: G.LNode String -> (Int, Int)
+          action = getLeafLabelMatches inputLeafList
+      in do
+          labelPar <- getParallelChunkMap
+          let correspondanceList = labelPar action totallLeafSet
+            -- PU.seqParMap PU.myStrategyRDS (getLeafLabelMatches inputLeafList) totallLeafSet -- `using` PU.myParListChunkRDS
+          let matchList = filter ((/=(-1)).fst) correspondanceList
           --remove order dependancey
           -- htuList = [(length inputLeafList)..(length inputLeafList + htuNumber - 1)]
-          htuList = fmap fst (G.labNodes inGraph) L.\\ fmap fst inputLeafList
-          htuNumber =  length (G.labNodes inGraph) - length inputLeafList
-          newHTUNumbers = [(length totallLeafSet)..(length totallLeafSet + htuNumber - 1)]
-          htuMatchList = zip htuList newHTUNumbers
-          vertexMap = Map.fromList (matchList <> htuMatchList)
-          reIndexedEdgeList = fmap (reIndexLEdge vertexMap) (G.labEdges inGraph)
+          let htuList = fmap fst (G.labNodes inGraph) L.\\ fmap fst inputLeafList
+          let htuNumber =  length (G.labNodes inGraph) - length inputLeafList
+          let newHTUNumbers = [(length totallLeafSet)..(length totallLeafSet + htuNumber - 1)]
+          let htuMatchList = zip htuList newHTUNumbers
+          let vertexMap = Map.fromList (matchList <> htuMatchList)
+          let reIndexedEdgeList = fmap (reIndexLEdge vertexMap) (G.labEdges inGraph)
 
-          newNodeNumbers = [0..(length totallLeafSet + htuNumber - 1)]
-          attributeList = replicate (length totallLeafSet + htuNumber) "" -- origAttribute
-          newNodeList = zip newNodeNumbers attributeList
-      in
-      G.mkGraph newNodeList reIndexedEdgeList
+          let newNodeNumbers = [0..(length totallLeafSet + htuNumber - 1)]
+          let attributeList = replicate (length totallLeafSet + htuNumber) "" -- origAttribute
+          let newNodeList = zip newNodeNumbers attributeList
+      
+          pure $ G.mkGraph newNodeList reIndexedEdgeList
 
 -- | relabelNode takes nofde list and labels leaves with label and HTUs with String of HexCode of BV label
 relabelNodes :: [G.LNode BV.BV] -> [G.LNode String] -> [G.LNode String]
@@ -559,7 +590,7 @@ combinable comparison bvList bvIn
   | comparison == "combinable" = -- combinable sensu Nelson 1979
     if null bvList then [bvIn]
     else
-      let intersectList = PU.seqParMap PU.myStrategyRDS (checkBitVectors bvIn) bvList -- `using` PU.myParListChunkRDS
+      let intersectList = fmap (checkBitVectors bvIn) bvList -- took out paralleism here
           isCombinable = L.foldl' (&&) True intersectList
       in
       [bvIn | isCombinable]
@@ -608,7 +639,7 @@ getThresholdNodes comparison thresholdInt numLeaves objectListList
           | comparison == "identity" = L.group $ L.sort (snd <$> concat objectListList)
           | otherwise = errorWithoutStackTrace ("Comparison method " <> comparison <> " unrecognized (combinable/identity)")
         uniqueList = zip indexList (fmap head objectGroupList)
-        frequencyList = PU.seqParMap PU.myStrategyRDS (((/ numGraphs) . fromIntegral) . length) objectGroupList  -- `using` PU.myParListChunkRDS
+        frequencyList =fmap (((/ numGraphs) . fromIntegral) . length) objectGroupList  -- removed parallel
         fullPairList = zip uniqueList frequencyList
         threshold = (fromIntegral thresholdInt / 100.0) :: Double
     in
@@ -628,7 +659,7 @@ getThresholdEdges thresholdInt numGraphsInput objectList
       numGraphs = fromIntegral numGraphsInput
       objectGroupList = L.group $ L.sort objectList
       uniqueList = fmap head objectGroupList
-      frequencyList = PU.seqParMap PU.myStrategyRDS (((/ numGraphs) . fromIntegral) . length) objectGroupList -- `using` PU.myParListChunkRDS
+      frequencyList = fmap (((/ numGraphs) . fromIntegral) . length) objectGroupList -- removed parallel
       fullPairList = zip uniqueList frequencyList
   in
   --trace ("There are " <> (show numGraphsIn) <> " to filter: " <> (show uniqueList) <> "\n" <> (show $ fmap length objectGroupList) <> " " <> (show frequencyList))
@@ -665,7 +696,7 @@ verticesByPostorder inGraph leafNodes foundVertSet
     let vertexIndexList = S.toList foundVertSet
         vertexLabelList = fmap (fromJust . G.lab inGraph) vertexIndexList
         vertexList = zip vertexIndexList vertexLabelList
-        edgeList = PU.seqParMap PU.myStrategyRDS (verifyEdge vertexIndexList) (G.labEdges inGraph) -- `using` PU.myParListChunkRDS
+        edgeList = fmap (verifyEdge vertexIndexList) (G.labEdges inGraph) -- removed parallel
     in G.mkGraph vertexList (concat edgeList)
       | otherwise =
     let firstLeaf = fst $ head leafNodes
@@ -766,119 +797,131 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
     where showLabel (e,u,l) = (e,u,show l)
 
 -- | reconcile is the overall function to drive all methods
-reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) -> (String, P.Gr String String)
-reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) =
+reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) -> PhyG (String, P.Gr String String)
+reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) = 
+  let  --parallel 
+        reAnnotate :: P.Gr String String -> PhyG (P.Gr BV.BV (BV.BV, BV.BV))
+        reAnnotate = reAnnotateGraphs
 
-    let -- Reformat graphs with appropriate annotations, BV.BVs, etc
-        processedGraphs = PU.seqParMap PU.myStrategyRDS reAnnotateGraphs inputGraphList -- `using` PU.myParListChunkRDS
+        -- intersectionAction :: G.LNode BV.BV -> [G.LEdge (BV.BV,BV.BV)]
+        -- intersectionAction = getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes
+  in do
+        -- Reformat graphs with appropriate annotations, BV.BVs, etc
+        reAnnotatePar <- getParallelChunkTraverse 
+        processedGraphs <- reAnnotatePar reAnnotate inputGraphList
+          -- PU.seqParMap PU.myStrategyRDS reAnnotateGraphs inputGraphList -- `using` PU.myParListChunkRDS
 
         -- Create lists of reindexed unique nodes and edges, identity by BV.BVs
         -- The drops to not reexamine leaves repeatedly
         -- Assumes leaves are first in list
-        numLeaves = getLeafNumber (head processedGraphs)
-        leafNodes = take numLeaves (G.labNodes $ head processedGraphs)
-        firstNodes = G.labNodes $ head processedGraphs
-        numFirstNodes = length firstNodes
-        unionNodes = L.sort $ leafNodes <> addAndReIndexUniqueNodes numFirstNodes (concatMap (drop numLeaves) (G.labNodes <$> tail processedGraphs)) (drop numLeaves firstNodes)
+        let numLeaves = getLeafNumber (head processedGraphs)
+        let leafNodes = take numLeaves (G.labNodes $ head processedGraphs)
+        let firstNodes = G.labNodes $ head processedGraphs
+        let numFirstNodes = length firstNodes
+        let unionNodes = L.sort $ leafNodes <> addAndReIndexUniqueNodes numFirstNodes (concatMap (drop numLeaves) (G.labNodes <$> tail processedGraphs)) (drop numLeaves firstNodes)
         -- unionEdges = addAndReIndexEdges "unique" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
 
-        totallLeafString = L.foldl' L.union [] (fmap (fmap snd . getLeafListNewick) inputGraphList)
-        totallLeafSet = zip [0..(length totallLeafString - 1)] totallLeafString
+        let totallLeafString = L.foldl' L.union [] (fmap (fmap snd . getLeafListNewick) inputGraphList)
+        let totallLeafSet = zip [0..(length totallLeafString - 1)] totallLeafString
         --
-        -- Create Adams II consensus
-        --
-        adamsII = A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
-        -- adamsIIInfo = "There are " <> show (length $ G.nodes adamsII) <> " nodes present in Adams II consensus"
-        adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
-        adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
-        adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] False False
+        
 
         --
         -- Create thresholdMajority rule Consensus and dot string
         -- vertex-based CUN-> Majority rule ->Strict
         --
-        (thresholdNodes', nodeFreqs) = getThresholdNodes compareMethod threshold numLeaves (fmap (drop numLeaves . G.labNodes) processedGraphs)
-        thresholdNodes = leafNodes <> thresholdNodes'
-        thresholdEdgesList = PU.seqParMap PU.myStrategyRDS (getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes) thresholdNodes  -- `using` PU.myParListChunkRDS
-        thresholdEdges = L.nub $ concat thresholdEdgesList
+        let (thresholdNodes', nodeFreqs) = getThresholdNodes compareMethod threshold numLeaves (fmap (drop numLeaves . G.labNodes) processedGraphs)
+        let thresholdNodes = leafNodes <> thresholdNodes'
+
+        intersectionPar <- getParallelChunkMap
+        let intersectionAction = getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes
+        let thresholdEdgesList = intersectionPar intersectionAction thresholdNodes
+          -- PU.seqParMap PU.myStrategyRDS (getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes) thresholdNodes  -- `using` PU.myParListChunkRDS
+        let thresholdEdges = L.nub $ concat thresholdEdgesList
         -- numPossibleEdges =  ((length thresholdNodes * length thresholdNodes) - length thresholdNodes) `div` 2
-        thresholdConsensusGraph = G.mkGraph thresholdNodes thresholdEdges -- O(n^3)
+        let thresholdConsensusGraph = G.mkGraph thresholdNodes thresholdEdges -- O(n^3)
 
         -- thresholdConInfo =  "There are " <> show (length thresholdNodes) <> " nodes present in >= " <> (show threshold <> "%") <> " of input graphs and " <> show numPossibleEdges <> " candidate edges"
         --                  <> " yielding a final graph with " <> show (length (G.labNodes thresholdConsensusGraph)) <> " nodes and " <> show (length (G.labEdges thresholdConsensusGraph)) <> " edges"
 
         -- add back labels for vertices and "GV.quickParams" for G.Gr String Double or whatever
-        labelledTresholdConsensusGraph' = addGraphLabels thresholdConsensusGraph totallLeafSet
-        labelledTresholdConsensusGraph'' = addEdgeFrequenciesToGraph labelledTresholdConsensusGraph' (length leafNodes) nodeFreqs
+        let labelledTresholdConsensusGraph' = addGraphLabels thresholdConsensusGraph totallLeafSet
+        let labelledTresholdConsensusGraph'' = addEdgeFrequenciesToGraph labelledTresholdConsensusGraph' (length leafNodes) nodeFreqs
 
         -- Add urRoot and edges to existing roots if there are unconnected components and connnectComponets is True
-        labelledTresholdConsensusGraph = if not connectComponents then labelledTresholdConsensusGraph''
+        let labelledTresholdConsensusGraph = if not connectComponents then labelledTresholdConsensusGraph''
                                          else addUrRootAndEdges labelledTresholdConsensusGraph''
-        gvRelabelledConsensusGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel labelledTresholdConsensusGraph
-        thresholdConsensusOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledConsensusGraph
-        thresholdConsensusOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph labelledTresholdConsensusGraph] edgeLabel True
+        let gvRelabelledConsensusGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel labelledTresholdConsensusGraph
+        let thresholdConsensusOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledConsensusGraph
+        let thresholdConsensusOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph labelledTresholdConsensusGraph] edgeLabel True
 
         --
         -- Create threshold EUN and dot string, orignial EUN is threshold = 0
         --
-        allEdges = addAndReIndexEdges "all" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
-        (thresholdEUNEdges, edgeFreqs) = getThresholdEdges threshold (length processedGraphs) allEdges
-        thresholdEUNGraph' = makeEUN unionNodes thresholdEUNEdges (G.mkGraph unionNodes thresholdEUNEdges)
+        let allEdges = addAndReIndexEdges "all" unionNodes (concatMap G.labEdges (tail processedGraphs)) (G.labEdges $ head processedGraphs)
+        let (thresholdEUNEdges, edgeFreqs) = getThresholdEdges threshold (length processedGraphs) allEdges
+        thresholdEUNGraph' <- makeEUN unionNodes thresholdEUNEdges (G.mkGraph unionNodes thresholdEUNEdges)
 
         -- Remove unnconnected HTU nodes via postorder pass from leaves
-        thresholdEUNGraph = verticesByPostorder thresholdEUNGraph' leafNodes S.empty
+        let thresholdEUNGraph = verticesByPostorder thresholdEUNGraph' leafNodes S.empty
         -- thresholdEUNInfo =  "\nThreshold EUN deleted " <> show (length unionEdges - length (G.labEdges thresholdEUNGraph) ) <> " of " <> show (length unionEdges) <> " total edges"
         --                    <> " for a final graph with " <> show (length (G.labNodes thresholdEUNGraph)) <> " nodes and " <> show (length (G.labEdges thresholdEUNGraph)) <> " edges"
 
         -- add back labels for vertices and "GV.quickParams" for G.Gr String Double or whatever
-        thresholdLabelledEUNGraph' = addGraphLabels thresholdEUNGraph totallLeafSet
-        thresholdLabelledEUNGraph'' = addEdgeFrequenciesToGraph thresholdLabelledEUNGraph' (length leafNodes) edgeFreqs
+        let thresholdLabelledEUNGraph' = addGraphLabels thresholdEUNGraph totallLeafSet
+        let thresholdLabelledEUNGraph'' = addEdgeFrequenciesToGraph thresholdLabelledEUNGraph' (length leafNodes) edgeFreqs
 
         -- Add urRoot and edges to existing roots if there are unconnected components and connnectComponets is True
-        thresholdLabelledEUNGraph = if not connectComponents then thresholdLabelledEUNGraph''
-                                    else addUrRootAndEdges thresholdLabelledEUNGraph''
+        let thresholdLabelledEUNGraph = if not connectComponents then thresholdLabelledEUNGraph''
+                                        else addUrRootAndEdges thresholdLabelledEUNGraph''
 
         -- Create EUN Dot String
-        gvRelabelledEUNGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
-        thresholdEUNOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledEUNGraph -- eunGraph
-        thresholdEUNOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph thresholdLabelledEUNGraph] edgeLabel True
+        let gvRelabelledEUNGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
+        let thresholdEUNOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledEUNGraph -- eunGraph
+        let thresholdEUNOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph thresholdLabelledEUNGraph] edgeLabel True
 
-    in
+  
+        -- Create Adams II consensus
+        --
+        adamsII <- A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
+        -- adamsIIInfo = "There are " <> show (length $ G.nodes adamsII) <> " nodes present in Adams II consensus"
+        let adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
+        let adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
+        let adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] False False
 
-    if localMethod == "eun" then
-      if outputFormat == "dot" then (thresholdEUNOutDotString,  gvRelabelledEUNGraph)
-      else if outputFormat == "fenewick" then (thresholdEUNOutFENString, gvRelabelledEUNGraph)
-      else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
+        if localMethod == "eun" then
+          if outputFormat == "dot" then pure (thresholdEUNOutDotString,  gvRelabelledEUNGraph)
+          else if outputFormat == "fenewick" then pure (thresholdEUNOutFENString, gvRelabelledEUNGraph)
+          else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
 
-    else if localMethod == "adams" then
-      if outputFormat == "dot" then (adamsIIOutDotString,  adamsII')
-      else if outputFormat == "fenewick" then (adamsIIOutFENString, adamsII')
-      else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
+        else if localMethod == "adams" then
+          if outputFormat == "dot" then pure (adamsIIOutDotString,  adamsII')
+          else if outputFormat == "fenewick" then pure (adamsIIOutFENString, adamsII')
+          else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
 
-    else if (localMethod == "majority") || (localMethod == "cun") || (localMethod == "strict") then
-        if outputFormat == "dot" then (thresholdConsensusOutDotString, gvRelabelledConsensusGraph)
-        else if outputFormat == "fenewick" then (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
-        else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
+        else if (localMethod == "majority") || (localMethod == "cun") || (localMethod == "strict") then
+            if outputFormat == "dot" then pure (thresholdConsensusOutDotString, gvRelabelledConsensusGraph)
+            else if outputFormat == "fenewick" then pure (thresholdConsensusOutFENString, gvRelabelledConsensusGraph)
+            else errorWithoutStackTrace ("Output graph format " <> outputFormat <> " is not implemented")
 
-    else errorWithoutStackTrace ("Graph combination method " <> localMethod <> " is not implemented")
+        else errorWithoutStackTrace ("Graph combination method " <> localMethod <> " is not implemented")
 
 
 -- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leafws to teh graphs and reindexes
 -- the nodes and edges of the input graphs consistenly
 -- String as oposed to Text due tyo reuse of code in Eun.c
-makeProcessedGraph :: [LG.LNode T.Text] -> SimpleGraph -> SimpleGraph
+makeProcessedGraph :: [LG.LNode T.Text] -> SimpleGraph -> PhyG SimpleGraph
 makeProcessedGraph leafTextList inGraph
   | null leafTextList = error "Null leaf list in makeFullLeafSetGraph"
   | LG.isEmpty inGraph = error "Empty graph in makeFullLeafSetGraph"
   | otherwise = let (_, graphleafTextList, _, _) = LG.splitVertexList inGraph
                     leafStringList = fmap nodeToString leafTextList
                     graphLeafStringList = fmap nodeToString graphleafTextList
-                    reIndexedGraph = reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
-                    textNodes = (nodeToText <$> LG.labNodes reIndexedGraph)
-                    doubleEdges = (edgeToDouble <$> LG.labEdges reIndexedGraph)
-
-                in
-                LG.mkGraph textNodes doubleEdges
+                in do
+                      reIndexedGraph <- reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
+                      let textNodes = (nodeToText <$> LG.labNodes reIndexedGraph)
+                      let doubleEdges = (edgeToDouble <$> LG.labEdges reIndexedGraph)
+                      pure $ LG.mkGraph textNodes doubleEdges
   where
       nodeToString (a, b) = (a, T.unpack b)
       nodeToText (a, b) = (a, T.pack b)

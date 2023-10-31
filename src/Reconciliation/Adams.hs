@@ -4,6 +4,9 @@ Functions to create Adams II consensus trees (unlabelled internal veritices)
 
 module Reconciliation.Adams (makeAdamsII) where
 
+import Control.Evaluation
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Graph.Inductive.Graph qualified as G
 import Data.Graph.Inductive.PatriciaTree qualified as P
 import Data.List qualified as L
@@ -12,7 +15,8 @@ import Data.Set qualified as Set
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import GraphFormatUtilities qualified as PhyP
-import ParallelUtilities qualified as PU
+import Types.Types
+-- import ParallelUtilities qualified as PU
 -- import Debug.Trace
 
 data VertexType = Root | Internal | Leaf | Network | Tree
@@ -63,27 +67,35 @@ mkGraphPair (nodeList, edgeList) = G.mkGraph nodeList edgeList
 
 -- | makeAdamsII takes a list of fgl graphs, convertes them to PhyloGraphVect
 -- makes the Adamns consensus and then converts back to fgl for return to EUN code
-makeAdamsII :: [G.LNode String] -> [P.Gr String Double] ->  P.Gr String Double
+makeAdamsII :: [G.LNode String] -> [P.Gr String Double] ->  PhyG (P.Gr String Double)
 makeAdamsII leafNodeList inFGList
   | null leafNodeList = error "Null leaf node list in makeAdamsII"
-  | null inFGList = G.empty
+  | null inFGList = pure G.empty
   | otherwise =
     let inGraphNodes = fmap G.labNodes inFGList
         inGraphEdges = fmap G.labEdges inFGList
         inGraphNonLeafNodes = fmap (drop $ length leafNodeList) inGraphNodes
         newNodeListList = fmap (leafNodeList <> ) inGraphNonLeafNodes
         inFGList' = mkGraphPair <$> zip  newNodeListList inGraphEdges
-        allTreesList = PU.seqParMap PU.myStrategyRDS isTree inFGList' -- `using` PU.myParListChunkRDS
-        allTrees = L.foldl1' (&&) allTreesList
-    in
-    if not allTrees then errorWithoutStackTrace ("Input graphs are not all trees in makeAdamsII: " <> show allTreesList)
-    else if not (leafSetConstant [] inFGList) then errorWithoutStackTrace "Input leaf sets not constant in makeAdamsII"
-    else
-      let inPGVList = fmap fgl2PGV inFGList' -- paralle problem with NFData seqParMap myStrategy fgl2PGV inFGList
-          adamsPGV = L.foldl1' getAdamsIIPair inPGVList
-      in
-      -- trace ("\nAdams: " <> show adamsPGV)
-      pgv2FGL adamsPGV
+
+        -- parallel 
+        action :: (Ord a) => P.Gr a b -> Bool
+        action = isTree
+
+    in do
+        actionPar <- getParallelChunkMap
+        let allTreesList = actionPar action inFGList'
+        -- let allTreesList = PU.seqParMap PU.myStrategyRDS isTree inFGList' -- `using` PU.myParListChunkRDS
+        let allTrees = L.foldl1' (&&) allTreesList
+        
+        if not allTrees then errorWithoutStackTrace ("Input graphs are not all trees in makeAdamsII: " <> show allTreesList)
+        else if not (leafSetConstant [] inFGList) then errorWithoutStackTrace "Input leaf sets not constant in makeAdamsII"
+        else
+          let inPGVList = fmap fgl2PGV inFGList' -- paralle problem with NFData seqParMap myStrategy fgl2PGV inFGList
+              adamsPGV = L.foldl1' getAdamsIIPair inPGVList
+          in
+          -- trace ("\nAdams: " <> show adamsPGV)
+          pure $ pgv2FGL adamsPGV
 
 -- | fgl2PGVEdge takes an fgl Labeled edge (e,u,label)
 -- and returns a PGV edge  with no brnach length (e,u,Nothing)
@@ -101,7 +113,7 @@ fgl2PGVNode inGraph ((index, inLabel), childList, parentList) =
     in
     if null parentList then (label, childList, parentList, Root)
     else if null childList then (label, childList, parentList, Leaf)
-    else if length parentList == 1 then (label, childList, parentList, Tree)
+    else if length parentList == 1 then (label, childList, parentList, Reconciliation.Adams.Tree)
     else if length parentList > 1 then (label, childList, parentList, Network)
     else error "This can't happen in fgl2PGVNode"
 
@@ -236,7 +248,7 @@ getVertType nDesc nAnc
   | nDesc == 0 && nAnc == 0 = error "Isolated node"
   | nAnc == 0 = Root
   | nDesc == 0 = Leaf
-  | nAnc == 1 = Tree
+  | nAnc == 1 = Reconciliation.Adams.Tree
   | nAnc > 2 = Network
   | otherwise = error ("Screwey node: indegree " <> show nDesc <> " outdegree " <> show nAnc)
 

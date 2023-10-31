@@ -1525,9 +1525,10 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                     in  pure (nameData <> dataString, outfileName, writeMode)
                                                                                 else
                                                                                     if "reconcile" `elem` commandList
-                                                                                        then
-                                                                                            let (reconcileString, _) = R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
-                                                                                            in  if null curGraphs
+                                                                                        then do
+                                                                                            recResult <- R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
+                                                                                            let (reconcileString, _) = recResult
+                                                                                            if null curGraphs
                                                                                                     then do
                                                                                                         logWith LogInfo "No graphs to reconcile\n"
                                                                                                         pure ([], outfileName, writeMode)

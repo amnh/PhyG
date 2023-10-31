@@ -36,21 +36,24 @@ Portability :  portable (I hope)
 
 module Reconciliation.ReconcileGraphs  ( makeReconcileGraph
                                        ) where
-
-import qualified Data.List            as L
-import qualified Data.Text.Lazy       as T
-import           GeneralUtilities
-import qualified GraphFormatUtilities as GFU
-import qualified Reconciliation.Eun   as E
-import           Types.Types
-import qualified Utilities.LocalGraph as LG
-import           Data.Maybe      
+import Control.Evaluation
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
+import Data.List      qualified      as L
+import Data.Text.Lazy qualified      as T
+import GeneralUtilities
+import GraphFormatUtilities qualified as GFU
+import Reconciliation.Eun  qualified as E
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Data.Maybe      
 -- import           Debug.Trace
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
-makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> (String, SimpleGraph)
+makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> PhyG (String, SimpleGraph)
 makeReconcileGraph validCommandList commandPairList inGraphList =
-   if null inGraphList then ("Error: No input graphs to reconcile", LG.empty)
+   if null inGraphList then pure ("Error: No input graphs to reconcile", LG.empty)
    else
       let -- convert SimpleGraph to String String from Text Double
           stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True . GFU.textGraph2StringGraph) inGraphList
@@ -58,18 +61,19 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           -- parse arguements
           commandList = (mergePair <$> filter (('"' `notElem`).snd) commandPairList)
           (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
-
+          
+      in do
           -- call EUN/reconcile functions
-          (reconcileString, reconcileGraph) = E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+          (reconcileString, reconcileGraph) <- E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
 
           -- convert eun format graph back to SimpleGraph
-          reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
-      in
-      --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
-      --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
-      (reconcileString, reconcileSimpleGraph)
-      where mergePair (a,b) = if a /= [] && b /= [] then a <> (':' : b)
-                              else a <> b
+          let reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
+      
+          --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
+          --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
+          pure (reconcileString, reconcileSimpleGraph)
+          where mergePair (a,b) = if a /= [] && b /= [] then a <> (':' : b)
+                                  else a <> b
 
 
 -- | processReconcileArgs takes a list of strings and returns values of commands for proram execution
