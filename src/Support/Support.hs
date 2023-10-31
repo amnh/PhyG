@@ -52,7 +52,6 @@ import Data.Vector.Unboxed qualified as UV
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
 import Reconciliation.ReconcileGraphs qualified as REC
 import Search.Build qualified as B
 import Search.NetworkAddDelete qualified as N
