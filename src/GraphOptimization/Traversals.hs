@@ -47,6 +47,7 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     , updatePhylogeneticGraphCost
                                     , updatePhylogeneticGraphCostReduced
                                     , multiTraverseFullyLabelGraphReduced
+                                    , multiTraverseFullyLabelGraphPair
                                     ) where
 
 
@@ -96,7 +97,11 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
   | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " <> show (graphType inGS))
 
 
--- |multiTraverseFullyLabelGraph' maps to multiTraverseFullyLabelGraph with differnet order of arguments used by report IA and tnt output
+-- | multiTraverseFullyLabelGraphPair maps to multiTraverseFullyLabelGraph with paired  arguments used by report IA and tnt output
+multiTraverseFullyLabelGraphPair :: GlobalSettings -> Bool -> Bool -> Maybe Int -> (ProcessedData, SimpleGraph) -> PhylogeneticGraph
+multiTraverseFullyLabelGraphPair inGS pruneEdges warnPruneEdges startVertex (inData, inGraph) = multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
+
+-- | multiTraverseFullyLabelGraph' maps to multiTraverseFullyLabelGraph with differnet order of arguments used by report IA and tnt output
 multiTraverseFullyLabelGraph' :: GlobalSettings -> Bool -> Bool -> Maybe Int -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
 multiTraverseFullyLabelGraph' inGS pruneEdges warnPruneEdges startVertex inData inGraph = multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
 

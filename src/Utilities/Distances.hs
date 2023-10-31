@@ -41,7 +41,7 @@ getPairwiseDistances (nameVect, _, blockDataVect)
         -- pairListCosts = P.seqParMap rdeepseq   (U.getPairwiseObservations blockDataVect) pairList 
         --pairListCosts = fmap  (U.getPairwiseObservations blockDataVect) pairList 
 
-
+        -- parallel setup
         action ::  (Int, Int) -> VertexCost
         action = U.getPairwiseObservations blockDataVect
 
