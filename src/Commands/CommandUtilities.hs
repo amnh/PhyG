@@ -71,7 +71,7 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 import Data.List.NonEmpty qualified as NE
 import Control.Parallel.Strategies
-import ParallelUtilities qualified as PU
+-- import ParallelUtilities qualified as PU
 -- import Commands.Transform qualified as DT
 -- import Debug.Trace
 
@@ -686,31 +686,31 @@ getTNTString inGS inData (inGraph, graphNumber) =
         in
 
         if graphType inGS == Tree then
-            let leafDataList = V.fromList $ fmap (vertData . snd) leafList
-
-                -- get character strings
-                blockStringListstList = V.toList $ V.zipWith (getTaxonCharStringList charInfoVV) leafDataList (V.fromList leafNameList)
+            let leafDataList = fmap (vertData . snd) leafList
             in do
-            interleavedBlocks' <- makePairInterleave blockStringListstList charTypeList 
-            let interleavedBlocks = concat interleavedBlocks'
-            -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString charInfoVV) leafDataList
-            -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
+            -- get character strings
+                blockStringListstList  <- mapM (getTaxonCharStringListPair charInfoVV) (zip leafDataList leafNameList)
+                --let blockStringListstList = V.toList blockStringListstList' 
+                interleavedBlocks' <- makePairInterleave blockStringListstList charTypeList 
+                let interleavedBlocks = concat interleavedBlocks'
+                -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString charInfoVV) leafDataList
+                -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
-            -- length information for cc code extents
-            let charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) charInfoVV
+                -- length information for cc code extents
+                let charLengthList = concat $ V.toList $ V.zipWith getBlockLength (head leafDataList) charInfoVV
 
-            -- Block/Character names for use in comment to show sources of new characters
-            let charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
+                -- Block/Character names for use in comment to show sources of new characters
+                let charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
 
-            let nameLengthPairList = zip charNameList charLengthList
-            let nameLengthString = concat $ pairListToStringList nameLengthPairList 0
+                let nameLengthPairList = zip charNameList charLengthList
+                let nameLengthString = concat $ pairListToStringList nameLengthPairList 0
 
-            -- merge lengths and cc codes
-            let ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
-            
-            -- trace ("GTNTS:" <> (show charLengthList))
-            pure $ headerString  <> nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
-                <> interleavedBlocks <> ";\n" <> ccCodeString <> tntTreeString <> finalString
+                -- merge lengths and cc codes
+                let ccCodeString = mergeCharInfoCharLength ccCodeInfo charLengthList 0
+                
+                -- trace ("GTNTS:" <> (show charLengthList))
+                pure $ headerString  <> nameLengthString <> "'\n" <> show (sum charLengthList) <> " " <> show numTaxa <> "\n"
+                    <> interleavedBlocks <> ";\n" <> ccCodeString <> tntTreeString <> finalString
 
 
         -- for softwired networks--use display trees
@@ -783,21 +783,46 @@ createDisplayTreeTNT inGS inData inGraph =
 
         numTaxa = V.length $ fst3 inData
         ccCodeInfo = getCharacterInfo charInfoVV
+
+        -- parallel stuff
+        contract :: [DecoratedGraph] -> SimpleGraph
+        contract = GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head
+
+        block :: BlockData -> ProcessedData
+        block = makeBlockData (fst3 inData) (snd3 inData)
+
+        traverseAction :: (ProcessedData, SimpleGraph) -> PhylogeneticGraph
+        traverseAction = TRAV.multiTraverseFullyLabelGraphPair (inGS {graphType = Tree}) False False Nothing
+
+        taxonString :: (VertexBlockData, String) -> PhyG [String] 
+        taxonString = getTaxonCharStringListPair charInfoVV
+
+    in do
+
+        contractPar <- getParallelChunkMap
+        let blockDisplayList = contractPar contract  (V.toList $ fth6 inGraph)
+
         -- blockDisplayList = fmap (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (V.toList $ fth6 inGraph) `using` PU.myParListChunkRDS
-        blockDisplayList = PU.seqParMap PU.myStrategyHighLevel  (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (V.toList $ fth6 inGraph)
+        --blockDisplayList = PU.seqParMap PU.myStrategyHighLevel  (GO.contractIn1Out1EdgesRename . GO.convertDecoratedToSimpleGraph . head) (V.toList $ fth6 inGraph)
 
         -- create separate processed data for each block
-        blockProcessedDataList = PU.seqParMap PU.myStrategyHighLevel (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
+        blockPar <- getParallelChunkMap
+        let blockProcessedDataList = blockPar block (V.toList $ thd3 inData) 
+        -- blockProcessedDataList = PU.seqParMap PU.myStrategyHighLevel (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
 
         -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
-        decoratedBlockTreeList = zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) blockDisplayList `using` PU.myParListChunkRDS
+        traversePar <- getParallelChunkMap
+        let decoratedBlockTreeList = traversePar traverseAction (zip blockProcessedDataList blockDisplayList)
+        -- decoratedBlockTreeList = zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) blockDisplayList `using` PU.myParListChunkRDS
 
         -- create leaf data by merging display graph block data (each one a phylogentic graph)
-        (leafDataList, mergedCharInfoVV) = mergeDataBlocks decoratedBlockTreeList [] []
+        let (leafDataList, mergedCharInfoVV) = mergeDataBlocks decoratedBlockTreeList [] []
 
         -- get character block strings as interleaved groups
-        blockStringListstList = zipWith (getTaxonCharStringList charInfoVV) (V.toList leafDataList) leafNameList `using` PU.myParListChunkRDS
-    in do
+        taxonStringPar <- getParallelChunkTraverse
+        blockStringListstList <- taxonStringPar taxonString (zip (V.toList leafDataList) leafNameList)
+        -- let blockStringListstList = zipWith (getTaxonCharStringList charInfoVV) (V.toList leafDataList) leafNameList `using` PU.myParListChunkRDS
+
 
         interleavedBlocks' <- makePairInterleave blockStringListstList charTypeList 
         let interleavedBlocks = concat interleavedBlocks' 
@@ -851,31 +876,57 @@ mergeDataBlocks inGraphList curDataList curInfoList =
 
 -- | getTaxonCharString returns the total character string for a taxon
 -- length and zipping for missing data
-getTaxonCharString ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String
+getTaxonCharString ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> PhyG String
 getTaxonCharString charInfoVV charDataVV =
     let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
-    in
-    concat (zipWith (getBlockString lengthBlock) (V.toList charInfoVV) (V.toList charDataVV) `using` PU.myParListChunkRDS)
+        -- parallel stuff
+        action :: (V.Vector CharInfo, V.Vector CharacterData) -> PhyG String
+        action = getBlockStringPair lengthBlock
+    in do
+         pTraverse <- getParallelChunkTraverse
+         blockResult <-  pTraverse action (zip  (V.toList charInfoVV) (V.toList charDataVV))
+         pure $ concat blockResult
+         -- concat (zipWith (getBlockString lengthBlock) (V.toList charInfoVV) (V.toList charDataVV) `using` PU.myParListChunkRDS)
 
+-- | getTaxonCharStringListPair wrapper for getTaxonCharStringList with differnet parameter passing
+getTaxonCharStringListPair ::  V.Vector (V.Vector CharInfo) -> (VertexBlockData, String) -> PhyG [String] 
+getTaxonCharStringListPair charInfoVV (charDataVV, leafName) = getTaxonCharStringList charInfoVV charDataVV leafName
 
 -- | getTaxonCharStringList returns the total character string list (over blocks) for a taxon
 -- length and zipping for missing data
-getTaxonCharStringList ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String -> [String]
+getTaxonCharStringList ::  V.Vector (V.Vector CharInfo) -> VertexBlockData -> String -> PhyG [String]
 getTaxonCharStringList charInfoVV charDataVV leafName =
     let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
-    in
-    fmap (leafName <>) $ (zipWith (getBlockString lengthBlock) (V.toList charInfoVV) (V.toList charDataVV) `using` PU.myParListChunkRDS)
+        -- parallel stuff 
+        action :: (V.Vector CharInfo, V.Vector CharacterData) -> PhyG String
+        action = getBlockStringPair lengthBlock
+    in do
+            pTraverse <- getParallelChunkTraverse
+            blockResult <- pTraverse action (zip (V.toList charInfoVV) (V.toList charDataVV))
+            pure $ fmap (leafName <>) blockResult
+
+            -- fmap (leafName <>) $ (zipWith (getBlockString lengthBlock) (V.toList charInfoVV) (V.toList charDataVV) `using` PU.myParListChunkRDS)
 
 
+-- | getBlockStringPair wrapper around getBlockString
+getBlockStringPair :: Int -> (V.Vector CharInfo, V.Vector CharacterData) -> PhyG String
+getBlockStringPair lengthBlock (charInfoV, charDataV) = getBlockString lengthBlock charInfoV charDataV 
 
 -- | getBlockString returns the String for a character block
 -- returns all '?' if missing
-getBlockString :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> String
+getBlockString :: Int -> V.Vector CharInfo -> V.Vector CharacterData -> PhyG String
 getBlockString lengthBlock charInfoV charDataV =
     -- this to deal with missing characters
     -- trace ("GBS: " <> (show $ V.length charDataV)) (
-    if V.null charDataV then L.replicate lengthBlock '?'
-    else concat (zipWith getCharacterString  (V.toList charDataV) (V.toList charInfoV) `using` PU.myParListChunkRDS)
+    if V.null charDataV then pure $ L.replicate lengthBlock '?'
+    else    -- parallel stuff
+        let action :: (CharacterData, CharInfo) -> String
+            action = getCharacterStringPair
+        in do
+                actionPar <- getParallelChunkMap
+                let result = actionPar action (zip (V.toList charDataV) (V.toList charInfoV))
+                pure $ concat result
+                -- concat (zipWith getCharacterString  (V.toList charDataV) (V.toList charInfoV) `using` PU.myParListChunkRDS)
     -- )
 
 
@@ -978,6 +1029,9 @@ getBlockNames inCharInfoV =
     -- trace ("GBL:" <> (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
     V.toList $ fmap (T.unpack . name) inCharInfoV
 
+-- | getCharacterStringPair is a wrapper around  getCharacterString
+getCharacterStringPair :: (CharacterData, CharInfo) -> String
+getCharacterStringPair (inCharData, inCharInfo) = getCharacterString inCharData inCharInfo 
 
 -- | getCharacterString returns a string of character states
 -- need to add space between (large alphabets etc)
@@ -1044,12 +1098,18 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
     else
         let headerString = "Implied Alignments for Graph " <> show graphNumber <> "\n"
             inGraph = GO.convertReduced2PhylogeneticGraph inReducedGraph
+
+            -- parallel stuff
+            reoptimize :: (ProcessedData, SimpleGraph) -> PhylogeneticGraph
+            reoptimize = TRAV.multiTraverseFullyLabelGraphPair (inGS {graphType = Tree}) False False Nothing
+
         in
-        if graphType inGS == Tree then
+        if graphType inGS == Tree then do
+            resultIA <- getTreeIAString includeMissing inGraph   
             if not concatSeqs then do
-                pure $ headerString <> getTreeIAString includeMissing inGraph
+                pure $ headerString <> resultIA
             else do
-                pure $ headerString <> U.concatFastas (getTreeIAString includeMissing inGraph)
+                pure $ headerString <> U.concatFastas resultIA -- (getTreeIAString includeMissing inGraph)
 
         -- for softwired networks--use display trees
         else if graphType inGS == SoftWired then
@@ -1058,18 +1118,21 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
 
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
+            in do
+                    reoptimizePar <- getParallelChunkMap
+                    let decoratedBlockTreeList' = reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
+                    -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
+                    let decoratedBlockTreeList = V.fromList decoratedBlockTreeList'
+                        -- (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
 
-                -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
-                decoratedBlockTreeList = V.fromList (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
+                    -- extract IA strings as if multiple graphs
+                    diplayIAStringList <- mapM (getTreeIAString includeMissing) (V.toList decoratedBlockTreeList)
 
-                -- extract IA strings as if multiple graphs
-                diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
-
-            in
-            if not concatSeqs then do
-                pure $ headerString <> concat diplayIAStringList
-            else do 
-                pure $ headerString <> U.concatFastas (concat diplayIAStringList)
+                
+                    if not concatSeqs then do
+                        pure $ headerString <> concat diplayIAStringList
+                    else do 
+                        pure $ headerString <> U.concatFastas (concat diplayIAStringList)
 
         -- There is no IA for Hardwired at least as of yet
         -- so convert to softwired and use display trees
@@ -1089,54 +1152,71 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
+            in do
+                reoptimizePar <- getParallelChunkMap
+                let decoratedBlockTreeList' = reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
                 -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
-                decoratedBlockTreeList =  V.fromList (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
+                let decoratedBlockTreeList =  V.fromList decoratedBlockTreeList'
+                    -- (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
 
                 -- extract IA strings as if mutiple graphs
-                diplayIAStringList = (getTreeIAString includeMissing <$> V.toList decoratedBlockTreeList)
-            in do
-            logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way\n" 
-            if not concatSeqs then do
-                pure $ headerString <> concat diplayIAStringList
-            else do
-                pure $ headerString <> U.concatFastas (concat diplayIAStringList)
+                diplayIAStringList <- mapM (getTreeIAString includeMissing) (V.toList decoratedBlockTreeList)
             
+                logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Transfroming to softwired and generate an implied alignment that way\n" 
+                if not concatSeqs then do
+                    pure $ headerString <> concat diplayIAStringList
+                else do
+                    pure $ headerString <> U.concatFastas (concat diplayIAStringList)
+                
 
         else do
             logWith LogWarn ("IA  not yet implemented for graphtype " <> show (graphType inGS) <> "\n")
             pure $ "There is no implied alignment for " <>  show (graphType inGS)
 
 -- | getTreeIAString takes a Tree Decorated Graph and returns Implied AlignmentString
-getTreeIAString :: Bool -> PhylogeneticGraph -> String
+getTreeIAString :: Bool -> PhylogeneticGraph -> PhyG String
 getTreeIAString includeMissing inGraph =
     let leafList = snd4 $ LG.splitVertexList (thd6 inGraph)
         leafNameList = fmap (vertName . snd) leafList
         leafDataList = V.fromList $ fmap (vertData . snd) leafList
         charInfoVV = six6 inGraph
-        characterStringList = makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList
-    in
-    concat characterStringList
+    in do 
+        characterStringList <- makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList
+    
+        pure $ concat characterStringList
 
 -- | makeBlockData cretes new single block processed data
 makeBlockData :: V.Vector NameText-> V.Vector NameBV -> BlockData -> ProcessedData
 makeBlockData a b c = (a, b, V.singleton c)
 
 -- | makeFullIAStrings goes block by block, creating fasta strings for each
-makeFullIAStrings ::  Bool -> V.Vector (V.Vector CharInfo) -> [NameText] -> V.Vector VertexBlockData -> [String]
+makeFullIAStrings ::  Bool -> V.Vector (V.Vector CharInfo) -> [NameText] -> V.Vector VertexBlockData -> PhyG [String]
 makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList =
     let numBlocks = V.length charInfoVV
-    in
-    concat (PU.seqParMap PU.myStrategyHighLevel (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) [0.. numBlocks - 1])
+        -- parallel stuff
+        action :: Int -> PhyG [String]
+        action = makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV
+    in do
+          pTraverse <- getParallelChunkTraverse
+          blockResult <- pTraverse action [0.. numBlocks - 1]
+          pure $ concat blockResult
+            -- concat (PU.seqParMap PU.myStrategyHighLevel (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) [0.. numBlocks - 1])
 
 -- | makeBlockIAStrings extracts data for a block (via index) and calls function to make iaStrings for each character
-makeBlockIAStrings :: Bool -> [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> [String]
+makeBlockIAStrings :: Bool -> [NameText] -> V.Vector (V.Vector (V.Vector CharacterData)) -> V.Vector (V.Vector CharInfo) -> Int -> PhyG [String]
 makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV blockIndex =
     let thisBlockCharInfo = V.toList $ charInfoVV V.! blockIndex
         numChars = length thisBlockCharInfo
         thisBlockCharData = fmap (V.! blockIndex) leafDataList
-        blockCharacterStringList = zipWith (makeBlockCharacterString includeMissing leafNameList thisBlockCharData) thisBlockCharInfo [0 .. (numChars - 1)] `using` PU.myParListChunkRDS
-    in
-    blockCharacterStringList
+
+        -- parallel stuff
+        action :: (CharInfo, Int) -> String
+        action = makeBlockCharacterStringPair includeMissing leafNameList thisBlockCharData
+    in do
+            actionPar <- getParallelChunkMap
+            let blockCharacterStringList = actionPar action (zip thisBlockCharInfo [0 .. (numChars - 1)])
+            pure blockCharacterStringList
+            -- blockCharacterStringList = zipWith (makeBlockCharacterStringPair includeMissing leafNameList thisBlockCharData) thisBlockCharInfo [0 .. (numChars - 1)] `using` PU.myParListChunkRDS
 
 -- | isAllGaps checks whether a sequence is all gap charcaters '-'
 isAllGaps :: String -> Bool
@@ -1144,6 +1224,11 @@ isAllGaps inSeq
   | null inSeq = True
   | length (filter (`notElem` [' ', '-', '\n']) inSeq) == 0 = True
   | otherwise = False
+
+-- | makeBlockCharacterStringPair is a wrapper for makeBlockCharacterString
+makeBlockCharacterStringPair :: Bool -> [NameText] -> V.Vector (V.Vector CharacterData) -> (CharInfo, Int) -> String
+makeBlockCharacterStringPair includeMissing leafNameList leafDataVV (thisCharInfo, charIndex) =
+        makeBlockCharacterString includeMissing leafNameList leafDataVV thisCharInfo charIndex 
 
 -- | makeBlockCharacterString creates implied alignmennt string for sequence charactes and null if not
 makeBlockCharacterString :: Bool -> [NameText] -> V.Vector (V.Vector CharacterData) -> CharInfo -> Int -> String
