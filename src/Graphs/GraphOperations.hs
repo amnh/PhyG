@@ -72,7 +72,7 @@ import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
-import ParallelUtilities qualified as PU
+-- import ParallelUtilities qualified as PU
 -- import Debug.Trace
 
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
