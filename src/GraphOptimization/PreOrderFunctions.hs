@@ -62,11 +62,11 @@ the traversal begins at the root (for a tree) and proceeds to leaves.
 
 Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
 -}
-preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     --trace ("PreO: " <> (show finalMethod) <> " " <> (show $ fmap (fmap charType) inCharInfoVV)) (
     -- trace ("PR-OT pre: " <> (show $ fmap V.length blockCharacterDecoratedVV)) (
-    if LG.isEmpty inDecorated then emptyPhylogeneticGraph  -- error "Empty tree in preOrderTreeTraversal"
+    if LG.isEmpty inDecorated then pure emptyPhylogeneticGraph  -- error "Empty tree in preOrderTreeTraversal"
     else
         -- trace ("In PreOrder\n" <> "Simple:\n" <> (LG.prettify inSimple) <> "Decorated:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) <> "\n" <> (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later characters
@@ -122,7 +122,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
             in
             trace ("BlockPost:\n" <> blockPost <> "BlockPre:\n" <> blockPre <> "After Preorder\n" <>  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
             -}
-            (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
+            pure (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
     -- )
 
 -- | updateLeafIABlock' is a  triple argument to allow for parMap

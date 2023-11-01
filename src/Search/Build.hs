@@ -84,7 +84,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
         buildTreeAction :: ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
         buildTreeAction = buildTree' True inArgs treeGS rSeed
 
-        traverseGraphAction :: SimpleGraph -> ReducedPhylogeneticGraph
+        traverseGraphAction :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
         traverseGraphAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
 
         pairWiseDistAction :: ProcessedData ->  PhyG [[VertexCost]]
@@ -124,8 +124,8 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                  -- seqParMap ∷ (Traversable t) ⇒ Strategy b → (a → b) → t a → t b
                  -- TODO
                  --pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
-                 traverseFunction <- getParallelChunkMap
-                 let reoptimizedGraphs = traverseFunction traverseGraphAction returnGraphs
+                 traverseFunction <- getParallelChunkTraverse
+                 reoptimizedGraphs <- traverseFunction traverseGraphAction returnGraphs
 
                  -- pure $ fmap (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
                  pure reoptimizedGraphs
@@ -161,8 +161,8 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
             then return firstGraphs
             else do
                 logWith LogInfo $ unwords ["\tRediagnosing as", show $ graphType inGS]
-                traverseFunction <- getParallelChunkMap
-                let reoptimizedGraphs = traverseFunction traverseGraphAction (fmap fst5 firstGraphs) 
+                traverseFunction <- getParallelChunkTraverse
+                reoptimizedGraphs <- traverseFunction traverseGraphAction (fmap fst5 firstGraphs) 
                 pure reoptimizedGraphs
 
 
@@ -390,18 +390,21 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
     let distWagTree' = head dWagRefined
     let distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
     let charInfoVV = V.map thd3 $ thd3 inData
+    traverseResult <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph)
     if not simpleTreeOnly
         then
-            return $ T.multiTraverseFullyLabelGraphReduced
+            pure traverseResult 
+            {-$ T.multiTraverseFullyLabelGraphReduced
                 inGS
                 inData
                 False
                 False
                 Nothing
                 (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph)
+            -}
         else
             let simpleWag = GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph
-            in  return $ (simpleWag, 0.0, LG.empty, V.empty, charInfoVV)
+            in  pure $ (simpleWag, 0.0, LG.empty, V.empty, charInfoVV)
 
 
 {- | randomizedDistanceWagner takes Processed data and pairwise distance matrix and returns
@@ -424,7 +427,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
     let refineAction ::  TreeWithData -> PhyG [TreeWithData]
         refineAction = DW.performRefinement refinement "best:1" "first" leafNames outgroupValue
 
-        traverseGraphAction :: SimpleGraph -> ReducedPhylogeneticGraph
+        traverseGraphAction :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
         traverseGraphAction =  (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)
 
         dichotomizeAction :: SimpleGraph -> SimpleGraph
@@ -461,8 +464,8 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
         if not simpleTreeOnly
                 then -- fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
                     do
-                    traverseFunction <- getParallelChunkMap
-                    let reOptimizedGraphList = traverseFunction traverseGraphAction randomizedAdditionWagnerSimpleGraphList
+                    traverseFunction <- getParallelChunkTraverse
+                    reOptimizedGraphList <- traverseFunction traverseGraphAction randomizedAdditionWagnerSimpleGraphList
                     pure reOptimizedGraphList
                     {-
                     return $ PU.seqParMap
@@ -489,7 +492,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
                     do 
                         traverseFunction <- getParallelChunkMap
                         let simpleRDWagList = traverseFunction dichotomizeAction randomizedAdditionWagnerSimpleGraphList
-                        return $ L.zip5
+                        pure $ L.zip5
                             simpleRDWagList
                             (replicate numTrees 0.0)
                             (replicate numTrees LG.empty)
@@ -512,13 +515,16 @@ neighborJoin simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refin
     if not simpleTreeOnly
         then 
             do
-            return $ T.multiTraverseFullyLabelGraphReduced
+            traversalResult <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) njSimpleGraph)
+            return traversalResult 
+            {-$ T.multiTraverseFullyLabelGraphReduced
                 inGS
                 inData
                 False
                 False
                 Nothing
                 (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) njSimpleGraph)
+                -}
         else
             do
             let simpleNJ = GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) njSimpleGraph
@@ -538,15 +544,17 @@ wPGMA simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
     let wpgmaTree' = head wpgmaRefined
     let wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
     let charInfoVV = V.map thd3 $ thd3 inData
+    traversalResult <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph)
     if not simpleTreeOnly
-            then
-                return $ T.multiTraverseFullyLabelGraphReduced
+            then return traversalResult
+                {-return $ T.multiTraverseFullyLabelGraphReduced
                     inGS
                     inData
                     False
                     False
                     Nothing
                     (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph)
+                -}
     else
         let simpleWPGMA = GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph
         in  return (simpleWPGMA, 0.0, LG.empty, V.empty, charInfoVV)

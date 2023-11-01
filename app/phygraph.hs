@@ -30,7 +30,6 @@ import Input.BitPack qualified as BP
 import Input.DataTransformation qualified as DT
 import Input.ReadInputFiles qualified as RIF
 import Input.Reorganize qualified as R
-import ParallelUtilities qualified as PU
 import Software.Preamble
 import System.CPUTime
 import System.ErrorPhase (ErrorPhase (..))
@@ -300,11 +299,14 @@ performSearch initialSeed inputFilePath = do
     dataCPUTime ← liftIO getCPUTime
 
     -- Diagnose any input graphs
-    let inputGraphList =
-            PU.seqParMap
+    traversePar <- getParallelChunkTraverse
+    let action = T.multiTraverseFullyLabelGraphReduced initialGlobalSettings optimizedData True True Nothing
+    inputGraphList <- traversePar action (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+            {-PU.seqParMap
                 PU.myStrategy
                 (T.multiTraverseFullyLabelGraphReduced initialGlobalSettings optimizedData True True Nothing)
                 (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+            -}
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime ← liftIO getCPUTime

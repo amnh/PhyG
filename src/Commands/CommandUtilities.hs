@@ -731,11 +731,12 @@ getTNTString inGS inData (inGraph, graphNumber) =
                 startVertex :: forall {a}. Maybe a
                 startVertex = Nothing
 
-                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
+                
 
                
 
             in do
+            newGraph <- TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
             middleStuffString <- createDisplayTreeTNT inGS inData newGraph
 
             logWith LogWarn "There is no implied alignment for hard-wired graphs--at least not yet. Ggenerating TNT text via softwired transformation\n"
@@ -791,7 +792,7 @@ createDisplayTreeTNT inGS inData inGraph =
         block :: BlockData -> ProcessedData
         block = makeBlockData (fst3 inData) (snd3 inData)
 
-        traverseAction :: (ProcessedData, SimpleGraph) -> PhylogeneticGraph
+        traverseAction :: (ProcessedData, SimpleGraph) -> PhyG PhylogeneticGraph
         traverseAction = TRAV.multiTraverseFullyLabelGraphPair (inGS {graphType = Tree}) False False Nothing
 
         taxonString :: (VertexBlockData, String) -> PhyG [String] 
@@ -811,8 +812,8 @@ createDisplayTreeTNT inGS inData inGraph =
         -- blockProcessedDataList = PU.seqParMap PU.myStrategyHighLevel (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
 
         -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
-        traversePar <- getParallelChunkMap
-        let decoratedBlockTreeList = traversePar traverseAction (zip blockProcessedDataList blockDisplayList)
+        traversePar <- getParallelChunkTraverse
+        decoratedBlockTreeList <- traversePar traverseAction (zip blockProcessedDataList blockDisplayList)
         -- decoratedBlockTreeList = zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) blockDisplayList `using` PU.myParListChunkRDS
 
         -- create leaf data by merging display graph block data (each one a phylogentic graph)
@@ -1100,7 +1101,7 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
             inGraph = GO.convertReduced2PhylogeneticGraph inReducedGraph
 
             -- parallel stuff
-            reoptimize :: (ProcessedData, SimpleGraph) -> PhylogeneticGraph
+            reoptimize :: (ProcessedData, SimpleGraph) -> PhyG PhylogeneticGraph
             reoptimize = TRAV.multiTraverseFullyLabelGraphPair (inGS {graphType = Tree}) False False Nothing
 
         in
@@ -1119,8 +1120,8 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
                 -- create seprate processed data for each block
                 blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData) 
             in do
-                    reoptimizePar <- getParallelChunkMap
-                    let decoratedBlockTreeList' = reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
+                    reoptimizePar <- getParallelChunkTraverse
+                    decoratedBlockTreeList' <- reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
                     -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
                     let decoratedBlockTreeList = V.fromList decoratedBlockTreeList'
                         -- (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
@@ -1145,16 +1146,15 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
                 startVertex :: forall {a}. Maybe a
                 startVertex = Nothing
 
-                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph)
+            in do
+                newGraph <- TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
 
-                blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 newGraph)
+                let blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 newGraph)
 
                 -- create seprate processed data for each block
-                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
-
-            in do
-                reoptimizePar <- getParallelChunkMap
-                let decoratedBlockTreeList' = reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
+                let blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
+                reoptimizePar <- getParallelChunkTraverse
+                decoratedBlockTreeList' <- reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
                 -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
                 let decoratedBlockTreeList =  V.fromList decoratedBlockTreeList'
                     -- (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)

@@ -344,11 +344,12 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                                 then do
                                                                                                     -- if set changes graph aspects--may nned to reoptimize
                                                                                                     (newGlobalSettings, newProcessedData, seedList') ← setCommand firstArgs globalSettings origProcessedData processedData seedList
+                                                                                                    traversalResult <- mapM (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) (fmap fst5 curGraphs)
                                                                                                     let newGraphList =
                                                                                                             if not (requireReoptimization globalSettings newGlobalSettings)
                                                                                                                 then curGraphs
                                                                                                                 -- TODO should be parallel
-                                                                                                                else fmap (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) (fmap fst5 curGraphs)
+                                                                                                                else traversalResult
 
                                                                                                     let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList 0 "No Comment"
                                                                                                     let newSearchData = searchInfo : searchData newGlobalSettings
@@ -1437,8 +1438,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                 then do 
                                                         -- action :: SimpleGraph -> ReducedPhylogeneticGraph
                                                         let action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
-                                                        pTraverse <- getParallelChunkMap
-                                                        let rediagnosedGraph = pTraverse action (fmap fst5 curGraphs)
+                                                        pTraverse <- getParallelChunkTraverse
+                                                        rediagnosedGraph <- pTraverse action (fmap fst5 curGraphs)
 
                                                         let curGraphs' = 
                                                                 if not (reportNaiveData globalSettings) then curGraphs
@@ -1458,30 +1459,29 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                     pure (dataString, outfileName, writeMode)
                                             else
                                                     if "displaytrees" `elem` commandList
-                                                        then -- need to specify -O option for multiple graphs
-
-                                                            let rediagnodesGraphs = fmap (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
-                                                                inputDisplayVVList = fmap fth6 rediagnodesGraphs
-                                                                costList = fmap snd5 curGraphs
-                                                                displayCostListList = fmap GO.getDisplayTreeCostList rediagnodesGraphs
-                                                                displayInfoString =
+                                                        then do -- need to specify -O option for multiple graphs
+                                                            rediagnodesGraphs <- mapM (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
+                                                            let inputDisplayVVList = fmap fth6 rediagnodesGraphs
+                                                            let costList = fmap snd5 curGraphs
+                                                            let displayCostListList = fmap GO.getDisplayTreeCostList rediagnodesGraphs
+                                                            let displayInfoString =
                                                                     if ("dot" `elem` commandList) || ("dotpdf" `elem` commandList)
                                                                         then ("//DisplayTree costs : " <> show (fmap (sum . fst) displayCostListList, displayCostListList))
-                                                                        else -- newick
+                                                                    else -- newick
 
                                                                             let middle = fmap bracketToCurly $ show (fmap (sum . fst) displayCostListList, displayCostListList)
                                                                             in  ("[DisplayTree costs : " <> middle <> "]")
 
-                                                                treeIndexStringList =
+                                                            let treeIndexStringList =
                                                                     if ("dot" `elem` commandList) || ("dotpdf" `elem` commandList)
                                                                         then fmap (((<> "\n") . ("//Canonical Tree " <>)) . show) [0 .. (length inputDisplayVVList - 1)]
                                                                         else -- newick
                                                                             fmap (((<> "]\n") . ("[Canonical Tree " <>)) . show) [0 .. (length inputDisplayVVList - 1)]
-                                                                canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
-                                                                blockStringList = unlines (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
-                                                            in  -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                                                            let canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
+                                                            let blockStringList = unlines (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
+                                                             -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
 
-                                                                if null curGraphs || graphType globalSettings /= SoftWired
+                                                            if null curGraphs || graphType globalSettings /= SoftWired
                                                                     then do
                                                                         logWith LogInfo "No soft-wired graphs to report display trees\n"
                                                                         pure ("No soft-wired graphs to report display trees", outfileName, writeMode)
@@ -1601,8 +1601,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                         else do
                                                                                                                             -- action :: SinmpleGraph -> ReducedPhylogeneticGraph
                                                                                                                             let action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
-                                                                                                                            pTraverse <- getParallelChunkMap
-                                                                                                                            let reoptimizedGraphs = pTraverse action  (fmap fst5 curGraphs)
+                                                                                                                            pTraverse <- getParallelChunkTraverse
+                                                                                                                            reoptimizedGraphs <- pTraverse action  (fmap fst5 curGraphs)
                                                                                                                             let curGraphs' =
                                                                                                                                     if not (reportNaiveData globalSettings)
                                                                                                                                         then (fmap GO.convertReduced2PhylogeneticGraph curGraphs)
