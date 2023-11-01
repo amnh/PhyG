@@ -197,7 +197,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
         reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" contractedGraph -}
 
         -- chained was separate in past, now in convertGeneralGraphToPhylogeneticGraph
-        let reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph True reconciledGraphInitial
+        reconciledGraph <- GO.convertGeneralGraphToPhylogeneticGraph True reconciledGraphInitial
 
         -- this for non-convertable graphs
         let reconciledGraph' 
@@ -209,7 +209,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                 | otherwise = LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
 
         -- need this to fix up some graphs after other stuff changed
-        let displayGraphs = fmap (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
+        displayGraphs <- mapM (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
 
         -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
         let numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)

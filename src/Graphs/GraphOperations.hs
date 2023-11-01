@@ -53,6 +53,8 @@ module Graphs.GraphOperations
   ) where
 
 import Bio.DynamicCharacter
+import Control.Evaluation
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Commands.Verify qualified as V
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -66,11 +68,11 @@ import Data.Vector.Generic qualified as GV
 import GeneralUtilities
 import GraphFormatUtilities qualified as GFU
 import GraphOptimization.Medians qualified as M
-import ParallelUtilities qualified as PU
 import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import ParallelUtilities qualified as PU
 -- import Debug.Trace
 
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
@@ -311,9 +313,9 @@ makeNewickList isTNT writeEdgeWeight writeNodeLabel' rootIndex graphList costLis
 --        arbitrary but deterministic
 --  4) contracts out any remaning indegree 1 outdegree 1 nodes and renames HTUs in order
 -- these tests can be screwed up by imporperly formated graphs comming in (self edges, chained network edge etc)
-convertGeneralGraphToPhylogeneticGraph :: Bool -> SimpleGraph -> SimpleGraph
+convertGeneralGraphToPhylogeneticGraph :: Bool -> SimpleGraph -> PhyG SimpleGraph
 convertGeneralGraphToPhylogeneticGraph correct inGraph =
-  if LG.isEmpty inGraph then LG.empty
+  if LG.isEmpty inGraph then pure LG.empty
   else
     let -- remove single "tail" edge from root with single child, replace child node with root
         noTailGraph = LG.contractRootOut1Edge inGraph
@@ -331,43 +333,42 @@ convertGeneralGraphToPhylogeneticGraph correct inGraph =
         -- caused problems at one point
         -- laderization of indegree and outdegree edges
         ladderGraph = ladderizeGraph noIn1Out1Graph -- reducedGraph
-
+    in do 
         -- time consistency (after those removed by transitrive reduction)
-        timeConsistentGraph = makeGraphTimeConsistent correct ladderGraph
+        timeConsistentGraph <- makeGraphTimeConsistent correct ladderGraph
 
         -- removes parent child network edges
-        noChainedGraph = LG.removeChainedNetworkNodes False timeConsistentGraph
+        let noChainedGraph = LG.removeChainedNetworkNodes False timeConsistentGraph
 
         -- removes ancestor descendent edges transitiveReduceGraph should do this
         -- but that looks at all nodes not just vertex
-        noParentChainGraph = removeParentsInChain correct  $ fromJust noChainedGraph -- timeConsistentGraph --
+        let noParentChainGraph = removeParentsInChain correct  $ fromJust noChainedGraph -- timeConsistentGraph --
 
         -- deals the nodes with all network children
-        noTreeEdgeGraph = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren noParentChainGraph
+        let noTreeEdgeGraph = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren noParentChainGraph
 
         -- remove sister-sister edge.  where two network nodes have same parents
-        noSisterSisterGraph = removeSisterSisterEdges correct noTreeEdgeGraph
+        let noSisterSisterGraph = removeSisterSisterEdges correct noTreeEdgeGraph
 
         -- remove and new zero nodes
-        finalGraph = LG.removeNonLeafOut0NodesAfterRoot noSisterSisterGraph
+        let finalGraph = LG.removeNonLeafOut0NodesAfterRoot noSisterSisterGraph
 
-    in
-    if LG.isEmpty timeConsistentGraph then LG.empty
+        if LG.isEmpty timeConsistentGraph then pure LG.empty
 
-    else if isNothing noChainedGraph then LG.empty
+        else if isNothing noChainedGraph then pure LG.empty
 
-    else if LG.isEmpty noParentChainGraph then LG.empty
+        else if LG.isEmpty noParentChainGraph then pure LG.empty
 
-    else if LG.isEmpty noSisterSisterGraph then LG.empty
+        else if LG.isEmpty noSisterSisterGraph then pure LG.empty
 
-    -- trace ("CGP orig:\n" <> (LG.prettify inGraph) <> "\nNew:" <> (LG.prettify timeConsistentGraph))
-    -- cycle check to make sure--can be removed when things working
-    -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" <> (LG.prettify noSisterSisterGraph))
+        -- trace ("CGP orig:\n" <> (LG.prettify inGraph) <> "\nNew:" <> (LG.prettify timeConsistentGraph))
+        -- cycle check to make sure--can be removed when things working
+        -- else if LG.cyclic noSisterSisterGraph then error ("Cycle in graph : \n" <> (LG.prettify noSisterSisterGraph))
 
-    -- this final need to ladderize or recontract?
-    else
-      if finalGraph == inGraph then finalGraph
-      else convertGeneralGraphToPhylogeneticGraph correct finalGraph
+        -- this final need to ladderize or recontract?
+        else
+          if finalGraph == inGraph then pure finalGraph
+          else convertGeneralGraphToPhylogeneticGraph correct finalGraph
 
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
 removeParentsInChain :: Bool -> SimpleGraph -> SimpleGraph
@@ -429,19 +430,24 @@ removeSisterSisterEdges correct inGraph =
 -- tests of nodes that should be potentially same age
 -- removes second edge of second pair of two network edges in each case adn remakes graph
 -- strict paralle since will need each recursive run
-makeGraphTimeConsistent :: Bool -> SimpleGraph -> SimpleGraph
+makeGraphTimeConsistent :: Bool -> SimpleGraph -> PhyG SimpleGraph
 makeGraphTimeConsistent correct inGraph
-  | LG.isEmpty inGraph = LG.empty
-  | LG.isTree inGraph = inGraph
+  | LG.isEmpty inGraph = pure LG.empty
+  | LG.isTree inGraph = pure inGraph
   | otherwise = let coevalNodeConstraintList = LG.coevalNodePairs inGraph
-                    coevalNodeConstraintList' = PU.seqParMap PU.myStrategyRDS (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
-                    coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
-                    timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
-                    newGraph = LG.delEdges timeOffendingEdgeList inGraph
-                in
-                -- trace ("MGTC:" <> (show timeOffendingEdgeList))
-                if (not correct) && (not . null) timeOffendingEdgeList then LG.empty
-                else contractIn1Out1EdgesRename newGraph
+                    -- parallel setup
+                    -- action :: (Show a,Eq a,Eq b) => (LG.LNode a, LG.LNode a) -> (LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a])
+                    action = LG.addBeforeAfterToPair inGraph
+                in do
+                    pTraverse <- getParallelChunkMap
+                    let coevalNodeConstraintList' = pTraverse action coevalNodeConstraintList
+                      -- PU.seqParMap PU.myStrategyRDS (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
+                    let coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
+                    let timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
+                    let newGraph = LG.delEdges timeOffendingEdgeList inGraph
+                    -- trace ("MGTC:" <> (show timeOffendingEdgeList))
+                    if (not correct) && (not . null) timeOffendingEdgeList then pure LG.empty
+                    else pure $ contractIn1Out1EdgesRename newGraph
 
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses
@@ -1150,6 +1156,7 @@ selectGraphStochastic rSeed number factor inGraphList
                 -- so no more than specified
                 take number $ returnGraphList <> luckyList
   where
+      getProb :: forall {a}. Floating a => a -> a -> a
       getProb a b = exp ((- 1) * b / a)
 
 -- | getDisplayTreeCostList returns a list of teh "block" costs of display trees
@@ -1203,7 +1210,8 @@ makeSimpleLeafGraph (nameVect, _, _) =
         let leafVertexList = V.toList $ V.map (makeSimpleLeafVertex nameVect) (V.fromList [0.. V.length nameVect - 1])
         in
         LG.mkGraph leafVertexList []
-        where makeSimpleLeafVertex a b = (b, a V.! b)
+        where makeSimpleLeafVertex :: forall {b}. V.Vector b -> Int -> (Int, b)
+              makeSimpleLeafVertex a b = (b, a V.! b)
 
 
 -- | makeLeafVertex makes a single unconnected vertex for a leaf
