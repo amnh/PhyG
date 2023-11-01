@@ -449,7 +449,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                             netPenaltyFactorList
 
                     -- parallel setup
-                    action ::  (DecoratedGraph, SimpleGraph, VertexCost, LG.Node,LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost) -> [ReducedPhylogeneticGraph]
+                    action ::  (DecoratedGraph, SimpleGraph, VertexCost, LG.Node,LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost) -> PhyG [ReducedPhylogeneticGraph]
                     action = S.rejoinGraphTuple swapParams inGS inData overallBestCost [] inSimAnnealParams 
                     
                 in
@@ -466,8 +466,8 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
 
                 -- TODO
                     -- recombinedGraphList = concat $ PU.seqParMap PU.myStrategy  (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
-                pTraverse <- getParallelChunkMap
-                let recombinedGraphList' = pTraverse action graphDataList
+                pTraverse <- getParallelChunkTraverse
+                recombinedGraphList' <- pTraverse action graphDataList
                 let recombinedGraphList = concat recombinedGraphList'
                 -- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
 
@@ -524,24 +524,24 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
                 else firstGraphData
                 -}
 
-                firstRejoinResult = S.rejoinGraphTuple swapParams inGS inData curBestCost [] inSimAnnealParams firstGraphData'
-                firstBestCost =
-                    if (not . null) firstRejoinResult
-                        then minimum $ fmap snd5 firstRejoinResult
-                        else infinity
-
-                newRecursiveBestCost = min recursiveBestCost firstBestCost
-
-                progressString = "\t->" <> show newRecursiveBestCost
+                
             in  -- Unconditional printing, conditional output payload.
-
                 do
-                rejoinResult <- rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
-                let result = firstRejoinResult <> rejoinResult
-             
-                when (firstBestCost < recursiveBestCost) $
-                    logWith LogInfo progressString 
-                pure result
+                    firstRejoinResult <- S.rejoinGraphTuple swapParams inGS inData curBestCost [] inSimAnnealParams firstGraphData'
+                    let firstBestCost =
+                            if (not . null) firstRejoinResult
+                                then minimum $ fmap snd5 firstRejoinResult
+                            else infinity
+
+                    let newRecursiveBestCost = min recursiveBestCost firstBestCost
+
+                    let progressString = "\t->" <> show newRecursiveBestCost
+                    rejoinResult <- rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
+                    let result = firstRejoinResult <> rejoinResult
+                 
+                    when (firstBestCost < recursiveBestCost) $
+                        logWith LogInfo progressString 
+                    pure result
 
 
 {-

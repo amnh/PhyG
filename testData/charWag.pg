@@ -2,7 +2,7 @@
 --read(fasta:"chel.fas")
 --read(fasta:"chel-16.fas")
 --set(criterion:NCM)
---read(prefasta:"chel-prealigned.fas")
+read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
 --read(prefasta:"chel-prealigned.fas")
 
@@ -59,7 +59,7 @@ build(distance, rdwag, replicates:20, best:20)
 
 --set(multitraverse:false)
 
-fuse(tbr)
+--fuse(tbr)
 
 --transform(staticApprox)
 
