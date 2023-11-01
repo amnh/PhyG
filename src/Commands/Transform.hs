@@ -515,7 +515,7 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
       newProcessedData <- R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
 
       -- bit pack any new non-additive characters
-      let newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
+      newProcessedData' <- BP.packNonAdditiveData inGS newProcessedData
       
       -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
       -- issues if no variation in block reducing length to zero so need leave "prealigned" if so
@@ -558,7 +558,7 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
           newProcessedData <- R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
 
           -- bit pack any new non-additive characters
-          let newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
+          newProcessedData' <- BP.packNonAdditiveData inGS newProcessedData
 
           if leavePrealigned then do
              pure (nameV, nameBVV, newBlockDataV)

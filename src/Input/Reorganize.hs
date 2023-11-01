@@ -60,7 +60,7 @@ optimizePrealignedData inGS inData@(_, _, blockDataVect) = do
     let inData'' = convertPrealignedToNonAdditive inData'
 
     -- bit packing for non-additivecharacters
-    let inData''' = BP.packNonAdditiveData inGS inData''
+    inData''' <- BP.packNonAdditiveData inGS inData''
 
     if U.getNumberPrealignedCharacters blockDataVect == 0 then
         -- trace ("Not Bitpacking...")

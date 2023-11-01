@@ -40,9 +40,7 @@ import Utilities.Distances qualified as D
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
-
--- import System.Info
--- import GHC.Stats
+-- import Debug.Trace
 
 {- |
 Main entry point
@@ -243,7 +241,7 @@ performSearch initialSeed inputFilePath = do
     naiveDataGrouped <- R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
 
     -- Bit pack non-additive data
-    let naiveDataPacked = BP.packNonAdditiveData partitionCharOptimalityGlobalSettings naiveDataGrouped
+    naiveDataPacked <- BP.packNonAdditiveData partitionCharOptimalityGlobalSettings naiveDataGrouped
 
     -- Optimize Data convert
     -- prealigned to non-additive or matrix
