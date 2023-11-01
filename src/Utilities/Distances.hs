@@ -33,7 +33,6 @@ getPairwiseDistances (nameVect, _, blockDataVect)
   | V.null blockDataVect = error "Null Block Data vector in getPairwiseDistances"
   | otherwise =
     let -- get maximum observations and pairwise max observations to normalize distances
-        maxDistance = U.getMaxNumberObservations blockDataVect
         pairList = makeIndexPairs True (V.length nameVect) (V.length nameVect) 0 0
         --pairListCosts = fmap (U.getPairwiseObservations blockDataVect) pairList `using` P.myParListChunkRDS
         --TODO
@@ -45,6 +44,8 @@ getPairwiseDistances (nameVect, _, blockDataVect)
         action = U.getPairwiseObservations blockDataVect
 
     in do 
+        maxDistance <- U.getMaxNumberObservations blockDataVect
+        
         pTraverse <- getParallelChunkMap
         let pairListCosts = pTraverse action pairList
         

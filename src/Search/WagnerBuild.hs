@@ -123,9 +123,6 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
 
        blockCharInfo = V.map thd3 $ thd3 inData
 
-       -- this used for missing data adjustments during build
-       maxDistance = U.getMaxNumberObservations (thd3 inData)
-
        -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree
        -- False flag for staticIA--can't be done in build
        calculateBranchLengths = False -- must be True for delata using existing edge
@@ -133,6 +130,9 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
        
    in do
+      -- this used for missing data adjustments during build
+      maxDistance <- U.getMaxNumberObservations (thd3 inData)
+      
       logWith LogInfo ("\tBuilding Wagner replicate " <> show replicateIndex <> "\n") 
       wagnerTree <- recursiveAddEdgesWagner maxDistance (useIA inGS) (V.drop 3 additionSequence) numLeaves (numLeaves + 2) inGS inData hasNonExactChars leafDecGraph initialFullyDecoratedTree
       pure wagnerTree

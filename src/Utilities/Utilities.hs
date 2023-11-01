@@ -36,6 +36,9 @@ Portability :  portable (I hope)
 
 module Utilities.Utilities  where
 
+import Control.Evaluation
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special
@@ -60,10 +63,12 @@ import Data.Vector.Unboxed   qualified      as UV
 import GeneralUtilities
 import GeneralUtilities  qualified          as GU
 import SymMatrix     qualified              as S
+import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph  qualified      as LG
-import Control.Parallel.Strategies
-import ParallelUtilities qualified as P
+
+--import Control.Parallel.Strategies
+---import ParallelUtilities qualified as P
 --import Debug.Trace
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
@@ -645,33 +650,49 @@ getPairCharLength (iIndex, jIndex) charDataV =
 -- | getMaxNumberObservations takes data set and returns the supremum of character numbers from all
 -- taxa over all charcaters (sequence and qiualitative) 
 -- used for various normalizations
-getMaxNumberObservations :: V.Vector BlockData -> VertexCost
+getMaxNumberObservations :: V.Vector BlockData -> PhyG VertexCost
 getMaxNumberObservations blocKDataV =
-    if V.null blocKDataV then 0
+    if V.null blocKDataV then pure 0
     else 
-        fromIntegral $ V.sum (P.seqParMap P.myStrategyHighLevel getMaxBlockObs blocKDataV)
+        let --parallel setup
+            action :: BlockData -> PhyG Int
+            action = getMaxBlockObs
+        in do
+            pTraverse <- getParallelChunkTraverse
+            result <- pTraverse action (V.toList blocKDataV)
+                -- fromIntegral $ V.sum (P.seqParMap P.myStrategyHighLevel getMaxBlockObs blocKDataV)
+            pure $ fromIntegral $ sum result
 
 -- | getMaxBlockObs gets the supremum over taxa number of characters in a block of data
-getMaxBlockObs :: BlockData -> Int
+getMaxBlockObs :: BlockData -> PhyG Int
 getMaxBlockObs (_, charDataVV, _) =
-    if V.null charDataVV then 0
+    if V.null charDataVV then pure 0
     else 
         let newListList = L.transpose $ V.toList $ fmap V.toList charDataVV
-            charTaxVect = V.fromList $ fmap V.fromList newListList
-        in
-        V.sum (P.seqParMap P.myStrategyHighLevel getSupCharLength charTaxVect)
+            -- charTaxVect = fmap V.fromList newListList
+            --parallel setup
+            action :: [CharacterData] -> PhyG Int
+            action = getSupCharLength
+        in do
+            pTraverse <- getParallelChunkTraverse
+            result <- pTraverse action newListList
+                    -- V.sum (P.seqParMap P.myStrategyHighLevel getSupCharLength charTaxVect)
+            pure $ sum result
 
 -- | getMaxCharLength takes a vector of charcters and returns the supremum of observations for that character 
 -- over all taxa
-getSupCharLength :: V.Vector CharacterData -> Int
+getSupCharLength :: [CharacterData] -> PhyG Int
 getSupCharLength charDataV =
-    if V.null charDataV then 0
+    if null charDataV then pure 0
     else
-        V.maximum (P.seqParMap P.myStrategyHighLevel getMaxCharLength charDataV)
-
--- | getMaxDistance gets teh maximum numbert of observations that could be different between
--- two taxa--by counting only obsercvvations where both are non-missing
-
+        let --parallel setup
+            action :: CharacterData -> Int
+            action = getMaxCharLength
+        in do
+            pTraverse <- getParallelChunkMap
+            let result = pTraverse action charDataV
+            pure $ maximum result
+                -- V.maximum (P.seqParMap P.myStrategyHighLevel getMaxCharLength charDataV)
 
 
 -- getFractionDynamic returns fraction (really of length) of dynamic charcters for adjustment to dynamicEpsilon
