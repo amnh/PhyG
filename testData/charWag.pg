@@ -50,16 +50,16 @@ report("test0-data.csv", data, overwrite)
 --set(criterion:ml)
 
 -- set(seed:1)
-build(replicates:1)
+--build(replicates:10)
 --build(distance, dwag)
---build(distance, rdwag, replicates:20, best:20)
+build(distance, rdwag, replicates:20, best:20)
 
 --build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
 --build(replicates:10, block, displayTrees:10, cun)
 
 --set(multitraverse:false)
 
---fuse(tbr)
+fuse(tbr)
 
 --transform(staticApprox)
 

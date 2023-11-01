@@ -46,12 +46,12 @@ import Data.Char
 import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
 import Search.Swap qualified as S
 import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Types.Types
 import Utilities.Utilities as U
+-- import ParallelUtilities qualified as PU
 
 -- | swapMaster processes and spawns the swap functions
 -- the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
@@ -142,6 +142,11 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                -- replicate inGraphList based on 'replicates' for randomized trajectories
                inGraphList  = concat $ replicate replicates inGraphListInput
                numGraphs = length inGraphList
+
+               -- parallel setup
+               action :: [([Int], Maybe SAParams, ReducedPhylogeneticGraph)] -> PhyG([ReducedPhylogeneticGraph], Int)
+               action = S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
+
             in do
             
             simAnnealParams <- getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed
@@ -160,7 +165,9 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
             --let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
             let simAnnealList = (fmap (:[]) (zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList))
-            graphPairList <- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
+            swapPar <- getParallelChunkTraverse 
+            graphPairList <- swapPar action simAnnealList
+              -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
 
             let (graphListList, counterList) = unzip graphPairList
             let (newGraphList, counter) = (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)

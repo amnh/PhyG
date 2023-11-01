@@ -41,6 +41,7 @@ module Search.Swap  ( swapSPRTBR
                     , getUnionRejoinEdgeList
                     ) where
 
+import Control.Evaluation
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
@@ -53,12 +54,12 @@ import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.PreOrderFunctions qualified as PRE
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
 import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph  qualified as LG
 import Utilities.Utilities as U
 -- import           Debug.Trace
+import ParallelUtilities qualified as PU
 
 
 -- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
@@ -183,6 +184,10 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
 
           inGraphNetPenalty = POSW.getNetPenaltyReduced inGS inData inGraph
           inGraphNetPenaltyFactor = inGraphNetPenalty / (snd5 inGraph)
+
+          -- parallel setup
+          action :: Maybe SAParams -> PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
+          action = swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor
       in
       -- trace ("SSPRTBR:" <> (show inGraphNetPenaltyFactor)) (
 
@@ -211,7 +216,9 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
              -- TODO
              -- (annealDriftGraphs', anealDriftCounterList, _) = unzip3 $ (PU.seqParMap (parStrategy $ lazyParStrat inGS) (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
          in do
-         swapResult <- mapM (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList
+         swapPar <- getParallelChunkTraverse
+         swapResult <- swapPar action newSimAnnealParamList
+            -- mapM (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList
          let (annealDriftGraphs', anealDriftCounterList, _) = unzip3 swapResult
 
              -- annealed/Drifted 'mutated' graphs

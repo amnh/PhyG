@@ -330,7 +330,7 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
             let searchBandit =
                     if thisBandit == SearchBandit
                         then takeWhile (/= ',') (tail $ head infoStringList)
-                        else -- GraphBandit
+                    else -- GraphBandit
 
                             if "StaticApprox" `elem` (LS.splitOn "," $ head infoStringList)
                                 then 
