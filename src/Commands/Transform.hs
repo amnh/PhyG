@@ -512,7 +512,7 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
       -- convert prealigned to non-additive if all 1's tcm
 
       -- remove constants from new prealigned
-      let newProcessedData  = R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+      newProcessedData <- R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
 
       -- bit pack any new non-additive characters
       let newProcessedData' = BP.packNonAdditiveData inGS newProcessedData
@@ -555,7 +555,7 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
           let newBlockDataV = V.zipWith (getBlockLeafDataFromDisplayTree leavePrealigned) (fmap thd6 decoratedBlockTreeList) blockDataV
 
           -- remove constants from new prealigned
-          let newProcessedData = R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+          newProcessedData <- R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
 
           -- bit pack any new non-additive characters
           let newProcessedData' = BP.packNonAdditiveData inGS newProcessedData

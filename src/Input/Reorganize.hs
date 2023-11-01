@@ -35,14 +35,14 @@ import Data.Vector.Unboxed qualified as UV
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Input.BitPack qualified as BP
-import ParallelUtilities qualified as PU
 import SymMatrix qualified as S
 import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Types.Types
 import Utilities.Utilities qualified as U
 
--- import Debug.Trace
+--import ParallelUtilities qualified as PU
+--import Debug.Trace
 
 
 {- | optimizePrealignedData convert
@@ -51,25 +51,23 @@ here
 bitPack new non-additive
 packNonAdditive
 -}
-optimizePrealignedData :: GlobalSettings -> ProcessedData -> ProcessedData
-optimizePrealignedData inGS inData@(_, _, blockDataVect) =
-    let -- remove constant characters from prealigned
-        inData' = removeConstantCharactersPrealigned inData
+optimizePrealignedData :: GlobalSettings -> ProcessedData -> PhyG ProcessedData
+optimizePrealignedData inGS inData@(_, _, blockDataVect) = do
+    -- remove constant characters from prealigned
+    inData' <- removeConstantCharactersPrealigned inData
 
-        -- convert prealigned to nonadditive if all 1 tcms
-        inData'' = convertPrealignedToNonAdditive inData'
+    -- convert prealigned to nonadditive if all 1 tcms
+    let inData'' = convertPrealignedToNonAdditive inData'
 
-        -- bit packing for non-additivecharacters
-        inData''' = BP.packNonAdditiveData inGS inData''
-
-    in
+    -- bit packing for non-additivecharacters
+    let inData''' = BP.packNonAdditiveData inGS inData''
 
     if U.getNumberPrealignedCharacters blockDataVect == 0 then
         -- trace ("Not Bitpacking...")
-        inData
+        pure inData
     else
         --trace ("Bitpacking...")
-        inData'''
+        pure inData'''
 
 
 
@@ -245,20 +243,27 @@ makeNewBlocks reBlockPairs inBlockV curBlockList
 -- same vectors in character so have one non-add, one add, one of each packed type,
 -- can have multiple matrix (due to cost matrix differneces)
 -- similar result to groupDataByType, but does not assume single characters.
-combineDataByType :: GlobalSettings -> ProcessedData -> ProcessedData
+combineDataByType :: GlobalSettings -> ProcessedData -> PhyG ProcessedData
 combineDataByType inGS inData@(taxNames, taxBVNames, _) =
     --recode add to non-add before combine-- takes care wor integer weighting
     let (_, _, blockDataV') = recodeAddToNonAddCharacters inGS maxAddStatesToRecode inData
-        recodedData = fmap combineData blockDataV'
-    in
-    (taxNames, taxBVNames, recodedData)
+        
+    in do
+        recodedData <- mapM combineData blockDataV'
+        pure (taxNames, taxBVNames, recodedData)
 
 -- | combineData creates for a block) lists of each data type and concats then creating new data and new char info
-combineData :: BlockData -> BlockData
+combineData :: BlockData -> PhyG BlockData
 combineData (blockName, blockDataVV, charInfoV) =
-    let (newBlockDataLV, newCharInfoLV) = unzip (PU.seqParMap PU.myStrategyRDS (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
-    in
-    (blockName, V.fromList newBlockDataLV, head newCharInfoLV)
+    let -- parallel setup
+        action ::  V.Vector CharacterData -> (V.Vector CharacterData, V.Vector CharInfo)
+        action = combineBlockData charInfoV
+    in do
+        pTraverse <- getParallelChunkMap
+        let result = pTraverse action (V.toList blockDataVV)
+        let (newBlockDataLV, newCharInfoLV) = unzip result
+            -- (newBlockDataLV, newCharInfoLV) = unzip (PU.seqParMap PU.myStrategyRDS (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
+        pure (blockName, V.fromList newBlockDataLV, head newCharInfoLV)
 
 -- | combineBlockData takes a vector of char info and vector or charcater data for a taxon and
 -- combined exact data types into single characters
@@ -425,11 +430,16 @@ getSameMatrixChars inCharsPairList testMatrix =
 
 -- | removeConstantCharactersPrealigned takes processed data and removes constant characters
 -- from prealignedCharacterTypes
-removeConstantCharactersPrealigned :: ProcessedData -> ProcessedData
+removeConstantCharactersPrealigned :: ProcessedData -> PhyG ProcessedData
 removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
-    let newBlockData = V.fromList (PU.seqParMap PU.myStrategyRDS  removeConstantBlockPrealigned (V.toList blockDataVect)) -- `using` PU.myParListChunkRDS)
-    in
-    (nameVect, bvNameVect, newBlockData)
+    let -- parallel setup
+        action ::  BlockData -> BlockData
+        action = removeConstantBlockPrealigned
+    in do
+        pTraverse <- getParallelChunkMap
+        let newBlockData = pTraverse action (V.toList blockDataVect)
+            -- V.fromList (PU.seqParMap PU.myStrategyRDS  removeConstantBlockPrealigned (V.toList blockDataVect)) -- `using` PU.myParListChunkRDS)
+        pure (nameVect, bvNameVect, V.fromList newBlockData)
 
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
 removeConstantBlockPrealigned :: BlockData -> BlockData

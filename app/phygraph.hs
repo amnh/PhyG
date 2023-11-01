@@ -22,7 +22,6 @@ import Data.Text.Builder.Linear (runBuilder)
 import Data.Text.Lazy qualified as Text
 import Data.Text.Short qualified as ST
 import Data.Time.Clock
-import Debug.Trace
 import GeneralUtilities
 import GraphFormatUtilities qualified as GFU
 import GraphOptimization.Traversals qualified as T
@@ -241,7 +240,7 @@ performSearch initialSeed inputFilePath = do
     -- Group Data--all nonadditives to single character, additives with
     -- alphabet < 64 recoded to nonadditive binary, additives with same alphabet
     -- combined,
-    let naiveDataGrouped = R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
+    naiveDataGrouped <- R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
 
     -- Bit pack non-additive data
     let naiveDataPacked = BP.packNonAdditiveData partitionCharOptimalityGlobalSettings naiveDataGrouped
@@ -249,7 +248,7 @@ performSearch initialSeed inputFilePath = do
     -- Optimize Data convert
     -- prealigned to non-additive or matrix
     -- bitPack resulting non-additive
-    let optimizedPrealignedData = R.optimizePrealignedData partitionCharOptimalityGlobalSettings naiveDataPacked
+    optimizedPrealignedData <- R.optimizePrealignedData partitionCharOptimalityGlobalSettings naiveDataPacked
 
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList ← liftIO $ CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
@@ -259,15 +258,13 @@ performSearch initialSeed inputFilePath = do
 
     -- Combines data of exact types into single vectors in each block
     -- this is final data processing step
+    optDataNBPL <- R.combineDataByType partitionCharOptimalityGlobalSettings reBlockedNaiveData
+
+    when (thereExistsSome newBlockPairList) $ logWith LogInfo "Reorganizing Block data"
     let optimizedData =
             if thereExistsSome newBlockPairList
-                then
-                    trace
-                        "Reorganizing Block data"
-                        R.combineDataByType
-                        partitionCharOptimalityGlobalSettings
-                        reBlockedNaiveData
-                else optimizedPrealignedData
+                then optDataNBPL   
+            else optimizedPrealignedData
 
     -- Set global values before search--should be integrated with executing commands
     -- only stuff that is data dependent here (and seed)
