@@ -736,7 +736,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
                     -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
       
-              if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <> " root index: " <> show rootIndex <> " graph roots:" <> show (fmap fst $ LG.getRoots canonicalGraph))
+              if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <> " root index: " <> show rootIndex <> " graph roots:" <> show (fmap fst $ LG.getRoots canonicalGraph) <> "\n" <> LG.prettyIndices canonicalGraph)
               else
                  -- trace ("SWTN: " <> (show (V.length rootDisplayBlockCharResolutionV,  V.length rootPreliminaryDataVV, fmap V.length rootPreliminaryDataVV ))
                  -- <> "\n" <> (show rootBlockChildIndicesV))
