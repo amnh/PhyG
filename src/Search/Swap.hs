@@ -175,25 +175,18 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
    if LG.isEmpty (fst5 inGraph) then do pure ([], 0)
    else
       let numLeaves = V.length $ fst3 inData
-          {-
-          leafGraph = GO.makeSimpleLeafGraph inData
-          leafDecGraph = GO.makeLeafGraph inData
-          leafGraphSoftWired = POSW.makeLeafGraphSoftWired inGS inData
-          -}
-
-          inGraphNetPenalty = POSW.getNetPenaltyReduced inGS inData inGraph
-          inGraphNetPenaltyFactor = inGraphNetPenalty / (snd5 inGraph)
-
-          -- parallel setup
-          action :: Maybe SAParams -> PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
-          action = swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor
-      in
+         
+      in do
       -- trace ("SSPRTBR:" <> (show inGraphNetPenaltyFactor)) (
-
+      
+      inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
+      let inGraphNetPenaltyFactor = inGraphNetPenalty / (snd5 inGraph)
+         
       if inSimAnnealParams == Nothing then do
-        -- trace ("Non SA swap") (
-        -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
-        -- Nothing for SimAnneal Params
+         
+         -- trace ("Non SA swap") (
+         -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
+         -- Nothing for SimAnneal Params
          (swappedGraphs, counter, _) <- swapAll swapParams inGS inData randomIntListSwap inCounter (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor inSimAnnealParams
          
          if null swappedGraphs then do pure ([inGraph], counter)
@@ -215,6 +208,10 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
              -- TODO
              -- (annealDriftGraphs', anealDriftCounterList, _) = unzip3 $ (PU.seqParMap (parStrategy $ lazyParStrat inGS) (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
          in do
+         -- parallel setup
+         -- action :: Maybe SAParams -> PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
+         let action = swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor
+
          swapPar <- getParallelChunkTraverse
          swapResult <- swapPar action newSimAnnealParamList
             -- mapM (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList
@@ -1381,11 +1378,12 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
           splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
 
 
+          
+      in do
           -- create optimized base graph
           -- False for staticIA
-          (postOrderBaseGraph, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
+          (postOrderBaseGraph, _) <- T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
 
-      in do
           fullBaseGraph <- PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) (finalAssignment inGS) False calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
           -- create fully optimized pruned graph.  Post order tehn preorder
@@ -1397,7 +1395,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
 
 
           -- False for staticIA
-          let (postOrderPrunedGraph, _) = T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
+          (postOrderPrunedGraph, _) <- T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
 
 
           -- False for staticIA
@@ -1485,13 +1483,13 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             -- create simple graph version of split for post order pass
             splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
 
+      in do
             --Create base graph
             -- create postorder assignment--but only from single traversal
             -- True flag fior staticIA
-            postOrderBaseGraph = POSW.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) inData leafGraph True (Just startVertex) splitGraphSimple
-            baseGraphCost = snd6 postOrderBaseGraph
+            postOrderBaseGraph <- POSW.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) inData leafGraph True (Just startVertex) splitGraphSimple
+            let baseGraphCost = snd6 postOrderBaseGraph
 
-      in do
             -- True flag fior staticIA
             fullBaseGraph <- PRE.preOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) (finalAssignment inGS) True calcBranchLengths (nonExactCharacters > 0) startVertex True postOrderBaseGraph
 
@@ -1512,7 +1510,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
 
 
             -- True flag fior staticIA
-            let postOrderPrunedGraph =  POSW.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
+            postOrderPrunedGraph <-  POSW.postOrderTreeTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) inData leafGraph True (Just prunedSubGraphRootVertex) splitGraphSimple
             let prunedGraphCost = snd6 postOrderPrunedGraph
 
             -- True flag fior staticIA
