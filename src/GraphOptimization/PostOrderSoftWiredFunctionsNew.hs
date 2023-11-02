@@ -706,7 +706,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
               let firstOfEachRootRes = fmap V.head rootDisplayBlockCharResolutionV
 
               -- get preliminary character data for blocks
-              -- these should be ok wihtout left right check since were creted with that check on post order
+              -- these should be ok without left right check since were creted with that check on post order
               let (leftIndexList, rightIndexList) = unzip $ fmap childResolutionIndices firstOfEachRootRes
 
               -- update root vertex info for display and character trees for each block
@@ -736,7 +736,7 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
                     -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
       
-              if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex))
+              if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <> " root index: " <> show rootIndex <> " graph roots:" <> show (fmap fst $ LG.getRoots canonicalGraph))
               else
                  -- trace ("SWTN: " <> (show (V.length rootDisplayBlockCharResolutionV,  V.length rootPreliminaryDataVV, fmap V.length rootPreliminaryDataVV ))
                  -- <> "\n" <> (show rootBlockChildIndicesV))
