@@ -756,7 +756,7 @@
 		diagnosis, export static homology data, implied alignments, trees, graphs, dot files, 
 		as well as other miscellaneous arguments. By default, new information printed to 
 		a file is appended to that file. The option \texttt{overwrite} overrides the default and 
-		rewrites the file. Many of the report options are output in csv format,  which can
+		rewrites the file. Many of the report options are output in csv format, which can
 		subsequently be imported into spreadsheet programs like \textit{Excel} or 
 		\textit{Numbers} for easy viewing.}
 	\end{phygdescription}
@@ -765,18 +765,22 @@
 	\begin{description}
 		
 		\item[append] When reporting data or graphs to a file, this information is 
-		appended to the end of the file. Compare with the \texttt{overwrite} argument.
-		By default, files are appended to the report, rather than overwritten. 
+		appended to the end of the file. By default, files are appended to the report, 
+		rather than overwritten. Compare with the \texttt{overwrite} argument.
 
 		\item[ascii] Reports ASCII character representations of the reported graphs.
-		This file can be viewed in any text editor.
+		This information will be directed to a file, in csv format, if a file name (in quotes), 
+		followed by a comma, is included in the argument list of report. If no file name is 
+		specified, this information will be printed to the stderr. This file can be viewed 
+		in any text editor. 
 		
 		\item[branchlengths] When reporting graphs, \phyg will report the branch 
 		lengths of these graphs. In Newick and eNewick files, branch lengths 
 		follow the terminal names, separated by a colon. In eps and pdf files, 
 		branch lengths appear above the branches. In ASCII and dot files, branch 
-		lengths follow the terminal labels. Compare with \texttt{nobranchlengths}. 
-		This is the default.
+		lengths follow the terminal labels. This is the default. Compare with 
+		\texttt{nobranchlengths}. 
+		
 
 		\item[collapse] Specifies that zero length branches are collapsed. If a dotpdf 
 		graph is specified, the branches are collapsed by default. If ASCII, Newick, 
@@ -828,8 +832,8 @@
 		
 		\item[displaytrees] Reports graph information for softwired networks. The 
 		`display' trees are output for each data block. This information will be directed 
-		to a file, if a file name (in quotes), followed by a comma, is 
-		included in the argument list of report. If no file name is specified, this information 
+		to a file, if a file name (in quotes), followed by a comma, is included in the 
+		argument list of report. If no file name is specified, this information 
 		will be printed to the stderr.
 		
 		\item[dot] Outputs a graph in dot format. The dot file can be viewed (and 
@@ -837,22 +841,20 @@
 		files the application \textit{dot} must be installed from the 
 		\href{https://graphviz.org/download/}{Graphviz} 	website. Graphviz is 
 		open-source graph visualization software. \texttt{dot} is the default graph 
-		representation---a dot file will only be reported if no 
-		other graph type is specified. 
+		representation---a dot file will only be reported if no other graph type is specified. 
 		
 		\item[dotpdf] Outputs two files---a graph file in dot format, along with either
 		an eps (on MacOS) or pdf (on Linux) (see also \texttt{dot}). The eps and pdf 
 		files can be read in \textit{Adobe Illustrator}, \textit{Apple Preview} or any 
 		vectorial image edition program.  By default, when \texttt{dotpdf} is specified,
-		edges are collapsed (contracted) if they have a minimum weight 
-		(length) of 0.
+		edges are collapsed (contracted) if they have a minimum weight (length) of 0.
 		
 		\item[graphs] Outputs a graph in the format specified by the other arguments 
 		in the command. These are either Newick, eNewick, ASCII, dot, and dotpdf, 
 		which will output a graph in eps (on MacOS) or pdf (on Linux) format.
 		
-		\item[htulabels] Labels the HTUs in the output files (compare with 
-		\texttt{nohtulabels}). This is the default.
+		\item[htulabels] Labels the HTUs in the output files. This is the default. Compare 
+		with \texttt{nohtulabels}.
 		
 		\item[ia] Synonym of \texttt{impliedalignment}.
 		
@@ -870,7 +872,7 @@
 			\item[includemissing] Outputs a FASTA or FASTC (depending on sequence type), 
 			including taxa that are missing data for that particular block of data in the implied 
 			alignment.
-			In this case, \phyg will print `?' characters for the missing taxon in 
+			In this case, \phyg will print question mark characters (`?') for the missing taxon in 
 			this block of the implied alignment. This option interacts nicely with 
 			\texttt{concatenate} in creating prealigned FASTA (implied alignments) 
 			with all the terminals included for all the data. By default, taxa with 
@@ -892,10 +894,11 @@
 		
 		\item[nocollapse] Specifies that zero length branches are not collapsed.
 		If ASCII, Newick, eNewick and dot graphs are specified, the zero length 
-		branches are not collapsed by default. In contrast, if a dotpdf graph is specified, 
-		the zero-length branches are collapsed. Note: by specifying 
-		a dotpdf file, this will by default output a dot file with zero length branches not 
-		collapsed. Compare with the \texttt{collapse} argument. 
+		branches are not collapsed by default. In contrast, if a dotpdf graph is 
+		specified, the zero-length branches are collapsed. Note: by specifying 
+		a dotpdf file, this will by default also output a dot file---in both these files 
+		zero length branches are collapsed. Compare with the \texttt{collapse} 
+		argument. 
 				
 		\item[nohtulabels] Labels of the HTUs are not included in the output files. 
 		This option can not be applied to eNewick graph. Compare with the argument 
@@ -903,10 +906,13 @@
 		
 		\item[overwrite] By default, when reporting data or graphs to a file, the 
 		information is appended to the end of the file (see \texttt{append}). The 
-		  option \texttt{overwrite} overrides this default and rewrites the file rather 
-		  than appending to the existing information.
+		option \texttt{overwrite} overrides this default and rewrites the file rather 
+		than appending to the existing information.
 
 		\item[pairdist] Outputs a taxon pairwise distance matrix in csv format. 
+		This information will be directed to a file, if a file name (in quotes), followed 
+		by a comma, is included in the argument list of report. If no file name is 
+		specified, this information will be printed to the stderr.
 		
 		\item[reconcile] Outputs a single `reconciled' graph from all graphs in 
 		memory. The methods include consensus, supertree, and other supergraph 
@@ -978,7 +984,7 @@
 		outputs, designated by additional arguments, are printed. If no additional 
 		arguments are specified, a graph in dot format, along with an eps or pdf 
 		file (depending on the operating system) will be reported to a file named 
-		`\textbf{defaultGraph}'. By default files are appended to the report, rather 
+		`\textbf{defaultGraph}'. By default, files are appended to the report, rather 
 		than overwritten (see \texttt{overwrite}).
 				
 		\item[support] Outputs support graphs (see Section \ref{subsec:support})
@@ -1014,8 +1020,8 @@
 		
 		\item{\texttt{report("outFile\_cr.csv", crossrefs)}\\ Outputs the cross reference file 
 		``\textbf{outFile\_cr.csv}'' with data pertaining to the presence and absence of 
-		taxa in the input files. This information is appended to the end of the file, if existing 
-		information exists (the default), as \texttt{overwrite} was not specified.}
+		taxa in the input files. This information is appended to the end of the file (the 
+		default), if existing information exists.}
 		
 		\item{\texttt{report("outFile", dot, reconcile, method:eun, threshold:51)}\\ Outputs a
 		graph which has been reconciled using the Edge-Union-Network method with a 
