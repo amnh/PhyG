@@ -62,7 +62,7 @@ ie postorder--since those are traversal specific
 the character specific decorated graphs have appropriate post and pre-order assignments
 the traversal begins at the root (for a tree) and proceeds to leaves.
 
-Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
+Hardwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
 -}
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =

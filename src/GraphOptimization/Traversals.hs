@@ -248,7 +248,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
                                  else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
-            let staticOnlyGraph = if (graphType inGS) == SoftWired then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
+            updateFinal <- POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
+            let staticOnlyGraph = if (graphType inGS) == SoftWired then updateFinal
                                   else outgroupRooted
                 -- staticOnlyGraph = head recursiveRerootList'
             let staticOnlyGraph' = if startVertex == Nothing then updatePhylogeneticGraphCost  staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))

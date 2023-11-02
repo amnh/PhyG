@@ -286,31 +286,32 @@ naiveGetDisplayBasedRerootSoftWired _ _ _ inPhyloGraph  =
 getDisplayBasedRerootSoftWired' :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, decGraph, _,_,f)  =
     if LG.isEmpty (fst6 inPhyloGraph) then pure inPhyloGraph
-    else
-        let -- update with pass to retrieve vert data from resolution data
+    else do
+            -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
-            (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = 
-                if inGraphType == Tree then
-                    let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
-                    in
-                    (a, b, decGraph, displayTrees, charTrees, f)
-                else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            updateFinal <- updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            let (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = 
+                    if inGraphType == Tree then
+                        let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
+                        in
+                        (a, b, decGraph, displayTrees, charTrees, f)
+                    else updateFinal
 
             -- purge double edges from display and character graphs
             -- this should not be happening--issue with postorder network resolutions data
-            (inBlockGraphV, inBlockCharGraphVV) = if inGraphType == Tree then (inBlockGraphV', inBlockCharGraphVV')
+            let (inBlockGraphV, inBlockCharGraphVV) = if inGraphType == Tree then (inBlockGraphV', inBlockCharGraphVV')
                                                   else (fmap (fmap LG.removeDuplicateEdges) inBlockGraphV', fmap (fmap LG.removeDuplicateEdges) inBlockCharGraphVV')
 
             -- reroot block character trees
             -- not sure if should be parallelized `using` PU.myParListChunkRDS
             -- (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees inGS rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS)
             -- This is slower than myParListChunkRDS
-            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootBlockCharTrees' inGS rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
+            let (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootBlockCharTrees' inGS rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
 
-            newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
-        in
-        -- trace ("GDBRS:" <> (show (b, sum blockCostV)))
-        pure (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
+            let newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
+        
+            -- trace ("GDBRS:" <> (show (b, sum blockCostV)))
+            pure (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
 
 -- | rerootBlockCharTrees' wrapper around rerootBlockCharTrees to allow for parMap
 rerootBlockCharTrees' ::GlobalSettings -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
@@ -543,7 +544,7 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 -- ports the post order assignments to the display trees, and creates the character trees from the block trees
-updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 updateAndFinalizePostOrderSoftWired startVertexMaybe startVertex inGraph =
     if isNothing startVertexMaybe then NEW.softWiredPostOrderTraceBack startVertex inGraph
     else NEW.softWiredPostOrderTraceBack (fromJust startVertexMaybe) inGraph
