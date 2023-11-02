@@ -636,16 +636,14 @@
 		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
 		integer value. 
 		
-		\item[maxnetedges:INT] Used in conjunction with the network edit operations 
-		\texttt{netadd}, \texttt{netdel} and \texttt{netadddel}, this specifies the maximum 
-		number of network edges involved in the edit operation. When used in conjunction 
-		with \texttt{netadd}, the maximum number of network edges added to the graph, 
-		is determined by the associated integer value. Note: when deciding the number of
-		maximum edges, the user should be aware that the addition of network edges 
-		exponentially increases the time taken to optimize the graph 
-		\cite{WheelerandWashburn2023}. In the case of \texttt{netdel}, a maximum of network 
-		edges, as specified by the integer value, will be deleted from the input graphs.
-		When used with \texttt{netadddel} \hl{...}
+		\item[maxnetedges:INT] Specifies the maximum number of network edges in the graphs 
+		to be produced. 
+		This argument is used in conjunction with the network edit operations \texttt{netadd} and 
+		\texttt{netadddel}. The number of network edges in the graphs produced by these edit operations 
+		are limited by the number as specified by the integer value.
+		Note: when deciding this value, the user should be aware that the addition of network 
+		edges exponentially increases the time taken to optimize the graph 
+		\cite{WheelerandWashburn2023}.
 				
 		\item[netadd] Adds network edges to existing input graphs at all possible positions 
 		until no better cost graph is found.
@@ -830,7 +828,7 @@
 		
 		\item[displaytrees] Reports graph information for softwired networks. The 
 		`display' trees are output for each data block. This information will be directed 
-		to a file, \hl{in text format}, if a file name (in quotes), followed by a comma, is 
+		to a file, if a file name (in quotes), followed by a comma, is 
 		included in the argument list of report. If no file name is specified, this information 
 		will be printed to the stderr.
 		
@@ -869,9 +867,9 @@
 			for each block of input data, it will report a file with all the implied 
 			alignments concatenated into a single file.
 			
-			\item[includemissing] Outputs a FASTA or (FASTC depending on sequence type), 
-			including taxa in the implied
-			alignment, which are missing data for that particular block of data.
+			\item[includemissing] Outputs a FASTA or FASTC (depending on sequence type), 
+			including taxa that are missing data for that particular block of data in the implied 
+			alignment.
 			In this case, \phyg will print `?' characters for the missing taxon in 
 			this block of the implied alignment. This option interacts nicely with 
 			\texttt{concatenate} in creating prealigned FASTA (implied alignments) 
