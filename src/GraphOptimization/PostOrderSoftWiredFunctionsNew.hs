@@ -46,6 +46,8 @@ module GraphOptimization.PostOrderSoftWiredFunctionsNew  ( postDecorateSoftWired
                                                          , backPortBlockTreeNodesToCanonicalGraph
                                                          ) where
 
+import Control.Evaluation
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.List qualified as L
@@ -55,19 +57,19 @@ import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 -- import Debug.Trace
 
+import ParallelUtilities qualified as PU
 {-Intial Postorder softwired pass.  All functions with 'New" appended-}
 
 
 -- | postDecorateSoftWired begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled
 -- and then recurses to root postorder labelling vertices and edges as it goes
 -- this for a single root
-postDecorateSoftWired:: GlobalSettings -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
+postDecorateSoftWired:: GlobalSettings -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhyG PhylogeneticGraph
 postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in current decorated graph then nothing to do and return it
     --   this because will hit node twice if network node
@@ -75,7 +77,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
         let nodeLabel = LG.lab curDecGraph curNode
         in
         if isNothing nodeLabel then error ("Null label for node " <> show curNode)
-        else (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
+        else pure (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
 
     -- node is not in decorated graph--ie has not been creted/optimized
     else
@@ -86,88 +88,91 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
         let nodeChildren = LG.descendants simpleGraph curNode  -- should be 1 or 2, not zero since all leaves already in graph
             leftChild = head nodeChildren
             rightChild = last nodeChildren -- will be same is first for out 1 (network) node
-            leftChildTree = postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex leftChild
-            rightLeftChildTree = if length nodeChildren == 2 then postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
-                                 else leftChildTree
-        in
-        -- Checks on children
-        if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateSoftWired node " <> show curNode <> "\n" <> LG.prettyIndices simpleGraph)
-        else if null nodeChildren then error ("Leaf not in graph in postDecorateSoftWired node " <> show curNode <> "\n" <> LG.prettyIndices simpleGraph)
+        in do
+            leftChildTree <- postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+            postRightResult <- postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+            let rightLeftChildTree = if length nodeChildren == 2 then postRightResult
+                                     else leftChildTree
+        
+            -- Checks on children
+            if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateSoftWired node " <> show curNode <> "\n" <> LG.prettyIndices simpleGraph)
+            else if null nodeChildren then error ("Leaf not in graph in postDecorateSoftWired node " <> show curNode <> "\n" <> LG.prettyIndices simpleGraph)
 
-        -- after recursing to any children can optimize current node
-        else
-            -- make node from child block resolutions
-            -- child resolution made earler in post order pass
-            --  sub tree is updated graph from children--ie not iuncluding current node
-            let newSubTree = thd6 rightLeftChildTree
-            in
-
-            -- single child of node--network node
-            if length nodeChildren == 1 then
-                -- use left child for out degree = 1 nmodes, right should be "Nothing"
-                let (newGraph, _, _, _, _) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
-                in
-                -- display graphs and character block are not done yet since will need traceback to get preliminary states
-                --  graph ahas all soft wired decorations
-                (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
-
-            -- 2 children--tree node
+            -- after recursing to any children can optimize current node
             else
-                -- trace ("Outdegree 2: " <> (show curNode) <> " " <> (show $ GO.getNodeType simpleGraph curNode) <> " Children: " <> (show nodeChildren)) (
-                -- need to create  resolutions and add to existing sets
-                let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
-                    -- larger bitvector is Right, smaller or equal Left
-                    ((leftChild', leftChildLabel), (rightChild', rightChildLabel)) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab newSubTree leftChild), (rightChild, fromJust $ LG.lab newSubTree rightChild))
-
-                    -- create resolution caches for blocks
-                    leftChildNodeType  = GO.getNodeType simpleGraph leftChild' -- nodeType leftChildLabel
-                    rightChildNodeType = GO.getNodeType simpleGraph rightChild' -- nodeType rightChildLabel
-                    resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType (GO.getNodeType simpleGraph curNode)) (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo
-
-                    -- create canonical Decorated Graph vertex
-                    -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
-                    newVertexLabel = VertexInfo { index = curNode
-                                                , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
-                                                , parents = V.fromList $ LG.parents simpleGraph curNode
-                                                , children = V.fromList nodeChildren
-                                                , nodeType = GO.getNodeType simpleGraph curNode --TreeNode
-                                                , vertName = T.pack $ "HTU" <> show curNode
-                                                , vertData = mempty --empty because of resolution data
-                                                , vertexResolutionData = resolutionBlockVL
-                                                , vertexCost = 0.0 --newCost
-                                                , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
-                                                }
-
-                    leftEdgeType
-                      | leftChildNodeType == NetworkNode = NetworkEdge
-                      | leftChildNodeType == LeafNode = PendantEdge
-                      | otherwise = TreeEdge
-                    rightEdgeType
-                      | rightChildNodeType == NetworkNode = NetworkEdge
-                      | rightChildNodeType == LeafNode = PendantEdge
-                      | otherwise = TreeEdge
-
-                    edgeLable = EdgeInfo { minLength = 0.0
-                                         , maxLength = 0.0
-                                         , midRangeLength = 0.0
-                                         , edgeType = TreeEdge
-                                         }
-
-                    leftEdge =  (curNode, leftChild', edgeLable {edgeType = leftEdgeType})
-                    rightEdge = (curNode, rightChild', edgeLable {edgeType = rightEdgeType})
-                    newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertexLabel) newSubTree
-
-                    (displayGraphVL, lDisplayCost) = if curNode == rootIndex then
-                                                        let (displayG, displayCost') = extractDisplayTrees  (Just curNode) True resolutionBlockVL
-                                                        in
-                                                        (displayG, displayCost')
-                                                        -- (fmap (fmap LG.removeDuplicateEdges) displayG, displayCost')
-                                                     else (mempty, 0.0)
-
+                -- make node from child block resolutions
+                -- child resolution made earler in post order pass
+                --  sub tree is updated graph from children--ie not iuncluding current node
+                let newSubTree = thd6 rightLeftChildTree
                 in
-                -- trace ("PDWS: " <> (show $ fmap LG.toEdge [leftEdge, rightEdge]) <> " has edges " <> (show $ fmap (LG.hasEdge newSubTree) $ fmap LG.toEdge [leftEdge, rightEdge]) <> " dupes: " <> (show $ fmap LG.getDuplicateEdges $ V.head $ fst (extractDisplayTrees  (Just curNode) True resolutionBlockVL)) <> " Resolutions " <> (show $ fmap (fmap U.hasResolutionDuplicateEdges) resolutionBlockVL))
-                -- trace ("PDSW-2:" <> (show (bvLabel newVertexLabel, fmap (fmap displayBVLabel) resolutionBlockVL)))
-                (simpleGraph, lDisplayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
+
+                -- single child of node--network node
+                if length nodeChildren == 1 then
+                    -- use left child for out degree = 1 nmodes, right should be "Nothing"
+                    let (newGraph, _, _, _, _) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
+                    in
+                    -- display graphs and character block are not done yet since will need traceback to get preliminary states
+                    --  graph ahas all soft wired decorations
+                    pure (simpleGraph, 0, newGraph, mempty, mempty, blockCharInfo)
+
+                -- 2 children--tree node
+                else do
+                        -- trace ("Outdegree 2: " <> (show curNode) <> " " <> (show $ GO.getNodeType simpleGraph curNode) <> " Children: " <> (show nodeChildren)) (
+                        -- need to create  resolutions and add to existing sets
+                         -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+                            -- larger bitvector is Right, smaller or equal Left
+                        let ((leftChild', leftChildLabel), (rightChild', rightChildLabel)) = U.leftRightChildLabelBVNode ((leftChild, fromJust $ LG.lab newSubTree leftChild), (rightChild, fromJust $ LG.lab newSubTree rightChild))
+
+                            -- create resolution caches for blocks
+                        let leftChildNodeType  = GO.getNodeType simpleGraph leftChild' -- nodeType leftChildLabel
+                        let rightChildNodeType = GO.getNodeType simpleGraph rightChild' -- nodeType rightChildLabel
+
+                        resolutionBlockVL <- mapM (createBlockResolutionsTuple (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType (GO.getNodeType simpleGraph curNode)) (V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo)
+
+                            -- create canonical Decorated Graph vertex
+                            -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
+                        let newVertexLabel = VertexInfo { index = curNode
+                                                        , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
+                                                        , parents = V.fromList $ LG.parents simpleGraph curNode
+                                                        , children = V.fromList nodeChildren
+                                                        , nodeType = GO.getNodeType simpleGraph curNode --TreeNode
+                                                        , vertName = T.pack $ "HTU" <> show curNode
+                                                        , vertData = mempty --empty because of resolution data
+                                                        , vertexResolutionData = resolutionBlockVL
+                                                        , vertexCost = 0.0 --newCost
+                                                        , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
+                                                        }
+
+                        let leftEdgeType
+                              | leftChildNodeType == NetworkNode = NetworkEdge
+                              | leftChildNodeType == LeafNode = PendantEdge
+                              | otherwise = TreeEdge
+                        let rightEdgeType
+                              | rightChildNodeType == NetworkNode = NetworkEdge
+                              | rightChildNodeType == LeafNode = PendantEdge
+                              | otherwise = TreeEdge
+
+                        let edgeLable = EdgeInfo { minLength = 0.0
+                                                 , maxLength = 0.0
+                                                 , midRangeLength = 0.0
+                                                 , edgeType = TreeEdge
+                                                 }
+
+                        let leftEdge =  (curNode, leftChild', edgeLable {edgeType = leftEdgeType})
+                        let rightEdge = (curNode, rightChild', edgeLable {edgeType = rightEdgeType})
+                        let newGraph =  LG.insEdges [leftEdge, rightEdge] $ LG.insNode (curNode, newVertexLabel) newSubTree
+
+                        let (displayGraphVL, lDisplayCost) = if curNode == rootIndex then
+                                                                let (displayG, displayCost') = extractDisplayTrees  (Just curNode) True resolutionBlockVL
+                                                                in
+                                                                (displayG, displayCost')
+                                                                -- (fmap (fmap LG.removeDuplicateEdges) displayG, displayCost')
+                                                             else (mempty, 0.0)
+
+                        
+                        -- trace ("PDWS: " <> (show $ fmap LG.toEdge [leftEdge, rightEdge]) <> " has edges " <> (show $ fmap (LG.hasEdge newSubTree) $ fmap LG.toEdge [leftEdge, rightEdge]) <> " dupes: " <> (show $ fmap LG.getDuplicateEdges $ V.head $ fst (extractDisplayTrees  (Just curNode) True resolutionBlockVL)) <> " Resolutions " <> (show $ fmap (fmap U.hasResolutionDuplicateEdges) resolutionBlockVL))
+                        -- trace ("PDSW-2:" <> (show (bvLabel newVertexLabel, fmap (fmap displayBVLabel) resolutionBlockVL)))
+                        pure (simpleGraph, lDisplayCost, newGraph, displayGraphVL, mempty, blockCharInfo)
 
 -- | getOutDegree1VertexAndGraph makes parent node from single child for soft-wired resolutions
 getOutDegree1VertexAndGraph :: (Show a, Show b)
@@ -293,7 +298,7 @@ getOutDegree2VertexSoftWired :: GlobalSettings
                              -> LG.LNode VertexInfo
                              -> LG.LNode VertexInfo
                              -> DecoratedGraph
-                             -> VertexInfo
+                             -> PhyG VertexInfo
 getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftChildIndex, _) rightChild@(rightChildIndex, _) inGraph =
 
     let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
@@ -303,11 +308,12 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
         -- create resolution caches for blocks
         leftChildNodeType  = nodeType leftChildLabel'
         rightChildNodeType = nodeType rightChildLabel'
-        resolutionBlockVL = V.zipWith3 (createBlockResolutions (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType TreeNode) (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect
+    in do
+        resolutionBlockVL <- mapM  (createBlockResolutionsTuple (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType TreeNode) (V.zip3 (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect)
 
         -- create canonical Decorated Graph vertex
         -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
-        newVertexLabel = VertexInfo {  index = curNodeIndex
+        let newVertexLabel = VertexInfo {  index = curNodeIndex
                                     , bvLabel = bvLabel leftChildLabel' .|. bvLabel rightChildLabel'
                                     , parents = V.fromList $ LG.parents inGraph curNodeIndex
                                     , children = V.fromList [leftChildIndex, rightChildIndex]
@@ -318,8 +324,8 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
                                     , vertexCost = 0.0 --newCost
                                     , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                     }
-        in
-        newVertexLabel
+        
+        pure newVertexLabel
 
 -- | addNodeAndEdgeToResolutionData adds  node and edge to resolution data in outdegree = 1 nodes
 -- straight copy would not add this node or edge to subtree in resolutions
@@ -354,6 +360,35 @@ addNodeEdgeToResolutionList newNode newEdge _ inResData resolutionIndex =
     -- trace ("ANETRL:" <> (show $ Just resolutionIndex))
     newFirstData
 
+-- | createBlockResolutionsTuple is a wrapper around createBlockResolutions
+createBlockResolutionsTuple    :: Bool
+                               -> LG.Node
+                               -> Int
+                               -> Int
+                               -> NodeType
+                               -> NodeType
+                               -> NodeType
+                               -> (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo)
+                               -> PhyG ResolutionBlockData
+createBlockResolutionsTuple 
+  compressResolutions curNode
+  leftIndex
+  rightIndex
+  leftChildNodeType
+  rightChildNodeType
+  curNodeNodeType
+  (leftChild, rightChild, charInfoV) = createBlockResolutions
+                                          compressResolutions
+                                          curNode
+                                          leftIndex
+                                          rightIndex
+                                          leftChildNodeType
+                                          rightChildNodeType
+                                          curNodeNodeType
+                                          leftChild
+                                          rightChild
+                                          charInfoV
+
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
 createBlockResolutions :: Bool
@@ -366,7 +401,7 @@ createBlockResolutions :: Bool
                        -> ResolutionBlockData
                        -> ResolutionBlockData
                        -> V.Vector CharInfo
-                       -> ResolutionBlockData
+                       -> PhyG ResolutionBlockData
 createBlockResolutions
   compressResolutions
   curNode
@@ -378,9 +413,9 @@ createBlockResolutions
   leftChild
   rightChild
   charInfoV
-  | null leftChild && null rightChild = mempty
-  | null leftChild = rightChild
-  | null rightChild = leftChild
+  | null leftChild && null rightChild = pure mempty
+  | null leftChild = pure rightChild
+  | null rightChild = pure leftChild
   | otherwise =
     -- trace ("CBR:" <> (show (leftIndex, leftChildNodeType, rightIndex, rightChildNodeType)) <> (show $fmap BV.toBits $ fmap displayBVLabel leftChild) <> " and " <>  (show $fmap BV.toBits $ fmap displayBVLabel rightChild)) (
     --trace ("CNR: " <> (show (length leftChild, length rightChild))) (
@@ -434,8 +469,8 @@ createBlockResolutions
 
     in
     -- trace ("CNR: " <> (show (length leftChild, length rightChild))) ( --  <> "\n" <> (show childResolutionIndices) <> "\n" <> (show $ fmap snd validPairs)) (
-    if compressResolutions then compressBlockResolution (newResolutionList <> V.toList addLeft <> V.toList addRight)
-    else V.fromList newResolutionList <> (addLeft <> addRight)
+    if compressResolutions then pure $ compressBlockResolution (newResolutionList <> V.toList addLeft <> V.toList addRight)
+    else pure $ V.fromList newResolutionList <> (addLeft <> addRight)
     -- )
     -- )
 

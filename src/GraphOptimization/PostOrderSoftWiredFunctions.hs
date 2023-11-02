@@ -56,6 +56,8 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
 
 import Data.Bits
 import Data.List qualified as L
+import Control.Evaluation
+import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Maybe
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
@@ -64,11 +66,11 @@ import GraphFormatUtilities qualified as GFU
 import GraphOptimization.Medians qualified as M
 import GraphOptimization.PostOrderSoftWiredFunctionsNew qualified as NEW
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 -- import           Debug.Trace
+import ParallelUtilities qualified as PU
 
 
 
@@ -79,7 +81,7 @@ import Utilities.Utilities qualified as U
 -- not contracting in=1 out =1 nodes so that indexing will be consistent
 -- does not create resolution cache data structures
 -- really only for diagnosis and time complexity comparison with resolution cache algorithm
-naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
         -- this is a lazy list so can be consumed and not an issue with exponential number of Trees
     let contractIn1Out1Nodes = False
@@ -110,7 +112,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
 
     in
     -- trace ("NPOSW: " <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes newCononicalGraph) <> "\nDisplay :" <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes $ V.head displayTreeVect))
-    postOrderPhyloGraph
+    pure postOrderPhyloGraph
 
 -- | getBestDisplayCharBlockList takes a Tree gets best rootings, compares to input list if there is one and takes better
 -- returning triple of block cost, display tree, char vect from better tree
@@ -196,7 +198,7 @@ getCharacterTreeCost rootIndex characterTree =
     else (subGraphCost . snd) $ LG.labelNode characterTree rootIndex
 
 -- | postOrderSoftWiredTraversal is a wrapper to allow correct function choice for alternate softwired algorithms
-postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 postOrderSoftWiredTraversal inGS inData leafGraph _ startVertex inSimpleGraph =
     -- firt case shouldn't happen--just checking if naive is chosen
     if graphType inGS == Tree then postOrderSoftWiredTraversal' inGS inData leafGraph startVertex inSimpleGraph
@@ -207,28 +209,29 @@ postOrderSoftWiredTraversal inGS inData leafGraph _ startVertex inSimpleGraph =
 -- at root
 -- staticIA is ignored--but kept for functional polymorphism
 -- ur-root = ntaxa is an invariant
-postOrderSoftWiredTraversal' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
-    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
+    if LG.isEmpty inSimpleGraph then pure emptyPhylogeneticGraph
     else
          -- Assumes root is Number of Leaves--should be invariant everywhere
         let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
             -- newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
-            newSoftWired = NEW.postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
-        in
-        if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
-            let localRootList = fst <$> LG.getRoots inSimpleGraph
-                localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
-                currentRootEdges = LG.out inSimpleGraph rootIndex
-            in
-            error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> LG.prettify inSimpleGraph)
-        else
-            newSoftWired
+        in do
+            newSoftWired <- NEW.postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
+        
+            if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
+                let localRootList = fst <$> LG.getRoots inSimpleGraph
+                    localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
+                    currentRootEdges = LG.out inSimpleGraph rootIndex
+                in
+                error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> LG.prettify inSimpleGraph)
+            else
+                pure newSoftWired
 
 -- | getDisplayBasedRerootSoftWired is a wrapper to allow correct function choice for alternate softwired algorithms
-getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph =
     -- check if doing rerooting--if not then return existing graph
     if inGraphType == Tree then getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph
@@ -237,9 +240,9 @@ getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph =
 
 -- | naiveGetDisplayBasedRerootSoftWired is the naive (based on all resolution display trees)
 -- the work of getDisplayBasedRerootSoftWired' is already done (rerooting and all) in naivePostOrderSoftWiredTraversal
-naiveGetDisplayBasedRerootSoftWired ::  GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+naiveGetDisplayBasedRerootSoftWired ::  GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 naiveGetDisplayBasedRerootSoftWired _ _ _ inPhyloGraph  =
-    inPhyloGraph
+    pure inPhyloGraph
 
 -- | getDisplayBasedRerootSoftWired' takes a graph and generates reroot costs for each character of each block
 -- based on rerooting the display tree for that block.
@@ -257,9 +260,9 @@ naiveGetDisplayBasedRerootSoftWired _ _ _ inPhyloGraph  =
 -- Input display trees are for reporting only and do not contain actual character data so must be "pulled"
 -- from cononical Decorated graph (thd field)
 -- the list :[] stuff due to potential list of diplay trees not employed here
-getDisplayBasedRerootSoftWired' :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired' :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, decGraph, _,_,f)  =
-    if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
+    if LG.isEmpty (fst6 inPhyloGraph) then pure inPhyloGraph
     else
         let -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
@@ -284,7 +287,7 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
             newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
         in
         -- trace ("GDBRS:" <> (show (b, sum blockCostV)))
-        (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
+        pure (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
 
 -- | rerootBlockCharTrees' wrapper around rerootBlockCharTrees to allow for parMap
 rerootBlockCharTrees' ::GlobalSettings -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)

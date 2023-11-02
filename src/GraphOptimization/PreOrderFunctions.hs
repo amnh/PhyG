@@ -100,6 +100,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                 -- also assignes unions for use in rearrangemenrts
                 -- update leaf IA assignments based on cotracted edge for softWired to make IAs
                 -- no need for trees--can't for hardWired
+            --TODO?
             let contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
 
             block2Par <- getParallelChunkMap
