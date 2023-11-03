@@ -206,7 +206,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
         inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) inGraphList
 
         logWarning :: b -> [String] -> PhyG b
-        logWarning val tokens = logWith LogWarn ((unwords $ "Thread" : show refIndex : tokens)  <> "\n") $> val
+        logWarning val tokens = logWith LogInfo ((unwords $ "Thread" : show refIndex : tokens)  <> "\n") $> val
 
         runForDuration :: PhyG a -> PhyG (Maybe a)
         runForDuration = liftIOOp (timeout timeLimit)
@@ -277,7 +277,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                         else L.intercalate "," $ fmap (show . snd) combinedThetaList
 
             let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
-            logWith LogMore $ unlines
+            logWith LogInfo $ unlines
                 [ "Thread   \t" <> show refIndex
                 , "Alloted  \t" <> show allotedSeconds
                 , "Ellapsed \t" <> show elapsedSeconds
