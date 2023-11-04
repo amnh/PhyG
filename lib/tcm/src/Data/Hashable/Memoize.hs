@@ -25,8 +25,8 @@
 #define SCREAM_ON_ACCESS 0
 #define USING_CONC 0
 #define USING_IO   0
-#define USING_LOCK 0
-#define USING_SEM  1
+#define USING_LOCK 1
+#define USING_SEM  0
 #define USING_TVAR 0
 
 module Data.Hashable.Memoize
@@ -57,6 +57,10 @@ import Data.HashTable.IO
 import Data.IORef
 import Prelude           hiding (lookup)
 #if USING_LOCK == 1
+import Control.Concurrent.STM
+import Control.Concurrent.STM.TMVar
+import Control.Concurrent.STM.TQueue
+import Control.Exception (bracket, bracket_, mask_)
 import GHC.Conc (unsafeIOToSTM)
 #endif
 import System.IO
@@ -285,19 +289,18 @@ permitWriteAccess (Access r _ table) = table `seq` Access r True table
 
 {-# NOINLINE readHashTableAccess #-}
 readHashTableAccess :: Hashable k => Lockbox k v -> k -> IO (Maybe v)
-readHashTableAccess lockbox@(Lockbox queue _ _) key = {-# SCC readHashTableAccess #-} do
-    tab <- {-# SCC readHashTableAccess_Atomic_Block #-} getReadableTable lockbox
-    val <- tab `lookup` key
-    atomically $ readTQueue queue $> val
+readHashTableAccess lockbox@(Lockbox queue _ _) key = {-# SCC readHashTableAccess #-}
+    let request = getReadableTable lockbox
+        release = const . atomically $ readTQueue queue
+    in  bracket request release $ (`lookup` key)
 
 
 {-# NOINLINE updateHashTableAccess #-}
 updateHashTableAccess :: Hashable k => Lockbox k v -> k -> v -> IO ()
-updateHashTableAccess lockbox key val = {-# SCC updateHashTableAccess #-} do
-    markWriteableTable lockbox
-    tab <- gainWriteableTable lockbox
-    insert tab key val
-    freeWriteableTable lockbox
+updateHashTableAccess lockbox key val = {-# SCC updateHashTableAccess #-}
+    bracket_ (markWriteableTable lockbox) (freeWriteableTable lockbox) $ do
+        tab <- gainWriteableTable lockbox
+        insert tab key val
 
 
 {-# NOINLINE getReadableTable #-}
