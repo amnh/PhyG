@@ -57,7 +57,7 @@ import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph  qualified as LG
 import Utilities.Utilities as U
--- import           Debug.Trace
+import           Debug.Trace
 -- import ParallelUtilities qualified as PU
 
 
@@ -379,7 +379,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
           splitJoinResult <- splitJoinGraph swapParams inGS inData (tail randomIntListSwap) curBestCost curSameBetterList numLeaves netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber breakEdgeList breakEdgeList
           let (newGraphList', newSAParams, newBreakEdgeNumber) = splitJoinResult
 
-          -- get best return graph list-can be empty if nothing better ort smame cost
+          -- get best return graph list-can be empty if nothing better or smame cost
           let newGraphList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) newGraphList'
 
           -- get unique return graph list-can be empty if nothing better ort same cost
@@ -388,7 +388,9 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
           let newMinCost = if (not . null) newGraphList' then snd5 $ head newGraphList
                        else infinity
 
-      
+          --if (not $ null $ newGraphList') then logWith LogInfo ("SA': " <> (LG.prettyIndices $ fst5 $ head $ newGraphList') <>  "\n")
+          --else logWith LogInfo ("A'--empty\n")
+
           -- logic for returning normal swap operations (better only)
           -- versus simulated annealin/Drifing returning potentially sub-optimal
           if isNothing inSimAnnealParams then
@@ -503,9 +505,12 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
           -- split input graph into a part with the original root ("base") and the "pruned" graph -- the piece split off w/o original root
           (splitGraph, graphRoot, prunedGraphRootIndex,  originalConnectionOfPruned) = LG.splitGraphOnEdge (thd5 firstGraph) edgeToBreakOn
       in do
+            --logWith LogInfo ("SJG-1 : " <> (show (graphRoot, prunedGraphRootIndex, originalConnectionOfPruned)) <> "\n" <> (LG.prettyIndices $ thd5 firstGraph) <> "\n" <> (LG.prettyIndices  splitGraph) <> "\n")
              -- reoptimize split graph for re-addition heuristics
             (reoptimizedSplitGraph, splitCost) <- reoptimizeSplitGraphFromVertex inGS inData (doIA swapParams) netPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
 
+            --logWith LogInfo ("SJG-2 : " <> (show (graphRoot, prunedGraphRootIndex, originalConnectionOfPruned)) <> " " <> (LG.prettyIndices splitGraph) <> "\n" <> (LG.prettyIndices  reoptimizedSplitGraph) <> "\n")
+            
              -- get root in base (for readdition) and edges in pruned section for rerooting during TBR readdition
             let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
 
@@ -548,6 +553,11 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
       
             -- rejoin graph to all possible edges in base graph
             rejoinResult <- rejoinGraph swapParams inGS inData curBestCost [] netPenaltyFactor reoptimizedSplitGraph (GO.convertDecoratedToSimpleGraph splitGraph) splitCost graphRoot prunedGraphRootIndex originalConnectionOfPruned rejoinEdges edgesInPrunedGraph inSimAnnealParams
+
+            --if (not $ null $ fst $ rejoinResult) then logWith LogInfo ("SJG--Rejoin: " <> (LG.prettyIndices $ fst5 $ head $ fst $ rejoinResult) <>  "\n")
+            --else logWith LogInfo ("SJG--Rejoin-empty\n")
+            
+
             let (newGraphList, newSAParams) = rejoinResult
                {-
                trace ("Edge to break on:" <> (show $ LG.toEdge edgeToBreakOn)
@@ -1357,7 +1367,7 @@ reoptimizeSplitGraphFromVertex :: GlobalSettings
                                -> Int
                                -> PhyG (DecoratedGraph, VertexCost)
 reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex =
-   -- trace ("RSGFV: " <> (show startVertex)) (
+   --trace ("RSGFV-0: " <> (show (startVertex, prunedSubGraphRootVertex)) $ 
    if doIA then
       -- only reoptimize the IA states for dynamic characters
       reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
@@ -1380,6 +1390,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
 
           
       in do
+          --logWith LogInfo ("RSGFV-1:" <> (show startVertex) <> " " <> (show prunedSubGraphRootVertex) <> "\n")
           -- create optimized base graph
           -- False for staticIA
           (postOrderBaseGraph, _) <- T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) nonExactCharacters inData leafGraph False (Just startVertex) splitGraphSimple
@@ -1393,8 +1404,8 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
           let startPrunedParentNode = head $ LG.labParents origGraph prunedSubGraphRootVertex
           let startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
-
           -- False for staticIA
+          --logWith LogInfo ("RSGFV-2:" <> (show (prunedSubGraphRootVertex, fst startPrunedParentNode)) <> "\n")
           (postOrderPrunedGraph, _) <- T.generalizedGraphPostOrderTraversal (inGS {graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse}) nonExactCharacters inData leafGraph False (Just prunedSubGraphRootVertex) splitGraphSimple
 
 

@@ -674,7 +674,9 @@ updateRootCost  newRootCost inGraph =
 -- first gets root assignment from resolution data and then each block is traversed given its block display tree
 softWiredPostOrderTraceBack  :: Int -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph, _, _, f)  =
-    if LG.isEmpty canonicalGraph then pure emptyPhylogeneticGraph
+    -- this line heere to check for error in procesing swap moves should not be required.
+    if LG.isLeaf inSimpleGraph rootIndex then pure inGraph
+    else if LG.isEmpty canonicalGraph then pure emptyPhylogeneticGraph
     else
       let -- extract display trees and bloxck char trees from PhylogeneticGraph
           -- block character trees do not exist yet

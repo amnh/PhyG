@@ -188,12 +188,16 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                  else error ("Graph type not implemented: " <> (show $ graphType inGS))
         in do
 
+        --logWith LogInfo ("GGPOT-A: " <> (show startVertex) <> " " <> (show (graphType inGS)) <> " " <> (LG.prettyIndices $ inSimpleGraph) <>  "\n")
+
         -- first traversal on outgroup root
         outgroupRooted <- postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
 
+        --logWith LogInfo ("GGPOT-B: " <> (LG.prettyIndices $ thd6 outgroupRooted) <>  "\n")
+
         -- start at start vertex--for components or ur-root for full graph
         let startVertexList = if startVertex == Nothing then fmap fst $ LG.getRoots $ thd6 outgroupRooted
-                          else [fromJust startVertex]
+                              else [fromJust startVertex]
 
         -- next edges (to vertex in list) to perform rerroting
         -- progresses recursivey over adjacent edges to minimize node reoptimization
@@ -209,13 +213,21 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- hardwired reroot cause much pain
         -- the head startvertex list for reoptimizing spit trees ni swapping
     
+        
+
         displayRerootSoftwired <- POSW.getDisplayBasedRerootSoftWired inGS SoftWired (head startVertexList) outgroupRooted
+
+
         displayRerootTree <- POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted
+
+        --logWith LogInfo ("GGPOT-C: " <> (LG.prettyIndices $ thd6 displayRerootTree) <>  "\n")
+
         let recursiveRerootList = if (graphType inGS == HardWired) then [outgroupRooted]
                                   else if (graphType inGS == SoftWired) then [displayRerootSoftwired]
                                   else if (graphType inGS == Tree) then [displayRerootTree]
                                   else error ("Graph type not implemented: " <> (show $ graphType inGS))
 
+        --logWith LogInfo ("GGPOT-D: " <> (LG.prettyIndices $ thd6 $ head recursiveRerootList) <>  "\n")
 
         -- remove if tree reroot code pans out
         let finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList
@@ -248,7 +260,10 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 
                                  else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
+            --logWith LogInfo ("GGPOT 1st: " <> (LG.prettyIndices $ thd6 outgroupRooted) <>  "\n")
             updateFinal <- POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
+            --logWith LogInfo ("GGPOT 2nd: " <> (LG.prettyIndices $ thd6 updateFinal) <>  "\n")
+
             let staticOnlyGraph = if (graphType inGS) == SoftWired then updateFinal
                                   else outgroupRooted
                 -- staticOnlyGraph = head recursiveRerootList'
@@ -324,7 +339,7 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
         in do
             if warnPruneEdges then do
                 -- too lazy to thread PhyG logging throuhg everything
-                logWith LogInfo ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
+                --logWith LogInfo ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
                 multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
             else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
@@ -341,7 +356,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
         pure inGraphList
 
     else if optimalityCriterion inGS `elem` [SI, MAPA] then do
-        logWith LogInfo ("\tFinalizing graph cost with root priors" <> "\n")
+        --logWith LogInfo ("\tFinalizing graph cost with root priors" <> "\n")
         pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
 
     else if optimalityCriterion inGS `elem` [NCM] then
@@ -355,7 +370,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                                 let newGraphList = traverseResult -- PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                 in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
         
-        logWith LogInfo  ("\tFinalizing graph cost (updating NCM) with root priors" <> "\n") 
+        --logWith LogInfo  ("\tFinalizing graph cost (updating NCM) with root priors" <> "\n") 
         pure updatedGraphList
 
     else if optimalityCriterion inGS == PMDL then

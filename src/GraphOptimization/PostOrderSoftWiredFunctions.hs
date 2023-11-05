@@ -69,7 +69,7 @@ import Graphs.GraphOperations qualified as GO
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
--- import           Debug.Trace
+import           Debug.Trace
 -- import ParallelUtilities qualified as PU
 
 
@@ -155,14 +155,21 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
 
         in do
 
+            --logWith LogInfo ("GBDCBL-1: " <> (LG.prettyIndices $ head firstGraphList) <> "\n")
+
             postOrderPar <- getParallelChunkTraverse
             outgroupDiagnosedTreeList <- postOrderPar postOrderAction firstGraphList
                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
+
+            --logWith LogInfo ("GBDCBL-2: " <> (LG.prettyIndices $ thd6 $ head outgroupDiagnosedTreeList) <> "\n")
 
             -- do rerooting of character trees
             rerootPar <- getParallelChunkTraverse
             multiTraverseTreeList <- rerootPar displayAction outgroupDiagnosedTreeList
                 --  PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupDiagnosedTreeList
+
+
+            --logWith LogInfo ("GBDCBL-3: " <> (LG.prettyIndices $ thd6 $ head multiTraverseTreeList) <> "\n")
 
             -- extract triple (relevent info)--sets if multitraverse (reroot characters) or not
             getTriple1 <- getParallelChunkMap
@@ -255,8 +262,9 @@ postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVe
 
 -- | getDisplayBasedRerootSoftWired is a wrapper to allow correct function choice for alternate softwired algorithms
 getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhyG PhylogeneticGraph
-getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph =
+getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph = do
     -- check if doing rerooting--if not then return existing graph
+    --logWith LogInfo ("GDBRSW: " <> (LG.prettyIndices $ thd6 inPhyloGraph))
     if inGraphType == Tree then getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph
     else if softWiredMethod inGS == ResolutionCache then getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph
     else naiveGetDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph
@@ -294,7 +302,9 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, de
         do
             -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
+            --logWith LogInfo ("GDRS' 1st: " <> (LG.prettyIndices $ thd6 inPhyloGraph) <>  "\n")
             updateFinal <- updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+            --logWith LogInfo ("GDRS': " <> (LG.prettyIndices $ thd6 inPhyloGraph) <>  "\n")
             let (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = 
                     if inGraphType == Tree then
                         let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
@@ -561,7 +571,8 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 -- ports the post order assignments to the display trees, and creates the character trees from the block trees
 updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhyG PhylogeneticGraph
-updateAndFinalizePostOrderSoftWired startVertexMaybe startVertex inGraph =
+updateAndFinalizePostOrderSoftWired startVertexMaybe startVertex inGraph = do
+    --logWith LogInfo ("UFPOS: " <> (LG.prettyIndices $ thd6 inGraph) <>  "\n")
     if isNothing startVertexMaybe then NEW.softWiredPostOrderTraceBack startVertex inGraph
     else NEW.softWiredPostOrderTraceBack (fromJust startVertexMaybe) inGraph
 
@@ -719,21 +730,25 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex
             -}
             newTree = postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
         in
-        -- trace ("It Begins at " <> (show $ fmap fst $ LG.getRoots inGraph) <> "\n" <> show inGraph) (
-        if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex) then
-            let localRootList = fst <$> LG.getRoots inGraph
-                localRootEdges = concatMap (LG.out inGraph) localRootList
-                currentRootEdges = LG.out inGraph rootIndex
-            in
-            error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> GFU.showGraph inGraph)
-        else pure newTree
-        -- )
+        do 
+            --logWith LogInfo ("POTT-1 :" <> (show $ rootIndex) <> " " <> (LG.prettyIndices inGraph) <> "\n")
+            --logWith LogInfo ("POTT-2 :" <> (LG.prettyIndices $ thd6 newTree) <> "\n")
+            -- trace ("It Begins at " <> (show $ fmap fst $ LG.getRoots inGraph) <> "\n" <> show inGraph) (
+            if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex) then
+                let localRootList = fst <$> LG.getRoots inGraph
+                    localRootEdges = concatMap (LG.out inGraph) localRootList
+                    currentRootEdges = LG.out inGraph rootIndex
+                in
+                error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> GFU.showGraph inGraph)
+            else pure newTree
+            -- )
 
 -- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 -- labelling vertices and edges as it goes back to root
 -- this for a tree so single root
 postDecorateTree :: GlobalSettings ->  Bool -> SimpleGraph -> DecoratedGraph -> V.Vector (V.Vector CharInfo) -> LG.Node -> LG.Node -> PhylogeneticGraph
 postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+    -- trace ("PDT :" <> (LG.prettyIndices curDecGraph)) $ 
     -- if node in there (leaf) or Hardwired network nothing to do and return
     if LG.gelem curNode curDecGraph then
         let nodeLabel = LG.lab curDecGraph curNode
@@ -843,6 +858,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
             -- so simple add up the local costs of all nodes
 
             if nodeType newVertex == RootNode || curNode == rootIndex then
+                -- trace ("PDT-End: " <> (LG.prettyIndices newGraph)) $
                 -- Need full info for building trees
                 let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph
                     -- updatedDisplayVect = V.zipWith NEW.backPortBlockTreeNodesToCanonicalGraph (fmap head newDisplayVect) newCharTreeVV
