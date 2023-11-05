@@ -20,10 +20,13 @@
 {-# Language ScopedTypeVariables #-}
 {-# Language StrictData #-}
 
+-- {-# OPTIONS_GHC -fno-full-laziness #-}
+
 #define SCREAM_ON_ACCESS 0
 #define USING_CONC 0
 #define USING_IO   0
 #define USING_LOCK 1
+#define USING_SEM  0
 #define USING_TVAR 0
 
 module Data.Hashable.Memoize
@@ -33,9 +36,10 @@ module Data.Hashable.Memoize
   ) where
 
 
-import Control.Concurrent.STM
-import Control.Concurrent.STM.TMVar
-import Control.Concurrent.STM.TVar
+import GHC.Conc.Sync
+--import Control.Concurrent.STM
+--import Control.Concurrent.STM.TMVar
+--import Control.Concurrent.STM.TVar
 import Control.DeepSeq
 import Control.Monad          (join)
 --import Control.Monad.ST
@@ -53,10 +57,19 @@ import Data.HashTable.IO
 import Data.IORef
 import Prelude           hiding (lookup)
 #if USING_LOCK == 1
+import Control.Concurrent.STM
+import Control.Concurrent.STM.TMVar
+import Control.Concurrent.STM.TQueue
+import Control.Exception (bracket, bracket_, mask_)
 import GHC.Conc (unsafeIOToSTM)
 #endif
 import System.IO
 import System.IO.Unsafe
+#if USING_SEM == 1
+import Control.Exception (bracket_, mask_)
+import Control.Concurrent.QSemN
+import Data.Int (Int8, Int16)
+#endif
 
 
 -- |
@@ -103,6 +116,10 @@ memoize = memoize_IO
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
 memoize = memoize_Lock
+#elif USING_SEM == 1
+{-# NOINLINE memoize #-}
+memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize = memoize_Sem
 #elif USING_TVAR == 1
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
@@ -111,6 +128,108 @@ memoize = memoize_TVar
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
 memoize = error "No memoization option specified"
+#endif
+
+
+#if USING_SEM == 1
+{-
+-=-=-=-=-=-=-=-
+    T O D O
+-=-=-=-=-=-=-=-
+Consider another implementation which only locks on *resize,*
+permitting truly concurrent reads and writes in all but an infintesimal number of cases.
+-}
+data Lockbox k v = Lockbox
+    { readQueue :: QSemN
+    , memoTable :: IORef (BasicHashTable k v)
+    }
+
+
+type role Lockbox representational representational
+
+
+-- Implement a Read/Write lock.
+
+quota :: Int
+quota = fromIntegral (maxBound :: Int16) + fromIntegral (minBound :: Int8)
+
+
+quantaRead :: Int
+quantaRead = 1
+
+
+quantaWrite :: Int
+quantaWrite = quota
+
+
+operation :: Int -> QSemN -> IO a -> IO a
+operation quanta semaphore = bracket_
+    (waitQSemN semaphore quanta)
+    (signalQSemN semaphore quanta) . mask_
+
+
+safeRead :: QSemN -> IO a -> IO a
+safeRead = operation quantaRead 
+
+
+safeWrite :: QSemN -> IO a -> IO a
+safeWrite = operation quantaWrite
+
+
+{-# NOINLINE initializeSafeHashTable #-}
+initializeSafeHashTable :: Int -> IO (Lockbox k v)
+initializeSafeHashTable size = do
+    queue <- newQSemN quota
+    table <- newIORef =<< (newSized size :: IO (BasicHashTable a b))
+    pure $ Lockbox
+        { readQueue = queue
+        , memoTable = table
+        }
+
+{-
+{-# NOINLINE safelyReadValue #-}
+safelyReadValue :: Hashable k => Lockbox k v -> k -> IO (Maybe v)
+safelyReadValue lockbox@(Lockbox queue table) key = {-# SCC readHashTableAccess #-} safeRead queue $ do
+    tab <- {-# SCC readHashTableAccess_Atomic_Block #-} readTVarIO table
+    tab `lookup` key
+
+
+{-# NOINLINE safelyWriteValue #-}
+safelyWriteValue :: Hashable k => Lockbox k v -> k -> v -> IO ()
+safelyWriteValue lockbox@(Lockbox queue table) key val = {-# SCC updateHashTableAccess #-} safeWrite queue $ do
+    tab <- {-# SCC readHashTableAccess_Atomic_Block #-} readTIORef table
+    atomicModifyIORef' $ insert tab key val
+-}
+
+{-# NOINLINE memoize_Sem #-}
+memoize_Sem :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_Sem f = unsafePerformIO $ do
+
+    let initialSize = 2 ^ (16 :: Word)
+
+    -- Create a TVar which holds the HashTable
+    queueSem <- newQSemN quota
+    tableRef <- newIORef =<< (newSized initialSize :: IO (BasicHashTable a b))
+
+    let accessUsing :: Int -> IO c -> IO c
+        accessUsing quanta op =
+          bracket_ (waitQSemN queueSem quanta) (signalQSemN queueSem quanta) $ mask_ op
+    -- This is the returned closure of a memozized f
+    -- The closure captures the "mutable" reference to the hashtable above
+    -- through the TVar.
+    --
+    -- Once the mutable hashtable reference is escaped from the IO monad,
+    -- this creates a new memoized reference to f.
+    -- The technique should be safe for all pure functions, probably, I think.
+    pure $ \k -> unsafePerformIO $ do
+            result <- accessUsing quantaRead $ readIORef tableRef >>= (`lookup` k)
+            case result of
+                Just v  -> {-# SCC memoize_Lock_GET #-} pure v
+                Nothing -> {-# SCC memoize_Lock_PUT #-}
+                    let v = force $ f k
+--                    in  (takeHashTableAccess tabRef >>= giveHashTableAccess tabRef k v) $> v
+                    in  accessUsing quantaWrite $ readIORef tableRef >>= \t -> (insert t k v $> v)
+--                    in  (takeHashTableAccess tabRef >>= giveHashTableAccess_old tabRef k v) $> v
 #endif
 
 
@@ -137,6 +256,7 @@ data Lockbox k v = Lockbox
 type role HashTableAccess representational representational
 
 
+{-# NOINLINE newHashTableAccess #-}
 newHashTableAccess :: Int -> IO (Lockbox k v)
 newHashTableAccess size = do
     token <- newTMVarIO ()
@@ -167,21 +287,23 @@ permitWriteAccess (Access r _ table) = table `seq` Access r True table
 -}
 
 
+{-# NOINLINE readHashTableAccess #-}
 readHashTableAccess :: Hashable k => Lockbox k v -> k -> IO (Maybe v)
-readHashTableAccess lockbox@(Lockbox queue _ _) key = {-# SCC readHashTableAccess #-} do
-    tab <- {-# SCC readHashTableAccess_Atomic_Block #-} getReadableTable lockbox
-    val <- tab `lookup` key
-    atomically $ readTQueue queue $> val
+readHashTableAccess lockbox@(Lockbox queue _ _) key = {-# SCC readHashTableAccess #-}
+    let request = getReadableTable lockbox
+        release = const . atomically $ readTQueue queue
+    in  bracket request release $ (`lookup` key)
 
 
+{-# NOINLINE updateHashTableAccess #-}
 updateHashTableAccess :: Hashable k => Lockbox k v -> k -> v -> IO ()
-updateHashTableAccess lockbox key val = {-# SCC updateHashTableAccess #-} do
-    markWriteableTable lockbox
-    tab <- gainWriteableTable lockbox
-    insert tab key val
-    freeWriteableTable lockbox
+updateHashTableAccess lockbox key val = {-# SCC updateHashTableAccess #-}
+    bracket_ (markWriteableTable lockbox) (freeWriteableTable lockbox) $ do
+        tab <- gainWriteableTable lockbox
+        insert tab key val
 
 
+{-# NOINLINE getReadableTable #-}
 getReadableTable :: Lockbox k v -> IO (BasicHashTable k v)
 getReadableTable (Lockbox queue token table) = atomically $ do
     Access readable memo <- readTVar table
@@ -190,12 +312,14 @@ getReadableTable (Lockbox queue token table) = atomically $ do
     pure memo
 
 
+{-# NOINLINE markWriteableTable #-}
 markWriteableTable :: Lockbox k v -> IO ()
 markWriteableTable (Lockbox queue token table) = atomically $ do
     takeTMVar token
     modifyTVar' table forbidReadAccess
 
 
+{-# NOINLINE gainWriteableTable #-}
 gainWriteableTable :: Lockbox k v -> IO (BasicHashTable k v)
 gainWriteableTable (Lockbox queue _ table) = atomically $ do
     check =<< isEmptyTQueue queue
@@ -203,6 +327,7 @@ gainWriteableTable (Lockbox queue _ table) = atomically $ do
     pure memo
 
 
+{-# NOINLINE freeWriteableTable #-}
 freeWriteableTable :: Lockbox k v -> IO ()
 freeWriteableTable (Lockbox _ token table) = atomically $ do
     modifyTVar' table permitReadAccess

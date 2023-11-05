@@ -207,7 +207,6 @@ Executable phyg
     phygraph.hs
 
   GHC-Options:
---     -feager-blackholing --  may be causing parallel loop errors
     -O2
     -rtsopts
     -Wall
@@ -215,7 +214,16 @@ Executable phyg
     -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
     -- -fno-polymorphic-specialisation
 
+    -- Might be required for correctness of memoized hash-table
+    -- Enabling `eager-blackholing` causes parallel loop errors
+    -dcore-lint
+--    -fno-cse
+--    -fno-eager-blackholing
+--    -fno-state-hack
+--    -fpedantic-bottoms
+--    -fno-full-laziness
 
+    
   If flag(Use-LLVM)
     GHC-Options:
       -fllvm
@@ -246,6 +254,7 @@ Executable phyg
       -fexcess-precision
       -fexpose-all-unfoldings
       -flate-specialise
+      -finline-generics-aggressively
       -fmax-simplifier-iterations=16
       -foptimal-applicative-do
       -fspec-constr-count=8
@@ -259,6 +268,8 @@ Executable phyg
       -fstrictness-before=4
       -funbox-small-strict-fields
       -funbox-strict-fields
+      -funfolding-case-threshold=4
+      -funfolding-use-threshold=120
 
   Build-Depends:
     PHANE-alphabet,
