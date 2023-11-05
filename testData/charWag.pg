@@ -22,7 +22,7 @@ read(fasta:"chel.fas")
 
 set(seed:1666899539)
 
-set(missingThreshold:10)
+--set(missingThreshold:10)
 
 report("test0-data.csv", data, overwrite)
 
@@ -52,10 +52,8 @@ report("test0-data.csv", data, overwrite)
 -- set(seed:1)
 --build(replicates:10)
 --build(distance, dwag)
-build(distance, rdwag, replicates:20, best:2)
---read("chel-335.tre")
--- fuse()
-swap()
+--build(distance, rdwag, replicates:20, best:2)
+read("chel-335.tre")
 --build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
 --build(replicates:10, block, displayTrees:10, cun)
 
@@ -75,7 +73,7 @@ swap()
 
 --transform(staticApprox)
 --build(dwag, distance)
---swap()
+swap()
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
