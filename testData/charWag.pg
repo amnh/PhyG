@@ -1,5 +1,5 @@
 --read(fasta:"metazoa-aa-1.fas")
---read(fasta:"chel.fas")
+read(fasta:"chel.fas")
 --read(fasta:"chel-16.fas")
 --set(criterion:NCM)
 --read(prefasta:"chel-prealigned.fas")
@@ -12,7 +12,7 @@
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
-read(fasta:"chel.fas", tcm:"sg2t2-d1.mat")
+--read(fasta:"chel.fas", tcm:"sg2t2-d1.mat")
 --read(fasta:"chel-16.fas", tcm:"sg2t1.mat")
 --read("chel.ss")
 --read("chel-ques.ss")
@@ -21,7 +21,7 @@ read(fasta:"chel.fas", tcm:"sg2t2-d1.mat")
 
 --set(seed:1666899539)
 
-set(missingThreshold:10)
+--set(missingThreshold:10)
 
 report("test0-data.csv", data, overwrite)
 
@@ -72,7 +72,7 @@ report("test0-data.csv", data, overwrite)
 
 --transform(staticApprox)
 build(dwag, distance)
---swap()
+swap()
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
