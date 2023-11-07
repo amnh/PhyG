@@ -38,8 +38,8 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
 import Data.Maybe
-import Debug.Trace
-import ParallelUtilities qualified as PU
+-- import Debug.Trace
+-- import ParallelUtilities qualified as PU
 
 
 {- | buildGraph wraps around build tree--build trees and adds network edges after build if network
@@ -107,6 +107,9 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
 
            buildAction :: ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
            buildAction = buildTree' True inArgs treeGS rSeed 
+
+           traverseAction :: Bool -> Bool -> Maybe Int -> SimpleGraph -> ReducedPhylogeneticGraph
+           traverseAction = T.multiTraverseFullyLabelGraphReduced inGS inData -- False False Nothing
                                     
         in do
            buildTreeList <- if null buildBlock then buildTree False inArgs treeGS inData pairwiseDistances rSeed
@@ -127,13 +130,14 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            reconciledList <- if (not $ null buildBlock) then reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
                              else pure []
 
+           when (not $ null buildBlock) $ logWith LogInfo ("Block building initial graph(s)\n")
            -- initial build of trees from combined data--or by blocks
-           let firstGraphs' = if null buildBlock then
+           firstGraphs' <- if null buildBlock then
                                 let simpleTreeOnly = False
                                 in
-                                buildTreeList -- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
+                                pure buildTreeList -- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
                              else -- removing taxa with missing data for block
-                                trace ("Block building initial graph(s)") (
+                                -- trace ("Block building initial graph(s)") $
                                 let -- simpleTreeOnly = True
                                     --processedDataList = U.getProcessDataByBlock True inData
                                     distanceMatrixList = if buildDistance then matrixList -- PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList 
@@ -144,11 +148,17 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
 
                                     -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
                                     returnGraphs = reconciledList -- reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
-                                in
+                                in do
                                 -- trace (concatMap LG.prettify returnGraphs)
                                 -- trace ("BG: " <> (concatMap LG.prettyIndices returnGraphs))
-                                PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
-                                )
+                                --reconciledList
+                                    traversePar <- getParallelChunkMap
+                                    let traverseList = traversePar (traverseAction True True Nothing) returnGraphs
+                                    pure traverseList
+                                    -- pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
+
+          
+                                
 
            -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
            let firstGraphs = if null buildBlock then
@@ -170,17 +180,22 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            else if isNothing numReturnTrees then
                                     errorWithoutStackTrace ("Return number specifications in build not an integer: " <> show (snd $ head returnList))
 
-           else
-                trace returnString (
+           else do
+                logWith LogInfo (returnString <> "\n")
                 if inputGraphType == Tree || (not . null) buildBlock then
                   -- trace ("BB: " <> (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
                   if null buildBlock then pure firstGraphs
-                  else trace (costString) pure firstGraphs
-                  -- )
-                else
-                  trace ("\tRediagnosing as " <> (show (graphType inGS)))
-                  pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst5 firstGraphs) 
-                )
+                  else do
+                    logWith LogInfo (costString <> "\n")
+                    pure firstGraphs
+                  
+                else do
+                  logWith LogInfo ("\tRediagnosing as " <> (show (graphType inGS)) <> "\n")
+                  traversePar <- getParallelChunkMap 
+                  let traverseList = traversePar (traverseAction False False Nothing) (fmap fst5 firstGraphs)
+                  pure traverseList
+                  -- pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst5 firstGraphs) 
+                
 
 
 {-
@@ -367,7 +382,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                     "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
 
         if not (LG.isEmpty reconciledGraph) && not returnTrees
-                then logWith LogMore (strNetNodes <> " for softwired network") $> [reconciledGraph]
+                then logWith LogMore (strNetNodes <> " for softwired network\n") $> [reconciledGraph]
                 else
                     if not returnGraph && returnTrees
                         then pure displayGraphs
@@ -377,7 +392,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                                 else
                                     logWith
                                         LogWarn
-                                        "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds."
+                                        "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds.\n"
                                         $> displayGraphs
 
 
