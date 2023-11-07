@@ -138,7 +138,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                     then "out"
                     else " " <> (show $ swapType swapParams)
         
-        logWith LogInfo ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping at minimum cost " <> (show $ minimum $ fmap snd5 inGraphList) <> "\n") 
+        logWith LogInfo ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping at minimum cost " <> (show $ minimum $ fmap snd5 newGraphList) <> "\n") 
         if null newGraphList then return (inGraphList, counter + 1)
         else
                 if returnUnique then
@@ -146,7 +146,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                     in
                     if fuseBest < curBest then -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
                         do
-                        --logWith LogInfo ("\n")
+                        -- logWith LogInfo ("\t->" <> (show fuseBest))
                         fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
                     else return (uniqueList, counter + 1)
                 else -- return best
