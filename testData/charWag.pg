@@ -64,7 +64,7 @@ report("test0-data.csv", data, overwrite)
 --transform(staticApprox)
 
 --search(minutes:1)
---build(replicates:10)
+build(replicates:10000)
 --refine(netadd, atrandom, maxnetedges:5)
 --fuse(tbr)
 --swap()

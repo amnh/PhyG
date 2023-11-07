@@ -146,7 +146,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                     in
                     if fuseBest < curBest then -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
                         do
-                        logWith LogInfo ("\n")
+                        --logWith LogInfo ("\n")
                         fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal uniqueList
                     else return (uniqueList, counter + 1)
                 else -- return best
@@ -160,7 +160,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                          -- found better
                         if fuseBest < curBest then 
                             do
-                                logWith LogInfo ("\n")
+                                --logWith LogInfo ("\n")
                                 fuseAllGraphs swapParams inGS inData (drop 2 rSeedList) (counter + 1) returnBest returnUnique singleRound fusePairs randomPairs reciprocal allBestList
                         else -- equal or worse cost just return--could keep finding equal
                             return (allBestList, counter + 1)
@@ -535,12 +535,12 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
 
                     let newRecursiveBestCost = min recursiveBestCost firstBestCost
 
-                    let progressString = "\t->" <> show newRecursiveBestCost
+                    when (firstBestCost < recursiveBestCost) $
+                        logWith LogInfo ("\t->" <> show newRecursiveBestCost)
+                    
                     rejoinResult <- rejoinGraphTupleRecursive swapParams inGS inData curBestCost newRecursiveBestCost inSimAnnealParams (tail graphDataList)
                     let result = firstRejoinResult <> rejoinResult
-                 
-                    when (firstBestCost < recursiveBestCost) $
-                        logWith LogInfo progressString 
+                    
                     pure result
 
 

@@ -329,6 +329,7 @@ performSearch initialSeed inputFilePath = do
                 }
 
     -- Create lazy pairwise distances if needed later for build or report
+        -- appears no longer lazy with Eval
     pairDist <- D.getPairwiseDistances optimizedData
 
     -- Execute Following Commands (searches, reports etc)
