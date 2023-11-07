@@ -27,7 +27,7 @@ import           Data.Foldable
 import           Numeric.Natural
 import           System.CPUTime
 import           Data.Time.Clock
-import qualified ParallelUtilities            as PU
+-- import qualified ParallelUtilities            as PU
 
 -- | CPU time with picosecond resolution
 newtype CPUTime = CPUTime Natural

@@ -23,7 +23,6 @@ import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
--- import ParallelUtilities qualified as PU
 import Reconciliation.ReconcileGraphs qualified as R
 import Search.DistanceMethods qualified as DM
 import Search.DistanceWagner qualified as DW
@@ -37,6 +36,8 @@ import Utilities.DistanceUtilities qualified as DU
 import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+-- import Debug.Trace
+-- import ParallelUtilities qualified as PU
 
 
 {- | buildGraph wraps around build tree--build trees and adds network edges after build if network
@@ -337,7 +338,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 let treeListFull = fold [treeList1, treeList2, treeList3, treeList4]
                 logWith LogInfo "\tBuilding Distance Wagner\n"
                 case treeListFull of
-                    [] → failWithPhase Computing $ "Distance build is specified, but without any method: " <> show inArgs
+                    [] → errorWithoutStackTrace $ "Distance build is specified, but without any method: " <> show inArgs
                     xs → do
                         logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs)  <> "\n"
                         if not simpleTreeOnly
