@@ -61,11 +61,12 @@ import GeneralUtilities
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.PreOrderFunctions qualified as PRE
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
 import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
+
+-- import ParallelUtilities qualified as PU
 -- import Debug.Trace
 
 
@@ -324,6 +325,11 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
 -- updates NCM with roig data due to weights of bitpacking
 updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [ReducedPhylogeneticGraph] -> PhyG [ReducedPhylogeneticGraph]
 updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList =
+    --parallel setup
+    let traverseAction :: SimpleGraph -> ReducedPhylogeneticGraph
+        traverseAction = multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing
+    in
+
     if optimalityCriterion inGS == Parsimony then do
         pure inGraphList
 
@@ -331,16 +337,20 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
         logWith LogInfo ("\tFinalizing graph cost with root priors" <> "\n")
         pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
 
-    else if optimalityCriterion inGS `elem` [NCM] then
-        let updatedGraphList = if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData)) then
+    else if optimalityCriterion inGS `elem` [NCM] then do
+        updatedGraphList <- if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData)) then
                                  -- trace ("\t\tCannot update cost with original data--skipping")
-                                 updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
-                               else
-                                let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
-                                in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
-        in do
-            logWith LogInfo  ("\tFinalizing graph cost (updating NCM) with root priors" <> "\n") 
-            pure updatedGraphList
+                                 pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
+                            else do
+                                --let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
+                                --in
+                                traversePar <- getParallelChunkMap
+                                let newGraphList = traversePar traverseAction (fmap fst5 inGraphList)
+                                pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
+        
+
+        logWith LogInfo  ("\tFinalizing graph cost (updating NCM) with root priors" <> "\n") 
+        pure updatedGraphList
 
     else if optimalityCriterion inGS == PMDL then
         -- trace ("\tFinalizing graph cost with model and root complexities")
@@ -353,7 +363,8 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
 updatePhylogeneticGraphCostList :: VertexCost -> [ReducedPhylogeneticGraph] -> [ReducedPhylogeneticGraph]
 updatePhylogeneticGraphCostList rootCost inGraphList =
     fmap (updateCost rootCost) inGraphList
-    where updateCost z (a, oldCost, b, c, e) = (a, oldCost + z, b, c, e)
+    where updateCost :: forall {b} {a} {c} {d} {e}. Num b => b -> (a, b, c, d, e) -> (a, b, c, d, e)
+          updateCost z (a, oldCost, b, c, e) = (a, oldCost + z, b, c, e)
 
 -- | updatePhylogeneticGraphCost takes a PhylgeneticGrtaph and Double and replaces the cost (snd of 6 fields)
 -- and returns Phylogenetic graph

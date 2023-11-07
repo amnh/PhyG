@@ -55,11 +55,11 @@ import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 -- import Debug.Trace
+import ParallelUtilities qualified as PU
 
 {-Intial Postorder softwired pass.  All functions with 'New" appended-}
 

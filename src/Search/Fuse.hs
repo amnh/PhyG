@@ -138,7 +138,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                     then "out"
                     else " " <> (show $ swapType swapParams)
         
-        logWith LogInfo ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping" <> "\n") 
+        logWith LogInfo ("\tFusing " <> (show $ length graphPairList) <> randString <> " graph pairs with" <> swapTypeString <> " swapping at minimum cost " <> (show $ minimum $ fmap snd5 inGraphList) <> "\n") 
         if null newGraphList then return (inGraphList, counter + 1)
         else
                 if returnUnique then
