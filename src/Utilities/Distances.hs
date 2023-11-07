@@ -9,12 +9,11 @@ module Utilities.Distances
   ) where
 
 import Control.Evaluation
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
+import Control.Monad.Logger (LogLevel (..), Logger (..))
 import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import SymMatrix qualified as S
-import System.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Data.List qualified as L
 import Utilities.Utilities qualified as U
@@ -40,14 +39,17 @@ getPairwiseDistances (nameVect, _, blockDataVect)
         --pairListCosts = fmap  (U.getPairwiseObservations blockDataVect) pairList 
 
         -- parallel setup
-        action ::  (Int, Int) -> VertexCost
-        action = U.getPairwiseObservations blockDataVect
+        pairwiseAction ::  (Int, Int) -> VertexCost
+        pairwiseAction = U.getPairwiseObservations blockDataVect
+
+        blockAction :: BlockData-> PhyG (S.Matrix VertexCost)
+        blockAction = getPairwiseBlockDistance (V.length nameVect)
 
     in do 
         maxDistance <- U.getMaxNumberObservations blockDataVect
         
         pTraverse <- getParallelChunkMap
-        let pairListCosts = pTraverse action pairList
+        let pairListCosts = pTraverse pairwiseAction pairList
         
 
         let normFactorList = fmap (maxDistance /) $ fmap (max 1.0) pairListCosts
@@ -58,9 +60,13 @@ getPairwiseDistances (nameVect, _, blockDataVect)
 
 
         -- get pairwise distances
+
         -- let blockDistancesList =  V.toList $ V.map (getPairwiseBlockDistance (V.length nameVect)) blockDataVect
-        blockDistancesList' <- mapM (getPairwiseBlockDistance (V.length nameVect)) blockDataVect
-        let blockDistancesList =  V.toList blockDistancesList'
+        -- blockDistancesList' <- mapM (getPairwiseBlockDistance (V.length nameVect)) blockDataVect
+        blockTraverse <- getParallelChunkTraverse 
+        blockDistancesList <- blockTraverse blockAction (V.toList blockDataVect)
+
+        -- let blockDistancesList =  V.toList blockDistancesList'
 
         let summedBlock = L.foldl1' (S.zipWith (+)) blockDistancesList
 
