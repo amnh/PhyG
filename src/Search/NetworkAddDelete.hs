@@ -876,37 +876,37 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u,v, _), (u',v', _)) =
            -- full two-pass optimization
            leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
 
-           newPhyloGraph = T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+       in do
+           newPhyloGraph <- T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
 
            -- calculates heursitic graph delta
            -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
-           heuristicDelta' = heuristicAddDelta' inGS inPhyloGraph edgePair
+           let heuristicDelta' = heuristicAddDelta' inGS inPhyloGraph edgePair
 
 
-           edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
+           let edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
-           heuristicFactor = (heuristicDelta' + edgeAddDelta) / edgeAddDelta
+           let heuristicFactor = (heuristicDelta' + edgeAddDelta) / edgeAddDelta
 
            -- use or not Net add heuristics
-           metHeuristicThreshold =
-               not (useNetAddHeuristic inGS) || heuristicFactor < (2 / 3)
+           let metHeuristicThreshold = not (useNetAddHeuristic inGS) || heuristicFactor < (2 / 3)
 
-      in
-       -- remove these checks when working
-      if not $ LG.isPhylogeneticGraph newSimple then do
-         pure emptyReducedPhylogeneticGraph
-       
-      else
-         if metHeuristicThreshold then 
-            -- if (GO.parentsInChainGraph . thd5) newPhyloGraph then emptyPhylogeneticGraph
-            -- else 
-            if (snd5 newPhyloGraph <= snd5 inPhyloGraph) then do
-               pure newPhyloGraph
-            else do
-               pure emptyReducedPhylogeneticGraph
-         else do
-            pure emptyReducedPhylogeneticGraph
-      
+   
+          -- remove these checks when working
+           if not $ LG.isPhylogeneticGraph newSimple then do
+             pure emptyReducedPhylogeneticGraph
+          
+           else
+              if metHeuristicThreshold then 
+               -- if (GO.parentsInChainGraph . thd5) newPhyloGraph then emptyPhylogeneticGraph
+               -- else 
+                 if (snd5 newPhyloGraph <= snd5 inPhyloGraph) then do
+                    pure newPhyloGraph
+                 else do
+                    pure emptyReducedPhylogeneticGraph
+              else do
+                 pure emptyReducedPhylogeneticGraph
+         
 
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
@@ -1167,18 +1167,18 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
               -- optimize deleted graph and update cost with input cost
               leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
    
-              graphToInsert = T.multiTraverseFullyLabelSoftWiredReduced inGS inData False False leafGraph Nothing simpleGraphToInsert -- `using` PU.myParListChunkRDS
+              
+          in do
+              graphToInsert <- T.multiTraverseFullyLabelSoftWiredReduced inGS inData False False leafGraph Nothing simpleGraphToInsert -- `using` PU.myParListChunkRDS
 
               -- keep same cost and just keep better--check if better than original later
-              graphToInsert' = T.updatePhylogeneticGraphCostReduced graphToInsert inGraphCost
-
-          in do
+              let graphToInsert' = T.updatePhylogeneticGraphCostReduced graphToInsert inGraphCost
+              
               insertedGraphTripleList <- insertEachNetEdge inGS inData rSeed (curNumNetNodes + 1) numToKeep doSteepest doRandomOrder Nothing inSimAnnealParams graphToInsert'
 
               let newMinimumCost = snd3 insertedGraphTripleList
 
               let newBestGraphs = filter ((== newMinimumCost) . snd5) $ fst3 insertedGraphTripleList
-
           
               -- trace ("DONAA-New: " <> (show (inGraphCost, fmap snd5 graphsToInsert, fmap snd5 graphsToInsert', newMinimumCost))) (
               if newMinimumCost < inGraphCost then do
@@ -1622,10 +1622,10 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
            deleteAction :: LG.Edge -> PhyG (SimpleGraph, Bool)
            deleteAction = deleteNetworkEdge (fst5 inPhyloGraph) 
 
-           softTraverse :: SimpleGraph -> ReducedPhylogeneticGraph
+           softTraverse :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
            softTraverse = T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex
 
-           hardTraverse :: SimpleGraph -> ReducedPhylogeneticGraph
+           hardTraverse :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
            hardTraverse = T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex
 
        in do
@@ -1644,19 +1644,17 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
 
            -- can treat as negative for delete
            -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
-
-           -- full two-pass optimization
-
-           softPar <- getParallelChunkMap
-           let softResult = softPar softTraverse simpleGraphList
-
-           hardPar <- getParallelChunkMap
-           let hardResult = hardPar hardTraverse simpleGraphList
                                  
-           let newPhyloGraphList' = if (graphType inGS == SoftWired) then softResult
-                                    --PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex) simpleGraphList
-                                 else if (graphType inGS == HardWired) then hardResult
-                                    --PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex) simpleGraphList
+           newPhyloGraphList' <- if (graphType inGS == SoftWired) then do
+                                       softPar <- getParallelChunkTraverse
+                                       softResult <- softPar softTraverse simpleGraphList
+                                       pure softResult
+                                       --PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex) simpleGraphList
+                                 else if (graphType inGS == HardWired) then do
+                                       hardPar <- getParallelChunkTraverse
+                                       hardResult <- hardPar hardTraverse simpleGraphList
+                                       pure hardResult
+                                       --PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex) simpleGraphList
                                  else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
 
            let newPhyloGraphList = GO.selectGraphs Best (maxBound::Int) 0.0 (-1) newPhyloGraphList'
@@ -1751,7 +1749,8 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
       -- full two-pass optimization--cycles checked in edge deletion function
       let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
                                  
-      let newPhyloGraph = if (graphType inGS == SoftWired) then
+               
+      newPhyloGraph <- if (graphType inGS == SoftWired) then
                               T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
                            else if (graphType inGS == HardWired) then
                               T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple

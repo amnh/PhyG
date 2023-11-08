@@ -71,16 +71,17 @@ import Utilities.Utilities as U
 
 
 -- | multiTraverseFullyLabelGraphReduced wrapper to return ReducedPhylogeneticGraph
-multiTraverseFullyLabelGraphReduced :: GlobalSettings -> ProcessedData -> Bool -> Bool -> Maybe Int -> SimpleGraph -> ReducedPhylogeneticGraph
-multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex inGraph =
-    GO.convertPhylogeneticGraph2Reduced $ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
+multiTraverseFullyLabelGraphReduced :: GlobalSettings -> ProcessedData -> Bool -> Bool -> Maybe Int -> SimpleGraph -> PhyG ReducedPhylogeneticGraph
+multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex inGraph = do
+    result <- multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
+    pure $ GO.convertPhylogeneticGraph2Reduced result -- $ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
 
 -- | multiTraverseFullyLabelGraph is a wrapper around multi-traversal functions for Tree,
 -- Soft-wired network graph, and Hard-wired network graph
 -- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
-multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> Bool -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelGraph :: GlobalSettings -> ProcessedData -> Bool -> Bool -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
-  | LG.isEmpty inGraph = emptyPhylogeneticGraph
+  | LG.isEmpty inGraph = pure emptyPhylogeneticGraph
   | graphType inGS == Tree =
     -- test for Tree
     let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
@@ -99,28 +100,30 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
 
 
 -- | multiTraverseFullyLabelGraphPair maps to multiTraverseFullyLabelGraph with paired  arguments used by report IA and tnt output
-multiTraverseFullyLabelGraphPair :: GlobalSettings -> Bool -> Bool -> Maybe Int -> (ProcessedData, SimpleGraph) -> PhylogeneticGraph
+multiTraverseFullyLabelGraphPair :: GlobalSettings -> Bool -> Bool -> Maybe Int -> (ProcessedData, SimpleGraph) -> PhyG PhylogeneticGraph
 multiTraverseFullyLabelGraphPair inGS pruneEdges warnPruneEdges startVertex (inData, inGraph) = multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
 
 -- | multiTraverseFullyLabelGraph' maps to multiTraverseFullyLabelGraph with differnet order of arguments used by report IA and tnt output
-multiTraverseFullyLabelGraph' :: GlobalSettings -> Bool -> Bool -> Maybe Int -> ProcessedData -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelGraph' :: GlobalSettings -> Bool -> Bool -> Maybe Int -> ProcessedData -> SimpleGraph -> PhyG PhylogeneticGraph
 multiTraverseFullyLabelGraph' inGS pruneEdges warnPruneEdges startVertex inData inGraph = multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
 
 
 -- | multiTraverseFullyLabelHardWiredReduced is a wrapper for ReducedPhylogeneticTrees
-multiTraverseFullyLabelHardWiredReduced :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> ReducedPhylogeneticGraph
-multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex inSimpleGraph = 
-    GO.convertPhylogeneticGraph2Reduced $ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph
+multiTraverseFullyLabelHardWiredReduced :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG ReducedPhylogeneticGraph
+multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex inSimpleGraph = do
+    result <- multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph
+    pure $ GO.convertPhylogeneticGraph2Reduced result 
 
 
-multiTraverseFullyLabelHardWired :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelHardWired :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inSimpleGraph = multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph
 
 
 -- | multiTraverseFullyLabelSoftWiredReduced is a wrapper for ReducedPhylogeneticTrees
-multiTraverseFullyLabelSoftWiredReduced :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> ReducedPhylogeneticGraph
-multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph = 
-    GO.convertPhylogeneticGraph2Reduced $ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph
+multiTraverseFullyLabelSoftWiredReduced :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG ReducedPhylogeneticGraph
+multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph = do
+    result <-  multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph
+    pure $ GO.convertPhylogeneticGraph2Reduced result
 
 -- | multiTraverseFullyLabelSoftWired fully labels a softwired network component forest
 -- including traversal rootings-- does not reroot on network edges
@@ -130,23 +133,13 @@ multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges le
 -- in general--input trees should use "pruneEdges" during search--not
 -- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
 -- first Bool for calcualting breanch edger weights
-multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelSoftWired :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inSimpleGraph =
-    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
-    else
+    if LG.isEmpty inSimpleGraph then pure emptyPhylogeneticGraph
+    else do
         let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
-            (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
-            fullyOptimizedGraph = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
-
-            {-
-            -- check fo unlabbeld nodes
-            coninicalNodes =  LG.labNodes (thd6 fullyOptimizedGraph)
-            nodeLabels = fmap (LG.lab (thd6 fullyOptimizedGraph)) (fmap fst coninicalNodes)
-            unlabelledNodes = filter ((== Nothing) .snd) $ (zip (fmap fst coninicalNodes) nodeLabels)
-            -}
-        in
-        --trace ("MTFLS:\n" <> (show $ thd6 postOrderGraph))
-        -- trace ("MTFLS: " <> (show $ fmap fst unlabelledNodes))
+        let (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
+        fullyOptimizedGraph <- PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
         checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $ updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
 
 -- | multiTraverseFullyLabelTree performs potorder on default root and other traversal foci, taking the minimum
@@ -155,15 +148,16 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
 -- need to add forest functionality--in principle just split into components and optimize them independently
 -- but get into root index issues the way this is written now.
 -- can either find root, be given root, or start somwhere else (startVertex) do optimize only a component of a forest
-multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+multiTraverseFullyLabelTree :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
-    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
+    if LG.isEmpty inSimpleGraph then pure emptyPhylogeneticGraph
     else
         let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
             -- False for staticIA
             (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
-        in
-        PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
+        in do
+            PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
+            
 
 
 -- | generalizedGraphPostOrderTraversal performs the postorder pass
@@ -295,28 +289,28 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
 -- pruned from the canonical graph
 -- this is unDirected due to rerooting heuristic in post/preorder optimization
 -- inifinity defined in Types.hs
-checkUnusedEdgesPruneInfty :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph-> PhylogeneticGraph -> PhylogeneticGraph
+checkUnusedEdgesPruneInfty :: GlobalSettings -> ProcessedData -> Bool -> Bool -> DecoratedGraph-> PhylogeneticGraph -> PhyG PhylogeneticGraph
 checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGraph@(inSimple, _, inCanonical, blockTreeV, charTreeVV, charInfoVV) =
     let simpleEdgeList = LG.edges inSimple
         displayEdgeSet =  L.nubBy LG.undirectedEdgeEquality $ concat $ concat $ fmap (fmap LG.edges) blockTreeV
         unusedEdges = LG.undirectedEdgeMinus simpleEdgeList displayEdgeSet
     in
     -- no unused edges all OK
-    if null unusedEdges then inGraph
+    if null unusedEdges then pure inGraph
 
     -- unused edges--do not prune return "infinite cost"
     else if not pruneEdges then
         -- trace ("Unused edge->Infinity")
-        (inSimple, infinity, inCanonical, blockTreeV, charTreeVV, charInfoVV)
+        pure (inSimple, infinity, inCanonical, blockTreeV, charTreeVV, charInfoVV)
 
     -- unused but pruned--need to prune nodes and reoptimize to get final assignments correct
     else
         let newSimpleGraph = LG.delEdges unusedEdges inSimple
             contractedSimple = GO.contractIn1Out1EdgesRename newSimpleGraph
         in
-        if warnPruneEdges then
+        if warnPruneEdges then do
             -- too lazy to thread PhyG logging throuhg everything
-            -- trace ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
+            logWith LogWarn ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
             multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
         else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
@@ -326,7 +320,7 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
 updateGraphCostsComplexities :: GlobalSettings -> ProcessedData -> ProcessedData -> Bool -> [ReducedPhylogeneticGraph] -> PhyG [ReducedPhylogeneticGraph]
 updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList =
     --parallel setup
-    let traverseAction :: SimpleGraph -> ReducedPhylogeneticGraph
+    let traverseAction :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
         traverseAction = multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing
     in
 
@@ -344,8 +338,8 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                             else do
                                 --let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                 --in
-                                traversePar <- getParallelChunkMap
-                                let newGraphList = traversePar traverseAction (fmap fst5 inGraphList)
+                                traversePar <- getParallelChunkTraverse
+                                newGraphList <- traversePar traverseAction (fmap fst5 inGraphList)
                                 pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
         
 

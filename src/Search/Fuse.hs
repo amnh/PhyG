@@ -291,7 +291,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                         exchangeAction :: ((DecoratedGraph, LG.Node, LG.Node, LG.Node), (DecoratedGraph, LG.Node, LG.Node, LG.Node), LG.Node) → (DecoratedGraph, Int, Int, Int, Int)
                         exchangeAction = exchangePrunedGraphs numLeaves
 
-                        reoptimizeAction :: (DecoratedGraph, Int , Int) -> (DecoratedGraph, VertexCost)
+                        reoptimizeAction :: (DecoratedGraph, Int , Int) -> PhyG (DecoratedGraph, VertexCost)
                         reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
                        
                     in do
@@ -338,13 +338,13 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
                         -- reoptimize splitGraphs so ready for readdition--using updated base and prune indices
                         -- False for doIA
-                        reoptimizeLeftPar <- getParallelChunkMap
-                        let leftRightOptimizedSplitGraphCostList = reoptimizeLeftPar reoptimizeAction (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList)
+                        reoptimizeLeftPar <- getParallelChunkTraverse
+                        leftRightOptimizedSplitGraphCostList <- reoptimizeLeftPar reoptimizeAction (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList)
                                 --PU.seqParMap (parStrategy $ lazyParStrat inGS) (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) $
                                 -- zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
-                        reoptimizeRightPar <- getParallelChunkMap 
-                        let rightLeftOptimizedSplitGraphCostList = reoptimizeRightPar reoptimizeAction (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList)
+                        reoptimizeRightPar <- getParallelChunkTraverse
+                        rightLeftOptimizedSplitGraphCostList <- reoptimizeRightPar reoptimizeAction (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList)
                                 -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) $
                                 -- zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
 

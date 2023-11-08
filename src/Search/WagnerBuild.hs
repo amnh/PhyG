@@ -127,9 +127,9 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph  numLeaves hasNonExactC
        -- False flag for staticIA--can't be done in build
        calculateBranchLengths = False -- must be True for delata using existing edge
        initialPostOrderTree = POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
-       initialFullyDecoratedTree = PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
        
    in do
+      initialFullyDecoratedTree <- PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False initialPostOrderTree
       -- this used for missing data adjustments during build
       maxDistance <- U.getMaxNumberObservations (thd3 inData)
       
@@ -185,8 +185,9 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
               -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
               -- False flag for static IA--can't do when adding in new leaves
           let calculateBranchLengths = False -- must be True for delata using existing edge
-          let newPhyloGraph = -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
-                          if V.length additionSequence > 1 then PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+          newPhyloGraph <- -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
+                          if V.length additionSequence > 1 then 
+                              PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False $ POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                           else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
             
