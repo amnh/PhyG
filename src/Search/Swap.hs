@@ -977,12 +977,14 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                               else []
                             else []
             in do
-               tbrResult' <- tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
-               let (tbrResult, _) = tbrResult'
+               
             
                if (not . null) sprResult then pure (sprResult, inSimAnnealParams)
 
-               else pure (tbrResult, inSimAnnealParams)
+               else do
+                  tbrResult' <- tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph' inSimAnnealParams targetEdge
+                  let (tbrResult, _) = tbrResult'
+                  pure (tbrResult, inSimAnnealParams)
 
          -- TBRAlternate can skip SPR moves since done already in alternate scenario
          else do
@@ -1013,14 +1015,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
             in
 
             -- if accepted (better or random) then return with updated annealing/Drift parameters
-            if acceptGraph then
-               {-
-               let banner = if snd5 rediagnosedSPRGraph <  curBestCost then "SPR heur better"
-                            else "Accepted not better"
-               in
-               trace banner
-               -}
-               pure ([rediagnosedSPRGraph], newSAParams)
+            if acceptGraph then pure ([rediagnosedSPRGraph], newSAParams)
 
             -- rejected--recurse with updated SA params
             -- SPR or small prune
