@@ -112,51 +112,32 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            traverseAction = T.multiTraverseFullyLabelGraphReduced inGS inData -- False False Nothing
                                     
         in do
-           buildTreeList <- if null buildBlock then buildTree False inArgs treeGS inData pairwiseDistances rSeed
-                            else pure []
-           matrixList <- if (not $ null buildBlock)  then do
-                            parwisePar <- getParallelChunkTraverse
-                            distances <- parwisePar pairwiseAction processedDataList
-                            pure distances
-                            -- mapM DD.getPairwiseDistances processedDataList 
-                         else pure []
-           blockList <- if (not $ null buildBlock) then do
-                            buildPar <- getParallelChunkTraverse
-                            buildList <- buildPar buildAction (zip matrixList processedDataList) 
-                            pure buildList
-                            -- mapM (buildTree' True inArgs treeGS rSeed) (zip matrixList processedDataList) 
-                        else pure []
-           let blockTrees = concat blockList 
-           reconciledList <- if (not $ null buildBlock) then reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
-                             else pure []
-
+           
            when (not $ null buildBlock) $ logWith LogInfo ("Block building initial graph(s)\n")
            -- initial build of trees from combined data--or by blocks
            firstGraphs' <- if null buildBlock then
                                 let simpleTreeOnly = False
-                                in
-                                pure buildTreeList -- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
-                             else -- removing taxa with missing data for block
-                                -- trace ("Block building initial graph(s)") $
-                                let -- simpleTreeOnly = True
-                                    --processedDataList = U.getProcessDataByBlock True inData
-                                    distanceMatrixList = if buildDistance then matrixList -- PU.seqParMap PU.myStrategyHighLevel DD.getPairwiseDistances processedDataList 
-                                                         else replicate (length processedDataList) []
-
-                                    blockTrees = concat blockList -- concat (PU.seqParMap PU.myStrategyHighLevel (buildTree' simpleTreeOnly inArgs treeGS rSeed) (zip distanceMatrixList processedDataList)) 
-                                    -- blockTrees = concat (PU.myChunkParMapRDS (buildTree' simpleTreeOnly inArgs treeGS inputGraphType seed) (zip distanceMatrixList processedDataList))
-
-                                    -- reconcile trees and return graph and/or display trees (limited by numDisplayTrees) already re-optimized with full data set
-                                    returnGraphs = reconciledList -- reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
                                 in do
-                                -- trace (concatMap LG.prettify returnGraphs)
-                                -- trace ("BG: " <> (concatMap LG.prettyIndices returnGraphs))
-                                --reconciledList
-                                    traversePar <- getParallelChunkMap
-                                    let traverseList = traversePar (traverseAction True True Nothing) returnGraphs
-                                    pure traverseList
-                                    -- pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
+                                    buildTreeList <- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
+                                    pure buildTreeList
+                                
+                            else do -- removing taxa with missing data for block
+                                -- trace ("Block building initial graph(s)") $
+                                distanceMatrixList <- if buildDistance then do 
+                                                            parwisePar <- getParallelChunkTraverse
+                                                            distances <- parwisePar pairwiseAction processedDataList
+                                                            pure distances
+                                                       else pure $ replicate (length processedDataList) []
+                                buildPar <- getParallelChunkTraverse
+                                blockList <- buildPar buildAction (zip distanceMatrixList processedDataList) 
+                                let blockTrees = concat blockList 
 
+                                returnGraphs <- reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
+                                
+                                traversePar <- getParallelChunkMap
+                                let traverseList = traversePar (traverseAction True True Nothing) returnGraphs
+                                pure traverseList
+                                
           
                                 
 
