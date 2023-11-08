@@ -443,7 +443,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                             else pure []
                 treeList3 = if hasKey  "nj" then neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
                             else pure []
-                treeList4 = if hasKey  "dowpgma" then wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                treeList4 = if hasKey  "wpgma" then wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
                             else pure []
                 
                 -- treeListFull = fold [treeList1, treeList2, treeList3, treeList4]
@@ -457,7 +457,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                             else  pure []
                 treeList3 <- if hasKey  "nj" then neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
                             else  pure []
-                treeList4 <- if hasKey  "dowpgma" then wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                treeList4 <- if hasKey  "wpgma" then wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
                             else  pure []
                 
                 -- let treeListFull = fold [treeList1, treeList2, treeList3, treeList4]
