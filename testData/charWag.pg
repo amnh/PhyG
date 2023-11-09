@@ -12,7 +12,7 @@ read(fasta:"chel.fas")
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
---read(fasta:"chel.fas", tcm:(2,1))
+
 --read(fasta:"chel.fas", tcm:"sg2t2-d1.mat")
 --read(fasta:"chel-16.fas", tcm:"sg2t1.mat")
 --read("chel.ss")
@@ -22,7 +22,7 @@ read(fasta:"chel.fas")
 
 set(seed:1666899539)
 
-set(missingThreshold:10)
+--set(missingThreshold:10)
 
 report("test0-data.csv", data, overwrite)
 
@@ -51,7 +51,7 @@ report("test0-data.csv", data, overwrite)
 
 -- set(seed:1)
 --build(replicates:10)
---build(distance, dwag)
+build(distance, dwag)
 --build(distance, rdwag, replicates:20, best:20)
 
 --build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
@@ -67,18 +67,17 @@ report("test0-data.csv", data, overwrite)
 --build(replicates:10)
 --refine(netadd, atrandom, maxnetedges:5)
 --fuse(tbr)
---swap()
+swap()
 
 --build(distance, wpgma)
 
 --transform(staticApprox)
-build(dWag, distance)
---swap()
+
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 
-swap()
+--swap()
 
 -- transform(dynamic)
 select(best)
