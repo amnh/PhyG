@@ -87,6 +87,7 @@ expandRunCommands curLines inLines =
         (firstLine, restLine) <- if null firstLineRead then return ([],[])
                                  else splitCommandLine $ head firstLineRead
 
+
         let leftParens = length $ filter ( == '(') firstLine
         let rightParens = length $ filter ( == ')') firstLine
         

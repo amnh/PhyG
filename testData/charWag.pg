@@ -12,6 +12,7 @@ read(fasta:"chel.fas")
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
+<<<<<<< HEAD
 
 --read(fasta:"chel.fas", tcm:"sg2t2-d1.mat")
 --read(fasta:"chel-16.fas", tcm:"sg2t1.mat")
