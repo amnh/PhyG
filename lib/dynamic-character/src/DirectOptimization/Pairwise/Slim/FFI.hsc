@@ -44,6 +44,7 @@ import Foreign.C.Types
 import GHC.ForeignPtr
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
+import System.IO (hPutStrLn, stderr)
 
 #include "c_alignment_interface.h"
 #include "c_code_alloc_setup.h"
@@ -190,7 +191,8 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization useC $ lookupP
         let medianOpt = coerceEnum computeMedians
         cost <- case strategy of
                       Affine -> {-# SCC affine_undefined #-}
-                        undefined -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
+                        hPutStrLn stderr "Control Flow Diversion:\tAffine alignment not implemented" $> 0
+                        -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
                       _      -> {-# SCC align2dFn_c #-}
                           V.unsafeWith lesserVector $ \lesserBuffer ->
                               V.unsafeWith medianVector $ \medianBuffer ->

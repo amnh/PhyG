@@ -101,8 +101,9 @@ search :: [Argument] -> GlobalSettings -> ProcessedData -> [[VertexCost]] -> Int
 search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
    let (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) = getSearchParams inArgs
 
-       -- If there are no input graphs--make some via distance
-       inGraphList = if (not . null) inGraphList' then inGraphList'
+       -- If there are no or single input graphs--make some via distance
+       -- this to allow a start and for fuse to work if called
+       inGraphList = if (length inGraphList' >= keepNum) then inGraphList'
                      else
                         let -- njGraph = head $ B.buildGraph [("distance", ""), ("nj", "")] inGS inData pairwiseDistances rSeed
                             -- wpgmaGraph =  head $ B.buildGraph  [("distance", ""), ("wpgma", "")] inGS inData pairwiseDistances rSeed
@@ -112,7 +113,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
                             -- buildGraphs = [njGraph, wpgmaGraph, dWagGraph] ++ rdwagGraphList
                             buildGraphs = [dWagGraph] ++ rdwagGraphList
                         in
-                        take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) buildGraphs
+                        take keepNum $ GO.selectGraphs Unique (maxBound::Int) 0.0 (-1) (buildGraphs <> inGraphList')
 
        -- flatThetaList is the initial prior list (flat) of search (bandit) choices
        -- can also be used in search for non-Thomspon search
@@ -521,8 +522,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
       in
 
-      -- This can't happen any more--added distance builds if graph list empty at beginningof search
-        -- this to remove "sucesses" of initial builds form affecting Thompson values
+      -- This can't happen any more--added distance builds if graph list empty at beginning of search
+    -- this to remove "sucesses" of initial builds from affecting Thompson values
       -- no input graphs so must build to start
       -- chooses NJ (n^3), dWag (n^3), WPGMA (n^2), or rdWag (n^2 but lots so n^4 here)
       if null inGraphList' then

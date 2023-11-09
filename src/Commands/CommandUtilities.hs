@@ -1065,7 +1065,7 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData inReducedGraph g
                 startVertex :: forall {a}. Maybe a
                 startVertex = Nothing
 
-                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 newGraph)
+                newGraph = TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
 
                 blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 newGraph)
 
