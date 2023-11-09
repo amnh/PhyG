@@ -83,8 +83,8 @@ expandRunCommands curLines inLines =
             (firstLine, restLine) =  if null firstLineRead then ([],[])
                                      else splitCommandLine $ head firstLineRead
 
-            leftParens = length $ filter (=='(') firstLine
-            rightParens = length $ filter (==')') firstLine
+            leftParens = length $ filter ( == '(') firstLine
+            rightParens = length $ filter ( == ')') firstLine
         in
         --trace ("FL " <> firstLine) (
         -- only deal with run lines
@@ -107,8 +107,8 @@ splitCommandLine :: String -> (String, String)
 splitCommandLine inLine =
     if null inLine then ([],[])
     else
-        let leftParens = length $ filter (=='(') inLine
-            rightParens = length $ filter (==')') inLine
+        let leftParens = length $ filter ( == '(') inLine
+            rightParens = length $ filter ( == ')') inLine
             firstPart = takeWhile (/= '(') inLine
             parenPart = getBalancedParenPart "" (dropWhile (/= '(') inLine) 0 0
             firstCommand = firstPart <> parenPart
