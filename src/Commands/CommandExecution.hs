@@ -904,7 +904,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 (nameData <> dataString, outfileName, writeMode)
 
             else if "reconcile" `elem` commandList then
-                let (reconcileString, _) = R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
+                let (_, reconcileGraph) = R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
+                    reconcileString = outputGraphString commandList (outgroupIndex globalSettings) [GO.convertSimpleToDecoratedGraph reconcileGraph] [0]
                 in
                 if null curGraphs then
                     trace "No graphs to reconcile"

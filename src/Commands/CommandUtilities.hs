@@ -343,7 +343,7 @@ stripEdge inString =
     where makeNewLine a = if (null $ L.intersect "->" a) then a
                            else 
                                 let b = words a
-                                in "\t" <> (concat [b !! 0, " ", b !! 1 , " ", b !! 2]) <> " [];" 
+                                in "    " <> (concat [b !! 0, " ", b !! 1 , " ", b !! 2]) <> " [];" 
 
 -- | stripNode removes edge labels from HTUs in graphviz format string
 stripNode :: String -> String
@@ -358,7 +358,7 @@ stripNode inString =
                           else 
                                 let b = words a
                                     c = take 10 $ b !! 1
-                                    newLine = if c == "[label=HTU" then "\t" <> (head b) <> "[];"
+                                    newLine = if c == "[label=HTU" then "    " <> (head b) <> " [];"
                                               else a
                                 in newLine
 

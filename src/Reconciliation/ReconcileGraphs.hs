@@ -45,12 +45,13 @@ import qualified Reconciliation.Eun   as E
 import           Types.Types
 import qualified Utilities.LocalGraph as LG
 import           Data.Maybe      
--- import           Debug.Trace
+import           Debug.Trace
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
 makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> (String, SimpleGraph)
 makeReconcileGraph validCommandList commandPairList inGraphList =
    if null inGraphList then ("Error: No input graphs to reconcile", LG.empty)
+   else if length inGraphList == 1 then ("Warning: Only single input graph to reconcile", head inGraphList)
    else
       let -- convert SimpleGraph to String String from Text Double
           stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True . GFU.textGraph2StringGraph) inGraphList
@@ -58,9 +59,9 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           -- parse arguements
           commandList = (mergePair <$> filter (('"' `notElem`).snd) commandPairList)
           (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
-
+          
           -- call EUN/reconcile functions
-          (reconcileString, reconcileGraph) = E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+          (reconcileString, reconcileGraph) = trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat))) E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
 
           -- convert eun format graph back to SimpleGraph
           reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
@@ -77,7 +78,7 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
 -- checks commands for misspellings
 processReconcileArgs :: [String] -> [String] -> (String, String, Int, Bool, Bool, Bool, String)
 processReconcileArgs validCommandList inList' =
-    let inList = inList' L.\\ ["overwrite", "append", "reconcile"]
+    let inList = inList' L.\\ ["overwrite", "append", "reconcile","dot", "newick","dotpdf"]
     in
     if null inList then
       let -- default values
@@ -92,7 +93,7 @@ processReconcileArgs validCommandList inList' =
       (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
 
     else
-        -- trace ("Rec args: " <> (show inList)) (
+        trace ("Rec args: " <> (show inList)) $
         let inTextList = fmap T.pack inList
             inTextListLC = fmap T.toLower inTextList
             commandList = filter (T.any (== ':')) inTextListLC
@@ -229,6 +230,7 @@ getOutputFormat inTextList =
             outFormat = T.unpack firstOption
          in
          if outFormat == "dot" then "dot"
+         else if outFormat == "dotpdf" then "dot"
          else (if (outFormat == "fenewick") || (outFormat == "newick") then "fenewick" else getOutputFormat (tail inTextList))
 
 

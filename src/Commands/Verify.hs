@@ -97,11 +97,11 @@ readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fast
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
 reconcileArgList :: [String]
-reconcileArgList = ["compare", "connect", "edgelabel", "method", "outformat", "threshold", "vertexlabel"] -- "outfile"
+reconcileArgList = ["compare", "connect", "edgelabel", "method", "threshold", "vertexlabel"] -- "outfile"
 
 -- | reconcileOptionsList list of allowable command options of method, compare, threshhold, and outformat
 reconcileOptionsList :: [String]
-reconcileOptionsList = ["adams", "combinable", "cun", "dot" ,"dotpdf", "eun", "false", "fen", "identity", "majority", "newick", "strict", "true"]
+reconcileOptionsList = ["adams", "combinable", "cun", "eun", "false", "fen", "identity", "majority", "strict", "true"]
 
 
 -- | refinement arguments
