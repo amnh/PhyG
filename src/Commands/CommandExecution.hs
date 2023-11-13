@@ -874,8 +874,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 else
                     (displayInfoString <> "\n" <> blockStringList, outfileName, writeMode)
 
-
-            else if "graphs" `elem` commandList then
+            -- the not reconcile so if specify reconcile--get that output as oposed to plane graphs 
+            else if ("graphs" `elem` commandList) && ("reconcile" `notElem` commandList) then
             --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                 let
                     graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)

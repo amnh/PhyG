@@ -94,6 +94,6 @@ report("test0-wag.tre", overwrite, graphs, newick, nobraNCHLENGTHS, noHTULabels,
 --report("test-ia-concat.fas", impliedalignment, concatenate,  overwrite)
 --report("test-tnt.txt", TNT, overwrite)
 report("test0-reconcile-strict.tre", reconcile, method:strict, newick, threshold:51, overwrite)
-report("test0-reconcile-adams.dot", reconcile, method:adams, dotpdf, noHTULabels, nobranchlengths, overwrite)
+report("test0-reconcile-adams.dot", reconcile, graphs, method:adams, dotpdf, noHTULabels, nobranchlengths, overwrite)
 --report("test0-reconcile.dot", reconcile)
 report("test0-reconcile-majority.dot", reconcile, method:majority, dotpdf, threshold:51, overwrite)
