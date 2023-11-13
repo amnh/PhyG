@@ -134,12 +134,14 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let doDotPDF = elem "dotpdf" $ fmap (fmap toLower . fst) firstArgs
             let collapse' = elem "collapse" $ fmap (fmap toLower . fst) firstArgs
             let noCollapse' = elem "nocollapse" $ fmap (fmap toLower . fst) firstArgs
+            let reconcile =  any ((== "reconcile") . fst) firstArgs
 
             -- set default collapse for dotPDF to True, False otherwise
-            let collapse
+            let collapse -- this will casue problems with reconcile--
                   | collapse' = True
                   | noCollapse' = False
-                  | doDotPDF = True
+                  | reconcile = False
+                  -- | doDotPDF = True 
                   | otherwise = False
 
             let curGraphs' = if not collapse then curGraphs

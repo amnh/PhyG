@@ -50,6 +50,7 @@ import           Debug.Trace
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
 makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> (String, SimpleGraph)
 makeReconcileGraph validCommandList commandPairList inGraphList =
+   --trace ("MRG: " <> (concatMap LG.prettyIndices inGraphList)) $
    if null inGraphList then ("Error: No input graphs to reconcile", LG.empty)
    else if length inGraphList == 1 then ("Warning: Only single input graph to reconcile", head inGraphList)
    else
@@ -62,9 +63,8 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           
           -- call EUN/reconcile functions
           (reconcileString, reconcileGraph) = 
-
-            --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat))) 
-            E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+                --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat))) 
+                E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
 
 
           -- convert eun format graph back to SimpleGraph
@@ -72,7 +72,7 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
       in
       --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
       --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
-      (reconcileString, reconcileSimpleGraph)
+      ("", reconcileSimpleGraph)
       where mergePair (a,b) = if a /= [] && b /= [] then a <> (':' : b)
                               else a <> b
 
@@ -177,10 +177,12 @@ getConnect inTextList =
                                   (option == "true") || (option /= "false" && errorWithoutStackTrace ("Connect option \'" <> option <> "\' not recognized (True|False)"))
                               else getConnect (tail inTextList))
 
+
 -- | getEdgeLabel returns edgeLabel value or default otherwise (True|False)
 -- assumes in lower case
 getEdgeLabel :: [T.Text] -> Bool
-getEdgeLabel inTextList =
+getEdgeLabel inTextList = True
+    {-
     -- default
     null inTextList || (let firstCommand = T.takeWhile (/= ':') $ head inTextList
                             firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
@@ -191,11 +193,14 @@ getEdgeLabel inTextList =
                             in
                             (option == "true") || (option /= "false" && errorWithoutStackTrace ("EdgeLAbel option \'" <> option <> "\' not recognized (True|False)"))
                         else getEdgeLabel (tail inTextList))
+    -}
 
+-- | chanaged to True and modified later if need be
 -- | getVertexLabel returns edgeLabel value or default otherwise (True|False)
 -- assumes in lower case
 getVertexLabel :: [T.Text] -> Bool
-getVertexLabel inTextList =
+getVertexLabel inTextList = True
+    {-
     -- default
     not (null inTextList) && (let firstCommand = T.takeWhile (/= ':') $ head inTextList
                                   firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
@@ -206,7 +211,7 @@ getVertexLabel inTextList =
                                   in
                                   (option == "true") || (option /= "false" && errorWithoutStackTrace ("VertexLabel option \'" <> option <> "\' not recognized (True|False)"))
                               else getVertexLabel (tail inTextList))
-
+    -}
 
 -- | getThreshold returns threshold value or default otherwise
 -- assumes in lower case
