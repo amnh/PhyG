@@ -119,6 +119,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                 let simpleTreeOnly = False
                                 in do
                                     buildTreeList <- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
+                                    --logWith LogInfo ("BL: " <> (show $ length buildTreeList))
                                     pure buildTreeList
                                 
                             else do -- removing taxa with missing data for block
@@ -143,8 +144,8 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
 
            -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
            let firstGraphs = if null buildBlock then
-                            GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 (-1) firstGraphs'
-                         else firstGraphs'
+                                GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 (-1) firstGraphs'
+                            else firstGraphs'
 
            -- reporting info
            let returnString = if (not . null) firstGraphs then
@@ -451,6 +452,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 -}
                 
             in  do
+                --logWith LogInfo ("L455: " <> (show (numReplicates,numToSave)))
                 treeList1 <- if hasKey "rdwag" then randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates rSeed numToSave refinement
                             else  pure []
                 treeList2 <- if hasKey  "dwag" then distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
@@ -562,11 +564,13 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
 
         let randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
 
+        --logWith LogInfo ("L567: " <> (show (numToKeep, length randomizedAdditionWagnerTreeList')) <> "\n")
+
         refineFunction <- getParallelChunkTraverse 
         rasTreeList <- refineFunction refineAction randomizedAdditionWagnerTreeList'
 
         let randomizedAdditionWagnerTreeList'' =
-                head rasTreeList
+                   concat rasTreeList
                    {- PU.seqParMap
                    --     PU.myStrategyHighLevel
                    TODO
@@ -583,6 +587,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
         if not simpleTreeOnly
                 then -- fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
                     do
+                    --logWith LogInfo ("L590 :" <> (show $ length randomizedAdditionWagnerSimpleGraphList))
                     traverseFunction <- getParallelChunkTraverse
                     reOptimizedGraphList <- traverseFunction traverseGraphAction randomizedAdditionWagnerSimpleGraphList
                     pure reOptimizedGraphList
