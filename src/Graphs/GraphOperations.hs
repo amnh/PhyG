@@ -815,7 +815,13 @@ selectPhylogeneticGraph inArgs rSeed _ curGraphs =
                     if doUnique then take (fromJust numberToKeep) uniqueGraphList
 
                     else if doThreshold then
-                      let thresholdValue = (1.0 + fromJust threshold) * snd6 (head uniqueGraphList)
+                      let thresholdValue = 
+                            if fromJust threshold < 0.0 then 
+                              --trace ("Warning: Threshold specification in select < 0. Setting to 0.0")
+                              snd6 (head uniqueGraphList)
+                            else if fromJust threshold > 1.0 then (fromJust threshold) * snd6 (head uniqueGraphList)
+                            else (1.0 + fromJust threshold) * snd6 (head uniqueGraphList)
+                          
                           thresholdGraphList = filter ((<= thresholdValue) . snd6) uniqueGraphList
                       in
                       -- trace ("SG:" <> (show (thresholdValue, fromJust threshold)))

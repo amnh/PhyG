@@ -187,12 +187,14 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                             let doDotPDF = elem "dotpdf" $ fmap (fmap toLower . fst) firstArgs
                                                                             let collapse' = elem "collapse" $ fmap (fmap toLower . fst) firstArgs
                                                                             let noCollapse' = elem "nocollapse" $ fmap (fmap toLower . fst) firstArgs
+                                                                            let reconcile =  any ((== "reconcile") . fst) firstArgs
 
                                                                             -- set default collapse for dotPDF to True, False otherwise
-                                                                            let collapse
+                                                                            let collapse -- this will casue problems with reconcile
                                                                                     | collapse' = True
                                                                                     | noCollapse' = False
-                                                                                    | doDotPDF = True
+                                                                                    | reconcile = False
+                                                                                    -- | doDotPDF = True
                                                                                     | otherwise = False
 
                                                                             let curGraphs' =
@@ -1435,7 +1437,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                         else
                                             if "diagnosis" `elem` commandList
                                                 then do 
-                                                        -- action :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
+                                                        -- action :: SimpleGraph -> ReducedPhylogeneticGraph
                                                         let action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
                                                         pTraverse <- getParallelChunkTraverse
                                                         rediagnosedGraph <- pTraverse action (fmap fst5 curGraphs)
@@ -1458,35 +1460,36 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                     pure (dataString, outfileName, writeMode)
                                             else
                                                     if "displaytrees" `elem` commandList
-                                                        then -- need to specify -O option for multiple graphs
-                                                            do
-                                                                rediagnodesGraphs <- mapM (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
-                                                                let inputDisplayVVList = fmap fth6 rediagnodesGraphs
-                                                                let costList = fmap snd5 curGraphs
-                                                                let displayCostListList = fmap GO.getDisplayTreeCostList rediagnodesGraphs
-                                                                let displayInfoString =
-                                                                        if ("dot" `elem` commandList) || ("dotpdf" `elem` commandList)
-                                                                            then ("//DisplayTree costs : " <> show (fmap (sum . fst) displayCostListList, displayCostListList))
+                                                        then do -- need to specify -O option for multiple graphs
+                                                            -- TODO parallelize
+                                                            rediagnodesGraphs <- mapM (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
+                                                            let inputDisplayVVList = fmap fth6 rediagnodesGraphs
+                                                            let costList = fmap snd5 curGraphs
+                                                            let displayCostListList = fmap GO.getDisplayTreeCostList rediagnodesGraphs
+                                                            let displayInfoString =
+                                                                    if ("dot" `elem` commandList) || ("dotpdf" `elem` commandList)
+                                                                        then ("//DisplayTree costs : " <> show (fmap (sum . fst) displayCostListList, displayCostListList))
                                                                         else -- newick
 
-                                                                                let middle = fmap bracketToCurly $ show (fmap (sum . fst) displayCostListList, displayCostListList)
-                                                                                in  ("[DisplayTree costs : " <> middle <> "]")
+                                                                            let middle = fmap bracketToCurly $ show (fmap (sum . fst) displayCostListList, displayCostListList)
+                                                                            in  ("[DisplayTree costs : " <> middle <> "]")
 
-                                                                let treeIndexStringList =
-                                                                        if ("dot" `elem` commandList) || ("dotpdf" `elem` commandList)
-                                                                            then fmap (((<> "\n") . ("//Canonical Tree " <>)) . show) [0 .. (length inputDisplayVVList - 1)]
-                                                                            else -- newick
-                                                                                fmap (((<> "]\n") . ("[Canonical Tree " <>)) . show) [0 .. (length inputDisplayVVList - 1)]
-                                                                let canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
-                                                                let blockStringList = unlines (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
+                                                            let treeIndexStringList =
+                                                                    if ("dot" `elem` commandList) || ("dotpdf" `elem` commandList)
+                                                                        then fmap (((<> "\n") . ("//Canonical Tree " <>)) . show) [0 .. (length inputDisplayVVList - 1)]
+                                                                        else -- newick
+                                                                            fmap (((<> "]\n") . ("[Canonical Tree " <>)) . show) [0 .. (length inputDisplayVVList - 1)]
+                                                            let canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
+                                                            let blockStringList = unlines (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
+                                                              -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
 
-                                                                if null curGraphs || graphType globalSettings /= SoftWired
+                                                            if null curGraphs || graphType globalSettings /= SoftWired
                                                                     then do
                                                                         logWith LogInfo "No soft-wired graphs to report display trees\n"
                                                                         pure ("No soft-wired graphs to report display trees", outfileName, writeMode)
                                                                     else pure (displayInfoString <> "\n" <> blockStringList, outfileName, writeMode)
                                                         else
-                                                            if "graphs" `elem` commandList
+                                                            if ("graphs" `elem` commandList) && ("reconcile" `notElem` commandList)
                                                                 then -- else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
 
                                                                     let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
@@ -1598,7 +1601,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                             logWith LogInfo "No graphs to create implied alignments for TNT output\n"
                                                                                                                             pure ("No impliedAlgnments for TNT to report", outfileName, writeMode)
                                                                                                                         else do
-                                                                                                                            -- action :: SinmpleGraph -> PhyG ReducedPhylogeneticGraph
+                                                                                                                            -- action :: SinmpleGraph -> ReducedPhylogeneticGraph
                                                                                                                             let action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
                                                                                                                             pTraverse <- getParallelChunkTraverse
                                                                                                                             reoptimizedGraphs <- pTraverse action  (fmap fst5 curGraphs)

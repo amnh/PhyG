@@ -12,9 +12,13 @@ read(fasta:"chel.fas")
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
-<<<<<<< HEAD
 
 --read(fasta:"chel.fas", tcm:"sg2t2-d1.mat")
+
+
+--read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)
+
+
 --read(fasta:"chel-16.fas", tcm:"sg2t1.mat")
 --read("chel.ss")
 --read("chel-ques.ss")
@@ -52,27 +56,9 @@ report("test0-data.csv", data, overwrite)
 
 -- set(seed:1)
 --build(replicates:10)
-build(distance, dwag)
---build(distance, rdwag, replicates:20, best:20)
 
---build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
---build(replicates:10, block, displayTrees:10, cun)
-
---set(multitraverse:false)
-
---fuse(tbr)
-
---transform(staticApprox)
-
---search(minutes:1)
---build(replicates:10)
---refine(netadd, atrandom, maxnetedges:5)
---fuse(tbr)
-swap()
-
---build(distance, wpgma)
-
---transform(staticApprox)
+--build(dwag, distance)
+build(distance, rdwag, replicates:20, best:5)
 
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
@@ -81,17 +67,20 @@ swap()
 --swap()
 
 -- transform(dynamic)
-select(best)
+--select(best)
 --report("test0-crossrefs.csv", crossrefs, overwrite)
-report("test0-search.csv", search, overwrite)
+--report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)
-report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse)
---report("test0-wag.tre", overwrite, graphs, newick, nohtulabels, nobraNCHLENGTHS, collapse)
-report("test0-wag.tre", overwrite, graphs, newick)
+report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse, noHTULabels)
+report("test0-wag.tre", overwrite, graphs, newick, nobraNCHLENGTHS, noHTULabels, collapse)
+--report("test0-wag.tre", overwrite, graphs, newick)
 --report("test0-dist-mat.csv", pairdist, overwrite)
 --report("test0-diag.csv", diagnosis, overwrite)
 --report("test0-supp.dot", support,dotPDF, overwrite)
 --report("test-ia.fas", impliedalignment, includeMissing, overwrite)
 --report("test-ia-concat.fas", impliedalignment, concatenate,  overwrite)
 --report("test-tnt.txt", TNT, overwrite)
---report("test0-reconcile.dot", reconcile, method:eun, outformat:dot, dotpdf, threshold:0)
+report("test0-reconcile-strict.tre", reconcile, method:strict, newick, threshold:51, overwrite)
+report("test0-reconcile-adams.dot", reconcile, graphs, method:adams, dotpdf, noHTULabels, nobranchlengths, overwrite)
+--report("test0-reconcile.dot", reconcile)
+report("test0-reconcile-majority.dot", reconcile, method:majority, dotpdf, threshold:51, overwrite)

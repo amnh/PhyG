@@ -288,39 +288,84 @@ makeBlockGraphStrings commandList costList lOutgroupIndex (labelString, graphL) 
 -- | outputDisplayString is a wrapper around graph output functions--but without cost list
 outputDisplayString :: [String] -> [VertexCost] -> Int -> [DecoratedGraph] -> String
 outputDisplayString commandList costList lOutgroupIndex graphList
-  | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+  | "dot" `elem` commandList = makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | "newick" `elem` commandList = GO.makeNewickList False (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) (replicate (length graphList) 0.0)
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
-    makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+    makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
 -- | outputGraphString is a wrapper around graph output functions
 outputGraphString :: [String] -> Int -> [DecoratedGraph] ->  [VertexCost] -> String
 outputGraphString commandList lOutgroupIndex graphList costList
-  | "dot" `elem` commandList = makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+  | "dot" `elem` commandList = makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | "newick" `elem` commandList = GO.makeNewickList False (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList) costList
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
   | otherwise = -- "dot" as default
-    makeDotList costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+    makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
 
 -- | outputGraphStringSimple is a wrapper around graph output functions
 outputGraphStringSimple :: [String] -> Int -> [SimpleGraph] ->  [VertexCost] -> String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
-  | "dot" `elem` commandList = makeDotList costList lOutgroupIndex graphList
+  | "dot" `elem` commandList = makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex graphList
   | "newick" `elem` commandList = GO.makeNewickList False True True lOutgroupIndex graphList costList
   | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
   | otherwise = -- "dot" as default
-    makeDotList costList lOutgroupIndex graphList
+    makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex graphList
 
 
 -- | makeDotList takes a list of fgl trees and outputs a single String cointaining the graphs in Dot format
 -- need to specify -O option for multiple graph(outgroupIndex globalSettings)s
-makeDotList :: [VertexCost] -> Int -> [SimpleGraph] -> String
-makeDotList costList rootIndex graphList =
-    let graphStringList = fmap (fgl2DotString . LG.rerootTree rootIndex) graphList
+makeDotList :: Bool -> Bool -> [VertexCost] -> Int -> [SimpleGraph] -> String
+makeDotList writeEdgeWeight writeNodeLabel costList rootIndex graphList =
+    let graphStringList' = fmap (fgl2DotString . LG.rerootTree rootIndex) graphList
+        graphStringList = fmap (stripDotLabels writeEdgeWeight writeNodeLabel) graphStringList'
         costStringList = fmap (("\n//" <>) . show) costList
     in
     L.intercalate "\n" (zipWith (<>) graphStringList costStringList)
+
+-- | stripDotLabels strips away edge and HTU labels from dot files
+stripDotLabels :: Bool -> Bool -> String -> String
+stripDotLabels writeEdgeWeight writeNodeLabel inGraphString =
+    if null inGraphString then inGraphString
+    else if writeNodeLabel && writeEdgeWeight then inGraphString
+    else 
+        let firstString = if writeEdgeWeight then inGraphString
+                          else stripEdge inGraphString
+
+            secondString = if writeNodeLabel then firstString
+                          else stripNode firstString
+        in secondString
+
+-- | stripEdge removes edge labels from HTUs in graphviz format string
+stripEdge :: String -> String
+stripEdge inString =
+    if null inString then inString
+    else
+        let lineStringList = lines inString
+            newLines = fmap makeNewLine lineStringList
+        in
+        unlines newLines
+    where makeNewLine a = if (null $ L.intersect "->" a) then a
+                           else 
+                                let b = words a
+                                in "    " <> (concat [b !! 0, " ", b !! 1 , " ", b !! 2]) <> " [];" 
+
+-- | stripNode removes edge labels from HTUs in graphviz format string
+stripNode :: String -> String
+stripNode inString =
+    if null inString then inString
+    else
+        let lineStringList = lines inString
+            newLines = fmap makeNewLine lineStringList
+        in
+        unlines newLines
+    where makeNewLine a = if (null $ L.intersect "HTU" a) then a
+                          else 
+                                let b = words a
+                                    c = take 10 $ b !! 1
+                                    newLine = if c == "[label=HTU" then "    " <> (head b) <> " [];"
+                                              else a
+                                in newLine
 
 -- | makeAsciiList takes a list of fgl trees and outputs a single String cointaining the graphs in ascii format
 makeAsciiList :: Int -> [SimpleGraph] -> String
@@ -1146,13 +1191,13 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
                 startVertex :: forall {a}. Maybe a
                 startVertex = Nothing
 
-                 -- create seprate processed data for each block
-                blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
-
             in do
+                -- create seprate processed data for each block
                 newGraph <- TRAV.multiTraverseFullyLabelGraph newGS inData pruneEdges warnPruneEdges startVertex (fst6 inGraph)
 
                 let blockDisplayList = fmap (GO.convertDecoratedToSimpleGraph . head) (fth6 newGraph)
+
+                let blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
                 reoptimizePar <- getParallelChunkTraverse
                 decoratedBlockTreeList' <- reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
