@@ -62,8 +62,10 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           
           -- call EUN/reconcile functions
           (reconcileString, reconcileGraph) = 
+
             --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat))) 
             E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+
 
           -- convert eun format graph back to SimpleGraph
           reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
