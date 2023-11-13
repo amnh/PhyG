@@ -61,7 +61,9 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
           
           -- call EUN/reconcile functions
-          (reconcileString, reconcileGraph) = trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat))) E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+          (reconcileString, reconcileGraph) = 
+                --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat))) 
+                E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
 
           -- convert eun format graph back to SimpleGraph
           reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
@@ -93,7 +95,7 @@ processReconcileArgs validCommandList inList' =
       (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
 
     else
-        trace ("Rec args: " <> (show inList)) $
+        --trace ("Rec args: " <> (show inList)) $
         let inTextList = fmap T.pack inList
             inTextListLC = fmap T.toLower inTextList
             commandList = filter (T.any (== ':')) inTextListLC
