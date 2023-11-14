@@ -138,9 +138,9 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
 
             -- set default collapse for dotPDF to True, False otherwise
             let collapse -- this will casue problems with reconcile--
+                  | reconcile = False
                   | collapse' = True
                   | noCollapse' = False
-                  | reconcile = False
                   -- | doDotPDF = True 
                   | otherwise = False
 
