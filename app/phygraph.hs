@@ -297,9 +297,9 @@ performSearch inputFilePath = do
     let inputProcessingData   = emptySearchData {commentString = "Input and data processing", duration = fromIntegral dataCPUTime}
     let inputGraphProcessing  = emptySearchData {minGraphCostOut = minOutCost, maxGraphCostOut = maxOutCost, numGraphsOut = inGraphNumber, commentString = "Input graph processing", duration = inputGraphTime}
 
-
+    --- moved to report and build
     -- Create lazy pairwise distances if needed later for build or report
-    let pairDist = D.getPairwiseDistances optimizedData
+    let pairDist = [] -- D.getPairwiseDistances optimizedData
 
     -- Execute Following Commands (searches, reports etc)
     (finalGraphList, _, _, _) <- CE.executeCommands (initialGlobalSettings {searchData = [inputGraphProcessing, inputProcessingData]}) (terminalsToExclude, renameFilePairs) numInputFiles crossReferenceString optimizedData optimizedData reportingData inputGraphList pairDist seedList' [] commandsAfterInitialDiagnose -- (transformString <> commandsAfterInitialDiagnose)

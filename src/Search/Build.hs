@@ -50,6 +50,7 @@ import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
 import Debug.Trace
+import Utilities.Distances qualified as D
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
@@ -123,10 +124,12 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                                      else (True, False)
 
            -- initial build of trees from combined data--or by blocks
+           -- distnce calculation moved here to get out of main scope
            firstGraphs' = if null buildBlock then
                             let simpleTreeOnly = False
+                                pairwiseDistances' = D.getPairwiseDistances inData
                             in
-                            buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
+                            buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances' rSeed
                          else -- removing taxa with missing data for block
                             trace ("Block building initial graph(s)") (
                             let simpleTreeOnly = True

@@ -71,9 +71,10 @@ import Utilities.LocalGraph qualified as LG
 -- they are updated separately
 
 -- | treeBanditList is list of search types to be chosen from if graphType is tree
+-- moved distance build out since start with that and think its a memory hog with multiple threads due to distance matrix
 treeBanditList :: [String]
 treeBanditList = [
-                 "buildCharacter", "buildDistance", -- "buildSPR", "buildAlternate",
+                 "buildCharacter", -- "buildDistance", -- "buildSPR", "buildAlternate",
                  "swapSPR", "swapAlternate",
                  "fuse", "fuseSPR", "fuseTBR",
                  "driftSPR", "driftAlternate", "annealSPR", "annealAlternate",
@@ -445,7 +446,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
           numToCharBuild = fromInteger $ squareRoot $ toInteger numLeaves
           numToDistBuild = min 1000 (numLeaves * numLeaves)
-          numDistToKeep = 50
+          numDistToKeep = keepNum
 
           -- to resolve block build graphs
           reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 13) [("eun", 0.5), ("cun", 0.5)]
@@ -526,8 +527,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
     -- this to remove "sucesses" of initial builds from affecting Thompson values
       -- no input graphs so must build to start
       -- chooses NJ (n^3), dWag (n^3), WPGMA (n^2), or rdWag (n^2 but lots so n^4 here)
-      if null inGraphList' then
+      if null inGraphList' then error ("Empty graph list is search--this should not happen")
 
+         {-
          let distanceMethod =  chooseElementAtRandomPair (randDoubleVect V.! 16) [("nj", 0.25), ("dwag", 0.25), ("wpgma", 0.25), ("rdwag", 0.25)]
              noGraphsWagnerOptions = [("replicates", show numToDistBuild), (distanceMethod, ""), ("best", show numDistToKeep), ("return", show numToCharBuild)]
              buildArgs = [(buildType, "")] <> noGraphsWagnerOptions <> blockOptions
@@ -558,9 +560,10 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
 
          in  (uniqueGraphs, [searchString <> thompsonString])
+         -}
 
 
-      -- already have some input graphs
+      -- already have some input graphs (should be always)
       -- choose a method and parameters at random
       -- fuse on single graph will build a couple more first
       else
