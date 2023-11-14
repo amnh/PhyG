@@ -23,7 +23,6 @@ import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
--- import ParallelUtilities qualified as PU
 import Reconciliation.ReconcileGraphs qualified as R
 import Search.DistanceMethods qualified as DM
 import Search.DistanceWagner qualified as DW
@@ -38,11 +37,150 @@ import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
+import Data.Maybe
+-- import Debug.Trace
+-- import ParallelUtilities qualified as PU
+
 
 {- | buildGraph wraps around build tree--build trees and adds network edges after build if network
 with appropriate options
 transforms graph type to Tree for builds then back to initial graph type
 -}
+buildGraph :: [Argument] -> GlobalSettings -> ProcessedData ->  [[VertexCost]] -> Int-> PhyG [ReducedPhylogeneticGraph]
+buildGraph inArgs inGS inData pairwiseDistances rSeed =
+   let fstArgList = fmap (fmap toLower . fst) inArgs
+       sndArgList = fmap (fmap toLower . snd) inArgs
+       lcArgList = zip fstArgList sndArgList
+       checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
+   in
+       -- check for valid command options
+   if not checkCommandList then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
+   else
+       let -- block build options including number of display trees to return
+           buildBlock = filter ((== "block").fst) lcArgList
+           displayBlock = filter ((== "displaytrees").fst) lcArgList
+           numDisplayTrees
+                | length displayBlock > 1 =
+                  errorWithoutStackTrace ("Multiple displayTree number specifications in command--can have only one: " <> show inArgs)
+                | null displayBlock = Just 10
+                | null (snd $ head displayBlock) = Just 10
+                | otherwise = readMaybe (snd $ head displayBlock) :: Maybe Int
+
+
+           returnList = filter ((== "return").fst) lcArgList
+           numReturnTrees
+                | length returnList > 1 =
+                  errorWithoutStackTrace ("Multiple 'return' number specifications in command--can have only one: " <> show inArgs)
+                | null returnList = Just (maxBound :: Int)
+                | null (snd $ head returnList) = Just (maxBound :: Int)
+                | otherwise = readMaybe (snd $ head returnList) :: Maybe Int
+
+           doEUN' = any ((== "eun").fst) lcArgList
+           doCUN' = any ((== "cun").fst) lcArgList
+           doEUN = if not doEUN' && not doCUN' then True
+                   else doEUN'
+           returnTrees' = any ((== "displaytrees").fst) lcArgList
+           returnGraph' = any ((== "graph").fst) lcArgList
+           returnRandomDisplayTrees' = any ((== "atrandom").fst) lcArgList
+           returnFirst' = any ((== "first").fst) lcArgList
+           buildDistance = any ((== "distance").fst) lcArgList
+
+           -- temprary change (if needed) to buyild tree structures
+           inputGraphType = graphType inGS
+           treeGS = inGS {graphType = Tree}
+
+           -- really only trees now--but maybe later if can ensure phylogenetic graph from recocnile
+           (returnGraph, returnTrees)  = if (graphType inGS) == Tree then (False, True)
+                                         else
+                                           if returnGraph' || returnTrees' then (returnGraph', returnTrees')
+                                           else (False, True)
+
+           -- default to return reandom and overrides if both specified
+           (returnRandomDisplayTrees, _) = if returnRandomDisplayTrees' || returnFirst' then (returnRandomDisplayTrees', returnFirst')
+                                                     else (True, False)
+
+           processedDataList = U.getProcessDataByBlock True inData
+
+           -- parallel setup
+           pairwiseAction :: ProcessedData ->  PhyG [[VertexCost]]
+           pairwiseAction = DD.getPairwiseDistances
+
+           buildAction :: ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
+           buildAction = buildTree' True inArgs treeGS rSeed 
+
+           traverseAction :: Bool -> Bool -> Maybe Int -> SimpleGraph -> PhyG ReducedPhylogeneticGraph
+           traverseAction = T.multiTraverseFullyLabelGraphReduced inGS inData -- False False Nothing
+                                    
+        in do
+           
+           when (not $ null buildBlock) $ logWith LogInfo ("Block building initial graph(s)\n")
+           -- initial build of trees from combined data--or by blocks
+           firstGraphs' <- if null buildBlock then
+                                let simpleTreeOnly = False
+                                in do
+                                    buildTreeList <- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
+                                    --logWith LogInfo ("BL: " <> (show $ length buildTreeList))
+                                    pure buildTreeList
+                                
+                            else do -- removing taxa with missing data for block
+                                -- trace ("Block building initial graph(s)") $
+                                distanceMatrixList <- if buildDistance then do 
+                                                            parwisePar <- getParallelChunkTraverse
+                                                            distances <- parwisePar pairwiseAction processedDataList
+                                                            pure distances
+                                                       else pure $ replicate (length processedDataList) []
+                                buildPar <- getParallelChunkTraverse
+                                blockList <- buildPar buildAction (zip distanceMatrixList processedDataList) 
+                                let blockTrees = concat blockList 
+
+                                returnGraphs <- reconcileBlockTrees rSeed blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
+                                
+                                traversePar <- getParallelChunkTraverse
+                                traverseList <- traversePar (traverseAction True True Nothing) returnGraphs
+                                pure traverseList
+                                
+          
+                                
+
+           -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
+           let firstGraphs = if null buildBlock then
+                                GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 (-1) firstGraphs'
+                            else firstGraphs'
+
+           -- reporting info
+           let returnString = if (not . null) firstGraphs then
+                            ("\tReturning " <> (show $ length firstGraphs) <> " graphs at cost range " <> (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)))
+                          else "\t\tReturning 0 graphs"
+
+           let costString = if (not . null) firstGraphs then
+                            ("\tBlock build yielded " <> (show $ length firstGraphs) <> " graphs at cost range " <> (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)))
+                        else "\t\tBlock build returned 0 graphs"
+
+       
+           if isNothing numDisplayTrees then
+                                    errorWithoutStackTrace ("DisplayTrees specification in build not an integer: "  <> show (snd $ head displayBlock))
+           else if isNothing numReturnTrees then
+                                    errorWithoutStackTrace ("Return number specifications in build not an integer: " <> show (snd $ head returnList))
+
+           else do
+                logWith LogInfo (returnString <> "\n")
+                if inputGraphType == Tree || (not . null) buildBlock then
+                  -- trace ("BB: " <> (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
+                  if null buildBlock then pure firstGraphs
+                  else do
+                    logWith LogInfo (costString <> "\n")
+                    pure firstGraphs
+                  
+                else do
+                  logWith LogInfo ("\tRediagnosing as " <> (show (graphType inGS)) <> "\n")
+                  traversePar <- getParallelChunkTraverse
+                  traverseList <- traversePar (traverseAction False False Nothing) (fmap fst5 firstGraphs)
+                  pure traverseList
+                  -- pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst5 firstGraphs) 
+                
+
+
+{-
 buildGraph ∷ [Argument] → GlobalSettings → ProcessedData → [[VertexCost]] → Int → PhyG [ReducedPhylogeneticGraph]
 buildGraph inArgs inGS inData pairwiseDistances rSeed =
     let getKeyBy ∷ (Eq a) ⇒ (((a, b) → Bool) → [([Char], [Char])] → t) → a → t
@@ -64,6 +202,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
         returnRandomDisplayTrees' = hasKey "atrandom"
         returnFirst' = hasKey "first"
         buildDistance = hasKey "distance"
+        buildBlock = hasKey "block"
 
         -- temporary change (if needed) to build tree structures
         inputGraphType = graphType inGS
@@ -84,7 +223,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
         buildTreeAction :: ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
         buildTreeAction = buildTree' True inArgs treeGS rSeed
 
-        traverseGraphAction :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
+        traverseGraphAction :: SimpleGraph -> ReducedPhylogeneticGraph
         traverseGraphAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
 
         pairWiseDistAction :: ProcessedData ->  PhyG [[VertexCost]]
@@ -124,8 +263,8 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                  -- seqParMap ∷ (Traversable t) ⇒ Strategy b → (a → b) → t a → t b
                  -- TODO
                  --pure $ PU.seqParMap PU.myStrategyHighLevel (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
-                 traverseFunction <- getParallelChunkTraverse
-                 reoptimizedGraphs <- traverseFunction traverseGraphAction returnGraphs
+                 traverseFunction <- getParallelChunkMap
+                 let reoptimizedGraphs = traverseFunction traverseGraphAction returnGraphs
 
                  -- pure $ fmap (T.multiTraverseFullyLabelGraphReduced inGS inData True True Nothing) returnGraphs
                  pure reoptimizedGraphs
@@ -161,11 +300,11 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
             then return firstGraphs
             else do
                 logWith LogInfo $ unwords ["\tRediagnosing as", show $ graphType inGS]
-                traverseFunction <- getParallelChunkTraverse
-                reoptimizedGraphs <- traverseFunction traverseGraphAction (fmap fst5 firstGraphs) 
+                traverseFunction <- getParallelChunkMap
+                let reoptimizedGraphs = traverseFunction traverseGraphAction (fmap fst5 firstGraphs) 
                 pure reoptimizedGraphs
 
-
+-}
 {- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
 as per the arguments producing a set of displayTrees (ordered or resolved random), and/or the reconciled graph
 all outputs are re-optimzed and ready to go
@@ -183,20 +322,16 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
             if doEUN
                 then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
                 else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
+
+        -- parallel setup
+        convertAction :: SimpleGraph -> PhyG SimpleGraph
+        convertAction = GO.convertGeneralGraphToPhylogeneticGraph True
     in do
         -- create reconciled graph--NB may NOT be phylogenetic graph--time violations etc.
         reconciledGraphInitial' <- R.makeReconcileGraph VER.reconcileArgList reconcileArgList simpleGraphList
         let reconciledGraphInitial = snd reconciledGraphInitial'
 
         -- ladderize, time consistent-ized, removed chained network edges, removed treenodes with all network edge children
-        {-
-        reconciledGraph' = GO.convertGeneralGraphToPhylogeneticGraph "correct" reconciledGraphInitial
-        noChainedGraph = LG.removeChainedNetworkNodes False reconciledGraph'
-        noTreeNodesWithAllNetChildren = LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren $ fromJust noChainedGraph
-        contractedGraph = GO.contractIn1Out1EdgesRename noTreeNodesWithAllNetChildren
-        reconciledGraph = GO.convertGeneralGraphToPhylogeneticGraph "correct" contractedGraph -}
-
-        -- chained was separate in past, now in convertGeneralGraphToPhylogeneticGraph
         reconciledGraph <- GO.convertGeneralGraphToPhylogeneticGraph True reconciledGraphInitial
 
         -- this for non-convertable graphs
@@ -209,7 +344,9 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                 | otherwise = LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
 
         -- need this to fix up some graphs after other stuff changed
-        displayGraphs <- mapM (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
+        --displayGraphs <- mapM (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
+        convertPar <- getParallelChunkTraverse
+        displayGraphs <- convertPar convertAction displayGraphs'
 
         -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
         let numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
@@ -223,12 +360,11 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                     ]
 
         when (LG.isEmpty reconciledGraph && not returnTrees) $
-                failWithPhase
-                    Unifying
+                error
                     "\n\n\tError--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or returning display trees."
 
         if not (LG.isEmpty reconciledGraph) && not returnTrees
-                then logWith LogMore (strNetNodes <> " for softwired network") $> [reconciledGraph]
+                then logWith LogMore (strNetNodes <> " for softwired network\n") $> [reconciledGraph]
                 else
                     if not returnGraph && returnTrees
                         then pure displayGraphs
@@ -238,7 +374,7 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                                 else
                                     logWith
                                         LogWarn
-                                        "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds."
+                                        "\n\tWarning--reconciled graph could not be converted to phylogenetic graph.  Consider modifying block tree search options or performing standard builds.\n"
                                         $> displayGraphs
 
 
@@ -302,42 +438,35 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                     | otherwise = "none"
 
                 {-
-                treeList1 =
-                    whenKey "rdwag" $
-                        randomizedDistanceWagner
-                            simpleTreeOnly
-                            inGS
-                            inData
-                            nameStringVect
-                            distMatrix
-                            outgroupElem
-                            numReplicates
-                            rSeed
-                            numToSave
-                            refinement
-                treeList2 = whenKey "dwag" . pure $ distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
-                treeList3 = whenKey "nj" . pure $ neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
-                treeList4 = whenKey "doWPGMA" . pure $ wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                treeList1 = if hasKey "rdwag" then randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates rSeed numToSave refinement
+                            else pure []
+                treeList2 = if hasKey  "dwag" then distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                            else pure []
+                treeList3 = if hasKey  "nj" then neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                            else pure []
+                treeList4 = if hasKey  "wpgma" then wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                            else pure []
+                
+                -- treeListFull = fold [treeList1, treeList2, treeList3, treeList4]
+                treeListFull = treeList1 <> treeList2 <> treeList3 <> treeList4
                 -}
-
                 
             in  do
-                rdWagTree <- randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates rSeed numToSave refinement
-                dWagTree <- distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
-                njTree <- neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
-                wPGMATree <-  wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
-                let treeList1 = if (hasKey "rdwag") then rdWagTree
-                                else mempty
-                let treeList2 = if (hasKey "dWag") then [dWagTree]
-                                else mempty
-                let treeList3 = if (hasKey "nj") then [njTree]
-                                else mempty
-                let treeList4 = if (hasKey "doWPGMA") then [wPGMATree]
-                                else mempty
-                let treeListFull = fold [treeList1, treeList2, treeList3, treeList4]
-                logWith LogInfo "\tBuilding Distance Wagner\n"
+                --logWith LogInfo ("L455: " <> (show (numReplicates,numToSave)))
+                treeList1 <- if hasKey "rdwag" then randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates rSeed numToSave refinement
+                            else  pure []
+                treeList2 <- if hasKey  "dwag" then distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                            else  pure []
+                treeList3 <- if hasKey  "nj" then neighborJoin simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                            else  pure []
+                treeList4 <- if hasKey  "wpgma" then wPGMA simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
+                            else  pure []
+                
+                -- let treeListFull = fold [treeList1, treeList2, treeList3, treeList4]
+                let treeListFull = treeList1 <> treeList2 <> treeList3 <> treeList4
+                logWith LogInfo "\tBuilding Distance Tree\n"
                 case treeListFull of
-                    [] → failWithPhase Computing $ "Distance build is specified, but without any method: " <> show inArgs
+                    [] → errorWithoutStackTrace $ "Distance build is specified, but without any method: " <> show inArgs
                     xs → do
                         logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs)  <> "\n"
                         if not simpleTreeOnly
@@ -381,7 +510,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
 'best' addition sequence Wagner (defined in Farris, 1972) as fully decorated tree (as Graph)
 -}
 distanceWagner
-    ∷ Bool → GlobalSettings → ProcessedData → V.Vector String → M.Matrix Double → Int → String → PhyG ReducedPhylogeneticGraph
+    ∷ Bool → GlobalSettings → ProcessedData → V.Vector String → M.Matrix Double → Int → String → PhyG [ReducedPhylogeneticGraph]
 distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
     do
     distWagTreeList <- DM.doWagnerS inGS leafNames distMatrix "closest" outgroupValue "best" 1 []
@@ -390,21 +519,13 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
     let distWagTree' = head dWagRefined
     let distWagTreeSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 distWagTree')
     let charInfoVV = V.map thd3 $ thd3 inData
-    traverseResult <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph)
-    if not simpleTreeOnly
-        then
-            pure traverseResult 
-            {-$ T.multiTraverseFullyLabelGraphReduced
-                inGS
-                inData
-                False
-                False
-                Nothing
+    if not simpleTreeOnly then do
+            result <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
                 (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph)
-            -}
+            return $ [result]
         else
             let simpleWag = GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph
-            in  pure $ (simpleWag, 0.0, LG.empty, V.empty, charInfoVV)
+            in  return $ [(simpleWag, 0.0, LG.empty, V.empty, charInfoVV)]
 
 
 {- | randomizedDistanceWagner takes Processed data and pairwise distance matrix and returns
@@ -443,11 +564,13 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
 
         let randomizedAdditionWagnerTreeList' = take numToKeep $ L.sortOn thd4 randomizedAdditionWagnerTreeList
 
+        --logWith LogInfo ("L567: " <> (show (numToKeep, length randomizedAdditionWagnerTreeList')) <> "\n")
+
         refineFunction <- getParallelChunkTraverse 
         rasTreeList <- refineFunction refineAction randomizedAdditionWagnerTreeList'
 
         let randomizedAdditionWagnerTreeList'' =
-                head rasTreeList
+                   concat rasTreeList
                    {- PU.seqParMap
                    --     PU.myStrategyHighLevel
                    TODO
@@ -464,6 +587,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
         if not simpleTreeOnly
                 then -- fmap ((T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue) . LG.switchRootTree (length leafNames)) randomizedAdditionWagnerSimpleGraphList `using` PU.myParListChunkRDS
                     do
+                    --logWith LogInfo ("L590 :" <> (show $ length randomizedAdditionWagnerSimpleGraphList))
                     traverseFunction <- getParallelChunkTraverse
                     reOptimizedGraphList <- traverseFunction traverseGraphAction randomizedAdditionWagnerSimpleGraphList
                     pure reOptimizedGraphList
@@ -492,7 +616,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
                     do 
                         traverseFunction <- getParallelChunkMap
                         let simpleRDWagList = traverseFunction dichotomizeAction randomizedAdditionWagnerSimpleGraphList
-                        pure $ L.zip5
+                        return $ L.zip5
                             simpleRDWagList
                             (replicate numTrees 0.0)
                             (replicate numTrees LG.empty)
@@ -504,7 +628,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
 Neighbor-Joining tree as fully decorated tree (as Graph)
 -}
 neighborJoin
-    ∷ Bool → GlobalSettings → ProcessedData → V.Vector String → M.Matrix Double → Int → String → PhyG ReducedPhylogeneticGraph
+    ∷ Bool → GlobalSettings → ProcessedData → V.Vector String → M.Matrix Double → Int → String → PhyG [ReducedPhylogeneticGraph]
 neighborJoin simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
     do
     njTree <- DM.neighborJoining leafNames distMatrix outgroupValue
@@ -515,20 +639,13 @@ neighborJoin simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refin
     if not simpleTreeOnly
         then 
             do
-            traversalResult <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) njSimpleGraph)
-            return traversalResult 
-            {-$ T.multiTraverseFullyLabelGraphReduced
-                inGS
-                inData
-                False
-                False
-                Nothing
+            result <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
                 (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) njSimpleGraph)
-                -}
+            pure [result]
         else
             do
             let simpleNJ = GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) njSimpleGraph
-            return $ (simpleNJ, 0.0, LG.empty, V.empty, charInfoVV)
+            pure [(simpleNJ, 0.0, LG.empty, V.empty, charInfoVV)]
 
 
 {- | wPGMA takes Processed data and pairwise distance matrix and returns
@@ -536,7 +653,7 @@ WPGMA tree as fully decorated tree (as Graph)
 since root index not nOTUs as with other tres--chanegd as with dWag and NJ to make consistent.
 -}
 wPGMA
-    ∷ Bool → GlobalSettings → ProcessedData → V.Vector String → M.Matrix Double → Int → String → PhyG ReducedPhylogeneticGraph
+    ∷ Bool → GlobalSettings → ProcessedData → V.Vector String → M.Matrix Double → Int → String → PhyG [ReducedPhylogeneticGraph]
 wPGMA simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement = 
     do
     wpgmaTree <- DM.wPGMA leafNames distMatrix outgroupValue
@@ -544,20 +661,15 @@ wPGMA simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
     let wpgmaTree' = head wpgmaRefined
     let wpgmaSimpleGraph = DU.convertToDirectedGraphText leafNames outgroupValue (snd4 wpgmaTree')
     let charInfoVV = V.map thd3 $ thd3 inData
-    traversalResult <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph)
     if not simpleTreeOnly
-            then return traversalResult
-                {-return $ T.multiTraverseFullyLabelGraphReduced
-                    inGS
-                    inData
-                    False
-                    False
-                    Nothing
+            then do
+                result <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
                     (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph)
-                -}
+                return $ [result]
+                    
     else
         let simpleWPGMA = GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph
-        in  return (simpleWPGMA, 0.0, LG.empty, V.empty, charInfoVV)
+        in  return [(simpleWPGMA, 0.0, LG.empty, V.empty, charInfoVV)]
 
 
 {-
