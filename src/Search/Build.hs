@@ -20,6 +20,7 @@ import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
+import Utilities.Distances qualified as D
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
@@ -115,10 +116,12 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
            
            when (not $ null buildBlock) $ logWith LogInfo ("Block building initial graph(s)\n")
            -- initial build of trees from combined data--or by blocks
+           -- distance calculation moved here to get out of main scope
            firstGraphs' <- if null buildBlock then
                                 let simpleTreeOnly = False
                                 in do
-                                    buildTreeList <- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances rSeed
+                                    pairwiseDistances' <- D.getPairwiseDistances inData
+                                    buildTreeList <- buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances' rSeed
                                     --logWith LogInfo ("BL: " <> (show $ length buildTreeList))
                                     pure buildTreeList
                                 

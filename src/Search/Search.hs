@@ -49,7 +49,7 @@ import Utilities.Utilities qualified as U
 treeBanditList ∷ [String]
 treeBanditList =
     [ "buildCharacter"
-    , "buildDistance" -- "buildSPR", "buildAlternate",
+    -- , "buildDistance" -- "buildSPR", "buildAlternate", distance only up front to reduce memory footprint
     , "swapSPR"
     , "swapAlternate"
     , "fuse"
@@ -108,7 +108,6 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
 
         (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) <- getSearchParams inArgs
 
-
         let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
         let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
         let searchTimed = uncurry3' $
@@ -132,17 +131,17 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
     
         logWith LogInfo ("Randomized seach for " <> (show searchTime) <> " seconds with " <> (show instances) <> " instances keeping at most " <> (show keepNum) <> " graphs" <> "\n")
         -- if initial graph list is empty make some
-        dWagGraphList ←
-            B.buildGraph
+        
+        inGraphList <-
+                if (length inGraphList' >= keepNum) then pure inGraphList' 
+                else do  
+                    dWagGraphList ← B.buildGraph
                         [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
                         inGS
                         inData
                         pairwiseDistances
                         rSeed
-        let inGraphList =
-                if (not . null) inGraphList'
-                    then inGraphList'
-                else take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) dWagGraphList
+                    pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
 
         --  threadCount <- (max 1) <$> getNumCapabilities
         let threadCount = instances -- <- (max 1) <$> getNumCapabilities
@@ -594,7 +593,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
         numToCharBuild = fromInteger $ squareRoot $ toInteger numLeaves
         numToDistBuild = min 1000 (numLeaves * numLeaves)
-        numDistToKeep = 50
+        numDistToKeep = keepNum
 
         -- to resolve block build graphs
         reconciliationMethod = chooseElementAtRandomPair (randDoubleVect V.! 13) [("eun", 0.5), ("cun", 0.5)]

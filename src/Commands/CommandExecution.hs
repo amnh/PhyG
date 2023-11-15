@@ -58,6 +58,7 @@ import Data.Ord
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Version qualified as DV
+import Utilities.Distances qualified as D
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
@@ -1523,8 +1524,10 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                             if "pairdist" `elem` commandList
                                                                                 then
                                                                                     let nameData = L.intercalate "," (V.toList (T.unpack <$> fst3 processedData)) <> "\n"
-                                                                                        dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
-                                                                                    in  pure (nameData <> dataString, outfileName, writeMode)
+                                                                                    in do
+                                                                                        pairwiseDistanceMatrix' <- D.getPairwiseDistances processedData
+                                                                                        let dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix'
+                                                                                        pure (nameData <> dataString, outfileName, writeMode)
                                                                                 else
                                                                                     if "reconcile" `elem` commandList
                                                                                         then do
