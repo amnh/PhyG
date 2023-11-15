@@ -8,6 +8,7 @@ module Search.Search (
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
 import Control.Concurrent.Async
+import Control.Concurrent.Timeout (timeout)
 import Control.DeepSeq
 import Control.Evaluation
 import Control.Exception
@@ -31,7 +32,6 @@ import Search.Refinement qualified as R
 import System.ErrorPhase (ErrorPhase (..))
 import System.IO
 import System.Random
-import System.Timeout
 import System.Timing
 import Text.Read
 import Types.Types

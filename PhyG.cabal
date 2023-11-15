@@ -211,6 +211,8 @@ Executable phyg
     -O2
     -rtsopts
     -Wall
+--  Maybe this is required for good paralellism?          
+    -fno-omit-yields 
     -- There is/are known compiler bug(s) with this optimization in GHC 9.6.2 (and earlier?).
     -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
     -- -fno-polymorphic-specialisation
@@ -308,6 +310,7 @@ Executable phyg
     text-short,
     th-lift-instances,
     time,
+    unbounded-delays,     
     unliftio >= 0.2 && < 1.0,
     unliftio-core >= 0.2 && < 1.0,
     vector >= 0.13 && < 1.0,
