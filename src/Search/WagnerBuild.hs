@@ -149,7 +149,7 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
           unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
           -}
 
-          candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
+          candidateEditList = PU.seqParMap  (parStrategy $ strictParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
           minDelta = minimum $ fmap fst4 candidateEditList
           (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter  ((== minDelta). fst4) candidateEditList
 

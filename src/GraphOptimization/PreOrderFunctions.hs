@@ -72,7 +72,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
         -- mapped recursive call over blkocks, later characters
         let preOrderBlockVect =
               ( PU.seqParMap
-                  (parStrategy $ lazyParStrat inGS)
+                  (parStrategy $ strictParStrat inGS)
                   (doBlockTraversal' inGS finalMethod staticIA rootIndex)
                   (V.zip inCharInfoVV blockCharacterDecoratedVV)
               )  -- `using` PU.myParListChunkRDS)
@@ -88,12 +88,12 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                                             contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
 
                                             -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
-                                            contractedBlockVect = (PU.seqParMap (parStrategy $ lazyParStrat inGS) (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
+                                            contractedBlockVect = (PU.seqParMap (parStrategy $ strictParStrat inGS) (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
 
                                             -- update leaf IA fields with contracted IAs
                                             maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
                                             blockCharDecNewLeafIA = PU.seqParMap
-                                                (parStrategy $ lazyParStrat inGS)
+                                                (parStrategy $ strictParStrat inGS)
                                                 (updateLeafIABlock' maxLeafIndex)
                                                 $ V.zip3
                                                     preOrderBlockVect
@@ -107,7 +107,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
 
             preOrderBlockVect' =
               if hasNonExact && (graphType inGS /= HardWired )
-              then PU.seqParMap (parStrategy $ lazyParStrat inGS)
+              then PU.seqParMap (parStrategy $ strictParStrat inGS)
                         (makeIAUnionAssignments' finalMethod rootIndex)
                         $ V.zip softwiredUpdatedLeafIA inCharInfoVV
               else preOrderBlockVect
