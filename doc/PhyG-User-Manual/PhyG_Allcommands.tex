@@ -1148,16 +1148,16 @@
 			\begin{description}
 		
 			\item[exponential] Specifies that the Thompson memory is an exponential function of 
-			\texttt{mFactor}, $m$.  Updating of search type, $\theta^k$, probability for iteration 
-			$n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  
+			$m$ (the \texttt{INT} value specified by Thompson above). Updating of search type, $\theta^k$, 
+			probability for iteration $n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  
 			Thompson success is a function of whether a search was successful in reducing the graph 
 			cost and how long that search took to complete.
 			
-			\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, 
-			$m$.  Updating of search type, $\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} 
-			\theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  Thompson success is a function of whether 
-			a search was successful in reducing the graph cost and how long that search took to 
-			complete.
+			\item[linear] Specifies that the Thompson memory is a linear function of $m$ (the 
+			\texttt{INT} value specified by Thompson above). Updating of search type, $\theta^k$, 
+			probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  
+			Thompson success is a function of whether a search was successful in reducing the graph 
+			cost and how long that search took to complete.
 
 			\end{description}
 	\end{description}		
