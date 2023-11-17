@@ -465,7 +465,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                     (inGraphList, 0)
                                                 else
                                                     -- trace ("REFINE Add") (
-                                                    let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
+                                                    let graphPairList = PU.seqParMap (parStrategy $ defaultParStrat inGS)  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
                                                         (graphListList, counterList) = unzip graphPairList
                                                     in
                                                     (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
@@ -481,7 +481,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                     else
                                                     -}
                                                   -- trace ("REFINE Delete") (
-                                                     let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
+                                                     let graphPairList = PU.seqParMap (parStrategy $ defaultParStrat inGS)  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList)) -- `using` PU.myParListChunkRDS
                                                          (graphListList, counterList) = unzip graphPairList
                                                      in
                                                      (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
@@ -493,7 +493,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                     -- trace ("Network move option currently disabled--skipping.")
                                                     -- (newGraphList', 0 :: Int)
 
-                                                    let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) -- `using` PU.myParListChunkRDS
+                                                    let graphPairList = PU.seqParMap (parStrategy $ defaultParStrat inGS)  (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) -- `using` PU.myParListChunkRDS
                                                         (graphListList, counterList) = unzip graphPairList
                                                     in
                                                     (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
@@ -505,7 +505,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                                             trace "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
                                                             (newGraphList'', 0)
                                                         else
-                                                            let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'')) -- `using` PU.myParListChunkRDS
+                                                            let graphPairList = PU.seqParMap (parStrategy $ defaultParStrat inGS)  (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'')) -- `using` PU.myParListChunkRDS
                                                                 (graphListList, counterList) = unzip graphPairList
                                                             in
                                                             (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)

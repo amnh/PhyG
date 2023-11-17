@@ -40,6 +40,7 @@ I
 
 module Search.DistanceMethods (neighborJoining, wPGMA, doWagnerS, performWagnerRefinement) where
 
+import Control.Parallel.Strategies
 import Data.Number.Transfinite     as NT
 import Data.Vector qualified as V
 import Debug.Trace
@@ -141,7 +142,7 @@ makeDMatrix :: M.Matrix Double -> [Int] -> M.Matrix Double
 makeDMatrix inObsMatrix vertInList  =
   if M.null inObsMatrix then error "Null matrix in makeInitialDMatrix"
   else
-      let newMatrix = PU.seqParMap PU.myStrategyRDS (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)] -- `using` PU.myParListChunkRDS
+      let newMatrix = PU.seqParMap rseq (makeDMatrixRow inObsMatrix vertInList 0) [0..(M.rows inObsMatrix - 1)] -- `using` PU.myParListChunkRDS
       in
       LS.fromList newMatrix
 
@@ -201,7 +202,7 @@ pickNearestUpdateMatrixNJ littleDMatrix  vertInList
 
           -- get distances to existing vertices
           otherVertList = [0..(M.rows littleDMatrix - 1)]
-          newLittleDRow = PU.seqParMap PU.myStrategyR0 (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
+          newLittleDRow = PU.seqParMap rseq (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
           newLittleDMatrix = M.addMatrixRow littleDMatrix (LS.fromList $ newLittleDRow <> [0.0])
           -- recalculate whole D matrix since new row affects all the original ones  (except those merged)
           -- included vertex values set to infinity so won't be chosen later
@@ -322,7 +323,7 @@ pickUpdateMatrixWPGMA distMatrix  vertInList =
 
               -- get distances to existing vertices
               otherVertList = [0..(M.rows distMatrix - 1)]
-              newDistRow = PU.seqParMap PU.myStrategyR0 (getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
+              newDistRow = PU.seqParMap rseq (getNewDistWPGMA distMatrix iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
               newDistMatrix = M.addMatrixRow distMatrix (LS.fromList $ newDistRow <> [0.0])
 
               -- create new edges

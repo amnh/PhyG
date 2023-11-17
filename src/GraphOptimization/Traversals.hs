@@ -50,6 +50,8 @@ module GraphOptimization.Traversals ( multiTraverseFullyLabelTree
                                     ) where
 
 
+import Control.DeepSeq
+import Control.Parallel.Strategies
 import Data.List qualified as L
 import Data.Maybe
 import Debug.Trace
@@ -325,7 +327,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                                  -- trace ("\t\tCannot update cost with original data--skipping")
                                  updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
                                else
-                                let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
+                                let newGraphList = PU.seqParMap rdeepseq  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                 in updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
         in updatedGraphList
 
