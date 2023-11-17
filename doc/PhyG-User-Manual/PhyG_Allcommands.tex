@@ -1133,8 +1133,8 @@
 		\item[stop:INT] Causes a search instance to terminate after the number of iterations 
 		without graph optimality improvement. This argument is an adjunct to the specified time. 
 		The search iteration will continue until the maximum execution time for the search has ended
-		or until the cost of the best graph fails to improve after the specified integer (whichever comes first).
-		The overall search will terminate only when all instances have completed.
+		or until the cost of the best graph fails to improve after the specified integer (whichever comes 
+		first). The overall search will terminate only when all instances have completed.
 		
 		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. Wagner 
 		Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. This 
@@ -1148,13 +1148,13 @@
 			\begin{description}
 		
 			\item[exponential] Specifies that the Thompson memory is an exponential function of 
-			$m$ (the \texttt{INT} value specified by Thompson above). Updating of search type, $\theta^k$, 
-			probability for iteration $n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  
-			Thompson success is a function of whether a search was successful in reducing the graph 
-			cost and how long that search took to complete.
+			$m$ (the \texttt{INT} value specified by \texttt{Thompson} above). Updating of search 
+			type, $\theta^k$, probability for iteration $n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) 
+			+ \left(\frac{1}{2^m} \theta^k_n \right)$. Thompson success is a function of whether a 
+			search was successful in reducing the graph cost and how long that search took to complete.
 			
 			\item[linear] Specifies that the Thompson memory is a linear function of $m$ (the 
-			\texttt{INT} value specified by Thompson above). Updating of search type, $\theta^k$, 
+			\texttt{INT} value specified by \texttt{Thompson} above). Updating of search type, $\theta^k$, 
 			probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  
 			Thompson success is a function of whether a search was successful in reducing the graph 
 			cost and how long that search took to complete.
@@ -1167,15 +1167,15 @@
 		instance of a search for at most 30 seconds.
 		
 	\begin{example}
-		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 simultaneous searches (instances)
-		for 10 hours each.}
+		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 searches (instances) for 10 hours 
+		each. These searches will be performed simultaneously if the computer capacity allows.}
 				
 		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance (the default) 
 		for 10 hours and 30 minutes.}
 		
-		\item{\texttt{search(days:3, thompson:3, linear)}\\ This command will attempt
-		3 iterations of the randomized search strategy, employing Thompson sampling, 
-		with linear memory function and the memory value value set to 5.}
+		\item{\texttt{search(days:1, thompson:2, linear)}\\ Employs Thompson sampling to guide the 
+		randomized option selection of the search. The Thompson memory value is a linear function 
+		of the parameter 2. This search is performed for 1 day.}
 	\end{example}
 	
 %---------------------------------------------
