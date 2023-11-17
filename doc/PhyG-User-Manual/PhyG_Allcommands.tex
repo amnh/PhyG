@@ -1139,11 +1139,14 @@
 		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. Wagner 
 		Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. This 
 		form of sampling uses machine learning techniques to guide the randomized option selection 
-		of the search \hl{Wheeler_submitted}. This
-		sampling method is a heuristic for timed search decision making. The integer value specifies
-		the memory value.
-				
+		of the search \hl{Wheeler\_submitted}. This sampling method is a heuristic for timed search 
+		decision making. The integer value specifies the memory value for the Thompson sampling.
+		The lower the value (down to 0), the shorter the memory allowing for more rapid adjustment 
+		of search strategy probabilities. This parameter is applied to both the \texttt{linear} and 
+		\texttt{exponential} arguments of \texttt{Thompson}.
+			
 			\begin{description}
+		
 			\item[exponential] Specifies that the Thompson memory is an exponential function of 
 			\texttt{mFactor}, $m$.  Updating of search type, $\theta^k$, probability for iteration 
 			$n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  
@@ -1155,12 +1158,7 @@
 			\theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  Thompson success is a function of whether 
 			a search was successful in reducing the graph cost and how long that search took to 
 			complete.
-			
-			\item[mFactor:INT] Specifies the memory factor for Thompson sampling, as 
-			indicated by the integer value. The lower the value (down to 0), the shorter the memory
-			allowing for more rapid adjustment of search strategy probabilities.
-			This parameter is applied to both the \texttt{linear}
-			and \texttt{exponential} arguments of \texttt{Thompson}.
+
 			\end{description}
 	\end{description}		
 	
@@ -1175,9 +1173,9 @@
 		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance (the default) 
 		for 10 hours and 30 minutes.}
 		
-		\item{\texttt{search(days:3, thompson:3, linear, mfactor:5)}\\ This command will attempt
+		\item{\texttt{search(days:3, thompson:3, linear)}\\ This command will attempt
 		3 iterations of the randomized search strategy, employing Thompson sampling, 
-		with linear memory function and the mFactor value set to 5.}
+		with linear memory function and the memory value value set to 5.}
 	\end{example}
 	
 %---------------------------------------------
