@@ -1,5 +1,3 @@
------------------------------------------------------------------------------
------------------------------------------------------------------------------
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -59,6 +57,7 @@ deterministic way. Without loss of generality in determining the ordering,
 we choose the same biasing as the C code called from the FFI for consistency.
 -}
 data Direction = DiagArrow | LeftArrow | UpArrow
+--data Direction = UpArrow | LeftArrow | DiagArrow 
     deriving stock (Eq, Ord)
 
 

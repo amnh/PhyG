@@ -58,6 +58,7 @@ import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Version qualified as DV
 import Debug.Trace
+import Utilities.Distances qualified as D
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
@@ -134,12 +135,14 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             let doDotPDF = elem "dotpdf" $ fmap (fmap toLower . fst) firstArgs
             let collapse' = elem "collapse" $ fmap (fmap toLower . fst) firstArgs
             let noCollapse' = elem "nocollapse" $ fmap (fmap toLower . fst) firstArgs
+            let reconcile =  any ((== "reconcile") . fst) firstArgs
 
             -- set default collapse for dotPDF to True, False otherwise
-            let collapse
+            let collapse -- this will casue problems with reconcile--
+                  | reconcile = False
                   | collapse' = True
                   | noCollapse' = False
-                  | doDotPDF = True
+                  -- | doDotPDF = True 
                   | otherwise = False
 
             let curGraphs' = if not collapse then curGraphs
@@ -872,8 +875,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                 else
                     (displayInfoString <> "\n" <> blockStringList, outfileName, writeMode)
 
-
-            else if "graphs" `elem` commandList then
+            -- the not reconcile so if specify reconcile--get that output as oposed to plane graphs 
+            else if ("graphs" `elem` commandList) && ("reconcile" `notElem` commandList) then
             --else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                 let
                     graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
@@ -899,7 +902,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
 
             else if "pairdist" `elem` commandList then
                 let nameData = L.intercalate "," (V.toList (T.unpack <$> fst3 processedData)) <> "\n"
-                    dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix
+                    pairwiseDistanceMatrix' = D.getPairwiseDistances processedData
+                    dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix'
                 in
                 (nameData <> dataString, outfileName, writeMode)
 

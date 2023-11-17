@@ -62,7 +62,7 @@ import           ParallelUtilities                 as PU
 import qualified Reconciliation.Adams              as A
 import           Types.Types
 import qualified Utilities.LocalGraph              as LG
---import           Debug.Trace
+import           Debug.Trace
 
 {-
 -- | turnOnOutZeroBit turns on the bit 'nleaves" signifying that
@@ -749,13 +749,15 @@ addUrRootAndEdges inGraph =
 -- | changeVertexEdgeLabels keeps or removes vertex and edge labels
 changeVertexEdgeLabels :: (Show b) => Bool -> Bool -> P.Gr String b -> P.Gr String String
 changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
+  --trace ("CVL: " <> (show (keepVertexLabel, keepEdgeLabel))) $
   let inLabNodes = G.labNodes inGraph
       degOutList = G.outdeg inGraph <$> G.nodes inGraph
       nodeOutList = zip  degOutList inLabNodes
       leafNodeList = snd <$> filter ((==0).fst) nodeOutList
       nonLeafNodeList = snd <$> filter ((>0).fst) nodeOutList
-      newNonLeafNodes = if keepVertexLabel then nonLeafNodeList
-                        else zip (fmap fst nonLeafNodeList) (replicate (length nonLeafNodeList) "")
+      newNonLeafNodes = if not keepVertexLabel then 
+                          zip (fmap fst nonLeafNodeList) (replicate (length nonLeafNodeList) "")
+                        else fmap checkMakeLabel nonLeafNodeList
       inLabEdges = G.labEdges inGraph
       inEdges = fmap G.toEdge inLabEdges
       newEdges = if keepEdgeLabel then fmap showLabel inLabEdges
@@ -764,6 +766,8 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
   -- trace ("CVEL " <> (show (keepVertexLabel, keepEdgeLabel )))
   G.mkGraph (leafNodeList <> newNonLeafNodes) newEdges
     where showLabel (e,u,l) = (e,u,show l)
+          checkMakeLabel (a,b) = if head b /= 'H' then (a, "HTU" <> show a)
+                                 else (a,b)
 
 -- | reconcile is the overall function to drive all methods
 reconcile :: (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) -> (String, P.Gr String String)
@@ -789,9 +793,9 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
         --
         adamsII = A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
         -- adamsIIInfo = "There are " <> show (length $ G.nodes adamsII) <> " nodes present in Adams II consensus"
-        adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
-        adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
-        adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] False False
+        adamsII' = changeVertexEdgeLabels vertexLabel edgeLabel adamsII
+        adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII
+        adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] True True
 
         --
         -- Create thresholdMajority rule Consensus and dot string
