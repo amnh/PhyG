@@ -1137,8 +1137,11 @@
 		The overall search will terminate only when all instances have completed.
 		
 		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. Wagner 
-		Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. This
-		sampling method is a heuristic for timed search decision making. The integer value \hl{...}
+		Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. This 
+		form of sampling uses machine learning techniques to guide the randomized option selection 
+		of the search \hl{Wheeler_submitted}. This
+		sampling method is a heuristic for timed search decision making. The integer value specifies
+		the memory value.
 				
 			\begin{description}
 			\item[exponential] Specifies that the Thompson memory is an exponential function of 
