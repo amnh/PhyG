@@ -1172,8 +1172,8 @@
 		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance (the default) 
 		for 10 hours and 30 minutes.}
 		
-		\item{\texttt{search(days:3, \hl{thompson}, linear, mfactor:5)}\\ This command will attempt
-		as many iterations of the randomized search strategy, employing Thompson sampling, 
+		\item{\texttt{search(days:3, thompson:3, linear, mfactor:5)}\\ This command will attempt
+		3 iterations of the randomized search strategy, employing Thompson sampling, 
 		with linear memory function and the mFactor value set to 5.}
 	\end{example}
 	
@@ -1185,9 +1185,9 @@
 		\texttt{select([argument list])}
 	
 	\begin{phygdescription}
-		{Specifies the method for choosing and number of graphs to be saved at any point during the 
-		analysis. When multiple graphs are present, the \texttt{select} command will specify 
-		which graphs are retained for subsequent analysis or reporting.}
+		{Specifies the method for choosing and number of graphs to be saved at any point 
+		during the analysis. When multiple graphs are present, the \texttt{select} command 
+		will specify which graphs are retained for subsequent analysis or reporting.}
 	\end{phygdescription}
 				
 	\subsubsection{Arguments}
