@@ -453,8 +453,16 @@ executeRenameReblockCommands thisInStruction curPairs commandList  =
                 newNameList = replicate (length $ tail firstArgs) newName
                 oldNameList = fmap (T.filter (/= '"') . T.pack) (fmap snd $ tail firstArgs)
                 newPairs = zip newNameList oldNameList
+                changeNamePairs = filter areDiff (curPairs <> newPairs)
+                newChangeNames = fmap fst changeNamePairs
+                origChangeNames = fmap snd changeNamePairs
+                intersectionChangeNames = L.intersect newChangeNames origChangeNames
             in
-            executeRenameReblockCommands thisInStruction (curPairs <> newPairs) (tail commandList)
+            if (not $ null intersectionChangeNames) then errorWithoutStackTrace ("Renaming of " <> (show intersectionChangeNames) <> " as both a new name and to be renamed")
+            else 
+                executeRenameReblockCommands thisInStruction (curPairs <> newPairs) (tail commandList)
+            where areDiff (a,b) = if a /= b then True
+                                  else False
 
 -- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
 -- nodes first then vertices

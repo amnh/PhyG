@@ -306,8 +306,14 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
                         namePairsLL <- mapM (makeNamePairs firstFile) renameLines
                         let namePairs = concat namePairsLL
-                        
-                        executeReadCommands' curData curGraphs curTerminals curExcludeList (namePairs <> curRenamePairs) curReBlockPairs isPrealigned' tcmPair (tail argList)
+                        let changeNamePairs = filter areDiff (namePairs <> curRenamePairs)
+                        let newChangeNames = fmap fst changeNamePairs
+                        let origChangeNames = fmap snd changeNamePairs
+                        let intersectionChangeNames = L.nub $ L.intersect newChangeNames origChangeNames
+
+                        if (not $ null intersectionChangeNames) then errorWithoutStackTrace ("Error: Renaming of " <> (show intersectionChangeNames) <> " as both a new name and to be renamed")
+                        else 
+                            executeReadCommands' curData curGraphs curTerminals curExcludeList (namePairs <> curRenamePairs) curReBlockPairs isPrealigned' tcmPair (tail argList)
                     else if firstOption == "block"  then do
                         let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
                         blockPairsLL <- mapM (makeNamePairs firstFile) renameLines
@@ -317,6 +323,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                     --else if firstOption == "prealigned" then
                     --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
                     else do failWithPhase Parsing ("\n\n'Read' command error: option " <> firstOption <> " not recognized/implemented")
+             where areDiff (a,b) = if a /= b then True
+                                   else False  
 
 -- | makeNamePairs takes lines of rename or reblock file and returns pairs of names
 -- for renaming or reblocking
