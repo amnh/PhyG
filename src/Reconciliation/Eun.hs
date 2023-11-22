@@ -43,9 +43,9 @@ module Reconciliation.Eun ( reconcile
                           where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Control.Parallel.Strategies
 import Data.BitVector    qualified                as BV
 import Data.Bits   qualified                      as B

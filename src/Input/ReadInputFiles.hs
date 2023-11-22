@@ -47,8 +47,8 @@ module Input.ReadInputFiles
 
 import Commands.Verify qualified as V
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Char
 import Data.Char qualified as C
 import Data.Foldable

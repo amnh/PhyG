@@ -10,9 +10,9 @@ import Commands.CommandExecution qualified as CE
 import Commands.ProcessCommands qualified as PC
 import Commands.Verify qualified as V
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity(..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Control.Monad.Random.Class
 import Data.CSV qualified as CSV
 import Data.Foldable (fold)

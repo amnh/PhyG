@@ -12,10 +12,10 @@ import Control.Concurrent.Timeout (timeout)
 import Control.DeepSeq
 import Control.Evaluation
 import Control.Exception
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (join, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.IO.Unlift
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Bifunctor (bimap)
 import Data.Char
 import Data.Functor (($>), (<&>))
@@ -23,7 +23,6 @@ import Data.Foldable
 import Data.List qualified as L
 import Data.List.Split qualified as LS
 import Data.Maybe
--- import qualified GraphOptimization.Traversals as T
 import Data.Vector qualified as V
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO

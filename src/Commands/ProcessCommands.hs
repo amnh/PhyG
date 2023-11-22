@@ -56,8 +56,8 @@ module Commands.ProcessCommands
 
 import Commands.Verify qualified as V
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Char
 import Data.Foldable
 import Data.List qualified as L

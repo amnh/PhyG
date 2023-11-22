@@ -17,13 +17,12 @@ module Search.Refinement  ( refineGraph
                           ) where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
-import Control.Monad.Logger (Logger(..), LogLevel(..))
 import GeneralUtilities
 import Data.Functor (($>))
 import Graphs.GraphOperations qualified as GO
 import Types.Types
--- import qualified Search.Swap as S
 import Commands.Verify qualified as VER
 import Data.Char
 import Data.Maybe
@@ -34,8 +33,6 @@ import Search.SwapMaster qualified as SM
 import System.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Utilities.Utilities as U
--- import Debug.Trace
--- import ParallelUtilities as PU
 
 
 -- | swapMaster moved to Search.SwapMaster due to very long (>20') compile times

@@ -43,15 +43,14 @@ Need to integerize costs for swapping very slow on Double values
 module Search.DistanceWagner (doWagnerS, performRefinement) where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
-import Control.Monad.Logger (LogLevel (..), Logger (..))
 import Control.Parallel.Strategies
 import Data.List qualified as L 
 import Data.Maybe
 import Data.Number.Transfinite qualified as NT
 import Data.Vector qualified as V
 import GeneralUtilities
--- import ParallelUtilities qualified as PU
 import SymMatrix qualified as M
 import System.ErrorPhase (ErrorPhase (..))
 import Types.DistanceTypes

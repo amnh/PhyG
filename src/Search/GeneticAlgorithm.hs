@@ -38,9 +38,9 @@ module Search.GeneticAlgorithm ( geneticAlgorithm
                                ) where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import Search.Fuse qualified as F

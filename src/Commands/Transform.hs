@@ -46,9 +46,9 @@ import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Commands.CommandUtilities qualified as CU
 import Commands.Verify qualified as VER
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Control.Parallel.Strategies
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV

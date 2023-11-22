@@ -41,9 +41,9 @@ module Search.Swap  ( swapSPRTBR
                     ) where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.List qualified as L
 import Data.Maybe
 import Data.Vector qualified as V

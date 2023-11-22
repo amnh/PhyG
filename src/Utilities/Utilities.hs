@@ -37,8 +37,8 @@ Portability :  portable (I hope)
 module Utilities.Utilities  where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special

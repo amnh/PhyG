@@ -40,9 +40,9 @@ module Search.WagnerBuild  ( wagnerTreeBuild
                      ) where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V

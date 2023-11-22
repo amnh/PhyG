@@ -59,9 +59,9 @@ module Input.TNTUtilities   ( getTNTDataText
                             ) where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.Char
 import Data.Char qualified as C

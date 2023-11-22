@@ -37,9 +37,9 @@ Portability :  portable (I hope)
 module Reconciliation.ReconcileGraphs  ( makeReconcileGraph
                                        ) where
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.List      qualified      as L
 import Data.Text.Lazy qualified      as T
 import GeneralUtilities

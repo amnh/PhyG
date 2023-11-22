@@ -41,19 +41,17 @@ I
 module Search.DistanceMethods (neighborJoining, wPGMA, doWagnerS, performWagnerRefinement) where
 
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
-import Control.Monad.Logger (LogLevel (..), Logger (..))
 import Data.Number.Transfinite     as NT
 import Data.Vector qualified as V
 import GeneralUtilities
--- import ParallelUtilities as PU
 import Search.DistanceWagner qualified as W
 import SymMatrix qualified as M
 import System.ErrorPhase (ErrorPhase (..))
 import Types.DistanceTypes
 import Types.Types
 import Utilities.DistanceUtilities
---import qualified LocalSequence as LS
 
 
 -- | wPGMA takes a list of leaves and a distance matrixx and returns

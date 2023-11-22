@@ -39,9 +39,9 @@ module Search.SwapMaster  ( swapMaster
 
 import Commands.Verify qualified as VER
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Char
 import Data.Maybe
 import GeneralUtilities

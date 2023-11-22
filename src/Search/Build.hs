@@ -11,8 +11,8 @@ module Search.Build (
 
 import Commands.Verify qualified as VER
 import Control.Evaluation
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
-import Control.Monad.Logger (LogLevel (..), Logger (..))
 import Data.Char
 import Data.Foldable (fold)
 import Data.Functor (($>))

@@ -9,7 +9,7 @@ module Utilities.Distances
   ) where
 
 import Control.Evaluation
-import Control.Monad.Logger (LogLevel (..), Logger (..))
+import Control.Evaluation.Verbosity (Verbosity (..))
 import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
@@ -17,7 +17,7 @@ import SymMatrix qualified as S
 import Types.Types
 import Data.List qualified as L
 import Utilities.Utilities qualified as U
--- import Debug.Trace
+
 
 {- |
 getPairwiseDistances takes Processed data
@@ -25,7 +25,6 @@ and retuns a matrix (list of lists of Double) of pairwise
 distances among vertices in data set over blocks ans all character types
 sums over blocks
 -}
-
 getPairwiseDistances :: ProcessedData ->  PhyG [[VertexCost]]
 getPairwiseDistances (nameVect, _, blockDataVect)
   | V.null nameVect = error "Null name vector in getPairwiseDistances"
