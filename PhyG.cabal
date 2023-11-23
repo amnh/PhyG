@@ -84,13 +84,16 @@ Flag Use-LLVM
 -- Global deviations from Haskell98
 Common ffi-build-info
 
-  If !os(darwin)
-    CC-Options:
-      -rdynamic --std=c11
+--  If !os(darwin)
+--    CC-Options:
+--      -rdynamic --std=c11
+--
+--  Else
+--    CC-Options:
+--      --std=c11
 
-  Else
-    CC-Options:
-      --std=c11
+  CC-Options:
+    --std=c11
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
@@ -217,6 +220,7 @@ Executable phyg
     -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
     -- -fno-polymorphic-specialisation
 
+--  Ghc-Prof-Options: 
 
   If flag(Use-LLVM)
     GHC-Options:
@@ -469,6 +473,7 @@ Library tcm
     binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
+    concurrent-extra,        >= 0.7.0     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
     hashable                 >= 1.3       && < 2.0,
     hashtables               >= 1.2       && < 2.0,
