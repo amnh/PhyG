@@ -337,17 +337,16 @@ Executable phyg
     Paths_PhyG
 
   Other-Modules:
-                CommandLineOptions
-                CommandLineOptions.Display
-                CommandLineOptions.Types
-                Commands.CommandExecution
-                Commands.CommandUtilities
-                Commands.ProcessCommands
-                Commands.Transform
-                Commands.Verify
-                Debug.Debug
-                GraphOptimization.Medians
-    -- GraphOptimization.PostOrderFunctions
+    CommandLineOptions
+    CommandLineOptions.Display
+    CommandLineOptions.Types
+    Commands.CommandExecution
+    Commands.CommandUtilities
+    Commands.ProcessCommands
+    Commands.Transform
+    Commands.Verify
+    Debug.Debug
+    GraphOptimization.Medians
     GraphOptimization.PostOrderSoftWiredFunctions
     GraphOptimization.PostOrderSoftWiredFunctionsNew
     GraphOptimization.PreOrderFunctions
@@ -386,13 +385,14 @@ Executable phyg
     System.Timing
     Types.DistanceTypes
     Types.Types
-    Utilities.Distances
     Utilities.DistanceUtilities
+    Utilities.Distances
     Utilities.LocalGraph
     Utilities.LocalSequence
     Utilities.TcmHash
     Utilities.ThreeWayFunctions
     Utilities.Utilities
+    -- GraphOptimization.PostOrderFunctions
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -473,7 +473,7 @@ Library tcm
     binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
-    concurrent-extra,        >= 0.7.0     && < 1.0,
+    concurrent-extra         >= 0.7.0     && < 1.0,
     deepseq                  >= 1.4       && < 2.0,
     hashable                 >= 1.3       && < 2.0,
     hashtables               >= 1.2       && < 2.0,
@@ -495,87 +495,6 @@ Library tcm
     Data.TCM.Dense.FFI
     Data.TCM.Internal
 
-  -- Includes: (Omitted)
-  --    costMatrix_2d.hpp
-  --    costMatrix_3d.hpp
-  --    costMatrixWrapper_2d.h
-  --    costMatrixWrapper_3d.h
-  --    costMatrixWrapper.h
-  --    dynamicCharacterOperations.h
-
-  -- Include-Dirs: (Omitted)
-  --    ffi/memoized-tcm
-
-
-
-
--- A binding to a C++ hashtable for thread-safe memoization.
-
--- This package is designed to provide a thread safe binding to a "pure"
--- memoization of two-way and three-way Sankoff character cost and median
--- computations.
-
---library tcm-memo
---
---  Import:
---    ffi-buildinfo,
-----    build-defaults,
---
---  default-language:
---    Haskell2010
---
---  HS-Source-Dirs:
---    lib/tcm-memo/src
---
---  cc-options:       --std=c11
---
---  cxx-options:      --std=c++14
---
---  -- This library is required for linking to the C++ standard template library.
---  If os(darwin)
---    extra-libraries:  c++
---  else
---    extra-libraries:  stdc++
---
---  HS-Source-Dirs:   lib/tcm-memo/ffi
---
---  c-sources:
---    ffi/memoized-tcm/costMatrixWrapper.c
---    ffi/memoized-tcm/dynamicCharacterOperations.c
---
---  cxx-sources:
---    ffi/memoized-tcm/costMatrix_2d.cpp
---    ffi/memoized-tcm/costMatrix_3d.cpp
---
---  -- Here we list all directories that contain C & C++ header files that the FFI
---  -- tools will need to locate when preprocessing the C files. Without listing
---  -- the directories containing the C header files here, the FFI preprocessor
---  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
---  -- that the parent directory of the nessicary C & C++ header files must be
---  -- specified. The preprocessor will not recursively look in subdirectories for
---  -- header files!
---  include-dirs:
---    ffi/memoized-tcm
---
---  Build-Depends:
---    exportable,
---    base                     >= 4.11      && < 5.0,
---    deepseq                  >= 1.4       && < 2.0,
---    QuickCheck               >= 2.14      && < 3.0,
---
---  Exposed-Modules:
---    Data.TCM.Memoized
---    Data.TCM.Memoized.Types
---    Data.TCM.Memoized.FFI
---
---  Other-Modules:
---  --  Data.TCM.Memoized.FFI
-
-
--- Collection of utility functions and data structures
-
--- Defines custom data structures for special use cases, more abstract functions
--- that base provides, and re-exported correcting to deficient libraries.
 
 Library utility
 

@@ -37,8 +37,8 @@ Portability :  portable (I hope)
 
 module Utilities.DistanceUtilities where
 
-import Control.Evaluation
-import Control.Evaluation.Verbosity (Verbosity (..))
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Graph.Inductive.Graph qualified as G
 import Data.Graph.Inductive.PatriciaTree qualified as P

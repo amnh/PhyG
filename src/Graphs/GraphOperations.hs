@@ -53,8 +53,8 @@ module Graphs.GraphOperations
   ) where
 
 import Bio.DynamicCharacter
-import Control.Evaluation
-import Control.Evaluation.Verbosity (Verbosity (..))
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Commands.Verify qualified as V
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits

@@ -16,8 +16,8 @@ module GraphOptimization.PreOrderFunctions
   ) where
 
 import Bio.DynamicCharacter
-import Control.Evaluation
-import Control.Evaluation.Verbosity (Verbosity (..))
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
