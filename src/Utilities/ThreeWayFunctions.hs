@@ -4,8 +4,10 @@ ToDo:
 -}
 
 {- |
-Module specifying three way optimization functions for use in pre-order
+Module specifying three way optimization functions for use in pre-order of
+HardWired graphs and iterative pass-type optimization for Trees
 -}
+
 module Utilities.ThreeWayFunctions (
     threeMedianFinal,
     addGapsToChildren,
@@ -18,14 +20,10 @@ import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.List qualified as L
--- import Data.MetricRepresentation qualified as MR
--- import Data.TCM.Dense qualified as TCMD
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
-import Data.Word
-import Foreign.C.Types (CUInt)
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Input.BitPack qualified as BP
@@ -35,14 +33,15 @@ import SymMatrix qualified as S
 import Types.Types
 
 
-{- | threeMedianFinal calculates a 3-median for data types in a single character
+{- |
+'threeMedianFinal' calculates a 3-median for data types in a single character
 for dynamic characters this is done by 3 min-trees
 taking best result.  Later true 3-way via ffi can be incorporated
 first type of operation two parents and current node-- since prelim
 has (left child preliminary, node preliminary, right child preliminary)
 that information can be used if needed
 since assumes in 2 out 1 only the node preliminary field is used
-need to remove naked gaps from medians for dynamic characters --hence the extract medians call
+need to remove naked gaps from medians for dynamic characters --hence the extract medians call.
 -}
 threeMedianFinal ∷ CharInfo → CharacterData → CharacterData → CharacterData → CharacterData
 threeMedianFinal charInfo parent1 parent2 curNode =
@@ -195,59 +194,76 @@ getMinStatePair
     → V.Vector StateCost
     → V.Vector (StateCost, [ChildStateIndex], [ChildStateIndex])
 getMinStatePair inCostMatrix maxCost numStates p1CostV p2CostV curCostV =
-    let -- get costs to parents-- will assume parent costs are 0 or max
-        bestMedianP1Cost = fmap (getBestPairCost inCostMatrix maxCost numStates p1CostV) [0 .. (numStates - 1)]
-        bestMedianP2Cost = fmap (getBestPairCost inCostMatrix maxCost numStates p2CostV) [0 .. (numStates - 1)]
+    let f :: Num a => a -> a -> a -> a
+        f a b c = a + b + c
+
+        getBestPairCost' :: V.Vector StateCost -> Int -> StateCost
+        getBestPairCost' = getBestPairCost inCostMatrix maxCost numStates
+
+        range = [ 0 .. numStates - 1 ]
+
+        -- get costs to parents-- will assume parent costs are 0 or max
+        bestMedianP1Cost = getBestPairCost' p1CostV <$> range
+        bestMedianP2Cost = getBestPairCost' p2CostV <$> range
+
+--        bestMedianP1Cost = getBestPairCost inCostMatrix maxCost numStates  p1CostV <$> range
+--        bestMedianP2Cost = getBestPairCost inCostMatrix maxCost numStates  p2CostV <$> range
 
         -- get costs to single child via preliminary states
-        medianChildCostPairVect = fmap (getBestPairCostAndState inCostMatrix maxCost numStates curCostV) [0 .. (numStates - 1)]
+        medianChildCostPairVect = getBestPairCostAndState inCostMatrix maxCost numStates curCostV <$> range
 
         -- get 3 sum costs and best state value
-        threeWayStateCostList = zipWith3 f bestMedianP1Cost bestMedianP2Cost (fmap fst medianChildCostPairVect)
+        threeWayStateCostList = zipWith3 f bestMedianP1Cost bestMedianP2Cost $ fst <$> medianChildCostPairVect
+
         minThreeWayCost = minimum threeWayStateCostList
 
         finalStateCostL = zipWith (assignBestMax minThreeWayCost maxCost) threeWayStateCostList medianChildCostPairVect
+
     in  V.fromList finalStateCostL
-    where
-        f a b c = a + b + c
 
 
-{- | assignBestMax checks 3-way median state cost and if minimum sets to that otherwise sets to max
+
+{- |
+'assignBestMax' checks 3-way median state cost and if minimum sets to that otherwise sets to max
 double 2nd field for 2-child type asumption
 -}
-assignBestMax
-    ∷ StateCost → StateCost → StateCost → (StateCost, [ChildStateIndex]) → (StateCost, [ChildStateIndex], [ChildStateIndex])
-assignBestMax minCost maxCost stateCost (_, stateChildList) =
-    if stateCost == minCost
-        then (minCost, stateChildList, stateChildList)
-        else (maxCost, stateChildList, stateChildList)
+assignBestMax :: StateCost -> StateCost -> StateCost -> (StateCost, [ChildStateIndex]) -> (StateCost, [ChildStateIndex], [ChildStateIndex])
+assignBestMax minCost maxCost stateCost (_, stateChildList)
+    | stateCost == minCost = (minCost, stateChildList, stateChildList)
+    | otherwise =  (maxCost, stateChildList, stateChildList)
 
 
--- | getBestPairCost gets the baest cost for a state to each of parent states--does not keep parent state
-getBestPairCost ∷ S.Matrix Int → StateCost → Int → V.Vector StateCost → Int → StateCost
+
+{- |
+getBestPairCost gets the baest cost for a state to each of parent states--does not keep parent state
+-}
+getBestPairCost :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> Int -> StateCost
 getBestPairCost inCostMatrix maxCost numStates parentStateCostV medianStateIndex =
-    let stateCost = V.minimum $ V.zipWith (g inCostMatrix maxCost medianStateIndex) parentStateCostV (V.fromList [0 .. (numStates - 1)])
-    in  stateCost
-    where
-        g cM mC mS pC pS =
-            if pC == mC
-                then mC
-                else cM S.! (mS, pS)
+    let stateIndices = V.fromList [ 0 .. numStates - 1 ]
+
+        g :: Eq a => S.Matrix a -> a -> Int -> a -> Int -> a
+        g cM mC mS pC pS
+            | pC == mC = mC
+            | otherwise = cM S.! (mS, pS)
+
+    in   V.minimum $ V.zipWith (g inCostMatrix maxCost medianStateIndex) parentStateCostV stateIndices
 
 
--- | getBestPairCostAndState gets best pair of median state and chikd states based on preliminarr states of node
-getBestPairCostAndState ∷ S.Matrix Int → StateCost → Int → V.Vector StateCost → Int → (StateCost, [ChildStateIndex])
+{- |
+getBestPairCostAndState gets best pair of median state and chikd states based on preliminarr states of node
+-}
+getBestPairCostAndState :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> Int -> (StateCost, [ChildStateIndex])
 getBestPairCostAndState inCostMatrix maxCost numStates childStateCostV medianStateIndex =
-    let statecostV = V.zipWith (g inCostMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0 .. (numStates - 1)])
+    let g :: Eq a => S.Matrix a -> a -> Int -> a -> Int -> (a, Int)
+        g cM mC mS pC pS
+            | pC == mC = (mC, pS)
+            | otherwise = (cM S.! (mS, pS), pS)
+
+        statecostV = V.zipWith (g inCostMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0..(numStates - 1)])
         minStateCost = V.minimum $ fmap fst statecostV
         bestPairs = V.filter ((== minStateCost) . fst) statecostV
         bestChildStates = V.toList $ fmap snd bestPairs
     in  (minStateCost, L.sort bestChildStates)
-    where
-        g cM mC mS pC pS =
-            if pC == mC
-                then (mC, pS)
-                else (cM S.! (mS, pS), pS)
 
 
 {- | threeWaySlim take charInfo, 2 parents, and curNOde and creates 3 median via

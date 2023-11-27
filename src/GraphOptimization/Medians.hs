@@ -1158,7 +1158,6 @@ getPreAligned2MedianUnionFields charInfo nodeChar leftChar rightChar =
 -- | makeIAUnionPrelimLeaf makes union and sets for leaf characters--leaves alignment fields unchanged
 makeIAUnionPrelimLeaf ∷ CharInfo → CharacterData → CharacterData
 makeIAUnionPrelimLeaf charInfo nodeChar =
-    -- traceNoLF ("In makeIAUnionPrelimLeaf") (
     let characterType = charType charInfo
     in  if characterType == NonAdd
             then
@@ -1229,20 +1228,14 @@ makeIAUnionPrelimLeaf charInfo nodeChar =
                                                                                     else error ("Unrecognized character type " <> show characterType)
 
 
--- )
-
 {- | unionBVOrMissing returns leaf algnment state, if all '-' converts to missing characters
  so BV unions and IAFinal get a zero cost as opposed to checking against all '-' seqquence
 -}
-unionBVOrMissing ∷ (FiniteBits e, GV.Vector v e) ⇒ v e → Int → (v e, v e, v e) → v e
-unionBVOrMissing prelimState alphSize nodeGapped =
-    if not $ GV.null prelimState
-        then
-            if GV.null $ extractMediansSingle prelimState
-                then -- trace ("MIAUPL: " <> (show $ convertIfAllGapsToAllBitsOn (length $ alphabet charInfo) prelimState))
-                    convertAllGapsToAllBitsOn alphSize prelimState
-                else prelimState
-        else extractMedians nodeGapped
+unionBVOrMissing ∷ (FiniteBits e, GV.Vector v e) ⇒ v e → Int → OpenDynamicCharacter v e → v e
+unionBVOrMissing prelimState alphSize nodeGapped
+    | GV.null prelimState = extractMedians nodeGapped
+    | GV.null $ extractMediansSingle prelimState = convertAllGapsToAllBitsOn alphSize prelimState
+    | otherwise = prelimState
 
 
 {- | convertAllGapsToAllBitsOn takes a single fields of a dynamic character and
@@ -1310,111 +1303,98 @@ modifies both IA and union fields
 union fields are unions of parent states (aligned, or IA, or static)
 -}
 makeIAPrelimCharacter ∷ CharInfo → CharacterData → CharacterData → CharacterData → CharacterData
-makeIAPrelimCharacter charInfo nodeChar leftChar rightChar =
-    -- traceNoLF ("In makeIAPrelimCharacter") (
-    let characterType = charType charInfo
-    in  if characterType == NonAdd
-            then
-                let leftState = stateBVUnion leftChar
-                    rightState = stateBVUnion rightChar
-                    unionState = V.zipWith (.|.) leftState rightState
-                in  nodeChar{stateBVUnion = unionState}
-            else
-                if characterType == Add
-                    then
-                        let prelimState =
-                                V.zipWith4
-                                    getUnionRange
-                                    (V.map fst $ rangeUnion leftChar)
-                                    (V.map snd $ rangeUnion leftChar)
-                                    (V.map fst $ rangeUnion rightChar)
-                                    (V.map snd $ rangeUnion rightChar)
-                        in  nodeChar{rangeUnion = prelimState}
-                    else
-                        if characterType == Matrix
-                            then
-                                let numStates = length $ costMatrix charInfo
-                                    newMatrixVector = getUnionVector (costMatrix charInfo) numStates <$> V.zip (matrixStatesUnion leftChar) (matrixStatesUnion rightChar)
-                                in  nodeChar{matrixStatesUnion = newMatrixVector}
-                            else
-                                if characterType == AlignedSlim
-                                    then
-                                        let prelimState = GV.zipWith (.|.) (alignedSlimUnion leftChar) (alignedSlimUnion rightChar)
-                                        in  nodeChar{alignedSlimUnion = prelimState}
-                                    else
-                                        if characterType == AlignedWide
-                                            then
-                                                let prelimState = GV.zipWith (.|.) (alignedWideUnion leftChar) (alignedWideUnion rightChar)
-                                                in  nodeChar{alignedWideUnion = prelimState}
-                                            else
-                                                if characterType == AlignedHuge
-                                                    then
-                                                        let prelimState = GV.zipWith (.|.) (alignedHugeUnion leftChar) (alignedHugeUnion rightChar)
-                                                        in  nodeChar{alignedHugeUnion = prelimState}
-                                                    else
-                                                        if characterType `elem` [Packed2, Packed4, Packed5, Packed8, Packed64]
-                                                            then
-                                                                let prelimState = GV.zipWith (.|.) (packedNonAddUnion leftChar) (packedNonAddUnion leftChar)
-                                                                in  nodeChar{packedNonAddUnion = prelimState}
-                                                            else
-                                                                if characterType `elem` [SlimSeq, NucSeq]
-                                                                    then
-                                                                        let (prelimChar, cost) = get2WaySlim (slimTCM charInfo) (extractMediansGapped $ slimIAPrelim leftChar) (extractMediansGapped $ slimIAPrelim rightChar)
-                                                                        in  -- trace ("MPC: " <> (show prelimChar) <> "\nleft: " <> (show $ extractMediansGapped $ slimIAPrelim leftChar) <> "\nright: " <> (show $ extractMediansGapped $ slimIAPrelim rightChar))
-                                                                            -- trace ("MIAUP-C: " <> (show $ GV.length $ GV.zipWith (.|.) (slimIAUnion leftChar) (slimIAUnion rightChar)))
-
-                                                                            -- the check for all missing basically creates an intersection result so all missing isn't porpagated post-order
-                                                                            nodeChar
-                                                                                { slimIAPrelim =
-                                                                                    ( extractMediansGapped $ slimIAPrelim leftChar
-                                                                                    , prelimChar
-                                                                                    , extractMediansGapped $ slimIAPrelim rightChar
-                                                                                    )
-                                                                                , slimIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (slimIAUnion leftChar) (slimIAUnion rightChar)
-                                                                                , localCost =
-                                                                                    if GV.null (slimIAUnion leftChar) || GV.null (slimIAUnion rightChar)
-                                                                                        then 0
-                                                                                        else weight charInfo * fromIntegral cost
-                                                                                , globalCost = sum [weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
-                                                                                }
-                                                                    else
-                                                                        if characterType `elem` [WideSeq, AminoSeq]
-                                                                            then
-                                                                                let (prelimChar, minCost) =
-                                                                                        get2WayWideHuge
-                                                                                            (wideTCM charInfo)
-                                                                                            (extractMediansGapped $ wideIAPrelim leftChar)
-                                                                                            (extractMediansGapped $ wideIAPrelim rightChar)
-                                                                                in  nodeChar
-                                                                                        { wideIAPrelim =
-                                                                                            ( extractMediansGapped $ wideIAPrelim leftChar
-                                                                                            , prelimChar
-                                                                                            , extractMediansGapped $ wideIAPrelim rightChar
-                                                                                            )
-                                                                                        , wideIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (wideIAUnion leftChar) (wideIAUnion rightChar)
-                                                                                        , localCost = weight charInfo * fromIntegral minCost
-                                                                                        , globalCost = sum [weight charInfo * fromIntegral minCost, globalCost leftChar, globalCost rightChar]
-                                                                                        }
-                                                                            else
-                                                                                if characterType == HugeSeq
-                                                                                    then
-                                                                                        let (prelimChar, minCost) =
-                                                                                                get2WayWideHuge
-                                                                                                    (hugeTCM charInfo)
-                                                                                                    (extractMediansGapped $ hugeIAPrelim leftChar)
-                                                                                                    (extractMediansGapped $ hugeIAPrelim rightChar)
-                                                                                        in  nodeChar
-                                                                                                { hugeIAPrelim =
-                                                                                                    ( extractMediansGapped $ hugeIAPrelim leftChar
-                                                                                                    , prelimChar
-                                                                                                    , extractMediansGapped $ hugeIAPrelim rightChar
-                                                                                                    )
-                                                                                                , hugeIAUnion = orBVOrMissingIntersection (length $ alphabet charInfo) (hugeIAUnion leftChar) (hugeIAUnion rightChar)
-                                                                                                , localCost = weight charInfo * fromIntegral minCost
-                                                                                                , globalCost = sum [weight charInfo * fromIntegral minCost, globalCost leftChar, globalCost rightChar]
-                                                                                                }
-                                                                                    else nodeChar -- error ("Unrecognized character type " <> show characterType)
-                                                                                    -- )
+makeIAPrelimCharacter charInfo nodeChar leftChar rightChar = case charType charInfo of
+    NonAdd →
+        let leftState = stateBVUnion leftChar
+            rightState = stateBVUnion rightChar
+            unionState = V.zipWith (.|.) leftState rightState
+        in  nodeChar{stateBVUnion = unionState}
+    Add →
+        let prelimState =
+                V.zipWith4
+                    getUnionRange
+                    (V.map fst $ rangeUnion leftChar)
+                    (V.map snd $ rangeUnion leftChar)
+                    (V.map fst $ rangeUnion rightChar)
+                    (V.map snd $ rangeUnion rightChar)
+        in  nodeChar{rangeUnion = prelimState}
+    Matrix →
+        let numStates = length $ costMatrix charInfo
+            newMatrixVector = getUnionVector (costMatrix charInfo) numStates <$> V.zip (matrixStatesUnion leftChar) (matrixStatesUnion rightChar)
+        in  nodeChar{matrixStatesUnion = newMatrixVector}
+    AlignedSlim →
+        let prelimState = GV.zipWith (.|.) (alignedSlimUnion leftChar) (alignedSlimUnion rightChar)
+        in  nodeChar{alignedSlimUnion = prelimState}
+    AlignedWide →
+        let prelimState = GV.zipWith (.|.) (alignedWideUnion leftChar) (alignedWideUnion rightChar)
+        in  nodeChar{alignedWideUnion = prelimState}
+    AlignedHuge →
+        let prelimState = GV.zipWith (.|.) (alignedHugeUnion leftChar) (alignedHugeUnion rightChar)
+        in  nodeChar{alignedHugeUnion = prelimState}
+    ct
+        | ct `elem` [Packed2, Packed4, Packed5, Packed8, Packed64] →
+            let prelimState = GV.zipWith (.|.) (packedNonAddUnion leftChar) (packedNonAddUnion leftChar)
+            in  nodeChar{packedNonAddUnion = prelimState}
+    ct
+        | ct `elem` [SlimSeq, NucSeq] →
+            let (prelimChar, cost) =
+                    get2WaySlim
+                        (slimTCM charInfo)
+                        (extractMediansGapped $ slimIAPrelim leftChar)
+                        (extractMediansGapped $ slimIAPrelim rightChar)
+                dimension = length $ alphabet charInfo
+                unionVals = orBVOrMissingIntersection dimension (slimIAUnion leftChar) (slimIAUnion rightChar)
+                localVals
+                    | GV.null (slimIAUnion leftChar) || GV.null (slimIAUnion rightChar) = 0
+                    | otherwise = weight charInfo * fromIntegral cost
+            in  nodeChar
+                    { slimIAPrelim =
+                        ( extractMediansGapped $ slimIAPrelim leftChar
+                        , prelimChar
+                        , extractMediansGapped $ slimIAPrelim rightChar
+                        )
+                    , slimIAUnion = unionVals
+                    , localCost = localVals
+                    , globalCost = sum [weight charInfo * fromIntegral cost, globalCost leftChar, globalCost rightChar]
+                    }
+    ct
+        | ct `elem` [WideSeq, AminoSeq] →
+            let (prelimChar, minCost) =
+                    get2WayWideHuge
+                        (wideTCM charInfo)
+                        (extractMediansGapped $ wideIAPrelim leftChar)
+                        (extractMediansGapped $ wideIAPrelim rightChar)
+                dimension = length $ alphabet charInfo
+                unionVals = orBVOrMissingIntersection dimension (wideIAUnion leftChar) (wideIAUnion rightChar)
+            in  nodeChar
+                    { wideIAPrelim =
+                        ( extractMediansGapped $ wideIAPrelim leftChar
+                        , prelimChar
+                        , extractMediansGapped $ wideIAPrelim rightChar
+                        )
+                    , wideIAUnion = unionVals
+                    , localCost = weight charInfo * fromIntegral minCost
+                    , globalCost = sum [weight charInfo * fromIntegral minCost, globalCost leftChar, globalCost rightChar]
+                    }
+    HugeSeq →
+        let (prelimChar, minCost) =
+                get2WayWideHuge
+                    (hugeTCM charInfo)
+                    (extractMediansGapped $ hugeIAPrelim leftChar)
+                    (extractMediansGapped $ hugeIAPrelim rightChar)
+            dimension = length $ alphabet charInfo
+            unionVals = orBVOrMissingIntersection dimension (hugeIAUnion leftChar) (hugeIAUnion rightChar)
+        in  nodeChar
+                { hugeIAPrelim =
+                    ( extractMediansGapped $ hugeIAPrelim leftChar
+                    , prelimChar
+                    , extractMediansGapped $ hugeIAPrelim rightChar
+                    )
+                , hugeIAUnion = unionVals
+                , localCost = weight charInfo * fromIntegral minCost
+                , globalCost = sum [weight charInfo * fromIntegral minCost, globalCost leftChar, globalCost rightChar]
+                }
+    _ → nodeChar
 
 
 -- | orBVOrMissingIntersection takes two uninBV seqs and returns union or intersectino if one/both missing

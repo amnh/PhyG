@@ -30,7 +30,7 @@
 \usepackage{lipsum}
 %\usepackage[most]{tcolorbox}
 
-\setlength\itemindent{1cm}
+\setlength\itemindent{0.25cm}
 
 \newcommand{\phyg}{\texttt{PhyG} }
 \newcommand{\atsymbol}{@}
@@ -49,10 +49,11 @@
 	\newpage
 
 	 \begin{center}
-		\includegraphics[width=\textwidth]{AMNHLogo.pdf}
+		\includegraphics[width=0.75\textwidth]{AMNHLogo.PDF}
 	\end{center}
 
-	\vspace*{2.50cm}	
+	\vspace*{2.50cm}
+		
 	\begin{flushleft}
 		\textbf {Program and Documentation} \\ Ward C. Wheeler \\
 		\vspace*{0.50cm}
@@ -61,6 +62,7 @@
 		\textbf{Documentation} \\ Louise M. Crowley
 	\end{flushleft}
 	
+
 	\vspace*{2.50cm}
 	
 	\begin{flushleft}
@@ -72,11 +74,7 @@
 		The American Museum of Natural History\\
 		\copyright 2023 by The American Museum of Natural History, \\
 		All rights reserved. Published 2023.
-		
-		%	\vspace*{0.25cm}
-		%	\emph{W. C. Wheeler.} 2022. \texttt{PHYG} 1..0. New York, 
-		%	American Museum of Natural History. Documentation by W.C. Wheeler and L. M. Crowley. 
-		%	
+			
 		\vspace*{0.25cm}
 		
 		Available online at \url{https://github.com/amnh/PhyGraph}
@@ -96,11 +94,11 @@
 	\citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015}, containing much of its 
 	functionality, including the optimization of \textit{unaligned} sequences, and the ability to implement 
 	search strategies such as random addition sequence, swapping, and tree fusing. As in {\textbf{POY}, 
-	\phyg can generate outputs in the form of implied alignments and graphical representations of 
-	cladograms and graphs. What sets \phyg apart from {\textbf{POY}, and other phylogenetic 
-	analysis programs, is the extension to broader classes of input data and phylogenetic graphs. 
-	The phylogenetic graph inputs and outputs of \texttt{PhyG} include trees, as well as softwired 
-	and hardwired networks.
+	\phyg produces heuristic tree-alignment, and can generate outputs in the form of implied alignments 
+	and graphical representations of cladograms and graphs. What sets \phyg apart from {\textbf{POY}, 
+	and other phylogenetic analysis programs, is the extension to broader classes of input data and 
+	phylogenetic graphs. The phylogenetic graph inputs and outputs of \texttt{PhyG} include trees, as 
+	well as softwired and hardwired networks.
 		
 	This is the initial version of documentation for the program.
 
@@ -127,9 +125,10 @@
 
 	\subsubsection{Installing from the binaries}
 		Download the \phyg binary from the \href{https://github.com/amnh/PhyGraph}{GitHub} 
-		website. Binaries are available for macOS computers with either Intel or M1 processors, 
+		website. Binaries are available for MacOS computers with either Intel or M1 processors, 
 		and Linux machines (see information relating to Windows machines below).
-		The user can go directly to the website and click on the appropriate link 
+		The user can go directly to the website, navigate to 
+		\href{https://github.com/amnh/PhyGraph/releases}{Releases} and click on the appropriate link 
 		for the binary. On most systems this will download to either your Desktop or Downloads folder. \\
 		
 		Alternatively, open a \textit{Terminal} window (located in your Applications folder) and type 
@@ -169,13 +168,13 @@
 		a command-line program for downloading and building software written in Haskell (GHC).  
 		Information on its installation can be found  
 		\href{https://www.schoolofhaskell.com/user/simonmichael/how-to-cabal-install}{here}.
-		To compile an optimized version of \texttt{PhyG}, open a \textit{Terminal} and run the 
-		following:
-		
-		\begin{quote}
-		%cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
-		cabal build PhyGraph:phyg --flags=super-optimization
-		\end{quote}
+		The `README.md' file on the GitHub website provides instructions for compiling an 
+		optimized version of \texttt{PhyG}.
+				
+%		\begin{quote}
+%		%cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
+%		\hl{cabal build PhyGraph:phyg --flags=super-optimization}
+%		\end{quote}
 		
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %OVERVIEW OF THE PROGRAM
@@ -237,10 +236,10 @@
 	
 	\subsection{Execution in Parallel}
 	\label{subsec:parallel}
-		\phyg is a multi-threading application and will, by default,  use all available physical (not hyperthreaded) cores. Should 
-		the user wish to limit or specify the number of processors used by \phyg this can be achieved 
+		\phyg is a multi-threading application and will, by default,  use all available physical (not hyperthreaded) 
+		cores. Should the user wish to limit or specify the number of processors used by \phyg this can be achieved 
 		by including the options `\textbf{+RTS -NX -RTS}', where `\textbf{X}' is the number of processing cores 
-		offered cd to the program, when executing the script. Should the user wish to use a single processor, 
+		offered to the program, when executing the script. Should the user wish to use a single processor, 
 		this can be specified by typing:
 
 		\begin{quote}
@@ -260,7 +259,7 @@
 \section{Input Data Formats} 
 	\phyg can analyze a number of different data types, including qualitative, nucleotide
 	and other sequences  
-	(aligned and unaligned), in TNT, fasta, and fastc formats. Any character names in 
+	(aligned and unaligned), in TNT, FASTA, and FASTC formats. Any character names in 
 	input files are (for now) ignored and internal names are created by appending 
 	the character number in its file to the filename as in ``\textbf{fileName:0}''. 
 	Qualitative data, and prealigned data include their indices within input files and 
@@ -283,8 +282,8 @@
 		\ref{fasta-c}).
 		
 	\subsection{fastc}
-		Fastc is a file format for multi-character sequence input \citep{WheelerandWashburn2019}.
-		This format is derived from the fasta format and the custom alphabet format of 
+		FASTC is a file format for multi-character sequence input \citep{WheelerandWashburn2019}.
+		This format is derived from the FASTA format and the custom alphabet format of 
 		 \href{https://github.com/wardwheeler/POY5}{\textbf{POY}} \citep{POY4,POY5}. 
 		 Multi-character sequence elements are useful for the analysis of data types such 
 		 as developmental, gene synteny, and comparative linguistic data (see Figure 
@@ -292,11 +291,11 @@
 		 
 		\begin{figure}[H]
 		\centering
-		\includegraphics[width=0.48\textwidth]{fasta.png}
-		\includegraphics[width=0.48\textwidth]{fastc.png}
-		\caption{Fasta and Fastc file formats. The file ``\textbf{chel\_cox1aln1.fasta}'' 
-		represents a fasta file with a greater than sign (`>') preceding taxon names and nucleotide  
-		sequence data following on a new line. The file ``\textbf{woman.fastc}'' is a fastc 
+		\includegraphics[width=0.49\textwidth]{fasta.png}
+		\includegraphics[width=0.49\textwidth]{fastc.png}
+		\caption{FASTA and FASTC file formats. The file ``\textbf{chel\_cox1aln1.fasta}'' 
+		represents a FASTA file with a greater than sign (`>') preceding taxon names and nucleotide  
+		sequence data following on a new line. The file ``\textbf{woman.fastc}'' is a FASTC 
 		file, with a greater than sign (`>') preceding taxon names and the linguistic data following 
 		on a new line.}
 		\label{fasta-c}
@@ -309,7 +308,7 @@
 		parse all of the basic character settings including activation/deactivation of 
 		characters, making characters additive/non-additive, applying weight to characters, 
 		step-matrix costs, interleaved data files and continuous characters (see the 
-		argument \texttt{tnt} in \ref{subsec:read}). Continuous characters can only be 
+		argument \texttt{tnt} in Section \ref{subsec:read}). Continuous characters can only be 
 		in the format of integers or floats. Moreover, they must be declared as ``additive'', 
 		otherwise, they will be treated as non-additive character states (see 
 		\href{http://phylo.wikidot.com/tnt-htm}{\textbf{TNT}}).
@@ -322,9 +321,9 @@
 		hyphen, as in [X-Y].
 
 \section{Input Graph Formats}
-	Graphs can be input in a number of formats, including newick, enhanced newick and 
-	dot. Newick tree file format is the parenthetical representation of trees as interpreted 
-	by Olsen (linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
+	Graphs can be input in a number of formats, including Newick, Enhanced Newick (eNewick)
+	and GraphViz ``dot''. Newick tree file format is the parenthetical representation of trees as 
+	interpreted by Olsen (linked \href{https://evolution.genetics.washington.edu/phylip/newick_doc.html}
 	{here}). Enhanced Newick \cite{Cardonaetal2008} is an extension of Newick file 
 	format, with the addition of tags (`\#') that indicate hybrid zones or reticulation events
 	in the phylogenetic network. \href{https://graphviz.org/}{Dot} is a graph description 
@@ -338,25 +337,25 @@
 	\begin{figure}%[H]
 	\centering
 	\includegraphics[width=\textwidth]{enewick.png}
-	\caption{The file \textbf{``flu\_net1.tre''} in Enhanced Newick (ENewick) graph format. The 
+	\caption{The file \textbf{``flu\_net1.tre''} in Enhanced Newick (eNewick) graph format. The 
 	values associated with the taxon names and HTUs are branch lengths. The cost of the 
 	graph(s) can be found in square brackets at the end of each graph. A semi-colon follows
-	the cost of each graph as a comment.}
+	the cost of each graph.}
 	\label{enewick}
 	\end{figure}
 	
 \section{Output Graph Formats}
 \label{sec:outputgraphs}
-	Graph outputs can be in either newick, enewick, dot, and depending on the 
+	Graph outputs can be in either Newick, eNewick, dot, and depending on the 
 	operating system, eps or pdf formats. Newick tree files can be viewed in other 
-	programs like \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree} or 	
+	programs such as \href{http://tree.bio.ed.ac.uk/software/figtree/}{FigTree} or 	
 	\href{http:/https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/algorithms-in-bioinformatics/software/}{Dendroscope}. 
-	Enewick files can only be viewed in a text editor. \phyg can output a dot file, 
+	eNewick files can only be viewed in a text editor. \phyg can output a dot file, 
 	along with an eps (on macOS) or pdf (on linux) file that can be viewed in a vector 
 	graphics program. The dot file can be viewed (and modified) in \textit{Graphviz}. 
 	Note: in order to output pdf files the application \textit{dot} must be installed from 
 	the \href{https://graphviz.org/download/}{Graphviz} website. Graphviz an open-source
-	graph visualization software. \\	
+	graph visualization software.\\	
 	
 	\noindent PDFs can also be generated directly from dot files. In a \textit{Terminal}, 
 	type the following: 
@@ -373,7 +372,7 @@
 	dot -Tpdf -O myDotFile.dot
 	\end{quote}
 		
-	\noindent In macOS the `pdf' option does not currently seem to work. In this case, 
+	\noindent In MacOS the `pdf' option does not currently seem to work. In this case, 
 	type the following:
 
 	\begin{quote}
@@ -554,7 +553,7 @@
 	
 	%\newpage
 	%\bibliography{big-refs-3.bib}
-	\bibliography{/Users/louise/DropboxAMNH/big-refs-3.bib}
-	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/Users/louise/DropboxAMNH/big-refs-3.bib}
+	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
 	%\bibliography{/users/ward/Dropbox/work_stuff/manus/big-refs-3.bib}
  \end{document}

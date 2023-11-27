@@ -49,6 +49,8 @@ module Input.BitPack
 
 import Bio.DynamicCharacter 
 import Bio.DynamicCharacter.Element (SlimState, WideState)
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.List qualified as L
@@ -58,11 +60,11 @@ import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Unboxed qualified as UV
 import Data.Word
-import Debug.Trace
 import GeneralUtilities
-import ParallelUtilities qualified as PU
 import Types.Types
 import Utilities.Utilities qualified as U
+-- import ParallelUtilities qualified as PU
+-- import Debug.Trace
 
 
 {-
@@ -1535,34 +1537,43 @@ based on their number of states
 -- | packData takes input data and creates a variety of bit-packed data types
 -- to increase efficiency and reduce footprint of non-additive characters
 -- that are encoded as bitvectors
-packNonAdditiveData :: GlobalSettings -> ProcessedData -> ProcessedData
-packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
+packNonAdditiveData :: GlobalSettings -> ProcessedData -> PhyG ProcessedData
+packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) = 
     -- need to check if this blowws out memory on big data sets (e.g. genomic)
-    let -- newBlockDataList = fmap (recodeNonAddCharacters inGS) (V.toList blockDataVect) -- parallel could be an option to save memory etc
-        newBlockDataList = PU.seqParMap (parStrategy $ strictParStrat inGS) (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
-    in
-    (nameVect, bvNameVect, V.fromList newBlockDataList)
+    let -- parallel setup
+        action ::  BlockData -> PhyG BlockData
+        action = recodeNonAddCharacters inGS
+    in do
+        pTraverse <- getParallelChunkTraverse
+        newBlockDataList <- pTraverse action (V.toList blockDataVect)
+          --PU.seqParMap (parStrategy $ strictParStrat inGS) (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
+    
+        pure (nameVect, bvNameVect, V.fromList newBlockDataList)
 
 -- | recodeNonAddCharacters takes block data, goes through characters
 -- and recodes NonAdditive.
 -- Concat and list for charInfoV because new characters can be created
 -- and newCharInfo then as well, could be multiple per input 'charcater'
-recodeNonAddCharacters :: GlobalSettings -> BlockData -> BlockData
+recodeNonAddCharacters :: GlobalSettings -> BlockData -> PhyG BlockData
 recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
     let numChars = V.length charInfoV
 
         -- create vector of single characters with vector of taxon data of sngle character each
         singleCharVectList = V.toList $ fmap (U.getSingleCharacter charDataVV) (V.fromList [0.. numChars - 1])
-
+    in do
         -- bit pack the nonadd
-        (recodedSingleVecList, newCharInfoLL) = unzip $ zipWith (packNonAdd inGS) singleCharVectList (V.toList charInfoV)
+        result <- mapM (packNonAddPair inGS) (zip singleCharVectList (V.toList charInfoV))
+        let (recodedSingleVecList, newCharInfoLL) = unzip result -- $ zipWith (packNonAdd inGS) singleCharVectList (V.toList charInfoV)
 
         -- recreate BlockData, tacxon dominant structure
-        newTaxVectByCharVect = V.fromList $ fmap V.fromList $ L.transpose $ concat recodedSingleVecList
+        let newTaxVectByCharVect = V.fromList $ fmap V.fromList $ L.transpose $ concat recodedSingleVecList
 
-    in
-    -- trace ("RNAC: " <> (show (length recodedSingleVecList, fmap length recodedSingleVecList)) <> " -> " <> (show $ fmap length newTaxVectByCharVect) <> " " <> (show $ length $ V.fromList $ concat newCharInfoLL))
-    (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
+        -- trace ("RNAC: " <> (show (length recodedSingleVecList, fmap length recodedSingleVecList)) <> " -> " <> (show $ fmap length newTaxVectByCharVect) <> " " <> (show $ length $ V.fromList $ concat newCharInfoLL))
+        pure (nameBlock, newTaxVectByCharVect, V.fromList $ concat newCharInfoLL)
+
+-- | packNonAddPair is a wrapper arpounf packNonAdd
+packNonAddPair :: GlobalSettings ->  (V.Vector CharacterData, CharInfo) -> PhyG ([[CharacterData]], [CharInfo])
+packNonAddPair inGS (inCharDataV, charInfo) = packNonAdd inGS inCharDataV charInfo
 
 -- | packNonAdd takes (vector of taxa) by character data and list of character information
 -- and returns bit packed and recoded non-additive characters and charInfo
@@ -1570,10 +1581,10 @@ recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
 -- the weight is skipping because of the weight replication in reorganize
 -- if characters have non integer weight then they were not reorganized and left
 -- as single BV--here as well. Should be very few (if any) of them.
-packNonAdd ::GlobalSettings ->  V.Vector CharacterData -> CharInfo -> ([[CharacterData]], [CharInfo])
+packNonAdd ::GlobalSettings ->  V.Vector CharacterData -> CharInfo -> PhyG ([[CharacterData]], [CharInfo])
 packNonAdd inGS inCharDataV charInfo =
     -- trace ("PNA in weight: " <> (show $ weight charInfo)) (
-    if charType charInfo /= NonAdd then ([V.toList inCharDataV],[charInfo])
+    if charType charInfo /= NonAdd then pure ([V.toList inCharDataV],[charInfo])
     else
         -- recode non-additive characters
         let leafNonAddV = V.toList $ fmap (snd3 . stateBVPrelim) inCharDataV
@@ -1583,25 +1594,37 @@ packNonAdd inGS inCharDataV charInfo =
             -- numNonAdd = (length . head) leafNonAddV
             numNonAdd = minimum $ fmap length leafNonAddV
 
+            -- parallel setup
+            stateAction ::  Int -> (Int, [BV.BitVector])
+            stateAction = getStateNumber leafNonAddV
+
+            charAction ::  (Int, [[BV.BitVector]]) -> PhyG ([CharacterData], [CharInfo])
+            charAction =  makeStateNCharacterTuple inGS charInfo
+
+
+        in do
             -- split characters into groups by states number 2,4,5,8,64, >64 (excluding missing)
-            stateNumDataPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)   (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
+            statePar <- getParallelChunkMap
+            let stateNumDataPairList = statePar stateAction [0.. numNonAdd - 1]
+                -- PU.seqParMap (parStrategy $ strictParStrat inGS)   (getStateNumber leafNonAddV) [0.. numNonAdd - 1]
 
             -- sort characters by states number (2, 4, 5, 8, 64, >64 -> 128)
-            (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
+            let (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
 
             -- make new characters based on state size
-            -- (newStateCharListList, newCharInfoList) = unzip $ (zipWith (makeStateNCharacter inGS charInfo) [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL] `using` PU.myParListChunkRDS)
-            (newStateCharListList, newCharInfoList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS)  (makeStateNCharacterTuple inGS charInfo) (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]))
+            charPar <- getParallelChunkTraverse
+            result <- charPar charAction (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL])
+            let (newStateCharListList, newCharInfoList) = unzip result
+              -- (PU.seqParMap (parStrategy $ strictParStrat inGS)  (makeStateNCharacterTuple inGS charInfo) (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]))
 
-
-        in
-        -- this here in case recoding and removing constant (with missing) characters yields no data to be bitpacked
-        if (L.foldl1' (&&) $ fmap null [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]) then ([V.toList inCharDataV],[charInfo])
-        else (newStateCharListList, concat newCharInfoList)
-        -- )
+            -- this here in case recoding and removing constant (with missing) characters yields no data to be bitpacked
+            if (L.foldl1' (&&) $ fmap null [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]) then 
+              pure ([V.toList inCharDataV],[charInfo])
+            else pure (newStateCharListList, concat newCharInfoList)
+            -- )
 
 -- | makeStateNCharacterTuple is a wrapper for makeStateNCharacter to allow for parMap use
-makeStateNCharacterTuple ::  GlobalSettings -> CharInfo -> (Int, [[BV.BitVector]]) -> ([CharacterData], [CharInfo])
+makeStateNCharacterTuple ::  GlobalSettings -> CharInfo -> (Int, [[BV.BitVector]]) -> PhyG ([CharacterData], [CharInfo])
 makeStateNCharacterTuple inGS charInfo (stateNumber, charDataLL) = makeStateNCharacter inGS charInfo stateNumber charDataLL
 
 -- | makeStateNCharacter takes a list of characters each of which is a list of taxon character values and
@@ -1609,21 +1632,21 @@ makeStateNCharacterTuple inGS charInfo (stateNumber, charDataLL) = makeStateNCha
 -- via chuncksOf--or if 64, not packing, if 128 stays bitvector
 -- check for non-sequential states (A,T) or (0,2) etc
 -- return is list of taxa x single new (packed) character
-makeStateNCharacter :: GlobalSettings -> CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
-makeStateNCharacter inGS charInfo stateNumber charDataLL =
-    let (recodeList, newCharInfo) = if stateNumber > 64 then recodeBV2BV inGS charInfo charDataLL
-                                    else if stateNumber == 64 then recodeBV2Word64Single inGS charInfo charDataLL
-                                    else recodeBV2Word64 inGS charInfo stateNumber charDataLL
-    in
-    (recodeList, newCharInfo)
+makeStateNCharacter :: GlobalSettings -> CharInfo -> Int -> [[BV.BitVector]] -> PhyG ([CharacterData], [CharInfo])
+makeStateNCharacter inGS charInfo stateNumber charDataLL = do
+    result <-  if stateNumber > 64 then recodeBV2BV inGS charInfo charDataLL
+               else if stateNumber == 64 then recodeBV2Word64Single inGS charInfo charDataLL
+               else recodeBV2Word64 inGS charInfo stateNumber charDataLL
+  
+    pure result 
 
 -- | recodeBV2BV take a list of BV.bitvector non-add characters and creates a list (taxa)
 -- BV non-additive characters of type NonAdd.
 -- this results in a single character and charInfo in list so can be concatenated
 -- and removed if empty
-recodeBV2BV :: GlobalSettings -> CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
+recodeBV2BV :: GlobalSettings -> CharInfo -> [[BV.BitVector]] -> PhyG ([CharacterData], [CharInfo])
 recodeBV2BV inGS charInfo charTaxBVLL =
-    if null charTaxBVLL then ([],[])
+    if null charTaxBVLL then pure ([],[])
     else
         let -- convert to taxon by characgter data list
             newStateList = makeNewCharacterData charTaxBVLL
@@ -1633,8 +1656,8 @@ recodeBV2BV inGS charInfo charTaxBVLL =
 
             -- create new characters for each taxon
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
-        in
-        (newCharDataList, [charInfo {name = newCharName, charType = NonAdd, noChangeCost = (fst . bcgt64) inGS, changeCost = (snd . bcgt64) inGS}])
+        in do
+        pure (newCharDataList, [charInfo {name = newCharName, charType = NonAdd, noChangeCost = (fst . bcgt64) inGS, changeCost = (snd . bcgt64) inGS}])
         where makeNewData a b = a {stateBVPrelim = (b,b,b), stateBVFinal = b}
 
 
@@ -1643,9 +1666,9 @@ recodeBV2BV inGS charInfo charTaxBVLL =
 -- this results in a single character and charInfo in list so can be concatenated
 -- and removed if empty
 -- Aassumes a leaf only sets snd3
-recodeBV2Word64Single :: GlobalSettings -> CharInfo -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
+recodeBV2Word64Single :: GlobalSettings -> CharInfo -> [[BV.BitVector]] -> PhyG ([CharacterData], [CharInfo])
 recodeBV2Word64Single inGS charInfo charTaxBVLL =
-    if null charTaxBVLL then ([],[])
+    if null charTaxBVLL then pure ([],[])
     else
         let newCharName = T.append (name charInfo) $ T.pack "64State"
 
@@ -1657,8 +1680,8 @@ recodeBV2Word64Single inGS charInfo charTaxBVLL =
 
             -- make new character data
             newCharDataList = fmap (makeNewData emptyCharacter) newStateList
-        in
-        (newCharDataList, [charInfo {name = newCharName, charType = Packed64, noChangeCost = (fst . bc64) inGS, changeCost = (snd . bc64) inGS}])
+        in do
+        pure (newCharDataList, [charInfo {name = newCharName, charType = Packed64, noChangeCost = (fst . bc64) inGS, changeCost = (snd . bc64) inGS}])
         where makeNewData a b = a {packedNonAddPrelim = (b,b,b), packedNonAddFinal = b}
 
 -- | makeNewCharacterData takes a list of characters, each of which is a list of taxon states
@@ -1677,10 +1700,10 @@ makeNewCharacterData charByTaxSingleCharData  =
 -- to create packed reresentation--new character types Packed2, Packed4, Packed5, and Packed8.
 -- this results in a single character and charInfo in list so can be concatenated
 -- and removed if empty
-recodeBV2Word64 ::GlobalSettings ->  CharInfo -> Int -> [[BV.BitVector]] -> ([CharacterData], [CharInfo])
+recodeBV2Word64 ::GlobalSettings ->  CharInfo -> Int -> [[BV.BitVector]] -> PhyG ([CharacterData], [CharInfo])
 recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
     -- trace ("Enter RBV2W64 In: " <> (show stateNumber) <> " " <> (show (length charTaxBVLL, fmap length charTaxBVLL))) (
-    if null charTaxBVLL then ([],[])
+    if null charTaxBVLL then pure ([],[])
     else
         let newCharType = if stateNumber == 2 then Packed2
                           else if stateNumber == 4 then Packed4
@@ -1696,24 +1719,36 @@ recodeBV2Word64 inGS charInfo stateNumber charTaxBVLL =
             -- convert to taxon by character data list
             taxCharBVLL = L.transpose charTaxBVLL
 
+            -- parallel setup
+            stateAction :: [BV.BitVector] -> [Int]
+            stateAction = getStateIndexList 
+
+            packAction :: [[Int]] -> [BV.BitVector] -> CharacterData
+            packAction = packIntoWord64 stateNumber numCanPack 
+
+        in do
             -- get state index list for all characters (could be non sequential 0|2; A|T etc)
-            stateIndexLL = PU.seqParMap (parStrategy $ strictParStrat inGS)  getStateIndexList charTaxBVLL
+            statePar <- getParallelChunkMap
+            let stateIndexLL = statePar stateAction charTaxBVLL
+                -- PU.seqParMap (parStrategy $ strictParStrat inGS)  getStateIndexList charTaxBVLL
 
             -- convert data each taxon into packedWord64
-            packedDataL = PU.seqParMap (parStrategy $ strictParStrat inGS)  (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
+            packPar <- getParallelChunkMap
+            let packedDataL = packPar (packAction stateIndexLL) taxCharBVLL 
+                -- PU.seqParMap (parStrategy $ strictParStrat inGS)  (packIntoWord64 stateNumber numCanPack stateIndexLL) taxCharBVLL
 
             -- get noChange and Change cost for char type
-            (lNoChangeCost, lChangeCost) = if stateNumber == 2 then bc2 inGS
+            let (lNoChangeCost, lChangeCost) = if stateNumber == 2 then bc2 inGS
                                            else if stateNumber == 4 then bc4 inGS
                                            else if stateNumber == 5 then bc5 inGS
                                            else if stateNumber == 8 then bc8 inGS
                                            else error ("Change/NoChange costs for state number " <> (show stateNumber) <> " not to be set in recodeBV2Word64")
 
-        in
-        -- trace ("RBV2W64 Out: " <> (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
-        -- trace ("RBV2W64: " <> (show (lNoChangeCost, lChangeCost)))
-        (packedDataL, [charInfo {name = newCharName, charType = newCharType, noChangeCost = lNoChangeCost, changeCost = lChangeCost}])
-        -- )
+        
+            -- trace ("RBV2W64 Out: " <> (show $ fmap (snd3 . packedNonAddPrelim) packedDataL))
+            -- trace ("RBV2W64: " <> (show (lNoChangeCost, lChangeCost)))
+            pure (packedDataL, [charInfo {name = newCharName, charType = newCharType, noChangeCost = lNoChangeCost, changeCost = lChangeCost}])
+            -- )
 
 
 -- | packIntoWideState takes a list of bitvectors for a taxon, the state number and number that can be packed into
@@ -1728,9 +1763,7 @@ packIntoWord64 stateNumber numToPack stateCharacterIndexL inBVList =
         -- pack each chunk
         packedWordVect = UV.fromList $ zipWith (makeWord64FromChunk stateNumber) packIndexLL packBVList
 
-    in
-    -- traceNoLF ("PIW64 chunks/values: " <> (show $ (stateNumber, numToPack, length packIndexLL, fmap length packIndexLL))) $
-    emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
+    in  emptyCharacter { packedNonAddPrelim = (packedWordVect, packedWordVect, packedWordVect)
                    , packedNonAddFinal = packedWordVect
                    }
 

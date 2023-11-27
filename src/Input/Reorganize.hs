@@ -17,6 +17,7 @@ import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
+import Data.Functor (($>))
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
@@ -31,14 +32,14 @@ import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Input.BitPack qualified as BP
 import Measure.Transition qualified as Measure
-import ParallelUtilities qualified as PU
+import PHANE.Evaluation
+import PHANE.Evaluation.ErrorPhase
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import SymMatrix qualified as S
 import Text.Read
+import TransitionMatrix.Metricity
 import Types.Types
 import Utilities.Utilities qualified as U
-import TransitionMatrix.Metricity
-
-import Debug.Trace
 
 
 {- | optimizePrealignedData convert
@@ -47,25 +48,24 @@ here
 bitPack new non-additive
 packNonAdditive
 -}
-optimizePrealignedData ∷ GlobalSettings → ProcessedData → ProcessedData
-optimizePrealignedData inGS inData@(_, _, blockDataVect) =
-    let -- remove constant characters from prealigned
-        inData' = removeConstantCharactersPrealigned inData
+optimizePrealignedData ∷ GlobalSettings → ProcessedData → PhyG ProcessedData
+optimizePrealignedData inGS inData@(_, _, blockDataVect)
+    | U.getNumberPrealignedCharacters blockDataVect == 0 = logWith LogMore "Not bitpacking..." $> inData
+    | otherwise = do
+        logWith LogMore "Bitpacking..."
+
+        -- remove constant characters from prealigned
+        inData' ← removeConstantCharactersPrealigned inData
 
         -- convert prealigned to nonadditive if all 1 tcms
-        inData'' = convertPrealignedToNonAdditive inData'
+        let inData'' = convertPrealignedToNonAdditive inData'
 
         -- bit packing for non-additivecharacters
-        inData''' = BP.packNonAdditiveData inGS inData''
-    in  if U.getNumberPrealignedCharacters blockDataVect == 0
-            then -- trace ("Not Bitpacking...")
-                inData
-            else -- trace ("Bitpacking...")
-                inData'''
+        BP.packNonAdditiveData inGS inData''
 
 
 {- | convertPrealignedToNonAdditive converts prealigned data to non-additive
-if homogeneous TCM (all 1's non-diagonal)
+if homogeneous TCM (all 1's non-diagnoal)
 -}
 convertPrealignedToNonAdditive ∷ ProcessedData → ProcessedData
 convertPrealignedToNonAdditive (nameVect, bvNameVect, blockDataVect) = (nameVect, bvNameVect, fmap convertPrealignedToNonAdditiveBlock blockDataVect)
@@ -77,7 +77,6 @@ this is done taxon by taxon and character by character since can convert with on
 convertPrealignedToNonAdditiveBlock ∷ BlockData → BlockData
 convertPrealignedToNonAdditiveBlock (nameBlock, charDataVV, charInfoV) =
     let codingTypeV = (metricity <$> charInfoV)
---        codingTypeV = fmap fst $ fmap getRecodingType (fmap costMatrix charInfoV)
         (newCharDataVV, newCharInfoVV) = V.unzip $ fmap (convertTaxonPrealignedToNonAdd charInfoV codingTypeV) charDataVV
     in  (nameBlock, newCharDataVV, V.head newCharInfoVV)
 
@@ -100,20 +99,23 @@ convertTaxonPrealignedToNonAddCharacter charInfo matrixType charData
     | otherwise =
         let charWeight = weight charInfo
             newStateBV = case charType charInfo of
-                AlignedSlim -> convert2BVTriple 32 $ (snd3 . alignedSlimPrelim) charData
-                AlignedWide -> convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
-                AlignedHuge -> error "No point in converting huge--can't pack anyway"
-                _ -> error $ "Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: " <>
-                        show (charType charInfo)
-                
-            modifiedChar = emptyCharacter{ stateBVPrelim = newStateBV }
-            modifiedType = charInfo
-                { charType = NonAdd
-                , weight = charWeight
-                }
+                AlignedSlim → convert2BVTriple 32 $ (snd3 . alignedSlimPrelim) charData
+                AlignedWide → convert2BVTriple 64 $ (snd3 . alignedWidePrelim) charData
+                AlignedHuge → error "No point in converting huge--can't pack anyway"
+                _ →
+                    error $
+                        "Unrecognized character type in convertTaxonPrealignedToNonAddCharacter: "
+                            <> show (charType charInfo)
+
+            modifiedChar = emptyCharacter{stateBVPrelim = newStateBV}
+            modifiedType =
+                charInfo
+                    { charType = NonAdd
+                    , weight = charWeight
+                    }
         in  case matrixType of
-            Special (DiscreteMetric _) -> ( modifiedChar, modifiedType ) 
-            _ -> (charData, charInfo)
+                Special (DiscreteMetric _) → (modifiedChar, modifiedType)
+                _ → (charData, charInfo)
 
 
 -- | convert2BVTriple takes SlimState or WideState and converts to Triple Vector of bitvectors
@@ -182,31 +184,28 @@ else ("matrix",  head lastRow)
 and combines, creates new, deletes empty blocks from user input
 reblock pair names may contain wildcards
 -}
-reBlockData ∷ [(NameText, NameText)] → ProcessedData → ProcessedData
-reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV) =
-    -- trace ("RBD:" <> (show $ fmap fst3 blockDataV )) (
-    if null reBlockPairs
-        then trace "Character Blocks as input files" inData
-        else
-            let -- those block to be reassigned--nub in case repeated names
-                toBeReblockedNames = fmap (T.filter (/= '"')) $ L.nub $ fmap snd reBlockPairs
-                unChangedBlocks = V.filter ((`notElemWildcards` toBeReblockedNames) . fst3) blockDataV
-                blocksToChange = V.filter ((`elemWildcards` toBeReblockedNames) . fst3) blockDataV
-                newBlocks = makeNewBlocks reBlockPairs blocksToChange []
-                reblockedBlocks = unChangedBlocks <> V.fromList newBlocks
-            in  trace
-                    ( "\nReblocking: "
-                        <> show toBeReblockedNames
-                        <> " leaving unchanged: "
-                        <> show (fmap fst3 unChangedBlocks)
-                        <> "\n\tNew blocks: "
-                        <> show (fmap fst3 reblockedBlocks)
-                        <> "\n"
-                    )
-                    (leafNames, leafBVs, reblockedBlocks)
+reBlockData ∷ [(NameText, NameText)] → ProcessedData → PhyG ProcessedData
+reBlockData reBlockPairs inData@(leafNames, leafBVs, blockDataV)
+    | null reBlockPairs = logWith LogInfo "Character Blocks as input files\n" $> inData
+    | otherwise -- those block to be reassigned--nub in case repeated names
+        =
+        let toBeReblockedNames = fmap (T.filter (/= '"')) $ L.nub $ fmap snd reBlockPairs
+            unChangedBlocks = V.filter ((`notElemWildcards` toBeReblockedNames) . fst3) blockDataV
+            blocksToChange = V.filter ((`elemWildcards` toBeReblockedNames) . fst3) blockDataV
+            newBlocks = makeNewBlocks reBlockPairs blocksToChange []
+            reblockedBlocks = unChangedBlocks <> V.fromList newBlocks
+            message =
+                unwords
+                    [ "\nReblocking:"
+                    , show toBeReblockedNames
+                    , "leaving unchanged:"
+                    , show (fmap fst3 unChangedBlocks)
+                    , "\n\tNew blocks:"
+                    , show (fmap fst3 reblockedBlocks)
+                    , "\n"
+                    ]
+        in  logWith LogInfo message $> (leafNames, leafBVs, reblockedBlocks)
 
-
--- )
 
 -- | makeNewBlocks takes lists of reblock pairs and existing relevant blocks and creates new blocks returned as a list
 makeNewBlocks ∷ [(NameText, NameText)] → V.Vector BlockData → [BlockData] → [BlockData]
@@ -261,19 +260,27 @@ same vectors in character so have one non-add, one add, one of each packed type,
 can have multiple matrix (due to cost matrix differneces)
 similar result to groupDataByType, but does not assume single characters.
 -}
-combineDataByType ∷ GlobalSettings → ProcessedData → ProcessedData
+combineDataByType ∷ GlobalSettings → ProcessedData → PhyG ProcessedData
 combineDataByType inGS inData@(taxNames, taxBVNames, _) =
     -- recode add to non-add before combine-- takes care wor integer weighting
     let (_, _, blockDataV') = recodeAddToNonAddCharacters inGS maxAddStatesToRecode inData
-        recodedData = fmap combineData blockDataV'
-    in  (taxNames, taxBVNames, recodedData)
+    in  do
+            recodedData ← mapM combineData blockDataV'
+            pure (taxNames, taxBVNames, recodedData)
 
 
 -- | combineData creates for a block) lists of each data type and concats then creating new data and new char info
-combineData ∷ BlockData → BlockData
+combineData ∷ BlockData → PhyG BlockData
 combineData (blockName, blockDataVV, charInfoV) =
-    let (newBlockDataLV, newCharInfoLV) = unzip (PU.seqParMap PU.myStrategyRDS (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
-    in  (blockName, V.fromList newBlockDataLV, head newCharInfoLV)
+    let -- parallel setup
+        action ∷ V.Vector CharacterData → (V.Vector CharacterData, V.Vector CharInfo)
+        action = combineBlockData charInfoV
+    in  do
+            pTraverse ← getParallelChunkMap
+            let result = pTraverse action (V.toList blockDataVV)
+            let (newBlockDataLV, newCharInfoLV) = unzip result
+            -- (newBlockDataLV, newCharInfoLV) = unzip (PU.seqParMap PU.myStrategyRDS (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
+            pure (blockName, V.fromList newBlockDataLV, head newCharInfoLV)
 
 
 {- | combineBlockData takes a vector of char info and vector or charcater data for a taxon and
@@ -478,65 +485,63 @@ getSameMatrixChars inCharsPairList testMatrix =
 {- | removeConstantCharactersPrealigned takes processed data and removes constant characters
 from prealignedCharacterTypes
 -}
-removeConstantCharactersPrealigned ∷ ProcessedData → ProcessedData
+removeConstantCharactersPrealigned ∷ ProcessedData → PhyG ProcessedData
 removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
-    let newBlockData = V.fromList (PU.seqParMap PU.myStrategyRDS removeConstantBlockPrealigned (V.toList blockDataVect)) -- `using` PU.myParListChunkRDS)
-    in  (nameVect, bvNameVect, newBlockData)
+    let -- parallel setup
+        action ∷ BlockData → PhyG BlockData
+        action = removeConstantBlockPrealigned
+    in  do
+            pTraverse ← getParallelChunkTraverse
+            newBlockData <- pTraverse action blockDataVect
+            pure (nameVect, bvNameVect, newBlockData)
 
 
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
-removeConstantBlockPrealigned ∷ BlockData → BlockData
-removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInfoV) =
-    -- check for null data--really reallyu shouldn't happen
-    if V.null taxVectByCharVect
-        then trace ("Warning: Null block data in removeConstantBlockPrealigned") inBlockData
-        else -- check for prealigned data in block
-
-            if U.getNumberPrealignedCharacters (V.singleton inBlockData) == 0
-                then inBlockData
-                else
-                    let numChars = V.length $ V.head taxVectByCharVect
-
-                        -- create vector of single characters with vector of taxon data of sngle character each
-                        -- like a standard matrix with a single character
-                        singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) (V.fromList [0 .. numChars - 1])
-
-                        -- actually remove constants form chaarcter list
-                        singleCharVect' = V.zipWith removeConstantCharsPrealigned singleCharVect charInfoV
-
-                        -- recreate the taxa vext by character vect block data expects
-                        -- should filter out length zero characters
-                        newTaxVectByCharVect = U.glueBackTaxChar singleCharVect'
-                    in  (blockName, newTaxVectByCharVect, charInfoV)
+removeConstantBlockPrealigned ∷ BlockData → PhyG BlockData
+removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInfoV)
+    -- check for null data--really really shouldn't happen
+    | V.null taxVectByCharVect = logWith LogWarn "Null block data in removeConstantBlockPrealigned" $> inBlockData
+    -- check for prealigned data in block
+    | U.getNumberPrealignedCharacters (V.singleton inBlockData) == 0 = pure inBlockData
+    -- standard case for removal
+    | otherwise =
+        let numChars = V.length $ V.head taxVectByCharVect
+            -- create vector of single characters with vector of taxon data of sngle character each
+            -- like a standard matrix with a single character
+            singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) $ V.fromList [0 .. numChars - 1]
+        in  do  -- actually remove constants form chaarcter list
+                singleCharVect' <- V.zipWithM removeConstantCharsPrealigned singleCharVect charInfoV
+                -- recreate the taxa vext by character vect block data expects
+                -- should filter out length zero characters
+                let newTaxVectByCharVect = U.glueBackTaxChar singleCharVect'
+                pure (blockName, newTaxVectByCharVect, charInfoV)
 
 
 {- | removeConstantCharsPrealigned takes a single 'character' and if proper type removes if all values are the same
 could be done if character has max lenght of 0 as well.
 packed types already filtered when created
 -}
-removeConstantCharsPrealigned ∷ V.Vector CharacterData → CharInfo → V.Vector CharacterData
+removeConstantCharsPrealigned ∷ V.Vector CharacterData → CharInfo → PhyG (V.Vector CharacterData)
 removeConstantCharsPrealigned singleChar charInfo =
     let inCharType = charType charInfo
     in  -- dynamic characters don't do this
         if inCharType `notElem` prealignedCharacterTypes
-            then singleChar
-            else
-                let variableVect = getVariableChars inCharType singleChar
-                in  variableVect
+            then pure singleChar
+            else getVariableChars inCharType singleChar
 
 
 {- | getVariableChars checks identity of states in a vector positin in all taxa
 and returns True if variable, False if constant
 bit packed and non-exact should not get in here
 -}
-getVariableChars ∷ CharType → V.Vector CharacterData → V.Vector CharacterData
+getVariableChars ∷ CharType → V.Vector CharacterData → PhyG (V.Vector CharacterData)
 getVariableChars inCharType singleChar =
-    let nonAddV = fmap snd3 $ fmap stateBVPrelim singleChar
-        addV = fmap snd3 $ fmap rangePrelim singleChar
-        matrixV = fmap matrixStatesPrelim singleChar
-        alSlimV = fmap snd3 $ fmap alignedSlimPrelim singleChar
-        alWideV = fmap snd3 $ fmap alignedWidePrelim singleChar
-        alHugeV = fmap snd3 $ fmap alignedHugePrelim singleChar
+    let nonAddV = snd3 . stateBVPrelim <$> singleChar
+        addV = snd3 . rangePrelim <$> singleChar
+        alSlimV = snd3 . alignedSlimPrelim <$> singleChar
+        alWideV = snd3 . alignedWidePrelim <$> singleChar
+        alHugeV = snd3 . alignedHugePrelim <$> singleChar
+        matrixV = matrixStatesPrelim <$> singleChar
 
         -- get identity vect
         boolVar =
@@ -559,25 +564,22 @@ getVariableChars inCharType singleChar =
                                                         then getVarVectBits inCharType alHugeV []
                                                         else error ("Char type unrecognized in getVariableChars: " <> show inCharType)
 
+        boolVar' = V.fromList boolVar
+
         -- get Variable characters by type
-        nonAddVariable = fmap (filterConstantsV (V.fromList boolVar)) nonAddV
-        addVariable = fmap (filterConstantsV (V.fromList boolVar)) addV
-        matrixVariable = fmap (filterConstantsV (V.fromList boolVar)) matrixV
-        alSlimVariable = fmap (filterConstantsSV (V.fromList boolVar)) alSlimV
-        alWideVariable = fmap (filterConstantsUV (V.fromList boolVar)) alWideV
+        nonAddVariable = filterConstantsV boolVar' <$> nonAddV
+        addVariable = filterConstantsV boolVar' <$> addV
+        matrixVariable = filterConstantsV boolVar' <$> matrixV
+        alSlimVariable = filterConstantsSV boolVar' <$> alSlimV
+        alWideVariable = filterConstantsUV boolVar' <$> alWideV
 
         -- this is a hack-not sure why popCount etc don't work with HugeVector little endian BVs
         -- these should be short seqs in general so no ral impact on effeciancy
         alHugeVariable = alHugeV -- fmap (filterConstantsV (V.fromList boolVar)) alHugeV
 
-        -- assign to propoer character fields
-        outCharVect =
-            V.zipWith
-                (assignNewField inCharType)
-                singleChar
-                (V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable)
-    in  -- trace ("GVC:" <> (show $ length boolVar) <> " -> " <> (show $ length $ filter (== False) boolVar))
-        outCharVect
+        -- assign to proper character fields
+    in  V.zipWithM (assignNewField inCharType) singleChar $
+            V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable
 
 
 {- | getVarVectAdd takes a vector of a vector additive ranges and returns False if range overlap
@@ -748,26 +750,15 @@ assignNewField
       , UV.Vector WideState
       , V.Vector BV.BitVector
       )
-    → CharacterData
-assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) =
-    if inCharType == NonAdd
-        then charData{stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
-        else
-            if inCharType == Add
-                then charData{rangePrelim = (addData, addData, addData)}
-                else
-                    if inCharType == Matrix
-                        then charData{matrixStatesPrelim = matrixData}
-                        else
-                            if inCharType == AlignedSlim
-                                then charData{alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
-                                else
-                                    if inCharType == AlignedWide
-                                        then charData{alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
-                                        else
-                                            if inCharType == AlignedHuge
-                                                then charData{alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
-                                                else error ("Char type unrecognized in assignNewField: " <> show inCharType)
+    → PhyG CharacterData
+assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) = case inCharType of
+    NonAdd → pure charData{stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
+    Add → pure charData{rangePrelim = (addData, addData, addData)}
+    Matrix → pure charData{matrixStatesPrelim = matrixData}
+    AlignedSlim → pure charData{alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
+    AlignedWide → pure charData{alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
+    AlignedHuge → pure charData{alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
+    val → failWithPhase Parsing $ "Char type unrecognized in assignNewField: " <> show val
 
 
 {- | recodeAddToNonAddCharacters takes an max states number and processsed data

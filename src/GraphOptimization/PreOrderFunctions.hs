@@ -16,6 +16,10 @@ module GraphOptimization.PreOrderFunctions
   ) where
 
 import Bio.DynamicCharacter
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -25,18 +29,18 @@ import Data.Maybe
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Unboxed qualified as UV
-import Debug.Trace
 import DirectOptimization.PreOrder qualified as DOP
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Graphs.GraphOperations qualified as GO
 import Input.BitPack qualified as BP
-import ParallelUtilities qualified as PU
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.ThreeWayFunctions qualified as TW
 import Utilities.Utilities qualified as U
+-- import Debug.Trace
+-- import ParallelUtilities qualified as PU
 
 
 {- |
@@ -62,67 +66,82 @@ the traversal begins at the root (for a tree) and proceeds to leaves.
 
 Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
 -}
-preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhylogeneticGraph
+preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
-    --trace ("PreO: " <> (show finalMethod) <> " " <> (show $ fmap (fmap charType) inCharInfoVV)) (
-    -- trace ("PR-OT pre: " <> (show $ fmap V.length blockCharacterDecoratedVV)) (
-    if LG.isEmpty inDecorated then emptyPhylogeneticGraph  -- error "Empty tree in preOrderTreeTraversal"
-    else
+    let -- parallel setup
+        doBlockAction ::  (V.Vector CharInfo, V.Vector DecoratedGraph) -> V.Vector DecoratedGraph
+        doBlockAction = doBlockTraversal' inGS finalMethod staticIA rootIndex
+
+        updateLeafAction :: Int ->  (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> V.Vector DecoratedGraph
+        updateLeafAction = updateLeafIABlock' 
+
+        makeIAAction :: (V.Vector DecoratedGraph, V.Vector CharInfo) -> V.Vector DecoratedGraph
+        makeIAAction = makeIAUnionAssignments' finalMethod rootIndex
+ 
+    in
+    if LG.isEmpty inDecorated then pure emptyPhylogeneticGraph  -- error "Empty tree in preOrderTreeTraversal"
+    else do
         -- trace ("In PreOrder\n" <> "Simple:\n" <> (LG.prettify inSimple) <> "Decorated:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) <> "\n" <> (GFU.showGraph inDecorated)) (
-        -- mapped recursive call over blkocks, later characters
-        let preOrderBlockVect =
-              ( PU.seqParMap
+        -- mapped recursive call over blkocks, later character 
+        blockPar <- getParallelChunkMap
+        let preOrderBlockVect = V.fromList $ blockPar doBlockAction (V.toList $ V.zip inCharInfoVV blockCharacterDecoratedVV)
+              {-( PU.seqParMap
                   (parStrategy $ lazyParStrat inGS)
                   (doBlockTraversal' inGS finalMethod staticIA rootIndex)
                   (V.zip inCharInfoVV blockCharacterDecoratedVV)
-              )  -- `using` PU.myParListChunkRDS)
+              )  -- `using` PU.myParListChunkRDS) -}
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
             -- also assignes unions for use in rearrangemenrts
             -- update leaf IA assignments based on cotracted edge for softWired to make IAs
             -- no need for trees--can't for hardWired
-            softwiredUpdatedLeafIA = if graphType inGS /= SoftWired then preOrderBlockVect
-                                     else
+        softwiredUpdatedLeafIA <- if graphType inGS /= SoftWired then pure preOrderBlockVect
+                                  else
                                         let -- get display trees for each data block-- takes first of potentially multiple
                                             contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
+                                        in do
 
                                             -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
-                                            contractedBlockVect = (PU.seqParMap (parStrategy $ lazyParStrat inGS) (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
+                                            contractPar <- getParallelChunkMap
+                                            let contractedBlockVect = contractPar doBlockAction (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV))
+                                                -- (PU.seqParMap (parStrategy $ lazyParStrat inGS) (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
 
                                             -- update leaf IA fields with contracted IAs
-                                            maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
-                                            blockCharDecNewLeafIA = PU.seqParMap
+                                            let maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
+                                        
+                                            blockIAPar <- getParallelChunkMap
+                                            let blockCharDecNewLeafIA = V.fromList $ blockIAPar (updateLeafAction maxLeafIndex) $ V.toList $ V.zip3 preOrderBlockVect (V.fromList contractedBlockVect) inCharInfoVV
+                                                {-PU.seqParMap
                                                 (parStrategy $ lazyParStrat inGS)
                                                 (updateLeafIABlock' maxLeafIndex)
                                                 $ V.zip3
                                                     preOrderBlockVect
                                                     (V.fromList contractedBlockVect)
                                                     inCharInfoVV
+                                                -}
 
-                                        in
-                                        -- holder for now
-                                        blockCharDecNewLeafIA
+                                        
+                                            -- holder for now
+                                            pure blockCharDecNewLeafIA
 
+        preOrderBlockVect' <-
+              if hasNonExact && (graphType inGS /= HardWired ) then 
+                do
+                    preOrderPar <- getParallelChunkMap
+                    let result = V.fromList $ preOrderPar makeIAAction $ V.toList $ V.zip softwiredUpdatedLeafIA inCharInfoVV
+                        {- PU.seqParMap (parStrategy $ lazyParStrat inGS)
+                                (makeIAUnionAssignments' finalMethod rootIndex)
+                                $ V.zip softwiredUpdatedLeafIA inCharInfoVV -}
+                    pure result
 
-            preOrderBlockVect' =
-              if hasNonExact && (graphType inGS /= HardWired )
-              then PU.seqParMap (parStrategy $ lazyParStrat inGS)
-                        (makeIAUnionAssignments' finalMethod rootIndex)
-                        $ V.zip softwiredUpdatedLeafIA inCharInfoVV
-              else preOrderBlockVect
+              else pure preOrderBlockVect
 
-            fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
-        in
+        let fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
+        
         if null blockCharacterDecoratedVV then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " <> show rootIndex <> " This can be caused if the graphType not set correctly: " <> show (graphType inGS))
         else
-            {-
-            let blockPost = GO.showDecGraphs blockCharacterDecoratedVV
-                blockPre = GO.showDecGraphs preOrderBlockVect
-            in
-            trace ("BlockPost:\n" <> blockPost <> "BlockPre:\n" <> blockPre <> "After Preorder\n" <>  (LG.prettify $ GO.convertDecoratedToSimpleGraph fullyDecoratedGraph))
-            -}
-            (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
+             pure (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
     -- )
 
 -- | updateLeafIABlock' is a  triple argument to allow for parMap
@@ -444,10 +463,11 @@ makeFinalAndChildren inGS finalMethod staticIA inGraph nodesToUpdate updatedNode
             firstLabel = snd firstNode
             firstNodeType' = GO.getNodeType inGraph $ fst firstNode -- nodeType firstLabel
             firstNodeType = if firstNodeType' /= NetworkNode then firstNodeType'
-                            else
+                            else NetworkNode
                                 -- not issue if hardwired I don't think
-                                if graphType inGS /= HardWired then trace ("NetNode:" <> show (LG.getInOutDeg inGraph firstNode) <> " DuplicateEdges (?): " <> show (LG.getDuplicateEdges inGraph)) NetworkNode
-                                else NetworkNode
+                                -- this really a debug sort of issue
+                                -- if graphType inGS /= HardWired then trace ("NetNode:" <> show (LG.getInOutDeg inGraph firstNode) <> " DuplicateEdges (?): " <> show (LG.getDuplicateEdges inGraph)) NetworkNode
+                                -- else NetworkNode
             firstVertData = vertData firstLabel
 
             -- get node parent data--check if more than one

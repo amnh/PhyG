@@ -102,9 +102,9 @@ metricRepresentation
   => TCM
   -> MetricRepresentation a
 metricRepresentation tcm =
-    let scm = makeSCM tcm
+    let scm = {-# SCC "metricRep_scm" #-} makeSCM tcm
     in  ExplicitLayout tcm minInDel maxInDel
-          (memoize2 (overlap2 bitWidth scm))
+          ({-# SCC "metricRep_memoize2" #-} memoize2 ({-# SCC "metricRep_overlap2" #-} overlap2 bitWidth scm))
           (memoize3 (overlap3 bitWidth scm))
   where
     -- /O(2*(a - 1))/

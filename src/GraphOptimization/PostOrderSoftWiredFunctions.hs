@@ -64,11 +64,11 @@ import GraphFormatUtilities qualified as GFU
 import GraphOptimization.Medians qualified as M
 import GraphOptimization.PostOrderSoftWiredFunctionsNew qualified as NEW
 import Graphs.GraphOperations qualified as GO
-import ParallelUtilities qualified as PU
-import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 -- import           Debug.Trace
+import ParallelUtilities qualified as PU
+import Types.Types
 
 
 
@@ -132,9 +132,10 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
         -- take first graph
         let -- get number of threads for parallel evaluation of display trees
             -- can set +RTS -N1 if CPUTime is off
-            numDisplayTreesToEvaluate = PU.getNumThreads
-
+            
+            numDisplayTreesToEvaluate = graphsSteepest inGS -- PU.getNumThreads
             firstGraphList = take numDisplayTreesToEvaluate displayTreeList
+            
 
             -- diagnose post order as Tree
             staticIA = False

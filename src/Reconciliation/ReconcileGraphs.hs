@@ -36,21 +36,27 @@ Portability :  portable (I hope)
 
 module Reconciliation.ReconcileGraphs  ( makeReconcileGraph
                                        ) where
-
-import qualified Data.List            as L
-import qualified Data.Text.Lazy       as T
-import           GeneralUtilities
-import qualified GraphFormatUtilities as GFU
-import qualified Reconciliation.Eun   as E
-import           Types.Types
-import qualified Utilities.LocalGraph as LG
-import           Data.Maybe      
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO (..))
+import Data.List      qualified      as L
+import Data.Text.Lazy qualified      as T
+import GeneralUtilities
+import GraphFormatUtilities qualified as GFU
+import Reconciliation.Eun  qualified as E
+import Types.Types
+import Utilities.LocalGraph qualified as LG
+import Data.Maybe      
 -- import           Debug.Trace
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
-makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> (String, SimpleGraph)
+makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> PhyG (String, SimpleGraph)
 makeReconcileGraph validCommandList commandPairList inGraphList =
-   if null inGraphList then ("Error: No input graphs to reconcile", LG.empty)
+   --trace ("MRG: " <> (concatMap LG.prettyIndices inGraphList)) $
+   if null inGraphList then pure ("Error: No input graphs to reconcile", LG.empty)
+   else if length inGraphList == 1 then pure ("Warning: Only single input graph to reconcile", head inGraphList)
+
    else
       let -- convert SimpleGraph to String String from Text Double
           stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True . GFU.textGraph2StringGraph) inGraphList
@@ -58,18 +64,18 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
           -- parse arguements
           commandList = (mergePair <$> filter (('"' `notElem`).snd) commandPairList)
           (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
-
+      in do
           -- call EUN/reconcile functions
-          (reconcileString, reconcileGraph) = E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+          (reconcileString, reconcileGraph) <- E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
 
           -- convert eun format graph back to SimpleGraph
-          reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
-      in
-      --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
-      --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
-      (reconcileString, reconcileSimpleGraph)
-      where mergePair (a,b) = if a /= [] && b /= [] then a <> (':' : b)
-                              else a <> b
+          let reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
+      
+          --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
+          --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
+          pure ("", reconcileSimpleGraph)
+          where mergePair (a,b) = if a /= [] && b /= [] then a <> (':' : b)
+                                  else a <> b
 
 
 -- | processReconcileArgs takes a list of strings and returns values of commands for proram execution
@@ -77,7 +83,7 @@ makeReconcileGraph validCommandList commandPairList inGraphList =
 -- checks commands for misspellings
 processReconcileArgs :: [String] -> [String] -> (String, String, Int, Bool, Bool, Bool, String)
 processReconcileArgs validCommandList inList' =
-    let inList = inList' L.\\ ["overwrite", "append", "reconcile"]
+    let inList = inList' L.\\ ["overwrite", "append", "reconcile","dot", "newick","dotpdf"]
     in
     if null inList then
       let -- default values
@@ -92,7 +98,7 @@ processReconcileArgs validCommandList inList' =
       (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
 
     else
-        -- trace ("Rec args: " <> (show inList)) (
+        --trace ("Rec args: " <> (show inList)) $
         let inTextList = fmap T.pack inList
             inTextListLC = fmap T.toLower inTextList
             commandList = filter (T.any (== ':')) inTextListLC
@@ -172,10 +178,12 @@ getConnect inTextList =
                                   (option == "true") || (option /= "false" && errorWithoutStackTrace ("Connect option \'" <> option <> "\' not recognized (True|False)"))
                               else getConnect (tail inTextList))
 
+
 -- | getEdgeLabel returns edgeLabel value or default otherwise (True|False)
 -- assumes in lower case
 getEdgeLabel :: [T.Text] -> Bool
-getEdgeLabel inTextList =
+getEdgeLabel inTextList = True
+    {-
     -- default
     null inTextList || (let firstCommand = T.takeWhile (/= ':') $ head inTextList
                             firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
@@ -186,11 +194,14 @@ getEdgeLabel inTextList =
                             in
                             (option == "true") || (option /= "false" && errorWithoutStackTrace ("EdgeLAbel option \'" <> option <> "\' not recognized (True|False)"))
                         else getEdgeLabel (tail inTextList))
+    -}
 
+-- | chanaged to True and modified later if need be
 -- | getVertexLabel returns edgeLabel value or default otherwise (True|False)
 -- assumes in lower case
 getVertexLabel :: [T.Text] -> Bool
-getVertexLabel inTextList =
+getVertexLabel inTextList = True
+    {-
     -- default
     not (null inTextList) && (let firstCommand = T.takeWhile (/= ':') $ head inTextList
                                   firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
@@ -201,7 +212,7 @@ getVertexLabel inTextList =
                                   in
                                   (option == "true") || (option /= "false" && errorWithoutStackTrace ("VertexLabel option \'" <> option <> "\' not recognized (True|False)"))
                               else getVertexLabel (tail inTextList))
-
+    -}
 
 -- | getThreshold returns threshold value or default otherwise
 -- assumes in lower case
@@ -229,6 +240,7 @@ getOutputFormat inTextList =
             outFormat = T.unpack firstOption
          in
          if outFormat == "dot" then "dot"
+         else if outFormat == "dotpdf" then "dot"
          else (if (outFormat == "fenewick") || (outFormat == "newick") then "fenewick" else getOutputFormat (tail inTextList))
 
 

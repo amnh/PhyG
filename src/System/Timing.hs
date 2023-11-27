@@ -15,7 +15,7 @@ module System.Timing
   , timeLeft
   , timeOp
   , timeOpUT
-  , timeOpThread
+  -- , timeOpThread
   , timeOpCPUWall
   , timeSum
   ) where
@@ -27,7 +27,7 @@ import           Data.Foldable
 import           Numeric.Natural
 import           System.CPUTime
 import           Data.Time.Clock
-import qualified ParallelUtilities            as PU
+-- import qualified ParallelUtilities            as PU
 
 -- | CPU time with picosecond resolution
 newtype CPUTime = CPUTime Natural
@@ -74,6 +74,7 @@ timeOp ioa = do
     let t = CPUTime . fromIntegral $ t2 - t1
     pure (t, a)
 
+{- Commenting out due to unsafe call to getNumThreads
 timeOpThread :: (MonadIO m, NFData a) => m a -> m (CPUTime, a)
 timeOpThread ioa = do
     t1 <- liftIO getCPUTime
@@ -81,6 +82,7 @@ timeOpThread ioa = do
     t2 <- liftIO getCPUTime
     let t = CPUTime . fromIntegral $ fst $ divMod (t2 - t1) (fromIntegral PU.getNumThreads)
     pure (t, a)
+-}
 
 -- unit in pico second or something so not what I want in seconds
 timeOpUT :: (MonadIO m, NFData a) => m a -> m (CPUTime, a)

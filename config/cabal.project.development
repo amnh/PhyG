@@ -63,8 +63,11 @@ Constraints:
     template-haskell installed
 
 Constraints:
-    optparse-applicative -process,
-    tasty -unix
+--    hashtables +debug,
+--    hashtables -unsafe-tricks,
+    hashtables +bounds-checking,
+    optparse-applicative +process,
+    tasty +unix
 
 Preferences:
     aeson >= 2.1.0.0,
@@ -93,6 +96,11 @@ Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-dynamic-character-element
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-evaluation
 
 Source-Repository-Package
   Type:     git

@@ -37,6 +37,9 @@ Portability :  portable (I hope)
 
 module Utilities.DistanceUtilities where
 
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
+import Control.Monad.IO.Class (MonadIO (..))
 import Data.Graph.Inductive.Graph qualified as G
 import Data.Graph.Inductive.PatriciaTree qualified as P
 import Data.Maybe
@@ -46,13 +49,12 @@ import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import GeneralUtilities
 import GraphFormatUtilities qualified as PP
-import ParallelUtilities
 import SymMatrix qualified as M
 import System.IO.Unsafe
 import System.Random qualified as Rand
 import System.Random.Shuffle qualified as RandS
 import Types.DistanceTypes
---import qualified LocalSequence as LS
+import Types.Types
 import Data.List qualified as L
 import Data.Vector qualified as LS
 
@@ -457,19 +459,24 @@ minTriples (_,__,c) (_,_,d)
   | c > d = GT
   | otherwise = EQ
 
--- | getMatrixMinPairTabu' takes distMatrix initial integer pair and value
--- traverses the matrix (skippiong rows and columns in tabuList and return minimum distance and index pair
+-- | getMatrixMinPairTabu takes distMatrix initial integer pair and value
+-- traverses the matrix (skipping rows and columns in tabuList and return minimum distance and index pair
 -- if tie takes first
 -- gets minimum by row and parallelizes ovcer rows
   -- call with (-1, -1, NT.infinity) 0 0
-getMatrixMinPairTabu :: M.Matrix Double -> [Int] -> (Int, Int, Double)
+getMatrixMinPairTabu :: M.Matrix Double -> [Int] -> PhyG (Int, Int, Double)
 getMatrixMinPairTabu distMatrix tabuList =
   if M.null distMatrix then error "Empty matrix in getMatrixPairTabu"
   else
-    let minValueList = seqParMap myStrategy (getMinRowDistMatrix distMatrix tabuList (-1, NT.infinity) 0) [0..(M.rows distMatrix - 1)]
-    in
-    L.minimumBy minTriples minValueList
+    let -- minValueList = seqParMap myStrategy (getMinRowDistMatrix distMatrix tabuList (-1, NT.infinity) 0) [0..(M.rows distMatrix - 1)]
+        minRowAction :: Int -> (Int, Int, Double)
+        minRowAction = getMinRowDistMatrix distMatrix tabuList (-1, NT.infinity) 0
+    in do
+    minRowPar <- getParallelChunkMap
+    let minValueList = minRowPar minRowAction [0..(M.rows distMatrix - 1)]
+    pure $ L.minimumBy minTriples minValueList
 
+{-
 -- | getMatrixMinPairTabu takes distMatrix initial integer pair and value
 -- traverses the matrix (skippiong rows and columns in tabuList and return minimum distance and index pair
 -- if tie takes first
@@ -486,7 +493,7 @@ getMatrixMinPairTabu' distMatrix tabuList curBest curRow curColumn
     if  distMatrix M.! (curRow, curColumn) < currentBestDistance then
       getMatrixMinPairTabu' distMatrix tabuList (curRow, curColumn, distMatrix M.! (curRow, curColumn)) curRow (curColumn + 1)
     else getMatrixMinPairTabu' distMatrix tabuList curBest curRow (curColumn + 1)
-
+-}
 
 
 -- | getMatrixMinPair takes distMatrix initla pinteger pair and value

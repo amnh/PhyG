@@ -91,17 +91,17 @@ netEdgeArgList = ["acceptequal", "acceptworse", "all",  "annealing", "atrandom",
 
 -- | Read arg list allowable modifiers in read
 readArgList :: [String]
-readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fastc", "fenewick", "hugeseq", "include", "newick" , "nucleotide",
+readArgList = ["aminoacid", "block", "dot", "enewick", "exclude", "fasta", "fastc", "fenewick", "gapopening", "hugeseq", "include", "newick" , "nucleotide",
                 "preaminoacid", "prefasta", "prefastc", "prehugeseq", "prenucleotide", "rename", "tcm", "tnt"] -- "prealigned", "csv",
 
 -- should be moved to a single file for import
 -- | reconcileCommandList list of allowable commands
 reconcileArgList :: [String]
-reconcileArgList = ["compare", "connect", "edgelabel", "method", "outformat", "threshold", "vertexlabel"] -- "outfile"
+reconcileArgList = ["compare", "connect", "edgelabel", "method", "threshold", "vertexlabel"] -- "outfile"
 
 -- | reconcileOptionsList list of allowable command options of method, compare, threshhold, and outformat
 reconcileOptionsList :: [String]
-reconcileOptionsList = ["adams", "combinable", "cun", "dot" ,"dotpdf", "eun", "false", "fen", "identity", "majority", "newick", "strict", "true"]
+reconcileOptionsList = ["adams", "combinable", "cun", "eun", "false", "fen", "identity", "majority", "strict", "true"]
 
 
 -- | refinement arguments
@@ -227,15 +227,9 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                             has02DoubleQuotes = (numDoubleQuotes == 2) || (numDoubleQuotes == 0)
                                         in
                                         if not has02DoubleQuotes then errorWithoutStackTrace ("Unbalanced quotation marks in report file argument: " <> fileArgs)
-                                        else (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
-
-                                   -- Run  -- processed out before this into command list
-
-                                   -- Search
-                                   else if commandInstruction == Search then
-                                        if "reconcile" `notElem` fstArgList then (checkCommandArgs "report" fstArgList searchArgList, [""], [""])
-                                        else
-                                            let reconcilePairList = zip fstArgList sndArgList
+                                        else if "reconcile" `notElem` fstArgList then (checkCommandArgs "report" fstArgList reportArgList, [""], fileNameList)
+                                        else 
+                                            let reconcilePairList = filter ((`notElem` ("reconcile" : reportArgList)) . fst) $ zip fstArgList sndArgList
                                                 nonThresholdreconcileModPairList = filter ((/= "threshold"). fst) $ reconcilePairList
                                                 thresholdreconcileModPairList = filter ((== "threshold"). fst) $ reconcilePairList
                                                 checkReconcile1 = checkCommandArgs "reconcile"  (fmap fst nonThresholdreconcileModPairList) reconcileArgList
@@ -245,8 +239,15 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                                 checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
                                                 checkReconcile = checkReconcile1 && checkReconcile2 && checkReconcile3 && checkReconcile4
                                             in
-                                            if checkReconcile then (checkCommandArgs "report" fstArgList searchArgList,[""], [""])
+                                            if checkReconcile then (checkCommandArgs "report" fstArgList reportArgList,[""], [""])
                                             else (False, [], [])
+
+                                   -- Run  -- processed out before this into command list
+
+                                   -- Search
+                                   else if commandInstruction == Search then
+                                        (checkCommandArgs "search" fstArgList searchArgList, [""], [""])
+                                        
                                    -- Select
                                    else if commandInstruction == Select then
                                         (checkCommandArgs "select" fstArgList selectArgList, [""], [""])

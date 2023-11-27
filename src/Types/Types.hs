@@ -15,6 +15,9 @@ import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.InfList qualified as IL
 import Data.List.NonEmpty (NonEmpty (..))
+--import Data.MetricRepresentation as MR
+--import Data.TCM qualified as TCM
+--import Data.TCM.Dense qualified as TCMD
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
@@ -24,6 +27,7 @@ import Data.Word (Word64)
 import Debug.Trace
 import GHC.Generics
 import Measure.Unit.SymbolCount (symbolCount)
+import PHANE.Evaluation
 import SymMatrix qualified as S
 import TransitionMatrix qualified as TM
 import TransitionMatrix.Diagnosis.Error (DiagnosisFailure)
@@ -51,13 +55,20 @@ infinity ∷ Double
 infinity = read "Infinity" ∷ Double
 
 
-{- | maxAddStatesToRecode maximum size of addditive character to recode into
-non-additive characters 65 can fit in 4 WideState since nstates - 1 binaries
+{- |
+'maxAddStatesToRecode' maximum size of addditive character to recode into
+non-additive characters @65@ can fit in 4 WideState since @nstates - 1@ binaries
 prob could be bigger based on cost of optimizing additive versus but this
-seems a reasonale number (prob should be timed to verify)
+seems a reasonable number (prob should be timed to verify).
 -}
 maxAddStatesToRecode ∷ Int
 maxAddStatesToRecode = 129
+
+
+{- |
+Core monad transformer stack for evaluating computations within the application PhyG.
+-}
+type PhyG = Evaluation ()
 
 
 -- | Types for timed searches
@@ -243,7 +254,7 @@ maxSimultaneousGraphsSteepest = 10
 
 
 -- | SwapType types for swapping, TBRAlternate for special casing in Swap
-data SwapType = None | NNI | SPR | TBR | Alternate | TBRAlternate
+data SwapType = NoSwap | NNI | SPR | TBR | Alternate | TBRAlternate
     deriving stock (Show, Eq)
 
 
