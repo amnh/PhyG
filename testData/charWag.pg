@@ -83,11 +83,12 @@ build(distance, rdwag, replicates:20, best:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 
-
 swap()
 
 -- transform(dynamic)
+
 select(best)
+
 --report("test0-crossrefs.csv", crossrefs, overwrite)
 --report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)

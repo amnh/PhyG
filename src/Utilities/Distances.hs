@@ -13,7 +13,6 @@ import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import PHANE.Evaluation
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.Utilities qualified as U
