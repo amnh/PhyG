@@ -21,6 +21,8 @@ The changelog is available [on GitHub][2].
 
     - `PHANE-dynamic-character-element`
 
+    - `PHANE-evaluation`
+
     - `PHANE-measure-units`
 
     - `PHANE-PhyloLib`
@@ -35,7 +37,11 @@ The changelog is available [on GitHub][2].
 
     - `--version` Outputs the software version, commit hash, and compilation timestamp
 
+  * Added proper logging throughout computation(s).
+
   * Corrected defect in median extraction from preliminary contexts
+
+  * Corrected deadlocks in memoized hashtable access
 
 
 ### PhyloLib
