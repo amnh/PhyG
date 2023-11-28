@@ -55,27 +55,28 @@ multiTraverseFullyLabelGraph
     ∷ GlobalSettings → ProcessedData → Bool → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
 multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
     | LG.isEmpty inGraph = pure emptyPhylogeneticGraph
-    | graphType inGS == Tree =
-        -- test for Tree
-        let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
-        in  if null networkVertexList
-                then
+    | otherwise = case graphType inGS of
+        SoftWired ->
+            let leafGraph = POSW.makeLeafGraphSoftWired inGS inData
+            in  multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
+        HardWired ->
+            let leafGraph = GO.makeLeafGraph inData
+            in  multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inGraph
+
+        Tree ->
+            -- test for Tree
+            let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
+            in  do  when (not $ null networkVertexList) . failWithPhase Computing $ unlines
+                        [ "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree."
+                        , "Modify input graph or use 'set()' command to specify network type."
+                        , "\tNetwork vertices: " <> show (fst <$> networkVertexList)
+                        , LG.prettify inGraph
+                        ]
+                    
                     let leafGraph = GO.makeLeafGraph inData
-                    in  multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
-                else
-                    errorWithoutStackTrace
-                        ( "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree. Modify input graph or use 'set()' command to specify network type\n\tNetwork vertices: "
-                            <> (show $ fmap fst networkVertexList)
-                            <> "\n"
-                            <> (LG.prettify inGraph)
-                        )
-    | graphType inGS == SoftWired =
-        let leafGraph = POSW.makeLeafGraphSoftWired inGS inData
-        in  multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
-    | graphType inGS == HardWired =
-        let leafGraph = GO.makeLeafGraph inData
-        in  multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inGraph
-    | otherwise = errorWithoutStackTrace ("Unknown graph type specified: " <> show (graphType inGS))
+                    multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph
+
+        val -> failWithPhase Computing $ "Unknown graph type specified: " <> show val
 
 
 -- | multiTraverseFullyLabelGraphPair maps to multiTraverseFullyLabelGraph with paired  arguments used by report IA and tnt output
