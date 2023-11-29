@@ -26,6 +26,7 @@ import GeneralUtilities
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.PreOrderFunctions qualified as PRE
 import Graphs.GraphOperations qualified as GO
+import GHC.Stack (errorWithStackTrace)
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging
@@ -55,7 +56,7 @@ multiTraverseFullyLabelGraph
     ∷ GlobalSettings → ProcessedData → Bool → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
 multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
     | LG.isEmpty inGraph = pure emptyPhylogeneticGraph
-    | otherwise = case graphType inGS of
+    | otherwise = {-# SCC multiTraverseFullyLabelGraph_TOP_DEF #-} case graphType inGS of
         SoftWired ->
             let leafGraph = POSW.makeLeafGraphSoftWired inGS inData
             in  multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
@@ -63,15 +64,19 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
             let leafGraph = GO.makeLeafGraph inData
             in  multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inGraph
 
-        Tree ->
+        Tree -> {-# SCC multiTraverseFullyLabelGraph_CASE_OF_Tree #-}
             -- test for Tree
             let (_, _, _, networkVertexList) = LG.splitVertexList inGraph
-            in  do  when (not $ null networkVertexList) . failWithPhase Computing $ unlines
-                        [ "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree."
-                        , "Modify input graph or use 'set()' command to specify network type."
-                        , "\tNetwork vertices: " <> show (fst <$> networkVertexList)
-                        , LG.prettify inGraph
-                        ]
+--            in  do  when (not $ null networkVertexList) . failWithPhase Computing $ unlines
+            in  do  when (not $ null networkVertexList) $ do
+                        logWith LogFail $ unlines
+                            [ "Input graph is not a tree/forest, but graph type has been specified (perhaps by default) as Tree."
+                            , "Modify input graph or use 'set()' command to specify network type."
+                            , "\tNetwork vertices: " <> show (fst <$> networkVertexList)
+                            , LG.prettify inGraph
+                            ]
+                        errorWithStackTrace "Exceptional state reached: MALFORMED GRAPH"
+                        
                     
                     let leafGraph = GO.makeLeafGraph inData
                     multiTraverseFullyLabelTree inGS inData leafGraph startVertex inGraph

@@ -116,7 +116,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                     traverseAction ∷ Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
                     traverseAction = T.multiTraverseFullyLabelGraphReduced inGS inData -- False False Nothing
                 in  do
-                        when (not $ null buildBlock) $ logWith LogInfo ("Block building initial graph(s)\n")
+                        when (not $ null buildBlock) $ logWith LogInfo "Block building initial graph(s)\n"
                         -- initial build of trees from combined data--or by blocks
                         -- distance calculation moved here to get out of main scope
                         firstGraphs' ←
@@ -126,7 +126,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                     in  do
                                             pairwiseDistances' ← D.getPairwiseDistances inData
                                             buildTreeList ← buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances' rSeed
-                                            -- logWith LogInfo ("BL: " <> (show $ length buildTreeList))
+                                            logWith LogTech $ fold [ "BL:\t", show $ length buildTreeList, "\n" ]
                                             pure buildTreeList
                                 else do
                                     -- removing taxa with missing data for block
@@ -150,31 +150,28 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                     pure traverseList
 
                         -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
-                        let firstGraphs =
-                                if null buildBlock
-                                    then GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 (-1) firstGraphs'
-                                    else firstGraphs'
+                        let firstGraphs
+                                | null buildBlock = GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 (-1) firstGraphs'
+                                | otherwise = firstGraphs'
 
                         -- reporting info
-                        let returnString =
-                                if (not . null) firstGraphs
-                                    then
-                                        ( "\tReturning "
-                                            <> (show $ length firstGraphs)
-                                            <> " graphs at cost range "
-                                            <> (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs))
-                                        )
-                                    else "\t\tReturning 0 graphs"
+                        let returnString
+                                | null firstGraphs = "\t\tReturning 0 graphs"
+                                | otherwise = unwords
+                                    [ "\tReturning"
+                                    , show $ length firstGraphs
+                                    , "graphs at cost range"
+                                    , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
+                                    ]
 
-                        let costString =
-                                if (not . null) firstGraphs
-                                    then
-                                        ( "\tBlock build yielded "
-                                            <> (show $ length firstGraphs)
-                                            <> " graphs at cost range "
-                                            <> (show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs))
-                                        )
-                                    else "\t\tBlock build returned 0 graphs"
+                        let costString
+                                | null firstGraphs = "\t\tBlock build returned 0 graphs"
+                                | otherwise = unwords
+                                    [ "\tBlock build yielded"
+                                    , show $ length firstGraphs
+                                    , "graphs at cost range"
+                                    , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
+                                    ]
 
                         if isNothing numDisplayTrees
                             then errorWithoutStackTrace ("DisplayTrees specification in build not an integer: " <> show (snd $ head displayBlock))
@@ -399,17 +396,18 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                                         $> displayGraphs
 
 
--- ))
-
--- | buildTree' wraps build tree and changes order of arguments for mapping
+{- |
+'buildTree'' wraps build tree and changes order of arguments for mapping.
+-}
 buildTree' ∷ Bool → [Argument] → GlobalSettings → Int → ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
 buildTree' simpleTreeOnly inArgs inGS rSeed (pairwiseDistances, inData) =
     buildTree simpleTreeOnly inArgs inGS inData pairwiseDistances rSeed
 
 
-{- | buildTree takes build options and returns constructed graphList
+{- |
+'buildTree' takes build options and returns constructed graphList
 simpleTreeOnly (for block build) returns a single best tree to reduce edges in
-reconcile step
+reconcile step.
 -}
 buildTree ∷ Bool → [Argument] → GlobalSettings → ProcessedData → [[VertexCost]] → Int → PhyG [ReducedPhylogeneticGraph]
 buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistances rSeed =
@@ -473,7 +471,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
 
                 do
                     -- logWith LogInfo ("L455: " <> (show (numReplicates,numToSave)))
-                    treeList1 ←
+                    treeList1 ← {-# SCC buildTree_treeList1 #-}
                         if hasKey "rdwag"
                             then
                                 randomizedDistanceWagner
@@ -588,18 +586,24 @@ randomizedDistanceWagner
     → Int
     → String
     → PhyG [ReducedPhylogeneticGraph]
-randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates rSeed numToKeep refinement =
+randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates rSeed numToKeep refinement = {-# SCC randomizedDistanceWagner_TOP_DEF #-}
     -- set up parallel structures
     let refineAction ∷ TreeWithData → PhyG [TreeWithData]
         refineAction = DW.performRefinement refinement "best:1" "first" leafNames outgroupValue
 
         traverseGraphAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
-        traverseGraphAction =
-            ( T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
-                . GO.renameSimpleGraphNodes
-                . GO.dichotomizeRoot outgroupValue
-            )
-                . LG.switchRootTree (length leafNames)
+        traverseGraphAction g0 = {-# SCC randomizedDistanceWagner_traverseGraphAction #-} do
+            let debugger :: (Logger m, Show a, Show b, Show c) => a -> LG.Gr b c -> m ()
+                debugger n g = logWith LogTech $ "In: 'randomizedDistanceWagner.traverseGraphAction'\n  Graph [ G_" <> show n <> " ]:\n" <> LG.prettify g
+            debugger 0 g0
+            let g1 = LG.switchRootTree (length leafNames) g0
+            debugger 1 g1
+            let g2 = GO.dichotomizeRoot outgroupValue g1
+            debugger 2 g2
+            result@(g3,_,_,_,_) <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g2
+            debugger 3 g3
+            pure result
+
 
         dichotomizeAction ∷ SimpleGraph → SimpleGraph
         dichotomizeAction = GO.dichotomizeRoot outgroupValue . (LG.switchRootTree (length leafNames))

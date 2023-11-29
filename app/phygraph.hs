@@ -61,7 +61,7 @@ and randomness.
 -}
 evaluatePhyG ∷ FilePath → IO ()
 evaluatePhyG path = do
-    logConfig ← initializeLogging Info Warn Nothing
+    logConfig ← initializeLogging Dump Warn Nothing
     firstSeed ← initializeRandomSeed
     runEvaluation logConfig firstSeed () $ performSearch firstSeed path
 

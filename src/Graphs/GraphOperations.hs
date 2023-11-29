@@ -449,6 +449,7 @@ makeGraphTimeConsistent correct inGraph
                     if (not correct) && (not . null) timeOffendingEdgeList then pure LG.empty
                     else pure $ contractIn1Out1EdgesRename newGraph
 
+
 -- | contractIn1Out1EdgesRename contracts in degree and outdegree edges and renames HTUs in index order
 -- does one at a time and makes a graph and recurses
 contractIn1Out1EdgesRename :: SimpleGraph -> SimpleGraph
@@ -462,19 +463,18 @@ contractIn1Out1EdgesRename inGraph =
 
 -- | renameSimpleGraphNodes takes nodes and renames HTU nodes based on index
 renameSimpleGraphNodes :: SimpleGraph -> SimpleGraph
-renameSimpleGraphNodes inGraph =
-  if LG.isEmpty inGraph then LG.empty
-    else
-      let inNodes = LG.labNodes inGraph
-          nodeLabels = fmap (makeSimpleLabel inGraph) inNodes
-          newNodes = zip (fmap fst inNodes) nodeLabels
-          newEdges = LG.labEdges inGraph
-    in
-    --newGraph
-    -- trace ("C11: " <> (show $ LG.getIsolatedNodes newGraph) <> " => " <> (show newNodes) <> " " <> (show $ fmap LG.toEdge newEdges))
-    LG.mkGraph newNodes newEdges
-    where makeSimpleLabel g (a, b)  = if not $ LG.isLeaf g a then T.pack $ "HTU"  <> show a
-                                      else b
+renameSimpleGraphNodes inGraph
+    | LG.isEmpty inGraph = LG.empty
+    | otherwise = 
+        let inNodes = LG.labNodes inGraph
+            nodeLabels = fmap (makeSimpleLabel inGraph) inNodes
+            newNodes = zip (fmap fst inNodes) nodeLabels
+            newEdges = LG.labEdges inGraph
+            makeSimpleLabel g (a, b)
+                | not $ LG.isLeaf g a = T.pack $ "HTU"  <> show a
+                | otherwise = b
+        in  LG.mkGraph newNodes newEdges
+
 
 -- | renameSimpleGraphNodesString takes nodes and renames HTU nodes based on index
 renameSimpleGraphNodesString :: LG.Gr String String -> LG.Gr String String
