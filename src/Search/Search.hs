@@ -24,6 +24,8 @@ import Data.Maybe
 import Data.Vector qualified as V
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
+import Data.List.NonEmpty (NonEmpty (..))
+import Data.Foldable1 qualified as F1
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
@@ -261,71 +263,74 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                         then minimum $ fmap snd5 $ fst output
                         else infinity
             let finalTimeString = ",Final Values,," <> (show bestCost) <> "," <> (show $ toSeconds outTotalSeconds)
-            -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
-            (updatedThetaList, newStopCount) ←
-                updateTheta
-                    SearchBandit
-                    thompsonSample
-                    mFactor
-                    mFunction
-                    counter
-                    (snd output)
-                    (drop 3 totalThetaList)
-                    elapsedSecondsCPU
-                    outTotalSeconds
-                    stopCount
-                    stopNum
-            (updatedGraphTheta, _) ←
-                updateTheta
-                    GraphBandit
-                    thompsonSample
-                    mFactor
-                    mFunction
-                    counter
-                    (snd output)
-                    (take 3 totalThetaList)
-                    elapsedSecondsCPU
-                    outTotalSeconds
-                    stopCount
-                    stopNum
-            -- add lists together properly so first three are the graph bandits
-            let combinedThetaList = updatedGraphTheta <> updatedThetaList
-            let thetaString =
-                    if (null $ snd output)
-                        then L.intercalate "," $ fmap (show . snd) totalThetaList
-                        else L.intercalate "," $ fmap (show . snd) combinedThetaList
+            case snd output of
+                [] -> pure output
+                x:xs -> do
+                    -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
+                    (updatedThetaList, newStopCount) ←
+                        updateTheta
+                            SearchBandit
+                            thompsonSample
+                            mFactor
+                            mFunction
+                            counter
+                            (x :| xs)
+                            (drop 3 totalThetaList)
+                            elapsedSecondsCPU
+                            outTotalSeconds
+                            stopCount
+                            stopNum
+                    (updatedGraphTheta, _) ←
+                        updateTheta
+                            GraphBandit
+                            thompsonSample
+                            mFactor
+                            mFunction
+                            counter
+                            (x :| xs)
+                            (take 3 totalThetaList)
+                            elapsedSecondsCPU
+                            outTotalSeconds
+                            stopCount
+                            stopNum
+                    -- add lists together properly so first three are the graph bandits
+                    let combinedThetaList = updatedGraphTheta <> updatedThetaList
+                    let thetaString =
+                            if (null $ snd output)
+                                then L.intercalate "," $ fmap (show . snd) totalThetaList
+                                else L.intercalate "," $ fmap (show . snd) combinedThetaList
 
-            let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
-            logWith LogMore $
-                unlines
-                    [ "Thread   \t" <> show refIndex
-                    , "Alloted  \t" <> show allotedSeconds
-                    , "Ellapsed \t" <> show elapsedSeconds
-                    , "Remaining\t" <> show remainingTime
-                    , "\n"
-                    ]
+                    let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
+                    logWith LogMore $
+                        unlines
+                            [ "Thread   \t" <> show refIndex
+                            , "Alloted  \t" <> show allotedSeconds
+                            , "Ellapsed \t" <> show elapsedSeconds
+                            , "Remaining\t" <> show remainingTime
+                            , "\n"
+                            ]
 
-            if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum || (null $ snd output)
-                then pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) -- output with strings correctly added together
-                else
-                    searchForDuration
-                        inGS
-                        inData
-                        pairwiseDistances
-                        keepNum
-                        thompsonSample
-                        mFactor
-                        mFunction
-                        combinedThetaList
-                        (counter + 1)
-                        maxNetEdges
-                        outTotalSeconds
-                        remainingTime
-                        newStopCount
-                        stopNum
-                        refIndex
-                        (tail seedList)
-                        $ bimap (inGraphList <>) (infoStringList <>) output
+                    if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum || (null $ snd output)
+                        then pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) -- output with strings correctly added together
+                        else
+                            searchForDuration
+                                inGS
+                                inData
+                                pairwiseDistances
+                                keepNum
+                                thompsonSample
+                                mFactor
+                                mFunction
+                                combinedThetaList
+                                (counter + 1)
+                                maxNetEdges
+                                outTotalSeconds
+                                remainingTime
+                                newStopCount
+                                stopNum
+                                refIndex
+                                (tail seedList)
+                                $ bimap (inGraphList <>) (infoStringList <>) output
 
 
 -- | updateTheta updates the expected success parameters for the bandit search list
@@ -335,36 +340,36 @@ updateTheta
     → Int
     → String
     → Int
-    → [String]
+    → NonEmpty String
     → [(String, Double)]
     → CPUTime
     → CPUTime
     → Int
     → Int
     → PhyG ([(String, Double)], Int)
-updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList inPairList elapsedSeconds totalSeconds stopCount stopNum =
+updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString:|infoStringList) inPairList elapsedSeconds totalSeconds stopCount stopNum =
     if null inPairList
         then do
             pure ([], stopCount)
         else
             let searchBandit =
                     if thisBandit == SearchBandit
-                        then takeWhile (/= ',') (tail $ head infoStringList)
+                        then takeWhile (/= ',') (tail infoString)
                         else -- GraphBandit
 
-                            if "StaticApprox" `elem` (LS.splitOn "," $ head infoStringList)
+                            if "StaticApprox" `elem` (LS.splitOn "," infoString)
                                 then -- trace
                                 --    ("GraphBandit is StaticApprox")
                                     "StaticApproximation"
                                 else
-                                    if "MultiTraverse:False" `elem` (LS.splitOn "," $ head infoStringList)
+                                    if "MultiTraverse:False" `elem` (LS.splitOn "," infoString)
                                         then -- trace
                                         --    ("GraphBandit is SingleTraverse")
                                             "SingleTraverse"
                                         else -- trace
                                         --    ("GraphBandit is MultiTraverse ")
                                             "MultiTraverse"
-                searchDeltaString = takeWhile (/= ',') $ tail $ dropWhile (/= ',') (tail $ head infoStringList)
+                searchDeltaString = takeWhile (/= ',') $ tail $ dropWhile (/= ',') (tail infoString)
                 searchDelta = read searchDeltaString ∷ Double
             in  if not thompsonSample
                     then
