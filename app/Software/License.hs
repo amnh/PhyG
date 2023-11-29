@@ -1,18 +1,19 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict #-}
+
 {- |
 Compile-time embeddings of project contributions via Template Haskell.
 -}
-
-{-# Language LambdaCase #-}
-{-# Language OverloadedStrings #-}
-{-# Language Strict #-}
-
-module Software.License
-  ( licenseText
-  ) where
+module Software.License (
+    licenseText,
+) where
 
 import Data.Map ((!))
 import Data.Text (Text)
 import Software.Metadata.Embedded (embeddedDataFiles)
+
+
 {-
 import Control.Monad (filterM)
 import Data.FileEmbed
@@ -31,7 +32,7 @@ import System.FilePath ((</>), normalise, splitDirectories, splitFileName, takeF
 import System.Directory
 -}
 
-licenseText :: Text
+licenseText ∷ Text
 licenseText = embeddedDataFiles ! "LICENSE"
 
 {-
@@ -89,7 +90,6 @@ licenseText =
             runIO $ gatherData filePath >>= lift
 -}
 
-
 {-# INLINE getFilesFilteredBy #-}
 -- | Recursively get all files and subdirectories in the given directory that
 -- satisfy the given predicate. Note that the content of subdirectories not
@@ -103,10 +103,8 @@ getFilesFilteredBy
   -> IO [FilePath]
 getFilesFilteredBy predicate = foldMapA (getFilesFilteredBy' predicate)
 
-
 foldMapA :: (FilePath -> IO [FilePath]) -> [FilePath] -> IO [FilePath]
 foldMapA = (fmap fold .) . traverse
-
 
 {-# INLINE getFilesFilteredBy' #-}
 getFilesFilteredBy'

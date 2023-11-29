@@ -10,26 +10,28 @@ import Commands.Verify qualified as VER
 import Control.Concurrent.Async
 import Control.Concurrent.Timeout (timeout)
 import Control.DeepSeq
-import Control.Evaluation
 import Control.Exception
 import Control.Monad (join, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.IO.Unlift
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Bifunctor (bimap)
 import Data.Char
-import Data.Functor (($>), (<&>))
 import Data.Foldable
+import Data.Functor (($>), (<&>))
 import Data.List qualified as L
 import Data.List.Split qualified as LS
 import Data.Maybe
--- import qualified GraphOptimization.Traversals as T
 import Data.Vector qualified as V
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
+import Data.List.NonEmpty (NonEmpty (..))
+import Data.Foldable1 qualified as F1
+import PHANE.Evaluation
+import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Build qualified as B
 import Search.Refinement qualified as R
-import System.ErrorPhase (ErrorPhase (..))
 import System.IO
 import System.Random
 import System.Timing
@@ -38,7 +40,6 @@ import Types.Types
 import UnliftIO.Async (pooledMapConcurrently)
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
--- import Debug.Trace
 
 
 -- Bandit lists are concateenated for each of use andd update--first 3 are graph evaluation
@@ -49,8 +50,8 @@ import Utilities.Utilities qualified as U
 treeBanditList ∷ [String]
 treeBanditList =
     [ "buildCharacter"
-    -- , "buildDistance" -- "buildSPR", "buildAlternate", distance only up front to reduce memory footprint
-    , "swapSPR"
+    , -- , "buildDistance" -- "buildSPR", "buildAlternate", distance only up front to reduce memory footprint
+      "swapSPR"
     , "swapAlternate"
     , "fuse"
     , "fuseSPR"
@@ -92,75 +93,94 @@ search
     → Int
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], [[String]])
-search inArgs inGS inData pairwiseDistances rSeed inGraphList' = 
-
+search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
     -- flatThetaList is the initial prior list (flat) of search (bandit) choices
     -- can also be used in search for non-Thomspon search
     let flatThetaList =
             if graphType inGS == Tree
                 then zip treeBanditList (L.replicate (length treeBanditList) (1.0 / (fromIntegral $ length treeBanditList)))
-            else zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
+                else zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
 
         flatGraphBanditList = zip graphBanditList (L.replicate (length graphBanditList) (1.0 / (fromIntegral $ length graphBanditList)))
 
         totalFlatTheta = flatGraphBanditList <> flatThetaList
-    in do
+    in  do
+            (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) ← getSearchParams inArgs
 
-        (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) <- getSearchParams inArgs
+            let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
+            let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
+            let searchTimed =
+                    uncurry3' $
+                        searchForDuration
+                            inGS
+                            inData
+                            pairwiseDistances
+                            keepNum
+                            thompsonSample
+                            mFactor
+                            mFunction
+                            totalFlatTheta
+                            1
+                            maxNetEdges
+                            initialSeconds
+                            threshold
+                            0
+                            stopNum
+            let infoIndices = [1 ..]
+            let seadStreams = randomIntList <$> randomIntList rSeed
 
-        let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
-        let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
-        let searchTimed = uncurry3' $
-                searchForDuration
-                    inGS
-                    inData
-                    pairwiseDistances
-                    keepNum
-                    thompsonSample
-                    mFactor
-                    mFunction
-                    totalFlatTheta
-                    1
-                    maxNetEdges
-                    initialSeconds
-                    threshold
-                    0
-                    stopNum
-        let infoIndices = [1 ..]
-        let seadStreams = randomIntList <$> randomIntList rSeed
-    
-        logWith LogInfo ("Randomized seach for " <> (show searchTime) <> " seconds with " <> (show instances) <> " instances keeping at most " <> (show keepNum) <> " graphs" <> "\n")
-        -- if initial graph list is empty make some
-        
-        inGraphList <-
-                if (length inGraphList' >= keepNum) then pure inGraphList' 
-                else do  
-                    dWagGraphList ← B.buildGraph
-                        [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
-                        inGS
-                        inData
-                        pairwiseDistances
-                        rSeed
-                    pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
+            logWith
+                LogInfo
+                ( "Randomized seach for "
+                    <> (show searchTime)
+                    <> " seconds with "
+                    <> (show instances)
+                    <> " instances keeping at most "
+                    <> (show keepNum)
+                    <> " graphs"
+                    <> "\n"
+                )
+            -- if initial graph list is empty make some
 
-        --  threadCount <- (max 1) <$> getNumCapabilities
-        let threadCount = instances -- <- (max 1) <$> getNumCapabilities
-        let startGraphs = replicate threadCount (inGraphList, mempty)
-        let threadInits = zip3 infoIndices seadStreams startGraphs
-        resultList ← pooledMapConcurrently searchTimed threadInits -- If there are no input graphs--make some via distance
-        let (newGraphList, commentList) = unzip resultList
-        let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
+            inGraphList ←
+                if (length inGraphList' >= keepNum)
+                    then pure inGraphList'
+                    else do
+                        dWagGraphList ←
+                            B.buildGraph
+                                [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
+                                inGS
+                                inData
+                                pairwiseDistances
+                                rSeed
+                        pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
 
-        let iterationHitString = ("Hit minimum cost " <> (show $ minimum $ fmap snd5 $ concat newGraphList) <> " in " <> (show $ length $ head newCostList) <> " of " <> (show $ length newGraphList) <> " iterations" <> "\n")
-        let completeGraphList = inGraphList <> fold newGraphList
-        let filteredGraphList = GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) completeGraphList
-        let selectedGraphList = take keepNum filteredGraphList
-            
-        logWith LogInfo iterationHitString
-                
-        pure (selectedGraphList, commentList <> [[iterationHitString]])
+            --  threadCount <- (max 1) <$> getNumCapabilities
+            let threadCount = instances -- <- (max 1) <$> getNumCapabilities
+            let startGraphs = replicate threadCount (inGraphList, mempty)
+            let threadInits = zip3 infoIndices seadStreams startGraphs
+            resultList ← pooledMapConcurrently searchTimed threadInits -- If there are no input graphs--make some via distance
+            let (newGraphList, commentList) = unzip resultList
+            let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
 
-      where
+            let iterationHitString =
+                    ( "Hit minimum cost "
+                        <> (show $ minimum $ fmap snd5 $ concat newGraphList)
+                        <> " in "
+                        <> (show $ length $ head newCostList)
+                        <> " of "
+                        <> (show $ length newGraphList)
+                        <> " iterations"
+                        <> "\n"
+                    )
+            let completeGraphList = inGraphList <> fold newGraphList
+            let filteredGraphList = GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) completeGraphList
+            let selectedGraphList = take keepNum filteredGraphList
+
+            logWith LogInfo iterationHitString
+
+            pure (selectedGraphList, commentList <> [[iterationHitString]])
+    where
         getMinGraphListCost ∷ (Foldable t, Functor t) ⇒ t (a, Double, c, d, e) → Double
         getMinGraphListCost a
             | not $ null a = minimum $ fmap snd5 a
@@ -204,32 +224,34 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
         -- this line to keep control of graph number
         inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) inGraphList
 
-        logWarning :: b -> [String] -> PhyG b
-        logWarning val tokens = logWith LogWarn ((unwords $ "Thread" : show refIndex : tokens)  <> "\n") $> val
+        logWarning ∷ b → [String] → PhyG b
+        logWarning val tokens = logWith LogWarn ((unwords $ "Thread" : show refIndex : tokens) <> "\n") $> val
 
-        runForDuration :: PhyG a -> PhyG (Maybe a)
+        runForDuration ∷ PhyG a → PhyG (Maybe a)
         runForDuration = liftIOOp (timeout timeLimit)
 
-        searchingInnerOp :: PhyG ([ReducedPhylogeneticGraph], [String])
-        searchingInnerOp = force $ performSearch
-            inGS
-            inData
-            pairwiseDistances
-            keepNum
-            thompsonSample
-            totalThetaList
-            maxNetEdges
-            (head seedList)
-            inTotalSeconds
-            (inGraphList', infoStringList)
+        searchingInnerOp ∷ PhyG ([ReducedPhylogeneticGraph], [String])
+        searchingInnerOp =
+            force $
+                performSearch
+                    inGS
+                    inData
+                    pairwiseDistances
+                    keepNum
+                    thompsonSample
+                    totalThetaList
+                    maxNetEdges
+                    (head seedList)
+                    inTotalSeconds
+                    (inGraphList', infoStringList)
 
-        searchingForDuration :: PhyG ([ReducedPhylogeneticGraph], [String])
+        searchingForDuration ∷ PhyG ([ReducedPhylogeneticGraph], [String])
         searchingForDuration = do
             -- result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
-            result <- runForDuration searchingInnerOp 
+            result ← runForDuration searchingInnerOp
             case result of
-                Nothing -> logWarning (inGraphList, []) ["terminated due to time" ]
-                Just gs -> logWarning gs [ "is OK", show allotedSeconds, "->", show . fromIntegral $ toMicroseconds allotedSeconds]
+                Nothing → logWarning (inGraphList, []) ["terminated due to time"]
+                Just gs → logWarning gs ["is OK", show allotedSeconds, "->", show . fromIntegral $ toMicroseconds allotedSeconds]
     in  do
             -- (elapsedSeconds, output) <- timeOpUT $
             (elapsedSeconds, elapsedSecondsCPU, output) ← timeOpCPUWall searchingForDuration
@@ -241,70 +263,74 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                         then minimum $ fmap snd5 $ fst output
                         else infinity
             let finalTimeString = ",Final Values,," <> (show bestCost) <> "," <> (show $ toSeconds outTotalSeconds)
-            -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
-            (updatedThetaList, newStopCount) <-
-                    updateTheta
-                        SearchBandit
-                        thompsonSample
-                        mFactor
-                        mFunction
-                        counter
-                        (snd output)
-                        (drop 3 totalThetaList)
-                        elapsedSecondsCPU
-                        outTotalSeconds
-                        stopCount
-                        stopNum
-            (updatedGraphTheta, _) <-
-                    updateTheta
-                        GraphBandit
-                        thompsonSample
-                        mFactor
-                        mFunction
-                        counter
-                        (snd output)
-                        (take 3 totalThetaList)
-                        elapsedSecondsCPU
-                        outTotalSeconds
-                        stopCount
-                        stopNum
-            -- add lists together properly so first three are the graph bandits
-            let combinedThetaList = updatedGraphTheta <> updatedThetaList
-            let thetaString =
-                    if (null $ snd output)
-                        then L.intercalate "," $ fmap (show . snd) totalThetaList
-                        else L.intercalate "," $ fmap (show . snd) combinedThetaList
+            case snd output of
+                [] -> pure output
+                x:xs -> do
+                    -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
+                    (updatedThetaList, newStopCount) ←
+                        updateTheta
+                            SearchBandit
+                            thompsonSample
+                            mFactor
+                            mFunction
+                            counter
+                            (x :| xs)
+                            (drop 3 totalThetaList)
+                            elapsedSecondsCPU
+                            outTotalSeconds
+                            stopCount
+                            stopNum
+                    (updatedGraphTheta, _) ←
+                        updateTheta
+                            GraphBandit
+                            thompsonSample
+                            mFactor
+                            mFunction
+                            counter
+                            (x :| xs)
+                            (take 3 totalThetaList)
+                            elapsedSecondsCPU
+                            outTotalSeconds
+                            stopCount
+                            stopNum
+                    -- add lists together properly so first three are the graph bandits
+                    let combinedThetaList = updatedGraphTheta <> updatedThetaList
+                    let thetaString =
+                            if (null $ snd output)
+                                then L.intercalate "," $ fmap (show . snd) totalThetaList
+                                else L.intercalate "," $ fmap (show . snd) combinedThetaList
 
-            let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
-            logWith LogMore $ unlines
-                [ "Thread   \t" <> show refIndex
-                , "Alloted  \t" <> show allotedSeconds
-                , "Ellapsed \t" <> show elapsedSeconds
-                , "Remaining\t" <> show remainingTime
-                , "\n"
-                ]
+                    let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
+                    logWith LogMore $
+                        unlines
+                            [ "Thread   \t" <> show refIndex
+                            , "Alloted  \t" <> show allotedSeconds
+                            , "Ellapsed \t" <> show elapsedSeconds
+                            , "Remaining\t" <> show remainingTime
+                            , "\n"
+                            ]
 
-            if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum || (null $ snd output)
-                then pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) -- output with strings correctly added together
-                else
-                    searchForDuration
-                        inGS
-                        inData
-                        pairwiseDistances
-                        keepNum
-                        thompsonSample
-                        mFactor
-                        mFunction
-                        combinedThetaList
-                        (counter + 1)
-                        maxNetEdges
-                        outTotalSeconds
-                        remainingTime
-                        newStopCount
-                        stopNum
-                        refIndex
-                        (tail seedList) $
-                        bimap (inGraphList <>) (infoStringList <>) output
+                    if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum || (null $ snd output)
+                        then pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) -- output with strings correctly added together
+                        else
+                            searchForDuration
+                                inGS
+                                inData
+                                pairwiseDistances
+                                keepNum
+                                thompsonSample
+                                mFactor
+                                mFunction
+                                combinedThetaList
+                                (counter + 1)
+                                maxNetEdges
+                                outTotalSeconds
+                                remainingTime
+                                newStopCount
+                                stopNum
+                                refIndex
+                                (tail seedList)
+                                $ bimap (inGraphList <>) (infoStringList <>) output
 
 
 -- | updateTheta updates the expected success parameters for the bandit search list
@@ -314,39 +340,36 @@ updateTheta
     → Int
     → String
     → Int
-    → [String]
+    → NonEmpty String
     → [(String, Double)]
     → CPUTime
     → CPUTime
     → Int
     → Int
     → PhyG ([(String, Double)], Int)
-updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList inPairList elapsedSeconds totalSeconds stopCount stopNum =
+updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString:|infoStringList) inPairList elapsedSeconds totalSeconds stopCount stopNum =
     if null inPairList
         then do
             pure ([], stopCount)
         else
             let searchBandit =
                     if thisBandit == SearchBandit
-                        then takeWhile (/= ',') (tail $ head infoStringList)
-                    else -- GraphBandit
+                        then takeWhile (/= ',') (tail infoString)
+                        else -- GraphBandit
 
-                            if "StaticApprox" `elem` (LS.splitOn "," $ head infoStringList)
-                                then 
-                                    --trace
-                                    --    ("GraphBandit is StaticApprox")
-                                        "StaticApproximation"
+                            if "StaticApprox" `elem` (LS.splitOn "," infoString)
+                                then -- trace
+                                --    ("GraphBandit is StaticApprox")
+                                    "StaticApproximation"
                                 else
-                                    if "MultiTraverse:False" `elem` (LS.splitOn "," $ head infoStringList)
-                                        then
-                                            --trace
-                                            --    ("GraphBandit is SingleTraverse")
-                                                "SingleTraverse"
-                                        else
-                                            --trace
-                                            --    ("GraphBandit is MultiTraverse ")
-                                                "MultiTraverse"
-                searchDeltaString = takeWhile (/= ',') $ tail $ dropWhile (/= ',') (tail $ head infoStringList)
+                                    if "MultiTraverse:False" `elem` (LS.splitOn "," infoString)
+                                        then -- trace
+                                        --    ("GraphBandit is SingleTraverse")
+                                            "SingleTraverse"
+                                        else -- trace
+                                        --    ("GraphBandit is MultiTraverse ")
+                                            "MultiTraverse"
+                searchDeltaString = takeWhile (/= ',') $ tail $ dropWhile (/= ',') (tail infoString)
                 searchDelta = read searchDeltaString ∷ Double
             in  if not thompsonSample
                     then
@@ -355,14 +378,16 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
                                     then stopCount + 1
                                     else 0
                             stopString =
-                                 if newStopCount >= stopNum
-                                    then ("\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n")
-                                 else ""
+                                if newStopCount >= stopNum
+                                    then
+                                        ( "\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n"
+                                        )
+                                    else ""
                         in  if thisBandit == SearchBandit
                                 then do
                                     logWith LogInfo stopString
                                     pure (inPairList, newStopCount)
-                            else do
+                                else do
                                     pure (inPairList, newStopCount)
                     else -- trace ("UT1: " <> (show infoStringList)) (
                     -- update via results, previous history, memory \factor and type of memory "loss"
@@ -396,7 +421,9 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
 
                             stopString =
                                 if newStopCount >= stopNum
-                                    then ("\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n")
+                                    then
+                                        ( "\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n"
+                                        )
                                     else ""
                         in  -- check error
                             if isNothing indexBandit'
@@ -435,9 +462,10 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
                                                 totalTheta = sum newSuccessList
 
                                                 newThetaList = fmap (/ totalTheta) newSuccessList
-                                            in  do -- trace ("UT2: " <> searchBandit <> " index " <> (show indexBandit) <> " total time: " <> (show $ toSeconds totalSeconds) <> " elapsed time: " <> (show $ toSeconds elapsedSeconds) <> " -> " <> (show (searchDelta, toSeconds elapsedSeconds, benefit)) <> "\n" <> (show $ fmap snd inPairList) <> "\n" <> (show newThetaList) <> "\n" <> (head infoStringList)) (
-                                                logWith LogInfo stopString
-                                                pure (zip (fmap fst inPairList) newThetaList, newStopCount)
+                                            in  do
+                                                    -- trace ("UT2: " <> searchBandit <> " index " <> (show indexBandit) <> " total time: " <> (show $ toSeconds totalSeconds) <> " elapsed time: " <> (show $ toSeconds elapsedSeconds) <> " -> " <> (show (searchDelta, toSeconds elapsedSeconds, benefit)) <> "\n" <> (show $ fmap snd inPairList) <> "\n" <> (show newThetaList) <> "\n" <> (head infoStringList)) (
+                                                    logWith LogInfo stopString
+                                                    pure (zip (fmap fst inPairList) newThetaList, newStopCount)
                                         else -- )
 
                                         -- more complex 'recency' options
@@ -486,10 +514,11 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter infoStringList i
                                                         totalTheta = sum newSuccessList
 
                                                         newThetaList = fmap (/ totalTheta) newSuccessList
-                                                    in do -- trace ("Update : \n" <> (show $ fmap snd inPairList) <> "\n" <> (show previousSuccessList) <> "\n" <> (show updatedSuccessList) <> "\n" <> (show newThetaList) <> "\n") $
-                                                        -- trace ("Not simple: " <> mFunction <> " search benefit " <> (show searchBenefit) <> " " <> searchBandit <> " index " <> (show indexBandit) <> " total time: " <> (show $ toSeconds totalSeconds) <> " elapsed time: " <> (show $ toSeconds elapsedSeconds) <> " -> " <> (show (searchDelta, toSeconds elapsedSeconds)) <> "\n" <> (show $ fmap snd inPairList) <> "\n" <> (show newThetaList) <> "\n" <> (head infoStringList)) (
-                                                        logWith LogInfo stopString
-                                                        pure (zip (fmap fst inPairList) newThetaList, newStopCount)
+                                                    in  do
+                                                            -- trace ("Update : \n" <> (show $ fmap snd inPairList) <> "\n" <> (show previousSuccessList) <> "\n" <> (show updatedSuccessList) <> "\n" <> (show newThetaList) <> "\n") $
+                                                            -- trace ("Not simple: " <> mFunction <> " search benefit " <> (show searchBenefit) <> " " <> searchBandit <> " index " <> (show indexBandit) <> " total time: " <> (show $ toSeconds totalSeconds) <> " elapsed time: " <> (show $ toSeconds elapsedSeconds) <> " -> " <> (show (searchDelta, toSeconds elapsedSeconds)) <> "\n" <> (show $ fmap snd inPairList) <> "\n" <> (show newThetaList) <> "\n" <> (head infoStringList)) (
+                                                            logWith LogInfo stopString
+                                                            pure (zip (fmap fst inPairList) newThetaList, newStopCount)
                                                 else -- )
 
                                                     errorWithoutStackTrace
@@ -675,20 +704,20 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
             if graphEvaluationBandit == "SingleTraverse"
                 then True
                 else False
-
-    in do
+    in  do
             -- Can't do both static approx and multitraverse:False
-            newDataMTF <- TRANS.transform [("multitraverse", "false")] inGS' inData' inData' 0 inGraphList''
-            newDataSA  <- TRANS.transform [("staticapprox", [])] inGS' inData' inData' 0 inGraphList''
+            newDataMTF ← TRANS.transform [("multitraverse", "false")] inGS' inData' inData' 0 inGraphList''
+            newDataSA ← TRANS.transform [("staticapprox", [])] inGS' inData' inData' 0 inGraphList''
             let ((inGS, origData, inData, inGraphList), transformString) =
-                    if transformToStaticApproximation && (useIA inGS') then (newDataSA, ",StaticApprox")
-                    else
-                        if transformMultiTraverse
-                            then (newDataMTF, ",MultiTraverse:False")
-                            else ((inGS', inData', inData', inGraphList''), "")
+                    if transformToStaticApproximation && (useIA inGS')
+                        then (newDataSA, ",StaticApprox")
+                        else
+                            if transformMultiTraverse
+                                then (newDataMTF, ",MultiTraverse:False")
+                                else ((inGS', inData', inData', inGraphList''), "")
             -- bandit list with search arguments set
             -- primes (') for build to start with untransformed data
-            (searchGraphs, searchArgs) <- case searchBandit of
+            (searchGraphs, searchArgs) ← case searchBandit of
                 "buildCharacter" →
                     let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
                     in  --    graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
@@ -699,10 +728,10 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                 "buildDistance" →
                     let -- build options
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
+                    in  -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
                         -- this line in here to allow for returning lots of rediagnosed distance trees, then
                         -- reducing to unique best cost trees--but is a memory pig
-                    in  (\gList -> (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
+                        (\gList → (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                 "buildSPR" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
@@ -711,8 +740,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapType = "spr"
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
-                        do  buildGraphs' <- GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
-                            swapList <- R.swapMaster swapArgs inGS inData randSeed1 buildGraphs'
+                        do
+                            buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
+                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "buildAlternate" →
                     let -- build part
@@ -722,23 +752,26 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapType = "alternate" -- default anyway
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
-                        do  buildGraphs' <- GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
-                            swapList <- R.swapMaster swapArgs inGS inData randSeed1 buildGraphs'
+                        do
+                            buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
+                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "swapSPR" →
                     let -- swap options
                         swapType = "spr"
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
-                        do swapList <- R.swapMaster swapArgs inGS inData randSeed1 inGraphList
-                           pure (swapList, swapArgs)
+                        do
+                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 inGraphList
+                            pure (swapList, swapArgs)
                 "swapAlternate" →
                     let -- swap options
                         swapType = "alternate" -- default anyway
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
-                        do swapList <- R.swapMaster swapArgs inGS inData randSeed1 inGraphList
-                           pure (swapList, swapArgs)
+                        do
+                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 inGraphList
+                            pure (swapList, swapArgs)
                 -- drift only best graphs
                 "driftSPR" →
                     let -- swap args
@@ -747,8 +780,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with drift (common) arguments
                         swapDriftArgs = swapArgs <> driftArgs
                     in  -- perform search
-                        do swapList <- R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList
-                           pure (swapList, swapArgs)
+                        do
+                            swapList ← R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList
+                            pure (swapList, swapArgs)
                 -- drift only best graphs
                 "driftAlternate" →
                     let -- swap args
@@ -757,8 +791,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with drift (common) arguments
                         swapDriftArgs = swapArgs <> driftArgs
                     in  -- perform search
-                        do swapList <- R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList
-                           pure (swapList, swapDriftArgs)
+                        do
+                            swapList ← R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList
+                            pure (swapList, swapDriftArgs)
                 -- anneal only best graphs
                 "annealSPR" →
                     let -- swap args
@@ -767,8 +802,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with anneal (common) arguments
                         swapAnnealArgs = swapArgs <> annealArgs
                     in  -- perform search
-                        do swapList <- R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList
-                           pure (swapList, swapAnnealArgs)
+                        do
+                            swapList ← R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList
+                            pure (swapList, swapAnnealArgs)
                 -- anneal only best graphs
                 "annealAlternate" →
                     let -- swap args
@@ -777,103 +813,124 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         -- swap with anneal (common) arguments
                         swapAnnealArgs = swapArgs <> annealArgs
                     in  -- perform search
-                        do swapList <- R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList
-                           pure (swapList, swapAnnealArgs)
+                        do
+                            swapList ← R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList
+                            pure (swapList, swapAnnealArgs)
                 "geneticAlgorithm" →
                     do
-                    -- args from above
-                    -- perform search
-                        gaReturn <- R.geneticAlgorithmMaster gaArgs inGS inData randSeed1 inGraphList
+                        -- args from above
+                        -- perform search
+                        gaReturn ← R.geneticAlgorithmMaster gaArgs inGS inData randSeed1 inGraphList
                         pure (gaReturn, gaArgs)
                 "fuse" →
                     -- should more graphs be added if only one?  Would downweight fuse perhpas too much
                     let -- fuse arguments
                         -- this to limit memory footprint of fuse during search
-                        --gsNum = min (graphsSteepest inGS) 5
-                        --inGSgs1 = inGS{graphsSteepest = gsNum}
+                        -- gsNum = min (graphsSteepest inGS) 5
+                        -- inGSgs1 = inGS{graphsSteepest = gsNum}
                         fuseArgs =
-                            [("none", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
+                            [ ("none", "")
+                            , ("all", "")
+                            , ("unique", "")
+                            , ("atrandom", "")
+                            , ("pairs", fusePairs)
+                            , ("keep", show fuseKeep)
+                            , ("noreciprocal", "")
+                            ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
                 "fuseSPR" →
                     let -- fuse arguments
-                        --inGSgs1 = inGS{graphsSteepest = 1}
+                        -- inGSgs1 = inGS{graphsSteepest = 1}
                         fuseArgs =
-                            [("spr", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
+                            [ ("spr", "")
+                            , ("all", "")
+                            , ("unique", "")
+                            , ("atrandom", "")
+                            , ("pairs", fusePairs)
+                            , ("keep", show fuseKeep)
+                            , ("noreciprocal", "")
+                            ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
                 "fuseTBR" →
                     let -- fuse arguments
-                        --inGSgs1 = inGS{graphsSteepest = 1}
+                        -- inGSgs1 = inGS{graphsSteepest = 1}
                         fuseArgs =
-                            [("tbr", ""), ("all", ""), ("unique", ""), ("atrandom", ""), ("pairs", fusePairs), ("keep", show fuseKeep), ("noreciprocal", "")]
+                            [ ("tbr", "")
+                            , ("all", "")
+                            , ("unique", "")
+                            , ("atrandom", "")
+                            , ("pairs", fusePairs)
+                            , ("keep", show fuseKeep)
+                            , ("noreciprocal", "")
+                            ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
                 "networkAdd" →
                     let -- network add args
                         netEditArgs = netAddArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
                 "networkDelete" →
                     let -- network delete args
                         netEditArgs = netDelArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
                 "networkAddDelete" →
                     let -- network add/delete args
                         netEditArgs = netAddDelArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
                 "networkMove" →
                     let -- network move args
                         netEditArgs = netMoveArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
                 "driftNetwork" →
                     let -- network add/delete  + drift args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> driftArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
                 "annealNetwork" →
                     let -- network add/delete  + annealing  args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> annealArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x -> (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
                 _ → error ("Unknown/unimplemented method in search: " <> searchBandit)
 
             -- process
             let uniqueGraphs' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (searchGraphs <> inGraphList)
-            newDataMT <- TRANS.transform [("multiTraverse", "true")] inGS origData inData 0 uniqueGraphs'
-            newDataT  <- TRANS.transform [("dynamic", [])] inGS' origData inData 0 uniqueGraphs'
+            newDataMT ← TRANS.transform [("multiTraverse", "true")] inGS origData inData 0 uniqueGraphs'
+            newDataT ← TRANS.transform [("dynamic", [])] inGS' origData inData 0 uniqueGraphs'
             let (uniqueGraphs, transString)
                     | (not transformToStaticApproximation && not transformMultiTraverse) = (uniqueGraphs', "")
                     | transformToStaticApproximation = (fth4 newDataT, ",Dynamic")
-                    | otherwise = (fth4  newDataMT, ",MultiTraverse:True")
+                    | otherwise = (fth4 newDataMT, ",MultiTraverse:True")
 
             -- string of delta and cost of graphs
             let deltaString
                     | null inGraphList' = "10.0,"
-                    | otherwise =  show ((minimum $ fmap snd5 inGraphList') - (minimum $ fmap snd5 uniqueGraphs)) -- <> ","
-                    
+                    | otherwise = show ((minimum $ fmap snd5 inGraphList') - (minimum $ fmap snd5 uniqueGraphs)) -- <> ","
             let currentBestString
                     | not $ null uniqueGraphs = show $ minimum $ fmap snd5 uniqueGraphs
-                    | otherwise =  show infinity
+                    | otherwise = show infinity
 
             -- create string for search stats
-            let searchString = ","
-                    <> searchBandit
-                    <> ","
-                    <> deltaString
-                    <> ","
-                    <> currentBestString
-                    <> ","
-                    <> (show $ toSeconds inTime)
-                    <> ","
-                    <> (L.intercalate "," $ fmap showArg searchArgs)
-                    <> transformString
-                    <> transString
+            let searchString =
+                    ","
+                        <> searchBandit
+                        <> ","
+                        <> deltaString
+                        <> ","
+                        <> currentBestString
+                        <> ","
+                        <> (show $ toSeconds inTime)
+                        <> ","
+                        <> (L.intercalate "," $ fmap showArg searchArgs)
+                        <> transformString
+                        <> transString
             pure (uniqueGraphs, [searchString <> thompsonString])
-
 
 
 -- | getSearchParams takes arguments and returns search params
@@ -1007,8 +1064,10 @@ getSearchParams inArgs =
                                                                                                         else seconds
                                                                                                 searchTime = (fromJust seconds') + (60 * (fromJust minutes)) + (3600 * (fromJust hours))
                                                                                             in  do
-                                                                                                when (mLinear && mExponential) $ logWith LogWarn ("Thompson recency function specification has both 'linear' and 'exponential', defaulting to 'linear'\n")
-                                                                                                pure $ ( searchTime
+                                                                                                    when (mLinear && mExponential) $
+                                                                                                        logWith LogWarn ("Thompson recency function specification has both 'linear' and 'exponential', defaulting to 'linear'\n")
+                                                                                                    pure $
+                                                                                                        ( searchTime
                                                                                                         , fromJust keepNum
                                                                                                         , fromJust instances
                                                                                                         , thompson

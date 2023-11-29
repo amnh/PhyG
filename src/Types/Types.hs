@@ -44,7 +44,7 @@ module Types.Types where
 import Bio.DynamicCharacter (OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
 import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Control.DeepSeq
-import Control.Evaluation
+import PHANE.Evaluation
 import Control.Parallel.Strategies
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV

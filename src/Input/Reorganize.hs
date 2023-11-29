@@ -15,10 +15,11 @@ module Input.Reorganize
   ) where
 
 import Bio.DynamicCharacter.Element (SlimState, WideState)
-import Control.Evaluation
+import PHANE.Evaluation
+import PHANE.Evaluation.Logging (Logger (..), LogLevel (..))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -36,7 +37,7 @@ import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import Input.BitPack qualified as BP
 import SymMatrix qualified as S
-import System.ErrorPhase (ErrorPhase (..))
+import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import Text.Read
 import Types.Types
 import Utilities.Utilities qualified as U

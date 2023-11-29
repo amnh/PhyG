@@ -1,7 +1,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 
 {- |
-Program to perform phylogenetic searches on general graphs with diverse data types
+Program to perform phylogenetic searches on general graphs with diverse data types.
 -}
 module Main (main) where
 
@@ -9,15 +9,15 @@ import CommandLineOptions
 import Commands.CommandExecution qualified as CE
 import Commands.ProcessCommands qualified as PC
 import Commands.Verify qualified as V
-import Control.Evaluation
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Control.Monad.Random.Class
 import Data.CSV qualified as CSV
 import Data.Foldable (fold)
 import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.String (fromString)
+import Data.Foldable1 (head)
 import Data.Text.Builder.Linear (runBuilder)
 import Data.Text.Lazy qualified as Text
 import Data.Text.Short qualified as ST
@@ -30,19 +30,21 @@ import Input.BitPack qualified as BP
 import Input.DataTransformation qualified as DT
 import Input.ReadInputFiles qualified as RIF
 import Input.Reorganize qualified as R
+import Prelude hiding (head)
+import PHANE.Evaluation
+import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Software.Preamble
 import System.CPUTime
-import System.ErrorPhase (ErrorPhase (..))
 import System.IO
 import Types.Types
-import Utilities.Distances qualified as D
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
--- import ParallelUtilities qualified as PU
--- import Debug.Trace
+
 
 {- |
-Main entry point
+Main entry point.
 -}
 main ∷ IO ()
 main = do
@@ -53,7 +55,9 @@ main = do
 
 
 {- |
-Fully evaluate the 'PhyG' computation 'performSearch'.
+Fully evaluate the 'PhyG' computation 'performSearch' by encapsulating effects
+within the 'Evaluation' monad in order to correctly control logging, parallelism,
+and randomness.
 -}
 evaluatePhyG ∷ FilePath → IO ()
 evaluatePhyG path = do
@@ -78,8 +82,8 @@ performSearch initialSeed inputFilePath = do
 
     -- Process run commands to create one list of things to do
     commandContents' ← PC.expandRunCommands [] (lines commandContents)
-    thingsToDo'' <- PC.getCommandList commandContents' 
-    --let thingsToDo'' = PC.getCommandList commandContents'
+    thingsToDo'' ← PC.getCommandList commandContents'
+    -- let thingsToDo'' = PC.getCommandList commandContents'
     -- mapM_ (logWith LogTech . show) thingsToDo'
 
     -- preprocess commands for non-parsimony optimality criteria
@@ -101,7 +105,7 @@ performSearch initialSeed inputFilePath = do
         then logWith LogMore "\tCommands appear to be properly specified--file availability and contents not checked.\n"
         else failWithPhase Parsing "Commands not properly specified\n"
 
-    movedPrealignedList <- mapM (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)
+    movedPrealignedList ← mapM (PC.movePrealignedTCM . snd) (filter ((== Read) . fst) thingsToDo)
     dataGraphList ← mapM RIF.executeReadCommands movedPrealignedList
     let (rawData, rawGraphs, terminalsToInclude, terminalsToExclude, renameFilePairs, reBlockPairs) = RIF.extractInputTuple dataGraphList
 
@@ -116,7 +120,7 @@ performSearch initialSeed inputFilePath = do
         CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
 
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
-    rawDataSplit <- DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
+    rawDataSplit ← DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
 
     -- Process Rename Commands
     newNamePairList ← liftIO $ CE.executeRenameReblockCommands Rename renameFilePairs thingsToDo
@@ -167,43 +171,84 @@ performSearch initialSeed inputFilePath = do
             , unwords [show $ length dataLeafNames, "terminals remain to be analyzed"]
             ]
 
-    when (null dataLeafNames) $
-        failWithPhase Unifying "No leaf data to be analyzed--all excluded"
+    (crossReferenceString, defaultGlobalSettings, naiveData, reconciledData, reconciledGraphs) <- case dataLeafNames of
+        [] -> failWithPhase Unifying "No leaf data to be analyzed--all excluded"
+        x:xs ->
+            {-
+            Data processing here-- there are multiple steps not composed so that
+            large data files can be precessed and intermediate data goes out
+            of scope and can be freed back to system.
 
-    -- this created here and passed to command execution later to remove dependency of renamed data in command execution to
-    -- reduce memory footprint keeoing that stuff around.
-    let crossReferenceString = CSV.genCsvFile $ CE.getDataListList renamedData dataLeafNames
+            This created here and passed to command execution later to
+            remove dependency of renamed data in command execution to
+            reduce memory footprint keeoing that stuff around.
+            -}
+            let dNames = x :| xs
+                crossReferenceString = CSV.genCsvFile $ CE.getDataListList renamedData dNames
+                -- Add in missing terminals to raw data where required
+                reconciledData' = DT.addMissingTerminalsToInput dNames [] <$> renamedData
+                reconciledGraphs = fmap (GFU.reIndexLeavesEdges dNames . GFU.checkGraphsAndData dNames) renamedGraphs
 
-    -- add in missing terminals to raw data where required
-    let reconciledData' = DT.addMissingTerminalsToInput dataLeafNames [] <$> renamedData
+            in  do
+                    -- Check for data file with all missing data--as in had no terminals with data in termainals list
+                    reconciledData ← fold <$> traverse DT.removeAllMissingCharacters reconciledData'
+                
+                    -- Create unique bitvector names for leaf taxa.
+                    let leafBitVectorNames = DT.createBVNames reconciledData
 
-    -- check for data file with all missing data--as in had no terminals with data in termainals list
-    reconciledData <- fold <$> traverse DT.removeAllMissingCharacters reconciledData'
+                    -- Create naive data
+                    -- basic usable format organized into blocks,
+                    -- but not grouped by types, or packed (bit, sankoff, prealigned etc)
+                    -- Need to check data for equal in character number
+                    naiveData ← DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
+                
+                    -- get mix of static/dynamic characters to adjust dynmaicEpsilon
+                    -- doing on naive data so no packing etc
+                    let fractionDynamicData = U.getFractionDynamic naiveData
+                
+                    -- Set global values before search--should be integrated with executing commands
+                    -- only stuff that is data dependent here (and seed)
+                    let defaultGlobalSettings =
+                            emptyGlobalSettings
+                                { outgroupIndex = 0
+                                , outGroupName = head dNames
+                                , seed = fromEnum initialSeed
+                                , numDataLeaves = length leafBitVectorNames
+                                , fractionDynamic = fractionDynamicData
+                                , dynamicEpsilon = 1.0 + ((dynamicEpsilon emptyGlobalSettings - 1.0) * fractionDynamicData)
+                                }
 
-    let reconciledGraphs = fmap (GFU.reIndexLeavesEdges dataLeafNames . GFU.checkGraphsAndData dataLeafNames) renamedGraphs
+                    pure (crossReferenceString, defaultGlobalSettings, naiveData, reconciledData, reconciledGraphs)
+
+                    -- logWith LogInfo ("Fraction characters that are dynamic: " <> (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
 
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList =
-            filter ((== 0) . snd) .
-                zip dataLeafNames .
-                    foldl1 (zipWith (+)) $
-                        fmap (fmap (snd3 . U.filledDataFields (0, 0)) . fst) reconciledData
-    if not (null taxaDataSizeList)
-        then
-            failWithPhase
-                Unifying
-                ( "\nError: There are taxa without any data: "
-                    <> L.intercalate ", " (fmap (Text.unpack . fst) taxaDataSizeList)
-                    <> "\n"
-                )
-        else logWith LogInfo "All taxa contain data\n"
+            filter ((== 0) . snd)
+                . zip dataLeafNames
+                . foldl1 (zipWith (+))
+                $ fmap (fmap (snd3 . U.filledDataFields (0, 0)) . fst) reconciledData
+
+    case taxaDataSizeList of
+        [] -> logWith LogInfo "All taxa contain data\n"
+        xs -> failWithPhase
+            Unifying $ fold
+                [ "\nError: There are taxa without any data: "
+                , L.intercalate ", " $ Text.unpack . fst <$> xs
+                , "\n"
+                ]
+
+    -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
+    let reportingData
+            | reportNaiveData partitionCharOptimalityGlobalSettings =naiveData
+            | otherwise = emptyProcessedData
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
     -- chained network nodes should never be introduced later so only checked no
     -- checks for children of tree node that are all netowork nodee (causes displayu problem)
     -- let noChainNetNodesList = fmap fromJust $ filter (/=Nothing) $ fmap (LG.removeChainedNetworkNodes True) reconciledGraphs
     let noSisterNetworkNodes = fmap LG.removeTreeEdgeFromTreeNodeWithAllNetworkChildren reconciledGraphs -- noChainNetNodesList
-    ladderizedGraphList <- mapM (GO.convertGeneralGraphToPhylogeneticGraph True) noSisterNetworkNodes
+    ladderizedGraphList ← mapM (GO.convertGeneralGraphToPhylogeneticGraph True) noSisterNetworkNodes
 
     {-To do
     -- Remove any not "selected" taxa from both data and graphs (easier to remove from fgl)
@@ -211,104 +256,68 @@ performSearch initialSeed inputFilePath = do
     let reconciledGraphs' = removeTaxaFromGraphs includeList reconciledData
     -}
 
-    -- Create unique bitvector names for leaf taxa.
-    let leafBitVectorNames = DT.createBVNames reconciledData
-
-    {-
-    Data processing here-- there are multiple steps not composed so that
-    large data files can be precessed and intermediate data goes out
-    of scope and can be freed back to system
-    -}
-
-    -- Create Naive data -- basic usable format organized into blocks, but not grouped by types, or packed (bit, sankoff, prealigned etc)
-    -- Need to check data for equal in character number
-    naiveData <- DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
-
-    -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
-    let reportingData =
-            if reportNaiveData partitionCharOptimalityGlobalSettings
-                then naiveData
-                else emptyProcessedData
-
-    -- get mix of static/dynamic characters to adjust dynmaicEpsilon
-    -- doing on naive data so no packing etc
-    let fractionDynamicData = U.getFractionDynamic naiveData
-
     -- Group Data--all nonadditives to single character, additives with
     -- alphabet < 64 recoded to nonadditive binary, additives with same alphabet
     -- combined,
-    naiveDataGrouped <- R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
+    naiveDataGrouped ← R.combineDataByType partitionCharOptimalityGlobalSettings naiveData -- R.groupDataByType naiveData
 
     -- Bit pack non-additive data
-    naiveDataPacked <- BP.packNonAdditiveData partitionCharOptimalityGlobalSettings naiveDataGrouped
+    naiveDataPacked ← BP.packNonAdditiveData partitionCharOptimalityGlobalSettings naiveDataGrouped
 
     -- Optimize Data convert
     -- prealigned to non-additive or matrix
     -- bitPack resulting non-additive
-    optimizedPrealignedData <- R.optimizePrealignedData partitionCharOptimalityGlobalSettings naiveDataPacked
+    optimizedPrealignedData ← R.optimizePrealignedData partitionCharOptimalityGlobalSettings naiveDataPacked
 
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList ← liftIO $ CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
 
-    reBlockedNaiveData <- R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
+    reBlockedNaiveData ← R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) . fst) $ filter ((/= Rename) . fst) thingsToDoAfterReadRename
 
     -- Combines data of exact types into single vectors in each block
     -- this is final data processing step
-    optDataNBPL <- R.combineDataByType partitionCharOptimalityGlobalSettings reBlockedNaiveData
+    optDataNBPL ← R.combineDataByType partitionCharOptimalityGlobalSettings reBlockedNaiveData
 
     when (thereExistsSome newBlockPairList) $ logWith LogInfo "Reorganizing Block data"
     let optimizedData =
             if thereExistsSome newBlockPairList
-                then optDataNBPL   
-            else optimizedPrealignedData
-
-    -- Set global values before search--should be integrated with executing commands
-    -- only stuff that is data dependent here (and seed)
-    let defaultGlobalSettings =
-            emptyGlobalSettings
-                { outgroupIndex = 0
-                , outGroupName = head dataLeafNames
-                , seed = fromEnum initialSeed
-                , numDataLeaves = length leafBitVectorNames
-                , fractionDynamic = fractionDynamicData
-                , dynamicEpsilon = 1.0 + ((dynamicEpsilon emptyGlobalSettings - 1.0) * fractionDynamicData)
-                }
-    -- logWith LogInfo ("Fraction characters that are dynamic: " <> (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
+                then optDataNBPL
+                else optimizedPrealignedData
 
     let initialSetCommands = filter ((== Set) . fst) thingsToDoAfterReblock
     let commandsAfterInitialDiagnose = filter ((/= Set) . fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings, seedList', _) ←
-            CE.executeCommands
-                defaultGlobalSettings
-                (terminalsToExclude, renameFilePairs)
-                numInputFiles
-                crossReferenceString
-                optimizedData
-                optimizedData
-                reportingData
-                []
-                []
-                seedList
-                []
-                initialSetCommands
+        CE.executeCommands
+            defaultGlobalSettings
+            (terminalsToExclude, renameFilePairs)
+            numInputFiles
+            crossReferenceString
+            optimizedData
+            optimizedData
+            reportingData
+            []
+            []
+            seedList
+            []
+            initialSetCommands
 
     -- Get CPUTime so far ()data input and processing
     dataCPUTime ← liftIO getCPUTime
 
     -- Diagnose any input graphs
     let action = T.multiTraverseFullyLabelGraphReduced initialGlobalSettings optimizedData True True Nothing
-    actionPar <- getParallelChunkTraverse
-            
-    inputGraphList <-
-            actionPar action  (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
-            {-PU.seqParMap
-                PU.myStrategy
-                (T.multiTraverseFullyLabelGraphReduced initialGlobalSettings optimizedData True True Nothing)
-                (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
-            -}
+    actionPar ← getParallelChunkTraverse
+
+    inputGraphList ←
+        actionPar action (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    {-PU.seqParMap
+        PU.myStrategy
+        (T.multiTraverseFullyLabelGraphReduced initialGlobalSettings optimizedData True True Nothing)
+        (fmap (LG.rerootTree (outgroupIndex initialGlobalSettings)) ladderizedGraphList)
+    -}
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime ← liftIO getCPUTime
@@ -333,24 +342,24 @@ performSearch initialSeed inputFilePath = do
                 }
 
     -- Create lazy pairwise distances if needed later for build or report
-        -- appears no longer lazy with Eval
-    pairDist <- pure [] -- D.getPairwiseDistances optimizedData
+    -- appears no longer lazy with Eval
+    pairDist ← pure [] -- D.getPairwiseDistances optimizedData
 
     -- Execute Following Commands (searches, reports etc)
     (finalGraphList, _, _, _) ←
-            CE.executeCommands
-                (initialGlobalSettings{searchData = [inputGraphProcessing, inputProcessingData]})
-                (terminalsToExclude, renameFilePairs)
-                numInputFiles
-                crossReferenceString
-                optimizedData
-                optimizedData
-                reportingData
-                inputGraphList
-                pairDist
-                seedList'
-                []
-                commandsAfterInitialDiagnose -- (transformString <> commandsAfterInitialDiagnose)
+        CE.executeCommands
+            (initialGlobalSettings{searchData = [inputGraphProcessing, inputProcessingData]})
+            (terminalsToExclude, renameFilePairs)
+            numInputFiles
+            crossReferenceString
+            optimizedData
+            optimizedData
+            reportingData
+            inputGraphList
+            pairDist
+            seedList'
+            []
+            commandsAfterInitialDiagnose -- (transformString <> commandsAfterInitialDiagnose)
 
     -- print global setting just to check
     -- logWith LogInfo (show _finalGlobalSettings)
@@ -361,19 +370,21 @@ performSearch initialSeed inputFilePath = do
 
     -- rediagnose for NCM due to packing, in most cases not required, just being sure etc
     let rediagnoseWithReportingdata = True
-    finalGraphList' <- T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+    finalGraphList' ←
+        T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd5 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
 
     -- final results reporting to stderr
-    logWith LogInfo $ unwords
-        [ "Execution returned"
-        , show $ length finalGraphList'
-        , "graph(s) at cost range"
-        , show (minCost, maxCost)
-        , "\n"
-        ]
+    logWith LogInfo $
+        unwords
+            [ "Execution returned"
+            , show $ length finalGraphList'
+            , "graph(s) at cost range"
+            , show (minCost, maxCost)
+            , "\n"
+            ]
 
     -- Final Stderr report
     timeCPUEnd ← liftIO getCPUTime
@@ -385,11 +396,12 @@ performSearch initialSeed inputFilePath = do
     let cpuUsage = fromIntegral timeCPUEnd / fromIntegral wallClockDuration ∷ Double
     -- logWith LogInfo ("CPU % " <> (show cpuUsage))
 
-    logWith LogInfo . unlines $ ("\t" <>) <$> 
-        [ unwords [ "Wall-Clock time ", show ((fromIntegral wallClockDuration ∷ Double) / 1000000000000.0), "second(s)" ]
-        , unwords [ "CPU time", show ((fromIntegral timeCPUEnd ∷ Double) / 1000000000000.0), "second(s)" ]
-        , unwords [ "CPU usage", show (floor (100.0 * cpuUsage) ∷ Integer) <> "%" ]
-        ]
+    logWith LogInfo . unlines $
+        ("\t" <>)
+            <$> [ unwords ["Wall-Clock time ", show ((fromIntegral wallClockDuration ∷ Double) / 1000000000000.0), "second(s)"]
+                , unwords ["CPU time", show ((fromIntegral timeCPUEnd ∷ Double) / 1000000000000.0), "second(s)"]
+                , unwords ["CPU usage", show (floor (100.0 * cpuUsage) ∷ Integer) <> "%"]
+                ]
 
 
 thereExistsSome ∷ (Foldable f) ⇒ f a → Bool

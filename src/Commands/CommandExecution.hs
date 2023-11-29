@@ -1,38 +1,7 @@
 {-# LANGUAGE CPP #-}
 
 {- |
-Module      :  CommandExecution.hs
-Description :  Module to coordinate command execution
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
+Module to coordinate command execution.
 -}
 module Commands.CommandExecution (
     executeCommands,
@@ -43,10 +12,8 @@ module Commands.CommandExecution (
 import Commands.CommandUtilities
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
-import Control.Evaluation
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.CSV qualified as CSV
 import Data.Char
 import Data.Char qualified as C
@@ -58,23 +25,26 @@ import Data.Ord
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Version qualified as DV
-import Utilities.Distances qualified as D
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
+import PHANE.Evaluation
+import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Reconciliation.ReconcileGraphs qualified as R
 import Search.Build qualified as B
 import Search.Refinement qualified as REF
 import Search.Search qualified as S
 import Support.Support qualified as SUP
 import System.CPU qualified as SC
-import System.ErrorPhase (ErrorPhase (..))
 import System.IO
 import System.IO.Unsafe qualified as SIOU
 import System.Info qualified as SI
 import System.Timing
 import Text.Read
 import Types.Types
+import Utilities.Distances qualified as D
 import Utilities.Utilities qualified as U
 
 
@@ -120,7 +90,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                     (elapsedSeconds, newGraphList') ←
                                                         timeOp $ pure $ B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
 
-                                                    newGraphList <- newGraphList'
+                                                    newGraphList ← newGraphList'
                                                     let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                     let newSearchData = searchInfo : searchData globalSettings
 
@@ -143,7 +113,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                             (elapsedSeconds, newGraphList') ←
                                                                 timeOp $ pure $ REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
 
-                                                            newGraphList <- newGraphList'
+                                                            newGraphList ← newGraphList'
                                                             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                             let newSearchData = searchInfo : searchData globalSettings
 
@@ -188,14 +158,14 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                             let doDotPDF = elem "dotpdf" $ fmap (fmap toLower . fst) firstArgs
                                                                             let collapse' = elem "collapse" $ fmap (fmap toLower . fst) firstArgs
                                                                             let noCollapse' = elem "nocollapse" $ fmap (fmap toLower . fst) firstArgs
-                                                                            let reconcile =  any ((== "reconcile") . fst) firstArgs
+                                                                            let reconcile = any ((== "reconcile") . fst) firstArgs
 
                                                                             -- set default collapse for dotPDF to True, False otherwise
                                                                             let collapse -- this will casue problems with reconcile
                                                                                     | reconcile = False
                                                                                     | collapse' = True
                                                                                     | noCollapse' = False
-                                                                                    -- | doDotPDF = True
+                                                                                    -- \| doDotPDF = True
                                                                                     | otherwise = False
 
                                                                             let curGraphs' =
@@ -207,12 +177,13 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                             -- reporting collapsed
                                                                             -- reverse sorting graphs by cost
                                                                             let rediagnoseWithReportingData = optimalityCriterion globalSettings == NCM && U.has4864PackedChars (thd3 processedData)
-                                                                            updatedCostGraphs <- TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs'
+                                                                            updatedCostGraphs ←
+                                                                                TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs'
                                                                             let graphsWithUpdatedCosts =
                                                                                     L.sortOn
                                                                                         (Data.Ord.Down . snd5)
                                                                                         updatedCostGraphs
-                                                                                        -- (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
+                                                                            -- (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
                                                                             reportStuff@(reportString, outFile, writeMode) ←
                                                                                 reportCommand
                                                                                     globalSettings
@@ -347,11 +318,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                                 then do
                                                                                                     -- if set changes graph aspects--may nned to reoptimize
                                                                                                     (newGlobalSettings, newProcessedData, seedList') ← setCommand firstArgs globalSettings origProcessedData processedData seedList
-                                                                                                    newGraphList <-
-                                                                                                            if not (requireReoptimization globalSettings newGlobalSettings)
-                                                                                                                then pure curGraphs
-                                                                                                                -- TODO should be parallel
-                                                                                                                else mapM (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) (fmap fst5 curGraphs)
+                                                                                                    newGraphList ←
+                                                                                                        if not (requireReoptimization globalSettings newGlobalSettings)
+                                                                                                            then pure curGraphs
+                                                                                                            else -- TODO should be parallel
+                                                                                                                mapM (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) (fmap fst5 curGraphs)
 
                                                                                                     let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList 0 "No Comment"
                                                                                                     let newSearchData = searchInfo : searchData newGlobalSettings
@@ -401,7 +372,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                                                     (elapsedSeconds, newSupportGraphList') ←
                                                                                                                         timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData (head seedList) curGraphs
 
-                                                                                                                    newSupportGraphList <- newSupportGraphList'
+                                                                                                                    newSupportGraphList ← newSupportGraphList'
                                                                                                                     let searchInfo =
                                                                                                                             makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                                                                     let newSearchData = searchInfo : searchData globalSettings
@@ -521,7 +492,9 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                         else
                                                             if (fromJust localValue < 0) || (fromJust localValue > 100)
                                                                 then do
-                                                                    failWithPhase Parsing ("Set option 'missingThreshold' must be set to an integer value between 0 and 100: " <> head optionList <> "\n")
+                                                                    failWithPhase
+                                                                        Parsing
+                                                                        ("Set option 'missingThreshold' must be set to an integer value between 0 and 100: " <> head optionList <> "\n")
                                                                 else do
                                                                     logWith LogInfo ("MissingThreshold set to " <> head optionList <> "\n")
                                                                     pure (globalSettings{missingThreshold = fromJust localValue}, processedData, inSeedList)
@@ -607,7 +580,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                     failWithPhase
                                                                                                         Parsing
                                                                                                         ( "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): "
-                                                                                                            <> head optionList <> "\n"
+                                                                                                            <> head optionList
+                                                                                                            <> "\n"
                                                                                                         )
                                                                                                 else
                                                                                                     if bc2 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -703,7 +677,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                     failWithPhase
                                                                                                                         Parsing
                                                                                                                         ( "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): "
-                                                                                                                            <> head optionList <> "\n"
+                                                                                                                            <> head optionList
+                                                                                                                            <> "\n"
                                                                                                                         )
                                                                                                                 else
                                                                                                                     if bc8 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -735,7 +710,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                             failWithPhase
                                                                                                                                 Parsing
                                                                                                                                 ( "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): "
-                                                                                                                                    <> head optionList <> "\n"
+                                                                                                                                    <> head optionList
+                                                                                                                                    <> "\n"
                                                                                                                                 )
                                                                                                                         else
                                                                                                                             if bc64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -789,7 +765,9 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                             changeValue = readMaybe changeString ∷ Maybe Double
                                         in  if length commandList /= length optionList
                                                 then do
-                                                    failWithPhase Parsing ("Set option error: number of values and options do not match: " <> show (commandList, optionList) <> "\n")
+                                                    failWithPhase
+                                                        Parsing
+                                                        ("Set option error: number of values and options do not match: " <> show (commandList, optionList) <> "\n")
                                                 else
                                                     if (null . head) optionList
                                                         then
@@ -808,7 +786,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                             failWithPhase
                                                                                 Parsing
                                                                                 ( "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): "
-                                                                                    <> head optionList <> "\n"
+                                                                                    <> head optionList
+                                                                                    <> "\n"
                                                                                 )
                                                                         else
                                                                             if bc2 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -840,7 +819,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                             failWithPhase
                                                                                 Parsing
                                                                                 ( "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): "
-                                                                                    <> head optionList <> "\n"
+                                                                                    <> head optionList
+                                                                                    <> "\n"
                                                                                 )
                                                                         else
                                                                             if bc4 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -872,7 +852,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                     failWithPhase
                                                                                         Parsing
                                                                                         ( "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): "
-                                                                                            <> head optionList <> "\n"
+                                                                                            <> head optionList
+                                                                                            <> "\n"
                                                                                         )
                                                                                 else
                                                                                     if bc5 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -904,7 +885,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                             failWithPhase
                                                                                                 Parsing
                                                                                                 ( "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): "
-                                                                                                    <> head optionList <> "\n"
+                                                                                                    <> head optionList
+                                                                                                    <> "\n"
                                                                                                 )
                                                                                         else
                                                                                             if bc8 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -936,7 +918,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                     failWithPhase
                                                                                                         Parsing
                                                                                                         ( "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): "
-                                                                                                            <> head optionList <> "\n"
+                                                                                                            <> head optionList
+                                                                                                            <> "\n"
                                                                                                         )
                                                                                                 else
                                                                                                     if bc64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -968,7 +951,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                             failWithPhase
                                                                                                                 Parsing
                                                                                                                 ( "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1):"
-                                                                                                                    <> head optionList <> "\n"
+                                                                                                                    <> head optionList
+                                                                                                                    <> "\n"
                                                                                                                 )
                                                                                                         else
                                                                                                             if bcgt64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
@@ -1043,7 +1027,9 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                         | otherwise = Nothing
                                                                                                 in  if isNothing localCriterion
                                                                                                         then do
-                                                                                                            failWithPhase Parsing ("Error in 'set' command. CompressResolutions '" <> head optionList <> "' is not 'true' or 'false'" <> "\n")
+                                                                                                            failWithPhase
+                                                                                                                Parsing
+                                                                                                                ("Error in 'set' command. CompressResolutions '" <> head optionList <> "' is not 'true' or 'false'" <> "\n")
                                                                                                         else do
                                                                                                             logWith LogInfo ("CompressResolutions set to " <> head optionList <> "\n")
                                                                                                             pure (globalSettings{compressResolutions = fromJust localCriterion}, processedData, inSeedList)
@@ -1089,7 +1075,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                         then do
                                                                                                                                             pure (globalSettings{finalAssignment = fromJust localMethod}, processedData, inSeedList)
                                                                                                                                         else do
-                                                                                                                                            logWith LogInfo ("FinalAssignment set to DO (ignoring IA option) for non-Tree graphs"  <> "\n")
+                                                                                                                                            logWith LogInfo ("FinalAssignment set to DO (ignoring IA option) for non-Tree graphs" <> "\n")
                                                                                                                                             pure (globalSettings{finalAssignment = DirectOptimization}, processedData, inSeedList)
                                                                                                             else
                                                                                                                 if head commandList == "graphfactor"
@@ -1437,33 +1423,35 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                     )
                                         else
                                             if "diagnosis" `elem` commandList
-                                                then do 
-                                                        -- action :: SimpleGraph -> ReducedPhylogeneticGraph
-                                                        let action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
-                                                        pTraverse <- getParallelChunkTraverse
-                                                        rediagnosedGraph <- pTraverse action (fmap fst5 curGraphs)
+                                                then do
+                                                    -- action :: SimpleGraph -> ReducedPhylogeneticGraph
+                                                    let action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
+                                                    pTraverse ← getParallelChunkTraverse
+                                                    rediagnosedGraph ← pTraverse action (fmap fst5 curGraphs)
 
-                                                        let curGraphs' = 
-                                                                if not (reportNaiveData globalSettings) then curGraphs
+                                                    let curGraphs' =
+                                                            if not (reportNaiveData globalSettings)
+                                                                then curGraphs
                                                                 else rediagnosedGraph
-                                                            -- else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
-                                                        
+                                                    -- else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
 
-                                                        let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
-                                                        if null curGraphs
-                                                                then do
-                                                                    logWith LogInfo "No graphs to diagnose\n"
-                                                                    pure ("No graphs to diagnose", outfileName, writeMode)
-                                                                else do
-                                                                    logWith
-                                                                        LogInfo
-                                                                        ("Diagnosing " <> show (length curGraphs) <> " graphs at minimum cost " <> show (minimum $ fmap snd5 curGraphs) <> "\n")
-                                                                    pure (dataString, outfileName, writeMode)
-                                            else
+                                                    let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
+                                                    if null curGraphs
+                                                        then do
+                                                            logWith LogInfo "No graphs to diagnose\n"
+                                                            pure ("No graphs to diagnose", outfileName, writeMode)
+                                                        else do
+                                                            logWith
+                                                                LogInfo
+                                                                ("Diagnosing " <> show (length curGraphs) <> " graphs at minimum cost " <> show (minimum $ fmap snd5 curGraphs) <> "\n")
+                                                            pure (dataString, outfileName, writeMode)
+                                                else
                                                     if "displaytrees" `elem` commandList
-                                                        then do -- need to specify -O option for multiple graphs
+                                                        then do
+                                                            -- need to specify -O option for multiple graphs
                                                             -- TODO parallelize
-                                                            rediagnodesGraphs <- mapM (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
+                                                            rediagnodesGraphs ←
+                                                                mapM (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
                                                             let inputDisplayVVList = fmap fth6 rediagnodesGraphs
                                                             let costList = fmap snd5 curGraphs
                                                             let displayCostListList = fmap GO.getDisplayTreeCostList rediagnodesGraphs
@@ -1482,13 +1470,13 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                             fmap (((<> "]\n") . ("[Canonical Tree " <>)) . show) [0 .. (length inputDisplayVVList - 1)]
                                                             let canonicalGraphPairList = zip treeIndexStringList inputDisplayVVList
                                                             let blockStringList = unlines (fmap (outputBlockTrees commandList costList (outgroupIndex globalSettings)) canonicalGraphPairList)
-                                                              -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
+                                                            -- graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd6 curGraphs) (fmap snd6 curGraphs)
 
                                                             if null curGraphs || graphType globalSettings /= SoftWired
-                                                                    then do
-                                                                        logWith LogInfo "No soft-wired graphs to report display trees\n"
-                                                                        pure ("No soft-wired graphs to report display trees", outfileName, writeMode)
-                                                                    else pure (displayInfoString <> "\n" <> blockStringList, outfileName, writeMode)
+                                                                then do
+                                                                    logWith LogInfo "No soft-wired graphs to report display trees\n"
+                                                                    pure ("No soft-wired graphs to report display trees", outfileName, writeMode)
+                                                                else pure (displayInfoString <> "\n" <> blockStringList, outfileName, writeMode)
                                                         else
                                                             if ("graphs" `elem` commandList) && ("reconcile" `notElem` commandList)
                                                                 then -- else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
@@ -1513,33 +1501,35 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                 else
                                                                                     let includeMissing = elem "includemissing" commandList
                                                                                         concatSeqs = elem "concatenate" commandList
-                                                                                        
                                                                                     in  do
-                                                                                        iaContentList <- mapM (getImpliedAlignmentString globalSettings (includeMissing || concatSeqs) concatSeqs processedData) (zip curGraphs [0 .. (length curGraphs - 1)])
-                                                                                        logWith
+                                                                                            iaContentList ←
+                                                                                                mapM
+                                                                                                    (getImpliedAlignmentString globalSettings (includeMissing || concatSeqs) concatSeqs processedData)
+                                                                                                    (zip curGraphs [0 .. (length curGraphs - 1)])
+                                                                                            logWith
                                                                                                 LogInfo
                                                                                                 "\tWarning: Prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additive characters and will not appear in implied alignment output.\n"
-                                                                                        pure (concat iaContentList, outfileName, writeMode)
+                                                                                            pure (concat iaContentList, outfileName, writeMode)
                                                                         else
                                                                             if "pairdist" `elem` commandList
                                                                                 then
                                                                                     let nameData = L.intercalate "," (V.toList (T.unpack <$> fst3 processedData)) <> "\n"
-                                                                                    in do
-                                                                                        pairwiseDistanceMatrix' <- D.getPairwiseDistances processedData
-                                                                                        let dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix'
-                                                                                        pure (nameData <> dataString, outfileName, writeMode)
+                                                                                    in  do
+                                                                                            pairwiseDistanceMatrix' ← D.getPairwiseDistances processedData
+                                                                                            let dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix'
+                                                                                            pure (nameData <> dataString, outfileName, writeMode)
                                                                                 else
                                                                                     if "reconcile" `elem` commandList
                                                                                         then do
-                                                                                            recResult <- R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
+                                                                                            recResult ← R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
                                                                                             -- let (reconcileString, ) = recResult
                                                                                             let (_, reconcileGraph) = recResult
                                                                                             let reconcileString = outputGraphString commandList (outgroupIndex globalSettings) [GO.convertSimpleToDecoratedGraph reconcileGraph] [0]
                                                                                             if null curGraphs
-                                                                                                    then do
-                                                                                                        logWith LogInfo "No graphs to reconcile\n"
-                                                                                                        pure ([], outfileName, writeMode)
-                                                                                                    else pure (reconcileString, outfileName, writeMode)
+                                                                                                then do
+                                                                                                    logWith LogInfo "No graphs to reconcile\n"
+                                                                                                    pure ([], outfileName, writeMode)
+                                                                                                else pure (reconcileString, outfileName, writeMode)
                                                                                         else
                                                                                             if "search" `elem` commandList
                                                                                                 then
@@ -1608,18 +1598,18 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                         else do
                                                                                                                             -- action :: SinmpleGraph -> ReducedPhylogeneticGraph
                                                                                                                             let action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
-                                                                                                                            pTraverse <- getParallelChunkTraverse
-                                                                                                                            reoptimizedGraphs <- pTraverse action  (fmap fst5 curGraphs)
+                                                                                                                            pTraverse ← getParallelChunkTraverse
+                                                                                                                            reoptimizedGraphs ← pTraverse action (fmap fst5 curGraphs)
                                                                                                                             let curGraphs' =
                                                                                                                                     if not (reportNaiveData globalSettings)
                                                                                                                                         then (fmap GO.convertReduced2PhylogeneticGraph curGraphs)
                                                                                                                                         else reoptimizedGraphs
-                                                                                                                                           -- PU.seqParMap
-                                                                                                                                           --     (parStrategy $ strictParStrat globalSettings)
-                                                                                                                                           --     (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing)
-                                                                                                                                           --     (fmap fst5 curGraphs)
-                                                                                                                            
-                                                                                                                            tntContentList' <- mapM (getTNTString globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
+                                                                                                                            -- PU.seqParMap
+                                                                                                                            --     (parStrategy $ strictParStrat globalSettings)
+                                                                                                                            --     (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing)
+                                                                                                                            --     (fmap fst5 curGraphs)
+
+                                                                                                                            tntContentList' ← mapM (getTNTString globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
                                                                                                                             let tntContentList = concat tntContentList'
                                                                                                                             pure (tntContentList, outfileName, writeMode)
                                                                                                                 else do

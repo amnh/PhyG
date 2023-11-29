@@ -36,9 +36,9 @@ Portability :  portable (I hope)
 
 module Utilities.Utilities  where
 
-import Control.Evaluation
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special
@@ -63,7 +63,7 @@ import Data.Vector.Unboxed   qualified      as UV
 import GeneralUtilities
 import GeneralUtilities  qualified          as GU
 import SymMatrix     qualified              as S
-import System.ErrorPhase (ErrorPhase (..))
+import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph  qualified      as LG
 

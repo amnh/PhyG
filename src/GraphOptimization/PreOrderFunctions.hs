@@ -16,10 +16,10 @@ module GraphOptimization.PreOrderFunctions
   ) where
 
 import Bio.DynamicCharacter
-import Control.Evaluation
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits

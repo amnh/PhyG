@@ -4,9 +4,9 @@ Functions to create Adams II consensus trees (unlabelled internal veritices)
 
 module Reconciliation.Adams (makeAdamsII) where
 
-import Control.Evaluation
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Graph.Inductive.Graph qualified as G
 import Data.Graph.Inductive.PatriciaTree qualified as P
 import Data.List qualified as L

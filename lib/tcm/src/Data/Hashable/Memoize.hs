@@ -25,7 +25,8 @@
 #define SCREAM_ON_ACCESS 0
 #define USING_CONC 0
 #define USING_IO   0
-#define USING_LOCK 1
+#define USING_LOCK 0
+#define USING_RWL  1
 #define USING_SEM  0
 #define USING_TVAR 0
 
@@ -70,7 +71,9 @@ import Control.Exception (bracket_, mask_)
 import Control.Concurrent.QSemN
 import Data.Int (Int8, Int16)
 #endif
-
+#if USING_RWL == 1
+import Control.Concurrent.ReadWriteVar qualified as RWLock
+#endif
 
 -- |
 -- /O(1)/
@@ -116,6 +119,10 @@ memoize = memoize_IO
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Hashable a, NFData b) => (a -> b) -> a -> b
 memoize = memoize_Lock
+#elif USING_RWL == 1
+{-# NOINLINE memoize #-}
+memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize = memoize_RWLock
 #elif USING_SEM == 1
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
@@ -128,6 +135,33 @@ memoize = memoize_TVar
 {-# NOINLINE memoize #-}
 memoize :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
 memoize = error "No memoization option specified"
+#endif
+
+
+#if USING_RWL == 1
+{-# NOINLINE memoize_RWLock #-}
+memoize_RWLock :: forall a b. (Eq a, Hashable a, NFData b) => (a -> b) -> a -> b
+memoize_RWLock f = unsafePerformIO $ do
+
+    let initialSize = 2 ^ (16 :: Word)
+
+    -- Create a RWVar which holds the HashTable
+    tableRef <- RWLock.new =<< (newSized initialSize :: IO (BasicHashTable a b))
+
+    -- This is the returned closure of a memozized f
+    -- The closure captures the "mutable" reference to the hashtable above
+    -- through the TVar.
+    --
+    -- Once the mutable hashtable reference is escaped from the IO monad,
+    -- this creates a new memoized reference to f.
+    -- The technique should be safe for all pure functions, probably, I think.
+    pure $ \k -> unsafePerformIO $ do
+            result <- RWLock.with tableRef (`lookup` k)
+            case result of
+                Just v  -> {-# SCC memoize_Lock_GET #-} pure v
+                Nothing -> {-# SCC memoize_Lock_PUT #-}
+                    let v = force $ f k
+                    in  RWLock.modify tableRef $ \t -> insert t k v $> (t, v)
 #endif
 
 

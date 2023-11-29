@@ -9,7 +9,7 @@
 Compile-time embedding of the UTC time at which the program was built.
 -}
 
-#ifdef DENFORCE_TIMESTAMP
+#ifdef ENFORCE_TIMESTAMP
 {-# OPTIONS_GHC -fforce-recomp #-}
 #endif
 
@@ -29,7 +29,7 @@ import Language.Haskell.TH.Syntax
 The UTC system time at which (this module of) the binary was compiled.
 -}
 compilationTimeStamp ∷ Code Q String
-compilationTimeStamp = (show <$> runIO getCurrentTime) `bindCode` (\time -> [|| time ||])
+compilationTimeStamp = (show <$> runIO getCurrentTime) `bindCode` (\time → [||time||])
 
 
 renderTimeStampAsLocalTime ∷ (IsString s) ⇒ String → IO s
@@ -39,6 +39,5 @@ renderTimeStampAsLocalTime timeStr =
         formatTimeZoned = formatTime defaultTimeLocale "%EZ"
         formatTimeStamp zone =
             let time = utcToLocalTime zone timeStamp
-            in  unwords [ formatTimeLocal time, formatTimeZoned zone]  
+            in  unwords [formatTimeLocal time, formatTimeZoned zone]
     in  fromString . formatTimeStamp <$> getTimeZone timeStamp
-            

@@ -37,9 +37,9 @@ Portability :  portable (I hope)
 
 module Utilities.DistanceUtilities where
 
-import Control.Evaluation
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Logger (LogLevel (..), Logger (..), Verbosity (..))
 import Data.Graph.Inductive.Graph qualified as G
 import Data.Graph.Inductive.PatriciaTree qualified as P
 import Data.Maybe
@@ -49,14 +49,12 @@ import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import GeneralUtilities
 import GraphFormatUtilities qualified as PP
--- import ParallelUtilities
 import SymMatrix qualified as M
 import System.IO.Unsafe
 import System.Random qualified as Rand
 import System.Random.Shuffle qualified as RandS
 import Types.DistanceTypes
 import Types.Types
---import qualified LocalSequence as LS
 import Data.List qualified as L
 import Data.Vector qualified as LS
 
