@@ -226,14 +226,14 @@ getGeneticAlgParams inArgs =
                     maxNetEdges
                         | length maxNetEdgesList > 1 =
                             errorWithoutStackTrace
-                                ("Multiple 'maxNetEdges' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
+                                ("Multiple 'maxNetEdges' number specifications in ccommand--can have only one: " <> show inArgs)
                         | null maxNetEdgesList = Just 5
                         | otherwise = readMaybe (snd $ head maxNetEdgesList) ∷ Maybe Int
 
                     stopList = filter ((== "stop") . fst) lcArgList
                     stopNum
                         | length stopList > 1 =
-                            errorWithoutStackTrace ("Multiple 'stop' number specifications in search command--can have only one: " <> show inArgs)
+                            errorWithoutStackTrace ("Multiple 'stop' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
                         | null stopList = Just (maxBound ∷ Int)
                         | otherwise = readMaybe (snd $ head stopList) ∷ Maybe Int
 
