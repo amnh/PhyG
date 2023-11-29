@@ -578,3 +578,7 @@
 453) Make tnt char weight work with negative wqeights-- or perhaps add "\" for negative weights (versus "/")"
 
 454) Static approx for wide/huge waaay off
+
+455) Check duynamicEpsilon references
+
+456) Check "<-" stricness-- move coputaiotns into logic
