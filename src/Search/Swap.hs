@@ -1530,15 +1530,17 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                     rerootAction ∷ LG.LEdge EdgeInfo → SimpleGraph
                     rerootAction = rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge
-                    debugger ∷ (Logger m, Show a, Show b, Show c) ⇒ String -> a → LG.Gr b c → m ()
-                    debugger str n g = logWith LogTech $ fold
-                        [ "In: 'tbrJoin' with '", str, "'\n  Graph [ G_", show n, " ]:\n", LG.prettify g ]
+                    
+                    -- Debugging info
+                    --debugger ∷ (Logger m, Show a, Show b, Show c) ⇒ String -> a → LG.Gr b c → m ()
+                    --debugger str n g = logWith LogTech $ fold
+                    --    [ "In: 'tbrJoin' with '", str, "'\n  Graph [ G_", show n, " ]:\n", LG.prettify g ]
 
                     reoptimizeAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
                     reoptimizeAction g0 = do
-                        debugger "reoptimizeAction" 0 g0
+                        -- debugger "reoptimizeAction" 0 g0
                         result@(g1, _, _, _, _) ← T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g0
-                        debugger "reoptimizeAction" 1 g1
+                        -- debugger "reoptimizeAction" 1 g1
                         pure result
 
                 in  -- logic for annealing/Drift  regular swap first
@@ -1547,7 +1549,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                         Nothing
                             | not (steepest swapParams) →
                                 let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
-                                in  do  debugger "CASE OF -> Nothing( 1 )" 0 splitGraphSimple
+                                in  do  -- debugger "CASE OF -> Nothing( 1 )" 0 splitGraphSimple
                                         -- True True to use IA fields and filter gaps
                                         makeEdgePar ← getParallelChunkMap
                                         let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
@@ -1601,7 +1603,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                                 -- get heuristic delta joins for steepest edge set
                                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
-                            in  do  debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
+                            in  do  -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
                                     makeEdgePar ← getParallelChunkMap
                                     let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
@@ -1675,7 +1677,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                                 -- get heuristic delta joins for steepest edge set
                                 rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
-                            in  do  debugger "CASE OF -> Just" 0 splitGraphSimple
+                            in  do  -- debugger "CASE OF -> Just" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
                                     makeEdgePar ← getParallelChunkMap
                                     let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList

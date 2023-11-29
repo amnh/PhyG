@@ -126,7 +126,7 @@ buildGraph inArgs inGS inData pairwiseDistances rSeed =
                                     in  do
                                             pairwiseDistances' ← D.getPairwiseDistances inData
                                             buildTreeList ← buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances' rSeed
-                                            logWith LogTech $ fold [ "BL:\t", show $ length buildTreeList, "\n" ]
+                                            -- logWith LogTech $ fold [ "BL:\t", show $ length buildTreeList, "\n" ]
                                             pure buildTreeList
                                 else do
                                     -- removing taxa with missing data for block
@@ -593,15 +593,15 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
 
         traverseGraphAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
         traverseGraphAction g0 = {-# SCC randomizedDistanceWagner_traverseGraphAction #-} do
-            let debugger :: (Logger m, Show a, Show b, Show c) => a -> LG.Gr b c -> m ()
-                debugger n g = logWith LogTech $ "In: 'randomizedDistanceWagner.traverseGraphAction'\n  Graph [ G_" <> show n <> " ]:\n" <> LG.prettify g
-            debugger 0 g0
+            let -- debugger :: (Logger m, Show a, Show b, Show c) => a -> LG.Gr b c -> m ()
+                -- debugger n g = logWith LogTech $ "In: 'randomizedDistanceWagner.traverseGraphAction'\n  Graph [ G_" <> show n <> " ]:\n" <> LG.prettify g
+            -- debugger 0 g0
             let g1 = LG.switchRootTree (length leafNames) g0
-            debugger 1 g1
+            -- debugger 1 g1
             let g2 = GO.dichotomizeRoot outgroupValue g1
-            debugger 2 g2
+            -- debugger 2 g2
             result@(g3,_,_,_,_) <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g2
-            debugger 3 g3
+            -- debugger 3 g3
             pure result
 
 
