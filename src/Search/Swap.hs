@@ -10,7 +10,7 @@ module Search.Swap (
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Data.Foldable (fold)
+import Data.Foldable (fold, toList)
 import Data.List qualified as L
 import Data.Maybe
 import Data.Vector qualified as V
@@ -686,99 +686,95 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
                     (reoptimizedSplitGraph, splitCost) ←
                         reoptimizeSplitGraphFromVertex inGS inData (doIA swapParams) netPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
 
-                    -- get root in base (for readdition) and edges in pruned section for rerooting during TBR readdition
-                    let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
-
-                    let edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
-
-                    -- insert here union calcuations based on Varon and Wheeler (2013)
-                    -- basically--rebuild edge to rejoin list based on critical value, totalCost - splitCost, and
-                    -- edge union distance
-                    -- build edges pre-order and add to rejoin list if
-                    -- 1) not network (but still recurse to children)
-                    -- 2) union delta below threshold and recurse to children
-                    -- if > threshold then stop, no add, no recurse since children can only get hihger ubnion distance
-                    -- use split graph (with reoptimized nodes) and overall graph root to get avialbel edges in base graph for rejoin
-
-                    let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
-                    -- prunedToRejoinUnionData = vertData $ fromJust $ LG.lab (thd5 firstGraph) prunedGraphRootIndex
-                    let charInfoVV = fft5 firstGraph
-                    let unionEdgeList =
-                            getUnionRejoinEdgeList
-                                inGS
-                                reoptimizedSplitGraph
-                                charInfoVV
-                                [graphRoot]
-                                ((snd5 firstGraph) - splitCost)
-                                prunedToRejoinUnionData
-                                []
-
-                    -- builds graph edge list with unions--need to be able to turn off and just used edges in base graph for some sort
-                    -- of "no-union" swap
-                    -- determine those edges within distance of original if limited (ie NNI etc)
-                    let rejoinEdges' =
-                            if (maxMoveEdgeDist swapParams) >= ((maxBound ∷ Int) `div` 3)
-                                then
-                                    if (joinType swapParams) == JoinAll
-                                        then edgesInBaseGraph
-                                        else unionEdgeList
-                                else
-                                    let candidateEdges = take (maxMoveEdgeDist swapParams) $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot])
-                                    in  if (joinType swapParams) == JoinAll
-                                            then candidateEdges
-                                            else L.intersect candidateEdges unionEdgeList
-
-                    -- randomize edges list order for anneal and drift
-                    let rejoinEdges =
-                            if isJust inSimAnnealParams
-                                then permuteList ((randomIntegerList $ fromJust inSimAnnealParams) !! 1) rejoinEdges'
-                                else
-                                    if (atRandom swapParams)
-                                        then permuteList (head randomIntListSwap) rejoinEdges'
-                                        else rejoinEdges'
-
-                    -- rejoin graph to all possible edges in base graph
-                    rejoinResult ←
-                        {-# SCC rejoinResult #-}
-                            rejoinGraph
-                                swapParams
-                                inGS
-                                inData
-                                curBestCost
-                                []
-                                netPenaltyFactor
-                                reoptimizedSplitGraph
-                                (GO.convertDecoratedToSimpleGraph splitGraph)
-                                splitCost
-                                graphRoot
-                                prunedGraphRootIndex
-                                originalConnectionOfPruned
-                                rejoinEdges
-                                edgesInPrunedGraph
-                                inSimAnnealParams
-                    let (newGraphList, newSAParams) = rejoinResult
-                    {-
-                    trace ("Edge to break on:" <> (show $ LG.toEdge edgeToBreakOn)
-                    <> "\nBase graph edges: " <> (show $ fmap LG.toEdge edgesInBaseGraph)
-                    <> "\nPruned graph edges: " <> (show $ fmap LG.toEdge edgesInPrunedGraph)
-                    <> "\nTarget edges to rejoin: " <> (show $ fmap LG.toEdge rejoinEdges)
-                    <> "\nFull edgelist: " <> (show $ fmap LG.toEdge breakEdgeListComplete))
-                    -}
-
-                    let newGraphList' = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) newGraphList
-
                     -- check for malformed network split--do nothing if malformed
                     if splitCost == infinity
-                        then pure ([], inSimAnnealParams, breakEdgeNumber)
-                        else -- regular swap
+                    then pure ([], inSimAnnealParams, breakEdgeNumber)
+                    else do -- regular swap
 
-                            if isNothing inSimAnnealParams
-                                then -- only returns graphs if same of better else empty
-                                -- adds null o\r better graphs to reurn list
+                        -- get root in base (for readdition) and edges in pruned section for rerooting during TBR readdition
+                        let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
 
-                                    if (not . null) newGraphList && (steepest swapParams)
-                                        then pure (newGraphList', inSimAnnealParams, breakEdgeNumber)
-                                        else do
+                        let edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
+
+                        -- insert here union calcuations based on Varon and Wheeler (2013)
+                        -- basically--rebuild edge to rejoin list based on critical value, totalCost - splitCost, and
+                        -- edge union distance
+                        -- build edges pre-order and add to rejoin list if
+                        -- 1) not network (but still recurse to children)
+                        -- 2) union delta below threshold and recurse to children
+                        -- if > threshold then stop, no add, no recurse since children can only get hihger ubnion distance
+                        -- use split graph (with reoptimized nodes) and overall graph root to get avialbel edges in base graph for rejoin
+    
+                        let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
+                        -- prunedToRejoinUnionData = vertData $ fromJust $ LG.lab (thd5 firstGraph) prunedGraphRootIndex
+                        let charInfoVV = fft5 firstGraph
+                        let unionEdgeList =
+                                getUnionRejoinEdgeList
+                                    inGS
+                                    reoptimizedSplitGraph
+                                    charInfoVV
+                                    [graphRoot]
+                                    ((snd5 firstGraph) - splitCost)
+                                    prunedToRejoinUnionData
+                                    []
+
+                        -- builds graph edge list with unions--need to be able to turn off and just used edges in base graph for some sort
+                        -- of "no-union" swap
+                        -- determine those edges within distance of original if limited (ie NNI etc)
+                        let veryBigDist = (maxMoveEdgeDist swapParams) >= ((maxBound ∷ Int) `div` 3)
+                        -- NOTE: There might be a strictness issue here
+                        let ~candidateEdges = take (maxMoveEdgeDist swapParams) $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot])
+                        let rejoinEdges' = case (veryBigDist, joinType swapParams) of
+                                (True, JoinAll) -> edgesInBaseGraph
+                                (True, _) -> unionEdgeList
+                                (False, JoinAll) -> candidateEdges
+                                (False, _) -> L.intersect candidateEdges unionEdgeList
+    
+                        -- randomize edges list order for anneal and drift
+                        let rejoinEdges =
+                                if isJust inSimAnnealParams
+                                    then permuteList ((randomIntegerList $ fromJust inSimAnnealParams) !! 1) rejoinEdges'
+                                    else
+                                        if (atRandom swapParams)
+                                            then permuteList (head randomIntListSwap) rejoinEdges'
+                                            else rejoinEdges'
+
+                        -- rejoin graph to all possible edges in base graph
+                        rejoinResult ←
+                            {-# SCC rejoinResult #-}
+                                rejoinGraph
+                                    swapParams
+                                    inGS
+                                    inData
+                                    curBestCost
+                                    []
+                                    netPenaltyFactor
+                                    reoptimizedSplitGraph
+                                    (GO.convertDecoratedToSimpleGraph splitGraph)
+                                    splitCost
+                                    graphRoot
+                                    prunedGraphRootIndex
+                                    originalConnectionOfPruned
+                                    rejoinEdges
+                                    edgesInPrunedGraph
+                                    inSimAnnealParams
+                        let (newGraphList, newSAParams) = rejoinResult
+                        {-
+                        trace ("Edge to break on:" <> (show $ LG.toEdge edgeToBreakOn)
+                        <> "\nBase graph edges: " <> (show $ fmap LG.toEdge edgesInBaseGraph)
+                        <> "\nPruned graph edges: " <> (show $ fmap LG.toEdge edgesInPrunedGraph)
+                        <> "\nTarget edges to rejoin: " <> (show $ fmap LG.toEdge rejoinEdges)
+                        <> "\nFull edgelist: " <> (show $ fmap LG.toEdge breakEdgeListComplete))
+                        -}
+    
+                        let newGraphList' = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) newGraphList
+
+                        case inSimAnnealParams of
+                            -- only returns graphs if same of better else empty
+                            -- adds null o\r better graphs to reurn list
+                            Nothing | (not . null) newGraphList && (steepest swapParams) ->
+                                pure (newGraphList', inSimAnnealParams, breakEdgeNumber)
+                            Nothing ->  do
                                             splitJoinResult ←
                                                 splitJoinGraph
                                                     swapParams
@@ -796,26 +792,23 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
                                                     (tail breakEdgeList)
                                             let (recurseGraphList, _, newEdgeBreakNumber) = splitJoinResult
                                             pure (newGraphList' <> recurseGraphList, inSimAnnealParams, newEdgeBreakNumber)
-                                else -- Annealing/Drift swap
-                                -- return if better
-                                -- return if other chosen probabalistically
-                                -- recurse if nothing returned
+                            -- Annealing/Drift swap
+                            -- return if better
+                            -- return if other chosen probabalistically
+                            -- recurse if nothing returned
 
-                                -- if better than current graph return
+                            -- if better than current graph return
+                            Just simAnnealParams ->
+                                    let newMinCost
+                                            | null newGraphList = infinity
+                                            | otherwise = (snd5 . head) newGraphList'
 
-                                    let newMinCost =
-                                            if (not . null) newGraphList
-                                                then (snd5 . head) newGraphList'
-                                                else infinity
-                                    in  if newMinCost < curBestCost
-                                            then pure (newGraphList', newSAParams, breakEdgeNumber)
-                                            else -- if SA returned graphs--return them
-
-                                                if (not . null) newGraphList
-                                                    then pure (newGraphList, newSAParams, breakEdgeNumber)
-                                                    else -- keep going if nothing
-
-                                                        splitJoinGraph
+                                        result
+                                            | newMinCost < curBestCost = pure (newGraphList', newSAParams, breakEdgeNumber)
+                                            -- if SA returned graphs--return them
+                                            | (not . null) newGraphList = pure (newGraphList, newSAParams, breakEdgeNumber)
+                                            -- keep going if nothing
+                                            | otherwise = splitJoinGraph
                                                             swapParams
                                                             inGS
                                                             inData
@@ -831,7 +824,8 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
                                                             (tail breakEdgeList)
 
 
--- )
+                                    in  result
+
 
 {- | getUnionRejoinEdgeList takes a graph (split and reoptimized usually), the overall root index (of split),
 split cost, and union threshold value and returns list of edges that have union distance <= threshold factor
@@ -1316,13 +1310,17 @@ singleJoin
     → Maybe SAParams
     → LG.LEdge EdgeInfo
     → PhyG ([ReducedPhylogeneticGraph], Maybe SAParams)
-singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge@(u, v, _) =
-    {-# SCC singleJoin_TOP_DEF #-}
-    if (LG.isEmpty splitGraphSimple)
-        then pure ([], inSimAnnealParams)
-        else -- trace ("Rejoinging: " <> (show $ LG.toEdge targetEdge)) (
+singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams targetEdge@(u, v, _)
+    | LG.isEmpty splitGraphSimple = pure ([], inSimAnnealParams)
+    -- do redo orginal graph join
+    | originalConnectionOfPruned `elem` [u, v] = pure ([], inSimAnnealParams)
+    | otherwise = case LG.lab splitGraph prunedGraphRootIndex of
+        Nothing -> pure ([], inSimAnnealParams)
+        -- regular swap
+        Just label ->
+            let defaultResult = (mempty, inSimAnnealParams)
 
-            let newEdgeList =
+                newEdgeList =
                     [ (u, originalConnectionOfPruned, 0.0)
                     , (originalConnectionOfPruned, v, 0.0)
                     , (originalConnectionOfPruned, prunedGraphRootIndex, 0.0)
@@ -1330,7 +1328,12 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
                 charInfoVV = fmap thd3 $ thd3 inData
 
-                -- graphTYpoe with IA field
+                -- Filter for bridge edges for TBR when needed
+                edgesInPrunedGraph'
+                   | (graphType inGS == Tree) || LG.isTree splitGraphSimple = edgesInPrunedGraph
+                   | otherwise = fmap fst . filter snd . zip edgesInPrunedGraph $ LG.isBridge splitGraphSimple . LG.toEdge <$> edgesInPrunedGraph
+                                            
+                -- graphType with IA field
                 -- only uswe wqhere they exist
                 (makeEdgeDataFunction, edgeJoinFunction) =
                     if graphType inGS == HardWired
@@ -1356,152 +1359,109 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
                 -- here when needed--correct graph is issue in network
                 -- swap can screw up time consistency and other issues
-                sprNewGraphChecked =
-                    if graphType inGS == Tree
-                        then sprNewGraph
-                        else
-                            if not (LG.isPhylogeneticGraph sprNewGraph)
-                                then LG.empty
-                                else sprNewGraph
-            in  do
-                    rediagnosedSPRGraph ← T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
+                sprNewGraphChecked
+                    | graphType inGS == Tree = sprNewGraph
+                    | LG.isPhylogeneticGraph sprNewGraph = sprNewGraph
+                    | otherwise = LG.empty
 
-                    -- Filter for bridge edges for TBR when needed
-                    let edgesInPrunedGraph' =
-                            if (graphType inGS == Tree) || LG.isTree splitGraphSimple
-                                then edgesInPrunedGraph
-                                else
-                                    fmap fst $
-                                        filter ((== True) . snd) $
-                                            zip edgesInPrunedGraph (fmap (LG.isBridge splitGraphSimple) (fmap LG.toEdge edgesInPrunedGraph))
+                decide input@(_,newCost,_,_,_)
+                    | newCost <= curBestCost = ([input], inSimAnnealParams)
+                    | otherwise = defaultResult
 
-                    -- do redo orginal graph join
-                    if originalConnectionOfPruned `elem` [u, v]
-                        then pure ([], inSimAnnealParams)
-                        else -- from just nothing
+                action
+                    | LG.isEmpty sprNewGraphChecked = pure defaultResult
+                    | otherwise = decide <$> T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
 
-                            if isNothing (LG.lab splitGraph prunedGraphRootIndex)
-                                then pure ([], inSimAnnealParams)
-                                else -- regular swap
+            in  case inSimAnnealParams of
+                    -- SPR or no TBR rearrangements
+                    Nothing -> case swapType swapParams of
+                        _ | length edgesInPrunedGraph < 4 -> action
+                        SPR | sprReJoinCost + splitCost <= curBestCost -> action
+                        SPR -> pure defaultResult
+                        -- do TBR stuff returning SPR results if heuristic better
+                        TBR -> do
+                                -- check if spr better always return if so
+                                sprResult <-
+                                        if sprReJoinCost + splitCost <= curBestCost + (sprReJoinCost * (dynamicEpsilon inGS))
+                                        then fst <$> action
+                                        else pure mempty
+                                case toList sprResult of
+                                        _:_ -> pure (sprResult, inSimAnnealParams)
+                                        [] -> do
+                                                tbrResult' ←
+                                                    tbrJoin
+                                                        swapParams
+                                                        inGS
+                                                        inData
+                                                        splitGraph
+                                                        splitGraphSimple
+                                                        splitCost
+                                                        prunedGraphRootIndex
+                                                        originalConnectionOfPruned
+                                                        curBestCost
+                                                        edgesInPrunedGraph'
+                                                        inSimAnnealParams
+                                                        targetEdge
+                                                let (tbrResult, _) = tbrResult'
+                                                pure (tbrResult, inSimAnnealParams)
+        
+        
+                        -- TBRAlternate can skip SPR moves since done already in alternate scenario
+                        _ -> do
+                                tbrResult' ←
+                                    tbrJoin
+                                        swapParams
+                                        inGS
+                                        inData
+                                        splitGraph
+                                        splitGraphSimple
+                                        splitCost
+                                        prunedGraphRootIndex
+                                        originalConnectionOfPruned
+                                        curBestCost
+                                        edgesInPrunedGraph'
+                                        inSimAnnealParams
+                                        targetEdge
+                                let (tbrResult, _) = tbrResult'
+                                pure (tbrResult, inSimAnnealParams)
+        
+                    -- simulated annealing/Drift swap
+                    Just simAnnealParams -> do
+                        -- check if spr better always return if so
 
-                                    if isNothing inSimAnnealParams
-                                        then -- SPR or no TBR rearrangements
+                        rediagnosedSPRGraph@(_,newCost,_,_,_) <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
 
-                                            if ((swapType swapParams) == SPR) || ((length edgesInPrunedGraph) < 4)
-                                                then
-                                                    if (sprReJoinCost + splitCost) <= curBestCost
-                                                        then
-                                                            if LG.isEmpty sprNewGraphChecked
-                                                                then pure ([], inSimAnnealParams)
-                                                                else -- else if (GO.parentsInChainGraph . thd5) rediagnosedSPRGraph then ([], inSimAnnealParams)
+                        let sprResult
+                                | sprReJoinCost + splitCost <= curBestCost + (sprReJoinCost * (dynamicEpsilon inGS)) && newCost < curBestCost = [rediagnosedSPRGraph]
+                                | otherwise = mempty
+                        case toList sprResult of
+                               -- spr better than current
+                               (_,cost,_,_,_):_ ->
+                                   let (_, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost cost
+                                   in  -- trace ("SPR found better " <> show newCost)
+                                       pure (sprResult, newSAParams)
+                               -- do simAnneal/Drift for SPR and on to tbr if not accept
+                               [] -> case U.simAnnealAccept inSimAnnealParams curBestCost (sprReJoinCost + splitCost) of
+                                   -- if accepted (better or random) then return with updated annealing/Drift parameters
+                                   (True, newSAParams) -> pure ([rediagnosedSPRGraph], newSAParams)
+                                   -- rejected-recurse with updated SA params
+                                   (False, newSAParams) -> case swapType swapParams of
+                                       SPR -> pure (mempty, newSAParams)
+                                       _ | length edgesInPrunedGraph < 4 -> pure (mempty, newSAParams)
+                                       _ -> tbrJoin
+                                           swapParams
+                                           inGS
+                                           inData
+                                           splitGraph
+                                           splitGraphSimple
+                                           splitCost
+                                           prunedGraphRootIndex
+                                           originalConnectionOfPruned
+                                           curBestCost
+                                           edgesInPrunedGraph'
+                                           newSAParams
+                                           targetEdge
 
-                                                                    if snd5 rediagnosedSPRGraph <= curBestCost
-                                                                        then pure ([rediagnosedSPRGraph], inSimAnnealParams)
-                                                                        else pure ([], inSimAnnealParams)
-                                                        else pure ([], inSimAnnealParams)
-                                                else -- Full TBR
-
-                                                    if ((swapType swapParams) == TBR)
-                                                        then -- do TBR stuff returning SPR results if heuristic better
-
-                                                            let sprResult =
-                                                                    if (sprReJoinCost + splitCost) <= curBestCost + (sprReJoinCost * (dynamicEpsilon inGS))
-                                                                        then
-                                                                            if LG.isEmpty sprNewGraphChecked
-                                                                                then []
-                                                                                else -- else if (GO.parentsInChainGraph . thd5) rediagnosedSPRGraph then []
-
-                                                                                    if snd5 rediagnosedSPRGraph <= curBestCost
-                                                                                        then [rediagnosedSPRGraph]
-                                                                                        else []
-                                                                        else []
-                                                            in  do
-                                                                    if (not . null) sprResult
-                                                                        then pure (sprResult, inSimAnnealParams)
-                                                                        else do
-                                                                            tbrResult' ←
-                                                                                tbrJoin
-                                                                                    swapParams
-                                                                                    inGS
-                                                                                    inData
-                                                                                    splitGraph
-                                                                                    splitGraphSimple
-                                                                                    splitCost
-                                                                                    prunedGraphRootIndex
-                                                                                    originalConnectionOfPruned
-                                                                                    curBestCost
-                                                                                    edgesInPrunedGraph'
-                                                                                    inSimAnnealParams
-                                                                                    targetEdge
-                                                                            let (tbrResult, _) = tbrResult'
-                                                                            pure (tbrResult, inSimAnnealParams)
-                                                        else -- TBRAlternate can skip SPR moves since done already in alternate scenario
-                                                        do
-                                                            tbrResult' ←
-                                                                tbrJoin
-                                                                    swapParams
-                                                                    inGS
-                                                                    inData
-                                                                    splitGraph
-                                                                    splitGraphSimple
-                                                                    splitCost
-                                                                    prunedGraphRootIndex
-                                                                    originalConnectionOfPruned
-                                                                    curBestCost
-                                                                    edgesInPrunedGraph'
-                                                                    inSimAnnealParams
-                                                                    targetEdge
-                                                            let (tbrResult, _) = tbrResult'
-                                                            pure (tbrResult, inSimAnnealParams)
-                                        else -- simulated annealing/Drift swap
-
-                                        -- check if spr better always return if so
-
-                                            let sprResult =
-                                                    if (sprReJoinCost + splitCost) <= curBestCost
-                                                        then
-                                                            if LG.isEmpty sprNewGraphChecked
-                                                                then []
-                                                                else
-                                                                    if snd5 rediagnosedSPRGraph < curBestCost
-                                                                        then [rediagnosedSPRGraph]
-                                                                        else []
-                                                        else []
-                                            in  -- spr better than current
-                                                if (not . null) sprResult
-                                                    then
-                                                        let (_, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost (snd5 rediagnosedSPRGraph)
-                                                        in  -- trace ("SPR found better " <> (show $ snd5 rediagnosedSPRGraph))
-                                                            pure (sprResult, newSAParams)
-                                                    else -- do simAnneal/Drift for SPR and on to tbr if not accept
-
-                                                        let (acceptGraph, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost (sprReJoinCost + splitCost)
-                                                        in  -- if accepted (better or random) then return with updated annealing/Drift parameters
-                                                            if acceptGraph
-                                                                then pure ([rediagnosedSPRGraph], newSAParams)
-                                                                else -- rejected--recurse with updated SA params
-                                                                -- SPR or small prune
-
-                                                                    if ((swapType swapParams) == SPR) || ((length edgesInPrunedGraph) < 4)
-                                                                        then pure ([], newSAParams)
-                                                                        else -- tbr
-
-                                                                            tbrJoin
-                                                                                swapParams
-                                                                                inGS
-                                                                                inData
-                                                                                splitGraph
-                                                                                splitGraphSimple
-                                                                                splitCost
-                                                                                prunedGraphRootIndex
-                                                                                originalConnectionOfPruned
-                                                                                curBestCost
-                                                                                edgesInPrunedGraph'
-                                                                                newSAParams
-                                                                                targetEdge
-
-
--- )
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
 I a filed is faster--but has to be there and not for harwired
