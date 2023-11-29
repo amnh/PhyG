@@ -582,3 +582,5 @@
 455) Check duynamicEpsilon references
 
 456) Check "<-" stricness-- move coputaiotns into logic
+
+457) numThreads <- liftIO $ getNumCapabilities 
