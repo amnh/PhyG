@@ -80,6 +80,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
  
     in
     if LG.isEmpty inDecorated then pure emptyPhylogeneticGraph  -- error "Empty tree in preOrderTreeTraversal"
+    else if null blockCharacterDecoratedVV then pure emptyPhylogeneticGraph 
     else do
         -- trace ("In PreOrder\n" <> "Simple:\n" <> (LG.prettify inSimple) <> "Decorated:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) <> "\n" <> (GFU.showGraph inDecorated)) (
         -- mapped recursive call over blkocks, later character 
