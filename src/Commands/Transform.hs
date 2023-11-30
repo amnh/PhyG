@@ -196,19 +196,19 @@ transform inArgs inGS origData inData rSeed inGraphList =
 
                                                                             -- generate and return display trees-- displayTreNUm / graph
                                                                             contractIn1Out1Nodes = True
-                                                                            displayGraphList =
+                                                                        in do
+                                                                            displayGraphList <-
                                                                                 if chooseFirst
-                                                                                    then fmap (take (fromJust numDisplayTrees) . (LG.generateDisplayTrees) contractIn1Out1Nodes) (fmap fst5 inGraphList)
-                                                                                    else fmap (LG.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst5 inGraphList)
+                                                                                    then pure $ fmap (take (fromJust numDisplayTrees) . (LG.generateDisplayTrees) contractIn1Out1Nodes) (fmap fst5 inGraphList)
+                                                                                    else mapM (LG.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst5 inGraphList)
 
                                                                             -- prob not required
-                                                                            displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)
-                                                                        in  do
-                                                                                -- reoptimize as Trees
-                                                                                reoptimizePar ← getParallelChunkTraverse
-                                                                                newPhylogeneticGraphList ← reoptimizePar (reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs
-                                                                                -- newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs -- `using` PU.myParListChunkRDS
-                                                                                pure (newGS, origData, inData, newPhylogeneticGraphList)
+                                                                            let displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)
+                                                                            -- reoptimize as Trees
+                                                                            reoptimizePar ← getParallelChunkTraverse
+                                                                            newPhylogeneticGraphList ← reoptimizePar (reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs
+                                                                            -- newPhylogeneticGraphList = PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced newGS inData pruneEdges warnPruneEdges startVertex) displayGraphs -- `using` PU.myParListChunkRDS
+                                                                            pure (newGS, origData, inData, newPhylogeneticGraphList)
                                                             else -- transform to softwired
 
                                                                 if toSoftWired

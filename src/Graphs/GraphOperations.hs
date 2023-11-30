@@ -190,23 +190,25 @@ copyLabelInfo canonicalEdgeList displayEdge@(u,v,dl) =
 
 -- | isPhylogeneticDecoratedGraph checks various issues to see if
 -- there is wierdness in graph
-isPhylogeneticDecoratedGraph :: DecoratedGraph -> Bool
+isPhylogeneticDecoratedGraph :: DecoratedGraph -> PhyG Bool
 isPhylogeneticDecoratedGraph inGraph =
-    if LG.isEmpty inGraph then False
+    if LG.isEmpty inGraph then pure False
     else
         let nodeList = fmap fst $ LG.labNodes inGraph
             indegreeList = fmap (LG.inn inGraph) nodeList
             outdegreeList = fmap (LG.out inGraph) nodeList
         in
-        if LG.hasDuplicateEdgesNub inGraph then False
-        else if length (LG.getRoots inGraph) /= 1 then False
-        else if LG.outdeg inGraph (head $ LG.getRoots inGraph) /= 2 then False
-        else if (not . null) (LG.getIsolatedNodes inGraph) then False
-        else if (not . null) (filter ((> 2) . length) indegreeList) then False
-        else if (not . null) (filter ((> 2) . length) outdegreeList) then False
-        else if parentsInChainGraph inGraph then False
-        else if not (LG.isGraphTimeConsistent inGraph) then False
-        else True
+        if LG.hasDuplicateEdgesNub inGraph then pure False
+        else if length (LG.getRoots inGraph) /= 1 then pure False
+        else if LG.outdeg inGraph (head $ LG.getRoots inGraph) /= 2 then pure False
+        else if (not . null) (LG.getIsolatedNodes inGraph) then pure False
+        else if (not . null) (filter ((> 2) . length) indegreeList) then pure False
+        else if (not . null) (filter ((> 2) . length) outdegreeList) then pure False
+        else if parentsInChainGraph inGraph then pure False
+        else do
+            consistent <- LG.isGraphTimeConsistent inGraph
+            if not consistent then pure False
+            else pure True
 
 -- | parentsInChainGraph checks all network vertices in graph to see if 
 -- parents in any network vertex is ancestor of other

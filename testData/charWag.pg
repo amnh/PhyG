@@ -82,7 +82,7 @@ read(fasta:"chel.fas")
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 
-search(minutes:2, instances:4, stop:50)
+search(minutes:5, instances:4, stop:50,Thompson:2)
 
 
 --swap()

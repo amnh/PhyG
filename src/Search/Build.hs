@@ -357,9 +357,9 @@ reconcileBlockTrees rSeed blockTrees numDisplayTrees returnTrees returnGraph ret
                     | not $ LG.isEmpty reconciledGraph = reconciledGraph
                     | otherwise = reconciledGraphInitial
 
-            let displayGraphs'
-                    | not returnRandomDisplayTrees = take numDisplayTrees $ LG.generateDisplayTrees True reconciledGraph'
-                    | otherwise = LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
+            displayGraphs' <-
+                    if not returnRandomDisplayTrees then pure $ take numDisplayTrees $ LG.generateDisplayTrees True reconciledGraph'
+                    else LG.generateDisplayTreesRandom rSeed numDisplayTrees reconciledGraph'
 
             -- need this to fix up some graphs after other stuff changed
             -- displayGraphs <- mapM (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'

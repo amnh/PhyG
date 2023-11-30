@@ -8,7 +8,7 @@ module Search.Swap (
     getUnionRejoinEdgeList,
 ) where
 
-import Control.Monad (when)
+import Control.Monad (when, filterM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Foldable (fold, toList)
 import Data.List qualified as L
@@ -1359,11 +1359,11 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
                 -- here when needed--correct graph is issue in network
                 -- swap can screw up time consistency and other issues
-                sprNewGraphChecked
+                sprNewGraphChecked 
                     | graphType inGS == Tree = sprNewGraph
                     | LG.isPhylogeneticGraph sprNewGraph = sprNewGraph
                     | otherwise = LG.empty
-
+                
                 decide input@(_,newCost,_,_,_)
                     | newCost <= curBestCost = ([input], inSimAnnealParams)
                     | otherwise = defaultResult
@@ -1372,7 +1372,8 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                     | LG.isEmpty sprNewGraphChecked = pure defaultResult
                     | otherwise = decide <$> T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
 
-            in  case inSimAnnealParams of
+            in  
+                case inSimAnnealParams of
                     -- SPR or no TBR rearrangements
                     Nothing -> case swapType swapParams of
                         _ | length edgesInPrunedGraph < 4 -> action
@@ -1568,10 +1569,9 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                         let candidateJoinedGraphList' = rerootPar rerootAction candidateEdgeList
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
 
-                                        -- check for grap wierdness if network
-                                        let candidateJoinedGraphList
-                                                | graphType inGS == Tree = candidateJoinedGraphList'
-                                                | otherwise = filter LG.isPhylogeneticGraph candidateJoinedGraphList'
+                                        -- check for graph wierdness if network
+                                        candidateJoinedGraphList <- if graphType inGS == Tree then pure candidateJoinedGraphList'
+                                                                    else filterM LG.isPhylogeneticGraph candidateJoinedGraphList'
 
                                         -- check for graph wierdness
                                         -- rediagnosedGraphList = filter (not . GO.parentsInChainGraph . thd5) $ filter ((<= curBestCost) . snd5) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList

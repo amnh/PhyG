@@ -1401,7 +1401,8 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u, v, _), (u', v', _)) =
                     let metHeuristicThreshold = not (useNetAddHeuristic inGS) || heuristicFactor < (2 / 3)
 
                     -- remove these checks when working
-                    if not $ LG.isPhylogeneticGraph newSimple
+                    isPhyloGraph <- LG.isPhylogeneticGraph newSimple
+                    if not isPhyloGraph
                         then do
                             pure emptyReducedPhylogeneticGraph
                         else
