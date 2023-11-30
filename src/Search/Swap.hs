@@ -1361,7 +1361,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                 -- swap can screw up time consistency and other issues
                 sprNewGraphChecked 
                     | graphType inGS == Tree = sprNewGraph
-                    | LG.isPhylogeneticGraph sprNewGraph = sprNewGraph
+                    -- | LG.isPhylogeneticGraph sprNewGraph = sprNewGraph
                     | otherwise = LG.empty
                 
                 decide input@(_,newCost,_,_,_)

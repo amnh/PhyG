@@ -7,7 +7,7 @@ module Search.Fuse (
     fuseAllGraphs,
 ) where
 
-import Control.Monad (when)
+import Control.Monad (when, filterM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -238,11 +238,12 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
                     let fusePairResult = concat fusePairResult'
                     -- fusePairResult = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (head leftRightList)
 
-                    let bestResultList =
+                    bestResultList <-
                             if graphType inGS == Tree
-                                then GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) fusePairResult
-                                else -- check didn't make weird network
-                                    GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) $ (filter (LG.isPhylogeneticGraph . fst5)) fusePairResult
+                                then pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) fusePairResult
+                                else do -- check didn't make weird network
+                                    goodGraphList <- filterM (LG.isPhylogeneticGraph . fst5) fusePairResult
+                                    pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) goodGraphList
 
                     let pairScore =
                             if (not . null) bestResultList
