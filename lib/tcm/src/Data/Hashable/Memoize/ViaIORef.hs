@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- {-# OPTIONS_GHC -fno-full-laziness #-}
 
@@ -7,27 +8,19 @@ Exposes memoization combinators. Assumes that the supplied functions are
 side effect free. If this assumption is violated, undefined and unexpected
 behavior may result.
 -}
-module Data.Hashable.Memoize (
+module Data.Hashable.Memoize.ViaIORef (
     memoize,
     memoize2,
     memoize3,
 ) where
 
-import Control.DeepSeq (NFData)
-import Data.Hashable (Hashable)
-#if defined (Memoize_Via_ConcurrentHashtable)
-import Data.Hashable.Memoize.ViaConcurrentHashtable qualified as Memo (memoize)
-#elif defined (Memoize_Via_IORef)
-import Data.Hashable.Memoize.ViaIORef qualified as Memo (memoize)
-#elif defined (Memoize_Via_ManualLock)
-import Data.Hashable.Memoize.ViaManualLock qualified as Memo (memoize)
-#elif defined (Memoize_Via_ReadWriteLock)
-import Data.Hashable.Memoize.ViaReadWriteLock qualified as Memo (memoize)
-#elif defined (Memoize_Via_Semaphore)
-import Data.Hashable.Memoize.ViaSemaphore qualified as Memo (memoize)
-#elif defined (Memoize_Via_TVar)
-import Data.Hashable.Memoize.ViaTVar qualified as Memo (memoize)
-#endif
+import Control.DeepSeq
+import Data.HashTable.IO
+import Data.Hashable
+import Data.IORef
+import System.IO
+import System.IO.Unsafe
+import Prelude hiding (lookup)
 
 
 {- |
@@ -64,7 +57,29 @@ manner.
 -}
 {-# NOINLINE memoize #-}
 memoize ∷ ∀ a b. (Eq a, Hashable a, NFData b) ⇒ (a → b) → a → b
-memoize = Memo.memoize
+memoize f = unsafePerformIO $ do
+    let initialSize = 2 ^ (16 ∷ Word)
+
+    !htRef ← (newSized initialSize ∷ IO (BasicHashTable a b)) >>= newIORef
+    pure $ \k → unsafeDupablePerformIO $ do
+        ht ← readIORef htRef
+        result ← ht `lookup` k
+        -- Here we check if the memoized value exists
+        case result of
+            -- If the value exists return it
+            Just v → pure v
+            -- If the value doesn't exist:
+            Nothing →
+                -- Perform the expensive calculation to determine the value
+                -- associated with the key, fully evaluated.
+                let v = force $ f k
+                in  -- we want to perform the following modification atomically.
+                    do
+                        insert ht k v -- Insert the key-value pair into the HashTable
+                        writeIORef htRef ht -- Place the updated hashtable back in the IO-Ref
+                        -- After performing the update side effects,
+                        -- we return the value associated with the key
+                        pure v
 
 
 {- |
