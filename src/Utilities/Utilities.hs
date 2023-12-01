@@ -67,9 +67,9 @@ import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph  qualified      as LG
 
---import Control.Parallel.Strategies
----import ParallelUtilities qualified as P
---import Debug.Trace
+-- import Control.Parallel.Strategies
+-- import ParallelUtilities qualified as P
+-- import Debug.Trace
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs

@@ -64,10 +64,12 @@ import GraphFormatUtilities qualified as GFU
 import GraphOptimization.Medians qualified as M
 import GraphOptimization.PostOrderSoftWiredFunctionsNew qualified as NEW
 import Graphs.GraphOperations qualified as GO
+import PHANE.Evaluation
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 -- import           Debug.Trace
-import ParallelUtilities qualified as PU
 import Types.Types
 
 
@@ -79,7 +81,7 @@ import Types.Types
 -- not contracting in=1 out =1 nodes so that indexing will be consistent
 -- does not create resolution cache data structures
 -- really only for diagnosis and time complexity comparison with resolution cache algorithm
-naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+naivePostOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
         -- this is a lazy list so can be consumed and not an issue with exponential number of Trees
     let contractIn1Out1Nodes = False
@@ -89,28 +91,29 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
         -- get root index
         rootIndex = if isJust startVertex  then fromJust startVertex
                     else fst $ head $ LG.getRoots inSimpleGraph
-
+    in do
         -- get the best traversals of the best display trees for each block
-        (bestTripleInfo, _) = getBestDisplayCharBlockList inGS inData leafGraph rootIndex 0 [] [] displayTreeList
-        (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 bestTripleInfo
+        bestDisplayResult <- getBestDisplayCharBlockList inGS inData leafGraph rootIndex 0 [] [] displayTreeList
+        let (bestTripleInfo, _) = bestDisplayResult -- getBestDisplayCharBlockList inGS inData leafGraph rootIndex 0 [] [] displayTreeList
+        let (blockCostList, bestDisplayTreeList, charTreeVectList) = unzip3 bestTripleInfo
 
         -- extract specific information to create the phylogenetic graph
-        graphCost = sum blockCostList
-        displayTreeVect = V.fromList bestDisplayTreeList
-        charTreeVectVect = V.fromList charTreeVectList
+        let graphCost = sum blockCostList
+        let displayTreeVect = V.fromList bestDisplayTreeList
+        let charTreeVectVect = V.fromList charTreeVectList
 
         -- propagate display node assignment to canonical graph
         -- does not have correct VertInfo--just character assignments
         -- to fox would need to propagate (and update other vertinfo like BV) via postorder pass
-        newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) displayTreeVect
+        let newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph (GO.convertSimpleToDecoratedGraph inSimpleGraph) displayTreeVect
 
 
         -- create postorder Phylgenetic graph
-        postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
+        let postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (:[]) displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
-    in
-    -- trace ("NPOSW: " <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes newCononicalGraph) <> "\nDisplay :" <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes $ V.head displayTreeVect))
-    postOrderPhyloGraph
+    
+        -- trace ("NPOSW: " <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes newCononicalGraph) <> "\nDisplay :" <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes $ V.head displayTreeVect))
+        pure postOrderPhyloGraph
 
 -- | getBestDisplayCharBlockList takes a Tree gets best rootings, compares to input list if there is one and takes better
 -- returning triple of block cost, display tree, char vect from better tree
@@ -122,11 +125,11 @@ getBestDisplayCharBlockList :: GlobalSettings
                             -> [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)]
                             -> [PhylogeneticGraph]
                             -> [SimpleGraph]
-                            -> ([(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)], [PhylogeneticGraph])
+                            -> PhyG ([(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)], [PhylogeneticGraph])
 getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentBestTriple currentBestTreeList displayTreeList =
     if null displayTreeList then
         -- trace ("\tExamined " <> (show treeCounter) <> " display trees")
-        (currentBestTriple, currentBestTreeList)
+        pure (currentBestTriple, currentBestTreeList)
     else
         -- trace ("GBDCBL Trees: " <> (show $ length displayTreeList)) (
         -- take first graph
@@ -136,28 +139,50 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
             numDisplayTreesToEvaluate = graphsSteepest inGS -- PU.getNumThreads
             firstGraphList = take numDisplayTreesToEvaluate displayTreeList
             
-
-            -- diagnose post order as Tree
             staticIA = False
-            outgroupDiagnosedTreeList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
+            
+            postOrderAction :: SimpleGraph -> PhylogeneticGraph
+            postOrderAction = postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)
+
+            displayAction :: PhylogeneticGraph -> PhyG PhylogeneticGraph
+            displayAction = getDisplayBasedRerootSoftWired' inGS Tree rootIndex
+
+            tripleAction :: PhylogeneticGraph -> [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)]
+            tripleAction = getTreeTriple rootIndex
+
+        in do
+            -- diagnose post order as Tree
+            postOrderPar <- getParallelChunkMap
+            let outgroupDiagnosedTreeList = postOrderPar postOrderAction firstGraphList
+                -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
 
             -- do rerooting of character trees
-            multiTraverseTreeList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupDiagnosedTreeList
+            displayPar <- getParallelChunkTraverse
+            multiTraverseTreeList <- displayPar displayAction outgroupDiagnosedTreeList
+                -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupDiagnosedTreeList
 
             -- extract triple (relevent info)--sets if multitraverse (reroot characters) or not
-            multiTraverseTripleList = if (multiTraverseCharacters inGS == True)  then PU.seqParMap (parStrategy $ lazyParStrat inGS) (getTreeTriple rootIndex) multiTraverseTreeList
-                                      else PU.seqParMap (parStrategy $ lazyParStrat inGS) (getTreeTriple rootIndex) outgroupDiagnosedTreeList
+            multiTraverseTripleList <- if (multiTraverseCharacters inGS == True)  then do
+                                            triplePar <- getParallelChunkMap
+                                            let tripleResult = triplePar tripleAction multiTraverseTreeList
+                                            pure tripleResult
+                                            --PU.seqParMap (parStrategy $ lazyParStrat inGS) (getTreeTriple rootIndex) multiTraverseTreeList
+                                        else do
+                                            triplePar <- getParallelChunkMap
+                                            let tripleResult = triplePar tripleAction outgroupDiagnosedTreeList
+                                            pure tripleResult
+                                            -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (getTreeTriple rootIndex) outgroupDiagnosedTreeList
 
             -- choose better vs currentBestTriple
             -- this can be folded for a list > 2
-            newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
+            let newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
 
             -- save best overall dysplay trees for later use in penalty phase
-            newBestTreeList = GO.selectGraphsFull Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList <> currentBestTreeList)
-        in
-        -- trace ("GBDCBL: " <> (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
-        getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
-        -- )
+            let newBestTreeList = GO.selectGraphsFull Best (maxBound::Int) 0.0 (-1) (multiTraverseTreeList <> currentBestTreeList)
+    
+            -- trace ("GBDCBL: " <> (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
+            getBestDisplayCharBlockList inGS inData leafGraph rootIndex (treeCounter + (length firstGraphList)) newBestTriple newBestTreeList (drop numDisplayTreesToEvaluate displayTreeList)
+            
 
 -- | getTreeTriple takes a phylogenetic gaph and returns the triple list of block cost, display tree, and character graphs
 getTreeTriple :: LG.Node -> PhylogeneticGraph -> [(VertexCost, DecoratedGraph, V.Vector DecoratedGraph)]
@@ -196,7 +221,7 @@ getCharacterTreeCost rootIndex characterTree =
     else (subGraphCost . snd) $ LG.labelNode characterTree rootIndex
 
 -- | postOrderSoftWiredTraversal is a wrapper to allow correct function choice for alternate softwired algorithms
-postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Bool -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 postOrderSoftWiredTraversal inGS inData leafGraph _ startVertex inSimpleGraph =
     -- firt case shouldn't happen--just checking if naive is chosen
     if graphType inGS == Tree then postOrderSoftWiredTraversal' inGS inData leafGraph startVertex inSimpleGraph
@@ -207,33 +232,34 @@ postOrderSoftWiredTraversal inGS inData leafGraph _ startVertex inSimpleGraph =
 -- at root
 -- staticIA is ignored--but kept for functional polymorphism
 -- ur-root = ntaxa is an invariant
-postOrderSoftWiredTraversal' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhylogeneticGraph
+postOrderSoftWiredTraversal' :: GlobalSettings -> ProcessedData -> DecoratedGraph -> Maybe Int -> SimpleGraph -> PhyG PhylogeneticGraph
 postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
-    if LG.isEmpty inSimpleGraph then emptyPhylogeneticGraph
+    if LG.isEmpty inSimpleGraph then pure emptyPhylogeneticGraph
     else
          -- Assumes root is Number of Leaves--should be invariant everywhere
         let rootIndex = if startVertex == Nothing then V.length $ fst3 inData
                         else fromJust startVertex
             blockCharInfo = V.map thd3 blockDataVect
+        in do
             -- newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
-            newSoftWired = NEW.postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
-        in
-        if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
-            let localRootList = fst <$> LG.getRoots inSimpleGraph
-                localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
-                currentRootEdges = LG.out inSimpleGraph rootIndex
-            in
-            error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> LG.prettify inSimpleGraph)
-        else
-            newSoftWired
+            newSoftWired <- NEW.postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
+        
+            if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex) then
+                let localRootList = fst <$> LG.getRoots inSimpleGraph
+                    localRootEdges = concatMap (LG.out inSimpleGraph) localRootList
+                    currentRootEdges = LG.out inSimpleGraph rootIndex
+                in
+                error ("Index "  <> show rootIndex <> " with edges " <> show currentRootEdges <> " not root in graph:" <> show localRootList <> " edges:" <> show localRootEdges <> "\n" <> LG.prettify inSimpleGraph)
+            else
+                pure newSoftWired
 
 -- | getDisplayBasedRerootSoftWired is a wrapper to allow correct function choice for alternate softwired algorithms
-getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 getDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph =
     -- check if doing rerooting--if not then return existing graph
     if inGraphType == Tree then getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph
     else if softWiredMethod inGS == ResolutionCache then getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph
-    else naiveGetDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph
+    else pure $ naiveGetDisplayBasedRerootSoftWired inGS inGraphType rootIndex inPhyloGraph
 
 -- | naiveGetDisplayBasedRerootSoftWired is the naive (based on all resolution display trees)
 -- the work of getDisplayBasedRerootSoftWired' is already done (rerooting and all) in naivePostOrderSoftWiredTraversal
@@ -257,42 +283,42 @@ naiveGetDisplayBasedRerootSoftWired _ _ _ inPhyloGraph  =
 -- Input display trees are for reporting only and do not contain actual character data so must be "pulled"
 -- from cononical Decorated graph (thd field)
 -- the list :[] stuff due to potential list of diplay trees not employed here
-getDisplayBasedRerootSoftWired' :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhylogeneticGraph
+getDisplayBasedRerootSoftWired' :: GlobalSettings -> GraphType -> LG.Node -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a,b, decGraph, _,_,f)  =
-    if LG.isEmpty (fst6 inPhyloGraph) then inPhyloGraph
-    else
-        let -- update with pass to retrieve vert data from resolution data
+    if LG.isEmpty (fst6 inPhyloGraph) then pure inPhyloGraph
+    else do
+        -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
-            (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) = 
+        (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) <- 
                 if inGraphType == Tree then
                     let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
                     in
-                    (a, b, decGraph, displayTrees, charTrees, f)
+                    pure (a, b, decGraph, displayTrees, charTrees, f)
                 else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
 
             -- purge double edges from display and character graphs
             -- this should not be happening--issue with postorder network resolutions data
-            (inBlockGraphV, inBlockCharGraphVV) = if inGraphType == Tree then (inBlockGraphV', inBlockCharGraphVV')
+        let (inBlockGraphV, inBlockCharGraphVV) = if inGraphType == Tree then (inBlockGraphV', inBlockCharGraphVV')
                                                   else (fmap (fmap LG.removeDuplicateEdges) inBlockGraphV', fmap (fmap LG.removeDuplicateEdges) inBlockCharGraphVV')
 
-            -- reroot block character trees
-            -- not sure if should be parallelized `using` PU.myParListChunkRDS
-            -- (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (zipWith3  (rerootBlockCharTrees inGS rootIndex) (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV) `using` PU.myParListChunkRDS)
-            -- This is slower than myParListChunkRDS
-            (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 (PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootBlockCharTrees' inGS rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
+        -- reroot block character trees
+        rerootPar <- getParallelChunkTraverse
+        rerootResult <- rerootPar (rerootBlockCharTrees' inGS rootIndex) (zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
+        let (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 rerootResult 
+        -- (PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootBlockCharTrees' inGS rootIndex) $ zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
 
-            newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
-        in
+        let newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
+        
         -- trace ("GDBRS:" <> (show (b, sum blockCostV)))
-        (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
+        pure (inSimpleGraph, sum blockCostV, newCononicalGraph, V.fromList $ fmap (:[]) newBlockDisplayTreeVect, V.fromList newBlockCharGraphVV, charInfoVV)
 
 -- | rerootBlockCharTrees' wrapper around rerootBlockCharTrees to allow for parMap
-rerootBlockCharTrees' ::GlobalSettings -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
+rerootBlockCharTrees' ::GlobalSettings -> LG.Node -> (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> PhyG (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
 rerootBlockCharTrees' inGS rootIndex (blockDisplayTree, charTreeVect, charInfoVect) = rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect 
 
 -- | rerootBlockCharTrees reroots all character trees (via fmap) in block returns best block char trees and costs
 -- with best character tree node assignment back ported to display tree
-rerootBlockCharTrees ::GlobalSettings -> LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
+rerootBlockCharTrees ::GlobalSettings -> LG.Node -> DecoratedGraph -> V.Vector DecoratedGraph -> V.Vector CharInfo -> PhyG (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
 rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect =
     if V.null charTreeVect then error "Empty tree vector in rerootBlockCharTrees"
     else
@@ -302,21 +328,26 @@ rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect =
             childrenOfRoot = LG.descendants blockDisplayTree rootIndex
             grandChildrenOfRoot = concatMap (LG.descendants blockDisplayTree) childrenOfRoot
 
+            getCharAction :: (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
+            getCharAction = getCharTreeBestRoot' rootIndex grandChildrenOfRoot
+           
+
+        in do
             -- leaving  parallel since can be few blocks
-            -- (rerootedCharTreeVect, rerootedCostVect) = unzip (zipWith (getCharTreeBestRoot rootIndex grandChildrenOfRoot) (V.toList charTreeVect) (V.toList charInfoVect)) `using` PU.myParListChunkRDS)
+            -- (rerootedCharTreeVect, rerootedCostVect) = unzip (PU.seqParMap (parStrategy $ lazyParStrat inGS) (getCharTreeBestRoot' rootIndex grandChildrenOfRoot) (zip (V.toList charTreeVect) (V.toList charInfoVect)))
 
-            -- unclear if faster than than myParListChunkRDS
-            (rerootedCharTreeVect, rerootedCostVect) = unzip (PU.seqParMap (parStrategy $ lazyParStrat inGS) (getCharTreeBestRoot' rootIndex grandChildrenOfRoot) (zip (V.toList charTreeVect) (V.toList charInfoVect)))
-
-            (updateBlockDisplayTree, updatedDisplayVect, blockCost) = if multiTraverseCharacters inGS == True then
-                                                                        (backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect), V.fromList rerootedCharTreeVect, sum rerootedCostVect)
-                                                                      else
-                                                                         let rootCharLabelNodes = fmap (LG.labelNodeFlip rootIndex) charTreeVect
-                                                                             existingCost = sum $ fmap (subGraphCost . snd) rootCharLabelNodes
-                                                                         in
-                                                                         (backPortCharTreeNodesToBlockTree blockDisplayTree charTreeVect, charTreeVect, existingCost)
-        in
-        (updateBlockDisplayTree, updatedDisplayVect, blockCost)
+            (updateBlockDisplayTree, updatedDisplayVect, blockCost) <- if multiTraverseCharacters inGS == True then do
+                                                                            getCharPar <- getParallelChunkMap  
+                                                                            let charResult = getCharPar getCharAction (zip (V.toList charTreeVect) (V.toList charInfoVect))
+                                                                            let (rerootedCharTreeVect, rerootedCostVect) = unzip charResult
+                                                                            pure (backPortCharTreeNodesToBlockTree blockDisplayTree (V.fromList rerootedCharTreeVect), V.fromList rerootedCharTreeVect, sum rerootedCostVect)
+                                                                        else
+                                                                             let rootCharLabelNodes = fmap (LG.labelNodeFlip rootIndex) charTreeVect
+                                                                                 existingCost = sum $ fmap (subGraphCost . snd) rootCharLabelNodes
+                                                                             in
+                                                                             pure (backPortCharTreeNodesToBlockTree blockDisplayTree charTreeVect, charTreeVect, existingCost)
+        
+            pure (updateBlockDisplayTree, updatedDisplayVect, blockCost)
 
 -- | getCharTreeBestRoot' is awrapper around getCharTreeBestRoot to use parMap
 getCharTreeBestRoot' :: LG.Node -> [LG.Node] -> (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
@@ -517,7 +548,7 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 
 -- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 -- ports the post order assignments to the display trees, and creates the character trees from the block trees
-updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhylogeneticGraph
+updateAndFinalizePostOrderSoftWired :: Maybe Int -> Int -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 updateAndFinalizePostOrderSoftWired startVertexMaybe startVertex inGraph =
     if isNothing startVertexMaybe then NEW.softWiredPostOrderTraceBack startVertex inGraph
     else NEW.softWiredPostOrderTraceBack (fromJust startVertexMaybe) inGraph
@@ -866,17 +897,17 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
         generalCreateVertexDataOverBlocks medianFunction (V.tail leftBlockData) (V.tail rightBlockData) (V.tail blockCharInfoVect) (firstBlockMedian : curBlockData)
 
 -- | getNetPenaltyReduced returns appropriate network penalty for a reduced graph
-getNetPenaltyReduced :: GlobalSettings -> ProcessedData -> ReducedPhylogeneticGraph -> VertexCost
+getNetPenaltyReduced :: GlobalSettings -> ProcessedData -> ReducedPhylogeneticGraph -> PhyG VertexCost
 getNetPenaltyReduced  inGS inData inGraph =
     getNetPenalty inGS inData (GO.convertReduced2PhylogeneticGraph inGraph)
 
 -- | getNetPenalty returns appropriate network penalty
-getNetPenalty :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> VertexCost
+getNetPenalty :: GlobalSettings -> ProcessedData -> PhylogeneticGraph -> PhyG VertexCost
 getNetPenalty inGS inData inGraph =
-    if (graphType inGS == Tree) then 0.0
-    else if (graphFactor inGS) == NoNetworkPenalty then 0.0
+    if (graphType inGS == Tree) then pure 0.0
+    else if (graphFactor inGS) == NoNetworkPenalty then pure 0.0
     else if (graphFactor inGS) == Wheeler2015Network then getW15NetPenaltyFull Nothing inGS inData  Nothing inGraph
-    else if (graphFactor inGS) == Wheeler2023Network then getW23NetPenalty inGraph
+    else if (graphFactor inGS) == Wheeler2023Network then pure $ getW23NetPenalty inGraph
     else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
@@ -895,10 +926,10 @@ getW15RootCost inGS inGraph =
 -- does not use resolution cache's so can be used with Naive or Resolution cache SoftWired
 -- has to be a single display tree--or could have no penalty for network since edges would be in one or other
 -- display tree
-getW15NetPenaltyFull :: Maybe ([VertexCost], [SimpleGraph], PhylogeneticGraph, Int) -> GlobalSettings -> ProcessedData -> Maybe Int -> PhylogeneticGraph -> VertexCost
+getW15NetPenaltyFull :: Maybe ([VertexCost], [SimpleGraph], PhylogeneticGraph, Int) -> GlobalSettings -> ProcessedData -> Maybe Int -> PhylogeneticGraph -> PhyG VertexCost
 getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph =
-    if LG.isEmpty $ fst6 inGraph then 0.0
-    else if LG.isTree $ fst6 inGraph then 0.0
+    if LG.isEmpty $ fst6 inGraph then pure 0.0
+    else if LG.isTree $ fst6 inGraph then pure 0.0
     else
         -- have to do full data pasess on display trees
         if isNothing blockInfo then
@@ -910,19 +941,33 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
 
                 -- get lowest cost display tree
                 staticIA = False
-                outgroupRootedList =  PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)) blockTreeList
-                multiTraverseTreeList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupRootedList
-                lowestCostDisplayTree = head $ GO.selectGraphsFull Best 1 0.0 (-1) multiTraverseTreeList
+
+                postOrderAction :: SimpleGraph -> PhylogeneticGraph
+                postOrderAction = postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)
+
+                displayAction :: PhylogeneticGraph -> PhyG PhylogeneticGraph
+                displayAction = getDisplayBasedRerootSoftWired' inGS Tree rootIndex
+
+            in do
+                postOrderPar <- getParallelChunkMap
+                let outgroupRootedList =  postOrderPar postOrderAction blockTreeList
+                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)) blockTreeList
+
+                displayPar <- getParallelChunkTraverse
+                multiTraverseTreeList <- displayPar displayAction outgroupRootedList
+                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (getDisplayBasedRerootSoftWired' inGS Tree rootIndex) outgroupRootedList
+
+                let lowestCostDisplayTree = head $ GO.selectGraphsFull Best 1 0.0 (-1) multiTraverseTreeList
 
                 -- now can do as input (below)
-                lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree
-                lowestCostEdgesFlipped = fmap LG.flipEdge lowestCostEdgeList
-                blockEdgeList = fmap LG.edges blockTreeList
-                numBlockExtraEdgesList = fmap length $ fmap (L.\\ (lowestCostEdgeList <> lowestCostEdgesFlipped)) blockEdgeList
-                blockPenalty = sum $ zipWith (*) blockCostList (fmap fromIntegral numBlockExtraEdgesList)
-            in
-            -- trace ("GW15N: " <> (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves') - 4.0))))
-            blockPenalty / (4.0 * (fromIntegral numLeaves') - 4.0)
+                let lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree
+                let lowestCostEdgesFlipped = fmap LG.flipEdge lowestCostEdgeList
+                let blockEdgeList = fmap LG.edges blockTreeList
+                let numBlockExtraEdgesList = fmap length $ fmap (L.\\ (lowestCostEdgeList <> lowestCostEdgesFlipped)) blockEdgeList
+                let blockPenalty = sum $ zipWith (*) blockCostList (fmap fromIntegral numBlockExtraEdgesList)
+            
+                -- trace ("GW15N: " <> (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves') - 4.0))))
+                pure $ blockPenalty / (4.0 * (fromIntegral numLeaves') - 4.0)
 
         else
             let (blockCostList, blockTreeList, lowestCostDisplayTree, numLeaves) = fromJust blockInfo
@@ -933,31 +978,38 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                 blockPenalty = sum $ zipWith (*) blockCostList (fmap fromIntegral numBlockExtraEdgesList)
             in
             -- trace ("GW15N: " <> (show (blockEdgeList, numBlockExtraEdgesList, blockPenalty, blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0))))
-            blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0)
+            pure $ blockPenalty / (4.0 * (fromIntegral numLeaves) - 4.0)
 
 -- | getW15NetPenalty takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- modified to take the union of all edges of trees of minimal length
 -- currently modified -- not exactlty W15
-getW15NetPenalty :: Maybe Int -> PhylogeneticGraph -> VertexCost
+getW15NetPenalty :: Maybe Int -> PhylogeneticGraph -> PhyG VertexCost
 getW15NetPenalty startVertex inGraph =
-    if LG.isEmpty $ thd6 inGraph then 0.0
-    else if LG.isTree $ fst6 inGraph then 0.0
+    if LG.isEmpty $ thd6 inGraph then pure 0.0
+    else if LG.isTree $ fst6 inGraph then pure 0.0
     else
         let -- (bestTreeList, _) = extractLowestCostDisplayTree startVertex inGraph
             bestTreeList =  V.toList $ fmap head $ fth6 inGraph
             bestTreesEdgeList = L.nubBy LG.undirectedEdgeEquality $ concat $ fmap LG.edges bestTreeList
             rootIndex = if startVertex == Nothing then fst $ head $ LG.getRoots (fst6 inGraph)
                         else fromJust startVertex
-            blockPenaltyList = PU.seqParMap PU.myStrategy (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
+
+            blockAction :: [DecoratedGraph] -> VertexCost
+            blockAction = getBlockW2015 bestTreesEdgeList rootIndex
+
+        in do
+            blockPar <- getParallelChunkMap
+            let blockPenaltyList = blockPar blockAction (V.toList $ fth6 inGraph)
+                -- PU.seqParMap PU.myStrategy (getBlockW2015 bestTreesEdgeList rootIndex) (fth6 inGraph)
 
             -- leaf list for normalization
-            (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
-            numLeaves = length leafList
-            numTreeEdges = 4.0 * (fromIntegral numLeaves) - 4.0
-            divisor = numTreeEdges
-        in
-        -- trace ("W15:" <> (show ((sum $ blockPenaltyList) / divisor )))
-        (sum $ blockPenaltyList) / divisor
+            let (_, leafList, _, _) = LG.splitVertexList (fst6 inGraph)
+            let numLeaves = length leafList
+            let numTreeEdges = 4.0 * (fromIntegral numLeaves) - 4.0
+            let divisor = numTreeEdges
+        
+            -- trace ("W15:" <> (show ((sum $ blockPenaltyList) / divisor )))
+            pure $ (sum $ blockPenaltyList) / divisor
 
 -- | getW23NetPenaltyReduced takes a ReducedPhylogeneticGraph tree and returns the network penalty of Wheeler and Washburn (2023)
 -- basic idea is new edge improvement must be better than average existing edge cost

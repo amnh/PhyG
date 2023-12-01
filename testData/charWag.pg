@@ -1,5 +1,5 @@
 --read(fasta:"metazoa-aa-1.fas")
---read(fasta:"chel.fas")
+read(fasta:"chel.fas")
 --read(fasta:"chel-16.fas")
 --set(criterion:NCM)
 --read(prefasta:"chel-prealigned.fas")
@@ -10,7 +10,7 @@
 --read(prefasta:"chel-prealigned.fas", tcm:(2,1))
 
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
-read(fasta:"chel.fas", tcm:"bitDNA.tcm")
+--read(fasta:"chel.fas", tcm:"bitDNA.tcm")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
 
 --read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)

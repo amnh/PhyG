@@ -133,7 +133,7 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
         then pure emptyPhylogeneticGraph
         else do
             let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
-            let (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
+            (postOrderGraph, localStartVertex) <- generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
             fullyOptimizedGraph ←
                 PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $
@@ -154,9 +154,9 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
         then pure emptyPhylogeneticGraph
         else
             let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
-                -- False for staticIA
-                (postOrderGraph, localStartVertex) = generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph False startVertex inSimpleGraph
+                staticIA = False
             in  do
+                    (postOrderGraph, localStartVertex) <- generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA startVertex inSimpleGraph
                     PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
 
 
@@ -167,29 +167,8 @@ if full graph--yes, if a component yes or no.
 hence returnde das pair
 -}
 generalizedGraphPostOrderTraversal
-    ∷ GlobalSettings → Int → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → (PhylogeneticGraph, Int)
-generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA startVertex inSimpleGraph =
-    -- select postOrder function based on graph type
-    let postOrderFunction =
-            if (graphType inGS) == Tree
-                then POSW.postOrderTreeTraversal
-                else
-                    if (graphType inGS) == SoftWired
-                        then POSW.postOrderSoftWiredTraversal
-                        else
-                            if (graphType inGS) == HardWired
-                                then POSW.postOrderTreeTraversal
-                                else error ("Graph type not implemented: " <> (show $ graphType inGS))
-
-        -- first traversal on outgroup root
-        outgroupRooted = postOrderFunction inGS inData leafGraph staticIA startVertex inSimpleGraph
-
-        -- start at start vertex--for components or ur-root for full graph
-        startVertexList =
-            if startVertex == Nothing
-                then fmap fst $ LG.getRoots $ thd6 outgroupRooted
-                else [fromJust startVertex]
-
+    ∷ GlobalSettings → Int → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG (PhylogeneticGraph, Int)
+generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA startVertex inSimpleGraph = do
         -- next edges (to vertex in list) to perform rerroting
         -- progresses recursivey over adjacent edges to minimize node reoptimization
         -- childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) startVertexList
@@ -203,27 +182,15 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- optimization to get O(log n) initial postorder assingment when mutsating graph.
         -- hardwired reroot cause much pain
         -- the head startvertex list for reoptimizing spit trees ni swapping
-        recursiveRerootList =
-            if (graphType inGS == HardWired)
-                then [outgroupRooted]
-                else
-                    if (graphType inGS == SoftWired)
-                        then [POSW.getDisplayBasedRerootSoftWired inGS SoftWired (head startVertexList) outgroupRooted]
-                        else
-                            if (graphType inGS == Tree)
-                                then [POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted]
-                                else error ("Graph type not implemented: " <> (show $ graphType inGS))
-
-        -- remove if tree reroot code pans out
-        finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList
 
         -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
         -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that
         -- traversal graph.  The result has approprotate post-order assignments for traversals, preorder "final" assignments
         -- are propagated to the Decorated graph field after the preorder pass.
         -- doesn't have to be sorted, but should minimize assignments
-        graphWithBestAssignments = head recursiveRerootList -- L.foldl1' setBetterGraphAssignment recursiveRerootList'
-    in  {-  root and model complexities moved to output
+        -- graphWithBestAssignments = head recursiveRerootList -- L.foldl1' setBetterGraphAssignment recursiveRerootList'
+   
+        {-  root and model complexities moved to output
         -- same root cost if same data and number of roots
         localRootCost = rootComplexity inGS
                         {-if (rootCost inGS) == NoRootCost then 0.0
@@ -232,89 +199,114 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                         -}
         -}
 
-        -- trace ("GPOT length: " <> (show $ fmap snd6 recursiveRerootList) <> " " <> (show $ graphType inGS)) (
-        -- trace ("TRAV:" <> (show startVertex) <> " " <> (show sequenceChars) <> " " <> (show (snd6 outgroupRooted, fmap snd6 finalizedPostOrderGraphList, snd6 graphWithBestAssignments))
-        --    <> "\nTraversal root costs: " <> (show (getTraversalCosts outgroupRooted, fmap getTraversalCosts recursiveRerootList', getTraversalCosts graphWithBestAssignments))) (
+        -- first traversal on outgroup root
+        outgroupRooted <- if (graphType inGS) `elem` [Tree, HardWired] then
+                            pure $ POSW.postOrderTreeTraversal inGS inData leafGraph staticIA startVertex inSimpleGraph
+                          else if (graphType inGS) == SoftWired then 
+                            POSW.postOrderSoftWiredTraversal inGS inData leafGraph staticIA startVertex inSimpleGraph
+                          else error ("Graph type not implemented: " <> (show $ graphType inGS))
+
+        -- start at start vertex--for components or ur-root for full graph
+        let startVertexList =
+                if startVertex == Nothing
+                    then fmap fst $ LG.getRoots $ thd6 outgroupRooted
+                    else [fromJust startVertex]
 
         -- only static characters
-        if sequenceChars == 0
-            then
-                let penaltyFactor =
+        if sequenceChars == 0 then 
+            do
+                penaltyFactor <-
                         if (graphType inGS == Tree)
-                            then 0.0
+                            then pure 0.0
                             else -- it is its own penalty due to counting all changes in in2 out 1 nodes
                             -- else if (graphType inGS == HardWired) then 0.0
 
                             -- softwired versions
 
                                 if (graphFactor inGS) == NoNetworkPenalty
-                                    then 0.0
+                                    then pure 0.0
                                     else
                                         if (graphFactor inGS) == Wheeler2015Network
                                             then POSW.getW15NetPenaltyFull Nothing inGS inData startVertex outgroupRooted
                                             else
                                                 if (graphFactor inGS) == Wheeler2023Network
-                                                    then POSW.getW23NetPenalty outgroupRooted
+                                                    then pure $ POSW.getW23NetPenalty outgroupRooted
                                                     else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
-                    staticOnlyGraph =
+                staticOnlyGraph <-
                         if (graphType inGS) == SoftWired
                             then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
-                            else outgroupRooted
+                            else pure outgroupRooted
                     -- staticOnlyGraph = head recursiveRerootList'
-                    staticOnlyGraph' =
+                let staticOnlyGraph' =
                         if startVertex == Nothing
                             then updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
                             else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
-                in  -- trace ("Only static: " <> (snd6 staticOnlyGraph'))
-                    (staticOnlyGraph', head startVertexList)
-            else -- single sequence (prealigned, dynamic) only (ie no static)
+                pure (staticOnlyGraph', head startVertexList)
+        else 
+            do
+                recursiveRerootList <-
+                        if (graphType inGS == HardWired)
+                            then pure [outgroupRooted]
+                            else
+                                if (graphType inGS == SoftWired)
+                                    then do
+                                        displayResult <- POSW.getDisplayBasedRerootSoftWired inGS SoftWired (head startVertexList) outgroupRooted
+                                        pure [displayResult]
+                                    else
+                                        if (graphType inGS == Tree)
+                                            then do
+                                                displayResult <- POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted
+                                                pure [displayResult]
+                                            else error ("Graph type not implemented: " <> (show $ graphType inGS))
+
+                -- single sequence (prealigned, dynamic) only (ie no static)
 
                 if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0)
-                    then
-                        let penaltyFactorList =
+                    then do
+                        let finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList
+                        penaltyFactorList <-
                                 if (graphType inGS == Tree)
-                                    then replicate (length finalizedPostOrderGraphList) 0.0
+                                    then pure $ replicate (length finalizedPostOrderGraphList) 0.0
                                     else -- else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
 
                                         if (graphFactor inGS) == NoNetworkPenalty
-                                            then replicate (length finalizedPostOrderGraphList) 0.0
+                                            then pure $ replicate (length finalizedPostOrderGraphList) 0.0
                                             else
                                                 if (graphFactor inGS) == Wheeler2015Network
-                                                    then fmap (POSW.getW15NetPenaltyFull Nothing inGS inData startVertex) finalizedPostOrderGraphList
+                                                    then mapM (POSW.getW15NetPenaltyFull Nothing inGS inData startVertex) finalizedPostOrderGraphList
                                                     else
                                                         if (graphFactor inGS) == Wheeler2023Network
-                                                            then fmap POSW.getW23NetPenalty finalizedPostOrderGraphList
+                                                            then pure $ fmap POSW.getW23NetPenalty finalizedPostOrderGraphList
                                                             else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
-                            newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+                        let newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
 
-                            finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
-                        in  -- trace ("GPOT-1: " <> (show (snd6 finalizedPostOrderGraph)))
-                            (finalizedPostOrderGraph, head startVertexList)
-                    else -- multiple dynamic characters--checks for best root for each character
+                        let finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
+                        
+                        pure  (finalizedPostOrderGraph, head startVertexList)
+
+                else do
+                    -- multiple dynamic characters--checks for best root for each character
                     -- important to have outgroup rooted graph first for fold so don't use sorted recursive list
-
-                        let penaltyFactor =
+                    let graphWithBestAssignments = head recursiveRerootList 
+                    penaltyFactor <-
                                 if (graphType inGS == Tree)
-                                    then 0.0
+                                    then pure 0.0
                                     else -- else if (graphType inGS == HardWired) then 0.0
 
                                         if (graphFactor inGS) == NoNetworkPenalty
-                                            then 0.0
+                                            then pure 0.0
                                             else
                                                 if (graphFactor inGS) == Wheeler2015Network
                                                     then POSW.getW15NetPenaltyFull Nothing inGS inData startVertex graphWithBestAssignments
                                                     else
                                                         if (graphFactor inGS) == Wheeler2023Network
-                                                            then POSW.getW23NetPenalty graphWithBestAssignments
+                                                            then pure $ POSW.getW23NetPenalty graphWithBestAssignments
                                                             else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
-                            graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
-                        in  -- trace ("GPOT-2: " <> (show (penaltyFactor + (snd6 graphWithBestAssignments))))
-                            (graphWithBestAssignments', head startVertexList)
-
-
--- )
+                    let graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+                    
+                    pure (graphWithBestAssignments', head startVertexList)
 
 {- | checkUnusedEdgesPruneInfty checks if a softwired phylogenetic graph has
 "unused" edges sensu Wheeler 2015--that an edge in the canonical graph is

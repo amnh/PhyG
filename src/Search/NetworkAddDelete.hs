@@ -2164,7 +2164,7 @@ heuristicAddDelta
     → (LG.LEdge b, LG.LEdge b)
     → LG.Node
     → LG.Node
-    → (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo)
+    → PhyG (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo)
 heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicAddDelta"
@@ -2174,7 +2174,7 @@ heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
                     let uvVertData = M.makeEdgeData False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u, v, dummyEdge)
                         uvPrimeData = M.makeEdgeData False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u', v', dummyEdge)
                         hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks uvVertData uvPrimeData (fft5 inPhyloGraph) []
-                    in  (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
+                    in  pure (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
                 else -- softwired
 
                     let uLab = fromJust $ LG.lab (thd5 inPhyloGraph) u
@@ -2183,29 +2183,30 @@ heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
                         vPrimeLab = fromJust $ LG.lab (thd5 inPhyloGraph) v'
                         uPrimeOtherChild = head $ filter ((/= v') . fst) $ LG.labDescendants (thd5 inPhyloGraph) (u', uPrimeLab)
                         uOtherChild = head $ filter ((/= v) . fst) $ LG.labDescendants (thd5 inPhyloGraph) (u, uLab)
+                    in do
 
                         -- direction first edge to second so n2 is outdegree 1 to v'
-                        n2Lab = NEW.getOutDegree1VertexSoftWired n2 vPrimeLab (thd5 inPhyloGraph) [n2]
-                        uPrimeLabAfter = NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u' (n2, n2Lab) uPrimeOtherChild (thd5 inPhyloGraph)
-                        n1Lab = NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) n1 (v, vLab) (n2, n2Lab) (thd5 inPhyloGraph)
-                        uLabAfter = NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u uOtherChild (n1, n1Lab) (thd5 inPhyloGraph)
+                        let n2Lab = NEW.getOutDegree1VertexSoftWired n2 vPrimeLab (thd5 inPhyloGraph) [n2]
+                        uPrimeLabAfter <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u' (n2, n2Lab) uPrimeOtherChild (thd5 inPhyloGraph)
+                        n1Lab <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) n1 (v, vLab) (n2, n2Lab) (thd5 inPhyloGraph)
+                        uLabAfter <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u uOtherChild (n1, n1Lab) (thd5 inPhyloGraph)
 
                         -- cost of resolutions
-                        (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
-                        (_, uPrimeCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
-                        (_, uCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
-                        (_, uPrimeCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
+                        let (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
+                        let (_, uPrimeCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
+                        let (_, uCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
+                        let (_, uPrimeCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
 
-                        addNetDelta = (uCostAfter - uCostBefore) + (uPrimeCostAfter - uPrimeCostBefore)
-                    in  -- trace ("HAD: " <> (show (uCostAfter, uCostBefore, uPrimeCostAfter, uPrimeCostBefore)) <> " -> " <> (show addNetDelta)) $
+                        let addNetDelta = (uCostAfter - uCostBefore) + (uPrimeCostAfter - uPrimeCostBefore)
+                      -- trace ("HAD: " <> (show (uCostAfter, uCostBefore, uPrimeCostAfter, uPrimeCostBefore)) <> " -> " <> (show addNetDelta)) $
                         if null (filter ((/= v') . fst) $ LG.labDescendants (thd5 inPhyloGraph) (u', uPrimeLab))
                             || null (filter ((/= v) . fst) $ LG.labDescendants (thd5 inPhyloGraph) (u, uLab))
-                            then (infinity, dummyNode, dummyNode, dummyNode, dummyNode)
+                            then pure (infinity, dummyNode, dummyNode, dummyNode, dummyNode)
                             else -- this should not happen--should try to create new edges from children of net edges
 
                                 if (length $ LG.descendants (thd5 inPhyloGraph) u) < 2 || (length $ LG.descendants (thd5 inPhyloGraph) u') < 2
                                     then error ("Outdegree 1 nodes in heuristicAddDelta")
-                                    else (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter), (n1, n1Lab), (n2, n2Lab))
+                                    else pure (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter), (n1, n1Lab), (n2, n2Lab))
 
 
 {- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge
@@ -2675,14 +2676,14 @@ heuristicDeleteDelta
     ∷ GlobalSettings
     → ReducedPhylogeneticGraph
     → LG.Edge
-    → (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo)
+    → PhyG (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo)
 heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicDeleteDelta"
         else
             if graphType inGS == HardWired
                 then -- ensures delete--will always be lower or equakl cost if delete edge from HardWired
-                    (-1, dummyNode, dummyNode)
+                    pure (-1, dummyNode, dummyNode)
                 else
                     let inGraph = thd5 inPhyloGraph
                         u = head $ LG.parents inGraph n1
@@ -2697,26 +2698,27 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
 
                         uOtherChild = head $ filter ((/= n1) . fst) $ LG.labDescendants inGraph (u, uLab)
                         uPrimeOtherChild = head $ filter ((/= n2) . fst) $ LG.labDescendants inGraph (u', uPrimeLab)
-
+                    in do
                         -- skip over netnodes
-                        uLabAfter = NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u (v, vLab) uOtherChild inGraph
-                        uPrimeLabAfter = NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u' (v', vPrimeLab) uPrimeOtherChild inGraph
+                        uLabAfter <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u (v, vLab) uOtherChild inGraph
+                        uPrimeLabAfter <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) u' (v', vPrimeLab) uPrimeOtherChild inGraph
 
                         -- cost of resolutions
-                        (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
-                        (_, uPrimeCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
-                        (_, uCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
-                        (_, uPrimeCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
+                        let (_, uCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLab)
+                        let (_, uPrimeCostBefore) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLab)
+                        let (_, uCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uLabAfter)
+                        let (_, uPrimeCostAfter) = NEW.extractDisplayTrees (Just (-1)) False (vertexResolutionData uPrimeLabAfter)
 
-                        addNetDelta = uCostAfter - uCostBefore + uPrimeCostAfter - uPrimeCostBefore
-                    in  -- this should not happen--should try to crete new edges from children of net edges
+                        let addNetDelta = uCostAfter - uCostBefore + uPrimeCostAfter - uPrimeCostBefore
+                    
+                      -- this should not happen--should try to crete new edges from children of net edges
                         if null (LG.parents inGraph n1)
                             || null (filter (/= n1) $ LG.parents inGraph n2)
                             || null (LG.descendants inGraph n2)
                             || null (filter (/= n2) $ LG.descendants inGraph n1)
                             || null (filter ((/= n2) . fst) $ LG.labDescendants inGraph (u', uPrimeLab))
                             || null (filter ((/= n1) . fst) $ LG.labDescendants inGraph (u, uLab))
-                            then (infinity, dummyNode, dummyNode)
+                            then pure (infinity, dummyNode, dummyNode)
                             else -- this should not happen--should try to crete new edges from children of net edges
 
                                 if (length (LG.parents inGraph n1) /= 1)
@@ -2724,7 +2726,7 @@ heuristicDeleteDelta inGS inPhyloGraph (n1, n2) =
                                     || (length (LG.descendants inGraph n2) /= 1)
                                     || (length (LG.descendants inGraph n1) /= 2)
                                     then error ("Graph malformation in numbers of parents and children in heuristicDeleteDelta")
-                                    else (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter))
+                                    else pure (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter))
 
 {-
 -- | insertNetEdgeBothDirections calls insertNetEdge for both u -> v and v -> u new edge orientations
