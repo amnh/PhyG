@@ -40,6 +40,7 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 
+import Debug.Trace
 
 {- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 although with multicharacter alphabets that contain '[' or ']' this would be a problem,
@@ -211,7 +212,7 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
                 , prealigned = isPrealigned
                 , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                 }
-    in  -- trace ("GFCI: " <> (show localHugeTCM)) (
+    in  -- trace ("GFCI: " <> (show (tcmWeightFactor, weight defaultSeqCharInfo))) $
         -- trace ("FCI " <> (show $ length thisAlphabet) <> " alpha size" <> show thisAlphabet) (
         if (null . fst3) localTCM && (null . snd3) localTCM
             then do

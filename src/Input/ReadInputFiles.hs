@@ -34,6 +34,7 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
+import Debug.Trace
 
 {- | expandReadCommands expands read commands to multiple satisfying wild cards
 read command can have multiple file names
@@ -675,10 +676,10 @@ processTCMContents indelGap inContents fileName =
 [[Int]] but if there are decimal values, a scalerFactor is determined and the
 cost matrix are integerized by multiplication by 1/scaleFactor
 scaleFactor will alway be a factor of 10 to allow for easier
-compilation of tcm charcaters later (weights the same...)
+compilation of tcm characters later (weights the same...)
 -}
-getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
-getCostMatrixAndScaleFactor fileName inStringListList =
+getCostMatrixAndScaleFactor' ∷ String → [[String]] → PhyG (Double, [[Int]])
+getCostMatrixAndScaleFactor' fileName inStringListList =
     if null inStringListList
         then failWithPhase Parsing "Empty list in inStringListList"
         else
@@ -693,6 +694,35 @@ getCostMatrixAndScaleFactor fileName inStringListList =
                     else do
                         let newStringListList = fmap (fmap (integerizeString maxDecimalPlaces)) inStringListList
                         return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) newStringListList)
+
+
+
+{- | getCostMatrixAndScaleFactor' takes [[String]] and returns cost matrix as
+[[Int]] but if there are decimal values, a scalerFactor is determined and the
+cost matrix are integerized by multiplication by 1/scaleFactor
+Unlike version above is more flexible with Double format
+-}
+getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
+getCostMatrixAndScaleFactor fileName inStringListList =
+    if null inStringListList
+        then failWithPhase Parsing "Empty list in inStringListList"
+        else
+            let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
+                doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
+                minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
+                rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
+                integerizedMatrix = fmap (fmap ceiling) rescaledDoubleMatrix
+                scaleFactor =
+                    if maxDecimalPlaces == 0
+                        then 1.0
+                    else minDouble
+            in
+            --trace ("GCMSC: " <> (show scaleFactor)) $   
+            if maxDecimalPlaces == 0 then do
+                    pure $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
+            else do
+                    pure $ (scaleFactor, integerizedMatrix)
+
 
 
 -- | getDecimals returns the number of decimal places in a string rep of a number

@@ -42,8 +42,7 @@ import Text.Read
 import Types.Types
 import Utilities.Utilities qualified as U
 
---import ParallelUtilities qualified as PU
---import Debug.Trace
+import Debug.Trace
 
 
 {- | optimizePrealignedData convert
@@ -378,6 +377,7 @@ mergeCharacters inCharsPairList =
 -- | getSameWeightChars returns character pairs with same matrix as testMatrix
 getSameWeightChars ::  V.Vector (CharInfo, CharacterData) -> Double -> V.Vector (CharInfo, CharacterData)
 getSameWeightChars inCharsPairList testWeight =
+    -- trace ("GSWC: " <> (show testWeight)) $
     if V.null inCharsPairList then V.empty
     else
         let inWeightList = fmap weight (fmap fst inCharsPairList)
