@@ -1359,18 +1359,26 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
                 -- here when needed--correct graph is issue in network
                 -- swap can screw up time consistency and other issues
-                sprNewGraphChecked 
-                    | graphType inGS == Tree = sprNewGraph
-                    -- | LG.isPhylogeneticGraph sprNewGraph = sprNewGraph
-                    | otherwise = LG.empty
-                
+                getCheckedGraphNewSPR :: PhyG (LG.Gr NameText VertexCost)
+                getCheckedGraphNewSPR = do
+                    isPhyloGraph <- LG.isPhylogeneticGraph sprNewGraph
+                    let result
+                            | graphType inGS == Tree = sprNewGraph
+                            | isPhyloGraph = sprNewGraph
+                            | otherwise = LG.empty
+                    pure result
+
+                decide :: ReducedPhylogeneticGraph -> ([ReducedPhylogeneticGraph], Maybe SAParams)
                 decide input@(_,newCost,_,_,_)
                     | newCost <= curBestCost = ([input], inSimAnnealParams)
                     | otherwise = defaultResult
 
-                action
-                    | LG.isEmpty sprNewGraphChecked = pure defaultResult
-                    | otherwise = decide <$> T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
+                action :: PhyG ([ReducedPhylogeneticGraph], Maybe SAParams)
+                action = do
+                    sprNewGraphChecked <- getCheckedGraphNewSPR
+                    if LG.isEmpty sprNewGraphChecked
+                    then pure defaultResult
+                    else decide <$> T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
 
             in  
                 case inSimAnnealParams of
@@ -1429,7 +1437,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                     -- simulated annealing/Drift swap
                     Just simAnnealParams -> do
                         -- check if spr better always return if so
-
+                        sprNewGraphChecked <- getCheckedGraphNewSPR
                         rediagnosedSPRGraph@(_,newCost,_,_,_) <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
 
                         let sprResult
