@@ -1,4 +1,8 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StrictData #-}
 
 -- {-# OPTIONS_GHC -fno-full-laziness #-}
 
@@ -7,27 +11,27 @@ Exposes memoization combinators. Assumes that the supplied functions are
 side effect free. If this assumption is violated, undefined and unexpected
 behavior may result.
 -}
-module Data.Hashable.Memoize (
+module Data.Hashable.Memoize.ViaTVar (
     memoize,
     memoize2,
     memoize3,
 ) where
 
-import Control.DeepSeq (NFData)
-import Data.Hashable (Hashable)
-#if defined (Memoize_Via_ConcurrentHashtable)
-import Data.Hashable.Memoize.ViaConcurrentHashtable qualified as Memo (memoize)
-#elif defined (Memoize_Via_IORef)
-import Data.Hashable.Memoize.ViaIORef qualified as Memo (memoize)
-#elif defined (Memoize_Via_ManualLock)
-import Data.Hashable.Memoize.ViaManualLock qualified as Memo (memoize)
-#elif defined (Memoize_Via_ReadWriteLock)
-import Data.Hashable.Memoize.ViaReadWriteLock qualified as Memo (memoize)
-#elif defined (Memoize_Via_Semaphore)
-import Data.Hashable.Memoize.ViaSemaphore qualified as Memo (memoize)
-#elif defined (Memoize_Via_TVar)
-import Data.Hashable.Memoize.ViaTVar qualified as Memo (memoize)
-#endif
+import Control.Concurrent.STM
+import Control.DeepSeq
+import Data.HashTable.IO
+import Data.Hashable
+import GHC.Conc (unsafeIOToSTM)
+import System.IO
+import System.IO.Unsafe
+import Prelude hiding (lookup)
+
+
+type HashTableRef k v = TVar (BasicHashTable k v)
+
+
+initialize ∷ Int → IO (HashTableRef k v)
+initialize size = newSized size >>= newTVarIO
 
 
 {- |
@@ -64,7 +68,39 @@ manner.
 -}
 {-# NOINLINE memoize #-}
 memoize ∷ ∀ a b. (Eq a, Hashable a, NFData b) ⇒ (a → b) → a → b
-memoize = Memo.memoize
+memoize f = unsafePerformIO $ do
+    let initialSize = 2 ^ (16 ∷ Word)
+
+    -- Create a TVar which holds the ST state and the HashTable
+    (!htRef ∷ HashTableRef a b) ← initialize initialSize
+    -- This is the returned closure of a memozized f
+    -- The closure captures the "mutable" reference to the hashtable above
+    -- through the TVar.
+    --
+    -- Once the mutable hashtable reference is escaped from the IO monad,
+    -- this creates a new memoized reference to f.
+    -- The technique should be safe for all pure functions, probably, I think.
+    pure $ \k → unsafeDupablePerformIO $ do
+        -- Read the TVar, we use IO since it is the outer monad
+        -- and the documentation says that this doesn't perform a complete transaction,
+        -- it just reads the current value from the TVar
+        --        ht <- readTVarIO htRef
+        -- We use the HashTable to try and lookup the memoized value
+        result ← readTVarIO htRef >>= (`lookup` k)
+        -- Here we check if the memoized value exists
+        case result of
+            -- If the value exists return it
+            Just v → pure v
+            -- If the value doesn't exist:
+            Nothing →
+                -- Perform the expensive calculation to determine the value
+                -- associated with the key, fully evaluated.
+                let v = force $ f k
+                in  -- we want to perform the following modification atomically.
+                    atomically $ do
+                        table ← readTVar htRef
+                        unsafeIOToSTM $ insert table k v
+                        pure v
 
 
 {- |
