@@ -173,7 +173,7 @@ data OptimalityCriterion = Parsimony | PMDL | SI | MAPA | NCM
 data GraphFactor = NoNetworkPenalty | Wheeler2015Network | Wheeler2023Network | PMDLGraph
     deriving stock (Show, Eq)
 
-data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot | NCMRoot
+data RootCost = NoRootCost | MAPARoot | NCMRoot | PMDLRoot | SIRoot 
     deriving stock (Show, Eq)
 
 data SoftWiredAlgorithm = Naive | ResolutionCache

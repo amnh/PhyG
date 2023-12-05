@@ -2049,7 +2049,6 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
 
             {-
             localRootCost = if (rootCost inGS) == NoRootCost then 0.0
-                              else if (rootCost inGS) == Wheeler2015Root then POSW.getW15RootCost inGS postOrderBaseGraph
                               else error ("Root cost type " <> (show $ rootCost inGS) <> " is not yet implemented")
             -}
 

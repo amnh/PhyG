@@ -194,7 +194,6 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- same root cost if same data and number of roots
         localRootCost = rootComplexity inGS
                         {-if (rootCost inGS) == NoRootCost then 0.0
-                        else if (rootCost inGS) == Wheeler2015Root then getW15RootCost inGS outgroupRooted
                         else error ("Root cost type " <> (show $ rootCost inGS) <> " is not yet implemented")
                         -}
         -}
