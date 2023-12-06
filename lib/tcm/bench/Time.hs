@@ -46,8 +46,8 @@ benchAsParallel =
     in  bgroup "Parallel"
             [ basicMeasure Conc.memoize "Package `concurrent-hashtables` Hash-table"
             , basicMeasure RWLk.memoize "Package `concurrent-extra`      Read/Write Lock"
-            , basicMeasure TVar.memoize "Manual access through - TVar"
-            , basicMeasure IORf.memoize "Manual access through - IORef"
+--            , basicMeasure TVar.memoize "Manual access through - TVar"
+--            , basicMeasure IORf.memoize "Manual access through - IORef"
             , basicMeasure Lock.memoize "Custom locking definition"
             , basicMeasure Semp.memoize "Manual access through - Semaphore"
             ]
