@@ -10,6 +10,7 @@ module Search.Swap (
 
 import Control.Monad (when, filterM)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Foldable (fold, toList)
 import Data.List qualified as L
 import Data.Maybe
@@ -459,24 +460,22 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                                         then GO.sortEdgeListByLength $ filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList firstDecoratedGraph
                                         else filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList firstDecoratedGraph
 
-                        -- randomize edges list order for anneal and drift
-                        breakEdgeList'' =
-                            if isJust inSimAnnealParams
-                                then permuteList (head $ randomIntegerList $ fromJust inSimAnnealParams) breakEdgeList'
-                                else
-                                    if (atRandom swapParams)
-                                        then permuteList (head randomIntListSwap) breakEdgeList'
-                                        else breakEdgeList'
-
-                        -- move first "breakEdgeFactor" edges in split list to end
-                        -- since breakEdgeFactor can get incremented past number of edges the integer remainder is determined
-                        -- to move to end
-                        -- this to reduces the revisiting of stable edges (by moving them to the end of the list)
-                        -- yet still insures that all edges will be visited in final (or ay time needed) split.
-                        -- used in POY v 1-3, Came from Steve Farris pers. com.
-                        breakEdgeFactor = snd $ divMod breakEdgeNumber (length breakEdgeList'')
-                        breakEdgeList = (drop breakEdgeFactor breakEdgeList'') <> (take breakEdgeFactor breakEdgeList'')
                     in  do
+                            -- randomize edges list order for anneal and drift
+                            breakEdgeList'' <-
+                                if atRandom swapParams
+                                then (\randVal -> permuteList randVal breakEdgeList') <$> getRandom
+                                else pure breakEdgeList'
+
+                            -- move first "breakEdgeFactor" edges in split list to end
+                            -- since breakEdgeFactor can get incremented past number of edges the integer remainder is determined
+                            -- to move to end
+                            -- this to reduces the revisiting of stable edges (by moving them to the end of the list)
+                            -- yet still insures that all edges will be visited in final (or ay time needed) split.
+                            -- used in POY v 1-3, Came from Steve Farris pers. com.
+                            let breakEdgeFactor = snd $ divMod breakEdgeNumber (length breakEdgeList'')
+                            let breakEdgeList = (drop breakEdgeFactor breakEdgeList'') <> (take breakEdgeFactor breakEdgeList'')
+
                             -- perform intial split and rejoin on each edge in first graph
                             splitJoinResult ←
                                 {-# SCC splitJoinResult #-}
@@ -729,14 +728,19 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
                                 (False, _) -> L.intersect candidateEdges unionEdgeList
     
                         -- randomize edges list order for anneal and drift
-                        let rejoinEdges =
-                                if isJust inSimAnnealParams
-                                    then permuteList ((randomIntegerList $ fromJust inSimAnnealParams) !! 1) rejoinEdges'
-                                    else
-                                        if (atRandom swapParams)
-                                            then permuteList (head randomIntListSwap) rejoinEdges'
-                                            else rejoinEdges'
-
+                        rejoinEdges <-
+                                if atRandom swapParams
+                                {-
+                                NOTE: Optional Syntax
+                                f x y = undefined
+                                z = f x y
+                                z = x `f` y -- Infix notation
+                                Could use infix notation for this randomness call:
+                                then (`permuteList` rejoinEdges') <$> getRandom
+                                -}
+                                then (\randVal -> permuteList randVal rejoinEdges') <$> getRandom
+                                else pure rejoinEdges'
+                                
                         -- rejoin graph to all possible edges in base graph
                         rejoinResult ←
                             {-# SCC rejoinResult #-}

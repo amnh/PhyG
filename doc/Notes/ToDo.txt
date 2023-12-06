@@ -584,3 +584,11 @@
 456) Check "<-" stricness-- move coputaiotns into logic
 
 457) numThreads <- liftIO $ getNumCapabilities 
+
+458) PHANE-Evaluation
+	alterenvironment (global)
+	Control.Monad.MonadReader MondaReder Type classs  "local"  for local case, ask to get global
+	reader 
+	gs <- ask (then can send to pure function)
+	good for abrtacting out inGS
+	
