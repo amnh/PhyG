@@ -592,3 +592,6 @@
 	gs <- ask (then can send to pure function)
 	good for abrtacting out inGS
 	
+459) Fix double processing stuff in commandExecution
+
+460) fix/ disable static approx for wide/huge

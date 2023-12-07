@@ -81,8 +81,10 @@ data leaves are first--then HTUs follow
 -}
 getBlockDistance ∷ BlockData → (Int, Int) → VertexCost
 getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
-    let pairCost = V.sum $ V.map snd $ M.median2 (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
-    in  pairCost
+    if V.null localVertData then 0.0
+    else 
+        let pairCost = V.sum $ V.map snd $ M.median2 (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
+        in  pairCost
 
 
 {- | getPairwiseBlocDistance returns pairwisee distances among vertices for

@@ -35,6 +35,7 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
+import Debug.Trace
 
 {- |
 'multiTraverseFullyLabelGraphReduced' wrapper to return 'ReducedPhylogeneticGraph'.
@@ -343,12 +344,13 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
 
 
 {- | updateGraphCostsComplexities adds root and model complexities if appropriate to graphs
-updates NCM with roig data due to weights of bitpacking
+updates NCM with original data due to weights of bitpacking
 -}
 updateGraphCostsComplexities
     ∷ GlobalSettings → ProcessedData → ProcessedData → Bool → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
 updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithReportingData inGraphList =
     -- parallel setup
+    -- trace ("UGCC: " <> (show (optimalityCriterion inGS, rootComplexity inGS))) $
     let traverseAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
         traverseAction = multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing
     in  if optimalityCriterion inGS == Parsimony

@@ -52,21 +52,21 @@ bitPack new non-additive
 packNonAdditive
 -}
 optimizePrealignedData :: GlobalSettings -> ProcessedData -> PhyG ProcessedData
-optimizePrealignedData inGS inData@(_, _, blockDataVect) = do
-    -- remove constant characters from prealigned
-    inData' <- removeConstantCharactersPrealigned inData
-
-    -- convert prealigned to nonadditive if all 1 tcms
-    let inData'' = convertPrealignedToNonAdditive inData'
-
-    -- bit packing for non-additivecharacters
-    inData''' <- BP.packNonAdditiveData inGS inData''
-
+optimizePrealignedData inGS inData@(_, _, blockDataVect) = 
     if U.getNumberPrealignedCharacters blockDataVect == 0 then
         -- trace ("Not Bitpacking...")
         pure inData
-    else
-        --trace ("Bitpacking...")
+    
+    else do
+        -- remove constant characters from prealigned
+        inData' <- removeConstantCharactersPrealigned inData
+
+        -- convert prealigned to nonadditive if all 1 tcms
+        let inData'' = convertPrealignedToNonAdditive inData'
+
+        -- bit packing for non-additivecharacters
+        inData''' <- BP.packNonAdditiveData inGS inData''
+
         pure inData'''
 
 
@@ -79,7 +79,7 @@ convertPrealignedToNonAdditive (nameVect, bvNameVect, blockDataVect) = (nameVect
 -- | convertPrealignedToNonAdditiveBlock takes a character block and convertes prealigned to non-add if tcms all 1's
 -- this is done taxon by taxon and character by character since can convert with only local infomation
 convertPrealignedToNonAdditiveBlock :: BlockData -> BlockData
-convertPrealignedToNonAdditiveBlock (nameBlock, charDataVV, charInfoV) =
+convertPrealignedToNonAdditiveBlock inData@(nameBlock, charDataVV, charInfoV) =
     let codingTypeV = fmap fst $ fmap getRecodingType (fmap costMatrix charInfoV)
         (newCharDataVV, newCharInfoVV) = V.unzip $ fmap (convertTaxonPrealignedToNonAdd charInfoV codingTypeV) charDataVV
     in

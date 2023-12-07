@@ -67,9 +67,7 @@ import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import Types.Types
 import Utilities.LocalGraph  qualified      as LG
 
--- import Control.Parallel.Strategies
--- import ParallelUtilities qualified as P
--- import Debug.Trace
+import Debug.Trace
 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
@@ -992,6 +990,7 @@ getTraversalCosts inGraph =
     in
     traversalRootCosts
 
+{- SAme as getCharacterLength
 -- | getSequenceCharacterLengths returns a the length of block characters
 getSequenceCharacterLengths :: CharacterData -> CharInfo -> Int
 getSequenceCharacterLengths inCharData inCharInfo =
@@ -1011,6 +1010,7 @@ getSequenceCharacterLengths inCharData inCharInfo =
       x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData
       _                                -> error ("Un-implemented data type " <> show inCharType)
       -- )
+-}
 
 -- | getCharacterLengths returns a the length of block characters
 getCharacterLength :: CharacterData -> CharInfo -> Int
@@ -1023,9 +1023,9 @@ getCharacterLength inCharData inCharInfo =
       x | x `elem` packedNonAddTypes   -> UV.length  $ snd3 $ packedNonAddPrelim inCharData
       x | x == Add -> V.length  $ snd3 $ rangePrelim inCharData
       x | x == Matrix -> V.length  $ matrixStatesPrelim inCharData
-      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
-      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
-      x | x == HugeSeq           -> V.length  $ snd3 $ hugeAlignment inCharData
+      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimGapped inCharData -- slimAlignment inCharData
+      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideGapped inCharData --  wideAlignment inCharData
+      x | x == HugeSeq           -> V.length  $ snd3 $ hugeGapped inCharData --  hugeAlignment inCharData
       x | x == AlignedSlim       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
       x | x == AlignedWide       -> UV.length $ snd3 $ alignedWidePrelim inCharData
       x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData

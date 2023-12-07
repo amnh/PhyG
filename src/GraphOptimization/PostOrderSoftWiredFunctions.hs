@@ -49,7 +49,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       , getW15NetPenaltyFull
                                                       , getW23NetPenalty
                                                       , getW23NetPenaltyReduced
-                                                      -- , getW15RootCost
+                                                      , getW15RootCost
                                                       , getNetPenalty
                                                       , getNetPenaltyReduced
                                                       ) where
@@ -910,7 +910,7 @@ getNetPenalty inGS inData inGraph =
     else if (graphFactor inGS) == Wheeler2023Network then pure $ getW23NetPenalty inGraph
     else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
 
-{-
+
 -- | getW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
 getW15RootCost :: GlobalSettings -> PhylogeneticGraph -> VertexCost
@@ -922,7 +922,7 @@ getW15RootCost inGS inGraph =
 
         in
         (fromIntegral numRoots) * (rootComplexity inGS)
--}
+
 
 -- | getW15NetPenaltyFull takes a Phylogenetic tree and returns the network penalty of Wheeler (2015)
 -- does not use resolution cache's so can be used with Naive or Resolution cache SoftWired

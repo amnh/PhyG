@@ -51,8 +51,7 @@ import SymMatrix qualified as SM
 import Text.Read
 import Types.Types
 
-
--- import Debug.Trace
+import Debug.Trace
 
 -- getTNTDataText take file contents and returns raw data and char info form TNT file
 getTNTDataText ∷ T.Text → String → PhyG RawData
@@ -167,14 +166,37 @@ getTNTDataText inString fileName =
                                                                                                                             <> " characters"
                                                                                                                             <> "\n"
                                                                                                                         )
-                                                                                                                    -- trace (show (curNames, curData'))
-                                                                                                                    pure $ (zip curNames curData', charInfoData')
+                                                                                                                    --logWith LogInfo ("TNTU:" <> (show (fmap length curData', length charInfoData'))) 
+                                                                                                                    let (newData, newCharInfoL) = filterInvariant curData' charInfoData' ([],[])
+                                                                                                                    --logWith LogInfo ("TNTUF:" <> (show (fmap length newData, length newCharInfoL))) 
+                                                                                                                    if null newCharInfoL then failWithPhase Parsing ("TNT file " <> fileName <> " has no variant data")
+                                                                                                                    else pure $ (zip curNames newData, newCharInfoL)
     where
         -- ) )
         printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
 
-{- | removeNCharNTax removes teh first two "words" of nchar and ntax, but leaves text  with line feeds so can use
+{- | filterInvariant filters out charcters that are identical in all terminals
+-}
+filterInvariant :: [[ST.ShortText]] -> [charInfoData] -> ([[ST.ShortText]], [charInfoData]) -> ([[ST.ShortText]], [charInfoData])
+filterInvariant inDataLL inCharInfoL newData@(newDataLL, newCharInfoL) =
+    if null inCharInfoL then (fmap reverse newDataLL, reverse newCharInfoL)
+    else 
+        let firstCharData = fmap head inDataLL
+            firstCharData' = filter (`notElem` [ST.pack "-", ST.pack "?"]) firstCharData
+            allSameL = fmap ((== (head firstCharData'))) (tail firstCharData')
+            allSame = foldl' (&&) True allSameL
+        in
+        --trace ("FI:" <> (show (allSameL, allSame))) $ 
+        if allSame then 
+            filterInvariant (fmap tail inDataLL) (tail inCharInfoL) (newDataLL, newCharInfoL)
+        else
+            if null newCharInfoL then 
+                filterInvariant (fmap tail inDataLL) (tail inCharInfoL) (fmap (:[]) firstCharData, head inCharInfoL : newCharInfoL)
+            else 
+                filterInvariant (fmap tail inDataLL) (tail inCharInfoL) (zipWith (:) firstCharData newDataLL, head inCharInfoL : newCharInfoL)
+
+{- | removeNCharNTax removes the first two "words" of nchar and ntax, but leaves text  with line feeds so can use
 lines later
 -}
 removeNCharNTax ∷ T.Text → (T.Text, T.Text, T.Text)
