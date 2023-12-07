@@ -128,7 +128,7 @@ median2StaticIA = V.zipWith3 (median2Single True)
 -- used for post-order assignments
 -- this is from preliminary states
 -- staticIA for dynm,aic assumes all same length
--- PMDL costs are claculate by type--additive by conversion to non-additive --but if states> 129 worn't do it so warning in docs
+-- PMDL costs are calculated by type--additive by conversion to non-additive --but if states> 129 won't do it so warning in docs
 -- bp2,4,5,8,64, nonadd are by weights vis set command, matrix, sequence are set by tcm with non-zero diagnonal
 median2Single :: Bool -> CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
 median2Single staticIA firstVertChar secondVertChar inCharInfo =
@@ -229,7 +229,7 @@ distance2UnionsBlock firstBlock secondBlock charInfoV =
 -- median2Unions assumes that the character vectors in the various states are the same length
 -- this is from union states
 -- assumes all same length
--- PMDL costs are claculate by type--additive by conversion to non-additive --but if states> 129 won't do it so warning in docs
+-- PMDL costs are calculated by type--additive by conversion to non-additive --but if states> 129 won't do it so warning in docs
 -- bp2,4,5,8,64, nonadd are by weights vis set command, matrix, sequence are set by tcm with non-zero diagnonal
 
 -- wrong for prealigned--needs to DO
