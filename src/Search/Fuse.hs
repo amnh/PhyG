@@ -19,6 +19,7 @@ import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
 import GeneralUtilities
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
+import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
@@ -65,7 +66,9 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
         in do
 
                 -- get net penalty estimate from optimal graph for delta recombine later
-                inGraphNetPenalty <-
+                -- Nothing here so starts at overall root
+                inGraphNetPenalty <- T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
+                    {-
                     if (graphType inGS == Tree)
                         then pure 0.0
                         else
@@ -95,6 +98,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                                                                     then pure $ snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
                                                                                     else error ("Graph type " <> (show $ graphType inGS) <> " is not yet implemented in fuseAllGraphs")
                                                         else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
+                           -}
                 let inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
 
                 -- get fuse pairs

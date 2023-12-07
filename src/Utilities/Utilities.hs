@@ -178,14 +178,14 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
             weightList = fmap weight (V.toList charInfoV)
             rootCostList = zipWith (*) weightList (fmap fromIntegral maxCharLengthList)
         in
-        -- trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
+        --trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
         sum rootCostList
 
--- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
+-- | calculatePMDLRootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
 -- this for a single root
-calculateW15RootCost :: ProcessedData -> VertexCost
-calculateW15RootCost (nameVect, _, blockDataV) =
+calculatePMDLRootCost :: ProcessedData -> VertexCost
+calculatePMDLRootCost (nameVect, _, blockDataV) =
     let numLeaves = V.length nameVect
         insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
     in
@@ -209,19 +209,22 @@ getCharacterInsertCost :: CharacterData -> CharInfo -> Double
 getCharacterInsertCost inChar charInfo =
     let localCharType = charType charInfo
         thisWeight = weight charInfo
-        inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
+        -- init since don't wan't gap-gap match cost in there
+        rowIndelSum = fromIntegral $ V.sum $ V.init $ S.getFullRowVect (costMatrix charInfo) (length (alphabet charInfo) - 1)
+        -- inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
+        inDelCost = rowIndelSum / (fromIntegral $ length (alphabet charInfo) - 1)
     in
     if localCharType == Add then thisWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
     else if localCharType == NonAdd then thisWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
     -- this wrong--need to count actual characters packed2/32, packed4/32
     else if localCharType `elem` packedNonAddTypes then thisWeight * fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
     else if localCharType == Matrix then thisWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
-    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * fromIntegral inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
-    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * fromIntegral inDelCost * fromIntegral (UV.length $ widePrelim inChar)
-    else if localCharType == HugeSeq then thisWeight * fromIntegral inDelCost * fromIntegral (V.length $ hugePrelim inChar)
-    else if localCharType == AlignedSlim then thisWeight * fromIntegral inDelCost * fromIntegral (SV.length $ snd3 $ alignedSlimPrelim inChar)
-    else if localCharType == AlignedWide then thisWeight * fromIntegral inDelCost * fromIntegral (UV.length $ snd3 $ alignedWidePrelim inChar)
-    else if localCharType == AlignedHuge then thisWeight * fromIntegral inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
+    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
+    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * inDelCost * fromIntegral (UV.length $ widePrelim inChar)
+    else if localCharType == HugeSeq then thisWeight * inDelCost * fromIntegral (V.length $ hugePrelim inChar)
+    else if localCharType == AlignedSlim then thisWeight * inDelCost * fromIntegral (SV.length $ snd3 $ alignedSlimPrelim inChar)
+    else if localCharType == AlignedWide then thisWeight * inDelCost * fromIntegral (UV.length $ snd3 $ alignedWidePrelim inChar)
+    else if localCharType == AlignedHuge then thisWeight * inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
     else error ("Character type unimplemented : " <> show localCharType)
 
 

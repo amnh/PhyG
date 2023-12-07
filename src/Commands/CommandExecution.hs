@@ -512,14 +512,17 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                 | otherwise = Nothing
 
                                                             -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
+                                                            -- only used for PMDL and SI
                                                             lGraphComplexityList
                                                                 | localCriterion `elem` [Just Parsimony, Just NCM] = Just $ IL.repeat (0.0, 0.0)
-                                                                | localCriterion `elem` [Just PMDL, Just SI, Just MAPA] = Just $ U.calculateGraphComplexity processedData
+                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculateGraphComplexity processedData
+                                                                | localCriterion `elem`  [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
                                                                 | otherwise = Nothing
 
                                                             lRootComplexity
                                                                 | localCriterion == Just Parsimony = Just 0.0
-                                                                | localCriterion `elem` [Just PMDL, Just SI, Just MAPA] = Just $ U.calculateW15RootCost processedData
+                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculatePMDLRootCost processedData
+                                                                | localCriterion `elem` [Just MAPA] = Just $ rootComplexity globalSettings
                                                                 | localCriterion == Just NCM =
                                                                     if origProcessedData /= emptyProcessedData
                                                                         then Just $ U.calculateNCMRootCost origProcessedData
@@ -527,7 +530,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                 | otherwise = Nothing
 
                                                             lGraphFactor =
-                                                                if localCriterion `elem` [Just PMDL, Just SI, Just MAPA]
+                                                                if localCriterion `elem` [Just PMDL, Just SI]
                                                                     then PMDLGraph
                                                                     else graphFactor globalSettings
                                                         in  if isNothing localCriterion
@@ -977,12 +980,14 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                             -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
                                                                                             lGraphComplexityList
                                                                                                 | localCriterion `elem` [Just Parsimony, Just NCM] = Just $ IL.repeat (0.0, 0.0)
-                                                                                                | localCriterion `elem` [Just PMDL, Just SI, Just MAPA] = Just $ U.calculateGraphComplexity processedData
+                                                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculateGraphComplexity processedData
+                                                                                                | localCriterion `elem` [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
                                                                                                 | otherwise = Nothing
 
                                                                                             lRootComplexity
                                                                                                 | localCriterion == Just Parsimony = Just 0.0
-                                                                                                | localCriterion `elem` [Just PMDL, Just SI, Just MAPA] = Just $ U.calculateW15RootCost processedData
+                                                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculatePMDLRootCost processedData
+                                                                                                | localCriterion `elem` [Just MAPA] = Just $ rootComplexity globalSettings
                                                                                                 | localCriterion == Just NCM =
                                                                                                     if origProcessedData /= emptyProcessedData
                                                                                                         then Just $ U.calculateNCMRootCost origProcessedData
@@ -990,7 +995,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                 | otherwise = Nothing
 
                                                                                             lGraphFactor =
-                                                                                                if localCriterion `elem` [Just PMDL, Just SI, Just MAPA]
+                                                                                                if localCriterion `elem` [Just PMDL, Just SI]
                                                                                                     then PMDLGraph
                                                                                                     else graphFactor globalSettings
                                                                                         in  if isNothing localCriterion
@@ -1228,7 +1233,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
 
                                                                                                                                                                                                 let lRootComplexity
                                                                                                                                                                                                         | localMethod == NoRootCost = 0.0
-                                                                                                                                                                                                        | localMethod `elem` [MAPARoot, NCMRoot, PMDLRoot, SIRoot ] = U.calculateW15RootCost processedData
+                                                                                                                                                                                                        | localMethod `elem` [MAPARoot, NCMRoot, PMDLRoot, SIRoot ] = U.calculatePMDLRootCost processedData
                                                                                                                                                                                                         | otherwise = error ("Root cost method not recognized: " <> show localMethod)
 
                                                                                                                                                                                                 logWith LogInfo ("RootCost set to " <> show localMethod <> " " <> show lRootComplexity <> " bits" <> "\n")

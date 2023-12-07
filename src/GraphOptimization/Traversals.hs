@@ -11,6 +11,8 @@ module GraphOptimization.Traversals (
     multiTraverseFullyLabelHardWiredReduced,
     checkUnusedEdgesPruneInfty,
     generalizedGraphPostOrderTraversal,
+    getPenaltyFactor,
+    getPenaltyFactorList,
     updateGraphCostsComplexities,
     updatePhylogeneticGraphCost,
     updatePhylogeneticGraphCostReduced,
@@ -20,6 +22,7 @@ module GraphOptimization.Traversals (
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Data.InfList qualified as IL
 import Data.List qualified as L
 import Data.Maybe
 import GeneralUtilities
@@ -165,7 +168,8 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
 on a graph (tree, softWired, or hardWired) to determine the "preliminary" character states
 include penalty factor cost but not root cost which may or may not be wanted depending on context
 if full graph--yes, if a component yes or no.
-hence returnde das pair
+hence returns the pair
+Adds root complexity cost if the star vertex is Nothing (e.g. the graph root), so should be corrext when graphs are split in swap.
 -}
 generalizedGraphPostOrderTraversal
     ∷ GlobalSettings → Int → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG (PhylogeneticGraph, Int)
@@ -207,16 +211,18 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                           else error ("Graph type not implemented: " <> (show $ graphType inGS))
 
         -- start at start vertex--for components or ur-root for full graph
-        let startVertexList =
+        -- root cost for overall cost is only added for thopse greaophs that include overall root
+        -- model complexity for PMDL is also added here
+        let (startVertexList, rootAndModelCost) =
                 if startVertex == Nothing
-                    then fmap fst $ LG.getRoots $ thd6 outgroupRooted
-                    else [fromJust startVertex]
+                    then (fmap fst $ LG.getRoots $ thd6 outgroupRooted, rootComplexity inGS + modelComplexity inGS)
+                    else ([fromJust startVertex], 0)
 
         -- only static characters
         if sequenceChars == 0 then 
             do
-                penaltyFactor <-
-                        if (graphType inGS == Tree)
+                penaltyFactor <- getPenaltyFactor inGS inData startVertex outgroupRooted
+                    {-    if (graphType inGS == Tree)
                             then pure 0.0
                             else -- it is its own penalty due to counting all changes in in2 out 1 nodes
                             -- else if (graphType inGS == HardWired) then 0.0
@@ -232,6 +238,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                                 if (graphFactor inGS) == Wheeler2023Network
                                                     then pure $ POSW.getW23NetPenalty outgroupRooted
                                                     else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
+                    -}
 
                 staticOnlyGraph <-
                         if (graphType inGS) == SoftWired
@@ -240,12 +247,12 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                     -- staticOnlyGraph = head recursiveRerootList'
                 let staticOnlyGraph' =
                         if startVertex == Nothing
-                            then updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
-                            else updatePhylogeneticGraphCost staticOnlyGraph (penaltyFactor + (snd6 staticOnlyGraph))
+                            then updatePhylogeneticGraphCost staticOnlyGraph (rootAndModelCost + penaltyFactor + (snd6 staticOnlyGraph))
+                            else updatePhylogeneticGraphCost staticOnlyGraph (rootAndModelCost + penaltyFactor + (snd6 staticOnlyGraph))
                 pure (staticOnlyGraph', head startVertexList)
         else 
             do
-                recursiveRerootList <-
+                recursiveRerootList <- 
                         if (graphType inGS == HardWired)
                             then pure [outgroupRooted]
                             else
@@ -259,14 +266,15 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                                 displayResult <- POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted
                                                 pure [displayResult]
                                             else error ("Graph type not implemented: " <> (show $ graphType inGS))
+                    
 
                 -- single sequence (prealigned, dynamic) only (ie no static)
 
                 if sequenceChars == 1 && (U.getNumberExactCharacters (thd3 inData) == 0)
                     then do
                         let finalizedPostOrderGraphList = L.sortOn snd6 recursiveRerootList
-                        penaltyFactorList <-
-                                if (graphType inGS == Tree)
+                        penaltyFactorList <- getPenaltyFactorList inGS inData startVertex finalizedPostOrderGraphList
+                                {-if (graphType inGS == Tree)
                                     then pure $ replicate (length finalizedPostOrderGraphList) 0.0
                                     else -- else if (graphType inGS == HardWired) then replicate (length finalizedPostOrderGraphList) 0.0
 
@@ -279,7 +287,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                                         if (graphFactor inGS) == Wheeler2023Network
                                                             then pure $ fmap POSW.getW23NetPenalty finalizedPostOrderGraphList
                                                             else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
-                        let newCostList = zipWith (+) penaltyFactorList (fmap snd6 finalizedPostOrderGraphList)
+                                -}
+                        let newCostList = zipWith3 sum3 penaltyFactorList (fmap snd6 finalizedPostOrderGraphList) (replicate (length finalizedPostOrderGraphList) rootAndModelCost)
 
                         let finalizedPostOrderGraph = head $ L.sortOn snd6 $ zipWith updatePhylogeneticGraphCost finalizedPostOrderGraphList newCostList
                         
@@ -289,8 +298,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                     -- multiple dynamic characters--checks for best root for each character
                     -- important to have outgroup rooted graph first for fold so don't use sorted recursive list
                     let graphWithBestAssignments = head recursiveRerootList 
-                    penaltyFactor <-
-                                if (graphType inGS == Tree)
+                    penaltyFactor <- getPenaltyFactor inGS inData startVertex graphWithBestAssignments
+                                {-if (graphType inGS == Tree)
                                     then pure 0.0
                                     else -- else if (graphType inGS == HardWired) then 0.0
 
@@ -303,10 +312,47 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                                         if (graphFactor inGS) == Wheeler2023Network
                                                             then pure $ POSW.getW23NetPenalty graphWithBestAssignments
                                                             else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
+                                -}
 
-                    let graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (penaltyFactor + (snd6 graphWithBestAssignments))
+                    let graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (rootAndModelCost + penaltyFactor + (snd6 graphWithBestAssignments))
                     
                     pure (graphWithBestAssignments', head startVertexList)
+
+                where   sum3 :: VertexCost -> VertexCost -> VertexCost -> VertexCost
+                        sum3 a b c = a + b + c
+
+{- | getPenaltyFactorList takes graph type and other options and a list of graphs to return a 
+    list of penalty factors
+-}
+getPenaltyFactorList :: GlobalSettings → ProcessedData -> Maybe Int -> [PhylogeneticGraph] -> PhyG [VertexCost]
+getPenaltyFactorList inGS inData startVertex inGraphList =
+    if null inGraphList then pure []
+    else mapM (getPenaltyFactor inGS inData startVertex) inGraphList 
+
+{- | getPenaltyFactor take graph information and optimality criterion and returns penalty 
+or graph complexity for single graph 
+-}
+getPenaltyFactor :: GlobalSettings → ProcessedData -> Maybe Int -> PhylogeneticGraph -> PhyG VertexCost
+getPenaltyFactor inGS inData startVertex inGraph =
+    if LG.isEmpty $ fst6 inGraph then pure 0.0
+    else
+        if (optimalityCriterion inGS) `elem` [PMDL, SI] then 
+            let (_, _, _, networkNodeList) = LG.splitVertexList (fst6 inGraph)
+            in
+            if graphType inGS == Tree then 
+                pure $ fst $ IL.head (graphComplexityList inGS) 
+            else if graphType inGS == SoftWired then
+                pure $ fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+            else if graphType inGS == HardWired then 
+                pure $ snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+            else error ("Graph type " <> (show  (graphType inGS)) <> " is not yet implemented")
+        else if graphType inGS == Tree then pure 0.0
+        else if (graphFactor inGS) == NoNetworkPenalty then pure 0.0
+        else if  (graphFactor inGS) == Wheeler2015Network then 
+            POSW.getW15NetPenaltyFull Nothing inGS inData startVertex inGraph
+        else if  (graphFactor inGS) == Wheeler2023Network then 
+            pure $ POSW.getW23NetPenalty inGraph
+        else error ("Network penalty type " <> (show  (graphFactor inGS)) <> " is not yet implemented")
 
 {- | checkUnusedEdgesPruneInfty checks if a softwired phylogenetic graph has
 "unused" edges sensu Wheeler 2015--that an edge in the canonical graph is
@@ -367,20 +413,20 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                                 updatedGraphList ←
                                     if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData))
                                         then -- trace ("\t\tCannot update cost with original data--skipping")
-                                            pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
+                                            pure $ updatePhylogeneticGraphCostList  (rootComplexity inGS) inGraphList
                                         else do
                                             -- let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                             -- in
                                             traversePar ← getParallelChunkTraverse
                                             newGraphList ← traversePar traverseAction (fmap fst5 inGraphList)
-                                            pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) newGraphList
+                                            pure $ updatePhylogeneticGraphCostList  (rootComplexity inGS) newGraphList
 
                                 logWith LogInfo ("\tFinalizing graph cost (updating NCM) with root priors" <> "\n")
                                 pure updatedGraphList
                             else
                                 if optimalityCriterion inGS == PMDL
                                     then -- trace ("\tFinalizing graph cost with model and root complexities")
-                                        pure $ updatePhylogeneticGraphCostList ((rootComplexity inGS) + (modelComplexity inGS)) inGraphList
+                                        pure $ updatePhylogeneticGraphCostList ( (rootComplexity inGS) + (modelComplexity inGS)) inGraphList
                                     else error ("Optimality criterion not recognized/implemented: " <> (show $ optimalityCriterion inGS))
 
 

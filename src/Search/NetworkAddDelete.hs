@@ -2211,7 +2211,7 @@ heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
 
 {- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge
 if Wheeler2015Network, this is based on all changes affecting a single block (most permissive) and Wheeler 2015 calculation of penalty
-if PMDLGraph -- KMDL not yet implemented
+if PMDLGraph -- graph complexity
 if NoNetworkPenalty then 0
 modification "add" or subtrct to calculate delta
 always delta is positive--whether neg or pos is deltermined when used
@@ -2236,7 +2236,7 @@ deltaPenaltyAdjustment inGS inGraph modification =
                 if edgeCostModel == Wheeler2015Network
                     then (snd5 inGraph) / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
                     else
-                        if edgeCostModel == PMDLGraph
+                        if (optimalityCriterion inGS) `elem` [PMDL, SI]
                             then -- trace  ("DPW: In PMDLGraph") (
 
                                 if graphType inGS == Tree
