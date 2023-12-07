@@ -140,7 +140,7 @@ calculateGraphComplexity (nameVect, _, _) =
     graphComplexity
 
 -- | getGraphComplexity takes the number of leaves and number of
--- network nodes and calculates the graph complexity
+-- network nodes and calculates the graph complexity in bits
 -- tree num edges (2n-2) n leaves * 2 nodes for each edge * (log 2n -1 vertices-- min specify)
 getGraphComplexity :: Int -> Int -> Int -> (VertexCost, VertexCost)
 getGraphComplexity numLeaves numRoots numNetNodes =
