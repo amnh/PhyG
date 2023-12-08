@@ -373,8 +373,9 @@ performSearch initialSeed inputFilePath = do
         rediagnose for NCM due to packing, in most cases not required, just being sure etc
     -}
     let rediagnoseWithReportingdata = True
-    finalGraphList' ←
-            T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+    finalGraphList' ← if optimalityCriterion initialGlobalSettings == NCM then
+                        T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+                      else pure finalGraphList
     
     -- let finalGraphList' = finalGraphList
 

@@ -421,7 +421,7 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                                             newGraphList ← traversePar traverseAction (fmap fst5 inGraphList)
                                             pure $ updatePhylogeneticGraphCostList  (rootComplexity inGS) newGraphList
 
-                                logWith LogInfo ("\tFinalizing graph cost (updating NCM) with root priors" <> "\n")
+                                logWith LogInfo ("\tFinalizing graph cost (updating NCM)" <> "\n")
                                 pure updatedGraphList
                             else
                                 if optimalityCriterion inGS == PMDL
