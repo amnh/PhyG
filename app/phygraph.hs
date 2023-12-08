@@ -371,11 +371,12 @@ performSearch initialSeed inputFilePath = do
     {- 
     This should not be necessary--moved to traversal with root cost adjustment 
         rediagnose for NCM due to packing, in most cases not required, just being sure etc
-        let rediagnoseWithReportingdata = True
-        finalGraphList' ←
-            T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
     -}
-    let finalGraphList' = finalGraphList
+    let rediagnoseWithReportingdata = True
+    finalGraphList' ←
+            T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+    
+    -- let finalGraphList' = finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd5 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
