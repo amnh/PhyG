@@ -468,6 +468,7 @@ removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInf
             -- should filter out length zero characters
             newTaxVectByCharVect = U.glueBackTaxChar singleCharVect'
          in
+         --trace ("RCBP: " <> (show $ fmap length singleCharVect)) $ --  <> "\n" <> (show singleCharVect)) $
          (blockName, newTaxVectByCharVect, charInfoV)
 
 -- | removeConstantCharsPrealigned takes a single 'character' and if proper type removes if all values are the same
@@ -479,7 +480,7 @@ removeConstantCharsPrealigned singleChar charInfo =
     in
     -- dynamic characters don't do this
     if inCharType `notElem` prealignedCharacterTypes then singleChar
-    else
+    else 
         let variableVect = getVariableChars inCharType singleChar
         in
         variableVect
@@ -638,10 +639,12 @@ checkIsVariableBit firstElement restVect =
 --filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 filterConstantsV :: V.Vector Bool -> V.Vector a -> V.Vector a
 filterConstantsV inVarBoolV charVect =
-    let pairVect = V.zip charVect inVarBoolV
-        variableCharV = V.map fst $ V.filter ((== True) . snd) pairVect
-    in
-    variableCharV
+    if V.null inVarBoolV then charVect
+    else 
+        let pairVect = V.zip charVect inVarBoolV
+            variableCharV = V.map fst $ V.filter ((== True) . snd) pairVect
+        in
+        variableCharV
 
 
 -- | filerConstantsSV takes the charcter data and filters out teh constants
@@ -649,20 +652,24 @@ filterConstantsV inVarBoolV charVect =
 --filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 filterConstantsSV ::  (SV.Storable a) => V.Vector Bool -> SV.Vector a -> SV.Vector a
 filterConstantsSV inVarBoolV charVect =
-    let varVect = filterConstantsV inVarBoolV (V.fromList $ SV.toList charVect)
-    in
-    SV.fromList $ V.toList varVect
+    if V.null inVarBoolV then charVect
+    else 
+        let varVect = filterConstantsV inVarBoolV (V.fromList $ SV.toList charVect)
+        in
+        SV.fromList $ V.toList varVect
 
 -- | filerConstantsUV takes the charcter data and filters out teh constants
 -- uses filter to keep O(n)
 --filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 filterConstantsUV ::  (UV.Unbox a) => V.Vector Bool -> UV.Vector a -> UV.Vector a
 filterConstantsUV inVarBoolV charVect =
-    let varVect = filterConstantsV inVarBoolV (V.fromList $ UV.toList charVect)
-    in
-    UV.fromList $ V.toList varVect
+    if V.null inVarBoolV then charVect
+    else     
+        let varVect = filterConstantsV inVarBoolV (V.fromList $ UV.toList charVect)
+        in
+        UV.fromList $ V.toList varVect
 
--- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate
+-- | assignNewField takes character type and a 6-tuple of character fields and assigns the appropriate
 -- to the correct field
 -- neither bit packed nor nno-exact should het here
 assignNewField :: CharType
