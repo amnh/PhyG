@@ -432,15 +432,17 @@ getSameMatrixChars inCharsPairList testMatrix =
 -- | removeConstantCharactersPrealigned takes processed data and removes constant characters
 -- from prealignedCharacterTypes
 removeConstantCharactersPrealigned :: ProcessedData -> PhyG ProcessedData
-removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
-    let -- parallel setup
-        action ::  BlockData -> BlockData
-        action = removeConstantBlockPrealigned
-    in do
-        pTraverse <- getParallelChunkMap
-        let newBlockData = pTraverse action (V.toList blockDataVect)
-            -- V.fromList (PU.seqParMap PU.myStrategyRDS  removeConstantBlockPrealigned (V.toList blockDataVect)) -- `using` PU.myParListChunkRDS)
-        pure (nameVect, bvNameVect, V.fromList newBlockData)
+removeConstantCharactersPrealigned inData@(nameVect, bvNameVect, blockDataVect) =
+    if V.null blockDataVect then pure inData
+    else
+        let -- parallel setup
+            action ::  BlockData -> BlockData
+            action = removeConstantBlockPrealigned
+        in do
+            pTraverse <- getParallelChunkMap
+            let newBlockData = pTraverse action (V.toList blockDataVect)
+                -- V.fromList (PU.seqParMap PU.myStrategyRDS  removeConstantBlockPrealigned (V.toList blockDataVect)) -- `using` PU.myParListChunkRDS)
+            pure (nameVect, bvNameVect, V.fromList newBlockData)
 
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
 removeConstantBlockPrealigned :: BlockData -> BlockData
@@ -481,6 +483,7 @@ removeConstantCharsPrealigned singleChar charInfo =
         let variableVect = getVariableChars inCharType singleChar
         in
         variableVect
+        
 
 -- | getVariableChars checks identity of states in a vector positin in all taxa
 -- and returns True if variable, False if constant
@@ -518,7 +521,7 @@ getVariableChars inCharType singleChar =
         outCharVect = V.zipWith (assignNewField inCharType) singleChar (V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable)
 
     in
-    -- trace ("GVC:" <> (show $ length boolVar) <> " -> " <> (show $ length $ filter (== False) boolVar))
+    --trace ("GVC:" <> (show $ length boolVar) <> " -> " <> (show $ length $ filter (== False) boolVar))
     outCharVect
 
 -- | getVarVectAdd takes a vector of a vector additive ranges and returns False if range overlap

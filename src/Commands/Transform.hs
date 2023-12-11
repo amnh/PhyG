@@ -655,21 +655,22 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                     let newBlockDataV = pTraverse action [0 .. (length blockDataV - 1)]
                     -- PU.seqParMap (parStrategy $ strictParStrat inGS) (pullGraphBlockDataAndTransform leavePrealigned decGraph blockDataV) [0..(length blockDataV - 1)] -- `using` PU.myParListChunkRDS
 
-                    -- convert prealigned to non-additive if all 1's tcm
-
-                    -- remove constants from new prealigned
-                    newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
-
-                    -- bit pack any new non-additive characters
-                    newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData
-
-                    -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
-                    -- issues if no variation in block reducing length to zero so need leave "prealigned" if so
                     if leavePrealigned
                         then do
                             pure (nameV, nameBVV, V.fromList newBlockDataV)
-                        else do
-                            pure newProcessedData'
+
+                    else do -- convert prealigned to non-additive if all 1's tcm
+
+                        -- remove constants from new prealigned
+                        newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+
+                        -- bit pack any new non-additive characters
+                        newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData
+
+                        -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
+                        -- issues if no variation in block reducing length to zero so need leave "prealigned" if so
+                        pure newProcessedData'
+
                 else -- network static approx relies on display tree implied alignments after contacting out in=out=1 vertices
                 -- harwired based on softwired optimization
 
@@ -701,17 +702,18 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                                     -- get new processed (leaf) data
                                     let newBlockDataV = V.zipWith (getBlockLeafDataFromDisplayTree leavePrealigned) (fmap thd6 decoratedBlockTreeList) blockDataV
 
-                                    -- remove constants from new prealigned
-                                    newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
-
-                                    -- bit pack any new non-additive characters
-                                    newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData
-
                                     if leavePrealigned
                                         then do
                                             pure (nameV, nameBVV, newBlockDataV)
-                                        else do
-                                            pure newProcessedData'
+
+                                    else do
+                                        -- remove constants from new prealigned
+                                        newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+
+                                        -- bit pack any new non-additive characters
+                                        newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData
+
+                                        pure newProcessedData'
                         else do
                             logWith LogWarn ("Static Approx not yet implemented for graph type : " <> (show $ graphType inGS) <> " skipping" <> "\n")
                             pure inData
