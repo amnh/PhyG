@@ -1,7 +1,7 @@
 --read(fasta:"metazoa-aa-1.fas")
 --read(fasta:"chel.fas")
 --read(fasta:"chel-16.fas")
---set(criterion:PMDL)
+set(criterion:SI)
 set(modelComplexity:10000)
 --read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
@@ -85,12 +85,13 @@ build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 --search(minutes:5, instances:4, stop:50,Thompson:2)
 
+--select(best)
 
-swap()
+--swap()
 --fuse()
 
 -- transform(dynamic)
-select(best)
+--select(best)
 --report("test0-crossrefs.csv", crossrefs, overwrite)
 --report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)

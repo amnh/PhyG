@@ -14,6 +14,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.CSV qualified as CSV
 import Data.Foldable (fold)
+import Data.InfList qualified as IL
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.String (fromString)
@@ -389,6 +390,25 @@ performSearch initialSeed inputFilePath = do
             , show $ length finalGraphList'
             , "graph(s) at cost range"
             , show (minCost, maxCost)
+            , "\n"
+            ]
+
+    -- get network numbers for graph complexities (PMDL, SI)
+    -- pairFunction :: forall {a}. (a, a) -> a
+    let (netWorkVertexList, pairFunction) = if optimalityCriterion initialGlobalSettings `notElem` [PMDL, SI] then (replicate (length finalGraphList') 0, fst) 
+                                            else if graphType initialGlobalSettings == SoftWired then (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', fst)
+                                            else (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', snd)
+
+    -- insures model complexity 0 if not PMDL  correctly accounted for in traversals
+    let adjModelComplexity = if optimalityCriterion initialGlobalSettings == PMDL then modelComplexity initialGlobalSettings
+                             else 0.0
+
+
+    when (optimalityCriterion initialGlobalSettings /= Parsimony) $ logWith LogInfo $
+        unwords
+            [ "Model complexity " <> (show adjModelComplexity) <> "\n"
+            , "Root complexity " <> (show $ rootComplexity initialGlobalSettings) <> "\n"
+            , "Graph complexities " <> (show $ fmap pairFunction $ fmap ((graphComplexityList initialGlobalSettings) IL.!!! ) netWorkVertexList)
             , "\n"
             ]
 
