@@ -691,76 +691,68 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                                     LogInfo
                                     "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
                             logWith LogInfo (bannerText <> "\n")
-                            -- TODO
-                            -- graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
-
-                            insertPar ← getParallelChunkTraverse
-                            graphPairList1 ← insertPar insertAction (zip newSimAnnealParamList (fmap (: []) inGraphList))
-                            -- mapM (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList))
-
-                            let (newGraphList, counterAdd) =
+                             
+                            (newGraphList, counterAdd) <-
                                     if doNetAdd
                                         then
                                             if graphType inGS == HardWired
-                                                then do
+                                                then 
                                                     -- logWith LogWarn "Adding edges to hardwired graphs will always increase cost, skipping"
-                                                    (inGraphList, 0)
-                                                else -- trace ("REFINE Add") (
+                                                    pure (inGraphList, 0)
+                                                else do -- trace ("REFINE Add") (
+                                                    insertPar ← getParallelChunkTraverse
+                                                    graphPairList1 ← insertPar insertAction (zip newSimAnnealParamList (fmap (: []) inGraphList))
+                                                    -- mapM (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList))
 
                                                     let (graphListList, counterList) = unzip graphPairList1
-                                                    in  (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                                    pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
                                         else -- )
-                                            (inGraphList, 0)
+                                            pure (inGraphList, 0)
 
-                            -- TODO
-                            -- graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList)) -- `using` PU.myParListChunkRDS
-                            deletePar ← getParallelChunkTraverse
-                            graphPairList2 ← deletePar deleteAction (zip newSimAnnealParamList (fmap (: []) newGraphList))
-                            -- mapM (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList))
-                            let (newGraphList', counterDelete) =
+                            (newGraphList', counterDelete) <-
                                     if doNetDelete
-                                        then {-
+                                        then 
                                              if graphType inGS == HardWired then
-                                                 trace ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
-                                                 (newGraphList, 0)
-                                             else
-                                             -}
-                                        -- trace ("REFINE Delete") (
-
-                                            let (graphListList, counterList) = unzip graphPairList2
-                                            in  (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                                 -- logWith LogWarn ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
+                                                 pure (newGraphList, 0)
+                                             else do
+                                                -- trace ("REFINE Delete") (
+                                                deletePar ← getParallelChunkTraverse
+                                                graphPairList2 ← deletePar deleteAction (zip newSimAnnealParamList (fmap (: []) newGraphList))
+                                                -- mapM (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList))
+                                
+                                                let (graphListList, counterList) = unzip graphPairList2
+                                                pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
                                         else -- )
-                                            (newGraphList, 0)
+                                            pure (newGraphList, 0)
 
-                            -- TODO
-                            -- graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList')) -- `using` PU.myParListChunkRDS
-                            movePar ← getParallelChunkTraverse
-                            graphPairList3 ← movePar moveAction (zip newSimAnnealParamList (fmap (: []) newGraphList'))
-                            -- mapM (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
-                            let (newGraphList'', counterMove) =
+                            (newGraphList'', counterMove) <-
                                     if doMove
-                                        then -- trace ("Network move option currently disabled--skipping.")
+                                        then do-- trace ("Network move option currently disabled--skipping.")
                                         -- (newGraphList', 0 :: Int)
-
+                                            movePar ← getParallelChunkTraverse
+                                            graphPairList3 ← movePar moveAction (zip newSimAnnealParamList (fmap (: []) newGraphList'))
+                                            -- mapM (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
+                            
                                             let (graphListList, counterList) = unzip graphPairList3
-                                            in  (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                                        else (newGraphList', 0)
+                                            pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                        else pure (newGraphList', 0)
 
-                            -- graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS)  (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'')) -- `using` PU.myParListChunkRDS
-                            addDeletePar ← getParallelChunkTraverse
-                            graphPairList4 ← addDeletePar addDeleteAction (zip newSimAnnealParamList (fmap (: []) newGraphList''))
-                            -- mapM (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
-                            let (newGraphList''', counterAddDelete) =
+                            (newGraphList''', counterAddDelete) <-
                                     if doAddDelete
                                         then
                                             if graphType inGS == HardWired
-                                                then do
+                                                then 
                                                     -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
-                                                    (newGraphList'', 0)
-                                                else
+                                                    pure (newGraphList'', 0)
+                                                else do
+                                                    addDeletePar ← getParallelChunkTraverse
+                                                    graphPairList4 ← addDeletePar addDeleteAction (zip newSimAnnealParamList (fmap (: []) newGraphList''))
+                                                    -- mapM (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
+                            
                                                     let (graphListList, counterList) = unzip graphPairList4
-                                                    in  (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                                        else (newGraphList'', 0)
+                                                    pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                        else pure (newGraphList'', 0)
 
                             let resultGraphList =
                                     if null newGraphList'''
