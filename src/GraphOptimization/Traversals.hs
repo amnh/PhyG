@@ -214,9 +214,10 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
         -- root cost for overall cost is only added for thopse greaophs that include overall root
         -- model complexity for PMDL is also added here
         let (startVertexList, rootAndModelCost) =
-                if startVertex == Nothing
-                    then (fmap fst $ LG.getRoots $ thd6 outgroupRooted, rootComplexity inGS + modelComplexity inGS)
-                    else ([fromJust startVertex], 0)
+                if isJust startVertex then ([fromJust startVertex], 0)
+                else if optimalityCriterion inGS == PMDL then
+                    (fmap fst $ LG.getRoots $ thd6 outgroupRooted, rootComplexity inGS + modelComplexity inGS)
+                else (fmap fst $ LG.getRoots $ thd6 outgroupRooted, rootComplexity inGS)
 
         -- only static characters
         if sequenceChars == 0 then 

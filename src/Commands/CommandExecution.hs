@@ -533,6 +533,10 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                 if localCriterion `elem` [Just PMDL, Just SI]
                                                                     then PMDLGraph
                                                                     else graphFactor globalSettings
+
+                                                            lModelComplexity =
+                                                                if localCriterion `elem` [Just PMDL] then modelComplexity globalSettings
+                                                                else 0.0
                                                         in  if isNothing localCriterion
                                                                 then do
                                                                     failWithPhase Parsing ("Error in 'set' command. Criterion '" <> head optionList <> "' is not 'parsimony', 'ml', or 'pmdl'")
@@ -547,10 +551,11 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                 else
                                                                                     pure
                                                                                         ( globalSettings
-                                                                                            { optimalityCriterion = fromJust localCriterion
-                                                                                            , graphComplexityList = fromJust lGraphComplexityList
-                                                                                            , rootComplexity = fromJust lRootComplexity
+                                                                                            { graphComplexityList = fromJust lGraphComplexityList
                                                                                             , graphFactor = lGraphFactor
+                                                                                            , rootComplexity = fromJust lRootComplexity
+                                                                                            , modelComplexity = lModelComplexity
+                                                                                            , optimalityCriterion = fromJust localCriterion
                                                                                             }
                                                                                         , processedData
                                                                                         , inSeedList
