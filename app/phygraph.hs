@@ -383,21 +383,21 @@ performSearch initialSeed inputFilePath = do
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd5 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
 
+    -- get network numbers for graph complexities (PMDL, SI)
+    -- pairFunction :: forall {a}. (a, a) -> a
+    let (netWorkVertexList, pairFunction, units) = if optimalityCriterion initialGlobalSettings `notElem` [PMDL, SI] then (replicate (length finalGraphList') 0, fst, "") 
+                                            else if graphType initialGlobalSettings == SoftWired then (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', fst, " bits")
+                                            else (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', snd, " bits")
+
     -- final results reporting to stderr
     logWith LogInfo $
         unwords
             [ "Execution returned"
             , show $ length finalGraphList'
             , "graph(s) at cost range"
-            , show (minCost, maxCost)
+            , (show (minCost, maxCost)) <> units
             , "\n"
             ]
-
-    -- get network numbers for graph complexities (PMDL, SI)
-    -- pairFunction :: forall {a}. (a, a) -> a
-    let (netWorkVertexList, pairFunction) = if optimalityCriterion initialGlobalSettings `notElem` [PMDL, SI] then (replicate (length finalGraphList') 0, fst) 
-                                            else if graphType initialGlobalSettings == SoftWired then (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', fst)
-                                            else (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', snd)
 
     -- insures model complexity 0 if not PMDL  correctly accounted for in traversals
     let adjModelComplexity = if optimalityCriterion initialGlobalSettings == PMDL then modelComplexity initialGlobalSettings
@@ -406,10 +406,10 @@ performSearch initialSeed inputFilePath = do
 
     when (optimalityCriterion initialGlobalSettings /= Parsimony) $ logWith LogInfo $
         unwords
-            [ " Model complexity " <> (show adjModelComplexity) <> "\n"
-            , "Root complexity " <> (show $ rootComplexity initialGlobalSettings) <> "\n"
-            , "Graph complexities " <> (show $ fmap pairFunction $ fmap ((graphComplexityList initialGlobalSettings) IL.!!! ) netWorkVertexList)
-            , "\n"
+            [ "\tModel complexity " <> (show adjModelComplexity) <> units <> "\n"
+            , "\tRoot complexity " <> (show $ rootComplexity initialGlobalSettings) <> units <> "\n"
+            , "\tGraph complexities " <> (show $ fmap pairFunction $ fmap ((graphComplexityList initialGlobalSettings) IL.!!! ) netWorkVertexList) <> units
+            , "\n\n"
             ]
 
     -- Final Stderr report
