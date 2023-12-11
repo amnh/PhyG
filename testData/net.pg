@@ -1,3 +1,4 @@
+set(criterion:SI)
 read("net-I.fas")
 read("net-II.fas")
 -- read("net-Ia.fas")

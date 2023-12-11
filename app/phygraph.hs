@@ -406,7 +406,7 @@ performSearch initialSeed inputFilePath = do
 
     when (optimalityCriterion initialGlobalSettings /= Parsimony) $ logWith LogInfo $
         unwords
-            [ "Model complexity " <> (show adjModelComplexity) <> "\n"
+            [ " Model complexity " <> (show adjModelComplexity) <> "\n"
             , "Root complexity " <> (show $ rootComplexity initialGlobalSettings) <> "\n"
             , "Graph complexities " <> (show $ fmap pairFunction $ fmap ((graphComplexityList initialGlobalSettings) IL.!!! ) netWorkVertexList)
             , "\n"
