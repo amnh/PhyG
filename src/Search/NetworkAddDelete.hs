@@ -487,9 +487,9 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
                                                                 (tail inPhyloGraphList)
                                         else -- sim anneal choice
 
-                                            if True
-                                                then errorWithoutStackTrace "Simulated Annealing/Drift not implemented for Network Move"
-                                                else
+                                            --if True
+                                            --     then errorWithoutStackTrace "Simulated Annealing/Drift not implemented for Network Move"
+                                            --    else
                                                     let -- abstract stopping criterion to continue
                                                         numDone =
                                                             if (method $ fromJust inSimAnnealParams) == SimAnneal
