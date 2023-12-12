@@ -486,7 +486,7 @@ moveAllNetEdges' inGS inData rSeed maxNetEdges numToKeep counter returnMutated d
                                                                 inSimAnnealParams
                                                                 (tail inPhyloGraphList)
                                         else -- sim anneal choice
-
+                                            -- not sure why this was here--seems to work
                                             --if True
                                             --     then errorWithoutStackTrace "Simulated Annealing/Drift not implemented for Network Move"
                                             --    else
