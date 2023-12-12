@@ -1708,12 +1708,20 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                                 else []
 
                                     -- check for possible better/equal graphs and verify
-                                    rerootPar ← getParallelChunkMap
-                                    let candidateJoinedGraphList = rerootPar rerootAction minEdgeList
+                                    --rerootPar ← getParallelChunkMap
+                                    --let candidateJoinedGraphList = rerootPar rerootAction minEdgeList
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) minEdgeList
 
-                                    reoptimizePar ← getParallelChunkTraverse
-                                    rediagnosedGraphList ← reoptimizePar reoptimizeAction candidateJoinedGraphList
+                                    rediagnosedGraphList ←  if (not . null) minEdgeList then do
+                                                                rerootPar ← getParallelChunkMap
+                                                                let candidateJoinedGraphList = rerootPar rerootAction minEdgeList
+                                                                reoptimizePar ← getParallelChunkTraverse
+                                                                reoptimizeResult <- reoptimizePar reoptimizeAction candidateJoinedGraphList
+                                                                pure reoptimizeResult
+                                                            else pure []
+
+                                    -- reoptimizePar ← getParallelChunkTraverse
+                                    -- rediagnosedGraphList ← reoptimizePar reoptimizeAction candidateJoinedGraphList
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
 
                                     let newMinCost =
