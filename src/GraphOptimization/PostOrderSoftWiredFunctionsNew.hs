@@ -654,6 +654,9 @@ updateRootCost  newRootCost inGraph =
 softWiredPostOrderTraceBack  :: Int -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph, _, _, f)  =
     if LG.isEmpty canonicalGraph then pure emptyPhylogeneticGraph
+        -- this condition can arise due to strictness in graph evaluation in parallel
+    else if length (LG.descendants canonicalGraph rootIndex) /= 2 then pure emptyPhylogeneticGraph 
+            -- error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <>"\n" <> (LG.prettyIndices canonicalGraph))      
     else
       let -- extract display trees and bloxck char trees from PhylogeneticGraph
           -- block character trees do not exist yet
@@ -684,46 +687,44 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           traceBackAction = traceBackBlock canonicalGraph
 
       in do
-          --let (rootNodes, leafNode, treeNodes,networkNodes) = LG.splitVertexList inSimpleGraph
-          --logWith LogInfo ("SWPOT: " <> (show (length rootNodes, length leafNode, length treeNodes, length networkNodes)))
-
-          -- extract (first) best resolution for each block--there can be more than one for each, but only use the first for
-          -- traceback, preliminary and final assignment etc--part of the heuristic
-          resolutionPar <- getParallelChunkMap
-          let resolutionResult = resolutionPar getBestAction $ V.toList rootResData
-          let (_, _, rootDisplayBlockCharResolutionV) = unzip3 resolutionResult -- $ PU.seqParMap PU.myStrategy (getBestResolutionList (Just rootIndex) True) rootResData
-          let firstOfEachRootRes = fmap V.head rootDisplayBlockCharResolutionV
-
-          -- get preliminary character data for blocks
-          -- these should be ok wihtout left right check since were creted with that check on post order
-          let (leftIndexList, rightIndexList) = V.unzip $ fmap childResolutionIndices $ V.fromList firstOfEachRootRes
           
-          -- update root vertex info for display and character trees for each block
-          -- this includes preliminary data and other fields
-          updatePar <- getParallelChunkMap
-          let updateResult = updatePar updateAction (zip  firstOfEachRootRes (V.toList displayTreeV))
-          
-          let (rootUpdatedDisplayTreeV, rootUpdatedCharTreeVV) = unzip updateResult -- $ PU.seqParMap PU.myStrategy (updateRootBlockTrees rootIndex) (V.zip  (V.fromList firstOfEachRootRes) displayTreeV)
+              --let (rootNodes, leafNode, treeNodes,networkNodes) = LG.splitVertexList inSimpleGraph
+              --logWith LogInfo ("SWPOT: " <> (show (length rootNodes, length leafNode, length treeNodes, length networkNodes)))
 
-          traceLeftPar <- getParallelChunkMap
-          let leftResult = traceLeftPar (traceBackAction leftChild') (L.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV (V.toList leftIndexList) ([0..(length rootUpdatedDisplayTreeV - 1)]))
-          let (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = unzip leftResult 
-          -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph leftChild') (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+              -- extract (first) best resolution for each block--there can be more than one for each, but only use the first for
+              -- traceback, preliminary and final assignment etc--part of the heuristic
+              resolutionPar <- getParallelChunkMap
+              let resolutionResult = resolutionPar getBestAction $ V.toList rootResData
+              let (_, _, rootDisplayBlockCharResolutionV) = unzip3 resolutionResult -- $ PU.seqParMap PU.myStrategy (getBestResolutionList (Just rootIndex) True) rootResData
+              let firstOfEachRootRes = fmap V.head rootDisplayBlockCharResolutionV
 
-          traceRightPar <- getParallelChunkMap
-          let rightResult = traceRightPar (traceBackAction rightChild') (L.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft (V.toList rightIndexList) ([0..(length rootUpdatedDisplayTreeV - 1)]))
-          let (traceBackDisplayTreeV, traceBackCharTreeVV) = unzip rightResult 
-          -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+              -- get preliminary character data for blocks
+              -- these should be ok wihtout left right check since were creted with that check on post order
+              let (leftIndexList, rightIndexList) = V.unzip $ fmap childResolutionIndices $ V.fromList firstOfEachRootRes
+              
+              -- update root vertex info for display and character trees for each block
+              -- this includes preliminary data and other fields
+              updatePar <- getParallelChunkMap
+              let updateResult = updatePar updateAction (zip  firstOfEachRootRes (V.toList displayTreeV))
+              
+              let (rootUpdatedDisplayTreeV, rootUpdatedCharTreeVV) = unzip updateResult -- $ PU.seqParMap PU.myStrategy (updateRootBlockTrees rootIndex) (V.zip  (V.fromList firstOfEachRootRes) displayTreeV)
 
-          -- this condition can arise due to strictness in graph evaluation in parallel
-          if length (LG.descendants canonicalGraph rootIndex) /= 2 then pure emptyPhylogeneticGraph 
-            -- error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <>"\n" <> (LG.prettyIndices canonicalGraph))
-          else
-             let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph canonicalGraph (V.fromList traceBackDisplayTreeV)
-             in
-             -- this is a hack due to missing nodes in some character trees--perhpas issue with postorder resolutions?
-             if LG.isEmpty newCanonicalGraph then pure emptyPhylogeneticGraph
-             else pure $ (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) (V.fromList traceBackDisplayTreeV), (V.fromList traceBackCharTreeVV), f)
+              traceLeftPar <- getParallelChunkMap
+              let leftResult = traceLeftPar (traceBackAction leftChild') (L.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV (V.toList leftIndexList) ([0..(length rootUpdatedDisplayTreeV - 1)]))
+              let (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = unzip leftResult 
+              -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph leftChild') (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+
+              traceRightPar <- getParallelChunkMap
+              let rightResult = traceRightPar (traceBackAction rightChild') (L.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft (V.toList rightIndexList) ([0..(length rootUpdatedDisplayTreeV - 1)]))
+              let (traceBackDisplayTreeV, traceBackCharTreeVV) = unzip rightResult 
+              -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
+
+              
+              let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph canonicalGraph (V.fromList traceBackDisplayTreeV)
+             
+              -- this is a hack due to missing nodes in some character trees--perhpas issue with postorder resolutions?
+              if LG.isEmpty newCanonicalGraph then pure emptyPhylogeneticGraph
+              else pure $ (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) (V.fromList traceBackDisplayTreeV), (V.fromList traceBackCharTreeVV), f)
 
 -- | traceBackBlock performs softwired traceback on block data returns updated display and character trees
 -- the block index specifies which resolution list from the canonical tree at node nodeIndex
