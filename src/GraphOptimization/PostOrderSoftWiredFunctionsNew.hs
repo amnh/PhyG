@@ -684,6 +684,9 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           traceBackAction = traceBackBlock canonicalGraph
 
       in do
+          --let (rootNodes, leafNode, treeNodes,networkNodes) = LG.splitVertexList inSimpleGraph
+          --logWith LogInfo ("SWPOT: " <> (show (length rootNodes, length leafNode, length treeNodes, length networkNodes)))
+
           -- extract (first) best resolution for each block--there can be more than one for each, but only use the first for
           -- traceback, preliminary and final assignment etc--part of the heuristic
           resolutionPar <- getParallelChunkMap
@@ -712,8 +715,9 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           let (traceBackDisplayTreeV, traceBackCharTreeVV) = unzip rightResult 
           -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
-          
-          if length (LG.descendants canonicalGraph rootIndex) /= 2 then error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex))
+          -- this condition can arise due to strictness in graph evaluation in parallel
+          if length (LG.descendants canonicalGraph rootIndex) /= 2 then pure emptyPhylogeneticGraph 
+            -- error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <>"\n" <> (LG.prettyIndices canonicalGraph))
           else
              let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph canonicalGraph (V.fromList traceBackDisplayTreeV)
              in

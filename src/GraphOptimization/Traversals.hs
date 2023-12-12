@@ -202,6 +202,8 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                         else error ("Root cost type " <> (show $ rootCost inGS) <> " is not yet implemented")
                         -}
         -}
+        -- let (rootNodes, leafNode, treeNodes,networkNodes) = LG.splitVertexList inSimpleGraph
+        -- logWith LogInfo ("GPOT: " <> (show (length rootNodes, length leafNode, length treeNodes, length networkNodes)))
 
         -- first traversal on outgroup root
         outgroupRooted <- if (graphType inGS) `elem` [Tree, HardWired] then

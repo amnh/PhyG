@@ -708,11 +708,12 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                                             pure (nameV, nameBVV, newBlockDataV)
 
                                     else do
-                                        -- remove constants from new prealigned
-                                        newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+                                        -- remove constants from new prealigned-- this may be redundant since bit packing also removes constants
+                                        -- error here in case where there is missing seqeunce data for all but one input block for a character
+                                        -- newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
 
                                         -- bit pack any new non-additive characters
-                                        newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData
+                                        newProcessedData' ← BP.packNonAdditiveData inGS (nameV, nameBVV, newBlockDataV) -- newProcessedData
 
                                         pure newProcessedData'
                         else do
