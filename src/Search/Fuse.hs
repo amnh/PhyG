@@ -68,37 +68,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                 -- get net penalty estimate from optimal graph for delta recombine later
                 -- Nothing here so starts at overall root
                 inGraphNetPenalty <- T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
-                    {-
-                    if (graphType inGS == Tree)
-                        then pure 0.0
-                        else
-                            if (graphFactor inGS) == NoNetworkPenalty
-                                then pure 0.0
-                                else
-                                    if (graphFactor inGS) == Wheeler2015Network
-                                        then -- if (graphType inGS) == HardWired then 0.0
-                                        -- else
-                                            POSW.getW15NetPenaltyFull Nothing inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
-                                        else
-                                            if (graphFactor inGS) == Wheeler2023Network
-                                                then -- if (graphType inGS) == HardWired then 0.0
-                                                -- else
-                                                    pure $ POSW.getW23NetPenaltyReduced curBestGraph
-                                                else
-                                                    if (graphFactor inGS) == PMDLGraph
-                                                        then
-                                                            let (_, _, _, networkNodeList) = LG.splitVertexList (fst5 curBestGraph)
-                                                            in  if (graphType inGS) == Tree
-                                                                    then pure $ fst $ IL.head (graphComplexityList inGS)
-                                                                    else
-                                                                        if (graphType inGS) == SoftWired
-                                                                            then pure $ fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
-                                                                            else
-                                                                                if (graphType inGS) == HardWired
-                                                                                    then pure $ snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
-                                                                                    else error ("Graph type " <> (show $ graphType inGS) <> " is not yet implemented in fuseAllGraphs")
-                                                        else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
-                           -}
+                    
                 let inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
 
                 -- get fuse pairs
@@ -111,7 +81,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                     then (takeRandom (head rSeedList) (fromJust fusePairs) graphPairList', " randomized")
                                     else (takeNth (fromJust fusePairs) graphPairList', "")
 
-               
+                -- could be fusePairRecursive to save on memory
                 -- action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
                 let action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
    
@@ -326,22 +296,21 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                     in  do
                             splitLeftPar ← getParallelChunkMap
                             let leftSplitTupleList = splitLeftPar splitLeftAction leftBreakEdgeList
-                            --  PU.seqParMap (parStrategy $ lazyParStrat inGS) (LG.splitGraphOnEdge' leftDecoratedGraph) leftBreakEdgeList -- `using` PU.myParListChunkRDS
+                             
                             let (_, _, leftPrunedGraphRootIndexList, leftOriginalConnectionOfPrunedList, leftOriginalEdgeList, _) = L.unzip6 leftSplitTupleList
-                            -- leftPrunedGraphRootIndexList = fmap thd4 leftSplitTupleList
+                             
                             let leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
 
                             splitRightPar ← getParallelChunkMap
                             let rightSplitTupleList = splitRightPar splitRightAction rightBreakEdgeList
-                            -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (LG.splitGraphOnEdge' rightDecoratedGraph) rightBreakEdgeList -- `using` PU.myParListChunkRDS
+                             
                             let (_, _, rightPrunedGraphRootIndexList, rightOriginalConnectionOfPrunedList, rightOriginalEdgeList, _) = L.unzip6 rightSplitTupleList
-                            -- rightPrunedGraphRootIndexList = fmap thd4 rightSplitTupleList
+                             
                             let rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
 
                             -- get all pairs of split graphs
                             let (leftSplitTupleList', rightSplitTupleList') = unzip $ cartProd (fmap first4of6 leftSplitTupleList) (fmap first4of6 rightSplitTupleList)
                             let (leftPrunedGraphBVList', rightPrunedGraphBVList') = unzip $ cartProd leftPrunedGraphBVList rightPrunedGraphBVList
-                            -- (leftBaseBVList, rightBaseBVList) = unzip $ cartProd leftBaseGraphBVList rightBaseGraphBVList
 
                             -- get compatible split pairs via checking bv of root index of pruned subgraphs
                             let leftRightMatchList = zipWith (==) leftPrunedGraphBVList' rightPrunedGraphBVList'
@@ -351,140 +320,127 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                             let recombinablePairList = L.zipWith (getCompatibleNonIdenticalSplits numLeaves) leftRightMatchList leftPrunedGraphBVList'
                             let (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((== True) . thd3) $ zip3 leftSplitTupleList' rightSplitTupleList' recombinablePairList
 
-                            -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
-                            -- returns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
-                            exchangeLeftPar ← getParallelChunkMap
-                            let exchangeLeftResult = exchangeLeftPar exchangeAction (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)
-                            let ( leftBaseRightPrunedSplitGraphList
-                                    , leftRightGraphRootIndexList
-                                    , leftRightPrunedParentRootIndexList
-                                    , leftRightPrunedRootIndexList
-                                    , leftRightOriginalConnectionOfPrunedList
-                                    ) =
-                                    L.unzip5 exchangeLeftResult
-                            -- (PU.seqParMap (parStrategy $ lazyParStrat inGS) (exchangePrunedGraphs numLeaves)(zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList))
+                            if null leftValidTupleList then pure []
+                            else do
 
-                            exchangeRightPar ← getParallelChunkMap
-                            let exchangeRightResult = exchangeRightPar exchangeAction (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)
-                            let ( rightBaseLeftPrunedSplitGraphList
-                                    , rightLeftGraphRootIndexList
-                                    , rightLeftPrunedParentRootIndexList
-                                    , rightLeftPrunedRootIndexList
-                                    , rightLeftOriginalConnectionOfPrunedList
-                                    ) =
-                                    L.unzip5 exchangeRightResult
-                            -- (PU.seqParMap (parStrategy $ lazyParStrat inGS) (exchangePrunedGraphs numLeaves) (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList))
+                                -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
+                                -- returns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
 
-                            -- reoptimize splitGraphs so ready for readdition--using updated base and prune indices
-                            -- False for doIA
-                            reoptimizeLeftPar ← getParallelChunkTraverse
-                            leftRightOptimizedSplitGraphCostList ←
-                                reoptimizeLeftPar
-                                    reoptimizeAction
-                                    (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList)
-                            -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) $
-                            -- zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                -- leftRight first then rightLeft if reciprocal
 
-                            reoptimizeRightPar ← getParallelChunkTraverse
-                            rightLeftOptimizedSplitGraphCostList ←
-                                reoptimizeRightPar
-                                    reoptimizeAction
-                                    (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList)
-                            -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty) $
-                            -- zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+                                exchangeLeftPar ← getParallelChunkMap
+                                let exchangeLeftResult = exchangeLeftPar exchangeAction (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)
+                                let ( leftBaseRightPrunedSplitGraphList
+                                        , leftRightGraphRootIndexList
+                                        , leftRightPrunedParentRootIndexList
+                                        , leftRightPrunedRootIndexList
+                                        , leftRightOriginalConnectionOfPrunedList
+                                        ) =
+                                        L.unzip5 exchangeLeftResult
+                                
+                                reoptimizeLeftPar ← getParallelChunkTraverse
+                                leftRightOptimizedSplitGraphCostList ←
+                                    reoptimizeLeftPar
+                                        reoptimizeAction
+                                        (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList)
 
-                            -- Check if base graphs are different as well (nneded to be reoptimized to get base root bv)
-                            -- otherwise no point in recombination
-                            {-
-                            leftBaseGraphBVList = fmap bvLabel $ fmap fromJust $ zipWith LG.lab (fmap fst leftRightOptimizedSplitGraphCostList) leftRightGraphRootIndexList
-                            rightBaseGraphBVList =fmap bvLabel $ fmap fromJust $ zipWith LG.lab (fmap fst rightLeftOptimizedSplitGraphCostList) rightLeftGraphRootIndexList
-                            baseGraphDifferentList = zipWith (/=) leftBaseBVList rightBaseBVList
-                            -}
-                            let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
+                                let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
 
-                            let ( _
-                                    , leftRightOptimizedSplitGraphCostList'
-                                    , _
-                                    , leftRightPrunedRootIndexList'
-                                    , leftRightPrunedParentRootIndexList'
-                                    , leftRightOriginalConnectionOfPrunedList'
-                                    ) =
-                                    L.unzip6 $
-                                        filter ((== True) . fst6) $
-                                            L.zip6
-                                                baseGraphDifferentList
-                                                leftRightOptimizedSplitGraphCostList
-                                                leftRightGraphRootIndexList
-                                                leftRightPrunedRootIndexList
-                                                leftRightPrunedParentRootIndexList
-                                                leftRightOriginalConnectionOfPrunedList
+                                let ( _
+                                        , leftRightOptimizedSplitGraphCostList'
+                                        , _
+                                        , leftRightPrunedRootIndexList'
+                                        , leftRightPrunedParentRootIndexList'
+                                        , leftRightOriginalConnectionOfPrunedList'
+                                        ) =
+                                        L.unzip6 $
+                                            filter ((== True) . fst6) $
+                                                L.zip6
+                                                    baseGraphDifferentList
+                                                    leftRightOptimizedSplitGraphCostList
+                                                    leftRightGraphRootIndexList
+                                                    leftRightPrunedRootIndexList
+                                                    leftRightPrunedParentRootIndexList
+                                                    leftRightOriginalConnectionOfPrunedList
+                               
+                                -- re-add pruned component to base component left-right and right-left
+                                -- need curent best cost
+                                let curBetterCost = min (snd5 leftGraph) (snd5 rightGraph)
 
-                            let ( _
-                                    , rightLeftOptimizedSplitGraphCostList'
-                                    , _
-                                    , rightLeftPrunedRootIndexList'
-                                    , rightLeftPrunedParentRootIndexList'
-                                    , rightLeftOriginalConnectionOfPrunedList'
-                                    ) =
-                                    L.unzip6 $
-                                        filter ((== True) . fst6) $
-                                            L.zip6
-                                                baseGraphDifferentList
-                                                rightLeftOptimizedSplitGraphCostList
-                                                rightLeftGraphRootIndexList
-                                                rightLeftPrunedRootIndexList
-                                                rightLeftPrunedParentRootIndexList
-                                                rightLeftOriginalConnectionOfPrunedList
+                                -- get network penalty factors to pass on
+                                leftPenalty <- getNetworkPentaltyFactor inGS inData (snd5 leftGraph) leftGraph
+                                rightPenalty <- getNetworkPentaltyFactor inGS inData (snd5 rightGraph) rightGraph        
+                                let networkCostFactor = min leftPenalty rightPenalty
 
-                            -- re-add pruned component to base component left-right and right-left
-                            -- need curent best cost
-                            let curBetterCost = min (snd5 leftGraph) (snd5 rightGraph)
+                                -- left and right root indices should be the same
+                                leftRightFusedGraphList ←
+                                    recombineComponents
+                                        swapParams
+                                        inGS
+                                        inData
+                                        curBetterCost
+                                        curBestScore
+                                        leftRightOptimizedSplitGraphCostList'
+                                        leftRightPrunedRootIndexList'
+                                        leftRightPrunedParentRootIndexList'
+                                        leftRightOriginalConnectionOfPrunedList'
+                                        leftRootIndex
+                                        networkCostFactor
+                                        leftOriginalEdgeList
 
-                            -- get network penalty factors to pass on
-                            leftPenalty <- getNetworkPentaltyFactor inGS inData (snd5 leftGraph) leftGraph
-                            rightPenalty <- getNetworkPentaltyFactor inGS inData (snd5 rightGraph) rightGraph        
-                            let networkCostFactor = min leftPenalty rightPenalty
+                                rightLeftFusedGraphList ← if not reciprocal then pure []
+                                                          else do
+                                                                exchangeRightPar ← getParallelChunkMap
+                                                                let exchangeRightResult = exchangeRightPar exchangeAction (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)
+                                                                let ( rightBaseLeftPrunedSplitGraphList
+                                                                        , rightLeftGraphRootIndexList
+                                                                        , rightLeftPrunedParentRootIndexList
+                                                                        , rightLeftPrunedRootIndexList
+                                                                        , rightLeftOriginalConnectionOfPrunedList
+                                                                        ) =
+                                                                        L.unzip5 exchangeRightResult
 
-                            -- left and right root indices should be the same
-                            leftRightFusedGraphList ←
-                                recombineComponents
-                                    swapParams
-                                    inGS
-                                    inData
-                                    curBetterCost
-                                    curBestScore
-                                    leftRightOptimizedSplitGraphCostList'
-                                    leftRightPrunedRootIndexList'
-                                    leftRightPrunedParentRootIndexList'
-                                    leftRightOriginalConnectionOfPrunedList'
-                                    leftRootIndex
-                                    networkCostFactor
-                                    leftOriginalEdgeList
-                            rightLeftFusedGraphList ←
-                                recombineComponents
-                                    swapParams
-                                    inGS
-                                    inData
-                                    curBetterCost
-                                    curBestScore
-                                    rightLeftOptimizedSplitGraphCostList'
-                                    rightLeftPrunedRootIndexList'
-                                    rightLeftPrunedParentRootIndexList'
-                                    rightLeftOriginalConnectionOfPrunedList'
-                                    rightRootIndex
-                                    networkCostFactor
-                                    rightOriginalEdgeList
+                                                                reoptimizeRightPar ← getParallelChunkTraverse
+                                                                rightLeftOptimizedSplitGraphCostList ←
+                                                                    reoptimizeRightPar
+                                                                        reoptimizeAction
+                                                                        (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList)
+                                                                
+                                                                
+                                                                let ( _
+                                                                        , rightLeftOptimizedSplitGraphCostList'
+                                                                        , _
+                                                                        , rightLeftPrunedRootIndexList'
+                                                                        , rightLeftPrunedParentRootIndexList'
+                                                                        , rightLeftOriginalConnectionOfPrunedList'
+                                                                        ) =
+                                                                        L.unzip6 $
+                                                                            filter ((== True) . fst6) $
+                                                                                L.zip6
+                                                                                    baseGraphDifferentList
+                                                                                    rightLeftOptimizedSplitGraphCostList
+                                                                                    rightLeftGraphRootIndexList
+                                                                                    rightLeftPrunedRootIndexList
+                                                                                    rightLeftPrunedParentRootIndexList
+                                                                                    rightLeftOriginalConnectionOfPrunedList
+                                                                recombineComponents
+                                                                    swapParams
+                                                                    inGS
+                                                                    inData
+                                                                    curBetterCost
+                                                                    curBestScore
+                                                                    rightLeftOptimizedSplitGraphCostList'
+                                                                    rightLeftPrunedRootIndexList'
+                                                                    rightLeftPrunedParentRootIndexList'
+                                                                    rightLeftOriginalConnectionOfPrunedList'
+                                                                    rightRootIndex
+                                                                    networkCostFactor
+                                                                    rightOriginalEdgeList
 
-                            -- get "best" fused graphs from leftRight and rightLeft
-                            let bestFusedGraphs =
-                                    if reciprocal
-                                        then GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (leftRightFusedGraphList <> rightLeftFusedGraphList)
-                                        else GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) leftRightFusedGraphList
-                            -- \| get fuse graphs via swap function
+                                -- get "best" fused graphs from leftRight and rightLeft
+                                let bestFusedGraphs = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (leftRightFusedGraphList <> rightLeftFusedGraphList)
 
-                            if null leftValidTupleList
-                                then return []
-                                else return bestFusedGraphs
+                                return bestFusedGraphs
     where
         first4of6 (a, b, c, d, _, _) = (a, b, c, d)
 
@@ -549,23 +505,13 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                         ∷ (DecoratedGraph, SimpleGraph, VertexCost, LG.Node, LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)
                         → PhyG [ReducedPhylogeneticGraph]
                     action = S.rejoinGraphTuple swapParams inGS inData overallBestCost [] inSimAnnealParams
+                    -- alternate -- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
                 in  do
                         -- do "all additions" -
-
-                        {- Tried to add more parallel
-                        --action :: (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) -> PhyG [ReducedPhylogeneticGraph]
-                        let action = S.rejoinGraphTuplePhyG swapParams inGS inData overallBestCost [] inSimAnnealParams
-                        pTraverse <- getParallelChunkTraverse
-                        recombinedGraphList' <- pTraverse action graphDataList
-                        let recombinedGraphList = concat recombinedGraphList'
-                        -}
-
-                        -- TODO
-                        -- recombinedGraphList = concat $ PU.seqParMap PU.myStrategy  (S.rejoinGraphTuple swapType inGS inData numToKeep inMaxMoveEdgeDist steepest curBestCost [] doIA charInfoVV inSimAnnealParams graphDataList
                         pTraverse ← getParallelChunkTraverse
                         recombinedGraphList' ← pTraverse action graphDataList
                         let recombinedGraphList = concat recombinedGraphList'
-                        -- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
+                        
 
                         -- this based on heuristic deltas
                         let bestFuseCost =
@@ -727,27 +673,6 @@ getCompatibleNonIdenticalSplits numLeaves leftRightMatch leftPrunedGraphBV
     | popCount leftPrunedGraphBV > numLeaves - 3 = False
     | otherwise = True
 
-
-{-
-   -- check for pruned components non-identical
-
-   let -- (leftNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((thd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (thd4 leftSplitTuple))]
-       -- leftPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
-       -- (rightNodesInPrunedGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((thd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (thd4 rightSplitTuple))]
-       -- rightPrunedBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
-
-       -- (leftNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 leftSplitTuple) [((snd4 leftSplitTuple), fromJust $ LG.lab (fst4 leftSplitTuple) (snd4 leftSplitTuple))]
-       -- leftBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  leftNodesInPrunedGraph
-       -- (rightNodesInBaseGraph, _) = LG.nodesAndEdgesAfter (fst4 rightSplitTuple) [((snd4 rightSplitTuple), fromJust $ LG.lab (fst4 rightSplitTuple) (snd4 rightSplitTuple))]
-       -- rightBaseBVNodeList = L.sort $ filter ((> 1) . popCount) $ fmap (bvLabel . snd)  rightNodesInPrunedGraph
-
-   in
-   --if leftPrunedBVNodeList == rightPrunedBVNodeList then False
-   -- else if leftBaseBVNodeList == rightBaseBVNodeList then False
-   --else True
-   True
-   -}
-
 {- | exchangePrunedGraphs creates a new "splitGraph" containing both first (base) and second (pruned) graph components
 both components need to have HTU and edges reindexed to be in sync, oringal edge terminal node is also reindexed and returned for limit readd distance
 -}
@@ -824,13 +749,7 @@ exchangePrunedGraphs numLeaves (firstGraphTuple, secondGraphTuple, breakEdgeNode
                                                         <> " of second graph\n"
                                                         <> (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph)
                                                     )
-                                            else {-
-                                                 } trace ("Nodes: " <> (show (firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex)) <> " First Graph\n:" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph firstSplitGraph)
-                                                     <> "\nSecond Graph\n:" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph secondSplitGraph)
-                                                     <> "\nNew split graph\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph newSplitGraph)
-                                                     )
-                                                  -}
-                                                (newSplitGraph, firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex, reindexedBreakEdgeNode)
+                                            else (newSplitGraph, firstGraphRootIndex, prunedParentRootIndex, prunedRootIndex, reindexedBreakEdgeNode)
 
 
 {- | reindexSubGraph reindexes the non-leaf nodes and edges of a subgraph to allow topological combination of subgraphs
