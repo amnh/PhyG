@@ -474,12 +474,15 @@ removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInf
 -- | removeConstantCharsPrealigned takes a single 'character' and if proper type removes if all values are the same
 -- could be done if character has max lenght of 0 as well.
 -- packed types already filtered when created
+-- does not recode unless nonAdditive
 removeConstantCharsPrealigned :: V.Vector CharacterData -> CharInfo -> V.Vector CharacterData
 removeConstantCharsPrealigned singleChar charInfo =
     let inCharType = charType charInfo
+        isNonAdd = (wideTCM charInfo == MR.discreteMetric) || (hugeTCM charInfo == MR.discreteMetric) || ("nonAdd" == (fst (getRecodingType (costMatrix charInfo))))
     in
     -- dynamic characters don't do this
     if inCharType `notElem` prealignedCharacterTypes then singleChar
+    else if not isNonAdd then singleChar
     else 
         let variableVect = getVariableChars inCharType singleChar
         in

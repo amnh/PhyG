@@ -663,10 +663,10 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
 
                         -- remove constants from new prealigned  this may be redundant since bit packing also removes constants
                         -- error here in case where there is missing seqeunce data for all but one input block for a character
-                        -- newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+                        newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
 
                         -- bit pack any new non-additive characters
-                        newProcessedData' ← BP.packNonAdditiveData inGS (nameV, nameBVV, V.fromList newBlockDataV) -- newProcessedData
+                        newProcessedData' ← BP.packNonAdditiveData inGS  newProcessedData -- (nameV, nameBVV, V.fromList newBlockDataV) -- newProcessedData
 
                         -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
                         -- issues if no variation in block reducing length to zero so need leave "prealigned" if so
@@ -710,10 +710,10 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                                     else do
                                         -- remove constants from new prealigned-- this may be redundant since bit packing also removes constants
                                         -- error here in case where there is missing seqeunce data for all but one input block for a character
-                                        -- newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+                                        newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
 
                                         -- bit pack any new non-additive characters
-                                        newProcessedData' ← BP.packNonAdditiveData inGS (nameV, nameBVV, newBlockDataV) -- newProcessedData
+                                        newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, newBlockDataV) -- newProcessedData
 
                                         pure newProcessedData'
                         else do
