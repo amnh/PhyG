@@ -1560,9 +1560,14 @@ recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
 
         -- create vector of single characters with vector of taxon data of sngle character each
         singleCharVectList = V.toList $ fmap (U.getSingleCharacter charDataVV) (V.fromList [0.. numChars - 1])
+
+        packAction :: (V.Vector CharacterData, CharInfo) -> PhyG ([[CharacterData]], [CharInfo])
+        packAction = packNonAddPair inGS 
     in do
         -- bit pack the nonadd
-        result <- mapM (packNonAddPair inGS) (zip singleCharVectList (V.toList charInfoV))
+        -- result <- mapM (packNonAddPair inGS) (zip singleCharVectList (V.toList charInfoV))
+        packPar <- getParallelChunkTraverse
+        result <- packPar packAction (zip singleCharVectList (V.toList charInfoV))
         let (recodedSingleVecList, newCharInfoLL) = unzip result -- $ zipWith (packNonAdd inGS) singleCharVectList (V.toList charInfoV)
 
         -- recreate BlockData, tacxon dominant structure

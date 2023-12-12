@@ -196,7 +196,7 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
                         if null swappedGraphs
                             then do pure ([inGraph], counter)
                             else do pure (swappedGraphs, counter)
-                    else -- simulated annealing/drifting acceptance does a steepest with SA acceptance
+                else -- simulated annealing/drifting acceptance does a steepest with SA acceptance
                     -- then a swap steepest and all on annealed graph
                     -- same at this level method (SA, Drift) choice occurs at lower level
 
