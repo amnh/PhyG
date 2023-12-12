@@ -402,36 +402,25 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
     -- trace ("UGCC: " <> (show (optimalityCriterion inGS, rootComplexity inGS))) $
     let traverseAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
         traverseAction = multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing
-    in  if optimalityCriterion inGS == Parsimony
+    in  if optimalityCriterion inGS /= NCM
             then do
                 pure inGraphList
-            else
-                if optimalityCriterion inGS `elem` [SI, MAPA]
-                    then do
-                        logWith LogInfo ("\tFinalizing graph cost with root priors" <> "\n")
-                        pure $ updatePhylogeneticGraphCostList (rootComplexity inGS) inGraphList
-                    else
-                        if optimalityCriterion inGS `elem` [NCM]
-                            then do
+            else -- NCM re-check graph cost (not root or model) due to bit packing 
+               do
                                 updatedGraphList ←
                                     if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData))
                                         then -- trace ("\t\tCannot update cost with original data--skipping")
-                                            pure $ updatePhylogeneticGraphCostList  (rootComplexity inGS) inGraphList
+                                            pure inGraphList
                                         else do
                                             -- let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
                                             -- in
                                             traversePar ← getParallelChunkTraverse
                                             newGraphList ← traversePar traverseAction (fmap fst5 inGraphList)
-                                            pure $ updatePhylogeneticGraphCostList  (rootComplexity inGS) newGraphList
+                                            pure newGraphList
 
                                 logWith LogInfo ("\tFinalizing graph cost (updating NCM)" <> "\n")
                                 pure updatedGraphList
-                            else
-                                if optimalityCriterion inGS == PMDL
-                                    then -- trace ("\tFinalizing graph cost with model and root complexities")
-                                        pure $ updatePhylogeneticGraphCostList ( (rootComplexity inGS) + (modelComplexity inGS)) inGraphList
-                                    else error ("Optimality criterion not recognized/implemented: " <> (show $ optimalityCriterion inGS))
-
+                           
 
 {- |
 'updatePhylogeneticGraphCostList' is a list wrapper for 'updatePhylogeneticGraphCost'.
