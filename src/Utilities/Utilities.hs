@@ -129,7 +129,7 @@ collapseReducedGraph (inSimple, inC, inDecorated, inD, inF) =
     (newSimpleGraph, inC, newDecGraph, inD, inF)
 
 -- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
--- number of network nodes-assumes for now--single component gaph not forest
+-- number of network nodes-assumes for now--single component graph not forest
 -- first in pair is softwired complexity, second hardwired complexity
 calculateGraphComplexity :: ProcessedData -> IL.InfList (VertexCost, VertexCost)
 calculateGraphComplexity (nameVect, _, _) =
@@ -156,7 +156,12 @@ getGraphComplexity numLeaves numRoots numNetNodes =
     -- maybe softwired is numDisplatTrees * harWired since have those edges in input
     (baseTreeComplexity * numDisplayTrees, hardwiredAddComplexity)
 
--- | calculateNCMRootCost calcuates the contant fact of SUM -log 1/r over all charctaers
+-- | calculateMAPARootCost-- for  now used NCM--but better to reflect empirical Pi (frequency) values
+-- won't affect the search choice since a constant factor 
+calculateMAPARootCost :: ProcessedData -> VertexCost
+calculateMAPARootCost  = calculateNCMRootCost
+
+-- | calculateNCMRootCost calcuates the contant fact of SUM -log 1/r over all characters
 -- approximate for packed data (based on alphabet size for packed)
 calculateNCMRootCost :: ProcessedData -> VertexCost
 calculateNCMRootCost (_, _, blockDataV) =

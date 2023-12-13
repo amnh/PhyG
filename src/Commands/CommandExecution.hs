@@ -522,8 +522,9 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                             lRootComplexity
                                                                 | localCriterion == Just Parsimony = Just 0.0
                                                                 | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculatePMDLRootCost processedData
-                                                                | localCriterion `elem` [Just MAPA] = Just $ rootComplexity globalSettings
+                                                                | localCriterion `elem` [Just MAPA] = Just $ U.calculateMAPARootCost processedData
                                                                 | localCriterion == Just NCM =
+                                                                    -- this for reorganized data (bit packed non-additive really)
                                                                     if origProcessedData /= emptyProcessedData
                                                                         then Just $ U.calculateNCMRootCost origProcessedData
                                                                         else Just $ U.calculateNCMRootCost processedData
@@ -992,8 +993,9 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                             lRootComplexity
                                                                                                 | localCriterion == Just Parsimony = Just 0.0
                                                                                                 | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculatePMDLRootCost processedData
-                                                                                                | localCriterion `elem` [Just MAPA] = Just $ rootComplexity globalSettings
+                                                                                                | localCriterion `elem` [Just MAPA] = Just $ U.calculateMAPARootCost processedData
                                                                                                 | localCriterion == Just NCM =
+                                                                                                    -- for bit-packed ncm
                                                                                                     if origProcessedData /= emptyProcessedData
                                                                                                         then Just $ U.calculateNCMRootCost origProcessedData
                                                                                                         else Just $ U.calculateNCMRootCost processedData
@@ -1236,13 +1238,19 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                         | otherwise =
                                                                                                                                                                                                             errorWithoutStackTrace ("Error in 'set' command. RootCost  '" <> head optionList <> "' is not 'NoRootCost', 'MAPA', 'NCM', 'PMDL', or 'SI'")
 
-                                                                                                                                                                                                let lRootComplexity
-                                                                                                                                                                                                        | localMethod == NoRootCost = 0.0
-                                                                                                                                                                                                        | localMethod `elem` [MAPARoot, NCMRoot, PMDLRoot, SIRoot ] = U.calculatePMDLRootCost processedData
-                                                                                                                                                                                                        | otherwise = error ("Root cost method not recognized: " <> show localMethod)
+                                                                                                                                                                                                    lRootComplexity
+                                                                                                                                                                                                        | localMethod == NoRootCost = Just 0.0
+                                                                                                                                                                                                        | localMethod `elem` [PMDLRoot, SIRoot] = Just $ U.calculatePMDLRootCost processedData
+                                                                                                                                                                                                        | localMethod `elem` [MAPARoot] = Just $ U.calculateMAPARootCost processedData
+                                                                                                                                                                                                        | localMethod == NCMRoot =
+                                                                                                                                                                                                            -- this for reorganized data (bit packed non-additive really)
+                                                                                                                                                                                                            if origProcessedData /= emptyProcessedData
+                                                                                                                                                                                                                then Just $ U.calculateNCMRootCost origProcessedData
+                                                                                                                                                                                                                else Just $ U.calculateNCMRootCost processedData
+                                                                                                                                                                                                        | otherwise = Nothing
 
-                                                                                                                                                                                                logWith LogInfo ("RootCost set to " <> show localMethod <> " " <> show lRootComplexity <> " bits" <> "\n")
-                                                                                                                                                                                                pure (globalSettings{rootCost = localMethod, rootComplexity = lRootComplexity}, processedData, inSeedList)
+                                                                                                                                                                                                logWith LogInfo ("RootCost set to " <> show localMethod <> " " <> (show $ fromJust lRootComplexity) <> "\n")
+                                                                                                                                                                                                pure (globalSettings{rootCost = localMethod, rootComplexity = fromJust lRootComplexity}, processedData, inSeedList)
                                                                                                                                                                                             else
                                                                                                                                                                                                 if head commandList == "seed"
                                                                                                                                                                                                     then
