@@ -54,6 +54,7 @@ Allow-Newer:
     th-abstraction,
     time
 
+-- Required to use the GHC-bound (installed) version
 Constraints:
     base installed,
     ghc installed,
@@ -62,12 +63,15 @@ Constraints:
     integer-gmp installed,
     template-haskell installed
 
+-- Apply specific package flags
 Constraints:
---    hashtables +debug,
---    hashtables -unsafe-tricks,
-    hashtables +bounds-checking,
+    bitvec +simd,
+    directory +os-string,
+    hashtables -bounds-checking -debug -portable +unsafe-tricks,
     optparse-applicative +process,
-    tasty +unix
+    tasty +unix,
+    text -pure-has +simdutf,
+    vector -BoundsChecks -InternalChecks -UnsafeChecks -Wall,
 
 Preferences:
     aeson >= 2.1.0.0,

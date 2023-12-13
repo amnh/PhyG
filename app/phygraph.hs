@@ -384,10 +384,12 @@ performSearch initialSeed inputFilePath = do
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
 
     -- get network numbers for graph complexities (PMDL, SI)
-    -- pairFunction :: forall {a}. (a, a) -> a
-    let (netWorkVertexList, pairFunction, units) = if optimalityCriterion initialGlobalSettings `notElem` [PMDL, SI] then (replicate (length finalGraphList') 0, fst, "") 
-                                            else if graphType initialGlobalSettings == SoftWired then (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', fst, " bits")
-                                            else (fmap length $ fmap fth4 $ fmap LG.splitVertexList $ fmap fst5 finalGraphList', snd, " bits")
+    let grabber = length . fth4 . LG.splitVertexList . fst5 <$> finalGraphList'
+    let pairFunction :: forall {a}. (a, a) -> a
+        (netWorkVertexList, pairFunction, units)
+            | optimalityCriterion initialGlobalSettings `notElem` [PMDL, SI] = (replicate (length finalGraphList') 0, fst, "") 
+            | graphType initialGlobalSettings == SoftWired = (grabber, fst, " bits")
+            | otherwise = (grabber, snd, " bits")
 
     -- final results reporting to stderr
     logWith LogInfo $
