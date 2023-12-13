@@ -595,3 +595,7 @@
 459) Fix double processing stuff in commandExecution
 
 460) fix/ disable static approx for wide/huge
+
+471) split post order (cost only) and preorder to help with strict calls to
+	multi traverse?  Maybe check on profiling to see if its a drag
+
