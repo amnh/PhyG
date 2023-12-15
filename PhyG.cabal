@@ -82,7 +82,7 @@ Flag Use-LLVM
 
 Flag Memoize-Via-ConcurrentHashtable
    Description: Memoized hash-table uses the "Concurrent Hashtable" package's implementation
-   Default:     False
+   Default:     True
    Manual:      True
 
 Flag Memoize-Via-IORef
@@ -97,8 +97,8 @@ Flag Memoize-Via-ManualLock
 
 Flag Memoize-Via-ReadWriteLock
    Description: Memoized hash-table uses the "ReadWriteLock" implementation
-   Default:     True
-   Manual:      False
+   Default:     False
+   Manual:      True
 
 Flag Memoize-Via-Semaphore
    Description: Memoized hash-table uses the "Semaphore" implementation
@@ -171,9 +171,10 @@ Common build-defaults
     CPP-Options:
       -DENFORCE_TIMESTAMP
 
-  If flag(Memoize-Via-ConcurrentHashtable)
+  -- Select the memoized hash-table implmentation to be used!
+  If flag(Memoize-Via-ReadWriteLock)
     CPP-Options:
-      -DMemoize_Via_ConcurrentHashtable
+      -DMemoize_Via_ReadWriteLock
 
   Elif flag(Memoize-Via-IORef)
     CPP-Options:
@@ -191,10 +192,10 @@ Common build-defaults
     CPP-Options:
       -DMemoize_Via_TVar
 
-  -- The default flag goes last to give others preference
-  Elif flag(Memoize-Via-ReadWriteLock)
+  -- The flag of the default implementation goes last to give others preference.
+  Else flag(Memoize-Via-ConcurrentHashtable)
     CPP-Options:
-      -DMemoize_Via_ReadWriteLock
+      -DMemoize_Via_ConcurrentHashtable
 
   -- We want these Language Extensions enabled in *all* modules by default.      
   Default-Extensions:
