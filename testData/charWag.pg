@@ -1,9 +1,10 @@
 --read(fasta:"metazoa-aa-1.fas")
---read(fasta:"chel.fas")
+read(fasta:"chel.fas")
 --read(fasta:"chel-16.fas")
-set(criterion:PMDL)
-set(modelComplexity:10000)
-set(graphtype:softwired)
+--set(criterion:PMDL)
+--set(graphfactor:nopenalty)
+--set(modelComplexity:10000)
+--set(graphtype:softwired)
 --read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
 --read(prefasta:"chel-prealigned.fas")
@@ -12,15 +13,15 @@ set(graphtype:softwired)
 --read(prefasta:"chel-prealigned.fas", tcm:(2,1))
 
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
-read(fasta:"chel.fas", tcm:"bitDNA.tcm")
-read(fasta:"chel.fas", tcm:"sg2t1.mat")
+--read(fasta:"chel.fas", tcm:"bitDNA.tcm")
+--read(fasta:"chel.fas", tcm:"sg2t1.mat")
 
 --read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)
 
 --read(fasta:"chel-16.fas", tcm:"sg2t1.mat")
 --read("chel.ss")
 --read("chel-ques.ss")
---read("chel-3.ss")
+read("chel-3.ss")
 --transform(weight:0.01, name:"chel.fas#0*")
 
 set(seed:1701287416)
@@ -87,9 +88,9 @@ build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 
 
-select(best)
+--select(best)
 
-refine(netadd, atrandom, maxnetedges:5)
+--refine(netadd, atrandom, maxnetedges:5)
 
 
 swap()
