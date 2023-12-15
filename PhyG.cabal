@@ -193,7 +193,13 @@ Common build-defaults
       -DMemoize_Via_TVar
 
   -- The flag of the default implementation goes last to give others preference.
-  Else -- flag(Memoize-Via-ConcurrentHashtable)
+  Elif flag(Memoize-Via-ConcurrentHashtable)
+    CPP-Options:
+      -DMemoize_Via_ConcurrentHashtable
+
+  -- If no flags are set, meaning that the default flag was manually disabled,
+  -- then proceed with the default implementation anyways!
+  Else
     CPP-Options:
       -DMemoize_Via_ConcurrentHashtable
 
@@ -204,6 +210,7 @@ Common build-defaults
     ImportQualifiedPost
     LambdaCase
     NoGeneralizedNewtypeDeriving
+    RoleAnnotations
     UnicodeSyntax
 
   Default-Language:
