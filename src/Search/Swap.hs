@@ -171,7 +171,8 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
                 action ∷ VertexCost -> Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
                 action = swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves  -- inGraphNetPenaltyFactor
             in do
-                inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
+                --inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
+                inGraphNetPenalty <- T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraph inGraph)
                 let inGraphNetPenaltyFactor = inGraphNetPenalty / (snd5 inGraph)
 
                 if inSimAnnealParams == Nothing
