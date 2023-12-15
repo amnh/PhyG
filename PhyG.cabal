@@ -351,6 +351,7 @@ Executable phyg
     cpuinfo,
     deepseq,
     directory,
+    fingertree,
     file-embed,
     filepath >= 1.4.100,
     fingertree,
