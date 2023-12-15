@@ -18,10 +18,17 @@ import Data.Functor (($>))
 import Data.HashTable
 import Data.Hashable
 import Data.IORef
-import GHC.Conc.Sync
 import System.IO
 import System.IO.Unsafe
 import Prelude hiding (lookup)
+
+
+{- |
+The initalization size for a new memoized TCM.
+-}
+initializationSize ∷ Int
+initializationSize = 2 ^ (10 ∷ Word) -- Made this smaller to reduce startup time.
+--initializationSize = 2 ^ (16 ∷ Word)
 
 
 {- |
@@ -30,9 +37,8 @@ import Prelude hiding (lookup)
 {-# NOINLINE memoize #-}
 memoize ∷ ∀ a b m. (Hashable a, MonadIO m, NFData b) ⇒ (a → b) → m (a → b)
 memoize f = liftIO $ do
-    let initialSize = 2 ^ (16 ∷ Word)
 
-    !htRef ← (newWithDefaults initialSize ∷ IO (HashTable a b)) >>= newIORef
+    !htRef ← (newWithDefaults initializationSize ∷ IO (HashTable a b)) >>= newIORef
     pure $ \k → unsafeDupablePerformIO $ do
         ht ← readIORef htRef
         result ← ht `lookup` k

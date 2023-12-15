@@ -14,8 +14,6 @@ behavior may result.
 -}
 module Data.Hashable.Memoize.ViaReadWriteLock (
     memoize,
-    memoize2,
-    memoize3,
 ) where
 
 import Control.Concurrent.ReadWriteVar qualified as RWLock
@@ -61,7 +59,7 @@ manner.
 >>> fibM 10000
 -}
 {-# NOINLINE memoize #-}
-memoize ∷ ∀ a b. (Eq a, Hashable a, NFData b) ⇒ (a → b) → a → b
+memoize ∷ ∀ a b. (Hashable a, NFData b) ⇒ (a → b) → a → b
 memoize f = unsafePerformIO $ do
     let initialSize = 2 ^ (16 ∷ Word)
 
@@ -83,56 +81,3 @@ memoize f = unsafePerformIO $ do
                 {-# SCC memoize_Lock_PUT #-}
                 let v = force $ f k
                 in  RWLock.modify tableRef $ \t → insert t k v $> (t, v)
-
-
-{- |
-A memoizing combinator similar to 'memoize' except that it that acts on a
-function of two inputs rather than one.
--}
-{-# NOINLINE memoize2 #-}
-memoize2 ∷ (Hashable a, Hashable b, NFData c) ⇒ (a → b → c) → a → b → c
-memoize2 f =
-    let f' = memoize (uncurry f)
-    in  curry f'
-
-
-{- |
-A memoizing combinator similar to 'memoize' except that it that acts on a
-function of two inputs rather than one.
--}
-{-# NOINLINE memoize3 #-}
-memoize3
-    ∷ ( Hashable a
-      , Hashable b
-      , Hashable c
-      , NFData d
-      )
-    ⇒ (a → b → c → d)
-    → a
-    → b
-    → c
-    → d
-memoize3 f =
-    let curry3 ∷ ((a, b, c) → t) → a → b → c → t
-        curry3 g x y z = g (x, y, z)
-
-        uncurry3 ∷ (t1 → t2 → t3 → t4) → (t1, t2, t3) → t4
-        uncurry3 g (x, y, z) = g x y z
-
-        f' = memoize (uncurry3 f)
-    in  curry3 f'
-
-{-
--- These are included for haddock generation
-fib 0 = 0
-fib 1 = 1
-fib x = fib (x-1) + fib (x-2)
-
-fibM :: Integer -> Integer
-fibM = f
-  where
-    f 0 = 0
-    f 1 = 1
-    f x = g (x-1) + g (x-2)
-    g = memoize f
--}

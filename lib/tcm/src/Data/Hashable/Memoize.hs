@@ -64,7 +64,7 @@ manner.
 >>> fibM 10000
 -}
 {-# NOINLINE memoize #-}
-memoize ∷ ∀ a b m. (Eq a, Hashable a, MonadIO m, NFData b) ⇒ (a → b) → m (a → b)
+memoize ∷ ∀ a b m. (Hashable a, MonadIO m, NFData b) ⇒ (a → b) → m (a → b)
 memoize = Memo.memoize
 
 
