@@ -346,6 +346,7 @@ Executable phyg
     directory,
     file-embed,
     filepath >= 1.4.100,
+    fingertree,
     fgl >=5.8,
     foldl,
     gitrev,

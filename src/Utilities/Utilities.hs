@@ -178,7 +178,7 @@ getGraphComplexity numLeaves numRoots numBlocks numNetNodes =
         marginalDisplayComplexity = graphDisplayShannonBits - graphShannonBits 
 
         -- cost of swithing (speciying) 1 bit per netNode then minimum of blocks as duspolay tree number since only have a few block usually
-        softWiredFactor = displayTreeSwitchingComplexity + ((min (2 ** fromIntegral numNetNodes) numBlocks) * marginalDisplayComplexity)
+        softWiredFactor = displayTreeSwitchingComplexity + ((min (2 ** fromIntegral numNetNodes) (fromIntegral numBlocks)) * marginalDisplayComplexity)
     in
     
     (graphShannonBits + softWiredFactor, graphShannonBits)
