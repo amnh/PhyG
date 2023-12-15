@@ -636,7 +636,7 @@ emptySearchData  = SearchData
         , commentString   = []
         , duration        = 0
         }
-
+        
 -- | emptyGlobalSettings for early use in parition charcter.  Can't have full due to data dependency of outpogroup name
 emptyGlobalSettings :: GlobalSettings
 emptyGlobalSettings = GlobalSettings { outgroupIndex = 0
