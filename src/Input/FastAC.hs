@@ -19,8 +19,8 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
 import Data.Bits
 import Data.Char qualified as C
-import Data.Hashable
 import Data.Foldable (fold)
+import Data.Hashable
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.NonEmpty qualified as NE
@@ -32,6 +32,7 @@ import Data.TCM.Dense qualified as TCMD
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
+import Debug.Trace
 import GeneralUtilities
 import Input.DataTransformation qualified as DT
 import PHANE.Evaluation
@@ -41,7 +42,6 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 
-import Debug.Trace
 
 {- | getAlphabet takse a list of short-text lists and returns alphabet as list of short-text
 although with multicharacter alphabets that contain '[' or ']' this would be a problem,
@@ -88,7 +88,10 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
         then error "Empty inData in getFastaCharInfo"
         else
             let nucleotideAlphabet = fmap ST.fromString ["A", "C", "G", "T", "U", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N", "?", "-"]
-                lAminoAcidAlphabet = fmap ST.fromString ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-", "?"]
+                lAminoAcidAlphabet =
+                    fmap
+                        ST.fromString
+                        ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-", "?"]
                 -- onlyInNucleotides = [ST.fromString "U"]
                 -- onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
                 sequenceData = getAlphabet [] $ foldMap snd inData
@@ -98,11 +101,13 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     | dataType == "aminoacid" {- trace ("File " <> dataName <> " is aminoacid data.") -} = AminoSeq
                     | dataType == "hugeseq" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
                     | dataType == "custom_alphabet" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
-                    | (sequenceData `L.intersect` nucleotideAlphabet == sequenceData {- trace ("Assuming file " <> dataName
-                                                                                     <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") -}) =
+                    | ( sequenceData `L.intersect` nucleotideAlphabet == sequenceData {- trace ("Assuming file " <> dataName
+                                                                                      <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") -}
+                      ) =
                         NucSeq
-                    | (sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData {- trace ("Assuming file " <> dataName
-                                                                                     <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") -}) =
+                    | ( sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData {- trace ("Assuming file " <> dataName
+                                                                                      <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") -}
+                      ) =
                         AminoSeq
                     | length sequenceData <= 8 {- trace ("File " <> dataName <> " is small alphabet data.") -} = SlimSeq
                     | length sequenceData <= 64 {- trace ("File " <> dataName <> " is wide alphabet data.") -} = WideSeq
@@ -169,11 +174,6 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
 
         tcmWeightFactor = thd3 localTCM
 
-        nilValuesTCM ∷ [[Word]]
-        nilValuesTCM = [[0,0],[0,0]]
-
-        nilTCM = snd $ TCM.fromRows nilValuesTCM
-
         alignedSeqType
             | not isPrealigned = seqType
             | seqType `elem` [NucSeq, SlimSeq] = AlignedSlim
@@ -181,66 +181,73 @@ commonFastCharInfo dataName isPrealigned localTCM seqType thisAlphabet =
             | seqType == HugeSeq = AlignedHuge
             | otherwise = error "Unrecognozed data type in getFastcCharInfo"
 
+        updateStandardInfo ∷ CharInfo → CharInfo
+        updateStandardInfo info =
+            info
+                { charType = alignedSeqType
+                , activity = True
+                , costMatrix = localCostMatrix
+                , name = T.pack (filter (/= ' ') dataName <> "#0")
+                , alphabet = thisAlphabet
+                , prealigned = isPrealigned
+                , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
+                }
+
+        updateSlimInfo ∷ CharInfo → CharInfo
+        updateSlimInfo info =
+            let dimension = force . fromIntegral $ V.length localCostMatrix
+                slimMetric = TCMD.generateDenseTransitionCostMatrix 0 dimension scmForSlim
+            in  info
+                    { weight = tcmWeightFactor
+                    , slimTCM = slimMetric
+                    }
+
+        updateWideInfo ∷ CharInfo → PhyG CharInfo
+        updateWideInfo info = do
+            (wideWeight, wideMemoTCM) ← getTCMMemo (thisAlphabet, localCostMatrixTransformed)
+            pure
+                info
+                    { weight = tcmWeightFactor * fromRational wideWeight
+                    , wideTCM = wideMemoTCM
+                    }
+
+        updateHugeInfo ∷ CharInfo → PhyG CharInfo
+        updateHugeInfo info = do
+            (hugeWeight, hugeMemoTCM) ← getTCMMemo (thisAlphabet, localCostMatrixTransformed)
+            pure
+                info
+                    { weight = tcmWeightFactor * fromRational hugeWeight
+                    , hugeTCM = hugeMemoTCM
+                    }
+
+        updateCharacterTypeInfo ∷ CharInfo → PhyG CharInfo
+        updateCharacterTypeInfo = case seqType of
+            NucSeq → pure . updateSlimInfo
+            SlimSeq → pure . updateSlimInfo
+            WideSeq → updateWideInfo
+            AminoSeq → updateWideInfo
+            HugeSeq → updateHugeInfo
+            val →
+                const . failWithPhase Parsing $
+                    "getFastaCharInfo: Failure proceesing the CharType: '" <> show val <> "'"
+
         notNullFromTCM f = not . null $ f localTCM
         noNeedToEmitWarning = notNullFromTCM fst3 || notNullFromTCM snd3
 
-        logMessage
-            | noNeedToEmitWarning = fold [ "Processing TCM data for file : ", dataName,  "\n" ]
-            | otherwise = fold
-                [ "Warning: no tcm file specified for use with fasta/c file : "
-                , dataName
-                , ". Using default, all 1 diagonal 0 cost matrix."
-                , "\n"
-                ]
-
-        getAllTCMs = 
-                let dimension = force . fromIntegral $ V.length localCostMatrix
-    
-                    -- this 2x2 so if some Show instances are called don't get error
-                    slimMetricNil = genDiscreteDenseOfDimension dimension
-    
-                    slimMetric = TCMD.generateDenseTransitionCostMatrix 0 dimension scmForSlim
-    
-                in  do  wideMetricNil <- metricRepresentation nilTCM
-                        hugeMetricNil <- metricRepresentation nilTCM
-                        let resultSlim = pure (1, slimMetric, wideMetricNil, hugeMetricNil)
-                        let resultWide = do
-                                (wideWeight, wideMetric) <- getTCMMemo (thisAlphabet, localCostMatrixTransformed)
-                                pure (wideWeight, slimMetricNil, wideMetric, hugeMetricNil)
-                      
-                        let resultHuge = do
-                                (hugeWeight, hugeMetric) <- getTCMMemo (thisAlphabet, localCostMatrixTransformed)
-                                pure (hugeWeight, slimMetricNil, wideMetricNil, hugeMetric)
-
-                        case seqType of
-                            NucSeq → resultSlim
-                            SlimSeq → resultSlim
-                            WideSeq → resultWide
-                            AminoSeq → resultWide
-                            HugeSeq → resultHuge
-                            _ → error $ "getFastaCharInfo: Failure proceesing the CharType: '" <> show seqType <> "'"
-
-
-    in  do  if noNeedToEmitWarning
-            then logWith LogInfo logMessage 
-            else logWith LogWarn logMessage
-            defInfo <- emptyCharInfo
-
-            (additionalWeight, localDenseCostMatrix, localWideTCM, localHugeTCM) <- getAllTCMs
-
-            pure $ defInfo
-                    { charType = alignedSeqType
-                    , activity = True
-                    , weight = tcmWeightFactor * fromRational additionalWeight
-                    , costMatrix = localCostMatrix
-                    , slimTCM = localDenseCostMatrix
-                    , wideTCM = localWideTCM
-                    , hugeTCM = localHugeTCM
-                    , name = T.pack (filter (/= ' ') dataName <> "#0")
-                    , alphabet = thisAlphabet
-                    , prealigned = isPrealigned
-                    , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
-                    }
+        logProcessingOfCharInfo ∷ PhyG ()
+        logProcessingOfCharInfo
+            | noNeedToEmitWarning = logWith LogInfo $ fold ["Processing TCM data for file : ", dataName, "\n"]
+            | otherwise =
+                logWith LogWarn $
+                    fold
+                        [ "Warning: no tcm file specified for use with fasta/c file : "
+                        , dataName
+                        , ". Using default, all 1 diagonal 0 cost matrix."
+                        , "\n"
+                        ]
+    in  do
+            logProcessingOfCharInfo
+            emptyCharInfo >>= updateCharacterTypeInfo . updateStandardInfo
 
 
 -- | getTCMMemo creates the memoized tcm for large alphabet sequences
@@ -255,7 +262,8 @@ getTCMMemo
     → m (Rational, MR.MetricRepresentation b)
 getTCMMemo (_inAlphabet, inMatrix) =
     let (coefficient, tcm) = force . TCM.fromRows $ S.getFullVects inMatrix
-    in  do  metric <- case tcmStructure $ TCM.diagnoseTcm tcm of
+    in  do
+            metric ← case tcmStructure $ TCM.diagnoseTcm tcm of
                 NonAdditive → pure discreteMetric
                 Additive → pure . linearNorm . toEnum $ TCM.size tcm
                 _ → {-# SCC "tcmStructure_OTHER" #-} metricRepresentation tcm
