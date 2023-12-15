@@ -193,7 +193,7 @@ Common build-defaults
       -DMemoize_Via_TVar
 
   -- The flag of the default implementation goes last to give others preference.
-  Else flag(Memoize-Via-ConcurrentHashtable)
+  Else -- flag(Memoize-Via-ConcurrentHashtable)
     CPP-Options:
       -DMemoize_Via_ConcurrentHashtable
 
@@ -402,6 +402,9 @@ Executable phyg
     Commands.ProcessCommands
     Commands.Transform
     Commands.Verify
+    Complexity.CodeStrings
+    Complexity.Constants
+    Complexity.Graphs
     Debug.Debug
     GraphOptimization.Medians
     GraphOptimization.PostOrderSoftWiredFunctions
