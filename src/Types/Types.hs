@@ -44,6 +44,7 @@ module Types.Types where
 import Bio.DynamicCharacter (OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
 import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Control.DeepSeq
+import Control.Monad.IO.Class (MonadIO)
 import PHANE.Evaluation
 import Control.Parallel.Strategies
 import Data.Alphabet
@@ -784,19 +785,27 @@ dummyEdge = EdgeInfo    { minLength = 0
                         }
 
 -- emptyCharInfo for convenience
-emptyCharInfo :: CharInfo
-emptyCharInfo = CharInfo { name       = "EmptyCharName"
-                         , charType   = NonAdd
-                         , activity   = True
-                         , weight     = 1.0
-                         , costMatrix = S.empty
-                         , slimTCM    = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList [[0,1],[1,0]] -- genDiscreteDenseOfDimension 2
-                         , wideTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
-                         , hugeTCM    = snd $ MR.metricRepresentation <$> TCM.fromRows [[0::Word, 0::Word],[0::Word, 0::Word]]
-                         , changeCost = 1.0
-                         , noChangeCost = 0.0
-                         , alphabet   = fromSymbols $ "0" :| [ "1" ]
-                         , prealigned = False
-                         , origInfo   = V.empty
-                         }
+emptyCharInfo :: MonadIO m => m CharInfo
+emptyCharInfo =
+    let minimalMatrix :: [[Int]]
+        minimalMatrix = [[0, 1],[1, 0]]
+        (_, tcm) = TCM.fromRows minimalMatrix
+        sTCM = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList minimalMatrix
+    in  do  wTCM <- MR.metricRepresentation tcm
+            hTCM <- MR.metricRepresentation tcm
+            pure CharInfo
+                { name       = "EmptyCharName"
+                , charType   = NonAdd
+                , activity   = True
+                , weight     = 1.0
+                , costMatrix = S.empty
+                , slimTCM    = sTCM
+                , wideTCM    = wTCM
+                , hugeTCM    = hTCM
+                , changeCost = 1.0
+                , noChangeCost = 0.0
+                , alphabet   = fromSymbols $ "0" :| [ "1" ]
+                , prealigned = False
+                , origInfo   = V.empty
+                }
 

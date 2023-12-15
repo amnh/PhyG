@@ -1,4 +1,5 @@
 module Benchmark.Internal (
+    makeMemoizedHashTableIO,
     measureMemoizedHashTable,
     measureMemoizedHashTableParallel,
 ) where
@@ -42,10 +43,13 @@ measureKey key =
     in  overlap3 8 σ x y z
 
 
+seed :: Int
+seed = 1029110096060097500
+
+
 createHashTable ∷ Word → Word → ((HashKey → HashVal) → HashKey → HashVal) → (Vector HashKey, HashKey → HashVal)
 createHashTable valueCount queryCount memoizer =
     let memo = memoizer measureKey
-        seed = 1029110096060097500
         rgen = mkStdGen seed
         note = V.replicateM (fromEnum queryCount) (randomKey)
         load = V.replicateM (fromEnum valueCount) (memo <$> randomKey)
@@ -56,7 +60,6 @@ createHashTable valueCount queryCount memoizer =
 createHashTableFour ∷ Word → Word → ((HashKey → HashVal) → HashKey → HashVal) → (Vector HashKey, Vector HashKey, Vector HashKey, Vector HashKey, HashKey → HashVal)
 createHashTableFour valueCount queryCount memoizer =
     let memo = memoizer measureKey
-        seed = 1029110096060097500
         rgen = mkStdGen seed
         key1 = V.replicateM (fromEnum queryCount) (randomKey)
         key2 = V.replicateM (fromEnum queryCount) (randomKey)
@@ -82,6 +85,17 @@ measureMemoizedHashTable
 measureMemoizedHashTable values queries memoizer name =
     let (keys, memo) = createHashTable values queries memoizer
     in  bench name $ nf (fmap memo) keys
+
+
+makeMemoizedHashTableIO
+  ∷ Word → Word → ((HashKey → HashVal) → IO (HashKey → HashVal)) → IO (Vector HashKey, HashKey → HashVal)
+makeMemoizedHashTableIO valueCount queryCount memoizer =
+    let rgen = mkStdGen seed
+        note = V.replicateM (fromEnum queryCount) (randomKey)
+    in  do memo <- memoizer measureKey
+           let load = V.replicateM (fromEnum valueCount) (memo <$> randomKey)
+           let (keys, vals) = liftA2 (,) note load `evalState` rgen
+           pure (keys, force vals `seq` memo)
 
 
 {- |

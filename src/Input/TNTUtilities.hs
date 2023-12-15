@@ -26,7 +26,7 @@ module Input.TNTUtilities (
     getTNTDataText,
 ) where
 
-import Control.Monad (when)
+import Control.Monad (replicateM, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
 import Data.Char
@@ -122,8 +122,8 @@ getTNTDataText inString fileName =
                                                                                         nameLengthList = zip (fmap fst sortedData) charNumberList
                                                                                         incorrectLengthList = filter ((/= numChar) . snd) nameLengthList
                                                                                         (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
-                                                                                        renamedDefaultCharInfo = renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
                                                                                     in  do
+                                                                                            renamedDefaultCharInfo <- renameTNTChars fileName 0 <$> (replicateM numChar defaultTNTCharInfo)
                                                                                             charInfoData ← getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
                                                                                             let checkInfo = length charInfoData == numChar
 
@@ -325,10 +325,10 @@ collectAmbiguities fileName inStringList =
 -- )
 
 -- | defaultTNTCharInfo default values for TNT characters
-defaultTNTCharInfo ∷ CharInfo
+defaultTNTCharInfo ∷ MonadIO m => m CharInfo
 defaultTNTCharInfo =
     let a = fromSymbols $ ST.fromString "0" :| [] -- fromSymbols []
-    in  emptyCharInfo
+        f defInfo = defInfo
             { charType = NonAdd
             , activity = True
             , weight = 1.0
@@ -336,11 +336,9 @@ defaultTNTCharInfo =
             , name = T.empty
             , alphabet = a
             , prealigned = True
-            , slimTCM = FAC.genDiscreteDenseOfDimension (0 ∷ Word)
-            , wideTCM = snd $ metricRepresentation <$> TCM.fromRows [[0 ∷ Word]]
-            , hugeTCM = snd $ metricRepresentation <$> TCM.fromRows [[0 ∷ Word]]
             , origInfo = V.singleton (T.empty, NonAdd, a)
-            }
+            } 
+    in  f <$> emptyCharInfo
 
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number

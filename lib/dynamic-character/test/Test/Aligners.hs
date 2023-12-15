@@ -75,13 +75,18 @@ metricChoices :: [(String, MetricRepresentation Word32)]
 metricChoices =
       [ ("Discrete Metric", discreteMetric)
       , ("1st Linear Norm", linearNorm len)
+{-
       , ("Sub-InDel (1:2)", subInDel 1 2  )
       , ("Sub-InDel (2:1)", subInDel 2 1  )
+-}
       ]
   where
     len = toEnum $ finiteBitSize nucleotideGap
 
+-- Comment out the monadic code
+{-
     subInDel :: Word -> Word -> MetricRepresentation Word32
     subInDel x g = metricRepresentation . snd . fromList $
         let indices = [ 0 .. length nucleotideAlphabet - 1 ]
         in  [ if i == j then 0 else if i == 0 || j == 0 then g else x | i <- indices, j <- indices ]
+-}

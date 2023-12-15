@@ -30,12 +30,16 @@ benchAsSequential :: Benchmark
 benchAsSequential =
     let basicMeasure :: ((Word32 -> (Word8, Word)) -> Word32 -> (Word8, Word)) -> String -> Benchmark
         basicMeasure = measureMemoizedHashTable (2 ^ 10) (2 ^ 20)
+        basicMeasureIO :: ((Word32 -> (Word8, Word)) -> IO (Word32 -> (Word8, Word))) -> String -> Benchmark
+        basicMeasureIO f name = bench name $
+            perRunEnv (makeMemoizedHashTableIO (2 ^ 10) (2 ^ 20) f) $ \(keys, memo) ->
+                pure $ memo <$> keys
     in  bgroup "Sequential"
             [ basicMeasure Lock.memoize "Custom locking definition"
 --            , basicMeasure IORf.memoize "Manual access through - IORef"
 --            , basicMeasure TVar.memoize "Manual access through - TVar"
 --            , basicMeasure Semp.memoize "Manual access through - Semaphore"
-            , basicMeasure Conc.memoize "Package `concurrent-hashtables` Hash-table"
+            , basicMeasureIO Conc.memoize "Package `concurrent-hashtables` Hash-table"
             , basicMeasure OptQ.memoize "Package `concurrent-hashtables-opt` Hash-table"
 --            , basicMeasure RWLk.memoize "Package `concurrent-extra`      Read/Write Lock"
             ]
@@ -46,8 +50,8 @@ benchAsParallel =
     let basicMeasure :: ((Word32 -> (Word8, Word)) -> Word32 -> (Word8, Word)) -> String -> Benchmark
         basicMeasure = measureMemoizedHashTableParallel (2 ^ 10) (2 ^ 20)
     in  bgroup "Parallel"
-            [ basicMeasure Conc.memoize "Package `concurrent-hashtables` Hash-table"
-            , basicMeasure RWLk.memoize "Package `concurrent-extra`      Read/Write Lock"
+            [ basicMeasure RWLk.memoize "Package `concurrent-extra`      Read/Write Lock"
+            -- , basicMeasure Conc.memoize "Package `concurrent-hashtables` Hash-table"
 --            , basicMeasure TVar.memoize "Manual access through - TVar"
 --            , basicMeasure IORf.memoize "Manual access through - IORef"
             , basicMeasure Lock.memoize "Custom locking definition"
