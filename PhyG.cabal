@@ -351,6 +351,7 @@ Executable phyg
     gitrev,
     graphviz   >=2999.20,
     hashable,
+    hmatrix,
     inflist,
     logfloat,     
     MissingH >= 1.4.3,
@@ -405,6 +406,8 @@ Executable phyg
     Complexity.CodeStrings
     Complexity.Constants
     Complexity.Graphs
+    Complexity.Huffman
+    Complexity.Utilities
     Debug.Debug
     GraphOptimization.Medians
     GraphOptimization.PostOrderSoftWiredFunctions

@@ -38,34 +38,36 @@ module Utilities.Utilities  where
 
 import PHANE.Evaluation
 import PHANE.Evaluation.Verbosity (Verbosity (..))
+import Complexity.Graphs qualified as GC
+import Complexity.Utilities qualified as GCU
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special
 import Data.BitVector.LittleEndian qualified as BV
-import Data.List  qualified                 as L
-import Data.List.NonEmpty   qualified       as NE
-import Data.List.Split  qualified           as SL
+import Data.List qualified as L
+import Data.List.NonEmpty qualified as NE
+import Data.List.Split qualified as SL
 import Data.Maybe
-import  Data.Vector   qualified              as V
+import  Data.Vector qualified as V
 -- import Data.Alphabet.Special
-import Data.Bimap    qualified              as BM
+import Data.Bimap qualified as BM
 import Data.Bits
 import Data.Foldable
-import Data.InfList   qualified             as IL
+import Data.InfList qualified as IL
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.List.NonEmpty qualified as NE
-import Data.Set        qualified            as SET
-import Data.Text.Lazy  qualified            as T
-import Data.Text.Short    qualified         as ST
-import Data.Vector.Storable  qualified      as SV
-import Data.Vector.Unboxed   qualified      as UV
+import Data.Set qualified as SET
+import Data.Text.Lazy qualified as T
+import Data.Text.Short qualified as ST
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
 import GeneralUtilities
-import GeneralUtilities  qualified          as GU
-import SymMatrix     qualified              as S
+import GeneralUtilities qualified as GU
+import SymMatrix qualified as S
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import Types.Types
-import Utilities.LocalGraph  qualified      as LG
+import Utilities.LocalGraph qualified as LG
 
 import Debug.Trace
 
@@ -128,22 +130,26 @@ collapseReducedGraph (inSimple, inC, inDecorated, inD, inF) =
     in
     (newSimpleGraph, inC, newDecGraph, inD, inF)
 
--- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
+-- | calculateGraphComplexity returns an infinite list of graph complexities indexed by
 -- number of network nodes-assumes for now--single component graph not forest
 -- first in pair is softwired complexity, second hardwired complexity
+-- could coppy to vector for say 100 or so and offset infinite list after
+-- to reduce lisyt access facvtor 
 calculateGraphComplexity :: ProcessedData -> IL.InfList (VertexCost, VertexCost)
-calculateGraphComplexity (nameVect, _, _) =
+calculateGraphComplexity (nameVect, _, blockDatVect) =
     let numNetNodesList = IL.fromList [(0 :: Int)..]
         numRoots = 1
-        graphComplexity = IL.map (getGraphComplexity (V.length nameVect) numRoots) numNetNodesList
+        numBlocks = V.length blockDatVect
+        graphComplexity = IL.map (getGraphComplexity (V.length nameVect) numRoots numBlocks) numNetNodesList
     in
     graphComplexity
 
--- | getGraphComplexity takes the number of leaves and number of
+-- | old version with direct bit calcualtions
+-- | getGraphComplexity' takes the number of leaves and number of
 -- network nodes and calculates the graph complexity in bits
 -- tree num edges (2n-2) n leaves * 2 nodes for each edge * (log 2n -1 vertices-- min specify)
-getGraphComplexity :: Int -> Int -> Int -> (VertexCost, VertexCost)
-getGraphComplexity numLeaves numRoots numNetNodes =
+getGraphComplexity' :: Int -> Int -> Int -> (VertexCost, VertexCost)
+getGraphComplexity' numLeaves numRoots numNetNodes =
     -- place holder for now
     let nodeComplexity = logBase 2.0 (fromIntegral $ (2 * numLeaves) - 1 + numNetNodes) -- bits to specify each vertex
         treeEdges = (2 * numLeaves) - 2
@@ -155,6 +161,28 @@ getGraphComplexity numLeaves numRoots numNetNodes =
     in
     -- maybe softwired is numDisplatTrees * harWired since have those edges in input
     (baseTreeComplexity * numDisplayTrees, hardwiredAddComplexity)
+
+
+-- | getGraphComplexity takes the number of leaves and number of
+-- network nodes and calculates the algorithmic graph complexity in bits
+getGraphComplexity :: Int -> Int -> Int -> Int -> (VertexCost, VertexCost)
+getGraphComplexity numLeaves numRoots numBlocks numNetNodes =
+    -- place holder for now
+    let graphProgram = GC.makeProgramStringGraph numLeaves 0 numRoots numNetNodes
+        (graphShannonBits, _, _) = GCU.getInformationContent graphProgram
+
+        graphDisplayProgram = GC.makeDisplayGraphString numLeaves 0 numRoots numNetNodes
+        (graphDisplayShannonBits, _, _) = GCU.getInformationContent graphDisplayProgram
+
+        displayTreeSwitchingComplexity = fromIntegral numNetNodes
+        marginalDisplayComplexity = graphDisplayShannonBits - graphShannonBits 
+
+        -- cost of swithing (speciying) 1 bit per netNode then minimum of blocks as duspolay tree number since only have a few block usually
+        softWiredFactor = displayTreeSwitchingComplexity + ((min (2 ** fromIntegral numNetNodes) numBlocks) * marginalDisplayComplexity)
+    in
+    
+    (graphShannonBits + softWiredFactor, graphShannonBits)
+
 
 -- | calculateMAPARootCost-- for  now used NCM--but better to reflect empirical Pi (frequency) values
 -- won't affect the search choice since a constant factor 
