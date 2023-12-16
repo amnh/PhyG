@@ -387,9 +387,12 @@ performSearch initialSeed inputFilePath = do
     let grabber = length . fth4 . LG.splitVertexList . fst5 <$> finalGraphList'
     let pairFunction :: forall {a}. (a, a) -> a
         (netWorkVertexList, pairFunction, units)
-            | optimalityCriterion initialGlobalSettings `notElem` [PMDL, SI] = (replicate (length finalGraphList') 0, fst, "") 
-            | graphType initialGlobalSettings == SoftWired = (grabber, fst, " bits")
-            | otherwise = (grabber, snd, " bits")
+            | optimalityCriterion initialGlobalSettings == Parsimony = (replicate (length finalGraphList') 0, fst, "") 
+            -- PMDL and DI in base 2
+            | optimalityCriterion initialGlobalSettings `elem` [PMDL, SI]  = (grabber, fst, " bits") 
+            -- | graphType initialGlobalSettings == SoftWired = (grabber, fst, " bits")
+            -- NCM and MAPA in base 10
+            | otherwise = (grabber, snd, " dits")
 
     -- final results reporting to stderr
     logWith LogInfo $
