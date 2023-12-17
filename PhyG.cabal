@@ -351,6 +351,7 @@ Executable phyg
     cpuinfo,
     deepseq,
     directory,
+    encode-string,
     fingertree,
     file-embed,
     filepath >= 1.4.100,
@@ -385,6 +386,7 @@ Executable phyg
     unliftio >= 0.2 && < 1.0,
     unliftio-core >= 0.2 && < 1.0,
     vector >= 0.13 && < 1.0,
+    zlib
     -- currently doesn't compile but could be useful
     -- lots of good functions
     -- Graphalyze,

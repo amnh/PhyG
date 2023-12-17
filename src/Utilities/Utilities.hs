@@ -169,19 +169,19 @@ getGraphComplexity :: Int -> Int -> Int -> Int -> (VertexCost, VertexCost)
 getGraphComplexity numLeaves numRoots numBlocks numNetNodes =
     -- place holder for now
     let graphProgram = GC.makeProgramStringGraph numLeaves 0 numRoots numNetNodes
-        (graphShannonBits, _, _) = GCU.getInformationContent graphProgram
+        (_, _, _, gzipGraph) = GCU.getInformationContent graphProgram
 
         graphDisplayProgram = GC.makeDisplayGraphString numLeaves 0 numRoots numNetNodes
-        (graphDisplayShannonBits, _, _) = GCU.getInformationContent graphDisplayProgram
+        (_, _, _, gzipDisplay) = GCU.getInformationContent graphDisplayProgram
 
         displayTreeSwitchingComplexity = fromIntegral numNetNodes
-        marginalDisplayComplexity = graphDisplayShannonBits - graphShannonBits 
+        marginalDisplayComplexity = gzipDisplay - gzipGraph -- graphDisplayShannonBits - graphShannonBits 
 
         -- cost of swithing (speciying) 1 bit per netNode then minimum of blocks as duspolay tree number since only have a few block usually
         softWiredFactor = displayTreeSwitchingComplexity + ((min (2 ** fromIntegral numNetNodes) (fromIntegral numBlocks)) * marginalDisplayComplexity)
     in
     
-    (graphShannonBits + softWiredFactor, graphShannonBits)
+    (gzipGraph + softWiredFactor, gzipGraph)
 
 
 -- | calculateMAPARootCost-- for  now used NCM--but better to reflect empirical Pi (frequency) values

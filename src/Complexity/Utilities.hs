@@ -42,10 +42,13 @@ module Complexity.Utilities
   ,  ppMatrix
   )  where
 
-import           Complexity.Huffman
-import           Data.List
+import Codec.Compression.GZip qualified as GZ
+import Complexity.Huffman
+import Data.ByteString.Lazy qualified as B
+import Data.String.Encode qualified as E
+import Data.List
 -- import Complexity.Constants
-import           Numeric.LinearAlgebra
+import Numeric.LinearAlgebra
 
 -- | occurencesInList counts occurences elements in list--makes result double so can divide later
 occurencesInList :: Eq a => [a] -> a -> Double
@@ -108,15 +111,16 @@ getHuffman inString =
     --trace (ppCode huffCodes)
     (length bitList, bitString)
 
--- | getInformation takes a program string and returns Shannon and Huffman bits and Huffman binary program.
-getInformationContent :: String -> (Double, Int, String)
+-- | getInformation takes a program string and returns Shannon, Huffman bits, Huffman binary program, and comopressed length bits .
+getInformationContent :: String -> (Double, Int, String, Double)
 getInformationContent programString =
   if null programString then error "Empty program in getInformation"
   else
     let (huffBits, huffBinary) =  getHuffman programString
+        compressedStream = GZ.compressWith GZ.defaultCompressParams {GZ.compressLevel = GZ.bestCompression} (E.convertString programString)
     in
-    (getShannon programString, huffBits, huffBinary)
-
+    (getShannon programString, huffBits, huffBinary, fromIntegral $ 8 * (length $ B.unpack compressedStream))
+    
 -- | split2Matrix takes alist and splits after n elements to make it a list of lists
 split2Matrix :: Int -> [Double] -> [[Double]]
 split2Matrix lengthPieces inList
