@@ -112,14 +112,18 @@ getHuffman inString =
     (length bitList, bitString)
 
 -- | getInformation takes a program string and returns Shannon, Huffman bits, Huffman binary program, and comopressed length bits .
+-- for min on compression--short things can increase in bits when compressed. 
+-- Using Shannon bits, but could use Huffman since Shannon can't be realized
 getInformationContent :: String -> (Double, Int, String, Double)
 getInformationContent programString =
   if null programString then error "Empty program in getInformation"
   else
     let (huffBits, huffBinary) =  getHuffman programString
         compressedStream = GZ.compressWith GZ.defaultCompressParams {GZ.compressLevel = GZ.bestCompression} (E.convertString programString)
+        shannonBits = getShannon programString
+        compressedBits = min shannonBits (fromIntegral $ 8 * (length $ B.unpack compressedStream))
     in
-    (getShannon programString, huffBits, huffBinary, fromIntegral $ 8 * (length $ B.unpack compressedStream))
+    (shannonBits, huffBits, huffBinary, compressedBits)
     
 -- | split2Matrix takes alist and splits after n elements to make it a list of lists
 split2Matrix :: Int -> [Double] -> [[Double]]
