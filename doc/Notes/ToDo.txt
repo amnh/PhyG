@@ -599,3 +599,16 @@
 471) split post order (cost only) and preorder to help with strict calls to
 	multi traverse?  Maybe check on profiling to see if its a drag
 
+472) new random seeds
+	if atRandom swapParams
+                                {-
+                                NOTE: Optional Syntax
+                                f x y = undefined
+                                z = f x y
+                                z = x `f` y -- Infix notation
+                                Could use infix notation for this randomness call:
+                                then (`permuteList` rejoinEdges') <$> getRandom
+                                -}
+                                then (\randVal -> permuteList randVal rejoinEdges') <$> getRandom
+                                else pure rejoinEdges'
+
