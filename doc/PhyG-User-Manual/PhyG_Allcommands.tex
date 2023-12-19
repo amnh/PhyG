@@ -1104,8 +1104,8 @@
 		amount of time necessary to perform a thorough search (perhaps 10 times the 
 		amount of time it took to perform this simple search). It is recommended to perform 
 		a \texttt{swap(joinAll)} (see Section \ref{subsec:swap}) after the \texttt{search} has 
-		completed. The user should also allow some time for the program to collate and write 
-		the results to files.}
+		completed. The user should also allow some time for the program to collate and 
+		write the results to files.}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -1131,14 +1131,15 @@
 		maximum total execution time for the search.
 
 		\item[stop:INT] Causes a search instance to terminate after the number of iterations 
-		without graph optimality improvement. This argument is an adjunct to the specified time. 
-		The search iteration will continue until the maximum execution time for the search has ended
-		or until the cost of the best graph fails to improve after the specified integer (whichever comes 
-		first). The overall search will terminate only when all instances have completed.
+		without graph optimality improvement. This argument is an adjunct to the specified 
+		time. The search iteration will continue until the maximum execution time for the search 
+		has ended or until the cost of the best graph fails to improve after the specified integer 
+		(whichever comes first). The overall search will terminate only when all instances have 
+		completed.
 		
-		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. Wagner 
-		Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. This 
-		form of sampling uses machine learning techniques to guide the randomized option selection 
+		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. 
+		Wagner Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. 
+		This form of sampling uses machine learning techniques to guide the randomized option selection 
 		of the search \hl{Wheeler\_submitted}. This sampling method is a heuristic for timed search 
 		decision making. The integer value specifies the memory value for the Thompson sampling.
 		The lower the value (down to 0), the shorter the memory allowing for more rapid adjustment 
