@@ -14,6 +14,7 @@ import Control.Exception
 import Control.Monad (join, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.IO.Unlift
+import Control.Monad.Random.Class
 import Data.Bifunctor (bimap)
 import Data.Char
 import Data.Foldable
@@ -90,10 +91,9 @@ search
     → GlobalSettings
     → ProcessedData
     → [[VertexCost]]
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], [[String]])
-search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
+search inArgs inGS inData pairwiseDistances inGraphList' =
     -- flatThetaList is the initial prior list (flat) of search (bandit) choices
     -- can also be used in search for non-Thomspon search
     let flatThetaList =
@@ -127,6 +127,7 @@ search inArgs inGS inData pairwiseDistances rSeed inGraphList' =
                             0
                             stopNum
             let infoIndices = [1 ..]
+            rSeed <- getRandom
             let seadStreams = randomIntList <$> randomIntList rSeed
 
             logWith
@@ -820,7 +821,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     do
                         -- args from above
                         -- perform search
-                        gaReturn ← R.geneticAlgorithmMaster gaArgs inGS inData randSeed1 inGraphList
+                        gaReturn ← R.geneticAlgorithmMaster gaArgs inGS inData inGraphList
                         pure (gaReturn, gaArgs)
                 "fuse" →
                     -- should more graphs be added if only one?  Would downweight fuse perhpas too much
@@ -871,32 +872,32 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     let -- network add args
                         netEditArgs = netAddArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData inGraphList <&> (\x → (x, netEditArgs))
                 "networkDelete" →
                     let -- network delete args
                         netEditArgs = netDelArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData inGraphList <&> (\x → (x, netEditArgs))
                 "networkAddDelete" →
                     let -- network add/delete args
                         netEditArgs = netAddDelArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData inGraphList <&> (\x → (x, netEditArgs))
                 "networkMove" →
                     let -- network move args
                         netEditArgs = netMoveArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData inGraphList <&> (\x → (x, netEditArgs))
                 "driftNetwork" →
                     let -- network add/delete  + drift args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> driftArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData inGraphList <&> (\x → (x, netEditArgs))
                 "annealNetwork" →
                     let -- network add/delete  + annealing  args
                         netEditArgs = [(netDriftAnnealMethod, "")] <> netGeneralArgs <> annealArgs
                     in  -- perform search
-                        R.netEdgeMaster netEditArgs inGS inData randSeed1 inGraphList <&> (\x → (x, netEditArgs))
+                        R.netEdgeMaster netEditArgs inGS inData inGraphList <&> (\x → (x, netEditArgs))
                 _ → error ("Unknown/unimplemented method in search: " <> searchBandit)
 
             -- process

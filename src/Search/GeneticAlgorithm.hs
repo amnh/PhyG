@@ -7,6 +7,7 @@ module Search.GeneticAlgorithm (
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
@@ -36,7 +37,6 @@ the process follows several steps
 geneticAlgorithm
     ∷ GlobalSettings
     → ProcessedData
-    → Int
     → Bool
     → Int
     → Int
@@ -49,7 +49,7 @@ geneticAlgorithm
     → Int
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
+geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
     if null inGraphList
         then return ([], 0)
         else
@@ -58,12 +58,13 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                 else
                     if stopCount >= stopNum
                         then return (inGraphList, generationCounter)
-                        else
-                            let seedList = randomIntList rSeed
+                        else do
+                                    rSeed <- getRandom
+                                    let seedList = randomIntList rSeed
 
-                                -- get elite list of best solutions
-                                initialEliteList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) inGraphList
-                            in  do
+                                    -- get elite list of best solutions
+                                    let initialEliteList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) inGraphList
+                        
                                     logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter) <> "\n")
 
                                     -- mutate input graphs, produces number input, limited to popsize
@@ -140,7 +141,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                                             geneticAlgorithm
                                                 inGS
                                                 inData
-                                                (seedList !! 5)
+                                                --(seedList !! 5)
                                                 doElitist
                                                 maxNetEdges
                                                 keepNum
@@ -158,7 +159,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                                             in  geneticAlgorithm
                                                     inGS
                                                     inData
-                                                    (seedList !! 5)
+                                                    --(seedList !! 5)
                                                     doElitist
                                                     maxNetEdges
                                                     keepNum

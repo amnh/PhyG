@@ -283,7 +283,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
                     -- build graphs
                     buildGraphs ← B.buildGraph buildOptions inGS newData pairwiseDistances (randomIntegerList1 !! 1)
                     let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) buildGraphs
-                    edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData (randomIntegerList1 !! 2) bestBuildGraphList
+                    edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
                     let netGraphList = case graphType inGS of
                             Tree → bestBuildGraphList
                             _ → edgeGraphList

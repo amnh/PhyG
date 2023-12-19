@@ -111,7 +111,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                     if firstOption == Refine
                                                         then do
                                                             (elapsedSeconds, newGraphList') ←
-                                                                timeOp $ pure $ REF.refineGraph firstArgs globalSettings processedData (head seedList) curGraphs
+                                                                timeOp $ pure $ REF.refineGraph firstArgs globalSettings processedData curGraphs
 
                                                             newGraphList ← newGraphList'
                                                             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
@@ -261,7 +261,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                             if firstOption == Search
                                                                                 then do
                                                                                     (elapsedSeconds, output) ←
-                                                                                        timeOp $ S.search firstArgs globalSettings processedData pairwiseDist (head seedList) curGraphs
+                                                                                        timeOp $ S.search firstArgs globalSettings processedData pairwiseDist curGraphs
                                                                                     -- in pure result
                                                                                     -- (newGraphList, serchInfoList) <- S.search firstArgs globalSettings origProcessedData processedData reportingDatapairwiseDist (head seedList) curGraphs
                                                                                     let searchInfo =

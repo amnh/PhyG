@@ -18,6 +18,7 @@ module Search.Refinement (
 
 import Commands.Verify qualified as VER
 import Control.Monad (when)
+import Control.Monad.Random.Class
 import Data.Char
 import Data.Functor (($>))
 import Data.Maybe
@@ -53,10 +54,9 @@ refineGraph
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-refineGraph inArgs inGS inData rSeed inGraphList =
+refineGraph inArgs inGS inData inGraphList =
     if null inGraphList
         then do
             logWith LogInfo "No graphs input to refine\n"
@@ -77,16 +77,16 @@ refineGraph inArgs inGS inData rSeed inGraphList =
                             doGenAlg = any ((== "ga") . fst) lcArgList || any ((== "geneticalgorithm") . fst) lcArgList
                         in  -- network edge edits
                             if doNetAdd || doNetDel || doNetAddDel || doNetMov
-                                then netEdgeMaster inArgs inGS inData rSeed inGraphList
+                                then netEdgeMaster inArgs inGS inData inGraphList
                                 else -- genetic algorithm
 
                                     if doGenAlg
                                         then do
-                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData inGraphList
                                             pure gaReturn
                                         else -- genetic algorithm default
                                         do
-                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData inGraphList
                                             pure gaReturn
 
 
@@ -109,10 +109,9 @@ geneticAlgorithmMaster
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
+geneticAlgorithmMaster inArgs inGS inData inGraphList =
     if null inGraphList
         then do
             logWith LogInfo "No graphs to undergo Genetic Algorithm\n"
@@ -137,7 +136,6 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
                 GA.geneticAlgorithm
                     inGS
                     inData
-                    rSeed
                     doElitist
                     (fromJust maxNetEdges)
                     (fromJust keepNum)
@@ -441,15 +439,15 @@ netEdgeMaster
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-netEdgeMaster inArgs inGS inData rSeed inGraphList =
+netEdgeMaster inArgs inGS inData inGraphList =
     if null inGraphList
         then do
             logWith LogInfo "No graphs to edit network edges\n"
             pure []
-        else
+        else do
+            rSeed <- getRandom
             if graphType inGS == Tree
                 then do
                     logWith LogWarn "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n"

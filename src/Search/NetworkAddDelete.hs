@@ -354,7 +354,7 @@ moveAllNetEdges'
     → Maybe SAParams
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-moveAllNetEdges' inGS inData  maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList =
+moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList =
     if null inPhyloGraphList
         then do
             pure (take numToKeep curBestGraphList, counter)
