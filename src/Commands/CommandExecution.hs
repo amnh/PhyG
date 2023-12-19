@@ -372,7 +372,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                                             if firstOption == Support
                                                                                                                 then do
                                                                                                                     (elapsedSeconds, newSupportGraphList') ←
-                                                                                                                        timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData (head seedList) curGraphs
+                                                                                                                        timeOp $ pure $ SUP.supportGraph firstArgs globalSettings processedData curGraphs
 
                                                                                                                     newSupportGraphList ← newSupportGraphList'
                                                                                                                     let searchInfo =
