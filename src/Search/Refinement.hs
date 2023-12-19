@@ -623,7 +623,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                             N.insertAllNetEdges
                                 inGS
                                 inData
-                                rSeed
+                                --rSeed
                                 (fromJust maxNetEdges)
                                 (fromJust keepNum)
                                 (fromJust maxRounds)
@@ -638,7 +638,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                             N.deleteAllNetEdges
                                 inGS
                                 inData
-                                rSeed
+                                --rSeed
                                 (fromJust maxNetEdges)
                                 (fromJust keepNum)
                                 0
@@ -652,7 +652,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                             N.moveAllNetEdges
                                 inGS
                                 inData
-                                rSeed
+                                --rSeed
                                 (fromJust maxNetEdges)
                                 (fromJust keepNum)
                                 0
@@ -666,7 +666,7 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                             N.addDeleteNetEdges
                                 inGS
                                 inData
-                                rSeed
+                                --rSeed
                                 (fromJust maxNetEdges)
                                 (fromJust keepNum)
                                 (fromJust maxRounds)
