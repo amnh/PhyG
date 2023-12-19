@@ -49,10 +49,9 @@ transform
     → GlobalSettings
     → ProcessedData
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG (GlobalSettings, ProcessedData, ProcessedData, [ReducedPhylogeneticGraph])
-transform inArgs inGS origData inData rSeed inGraphList =
+transform inArgs inGS origData inData inGraphList =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList

@@ -46,8 +46,8 @@ import Utilities.Utilities qualified as U
 with appropriate options
 transforms graph type to Tree for builds then back to initial graph type
 -}
-buildGraph ∷ [Argument] → GlobalSettings → ProcessedData → [[VertexCost]] → PhyG [ReducedPhylogeneticGraph]
-buildGraph inArgs inGS inData pairwiseDistances =
+buildGraph ∷ [Argument] → GlobalSettings → ProcessedData → PhyG [ReducedPhylogeneticGraph]
+buildGraph inArgs inGS inData  =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList

@@ -90,10 +90,9 @@ search
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → [[VertexCost]]
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], [[String]])
-search inArgs inGS inData pairwiseDistances inGraphList' =
+search inArgs inGS inData inGraphList' =
     -- flatThetaList is the initial prior list (flat) of search (bandit) choices
     -- can also be used in search for non-Thomspon search
     let flatThetaList =
@@ -114,7 +113,7 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                         searchForDuration
                             inGS
                             inData
-                            pairwiseDistances
+                            [[]]
                             keepNum
                             thompsonSample
                             mFactor
@@ -152,7 +151,6 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                                 [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
                                 inGS
                                 inData
-                                pairwiseDistances
                         pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
 
             --  threadCount <- (max 1) <$> getNumCapabilities
@@ -706,8 +704,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                 else False
     in  do
             -- Can't do both static approx and multitraverse:False
-            newDataMTF ← TRANS.transform [("multitraverse", "false")] inGS' inData' inData' 0 inGraphList''
-            newDataSA ← TRANS.transform [("staticapprox", [])] inGS' inData' inData' 0 inGraphList''
+            newDataMTF ← TRANS.transform [("multitraverse", "false")] inGS' inData' inData' inGraphList''
+            newDataSA ← TRANS.transform [("staticapprox", [])] inGS' inData' inData' inGraphList''
             let ((inGS, origData, inData, inGraphList), transformString) =
                     if transformToStaticApproximation && (useIA inGS')
                         then (newDataSA, ",StaticApprox")
@@ -723,7 +721,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     in  --    graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                         do
                             -- search
-                            graphList ← B.buildGraph buildArgs inGS' inData' pairwiseDistances
+                            graphList ← B.buildGraph buildArgs inGS' inData' 
                             pure (graphList, buildArgs)
                 "buildDistance" →
                     let -- build options
@@ -731,11 +729,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     in  -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
                         -- this line in here to allow for returning lots of rediagnosed distance trees, then
                         -- reducing to unique best cost trees--but is a memory pig
-                        (\gList → (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' pairwiseDistances
+                        (\gList → (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' 
                 "buildSPR" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances
+                        buildGraphs = B.buildGraph buildArgs inGS' inData' 
                         -- swap options
                         swapType = "spr"
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
@@ -747,7 +745,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                 "buildAlternate" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances
+                        buildGraphs = B.buildGraph buildArgs inGS' inData' 
                         -- swap options
                         swapType = "alternate" -- default anyway
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
@@ -901,8 +899,8 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
 
             -- process
             let uniqueGraphs' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (searchGraphs <> inGraphList)
-            newDataMT ← TRANS.transform [("multiTraverse", "true")] inGS origData inData 0 uniqueGraphs'
-            newDataT ← TRANS.transform [("dynamic", [])] inGS' origData inData 0 uniqueGraphs'
+            newDataMT ← TRANS.transform [("multiTraverse", "true")] inGS origData inData uniqueGraphs'
+            newDataT ← TRANS.transform [("dynamic", [])] inGS' origData inData uniqueGraphs'
             let (uniqueGraphs, transString)
                     | (not transformToStaticApproximation && not transformMultiTraverse) = (uniqueGraphs', "")
                     | transformToStaticApproximation = (fth4 newDataT, ",Dynamic")
