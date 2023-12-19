@@ -153,7 +153,6 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                                 inGS
                                 inData
                                 pairwiseDistances
-                                rSeed
                         pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
 
             --  threadCount <- (max 1) <$> getNumCapabilities
@@ -332,7 +331,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                                 newStopCount
                                 stopNum
                                 refIndex
-                                []
+                                [] -- should refactored out (since ignored) had some issue with complex calling above
                                 $ bimap (inGraphList <>) (infoStringList <>) output
 
 
@@ -724,7 +723,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     in  --    graphList = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
                         do
                             -- search
-                            graphList ← B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
+                            graphList ← B.buildGraph buildArgs inGS' inData' pairwiseDistances
                             pure (graphList, buildArgs)
                 "buildDistance" →
                     let -- build options
@@ -732,11 +731,11 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     in  -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
                         -- this line in here to allow for returning lots of rediagnosed distance trees, then
                         -- reducing to unique best cost trees--but is a memory pig
-                        (\gList → (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
+                        (\gList → (gList, buildArgs)) <$> B.buildGraph buildArgs inGS' inData' pairwiseDistances
                 "buildSPR" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
+                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances
                         -- swap options
                         swapType = "spr"
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
@@ -748,7 +747,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                 "buildAlternate" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances randSeed0
+                        buildGraphs = B.buildGraph buildArgs inGS' inData' pairwiseDistances
                         -- swap options
                         swapType = "alternate" -- default anyway
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]

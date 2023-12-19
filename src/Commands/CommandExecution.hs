@@ -14,6 +14,7 @@ import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.CSV qualified as CSV
 import Data.Char
 import Data.Char qualified as C
@@ -88,7 +89,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                             if firstOption == Build
                                                 then do
                                                     (elapsedSeconds, newGraphList') ←
-                                                        timeOp $ pure $ B.buildGraph firstArgs globalSettings processedData pairwiseDist (head seedList)
+                                                        timeOp $ pure $ B.buildGraph firstArgs globalSettings processedData pairwiseDist
 
                                                     newGraphList ← newGraphList'
                                                     let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
@@ -289,7 +290,8 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                 else
                                                                                     if firstOption == Select
                                                                                         then do
-                                                                                            (elapsedSeconds, newGraphList) ← timeOp $ pure $ GO.selectPhylogeneticGraphReduced firstArgs (head seedList) curGraphs
+                                                                                            rSeed <- getRandom
+                                                                                            (elapsedSeconds, newGraphList) ← timeOp $ pure $ GO.selectPhylogeneticGraphReduced firstArgs rSeed curGraphs
 
                                                                                             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                                             let newSearchData = searchInfo : searchData globalSettings

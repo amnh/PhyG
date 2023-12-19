@@ -43,6 +43,7 @@ module Utilities.LocalGraph  where
 import PHANE.Evaluation
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Graph.Inductive.Basic qualified as B
 import Data.Graph.Inductive.PatriciaTree qualified as P
 import Data.Graph.Inductive.Query.ArtPoint qualified as AP
@@ -1916,20 +1917,21 @@ getToFlipEdges parentNodeIndex inEdgeList =
 
 -- | Random generates display trees up to input number by choosing
 -- to keep indegree nodes > 1 unifomaly at random
-generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Int -> Gr a b -> PhyG [Gr a b]
-generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
+generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Gr a b -> PhyG [Gr a b]
+generateDisplayTreesRandom numDisplayTrees inGraph =
   if isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
   else if isTree inGraph then pure [inGraph]
-  else
-    let atRandomList = take numDisplayTrees $ randomIntList rSeed
+  else do
+        rSeed <- getRandom
+        let atRandomList = take numDisplayTrees $ randomIntList rSeed
         --resolveAction :: Int -> Gr a b
-        resolveAction = randomlyResolveGraphToTree inGraph
-    in do
-         pMap <- getParallelChunkMap
-         let randDisplayTreeList = pMap resolveAction atRandomList
+        let resolveAction = randomlyResolveGraphToTree inGraph
+
+        pMap <- getParallelChunkMap
+        let randDisplayTreeList = pMap resolveAction atRandomList
          --PU.seqParMap PU.myStrategy  (randomlyResolveGraphToTree inGraph) atRandomList -- `using` PU.myParListChunkRDS
     
-         pure randDisplayTreeList
+        pure randDisplayTreeList
 
 -- | randomlyResolveGraphToTree resolves a single graph to a tree by choosing single indegree edges
 -- uniformly at random and deleting all others from graph

@@ -9,6 +9,7 @@ module Search.WagnerBuild (
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
@@ -34,14 +35,13 @@ import Utilities.Utilities qualified as U
 {- | rasWagnerBuild generates a series of random addition sequences and then calls wagnerTreeBuild to construct them.
 Does not filter by best, unique etc.  That happens with the select() command specified separately.
 -}
-rasWagnerBuild ∷ GlobalSettings → ProcessedData → Int → Int → PhyG [ReducedPhylogeneticGraph]
-rasWagnerBuild inGS inData rSeed numReplicates =
+rasWagnerBuild ∷ GlobalSettings → ProcessedData → Int → PhyG [ReducedPhylogeneticGraph]
+rasWagnerBuild inGS inData numReplicates =
     if numReplicates == 0
         then do
             pure []
         else
             let numLeaves = V.length $ fst3 inData
-                randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. numLeaves - 1]
 
                 -- "graph" of leaf nodes without any edges
                 leafGraph = GO.makeSimpleLeafGraph inData
@@ -52,6 +52,8 @@ rasWagnerBuild inGS inData rSeed numReplicates =
                 wagnerTreeAction ∷ (V.Vector Int, Int) → PhyG ReducedPhylogeneticGraph
                 wagnerTreeAction = wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars
             in  do
+                    rSeed <- getRandom
+                    let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. numLeaves - 1]
                     logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
                     -- seqParMap better for high level parallel stuff
                     -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
