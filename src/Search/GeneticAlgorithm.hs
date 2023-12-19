@@ -67,16 +67,24 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                         
                                     logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter) <> "\n")
 
+                                    -- action :: ReducedPhylogeneticGraph → PhyG ReducedPhylogeneticGraph
+                                    let action = mutateGraph inGS inData maxNetEdges
+
+                                    actionPar <- getParallelChunkTraverse
+
                                     -- mutate input graphs, produces number input, limited to popsize
-                                    mutatedGraphList' ←
-                                        mapM (mutateGraph inGS inData maxNetEdges) $
-                                            zip (randomIntList $ head seedList) (takeRandom (seedList !! 1) popSize inGraphList)
+                                    mutatedGraphList' ← actionPar action (takeRandom (seedList !! 1) popSize inGraphList)
+                                        --mapM (mutateGraph inGS inData maxNetEdges) $
+                                        --    zip (randomIntList $ head seedList) (takeRandom (seedList !! 1) popSize inGraphList)
 
                                     let numShort = popSize - (length mutatedGraphList')
                                     let randList = (randomIntList $ seedList !! 2)
                                     let graphList = takeRandom (seedList !! 3) numShort inGraphList
 
-                                    additionalMutated ← mapM (mutateGraph inGS inData maxNetEdges) (zip randList graphList)
+                                    additionPar <- getParallelChunkTraverse
+                                    additionalMutated ← additionPar action graphList
+                                        --mapM (mutateGraph inGS inData maxNetEdges) (zip randList graphList)
+
                                     -- adjust to correct populationsize if input number < popSize
                                     let mutatedGraphList =
                                             if length mutatedGraphList' >= popSize
@@ -174,48 +182,50 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
 
 
 -- | mutateGraph mutates a graph using drift functionality
-mutateGraph ∷ GlobalSettings → ProcessedData → Int → (Int, ReducedPhylogeneticGraph) → PhyG ReducedPhylogeneticGraph
-mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
+mutateGraph ∷ GlobalSettings → ProcessedData → Int → ReducedPhylogeneticGraph → PhyG ReducedPhylogeneticGraph
+mutateGraph inGS inData maxNetEdges inGraph =
     if LG.isEmpty (fst5 inGraph)
         then error "Empty graph in mutateGraph"
-        else
-            let joinType = JoinAll -- keep selection of rejoins based on all possibilities
-                atRandom = True -- randomize split and rejoin edge orders
-                randList = randomIntList rSeed
-                saValues =
-                    Just $
-                        SAParams
-                            { method = getRandomElement (randList !! 0) [Drift, SimAnneal]
-                            , numberSteps = getRandomElement (randList !! 1) [5, 10, 20]
-                            , currentStep = 0
-                            , randomIntegerList = randomIntList rSeed
-                            , rounds = 1
-                            , driftAcceptEqual = 0.5
-                            , driftAcceptWorse = 2.0
-                            , -- this could be an important factor don't want too severe, but significant
-                              driftMaxChanges = getRandomElement (randList !! 2) [5, 10, 20] -- or something
-                            , driftChanges = 0
-                            }
-            in  let -- randomize edit type
-                    editType = getRandomElement (randList !! 3) ["swap", "netEdge"]
+        else do
+                let joinType = JoinAll -- keep selection of rejoins based on all possibilities
+                let atRandom = True -- randomize split and rejoin edge orders
+                rSeed <- getRandom
+                let randList = randomIntList rSeed
+                let saValues =
+                            Just $
+                                SAParams
+                                    { method = getRandomElement (randList !! 0) [Drift, SimAnneal]
+                                    , numberSteps = getRandomElement (randList !! 1) [5, 10, 20]
+                                    , currentStep = 0
+                                    , randomIntegerList = randList
+                                    , rounds = 1
+                                    , driftAcceptEqual = 0.5
+                                    , driftAcceptWorse = 2.0
+                                    , -- this could be an important factor don't want too severe, but significant
+                                      driftMaxChanges = getRandomElement (randList !! 2) [5, 10, 20] -- or something
+                                    , driftChanges = 0
+                                    }
+                
+                -- randomize mutatiuon type
+                let editType = getRandomElement (randList !! 3) ["swap", "netEdge"]
 
                     -- randomize Swap parameters
-                    alternate = False
-                    numToKeep = 5
-                    maxMoveEdgeDist = 10000
-                    steepest = True
-                    doIA = False
-                    returnMutated = True
-                    inSimAnnealParams = saValues
-                    swapType = getRandomElement (randList !! 4) [SPR, Alternate]
+                let alternate = False
+                let numToKeep = 5
+                let maxMoveEdgeDist = 10000
+                let steepest = True
+                let doIA = False
+                let returnMutated = True
+                let inSimAnnealParams = saValues
+                let swapType = getRandomElement (randList !! 4) [SPR, Alternate]
 
                     -- randomize network edit parameters
-                    netEditType = getRandomElement (randList !! 5) ["netAdd", "netDelete", "netAddDelete"] -- , "netMove"]
-                    doRandomOrder = True
-                    maxRounds = getRandomElement (randList !! 6) [1 .. 5]
+                let netEditType = getRandomElement (randList !! 5) ["netAdd", "netDelete", "netAddDelete"] -- , "netMove"]
+                let doRandomOrder = True
+                let maxRounds = getRandomElement (randList !! 6) [1 .. 5]
 
                     -- populate SwapParams structure
-                    swapParams =
+                let swapParams =
                         SwapParams
                             { swapType = swapType
                             , joinType = joinType
@@ -227,8 +237,8 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                             , doIA = doIA
                             , returnMutated = returnMutated
                             }
-                in  -- only swap mutation stuff for tree
-                    if graphType inGS == Tree || netEditType `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"]
+                 -- only swap mutation stuff for tree
+                if graphType inGS == Tree || netEditType `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"]
                         then do
                             -- trace ("1")
                             (newGraphList, _) ← S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(inSimAnnealParams, inGraph)]
