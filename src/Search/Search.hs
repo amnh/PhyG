@@ -216,10 +216,10 @@ searchForDuration
     → Int
     → Int
     → Int
-    → [Int]
+    -> [Int]
     → ([ReducedPhylogeneticGraph], [String])
     → PhyG ([ReducedPhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction totalThetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList (inGraphList, infoStringList) =
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction totalThetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex _ (inGraphList, infoStringList) =
     let timeLimit = fromIntegral $ toMicroseconds allotedSeconds
 
         -- this line to keep control of graph number
@@ -231,29 +231,31 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
         runForDuration ∷ PhyG a → PhyG (Maybe a)
         runForDuration = liftIOOp (timeout timeLimit)
 
-        searchingInnerOp ∷ PhyG ([ReducedPhylogeneticGraph], [String])
-        searchingInnerOp =
-            force $
-                performSearch
-                    inGS
-                    inData
-                    pairwiseDistances
-                    keepNum
-                    thompsonSample
-                    totalThetaList
-                    maxNetEdges
-                    (head seedList)
-                    inTotalSeconds
-                    (inGraphList', infoStringList)
+    in do
+            rSeed <- getRandom 
+            -- searchingInnerOp ∷ PhyG ([ReducedPhylogeneticGraph], [String])
+            let searchingInnerOp =
+                    force $
+                        performSearch
+                            inGS
+                            inData
+                            pairwiseDistances
+                            keepNum
+                            thompsonSample
+                            totalThetaList
+                            maxNetEdges
+                            inTotalSeconds
+                            rSeed
+                            (inGraphList', infoStringList)
 
-        searchingForDuration ∷ PhyG ([ReducedPhylogeneticGraph], [String])
-        searchingForDuration = do
-            -- result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
-            result ← runForDuration searchingInnerOp
-            case result of
-                Nothing → logWarning (inGraphList, []) ["terminated due to time"]
-                Just gs → logWarning gs ["is OK", show allotedSeconds, "->", show . fromIntegral $ toMicroseconds allotedSeconds]
-    in  do
+            --searchingForDuration ∷ PhyG ([ReducedPhylogeneticGraph], [String])
+            let searchingForDuration = do
+                -- result = force $ performSearch inGS inData pairwiseDistances keepNum thompsonSample thetaList maxNetEdges (head seedList) inTotalSeconds (inGraphList', infoStringList)
+                    result ← runForDuration searchingInnerOp
+                    case result of
+                        Nothing → logWarning (inGraphList, []) ["terminated due to time"]
+                        Just gs → logWarning gs ["is OK", show allotedSeconds, "->", show . fromIntegral $ toMicroseconds allotedSeconds]
+
             -- (elapsedSeconds, output) <- timeOpUT $
             (elapsedSeconds, elapsedSecondsCPU, output) ← timeOpCPUWall searchingForDuration
 
@@ -330,7 +332,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                                 newStopCount
                                 stopNum
                                 refIndex
-                                (tail seedList)
+                                []
                                 $ bimap (inGraphList <>) (infoStringList <>) output
 
 
@@ -560,11 +562,11 @@ performSearch
     → Bool
     → [(String, Double)]
     → Int
-    → Int
     → CPUTime
+    -> Int 
     → ([ReducedPhylogeneticGraph], [String])
     → PhyG ([ReducedPhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdges rSeed inTime (inGraphList', _) =
+performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdges inTime rSeed (inGraphList', _) =
     -- set up basic parameters for search/refine methods
     let thetaList = drop 3 totalThetaList
         numLeaves = V.length $ fst3 inData'
@@ -572,11 +574,9 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
         thompsonString = "," <> (show totalThetaList)
 
         -- get infinite lists if integers and doubles
-        -- TODO: This is problemetic since the source of randomness (rSeed) is used twice).
         randIntList = randomIntList rSeed
-        randDoubleList = randoms (mkStdGen rSeed) ∷ [Double]
-        randSeed0 = randIntList !! 0
-        randSeed1 = randIntList !! 1
+        randDoubleList = randoms (mkStdGen (head randIntList)) ∷ [Double]
+        randSeed0 = randIntList !! 1
 
         -- this for constant access to random doubles need take for infinite list
         -- need to update as more random doubles are needed
