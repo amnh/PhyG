@@ -758,13 +758,12 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                 let steepest = False
                     randomOrder = False
                     keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
-                    rSeed = 0
 
                     saParams ∷ ∀ {a}. Maybe a
                     saParams = Nothing
                 in  do
                         deleteAddGraphs ←
-                            N.deleteOneNetAddAll inGS inData (maxBound ∷ Int) keepNum steepest randomOrder inGraph [(inE, inV)] rSeed saParams
+                            N.deleteOneNetAddAll inGS inData (maxBound ∷ Int) keepNum steepest randomOrder inGraph [(inE, inV)] saParams
                         let moveCost = minimum (snd5 <$> deleteAddGraphs)
 
                         pure (inE, inV, inEBV, inVBV, min inCost moveCost)

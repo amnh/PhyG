@@ -256,7 +256,7 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                                                 N.moveAllNetEdges
                                                     inGS
                                                     inData
-                                                    (randList !! 7)
+                                                    --(randList !! 7)
                                                     maxNetEdges
                                                     numToKeep
                                                     0
@@ -281,7 +281,7 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                                                         N.moveAllNetEdges
                                                             inGS
                                                             inData
-                                                            (randList !! 7)
+                                                            --(randList !! 7)
                                                             maxNetEdges
                                                             numToKeep
                                                             0
@@ -305,7 +305,7 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                                                                 N.insertAllNetEdges
                                                                     inGS
                                                                     inData
-                                                                    (randList !! 7)
+                                                                    --(randList !! 7)
                                                                     maxNetEdges
                                                                     numToKeep
                                                                     maxRounds
@@ -330,7 +330,7 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                                                                         N.addDeleteNetEdges
                                                                             inGS
                                                                             inData
-                                                                            (randList !! 7)
+                                                                            --(randList !! 7)
                                                                             maxNetEdges
                                                                             numToKeep
                                                                             maxRounds
@@ -355,7 +355,7 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                                                                         N.deleteAllNetEdges
                                                                             inGS
                                                                             inData
-                                                                            (randList !! 7)
+                                                                            --(randList !! 7)
                                                                             maxNetEdges
                                                                             numToKeep
                                                                             0
