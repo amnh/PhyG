@@ -8,6 +8,7 @@ module Search.SwapMaster (
 import Commands.Verify qualified as VER
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Char
 import Data.Maybe
 import GeneralUtilities
@@ -29,10 +30,9 @@ swapMaster
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-swapMaster inArgs inGS inData rSeed inGraphListInput = {-# SCC swapMaster_TOP_DEF #-}
+swapMaster inArgs inGS inData inGraphListInput = {-# SCC swapMaster_TOP_DEF #-}
     if null inGraphListInput
         then do
             logWith LogInfo "No graphs to swap\n"
@@ -99,8 +99,6 @@ swapMaster inArgs inGS inData rSeed inGraphListInput = {-# SCC swapMaster_TOP_DE
                     | any ((== "inOrder") . fst) lcArgList = False
                     | otherwise = True
 
-                randomIntListSwap = randomIntList rSeed
-
                 -- populate SwapParams structure
                 localSwapParams =
                     SwapParams
@@ -127,11 +125,14 @@ swapMaster inArgs inGS inData rSeed inGraphListInput = {-# SCC swapMaster_TOP_DE
                 numGraphs = length inGraphList
 
                 -- parallel setup
-                action ∷ [([Int], Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
+                action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
                 action = {-# SCC swapMaster_action_swapSPRTBR#-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
             in  do
+                    randomSeed <- getRandom
+                    let randomIntListSwap = randomIntList randomSeed -- rSeed
+
                     simAnnealParams ←
-                        getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed
+                        getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
                     -- create simulated annealing random lists uniquely for each fmap
                     let newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
@@ -181,7 +182,7 @@ swapMaster inArgs inGS inData rSeed inGraphListInput = {-# SCC swapMaster_TOP_DE
                     -- TODO
                     -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
-                    let simAnnealList = (fmap (: []) (zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList))
+                    let simAnnealList = fmap (: []) (zip newSimAnnealParamList inGraphList)
                     swapPar ← getParallelChunkTraverse
                     graphPairList ← swapPar action simAnnealList
                     -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
@@ -245,9 +246,8 @@ getSimAnnealParams
     → Maybe Double
     → Maybe Double
     → Maybe Int
-    → Int
     → PhyG (Maybe SAParams)
-getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed =
+getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges =
     if not doAnnealing && not doDrift
         then return Nothing
         else
@@ -279,19 +279,21 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                         then 15
                         else fromJust maxChanges
 
-                saValues =
-                    SAParams
-                        { method = saMethod
-                        , numberSteps = steps
-                        , currentStep = 0
-                        , randomIntegerList = randomIntList rSeed
-                        , rounds = max annealingRounds driftRounds
-                        , driftAcceptEqual = equalProb
-                        , driftAcceptWorse = worseFactor
-                        , driftMaxChanges = changes
-                        , driftChanges = 0
-                        }
+                
             in  do
+                    randomSeed <- getRandom
+                    let saValues =
+                            SAParams
+                                { method = saMethod
+                                , numberSteps = steps
+                                , currentStep = 0
+                                , randomIntegerList = randomIntList randomSeed
+                                , rounds = max annealingRounds driftRounds
+                                , driftAcceptEqual = equalProb
+                                , driftAcceptWorse = worseFactor
+                                , driftMaxChanges = changes
+                                , driftChanges = 0
+                                }
                     when (doDrift && doAnnealing) $
                         logWith
                             LogWarn

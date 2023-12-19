@@ -45,24 +45,24 @@ swapSPRTBR
     → ProcessedData
     → Int
     → [ReducedPhylogeneticGraph]
-    → [([Int], Maybe SAParams, ReducedPhylogeneticGraph)]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
+swapSPRTBR swapParams inGS inData inCounter curBestGraphs inDoubleList =
     -- trace ("SWAPSPRTBR: " <> swapType <> " " <> joinType <> " " <> (show $ snd5 $ thd3 $ head inTripleList)) $
-    if null inTripleList
+    if null inDoubleList
         then do pure (curBestGraphs, inCounter)
         else
-            let (randomIntListSwap, inSimAnnealParams, inGraph) = head inTripleList
+            let (inSimAnnealParams, inGraph) = head inDoubleList
             in  -- dont swap if worse than current best
                 -- if snd5 inGraph > (snd5 . head) curBestGraphs then
                 --   swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated curBestGraphs inCounter (tail inTripleList)
                 -- else
                 if (joinType swapParams) == JoinAll || isJust inSimAnnealParams
-                    then swapSPRTBR' (swapParams{joinType = JoinAll}) inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
+                    then swapSPRTBR' (swapParams{joinType = JoinAll}) inGS inData inCounter (inSimAnnealParams, inGraph)
                     else do
                         -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
                         (firstList, firstCounter) ←
-                            swapSPRTBR' (swapParams{joinType = JoinPruned}) inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
+                            swapSPRTBR' (swapParams{joinType = JoinPruned}) inGS inData inCounter (inSimAnnealParams, inGraph)
 
                         -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
                         let bestFirstList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : firstList)
@@ -70,8 +70,8 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
                         ---change JoinAlternate for return to pruned union
                         (alternateList, alternateCounter') ←
                             swapSPRTBRList (swapParams{joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $
-                                zip3
-                                    (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap))
+                                zip
+                                    -- (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap))
                                     (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
                                     bestFirstList
                         let (bestAlternateList, alternateCounter) =
@@ -84,8 +84,8 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
                         -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
                         (afterSecondList, afterSecondCounter) ←
                             swapSPRTBRList (swapParams{joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $
-                                zip3
-                                    (U.generateRandIntLists (length bestAlternateList) (head $ drop 2 randomIntListSwap))
+                                zip
+                                    -- (U.generateRandIntLists (length bestAlternateList) (head $ drop 2 randomIntListSwap))
                                     (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams)
                                     bestAlternateList
 
@@ -93,8 +93,8 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
 
                         -- add final joinall if buffer full?
                         if (snd5 $ head bestSecondList) < (snd5 $ head curBestGraphs)
-                            then swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) bestSecondList (tail inTripleList)
-                            else swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) curBestGraphs (tail inTripleList)
+                            then swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) bestSecondList (tail inDoubleList)
+                            else swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) curBestGraphs (tail inDoubleList)
 
 
 -- (bestSecondList, afterSecondCounter + inCounter)
@@ -108,18 +108,18 @@ swapSPRTBRList
     → ProcessedData
     → Int
     → [ReducedPhylogeneticGraph]
-    → [([Int], Maybe SAParams, ReducedPhylogeneticGraph)]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBRList swapParams inGS inData inCounter curBestGraphs tripleList =
-    if null tripleList
+swapSPRTBRList swapParams inGS inData inCounter curBestGraphs doubleList =
+    if null doubleList
         then do pure (curBestGraphs, inCounter)
         else
-            let (randomIntListSwap, inSimAnnealParams, inGraph) = head tripleList
+            let (inSimAnnealParams, inGraph) = head doubleList
             in  -- currrent graph worse than best saved
                 if snd5 inGraph > (snd5 . head) curBestGraphs
-                    then swapSPRTBRList swapParams inGS inData inCounter curBestGraphs (tail tripleList)
+                    then swapSPRTBRList swapParams inGS inData inCounter curBestGraphs (tail doubleList)
                     else do
-                        (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph)
+                        (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter (inSimAnnealParams, inGraph)
                         let bestNewGraphList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) graphList
 
                         -- found better
@@ -127,21 +127,21 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs tripleList =
                             then
                                 if (joinType swapParams == JoinAlternate || joinType swapParams == JoinPruned)
                                     then
-                                        let tripleToSwap =
-                                                zip3
-                                                    (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length bestNewGraphList))
+                                        let doubleToSwap =
+                                                zip
+                                                    -- (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length bestNewGraphList))
                                                     (U.generateUniqueRandList (length bestNewGraphList) inSimAnnealParams)
                                                     bestNewGraphList
-                                        in  swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (tripleToSwap <> tail tripleList)
-                                    else swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (tail tripleList)
+                                        in  swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (doubleToSwap <> tail doubleList)
+                                    else swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (tail doubleList)
                             else -- found worse
 
                                 if (snd5 $ head bestNewGraphList) > (snd5 $ head curBestGraphs)
-                                    then swapSPRTBRList swapParams inGS inData swapCounter curBestGraphs (tail tripleList)
+                                    then swapSPRTBRList swapParams inGS inData swapCounter curBestGraphs (tail doubleList)
                                     else -- found equal
 
                                         let newUniqueBestGraphList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (curBestGraphs <> bestNewGraphList)
-                                        in  swapSPRTBRList swapParams inGS inData swapCounter newUniqueBestGraphList (tail tripleList)
+                                        in  swapSPRTBRList swapParams inGS inData swapCounter newUniqueBestGraphList (tail doubleList)
 
 
 {- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
@@ -154,9 +154,9 @@ swapSPRTBR'
     → GlobalSettings
     → ProcessedData
     → Int
-    → ([Int], Maybe SAParams, ReducedPhylogeneticGraph)
+    → (Maybe SAParams, ReducedPhylogeneticGraph)
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealParams, inGraph) =
+swapSPRTBR' swapParams inGS inData inCounter (inSimAnnealParams, inGraph) =
     -- trace ("SPRTBRList:" <> (show $ joinType swapParams)) $
     if LG.isEmpty (fst5 inGraph)
         then do pure ([], 0)
@@ -169,7 +169,7 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
                 -}
                 -- parallel setup
                 action ∷ VertexCost -> Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
-                action = swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves  -- inGraphNetPenaltyFactor
+                action = swapAll swapParams inGS inData 0 (snd5 inGraph) [] [inGraph] numLeaves  -- inGraphNetPenaltyFactor
             in do
                 --inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
                 inGraphNetPenalty <- T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraph inGraph)
@@ -185,7 +185,7 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
                                 swapParams
                                 inGS
                                 inData
-                                randomIntListSwap
+                                --randomIntListSwap
                                 inCounter
                                 (snd5 inGraph)
                                 []
@@ -225,7 +225,7 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
                                         swapParams
                                         inGS
                                         inData
-                                        randomIntListSwap
+                                        --randomIntListSwap
                                         (sum anealDriftCounterList)
                                         (min (snd5 inGraph) (minimum $ fmap snd5 annealDriftGraphs))
                                         []
@@ -261,7 +261,6 @@ swapAll
     ∷ SwapParams
     → GlobalSettings
     → ProcessedData
-    → [Int]
     → Int
     → VertexCost
     → [ReducedPhylogeneticGraph]
@@ -270,7 +269,7 @@ swapAll
     → VertexCost
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
-swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves netPenaltyFactor inSimAnnealParams =
+swapAll swapParams inGS inData counter curBestCost curSameBetterList inGraphList numLeaves netPenaltyFactor inSimAnnealParams =
     {-# SCC swapAll_TOP_DEF #-}
     -- trace ("SWAPALL: " <> swapType <> " " <> joinType <> " " <> (show curBestCost)) $
     if null inGraphList
@@ -284,7 +283,7 @@ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBett
                         swapParams
                         inGS
                         inData
-                        randomIntListSwap
+                        --randomIntListSwap
                         counter
                         curBestCost
                         curSameBetterList
@@ -300,7 +299,7 @@ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBett
                             (swapParams{swapType = SPR})
                             inGS
                             inData
-                            randomIntListSwap
+                            --randomIntListSwap
                             counter
                             curBestCost
                             curSameBetterList
@@ -318,7 +317,7 @@ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBett
                             (swapParams{swapType = TBRAlternate})
                             inGS
                             inData
-                            (tail randomIntListSwap)
+                            --(tail randomIntListSwap)
                             sprCounter
                             sprBestCost
                             graphsToTBR
@@ -349,7 +348,7 @@ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBett
                                                 swapParams
                                                 inGS
                                                 inData
-                                                (drop 2 randomIntListSwap)
+                                                --(drop 2 randomIntListSwap)
                                                 tbrCounter
                                                 tbrBestCost
                                                 tbrGraphs
@@ -369,7 +368,7 @@ swapAll swapParams inGS inData randomIntListSwap counter curBestCost curSameBett
                                                                     swapParams
                                                                     inGS
                                                                     inData
-                                                                    (drop 3 randomIntListSwap)
+                                                                    --(drop 3 randomIntListSwap)
                                                                     tbrCounter
                                                                     tbrBestCost
                                                                     tbrGraphs
@@ -407,7 +406,6 @@ swapAll'
     ∷ SwapParams
     → GlobalSettings
     → ProcessedData
-    → [Int]
     → Int
     → VertexCost
     → [ReducedPhylogeneticGraph]
@@ -417,7 +415,7 @@ swapAll'
     → Int
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
-swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBetterList inGraphList numLeaves netPenaltyFactor breakEdgeNumber inSimAnnealParams =
+swapAll' swapParams inGS inData  counter curBestCost curSameBetterList inGraphList numLeaves netPenaltyFactor breakEdgeNumber inSimAnnealParams =
     {-# SCC swapAllPrime_TOP_DEF #-}
     -- trace (" In cost " <> (show curBestCost) <> (" " <> swapType)) (
     -- don't beed to check for mutated here since checked above
@@ -432,7 +430,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                         swapParams
                         inGS
                         inData
-                        randomIntListSwap
+                        --randomIntListSwap
                         counter
                         curBestCost
                         curSameBetterList
@@ -465,7 +463,8 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                             -- randomize edges list order for anneal and drift
                             breakEdgeList'' <-
                                 if atRandom swapParams
-                                then (\randVal -> permuteList randVal breakEdgeList') <$> getRandom
+                                -- then (\randVal -> permuteList randVal breakEdgeList') <$> getRandom
+                                then (`permuteList` breakEdgeList') <$> getRandom
                                 else pure breakEdgeList'
 
                             -- move first "breakEdgeFactor" edges in split list to end
@@ -484,7 +483,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                                         swapParams
                                         inGS
                                         inData
-                                        (tail randomIntListSwap)
+                                        --(tail randomIntListSwap)
                                         curBestCost
                                         curSameBetterList
                                         numLeaves
@@ -529,7 +528,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                                                         swapParams
                                                         inGS
                                                         inData
-                                                        randomIntListSwap
+                                                        --randomIntListSwap
                                                         (counter + 1)
                                                         newMinCost
                                                         newGraphList
@@ -549,7 +548,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                                                         swapParams
                                                         inGS
                                                         inData
-                                                        randomIntListSwap
+                                                        --randomIntListSwap
                                                         (counter + 1)
                                                         curBestCost
                                                         curSameBetterList
@@ -585,7 +584,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                                                             swapParams
                                                             inGS
                                                             inData
-                                                            (tail randomIntListSwap)
+                                                            --(tail randomIntListSwap)
                                                             (counter + 1)
                                                             curBestCost
                                                             newCurSameBetterList
@@ -622,7 +621,7 @@ swapAll' swapParams inGS inData randomIntListSwap counter curBestCost curSameBet
                                                             swapParams
                                                             inGS
                                                             inData
-                                                            randomIntListSwap
+                                                            --randomIntListSwap
                                                             (counter + 1)
                                                             curBestCost
                                                             newBestGraph
@@ -654,7 +653,6 @@ splitJoinGraph
     ∷ SwapParams
     → GlobalSettings
     → ProcessedData
-    → [Int]
     → VertexCost
     → [ReducedPhylogeneticGraph]
     → Int
@@ -665,7 +663,7 @@ splitJoinGraph
     → [LG.LEdge EdgeInfo]
     → [LG.LEdge EdgeInfo]
     → PhyG ([ReducedPhylogeneticGraph], Maybe SAParams, Int)
-splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBetterList numLeaves netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber' breakEdgeListComplete breakEdgeList =
+splitJoinGraph swapParams inGS inData curBestCost curSameBetterList numLeaves netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber' breakEdgeListComplete breakEdgeList =
     {-# SCC splitJoinGraph_TOP_DEF #-}
     if null breakEdgeList
         then pure (curSameBetterList, inSimAnnealParams, 0)
@@ -736,10 +734,12 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
                                 f x y = undefined
                                 z = f x y
                                 z = x `f` y -- Infix notation
-                                Could use infix notation for this randomness call:
+                                    Could use infix notation for this randomness call:
                                 then (`permuteList` rejoinEdges') <$> getRandom
-                                -}
+                                    or lambda:
                                 then (\randVal -> permuteList randVal rejoinEdges') <$> getRandom
+                                -}
+                                then (`permuteList` rejoinEdges') <$> getRandom
                                 else pure rejoinEdges'
                                 
                         -- rejoin graph to all possible edges in base graph
@@ -783,7 +783,7 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
                                                     swapParams
                                                     inGS
                                                     inData
-                                                    (tail randomIntListSwap)
+                                                    -- (tail randomIntListSwap)
                                                     curBestCost
                                                     curSameBetterList
                                                     numLeaves
@@ -815,7 +815,7 @@ splitJoinGraph swapParams inGS inData randomIntListSwap curBestCost curSameBette
                                                             swapParams
                                                             inGS
                                                             inData
-                                                            (tail randomIntListSwap)
+                                                            -- (tail randomIntListSwap)
                                                             curBestCost
                                                             curSameBetterList
                                                             numLeaves

@@ -742,7 +742,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     in  -- search
                         do
                             buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
-                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 buildGraphs'
+                            swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "buildAlternate" →
                     let -- build part
@@ -754,7 +754,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                     in  -- search
                         do
                             buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
-                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 buildGraphs'
+                            swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "swapSPR" →
                     let -- swap options
@@ -762,7 +762,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
                         do
-                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 inGraphList
+                            swapList ← R.swapMaster swapArgs inGS inData inGraphList
                             pure (swapList, swapArgs)
                 "swapAlternate" →
                     let -- swap options
@@ -770,7 +770,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                     in  -- search
                         do
-                            swapList ← R.swapMaster swapArgs inGS inData randSeed1 inGraphList
+                            swapList ← R.swapMaster swapArgs inGS inData inGraphList
                             pure (swapList, swapArgs)
                 -- drift only best graphs
                 "driftSPR" →
@@ -781,7 +781,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapDriftArgs = swapArgs <> driftArgs
                     in  -- perform search
                         do
-                            swapList ← R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList
+                            swapList ← R.swapMaster swapDriftArgs inGS inData inGraphList
                             pure (swapList, swapArgs)
                 -- drift only best graphs
                 "driftAlternate" →
@@ -792,7 +792,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapDriftArgs = swapArgs <> driftArgs
                     in  -- perform search
                         do
-                            swapList ← R.swapMaster swapDriftArgs inGS inData randSeed1 inGraphList
+                            swapList ← R.swapMaster swapDriftArgs inGS inData inGraphList
                             pure (swapList, swapDriftArgs)
                 -- anneal only best graphs
                 "annealSPR" →
@@ -803,7 +803,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapAnnealArgs = swapArgs <> annealArgs
                     in  -- perform search
                         do
-                            swapList ← R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList
+                            swapList ← R.swapMaster swapAnnealArgs inGS inData inGraphList
                             pure (swapList, swapAnnealArgs)
                 -- anneal only best graphs
                 "annealAlternate" →
@@ -814,7 +814,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                         swapAnnealArgs = swapArgs <> annealArgs
                     in  -- perform search
                         do
-                            swapList ← R.swapMaster swapAnnealArgs inGS inData randSeed1 inGraphList
+                            swapList ← R.swapMaster swapAnnealArgs inGS inData inGraphList
                             pure (swapList, swapAnnealArgs)
                 "geneticAlgorithm" →
                     do

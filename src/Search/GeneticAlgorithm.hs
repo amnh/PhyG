@@ -230,7 +230,7 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                     if graphType inGS == Tree || netEditType `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"]
                         then do
                             -- trace ("1")
-                            (newGraphList, _) ← S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(randList, inSimAnnealParams, inGraph)]
+                            (newGraphList, _) ← S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(inSimAnnealParams, inGraph)]
                             if (not . null) newGraphList
                                 then pure $ head newGraphList
                                 else pure inGraph
@@ -241,7 +241,7 @@ mutateGraph inGS inData maxNetEdges (rSeed, inGraph) =
                             if editType == "swap"
                                 then do
                                     -- trace ("2")
-                                    (newGraphList, _) ← S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(randList, inSimAnnealParams, inGraph)]
+                                    (newGraphList, _) ← S.swapSPRTBR swapParams inGS inData 0 [inGraph] [(inSimAnnealParams, inGraph)]
                                     if (not . null) newGraphList
                                         then pure $ head newGraphList
                                         else pure inGraph

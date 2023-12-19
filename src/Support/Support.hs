@@ -287,7 +287,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
                     let netGraphList = case graphType inGS of
                             Tree → bestBuildGraphList
                             _ → edgeGraphList
-                    swapGraphs ← R.swapMaster swapOptions inGS newData (randomIntegerList1 !! 3) netGraphList
+                    swapGraphs ← R.swapMaster swapOptions inGS newData netGraphList
                     let swapGraphList
                             | null swapOptions = netGraphList
                             | otherwise = swapGraphs
