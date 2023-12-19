@@ -128,8 +128,6 @@ swapMaster inArgs inGS inData inGraphListInput = {-# SCC swapMaster_TOP_DEF #-}
                 action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
                 action = {-# SCC swapMaster_action_swapSPRTBR#-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
             in  do
-                    randomSeed <- getRandom
-                    let randomIntListSwap = randomIntList randomSeed -- rSeed
 
                     simAnnealParams ←
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges

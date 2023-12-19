@@ -838,7 +838,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "fuseSPR" →
                     let -- fuse arguments
                         -- inGSgs1 = inGS{graphsSteepest = 1}
@@ -852,7 +852,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "fuseTBR" →
                     let -- fuse arguments
                         -- inGSgs1 = inGS{graphsSteepest = 1}
@@ -866,7 +866,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "networkAdd" →
                     let -- network add args
                         netEditArgs = netAddArgs

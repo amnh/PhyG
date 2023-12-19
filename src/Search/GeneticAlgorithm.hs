@@ -119,7 +119,7 @@ geneticAlgorithm inGS inData rSeed doElitist maxNetEdges keepNum popSize generat
                                             swapParams
                                             inGS
                                             inData
-                                            (drop 6 seedList)
+                                            --(drop 6 seedList)
                                             0
                                             returnBest
                                             returnUnique

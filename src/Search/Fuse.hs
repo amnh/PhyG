@@ -9,6 +9,7 @@ module Search.Fuse (
 
 import Control.Monad (when, filterM)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.InfList qualified as IL
@@ -42,7 +43,6 @@ fuseAllGraphs
     ∷ SwapParams
     → GlobalSettings
     → ProcessedData
-    → [Int]
     → Int
     → Bool
     → Bool
@@ -52,7 +52,7 @@ fuseAllGraphs
     → Bool
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList = case inGraphList of
+fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList = case inGraphList of
     [] → return ([], counter)
     [x] → return (inGraphList, counter)
     _ →
@@ -64,6 +64,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
             curBestGraph = head $ filter ((== curBest) . snd5) inGraphList
 
         in do
+                randomSeed <- getRandom
 
                 -- get net penalty estimate from optimal graph for delta recombine later
                 -- Nothing here so starts at overall root
@@ -78,7 +79,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                             then (graphPairList', "")
                             else
                                 if randomPairs
-                                    then (takeRandom (head rSeedList) (fromJust fusePairs) graphPairList', " randomized")
+                                    then (takeRandom randomSeed (fromJust fusePairs) graphPairList', " randomized")
                                     else (takeNth (fromJust fusePairs) graphPairList', "")
 
                 -- could be fusePairRecursive to save on memory
@@ -126,7 +127,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                                 swapParams
                                                 inGS
                                                 inData
-                                                (drop 2 rSeedList)
+                                                --(drop 2 rSeedList)
                                                 (counter + 1)
                                                 returnBest
                                                 returnUnique
@@ -154,7 +155,7 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
                                                     swapParams
                                                     inGS
                                                     inData
-                                                    (drop 2 rSeedList)
+                                                    --(drop 2 rSeedList)
                                                     (counter + 1)
                                                     returnBest
                                                     returnUnique
