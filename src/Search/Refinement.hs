@@ -446,8 +446,7 @@ netEdgeMaster inArgs inGS inData inGraphList =
         then do
             logWith LogInfo "No graphs to edit network edges\n"
             pure []
-        else do
-            rSeed <- getRandom
+        else
             if graphType inGS == Tree
                 then do
                     logWith LogWarn "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n"
@@ -532,7 +531,6 @@ netEdgeMaster inArgs inGS inData inGraphList =
                                                 { method = saMethod
                                                 , numberSteps = steps
                                                 , currentStep = 0
-                                                , randomIntegerList = randomIntList rSeed
                                                 , rounds = max annealingRounds driftRounds
                                                 , driftAcceptEqual = equalProb
                                                 , driftAcceptWorse = worseFactor

@@ -589,7 +589,6 @@ data SimulatedAnnealingMethod = SimAnneal | Drift
 data SAParams = SAParams { method            :: SimulatedAnnealingMethod
                          , numberSteps       :: Int
                          , currentStep       :: Int
-                         , randomIntegerList :: [Int]
                          , rounds            :: Int
                          , driftAcceptEqual  :: Double
                          , driftAcceptWorse  :: Double

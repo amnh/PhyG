@@ -32,7 +32,8 @@ swapMaster
     → ProcessedData
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-swapMaster inArgs inGS inData inGraphListInput = {-# SCC swapMaster_TOP_DEF #-}
+swapMaster inArgs inGS inData inGraphListInput =
+    {-# SCC swapMaster_TOP_DEF #-}
     if null inGraphListInput
         then do
             logWith LogInfo "No graphs to swap\n"
@@ -126,9 +127,8 @@ swapMaster inArgs inGS inData inGraphListInput = {-# SCC swapMaster_TOP_DEF #-}
 
                 -- parallel setup
                 action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
-                action = {-# SCC swapMaster_action_swapSPRTBR#-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
+                action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
             in  do
-
                     simAnnealParams ←
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
@@ -277,21 +277,18 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                         then 15
                         else fromJust maxChanges
 
-                
+                saValues =
+                    SAParams
+                        { method = saMethod
+                        , numberSteps = steps
+                        , currentStep = 0
+                        , rounds = max annealingRounds driftRounds
+                        , driftAcceptEqual = equalProb
+                        , driftAcceptWorse = worseFactor
+                        , driftMaxChanges = changes
+                        , driftChanges = 0
+                        }
             in  do
-                    randomSeed <- getRandom
-                    let saValues =
-                            SAParams
-                                { method = saMethod
-                                , numberSteps = steps
-                                , currentStep = 0
-                                , randomIntegerList = randomIntList randomSeed
-                                , rounds = max annealingRounds driftRounds
-                                , driftAcceptEqual = equalProb
-                                , driftAcceptWorse = worseFactor
-                                , driftMaxChanges = changes
-                                , driftChanges = 0
-                                }
                     when (doDrift && doAnnealing) $
                         logWith
                             LogWarn

@@ -197,7 +197,6 @@ mutateGraph inGS inData maxNetEdges inGraph =
                                     { method = getRandomElement (randList !! 0) [Drift, SimAnneal]
                                     , numberSteps = getRandomElement (randList !! 1) [5, 10, 20]
                                     , currentStep = 0
-                                    , randomIntegerList = randList
                                     , rounds = 1
                                     , driftAcceptEqual = 0.5
                                     , driftAcceptWorse = 2.0

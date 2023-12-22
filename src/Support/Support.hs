@@ -28,6 +28,7 @@ import Search.NetworkAddDelete qualified as N
 import Search.Refinement qualified as R
 import Text.Read
 import Types.Types
+import Data.Vector.Primitive (convert)
 import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
 
@@ -263,35 +264,32 @@ makeResampledDataAndGraph
     → Double
     -> Int 
     → PhyG ReducedPhylogeneticGraph
-makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq _ = 
-    do
-            rSeed <- getRandom
-            let newData = resampleData rSeed resampleType jackFreq inData
-            -- pairwise distances for distance analysis
-            -- pairwiseDistances ← DD.getPairwiseDistances newData
+makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq _ = do
+    newData <- resampleData resampleType jackFreq inData
+    -- pairwise distances for distance analysis
+    -- pairwiseDistances ← DD.getPairwiseDistances newData
+    let buildGraphs = B.buildGraph buildOptions inGS newData 
+    let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
 
-            let buildGraphs = B.buildGraph buildOptions inGS newData 
-            let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
+    -- if not a tree then try to add net edges
+    let netAddArgs = [("netadd", ""), ("keep", show (1 ∷ Int)), ("steepest", ""), ("atrandom", ""), ("maxnetedges", "5")]
 
-            -- if not a tree then try to add net edges
-            let netAddArgs = [("netadd", ""), ("keep", show (1 ∷ Int)), ("steepest", ""), ("atrandom", ""), ("maxnetedges", "5")]
-
-            -- simple swap refinement
-            if V.null $ thd3 newData
-                then pure emptyReducedPhylogeneticGraph
-                else do
-                    -- build graphs
-                    buildGraphs ← B.buildGraph buildOptions inGS newData  
-                    let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) buildGraphs
-                    edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
-                    let netGraphList = case graphType inGS of
-                            Tree → bestBuildGraphList
-                            _ → edgeGraphList
-                    swapGraphs ← R.swapMaster swapOptions inGS newData netGraphList
-                    let swapGraphList
-                            | null swapOptions = netGraphList
-                            | otherwise = swapGraphs
-                    pure $ head swapGraphList
+    -- simple swap refinement
+    if V.null $ thd3 newData
+        then pure emptyReducedPhylogeneticGraph
+        else do
+            -- build graphs
+            buildGraphs ← B.buildGraph buildOptions inGS newData  
+            let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) buildGraphs
+            edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
+            let netGraphList = case graphType inGS of
+                    Tree → bestBuildGraphList
+                    _ → edgeGraphList
+            swapGraphs ← R.swapMaster swapOptions inGS newData netGraphList
+            let swapGraphList
+                    | null swapOptions = netGraphList
+                    | otherwise = swapGraphs
+            pure $ head swapGraphList
 
 
 {- | resampleData perfoms a single randomized data resampling
@@ -301,31 +299,25 @@ jackknife moves through processed data and creates a new data set
 Bootstrap draws chars from input directly copying--currently disabled
 if a block of data end up with zero resampled characters it is deleted
 -}
-resampleData ∷ Int → SupportMethod → Double → ProcessedData → ProcessedData
-resampleData rSeed resampleType sampleFreq (nameVect, nameBVVect, blockDataVect) =
-    if V.null blockDataVect
-        then error "Null input data in resampleData"
-        else
-            let lRandomIntegerList = randomIntList rSeed
-            in  -- Bootstrap  or Jackknife resampling
-                let newBlockDataVect' =
-                        if resampleType == Bootstrap
-                            then V.zipWith resampleBlockBootstrap (V.fromList lRandomIntegerList) blockDataVect
-                            else V.zipWith (resampleBlockJackknife sampleFreq) (V.fromList lRandomIntegerList) blockDataVect
-                    -- filter any zero length blocks
-                    newBlockDataVect = V.filter ((not . V.null) . thd3) newBlockDataVect'
-                in  (nameVect, nameBVVect, newBlockDataVect)
+resampleData ∷ SupportMethod → Double → ProcessedData → PhyG ProcessedData
+resampleData resampleType sampleFreq (nameVect, nameBVVect, blockDataVect)
+    | V.null blockDataVect =  error "Null input data in resampleData"
+    | otherwise = -- Bootstrap  or Jackknife resampling
+        let resampler = case resampleType of
+                Bootstrap -> resampleBlockBootstrap
+                _ -> resampleBlockJackknife sampleFreq
+        in  do newBlockDataVect' <- traverse resampler  blockDataVect
+                -- filter any zero length blocks
+               let newBlockDataVect = V.filter ((not . V.null) . thd3) newBlockDataVect'
+               pure $ (nameVect, nameBVVect, newBlockDataVect)
 
 
 -- | resampleBlockBootstrap takes BlockData and a seed and creates a Bootstrap resampled BlockData
-resampleBlockBootstrap ∷ Int → BlockData → BlockData
-resampleBlockBootstrap rSeed (nameText, charDataVV, charInfoV) =
-    let lRandomIntegerList = randomIntList rSeed
-        randomIntegerList2 = randomIntList (head lRandomIntegerList)
-
-        -- maps over taxa in data bLock
-        (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVectBootstrap lRandomIntegerList randomIntegerList2 charInfoV) charDataVV
-    in  (nameText, newCharDataVV, V.head newCharInfoV)
+resampleBlockBootstrap ∷ BlockData → PhyG BlockData
+resampleBlockBootstrap (nameText, charDataVV, charInfoV) = do
+    -- maps over taxa in data bLock
+    (newCharDataVV, newCharInfoV) <- V.unzip <$> traverse (makeSampledPairVectBootstrap charInfoV) charDataVV
+    pure (nameText, newCharDataVV, V.head newCharInfoV)
 
 
 {- | makeSampledPairVectBootstrap takes a list of Int and a vectors of charinfo and char data
@@ -334,8 +326,8 @@ this to create a Bootstrap replicate of equal size
 this for a single taxon hecen pass teh random ints so same for each one
 -}
 makeSampledPairVectBootstrap
-    ∷ [Int] → [Int] → V.Vector CharInfo → V.Vector CharacterData → (V.Vector CharacterData, V.Vector CharInfo)
-makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharDataVect =
+    ∷ V.Vector CharInfo → V.Vector CharacterData → PhyG (V.Vector CharacterData, V.Vector CharInfo)
+makeSampledPairVectBootstrap inCharInfoVect inCharDataVect =
     -- get character numbers and set resampling indices for dynamic characters--statric happen within those characters
     let -- zip so can filter static and dynamic characters
         dataInfoPairV = V.zip inCharDataVect inCharInfoVect
@@ -347,18 +339,15 @@ makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharD
         (dynamicCharsV, dynamicCharsInfoV) = V.unzip $ V.filter ((`notElem` exactCharacterTypes) . charType . snd) dataInfoPairV
 
         numDynamicChars = V.length dynamicCharsV
-        dynCharIndices = fmap (randIndex numDynamicChars) (take numDynamicChars randIntList)
-    in  -- trace ("MSPVB: " <> (show $ length dynCharIndices) <> " " <> (show dynCharIndices)) (
-        -- resample dynamic characters
-        -- straight resample
-        let resampleDynamicChars = V.map (dynamicCharsV V.!) (V.fromList dynCharIndices)
-            resmapleDynamicCharInfo = V.map (dynamicCharsInfoV V.!) (V.fromList dynCharIndices)
+    in  do  dynCharIndices <- V.replicateM numDynamicChars $ randIndex numDynamicChars <$> getRandom
+            let resampleDynamicChars = V.map (dynamicCharsV V.!) dynCharIndices
+            let resampleDynamicCharInfo = V.map (dynamicCharsInfoV V.!) dynCharIndices
 
             -- static chars do each one mapping random choices within the character type
             -- but keeping each one--hence char info is staticCharsInfoV
-            resampleStaticChars = V.zipWith (subSampleStatic fullRandIntlList) staticCharsV staticCharsInfoV
-        in  -- cons the vectors for chrater data and character info
-            (resampleStaticChars <> resampleDynamicChars, staticCharsInfoV <> resmapleDynamicCharInfo)
+            resampleStaticChars <- V.zipWithM subSampleStatic staticCharsV staticCharsInfoV
+            -- cons the vectors for chrater data and character info
+            pure (resampleStaticChars <> resampleDynamicChars, staticCharsInfoV <> resampleDynamicCharInfo)
     where
         -- )
         randIndex ∷ ∀ {b}. (Integral b) ⇒ b → b → b
@@ -368,8 +357,8 @@ makeSampledPairVectBootstrap fullRandIntlList randIntList inCharInfoVect inCharD
 {- | subSampleStatic takes a random int list and a static charcter
 Bootstrap resamples that character based on ransom it list and number of "subcharacters" in character
 -}
-subSampleStatic ∷ [Int] → CharacterData → CharInfo → CharacterData
-subSampleStatic randIntList inCharData inCharInfo =
+subSampleStatic ∷ CharacterData → CharInfo → PhyG CharacterData
+subSampleStatic inCharData inCharInfo =
     let (a1, a2, a3) = rangePrelim inCharData
         (na1, na2, na3) = stateBVPrelim inCharData
         (pa1, pa2, pa3) = packedNonAddPrelim inCharData
@@ -382,32 +371,25 @@ subSampleStatic randIntList inCharData inCharInfo =
             | inCharType == Matrix = V.length m1
             | otherwise = error ("Dynamic character in subSampleStatic: " <> show inCharType)
 
-        -- get character indices based on number "subcharacters"
-        staticCharIndices = V.fromList $ fmap (randIndex charLength) (take charLength randIntList)
-        staticCharIndicesUV = UV.fromList $ fmap (randIndex charLength) (take charLength randIntList)
-    in  -- trace ("SSS:" <> (show $ V.length staticCharIndices) <> " " <> (show staticCharIndices)) (
-        if inCharType == Add
-            then
-                inCharData
+    in  do  -- get character indices based on number "subcharacters"
+            staticCharIndices <- V.generateM charLength . const $ randIndex charLength <$> getRandom
+            let staticCharIndicesUV :: UV.Vector Int
+                staticCharIndicesUV = convert staticCharIndices
+
+            -- trace ("SSS:" <> (show $ V.length staticCharIndices) <> " " <> (show staticCharIndices)) (
+            case inCharType of
+                Add -> pure $ inCharData
                     { rangePrelim = (V.map (a1 V.!) staticCharIndices, V.map (a2 V.!) staticCharIndices, V.map (a3 V.!) staticCharIndices)
                     }
-            else
-                if inCharType == NonAdd
-                    then
-                        inCharData
-                            { stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)
-                            }
-                    else
-                        if inCharType `elem` packedNonAddTypes
-                            then
-                                inCharData
-                                    { packedNonAddPrelim =
-                                        (UV.map (pa1 UV.!) staticCharIndicesUV, UV.map (pa2 UV.!) staticCharIndicesUV, UV.map (pa3 UV.!) staticCharIndicesUV)
-                                    }
-                            else
-                                if inCharType == Matrix
-                                    then inCharData{matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
-                                    else error ("Incorrect character type in subSampleStatic: " <> show inCharType)
+                NonAdd -> pure $ inCharData
+                    { stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)
+                    }
+                val | val `elem` packedNonAddTypes -> pure $ inCharData
+                    { packedNonAddPrelim =
+                        (UV.map (pa1 UV.!) staticCharIndicesUV, UV.map (pa2 UV.!) staticCharIndicesUV, UV.map (pa3 UV.!) staticCharIndicesUV)
+                    }
+                Matrix -> pure $ inCharData{matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
+                _ -> error ("Incorrect character type in subSampleStatic: " <> show inCharType)
     where
         -- )
         randIndex ∷ ∀ {b}. (Integral b) ⇒ b → b → b
@@ -583,33 +565,31 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 
 
 -- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
-resampleBlockJackknife ∷ Double → Int → BlockData → BlockData
-resampleBlockJackknife sampleFreq rSeed inData@(nameText, charDataVV, charInfoV) =
-    let randomIntegerList1 = randomIntList rSeed
-        randomIntegerList2 = randomIntList (head randomIntegerList1)
-        acceptanceList = fmap (randAccept sampleFreq) randomIntegerList1
-        acceptanceList2 = fmap (randAccept sampleFreq) randomIntegerList2
-        -- newCharInfoV = makeSampledVect acceptanceVect [] charInfoV
-        -- newCharDataV = fmap (makeSampledVect acceptanceVect []) charDataVV
-        (newCharDataVV, newCharInfoV) = V.unzip $ fmap (makeSampledPairVect acceptanceList acceptanceList2 [] [] charInfoV) charDataVV
-    in  -- trace ("RB length " <> (show $ V.length charInfoV) <> " -> " <> (show $ V.length $ V.head newCharInfoV) ) (
-        if V.length (V.head newCharInfoV) > 0
-            then (nameText, newCharDataVV, V.head newCharInfoV)
-            else resampleBlockJackknife sampleFreq (head randomIntegerList1) inData
-    where
-        -- )
+resampleBlockJackknife ∷ Double → BlockData → PhyG BlockData
+resampleBlockJackknife sampleFreq inData@(nameText, charDataVV, charInfoV) =
+    let getRandomAcceptances :: PhyG [Bool]
+        getRandomAcceptances = fmap (randAccept sampleFreq) <$> getRandoms
 
-        randAccept
-            ∷ ∀ {p} {a}
-             . (RealFrac p, Integral a)
-            ⇒ p
-            → a
-            → Bool
+        randAccept ∷ Double → Word → Bool
         randAccept b a =
             let (_, randVal) = divMod (abs a) 1000
                 critVal = floor (1000 * b)
             in  -- trace ("RA : " <> (show (b,a, randVal, critVal, randVal < critVal)))
                 randVal < critVal
+
+        jackknifeSampling :: PhyG ( V.Vector (V.Vector CharacterData), V.Vector (V.Vector CharInfo) )
+        jackknifeSampling = do
+            accepts1 <- getRandomAcceptances
+            accepts2 <- getRandomAcceptances
+            pure . V.unzip $ makeSampledPairVect accepts1 accepts2 [] [] charInfoV <$> charDataVV
+
+    in  do
+            (newCharDataVV, newCharInfoVV) <- jackknifeSampling
+            let newCharInfoV :: V.Vector CharInfo
+                newCharInfoV = V.head newCharInfoVV
+            case V.length newCharInfoV of
+                0 -> resampleBlockJackknife sampleFreq inData
+                _ -> pure (nameText, newCharDataVV, newCharInfoV)
 
 
 {- | getGoodBremGraphs performs Goodman-Bremer support
