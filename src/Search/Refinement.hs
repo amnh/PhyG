@@ -441,18 +441,16 @@ netEdgeMaster
     → ProcessedData
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-netEdgeMaster inArgs inGS inData inGraphList =
-    if null inGraphList
-        then do
+netEdgeMaster inArgs inGS inData inGraphList
+    | null inGraphList =  do
             logWith LogInfo "No graphs to edit network edges\n"
             pure []
-        else
-            if graphType inGS == Tree
-                then do
-                    logWith LogWarn "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n"
-                    pure inGraphList
-                else -- process args for netEdgeMaster
-
+    | otherwise = case graphType inGS of
+        Tree ->  do
+            logWith LogWarn "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n"
+            pure inGraphList
+        -- process args for netEdgeMaster
+        _ ->
                     let ( keepNum
                             , steps'
                             , annealingRounds'

@@ -133,7 +133,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
                     -- create simulated annealing random lists uniquely for each fmap
-                    let newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
+                    let newSimAnnealParamList = replicate numGraphs simAnnealParams
 
                     let progressString
                             | (not doAnnealing && not doDrift) =
@@ -180,7 +180,8 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- TODO
                     -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
-                    let simAnnealList = fmap (: []) (zip newSimAnnealParamList inGraphList)
+                    let simAnnealList :: [[(Maybe SAParams, ReducedPhylogeneticGraph)]] -- [(Maybe SAParams, 
+                        simAnnealList = fmap pure $ zip newSimAnnealParamList inGraphList
                     swapPar ← getParallelChunkTraverse
                     graphPairList ← swapPar action simAnnealList
                     -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList

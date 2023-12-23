@@ -108,8 +108,11 @@ search inArgs inGS inData inGraphList' =
 
             let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
             let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
-            let searchTimed =
-                    uncurry3' $
+            let searchTimed
+                    :: (Int, ([ReducedPhylogeneticGraph], [String]))
+                    -> Evaluation () ([ReducedPhylogeneticGraph], [String])
+                searchTimed =
+                    uncurry $
                         searchForDuration
                             inGS
                             inData
@@ -125,9 +128,6 @@ search inArgs inGS inData inGraphList' =
                             threshold
                             0
                             stopNum
-            let infoIndices = [1 ..]
-            rSeed <- getRandom
-            let seadStreams = randomIntList <$> randomIntList rSeed
 
             logWith
                 LogInfo
@@ -153,11 +153,13 @@ search inArgs inGS inData inGraphList' =
                                 inData
                         pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
 
-            --  threadCount <- (max 1) <$> getNumCapabilities
             let threadCount = instances -- <- (max 1) <$> getNumCapabilities
             let startGraphs = replicate threadCount (inGraphList, mempty)
-            let threadInits = zip3 infoIndices seadStreams startGraphs
-            resultList ← pooledMapConcurrently searchTimed threadInits -- If there are no input graphs--make some via distance
+            let threadInits :: [(Int, ([ReducedPhylogeneticGraph], [String]))]
+                threadInits = zip [ 1 .. ] startGraphs
+            -- If there are no input graphs--make some via distance
+            pTraverse ← getParallelChunkTraverse
+            resultList ← searchTimed `pTraverse` threadInits
             let (newGraphList, commentList) = unzip resultList
             let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
 
@@ -213,10 +215,9 @@ searchForDuration
     → Int
     → Int
     → Int
-    -> [Int]
     → ([ReducedPhylogeneticGraph], [String])
     → PhyG ([ReducedPhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction totalThetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex _ (inGraphList, infoStringList) =
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction totalThetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex (inGraphList, infoStringList) =
     let timeLimit = fromIntegral $ toMicroseconds allotedSeconds
 
         -- this line to keep control of graph number
@@ -329,7 +330,6 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                                 newStopCount
                                 stopNum
                                 refIndex
-                                [] -- should refactored out (since ignored) had some issue with complex calling above
                                 $ bimap (inGraphList <>) (infoStringList <>) output
 
 
