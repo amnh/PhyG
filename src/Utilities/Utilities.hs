@@ -36,6 +36,7 @@ module Utilities.Utilities where
 
 import Complexity.Graphs qualified as GC
 import Complexity.Utilities qualified as GCU
+import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.Alphabet
@@ -1108,11 +1109,8 @@ incrementSimAnnealParams =
 
 
 -- | generateRandLists generates n random lists from seed
-generateRandIntLists ∷ Int → Int → [[Int]]
-generateRandIntLists rSeed number =
-    if number == 0
-        then []
-        else fmap GU.randomIntList (take number $ GU.randomIntList rSeed)
+generateRandIntLists :: Int -> PhyG [[Int]]
+generateRandIntLists count = replicateM count getRandoms
 
 
 {- | generateUniqueRandList take a int and simulated anealing parameter slist and creates

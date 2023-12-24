@@ -292,6 +292,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
             pure $ head swapGraphList
 
 
+
 {- | resampleData perfoms a single randomized data resampling
 based on either with replacement (bootstrp) or without (jackknife)
 jackknife moves through processed data and creates a new data set

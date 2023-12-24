@@ -35,8 +35,7 @@ swapMaster
     → PhyG [ReducedPhylogeneticGraph]
 swapMaster inArgs inGS inData inGraphListInput
     | null inGraphListInput = logWith LogInfo "No graphs to swap\n" $> []
-    | otherwise -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
-        =
+    | otherwise =
         let -- process args for swap
             ( keepNum
                 , maxMoveEdgeDist'
@@ -186,16 +185,14 @@ swapMaster inArgs inGS inData inGraphListInput
                 let (graphListList, counterList) = unzip graphPairList
                 let (newGraphList, counter) = (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
 
-                let finalGraphList =
-                        if null newGraphList
-                            then inGraphList
-                            else newGraphList
+                let finalGraphList
+                        | null newGraphList = inGraphList
+                        | otherwise = newGraphList
 
-                let fullBuffWarning =
-                        if length newGraphList >= (fromJust keepNum)
-                            then
-                                "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
-                            else ""
+                let fullBuffWarning
+                        | length newGraphList < (fromJust keepNum) = ""
+                        | otherwise =
+                           "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
 
                 let endString
                         | (not doAnnealing && not doDrift) =
@@ -288,7 +285,6 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                         logWith
                             LogWarn
                             "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
-
                     pure saValues
 
 

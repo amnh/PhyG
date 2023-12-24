@@ -68,10 +68,10 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inDoubleList =
                         let bestFirstList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : firstList)
 
                         ---change JoinAlternate for return to pruned union
+--                        rStreamList1 <- U.generateRandIntLists $ length bestFirstList
                         (alternateList, alternateCounter') ←
                             swapSPRTBRList (swapParams{joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $
                                 zip
-                                    -- (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap))
                                     (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
                                     bestFirstList
                         let (bestAlternateList, alternateCounter) =
@@ -82,10 +82,10 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inDoubleList =
 
                         -- recursive list version as opposed ot parMap version
                         -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
+--                        rStreamList2 <- U.generateRandIntLists $ length bestAlternateList
                         (afterSecondList, afterSecondCounter) ←
                             swapSPRTBRList (swapParams{joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $
                                 zip
-                                    -- (U.generateRandIntLists (length bestAlternateList) (head $ drop 2 randomIntListSwap))
                                     (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams)
                                     bestAlternateList
 
