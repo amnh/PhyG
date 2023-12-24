@@ -68,10 +68,11 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
                         let bestFirstList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraph : firstList)
 
                         ---change JoinAlternate for return to pruned union
+                        rStreamList1 <- U.generateRandIntLists $ length bestFirstList
                         (alternateList, alternateCounter') ←
                             swapSPRTBRList (swapParams{joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $
                                 zip3
-                                    (U.generateRandIntLists (length bestFirstList) (head $ drop 2 randomIntListSwap))
+                                    rStreamList1
                                     (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
                                     bestFirstList
                         let (bestAlternateList, alternateCounter) =
@@ -82,10 +83,11 @@ swapSPRTBR swapParams inGS inData inCounter curBestGraphs inTripleList =
 
                         -- recursive list version as opposed ot parMap version
                         -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
+                        rStreamList2 <- U.generateRandIntLists $ length bestAlternateList
                         (afterSecondList, afterSecondCounter) ←
                             swapSPRTBRList (swapParams{joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $
                                 zip3
-                                    (U.generateRandIntLists (length bestAlternateList) (head $ drop 2 randomIntListSwap))
+                                    rStreamList2
                                     (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams)
                                     bestAlternateList
 
@@ -126,13 +128,14 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs tripleList =
                         if (snd5 $ head bestNewGraphList) < (snd5 $ head curBestGraphs)
                             then
                                 if (joinType swapParams == JoinAlternate || joinType swapParams == JoinPruned)
-                                    then
+                                    then  do
+                                        rStreamList <- U.generateRandIntLists $ length bestNewGraphList
                                         let tripleToSwap =
                                                 zip3
-                                                    (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length bestNewGraphList))
+                                                    rStreamList
                                                     (U.generateUniqueRandList (length bestNewGraphList) inSimAnnealParams)
                                                     bestNewGraphList
-                                        in  swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (tripleToSwap <> tail tripleList)
+                                        swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (tripleToSwap <> tail tripleList)
                                     else swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (tail tripleList)
                             else -- found worse
 

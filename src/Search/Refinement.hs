@@ -45,7 +45,6 @@ swapMaster
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
 swapMaster = SM.swapMaster
