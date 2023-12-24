@@ -20,6 +20,7 @@ import Commands.Verify qualified as VER
 import Control.Monad (when)
 import Control.Monad.Random.Class
 import Data.Char
+import Data.Foldable (fold)
 import Data.Functor (($>), (<$))
 import Data.Maybe
 import GeneralUtilities
@@ -84,11 +85,11 @@ refineGraph inArgs inGS inData rSeed inGraphList =
 
                                     if doGenAlg
                                         then do
-                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData inGraphList
                                             pure gaReturn
                                         else -- genetic algorithm default
                                         do
-                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList
+                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData inGraphList
                                             pure gaReturn
 
 
@@ -111,62 +112,58 @@ geneticAlgorithmMaster
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
-    if null inGraphList
-        then do
-            logWith LogInfo "No graphs to undergo Genetic Algorithm\n"
-            pure []
-        else do
-            logWith
-                LogInfo
-                ( "Genetic Algorithm operating on population of "
-                    <> show (length inGraphList)
-                    <> " input graph(s) with cost range ("
-                    <> show (minimum $ fmap snd5 inGraphList)
-                    <> ","
-                    <> show (maximum $ fmap snd5 inGraphList)
-                    <> ")"
-                    <> "\n"
-                )
+geneticAlgorithmMaster inArgs inGS inData inGraphList
+    | null inGraphList = logWith LogInfo "No graphs to undergo Genetic Algorithm\n" $> []
+    | otherwise = do
+        logWith LogInfo $
+            fold
+                [ "Genetic Algorithm operating on population of "
+                , show $ length inGraphList
+                , " input graph(s) with cost range ("
+                , show . minimum $ fmap snd5 inGraphList
+                , ","
+                , show . maximum $ fmap snd5 inGraphList
+                , ")"
+                , "\n"
+                ]
 
-            -- process args
-            let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
+        -- process args
+        let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
 
-            (newGraphList, generationCounter) ←
-                GA.geneticAlgorithm
-                    inGS
-                    inData
-                    doElitist
-                    (fromJust maxNetEdges)
-                    (fromJust keepNum)
-                    (fromJust popSize)
-                    (fromJust generations)
-                    0
-                    (fromJust severity)
-                    (fromJust recombinations)
-                    0
-                    stopNum
-                    inGraphList
+        (newGraphList, generationCounter) ←
+            GA.geneticAlgorithm
+                inGS
+                inData
+                doElitist
+                (fromJust maxNetEdges)
+                (fromJust keepNum)
+                (fromJust popSize)
+                (fromJust generations)
+                0
+                (fromJust severity)
+                (fromJust recombinations)
+                0
+                stopNum
+                inGraphList
 
-            logWith
-                LogInfo
-                ( "\tGenetic Algorithm: "
-                    <> show (length newGraphList)
-                    <> " resulting graphs with cost range ("
-                    <> show (minimum $ fmap snd5 newGraphList)
-                    <> ","
-                    <> show (maximum $ fmap snd5 newGraphList)
-                    <> ")"
-                    <> " after "
-                    <> show generationCounter
-                    <> " generation(s)"
-                    <> "\n"
-                )
+        logWith LogInfo $
+            fold
+                [ "\tGenetic Algorithm: "
+                , show $ length newGraphList
+                , " resulting graphs with cost range ("
+                , show . minimum $ fmap snd5 newGraphList
+                , ","
+                , show . maximum $ fmap snd5 newGraphList
+                , ")"
+                , " after "
+                , show generationCounter
+                , " generation(s)"
+                , "\n"
+                ]
 
-            pure newGraphList
+        pure newGraphList
 
 
 -- | getGeneticAlgParams returns paramlist from arglist
@@ -502,35 +499,36 @@ netEdgeMaster inArgs inGS inData inGraphList
                 getSimAnnealParams rVal
                     | not doAnnealing && not doDrift = pure Nothing
                     | otherwise =
-                            let steps = max 3 (fromJust steps')
-                                annealingRounds
-                                    | isNothing annealingRounds' = 1
-                                    | fromJust annealingRounds' < 1 = 1
-                                    | otherwise = fromJust annealingRounds'
+                        let steps = max 3 (fromJust steps')
+                            annealingRounds
+                                | isNothing annealingRounds' = 1
+                                | fromJust annealingRounds' < 1 = 1
+                                | otherwise = fromJust annealingRounds'
 
-                                driftRounds
-                                    | isNothing driftRounds' = 1
-                                    | fromJust driftRounds' < 1 = 1
-                                    | otherwise = fromJust driftRounds'
+                            driftRounds
+                                | isNothing driftRounds' = 1
+                                | fromJust driftRounds' < 1 = 1
+                                | otherwise = fromJust driftRounds'
 
-                                saMethod
-                                    | doDrift && doAnnealing = Drift
-                                    | doDrift = Drift
-                                    | otherwise = SimAnneal
+                            saMethod
+                                | doDrift && doAnnealing = Drift
+                                | doDrift = Drift
+                                | otherwise = SimAnneal
 
-                                equalProb
-                                    | fromJust acceptEqualProb < 0.0 = 0.0
-                                    | fromJust acceptEqualProb > 1.0 = 1.0
-                                    | otherwise = fromJust acceptEqualProb
+                            equalProb
+                                | fromJust acceptEqualProb < 0.0 = 0.0
+                                | fromJust acceptEqualProb > 1.0 = 1.0
+                                | otherwise = fromJust acceptEqualProb
 
-                                worseFactor = max (fromJust acceptWorseFactor) 0.0
+                            worseFactor = max (fromJust acceptWorseFactor) 0.0
 
-                                changes =
-                                    if fromJust maxChanges < 0
-                                        then 15
-                                        else fromJust maxChanges
-                            in  do  
-                                    let saValues = SAParams
+                            changes =
+                                if fromJust maxChanges < 0
+                                    then 15
+                                    else fromJust maxChanges
+                        in  do
+                                let saValues =
+                                        SAParams
                                             { method = saMethod
                                             , numberSteps = steps
                                             , currentStep = 0
@@ -541,231 +539,239 @@ netEdgeMaster inArgs inGS inData inGraphList
                                             , driftMaxChanges = changes
                                             , driftChanges = 0
                                             }
-                                    pure $ Just saValues
+                                pure $ Just saValues
 
                 -- parallel stuff
-                insertAction ∷ Int -> (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                insertAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 insertAction rVal =
-                        N.insertAllNetEdges
-                            inGS
-                            inData
-                            rVal
-                            (fromJust maxNetEdges)
-                            (fromJust keepNum)
-                            (fromJust maxRounds)
-                            0
-                            returnMutated
-                            doSteepest
-                            doRandomOrder
-                            ([], infinity)
-    
-                deleteAction ∷ Int -> (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                    N.insertAllNetEdges
+                        inGS
+                        inData
+                        rVal
+                        (fromJust maxNetEdges)
+                        (fromJust keepNum)
+                        (fromJust maxRounds)
+                        0
+                        returnMutated
+                        doSteepest
+                        doRandomOrder
+                        ([], infinity)
+
+                deleteAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 deleteAction rVal =
-                        N.deleteAllNetEdges
-                            inGS
-                            inData
-                            rVal
-                            (fromJust maxNetEdges)
-                            (fromJust keepNum)
-                            0
-                            returnMutated
-                            doSteepest
-                            doRandomOrder
-                            ([], infinity)
-    
-                moveAction ∷ Int -> (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                    N.deleteAllNetEdges
+                        inGS
+                        inData
+                        rVal
+                        (fromJust maxNetEdges)
+                        (fromJust keepNum)
+                        0
+                        returnMutated
+                        doSteepest
+                        doRandomOrder
+                        ([], infinity)
+
+                moveAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 moveAction rVal =
-                        N.moveAllNetEdges
-                            inGS
-                            inData
-                            rVal
-                            (fromJust maxNetEdges)
-                            (fromJust keepNum)
-                            0
-                            returnMutated
-                            doSteepest
-                            doRandomOrder
-                            ([], infinity)
-    
-                addDeleteAction ∷ Int -> (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                    N.moveAllNetEdges
+                        inGS
+                        inData
+                        rVal
+                        (fromJust maxNetEdges)
+                        (fromJust keepNum)
+                        0
+                        returnMutated
+                        doSteepest
+                        doRandomOrder
+                        ([], infinity)
+
+                addDeleteAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 addDeleteAction rVal =
-                        N.addDeleteNetEdges
-                            inGS
-                            inData
-                            rVal
-                            (fromJust maxNetEdges)
-                            (fromJust keepNum)
-                            (fromJust maxRounds)
-                            0
-                            returnMutated
-                            doSteepest
-                            doRandomOrder
-                            ([], infinity)
-            in  do  rSeed <- getRandom
-                    simAnnealParams <- getSimAnnealParams rSeed
+                    N.addDeleteNetEdges
+                        inGS
+                        inData
+                        rVal
+                        (fromJust maxNetEdges)
+                        (fromJust keepNum)
+                        (fromJust maxRounds)
+                        0
+                        returnMutated
+                        doSteepest
+                        doRandomOrder
+                        ([], infinity)
+            in  do
+                    rSeed ← getRandom
+                    simAnnealParams ← getSimAnnealParams rSeed
                     -- create simulated annealing random lists uniquely for each fmap
                     let newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
-    
+
                     -- perform add/delete/move operations
-{-
-                    bannerText
-                        | isJust simAnnealParams =
-                            let editString
-                                    | doNetAdd = " add) "
-                                    | doNetDelete = " delete) "
-                                    | doAddDelete = " add/delete) "
-                                    | otherwise = " move "
-                            in  if method (fromJust simAnnealParams) == SimAnneal
-                                    then
-                                        "Simulated Annealing (Network edge"
-                                            <> editString
-                                            <> show (rounds $ fromJust simAnnealParams)
-                                            <> " rounds "
-                                            <> show (length inGraphList)
-                                            <> " with "
-                                            <> show (numberSteps $ fromJust simAnnealParams)
-                                            <> " cooling steps "
-                                            <> show (length inGraphList)
-                                            <> " input graph(s) at minimum cost "
-                                            <> show (minimum $ fmap snd5 inGraphList)
-                                            <> " keeping maximum of "
-                                            <> show (fromJust keepNum)
-                                            <> " graphs"
-                                    else
-                                        "Drifting (Network edge"
-                                            <> editString
-                                            <> show (rounds $ fromJust simAnnealParams)
-                                            <> " rounds "
-                                            <> show (length inGraphList)
-                                            <> " with "
-                                            <> show (numberSteps $ fromJust simAnnealParams)
-                                            <> " cooling steps "
-                                            <> show (length inGraphList)
-                                            <> " input graph(s) at minimum cost "
-                                            <> show (minimum $ fmap snd5 inGraphList)
-                                            <> " keeping maximum of "
-                                            <> show (fromJust keepNum)
-                                            <> " graphs"
-                        | doNetDelete =
-                            ( "Network edge delete on "
-                                <> show (length inGraphList)
-                                <> " input graph(s) with minimum cost "
-                                <> show (minimum $ fmap snd5 inGraphList)
-                            )
-                        | doNetAdd =
-                            ( "Network edge add on "
-                                <> show (length inGraphList)
-                                <> " input graph(s) with minimum cost "
-                                <> show (minimum $ fmap snd5 inGraphList)
-                                <> " and maximum "
-                                <> show (fromJust maxRounds)
-                                <> " rounds"
-                            )
-                        | doAddDelete =
-                            ( "Network edge add/delete on "
-                                <> show (length inGraphList)
-                                <> " input graph(s) with minimum cost "
-                                <> show (minimum $ fmap snd5 inGraphList)
-                                <> " and maximum "
-                                <> show (fromJust maxRounds)
-                                <> " rounds"
-                            )
-                        | doMove =
-                            ( "Network edge move on "
-                                <> show (length inGraphList)
-                                <> " input graph(s) with minimum cost "
-                                <> show (minimum $ fmap snd5 inGraphList)
-                            )
-                        | otherwise = ""
--}    
-                    when (doDrift && doAnnealing) $ logWith LogWarn
-                        "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
-                    when (graphType inGS == HardWired && doNetDelete) $ logWith LogInfo
-                        "Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
-                    when (graphType inGS == HardWired && doAddDelete) $ logWith LogInfo
-                        "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
---                    logWith LogInfo $ bannerText <> "\n"
-                    (newGraphList, counterAdd) <- do if doNetAdd
-                                                     then
-                                                        if graphType inGS == HardWired
-                                                        then -- logWith LogWarn "Adding edges to hardwired graphs will always increase cost, skipping"
-                                                            pure (inGraphList, 0)
-                                                        else do
-                                                                 -- trace ("REFINE Add") (
-                                                                 insertPar ← getParallelChunkTraverse
-                                                                 graphPairList1 ← insertPar (insertAction rSeed) (zip newSimAnnealParamList (fmap (: []) inGraphList))
-                                                                 -- mapM (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList))
-    
-                                                                 let (graphListList, counterList) = unzip graphPairList1
-                                                                 pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                                                     else pure (inGraphList, 0)
-    
+                    {-
+                                        bannerText
+                                            | isJust simAnnealParams =
+                                                let editString
+                                                        | doNetAdd = " add) "
+                                                        | doNetDelete = " delete) "
+                                                        | doAddDelete = " add/delete) "
+                                                        | otherwise = " move "
+                                                in  if method (fromJust simAnnealParams) == SimAnneal
+                                                        then
+                                                            "Simulated Annealing (Network edge"
+                                                                <> editString
+                                                                <> show (rounds $ fromJust simAnnealParams)
+                                                                <> " rounds "
+                                                                <> show (length inGraphList)
+                                                                <> " with "
+                                                                <> show (numberSteps $ fromJust simAnnealParams)
+                                                                <> " cooling steps "
+                                                                <> show (length inGraphList)
+                                                                <> " input graph(s) at minimum cost "
+                                                                <> show (minimum $ fmap snd5 inGraphList)
+                                                                <> " keeping maximum of "
+                                                                <> show (fromJust keepNum)
+                                                                <> " graphs"
+                                                        else
+                                                            "Drifting (Network edge"
+                                                                <> editString
+                                                                <> show (rounds $ fromJust simAnnealParams)
+                                                                <> " rounds "
+                                                                <> show (length inGraphList)
+                                                                <> " with "
+                                                                <> show (numberSteps $ fromJust simAnnealParams)
+                                                                <> " cooling steps "
+                                                                <> show (length inGraphList)
+                                                                <> " input graph(s) at minimum cost "
+                                                                <> show (minimum $ fmap snd5 inGraphList)
+                                                                <> " keeping maximum of "
+                                                                <> show (fromJust keepNum)
+                                                                <> " graphs"
+                                            | doNetDelete =
+                                                ( "Network edge delete on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                )
+                                            | doNetAdd =
+                                                ( "Network edge add on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> " and maximum "
+                                                    <> show (fromJust maxRounds)
+                                                    <> " rounds"
+                                                )
+                                            | doAddDelete =
+                                                ( "Network edge add/delete on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> " and maximum "
+                                                    <> show (fromJust maxRounds)
+                                                    <> " rounds"
+                                                )
+                                            | doMove =
+                                                ( "Network edge move on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                )
+                                            | otherwise = ""
+                    -}
+                    when (doDrift && doAnnealing) $
+                        logWith
+                            LogWarn
+                            "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
+                    when (graphType inGS == HardWired && doNetDelete) $
+                        logWith
+                            LogInfo
+                            "Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
+                    when (graphType inGS == HardWired && doAddDelete) $
+                        logWith
+                            LogInfo
+                            "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping\n"
+                    --                    logWith LogInfo $ bannerText <> "\n"
+                    (newGraphList, counterAdd) ← do
+                        if doNetAdd
+                            then
+                                if graphType inGS == HardWired
+                                    then -- logWith LogWarn "Adding edges to hardwired graphs will always increase cost, skipping"
+                                        pure (inGraphList, 0)
+                                    else do
+                                        -- trace ("REFINE Add") (
+                                        insertPar ← getParallelChunkTraverse
+                                        graphPairList1 ← insertPar (insertAction rSeed) (zip newSimAnnealParamList (fmap (: []) inGraphList))
+                                        -- mapM (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList))
+
+                                        let (graphListList, counterList) = unzip graphPairList1
+                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                            else pure (inGraphList, 0)
+
                     (newGraphList', counterDelete) ←
-                            if doNetDelete
-                                then
-                                    if graphType inGS == HardWired
-                                        then -- logWith LogWarn ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
-                                            pure (newGraphList, 0)
-                                        else do
-                                            -- trace ("REFINE Delete") (
-                                            deletePar ← getParallelChunkTraverse
-                                            graphPairList2 ← deletePar (deleteAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList))
-                                            -- mapM (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList))
-    
-                                            let (graphListList, counterList) = unzip graphPairList2
-                                            pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                                else -- )
-                                    pure (newGraphList, 0)
-    
+                        if doNetDelete
+                            then
+                                if graphType inGS == HardWired
+                                    then -- logWith LogWarn ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
+                                        pure (newGraphList, 0)
+                                    else do
+                                        -- trace ("REFINE Delete") (
+                                        deletePar ← getParallelChunkTraverse
+                                        graphPairList2 ← deletePar (deleteAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList))
+                                        -- mapM (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList))
+
+                                        let (graphListList, counterList) = unzip graphPairList2
+                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                            else -- )
+                                pure (newGraphList, 0)
+
                     (newGraphList'', counterMove) ←
-                            if doMove
-                                then do
-                                    -- trace ("Network move option currently disabled--skipping.")
-                                    -- (newGraphList', 0 :: Int)
-                                    movePar ← getParallelChunkTraverse
-                                    graphPairList3 ← movePar (moveAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
-                                    -- mapM (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
-    
-                                    let (graphListList, counterList) = unzip graphPairList3
-                                    pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                                else pure (newGraphList', 0)
-    
+                        if doMove
+                            then do
+                                -- trace ("Network move option currently disabled--skipping.")
+                                -- (newGraphList', 0 :: Int)
+                                movePar ← getParallelChunkTraverse
+                                graphPairList3 ← movePar (moveAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
+                                -- mapM (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
+
+                                let (graphListList, counterList) = unzip graphPairList3
+                                pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                            else pure (newGraphList', 0)
+
                     (newGraphList''', counterAddDelete) ←
-                            if doAddDelete
-                                then
-                                    if graphType inGS == HardWired
-                                        then -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
-                                            pure (newGraphList'', 0)
-                                        else do
-                                            addDeletePar ← getParallelChunkTraverse
-                                            graphPairList4 ← addDeletePar (addDeleteAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
-                                            -- mapM (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
-    
-                                            let (graphListList, counterList) = unzip graphPairList4
-                                            pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                                else pure (newGraphList'', 0)
-    
+                        if doAddDelete
+                            then
+                                if graphType inGS == HardWired
+                                    then -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
+                                        pure (newGraphList'', 0)
+                                    else do
+                                        addDeletePar ← getParallelChunkTraverse
+                                        graphPairList4 ← addDeletePar (addDeleteAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
+                                        -- mapM (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
+
+                                        let (graphListList, counterList) = unzip graphPairList4
+                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                            else pure (newGraphList'', 0)
+
                     let resultGraphList
                             | null newGraphList''' = inGraphList
                             | otherwise = GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) newGraphList'''
-    
+
                     logWith
-                            LogInfo
-                            ( "\tAfter network edge add/delete/move: "
-                                <> show (length resultGraphList)
-                                <> " resulting graphs at cost "
-                                <> show (minimum $ fmap snd5 resultGraphList)
-                                <> " with add/delete/move rounds (total): "
-                                <> show counterAdd
-                                <> " Add, "
-                                <> show counterDelete
-                                <> " Delete, "
-                                <> show counterMove
-                                <> " Move, "
-                                <> show counterAddDelete
-                                <> " AddDelete"
-                                <> "\n"
-                            )
+                        LogInfo
+                        ( "\tAfter network edge add/delete/move: "
+                            <> show (length resultGraphList)
+                            <> " resulting graphs at cost "
+                            <> show (minimum $ fmap snd5 resultGraphList)
+                            <> " with add/delete/move rounds (total): "
+                            <> show counterAdd
+                            <> " Add, "
+                            <> show counterDelete
+                            <> " Delete, "
+                            <> show counterMove
+                            <> " Move, "
+                            <> show counterAddDelete
+                            <> " AddDelete"
+                            <> "\n"
+                        )
                     pure resultGraphList
 
 

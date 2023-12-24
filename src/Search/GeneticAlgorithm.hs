@@ -188,30 +188,32 @@ mutateGraph inGS inData maxNetEdges inGraph
 
             -- randomize simulated annealing parameters
             getRandomSAParams = do
-                rDrift <- getRandomFrom [5, 10, 20]
-                rSteps <- getRandomFrom [5, 10, 20]
-                rMethod <- getRandomFrom [Drift, SimAnneal]
-                rStream <- getRandoms
-                pure . Just $ SAParams
-                    { method = rMethod
-                    , numberSteps = rSteps
-                    , currentStep = 0
-                    , randomIntegerList = rStream
-                    , rounds = 1
-                    , driftAcceptEqual = 0.5
-                    , driftAcceptWorse = 2.0
-                    , -- this could be an important factor don't want too severe, but significant
-                      driftMaxChanges = rDrift
-                    , driftChanges = 0
-                    }
+                rDrift ← getRandomFrom [5, 10, 20]
+                rSteps ← getRandomFrom [5, 10, 20]
+                rMethod ← getRandomFrom [Drift, SimAnneal]
+                rStream ← getRandoms
+                pure . Just $
+                    SAParams
+                        { method = rMethod
+                        , numberSteps = rSteps
+                        , currentStep = 0
+                        , randomIntegerList = rStream
+                        , rounds = 1
+                        , driftAcceptEqual = 0.5
+                        , driftAcceptWorse = 2.0
+                        , -- this could be an important factor don't want too severe, but significant
+                          driftMaxChanges = rDrift
+                        , driftChanges = 0
+                        }
 
             -- randomize 'swap' parameters
             getRandomSwapParams = do
-                swapType <- getRandomFrom [SPR, Alternate]
+                swapType ← getRandomFrom [SPR, Alternate]
                 -- randomize network edit parameters
                 let doRandomOrder = True
                 -- populate SwapParams structure
-                pure $ SwapParams
+                pure $
+                    SwapParams
                         { swapType = swapType
                         , joinType = valJoinType
                         , atRandom = True -- randomize split and rejoin edge orders
@@ -223,46 +225,29 @@ mutateGraph inGS inData maxNetEdges inGraph
                         , returnMutated = valReturnMutated
                         }
 
-            firstOrOldIfNoneExists = pure . \case
-                ([], _) -> inGraph
-                (x:_, _) -> x
+            firstOrOldIfNoneExists =
+                pure . \case
+                    ([], _) → inGraph
+                    (x : _, _) → x
 
             mutateOption1 = do
-                rSAParams <- getRandomSAParams
-                rStream <- getRandoms
-                rSwapParams <- getRandomSwapParams
+                rSAParams ← getRandomSAParams
+                rStream ← getRandoms
+                rSwapParams ← getRandomSwapParams
                 firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rStream, rSAParams, inGraph)]
 
             mutateOption2 = do
-                rSAParams <- getRandomSAParams
-                rStream <- getRandoms
-                rSwapParams <- getRandomSwapParams
+                rSAParams ← getRandomSAParams
+                rStream ← getRandoms
+                rSwapParams ← getRandomSwapParams
                 firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rStream, rSAParams, inGraph)]
 
             mutateOption3 = do
-                rSAParams <- getRandomSAParams
-                rSwapParams <- getRandomSwapParams
+                rSAParams ← getRandomSAParams
+                rSwapParams ← getRandomSwapParams
                 rVal ← getRandom
-                firstOrOldIfNoneExists =<<
-                    N.moveAllNetEdges
-                        inGS
-                        inData
-                        rVal
-                        maxNetEdges
-                        valNumToKeep
-                        0
-                        valReturnMutated
-                        valSteepest
-                        valDoRandomOrder
-                        ([], infinity)
-                        (rSAParams, [inGraph])
-            
-            mutateOption4 = do
-                rSAParams <- getRandomSAParams
-                rSwapParams <- getRandomSwapParams
-                rVal ← getRandom
-                firstOrOldIfNoneExists =<<
-                    N.moveAllNetEdges
+                firstOrOldIfNoneExists
+                    =<< N.moveAllNetEdges
                         inGS
                         inData
                         rVal
@@ -275,14 +260,31 @@ mutateGraph inGS inData maxNetEdges inGraph
                         ([], infinity)
                         (rSAParams, [inGraph])
 
+            mutateOption4 = do
+                rSAParams ← getRandomSAParams
+                rSwapParams ← getRandomSwapParams
+                rVal ← getRandom
+                firstOrOldIfNoneExists
+                    =<< N.moveAllNetEdges
+                        inGS
+                        inData
+                        rVal
+                        maxNetEdges
+                        valNumToKeep
+                        0
+                        valReturnMutated
+                        valSteepest
+                        valDoRandomOrder
+                        ([], infinity)
+                        (rSAParams, [inGraph])
 
             mutateOption5 = do
-                rMaxRounds <- getRandomFrom [1 .. 5]
-                rSAParams <- getRandomSAParams
-                rSwapParams <- getRandomSwapParams
+                rMaxRounds ← getRandomFrom [1 .. 5]
+                rSAParams ← getRandomSAParams
+                rSwapParams ← getRandomSwapParams
                 rVal ← getRandom
-                firstOrOldIfNoneExists =<<
-                    N.insertAllNetEdges
+                firstOrOldIfNoneExists
+                    =<< N.insertAllNetEdges
                         inGS
                         inData
                         rVal
@@ -295,14 +297,14 @@ mutateGraph inGS inData maxNetEdges inGraph
                         valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
-              
+
             mutateOption6 = do
-                rMaxRounds <- getRandomFrom [1 .. 5]
-                rSAParams <- getRandomSAParams
-                rSwapParams <- getRandomSwapParams
+                rMaxRounds ← getRandomFrom [1 .. 5]
+                rSAParams ← getRandomSAParams
+                rSwapParams ← getRandomSwapParams
                 rVal ← getRandom
-                firstOrOldIfNoneExists =<<
-                    N.addDeleteNetEdges
+                firstOrOldIfNoneExists
+                    =<< N.addDeleteNetEdges
                         inGS
                         inData
                         rVal
@@ -317,11 +319,11 @@ mutateGraph inGS inData maxNetEdges inGraph
                         (rSAParams, [inGraph])
 
             mutateOption7 = do
-                rSAParams <- getRandomSAParams
-                rSwapParams <- getRandomSwapParams
+                rSAParams ← getRandomSAParams
+                rSwapParams ← getRandomSwapParams
                 rVal ← getRandom
-                firstOrOldIfNoneExists =<<
-                    N.deleteAllNetEdges
+                firstOrOldIfNoneExists
+                    =<< N.deleteAllNetEdges
                         inGS
                         inData
                         rVal
@@ -333,22 +335,23 @@ mutateGraph inGS inData maxNetEdges inGraph
                         valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
-
         in  do
                 -- randomize edit type
-                editType <- getRandomFrom ["swap", "netEdge"]
-                netEditType <- getRandomFrom ["netAdd", "netDelete", "netAddDelete"] -- , "netMove"]
+                editType ← getRandomFrom ["swap", "netEdge"]
+                netEditType ← getRandomFrom ["netAdd", "netDelete", "netAddDelete"] -- , "netMove"]
                 case (graphType inGS, editType, netEditType) of
                     -- only swap mutation stuff for tree
-                    (Tree, _, nEdit) | nEdit `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"] -> mutateOption1
+                    (Tree, _, nEdit) | nEdit `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"] → mutateOption1
                     -- graphs choose what type of mutation at random
-                    (_,"swap",_) -> mutateOption2
+                    (_, "swap", _) → mutateOption2
                     -- move only for Hardwired
-                    (HardWired, _, _) -> mutateOption3
+                    (HardWired, _, _) → mutateOption3
                     -- SoftWired
-                    (SoftWired, _, "netMove") -> mutateOption4
-                    (SoftWired, _, "netAdd") -> mutateOption5
-                    (SoftWired, _, "netAddDelete") -> mutateOption6
-                    (SoftWired, _, "netDelete") -> mutateOption7
-                    (SoftWired, _, val)  -> failWithPhase Parsing $ fold
-                        [ "Unrecognized edit type '", val, "' for sofwired network" ]
+                    (SoftWired, _, "netMove") → mutateOption4
+                    (SoftWired, _, "netAdd") → mutateOption5
+                    (SoftWired, _, "netAddDelete") → mutateOption6
+                    (SoftWired, _, "netDelete") → mutateOption7
+                    (SoftWired, _, val) →
+                        failWithPhase Parsing $
+                            fold
+                                ["Unrecognized edit type '", val, "' for sofwired network"]
