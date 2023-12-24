@@ -14,6 +14,7 @@ import Data.List qualified as L
 import Data.Maybe
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
+import Data.Vector.Primitive (convert)
 import Data.Vector.Unboxed qualified as UV
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
@@ -28,7 +29,6 @@ import Search.NetworkAddDelete qualified as N
 import Search.Refinement qualified as R
 import Text.Read
 import Types.Types
-import Data.Vector.Primitive (convert)
 import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
 
@@ -234,8 +234,8 @@ getResampleGraph inGS inData resampleType replicates buildOptions swapOptions ja
     in  -- majority ruke consensus if no args
         do
             actionPar ← getParallelChunkTraverse
-            -- the replicate to performs number replicates 
-            resampledGraphList ← actionPar action (replicate replicates 0) 
+            -- the replicate to performs number replicates
+            resampledGraphList ← actionPar action (replicate replicates 0)
             {-resampledGraphList ←
                 sequenceA $
                     PU.seqParMap
@@ -262,13 +262,13 @@ makeResampledDataAndGraph
     → [(String, String)]
     → [(String, String)]
     → Double
-    -> Int 
+    → Int
     → PhyG ReducedPhylogeneticGraph
 makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq _ = do
-    newData <- resampleData resampleType jackFreq inData
+    newData ← resampleData resampleType jackFreq inData
     -- pairwise distances for distance analysis
     -- pairwiseDistances ← DD.getPairwiseDistances newData
-    let buildGraphs = B.buildGraph buildOptions inGS newData 
+    let buildGraphs = B.buildGraph buildOptions inGS newData
     let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
 
     -- if not a tree then try to add net edges
@@ -279,7 +279,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
         then pure emptyReducedPhylogeneticGraph
         else do
             -- build graphs
-            buildGraphs ← B.buildGraph buildOptions inGS newData  
+            buildGraphs ← B.buildGraph buildOptions inGS newData
             let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) buildGraphs
             edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
             let netGraphList = case graphType inGS of
@@ -301,22 +301,24 @@ if a block of data end up with zero resampled characters it is deleted
 -}
 resampleData ∷ SupportMethod → Double → ProcessedData → PhyG ProcessedData
 resampleData resampleType sampleFreq (nameVect, nameBVVect, blockDataVect)
-    | V.null blockDataVect =  error "Null input data in resampleData"
-    | otherwise = -- Bootstrap  or Jackknife resampling
+    | V.null blockDataVect = error "Null input data in resampleData"
+    | otherwise -- Bootstrap  or Jackknife resampling
+        =
         let resampler = case resampleType of
-                Bootstrap -> resampleBlockBootstrap
-                _ -> resampleBlockJackknife sampleFreq
-        in  do newBlockDataVect' <- traverse resampler  blockDataVect
+                Bootstrap → resampleBlockBootstrap
+                _ → resampleBlockJackknife sampleFreq
+        in  do
+                newBlockDataVect' ← traverse resampler blockDataVect
                 -- filter any zero length blocks
-               let newBlockDataVect = V.filter ((not . V.null) . thd3) newBlockDataVect'
-               pure $ (nameVect, nameBVVect, newBlockDataVect)
+                let newBlockDataVect = V.filter ((not . V.null) . thd3) newBlockDataVect'
+                pure $ (nameVect, nameBVVect, newBlockDataVect)
 
 
 -- | resampleBlockBootstrap takes BlockData and a seed and creates a Bootstrap resampled BlockData
 resampleBlockBootstrap ∷ BlockData → PhyG BlockData
 resampleBlockBootstrap (nameText, charDataVV, charInfoV) = do
     -- maps over taxa in data bLock
-    (newCharDataVV, newCharInfoV) <- V.unzip <$> traverse (makeSampledPairVectBootstrap charInfoV) charDataVV
+    (newCharDataVV, newCharInfoV) ← V.unzip <$> traverse (makeSampledPairVectBootstrap charInfoV) charDataVV
     pure (nameText, newCharDataVV, V.head newCharInfoV)
 
 
@@ -339,13 +341,14 @@ makeSampledPairVectBootstrap inCharInfoVect inCharDataVect =
         (dynamicCharsV, dynamicCharsInfoV) = V.unzip $ V.filter ((`notElem` exactCharacterTypes) . charType . snd) dataInfoPairV
 
         numDynamicChars = V.length dynamicCharsV
-    in  do  dynCharIndices <- V.replicateM numDynamicChars $ randIndex numDynamicChars <$> getRandom
+    in  do
+            dynCharIndices ← V.replicateM numDynamicChars $ randIndex numDynamicChars <$> getRandom
             let resampleDynamicChars = V.map (dynamicCharsV V.!) dynCharIndices
             let resampleDynamicCharInfo = V.map (dynamicCharsInfoV V.!) dynCharIndices
 
             -- static chars do each one mapping random choices within the character type
             -- but keeping each one--hence char info is staticCharsInfoV
-            resampleStaticChars <- V.zipWithM subSampleStatic staticCharsV staticCharsInfoV
+            resampleStaticChars ← V.zipWithM subSampleStatic staticCharsV staticCharsInfoV
             -- cons the vectors for chrater data and character info
             pure (resampleStaticChars <> resampleDynamicChars, staticCharsInfoV <> resampleDynamicCharInfo)
     where
@@ -370,26 +373,33 @@ subSampleStatic inCharData inCharInfo =
             | inCharType == NonAdd = V.length na2
             | inCharType == Matrix = V.length m1
             | otherwise = error ("Dynamic character in subSampleStatic: " <> show inCharType)
-
-    in  do  -- get character indices based on number "subcharacters"
-            staticCharIndices <- V.generateM charLength . const $ randIndex charLength <$> getRandom
-            let staticCharIndicesUV :: UV.Vector Int
+    in  do
+            -- get character indices based on number "subcharacters"
+            staticCharIndices ← V.generateM charLength . const $ randIndex charLength <$> getRandom
+            let staticCharIndicesUV ∷ UV.Vector Int
                 staticCharIndicesUV = convert staticCharIndices
 
             -- trace ("SSS:" <> (show $ V.length staticCharIndices) <> " " <> (show staticCharIndices)) (
             case inCharType of
-                Add -> pure $ inCharData
-                    { rangePrelim = (V.map (a1 V.!) staticCharIndices, V.map (a2 V.!) staticCharIndices, V.map (a3 V.!) staticCharIndices)
-                    }
-                NonAdd -> pure $ inCharData
-                    { stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)
-                    }
-                val | val `elem` packedNonAddTypes -> pure $ inCharData
-                    { packedNonAddPrelim =
-                        (UV.map (pa1 UV.!) staticCharIndicesUV, UV.map (pa2 UV.!) staticCharIndicesUV, UV.map (pa3 UV.!) staticCharIndicesUV)
-                    }
-                Matrix -> pure $ inCharData{matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
-                _ -> error ("Incorrect character type in subSampleStatic: " <> show inCharType)
+                Add →
+                    pure $
+                        inCharData
+                            { rangePrelim = (V.map (a1 V.!) staticCharIndices, V.map (a2 V.!) staticCharIndices, V.map (a3 V.!) staticCharIndices)
+                            }
+                NonAdd →
+                    pure $
+                        inCharData
+                            { stateBVPrelim = (V.map (na1 V.!) staticCharIndices, V.map (na2 V.!) staticCharIndices, V.map (na3 V.!) staticCharIndices)
+                            }
+                val
+                    | val `elem` packedNonAddTypes →
+                        pure $
+                            inCharData
+                                { packedNonAddPrelim =
+                                    (UV.map (pa1 UV.!) staticCharIndicesUV, UV.map (pa2 UV.!) staticCharIndicesUV, UV.map (pa3 UV.!) staticCharIndicesUV)
+                                }
+                Matrix → pure $ inCharData{matrixStatesPrelim = V.map (m1 V.!) staticCharIndices}
+                _ → error ("Incorrect character type in subSampleStatic: " <> show inCharType)
     where
         -- )
         randIndex ∷ ∀ {b}. (Integral b) ⇒ b → b → b
@@ -567,7 +577,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
 -- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
 resampleBlockJackknife ∷ Double → BlockData → PhyG BlockData
 resampleBlockJackknife sampleFreq inData@(nameText, charDataVV, charInfoV) =
-    let getRandomAcceptances :: PhyG [Bool]
+    let getRandomAcceptances ∷ PhyG [Bool]
         getRandomAcceptances = fmap (randAccept sampleFreq) <$> getRandoms
 
         randAccept ∷ Double → Word → Bool
@@ -577,19 +587,18 @@ resampleBlockJackknife sampleFreq inData@(nameText, charDataVV, charInfoV) =
             in  -- trace ("RA : " <> (show (b,a, randVal, critVal, randVal < critVal)))
                 randVal < critVal
 
-        jackknifeSampling :: PhyG ( V.Vector (V.Vector CharacterData), V.Vector (V.Vector CharInfo) )
+        jackknifeSampling ∷ PhyG (V.Vector (V.Vector CharacterData), V.Vector (V.Vector CharInfo))
         jackknifeSampling = do
-            accepts1 <- getRandomAcceptances
-            accepts2 <- getRandomAcceptances
+            accepts1 ← getRandomAcceptances
+            accepts2 ← getRandomAcceptances
             pure . V.unzip $ makeSampledPairVect accepts1 accepts2 [] [] charInfoV <$> charDataVV
-
     in  do
-            (newCharDataVV, newCharInfoVV) <- jackknifeSampling
-            let newCharInfoV :: V.Vector CharInfo
+            (newCharDataVV, newCharInfoVV) ← jackknifeSampling
+            let newCharInfoV ∷ V.Vector CharInfo
                 newCharInfoV = V.head newCharInfoVV
             case V.length newCharInfoV of
-                0 -> resampleBlockJackknife sampleFreq inData
-                _ -> pure (nameText, newCharDataVV, newCharInfoV)
+                0 → resampleBlockJackknife sampleFreq inData
+                _ → pure (nameText, newCharDataVV, newCharInfoV)
 
 
 {- | getGoodBremGraphs performs Goodman-Bremer support
@@ -737,7 +746,6 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                 let steepest = False
                     randomOrder = False
                     keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
-
                     saParams ∷ ∀ {a}. Maybe a
                     saParams = Nothing
                 in  do
@@ -775,8 +783,7 @@ performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
                     if graphType inGS == Tree
                         then filter ((/= firstRootIndex) . fst3) $ LG.labEdges inSimple
                         else filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList inSimple
-
-            in do
+            in  do
                     -- integerized critical value for prob accept
                     -- based on approx (leaves - netnodes)^2 or (leaves - netnodes)^3
                     let (_, leafList, _, netVertList) = LG.splitVertexList (fst5 inGraph)
@@ -791,7 +798,7 @@ performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
 
                     -- splitRejoinAction ∷ ([Int], LG.LEdge Double) → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
                     let splitRejoinAction = splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList
-            
+
                     splitRejoinPar ← getParallelChunkTraverse
 
                     -- generate tuple lists for each break edge parallelized at this level
@@ -801,6 +808,7 @@ performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
                     let newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
                     -- trace ("PGBS:" <> (show $ fmap length tupleListList) <> " -> " <> (show $ length newTupleList))
                     pure newTupleList
+
 
 {- | splitRejoinGB take parameters and splits input graph at specified edge and rejoins at all available edge
 (reroots the pruned subgraph if TBR) and creates and gets cost of graph (lazy takes care of post order only)
@@ -838,17 +846,18 @@ splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGr
                 else -- generate "tbr" rerootings in split graph
                     getTBRSplitGraphs inGS splitGraph breakEdge
 
-        action :: LG.LEdge Double → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
+        action ∷ LG.LEdge Double → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
         action = rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList breakEdge
     in  do
             -- parallel at break level above
-            actionPar <- getParallelChunkTraverse
+            actionPar ← getParallelChunkTraverse
             rejoinTupleListList ← actionPar action edgesToInvade
-               -- mapM (rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList breakEdge) edgesToInvade
+            -- mapM (rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList breakEdge) edgesToInvade
 
             -- merge tuples
             let newTupleList = mergeTupleLists rejoinTupleListList []
             pure newTupleList
+
 
 {-
 -- | rejoinGBPair is a wrapper around rejoinGBPair
@@ -885,7 +894,7 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
         then pure inTupleList
         else do
             let splitGraph = head splitGraphList
-            rSeed <- getRandom
+            rSeed ← getRandom
 
             let doGraph =
                     ( not sampleAtRandom
@@ -894,56 +903,56 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
                            )
                     )
             if doGraph
-                    then do
-                        let newGraph = LG.joinGraphOnEdge splitGraph edgeToInvade eBreak
-                        let pruneEdges = False
-                        let warnPruneEdges = False
+                then do
+                    let newGraph = LG.joinGraphOnEdge splitGraph edgeToInvade eBreak
+                    let pruneEdges = False
+                    let warnPruneEdges = False
 
-                        -- startVertex ∷ ∀ {a}. Maybe a
-                        let startVertex = Nothing
+                    -- startVertex ∷ ∀ {a}. Maybe a
+                    let startVertex = Nothing
 
-                        newPhylogeneticGraph ←
-                            if (graphType inGS == Tree) || LG.isTree newGraph
-                                then T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
-                                else
-                                    if (not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph
-                                        then T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
-                                        else pure emptyReducedPhylogeneticGraph
+                    newPhylogeneticGraph ←
+                        if (graphType inGS == Tree) || LG.isTree newGraph
+                            then T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
+                            else
+                                if (not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph
+                                    then T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
+                                    else pure emptyReducedPhylogeneticGraph
 
-                        if newPhylogeneticGraph == emptyReducedPhylogeneticGraph
-                            then
-                                rejoinGB
+                    if newPhylogeneticGraph == emptyReducedPhylogeneticGraph
+                        then
+                            rejoinGB
+                                inGS
+                                inData
+                                intProbAccept
+                                sampleAtRandom
+                                inTupleList
+                                (tail splitGraphList)
+                                originalBreakEdge
+                                edgeToInvade
+                        else -- update tuple list based on new graph
+
+                            let updatedTupleList = getLowerGBEdgeCost inTupleList newPhylogeneticGraph -- ((2 * numTaxa) -1)
+                            in  rejoinGB
                                     inGS
                                     inData
                                     intProbAccept
                                     sampleAtRandom
-                                    inTupleList
+                                    updatedTupleList
                                     (tail splitGraphList)
                                     originalBreakEdge
                                     edgeToInvade
-                            else -- update tuple list based on new graph
+                else -- return original
 
-                                let updatedTupleList = getLowerGBEdgeCost inTupleList newPhylogeneticGraph -- ((2 * numTaxa) -1)
-                                in  rejoinGB
-                                        inGS
-                                        inData
-                                        intProbAccept
-                                        sampleAtRandom
-                                        updatedTupleList
-                                        (tail splitGraphList)
-                                        originalBreakEdge
-                                        edgeToInvade
-                    else -- return original
-
-                        rejoinGB
-                            inGS
-                            inData
-                            intProbAccept
-                            sampleAtRandom
-                            inTupleList
-                            (tail splitGraphList)
-                            originalBreakEdge
-                            edgeToInvade
+                    rejoinGB
+                        inGS
+                        inData
+                        intProbAccept
+                        sampleAtRandom
+                        inTupleList
+                        (tail splitGraphList)
+                        originalBreakEdge
+                        edgeToInvade
 
 
 -- | mergeTupleLists takes a list of list of tuples and merges them choosing the better each recursive round
