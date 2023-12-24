@@ -56,10 +56,9 @@ refineGraph
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-refineGraph inArgs inGS inData rSeed inGraphList =
+refineGraph inArgs inGS inData inGraphList =
     if null inGraphList
         then do
             logWith LogInfo "No graphs input to refine\n"
