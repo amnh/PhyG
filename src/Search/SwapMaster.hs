@@ -243,10 +243,9 @@ getSimAnnealParams
     → Maybe Double
     → Maybe Int
     → PhyG (Maybe SAParams)
-getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges =
-    if not doAnnealing && not doDrift
-        then return Nothing
-        else
+getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
+    | not doAnnealing && not doDrift = pure Nothing
+    | otherwise =
             let steps = max 3 (fromJust steps')
                 annealingRounds
                     | isNothing annealingRounds' = 1
@@ -270,13 +269,11 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
 
                 worseFactor = max (fromJust acceptWorseFactor) 0.0
 
-                changes =
-                    if fromJust maxChanges < 0
-                        then 15
-                        else fromJust maxChanges
+                changes = case maxChanges of
+                    Just num | num >= 0 -> num
+                    _ -> 15
 
-                saValues =
-                    SAParams
+                saValues = Just $ SAParams
                         { method = saMethod
                         , numberSteps = steps
                         , currentStep = 0
@@ -292,7 +289,7 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                             LogWarn
                             "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
 
-                    pure $ Just saValues
+                    pure saValues
 
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
