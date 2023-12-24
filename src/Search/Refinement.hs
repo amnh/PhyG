@@ -139,7 +139,6 @@ geneticAlgorithmMaster inArgs inGS inData rSeed inGraphList =
                 GA.geneticAlgorithm
                     inGS
                     inData
-                    rSeed
                     doElitist
                     (fromJust maxNetEdges)
                     (fromJust keepNum)
