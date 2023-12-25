@@ -66,7 +66,6 @@ addDeleteNetEdges inGS inData maxNetEdges numToKeep maxRounds counter returnMuta
             addDeleteNetEdges'
                 inGS
                 inData
-                -- rSeed
                 maxNetEdges
                 numToKeep
                 maxRounds
@@ -88,7 +87,6 @@ addDeleteNetEdges inGS inData maxNetEdges numToKeep maxRounds counter returnMuta
                     addDeleteNetEdges''
                         inGS
                         inData
-                        -- rSeed
                         maxNetEdges
                         numToKeep
                         maxRounds
@@ -126,7 +124,6 @@ addDeleteNetEdges'' inGS inData maxNetEdges numToKeep maxRounds counter returnMu
     addDeleteNetEdges'
         inGS
         inData
-        -- rSeed
         maxNetEdges
         numToKeep
         maxRounds
@@ -171,7 +168,6 @@ addDeleteNetEdges' inGS inData maxNetEdges numToKeep maxRounds counter returnMut
                 do
                     -- trace ("\tRound " <> (show counter)) (
                     -- insert edges first
-                    -- let randIntList = randomIntList rSeed
                     (insertGraphList, _) ←
                         insertAllNetEdges'
                             inGS
@@ -268,7 +264,6 @@ moveAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doSteepe
             moveAllNetEdges'
                 inGS
                 inData
-                -- rSeed
                 maxNetEdges
                 numToKeep
                 counter
@@ -289,7 +284,6 @@ moveAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doSteepe
                     moveAllNetEdges''
                         inGS
                         inData
-                        -- rSeed
                         maxNetEdges
                         numToKeep
                         counter
@@ -325,7 +319,6 @@ moveAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doStee
     moveAllNetEdges'
         inGS
         inData
-        -- rSeed
         maxNetEdges
         numToKeep
         counter
@@ -364,7 +357,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                     moveAllNetEdges'
                         inGS
                         inData
-                        -- rSeed
                         maxNetEdges
                         numToKeep
                         counter
@@ -419,7 +411,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                                                         inGS
                                                         inData
                                                         maxNetEdges
-                                                        -- rSeed
                                                         numToKeep
                                                         (counter + 1)
                                                         returnMutated
@@ -437,7 +428,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                                                                     moveAllNetEdges'
                                                                         inGS
                                                                         inData
-                                                                        -- rSeed
                                                                         maxNetEdges
                                                                         numToKeep
                                                                         (counter + 1)
@@ -451,7 +441,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                                                                     moveAllNetEdges'
                                                                         inGS
                                                                         inData
-                                                                        -- rSeed
                                                                         maxNetEdges
                                                                         numToKeep
                                                                         (counter + 1)
@@ -471,7 +460,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                                                             moveAllNetEdges'
                                                                 inGS
                                                                 inData
-                                                                -- rSeed
                                                                 maxNetEdges
                                                                 numToKeep
                                                                 (counter + 1)
@@ -522,7 +510,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                                                                         moveAllNetEdges'
                                                                             inGS
                                                                             inData
-                                                                            -- rSeed
                                                                             maxNetEdges
                                                                             numToKeep
                                                                             (counter + 1)
@@ -536,7 +523,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                                                                         moveAllNetEdges'
                                                                             inGS
                                                                             inData
-                                                                            -- rSeed
                                                                             maxNetEdges
                                                                             numToKeep
                                                                             (counter + 1)
@@ -557,7 +543,6 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                                                                         moveAllNetEdges'
                                                                             inGS
                                                                             inData
-                                                                            -- rSeed
                                                                             maxNetEdges
                                                                             numToKeep
                                                                             (counter + 1)
@@ -632,7 +617,6 @@ insertAllNetEdges inGS inData maxNetEdges numToKeep maxRounds counter returnMuta
                             doSteepest
                             doRandomOrder
                             (curBestGraphList, curBestGraphCost)
-                            -- (randomIntList rSeed)
                             Nothing
                             inPhyloGraphList
                     else do
@@ -654,7 +638,7 @@ insertAllNetEdges inGS inData maxNetEdges numToKeep maxRounds counter returnMuta
                 let -- create list of params with unique list of random values for rounds of annealing
                     annealingRounds = rounds $ fromJust inSimAnnealParams
                     annealParamGraphList = U.generateUniqueRandList annealingRounds inSimAnnealParams
-                in  -- replicateRandIntList = fmap randomIntList (take annealingRounds (randomIntList rSeed))
+                in  -- replicateRandIntList = fmap randomIntList (take annealingRounds
                     do
                         -- TODO
                         -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (insertAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
@@ -724,7 +708,6 @@ insertAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSt
         doSteepest
         doRandomOrder
         (curBestGraphList, curBestGraphCost)
-        -- randIntList
         inSimAnnealParams
         inPhyloGraphList
 
@@ -765,7 +748,6 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                         doSteepest
                         doRandomOrder
                         ([], curBestGraphCost)
-                        -- (randomIntList $ head randIntList)
                         Nothing
                         (take numToKeep curBestGraphList)
         else
@@ -778,7 +760,6 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                         insertEachNetEdge
                             inGS
                             inData
-                            -- (head randIntList)
                             maxNetEdges
                             numToKeep
                             doSteepest
@@ -915,7 +896,6 @@ postProcessNetworkAddSA inGS inData maxNetEdges numToKeep counter returnMutated 
                     doSteepest
                     doRandomOrder
                     (newGraphList, newGraphCost)
-                    -- randIntList
                     inSimAnnealParams
                     graphsToInsert
             else -- check if hit max change/ cooling steps
@@ -987,7 +967,6 @@ postProcessNetworkAdd inGS inData maxNetEdges numToKeep counter returnMutated do
                         doSteepest
                         doRandomOrder
                         (newGraphList, newGraphCost)
-                        -- randIntList
                         inSimAnnealParams
                         graphsToInsert
         else -- worse graphs found--go on
@@ -1005,7 +984,6 @@ postProcessNetworkAdd inGS inData maxNetEdges numToKeep counter returnMutated do
                         doSteepest
                         doRandomOrder
                         (curBestGraphList, currentCost)
-                        -- randIntList
                         inSimAnnealParams
                         inPhyloGraphList
                 else -- equal cost
@@ -1024,7 +1002,6 @@ postProcessNetworkAdd inGS inData maxNetEdges numToKeep counter returnMutated do
                         doSteepest
                         doRandomOrder
                         (newCurSameBestList, currentCost)
-                        -- randIntList
                         inSimAnnealParams
                         inPhyloGraphList
 
@@ -1063,11 +1040,9 @@ insertEachNetEdge inGS inData maxNetEdges numToKeep doSteepest doRandomOrder pre
                     candidateNetworkEdgeList' ← getPermissibleEdgePairs inGS (thd5 inPhyloGraph)
 
                     -- radomize pair list
-                    rSeed ← getRandom
-                    let rSeedList = randomIntList rSeed
                     candidateNetworkEdgeList ←
                         if doRandomOrder
-                            then (`permuteList` candidateNetworkEdgeList') <$> getRandom -- permuteList (head rSeedList) candidateNetworkEdgeList'
+                            then (`permuteList` candidateNetworkEdgeList') <$> getRandom
                             else pure candidateNetworkEdgeList'
 
                     -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
@@ -1075,7 +1050,6 @@ insertEachNetEdge inGS inData maxNetEdges numToKeep doSteepest doRandomOrder pre
                         insertNetEdgeRecursive
                             inGS
                             inData
-                            -- (tail rSeedList)
                             maxNetEdges
                             doSteepest
                             doRandomOrder
@@ -1129,17 +1103,17 @@ insertEachNetEdge inGS inData maxNetEdges numToKeep doSteepest doRandomOrder pre
                                                 then
                                                     let -- parallel stuff
                                                         insertAction
-                                                            ∷ (Int, Maybe SAParams, ReducedPhylogeneticGraph) → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+                                                            ∷ (Maybe SAParams, ReducedPhylogeneticGraph) → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
                                                         insertAction = insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost
                                                     in  if minCost < currentCost
                                                             then do
                                                                 let annealParamList = U.generateUniqueRandList (length newGraphList) newSAParams
-                                                                let allRandIntList = take (length newGraphList) (randomIntList (rSeedList !! 1))
+                                                                -- let allRandIntList = take (length newGraphList) (randomIntList (rSeedList !! 1))
                                                                 -- TODO
                                                                 -- (allGraphListList, costList, allSAParamList) = unzip3 $ PU.seqParMap (parStrategy $ lazyParStrat inGS)  (insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost) (zip3 allRandIntList annealParamList newGraphList)
 
                                                                 insertPar ← getParallelChunkTraverse
-                                                                insertResult ← insertPar insertAction (zip3 allRandIntList annealParamList newGraphList)
+                                                                insertResult ← insertPar insertAction $ zip annealParamList newGraphList
                                                                 -- mapM  (insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost) (zip3 allRandIntList annealParamList newGraphList)
                                                                 let (allGraphListList, costList, allSAParamList) = unzip3 insertResult
                                                                 let (allMinCost, allMinCostGraphs) =
@@ -1172,7 +1146,6 @@ insertEachNetEdge inGS inData maxNetEdges numToKeep doSteepest doRandomOrder pre
                                                                             insertEachNetEdge
                                                                                 inGS
                                                                                 inData
-                                                                                -- (head $ randomIntList rSeed)
                                                                                 maxNetEdges
                                                                                 numToKeep
                                                                                 doSteepest
@@ -1191,9 +1164,9 @@ insertEachNetEdge'
     → Bool
     → Bool
     → Maybe VertexCost
-    → (Int, Maybe SAParams, ReducedPhylogeneticGraph)
+    → (Maybe SAParams, ReducedPhylogeneticGraph)
     → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
-insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost (rSeed, inSimAnnealParams, inPhyloGraph) =
+insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost (inSimAnnealParams, inPhyloGraph) =
     insertEachNetEdge inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost inSimAnnealParams inPhyloGraph
 
 
@@ -1259,7 +1232,6 @@ insertNetEdgeRecursive inGS inData maxNetEdges doSteepest doRandomOrder inPhyloG
                                     insertNetEdgeRecursive
                                         inGS
                                         inData
-                                        -- rSeedList
                                         maxNetEdges
                                         doSteepest
                                         doRandomOrder
@@ -1283,7 +1255,6 @@ insertNetEdgeRecursive inGS inData maxNetEdges doSteepest doRandomOrder inPhyloG
                                                     insertNetEdgeRecursive
                                                         inGS
                                                         inData
-                                                        -- rSeedList
                                                         maxNetEdges
                                                         doSteepest
                                                         doRandomOrder
@@ -1319,7 +1290,6 @@ insertNetEdgeRecursive inGS inData maxNetEdges doSteepest doRandomOrder inPhyloG
                                                                     insertNetEdgeRecursive
                                                                         inGS
                                                                         inData
-                                                                        -- rSeedList
                                                                         maxNetEdges
                                                                         doSteepest
                                                                         doRandomOrder
@@ -1439,7 +1409,6 @@ deleteAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doStee
                 doSteepest
                 doRandomOrder
                 (curBestGraphList, curBestGraphCost)
-                -- (randomIntList rSeed)
                 inSimAnnealParams
                 inPhyloGraphList
         else
@@ -1885,7 +1854,6 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
                                 doRandomOrder
                                 inPhyloGraph
                                 (tail edgeToDeleteList)
-                                -- rSeed
                                 inSimAnnealParams
                         else
                             let simpleGraphToInsert = fst delGraphBoolPair
@@ -1905,7 +1873,6 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
                                         insertEachNetEdge
                                             inGS
                                             inData
-                                            -- rSeed
                                             (curNumNetNodes + 1)
                                             numToKeep
                                             doSteepest
@@ -1933,7 +1900,6 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
                                                 doRandomOrder
                                                 inPhyloGraph
                                                 (tail edgeToDeleteList)
-                                                -- rSeed
                                                 inSimAnnealParams
 
 
