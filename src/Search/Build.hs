@@ -301,7 +301,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
         -- character build
         performBuildCharacter ∷ Int → PhyG [ReducedPhylogeneticGraph]
         performBuildCharacter numReplicates =
-            let treeList = WB.rasWagnerBuild inGS inData rSeed numReplicates
+            let treeList = WB.rasWagnerBuild inGS inData numReplicates
                 treeList'
                     | simpleTreeOnly = GO.selectGraphs Best 1 0.0 (-1) treeList
                     | otherwise = treeList
@@ -329,7 +329,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                     | hasKey "otu" = "otu"
                     | otherwise = "none"
             in  {-
-                treeList1 = if hasKey "rdwag" then randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates rSeed numToSave refinement
+                treeList1 = if hasKey "rdwag" then randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates numToSave refinement
                             else pure []
                 treeList2 = if hasKey  "dwag" then distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
                             else pure []
@@ -355,7 +355,6 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                                     distMatrix
                                     outgroupElem
                                     numReplicates
-                                    --rSeed
                                     numToSave
                                     refinement
                             else pure []
@@ -483,8 +482,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
         directedGraphAction ∷ TreeWithData → SimpleGraph
         directedGraphAction = DU.convertToDirectedGraphText leafNames outgroupValue . snd4
     in  do
-            rSeed <- getRandom
-            let randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. (length leafNames - 1)]
+            randomizedAdditionSequences ← replicateM numReplicates $ shuffleList leafIndexVec
             randomizedAdditionWagnerTreeList ←
                 DM.doWagnerS inGS leafNames distMatrix "random" outgroupValue "random" numToKeep randomizedAdditionSequences
 
