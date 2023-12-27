@@ -99,10 +99,7 @@ addDeleteNetEdges inGS inData maxNetEdges numToKeep maxRounds counter returnMuta
                     -- TODO
                     pTraverse ← getParallelChunkTraverse
                     addDeleteResult ← pTraverse action (zip saPAramList (replicate annealingRounds inPhyloGraphList))
-                    -- mapM (addDeleteNetEdges'' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList))
                     let (annealRoundsList, counterList) = unzip addDeleteResult
-                    -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (addDeleteNetEdges'' inGS inData rSeed maxNetEdges numToKeep maxRounds counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
-
                     pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList), sum counterList)
 
 
@@ -293,10 +290,8 @@ moveAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doSteepe
                         (curBestGraphList, curBestGraphCost)
             in  do
                     -- TODO
-                    -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ strictParStrat inGS) (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList)))
                     pTraverse ← getParallelChunkTraverse
                     moveResult ← pTraverse action (zip saPAramList (replicate annealingRounds inPhyloGraphList))
-                    -- mapM (moveAllNetEdges'' inGS inData rSeed maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip saPAramList (replicate annealingRounds inPhyloGraphList))
                     let (annealRoundsList, counterList) = unzip moveResult
 
                     pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList), sum counterList)
@@ -378,17 +373,12 @@ moveAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteep
                             netEdgeList ←
                                 if not doRandomOrder
                                     then pure $ LG.labNetEdges (thd5 firstPhyloGraph)
-                                    else (`permuteList` (LG.labNetEdges $ thd5 firstPhyloGraph)) <$> getRandom -- permuteList rSeed $ LG.labNetEdges (thd5 firstPhyloGraph)
+                                    else (`permuteList` (LG.labNetEdges $ thd5 firstPhyloGraph)) <$> getRandom
 
                             -- TODO
-                            -- newGraphList' =  concat $ PU.seqParMap (parStrategy $ strictParStrat inGS) (deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph rSeed inSimAnnealParams) (fmap LG.toEdge netEdgeList)
                             pTraverse ← getParallelChunkTraverse
                             deleteResult ← pTraverse action (fmap LG.toEdge netEdgeList)
-                            -- mapM (deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph rSeed inSimAnnealParams) (fmap LG.toEdge netEdgeList)
                             let newGraphList' = concat deleteResult
-
-                            -- newGraphList' =  deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder firstPhyloGraph (fmap LG.toEdge netEdgeList) rSeed inSimAnnealParams
-
                             let newGraphList = GO.selectGraphs Best numToKeep 0.0 (-1) newGraphList'
                             let newGraphCost =
                                     if (not . null) newGraphList'
@@ -1108,7 +1098,7 @@ insertEachNetEdge inGS inData maxNetEdges numToKeep doSteepest doRandomOrder pre
                                                     in  if minCost < currentCost
                                                             then do
                                                                 let annealParamList = U.generateUniqueRandList (length newGraphList) newSAParams
-                                                                -- let allRandIntList = take (length newGraphList) (randomIntList (rSeedList !! 1))
+
                                                                 -- TODO
                                                                 -- (allGraphListList, costList, allSAParamList) = unzip3 $ PU.seqParMap (parStrategy $ lazyParStrat inGS)  (insertEachNetEdge' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder preDeleteCost) (zip3 allRandIntList annealParamList newGraphList)
 
@@ -1415,7 +1405,6 @@ deleteAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doStee
             let -- create list of params with unique list of random values for rounds of annealing
                 annealingRounds = rounds $ fromJust inSimAnnealParams
                 annealParamGraphList = U.generateUniqueRandList annealingRounds inSimAnnealParams
-                -- replicateRandIntList = fmap randomIntList (take annealingRounds (randomIntList rSeed))
 
                 -- parallel
                 action ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
@@ -2261,7 +2250,7 @@ deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force inSimAnne
                     networkEdgeList ←
                         if not doRandomOrder
                             then pure networkEdgeList'
-                            else (`permuteList` networkEdgeList') <$> getRandom -- pure $ permuteList rSeed networkEdgeList'
+                            else (`permuteList` networkEdgeList') <$> getRandom
                     delPar ← getParallelChunkTraverse
                     delNetEdgeList ← delPar action networkEdgeList
                     -- mapM (deleteNetEdge inGS inData inPhyloGraph force) networkEdgeList
@@ -2297,8 +2286,7 @@ deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force inSimAnne
                                             if minCost < currentCost
                                                 then -- trace ("DENE--Delete net edge return:" <> (show (minCost,length uniqueCostGraphList))) (
 
-                                                    let -- newRandIntList = take (length bestCostGraphList) (randomIntList rSeed)
-                                                        annealParamList = U.generateUniqueRandList (length bestCostGraphList) newSAParams
+                                                    let annealParamList = U.generateUniqueRandList (length bestCostGraphList) newSAParams
 
                                                         -- parallel
                                                         deleteAction ∷ (Maybe SAParams, ReducedPhylogeneticGraph) → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)

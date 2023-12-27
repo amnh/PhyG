@@ -127,7 +127,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                                 swapParams
                                                 inGS
                                                 inData
-                                                --(drop 2 rSeedList)
                                                 (counter + 1)
                                                 returnBest
                                                 returnUnique
@@ -155,7 +154,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                                     swapParams
                                                     inGS
                                                     inData
-                                                    --(drop 2 rSeedList)
                                                     (counter + 1)
                                                     returnBest
                                                     returnUnique
