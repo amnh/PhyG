@@ -166,7 +166,8 @@ Package *
     Library-Profiling: False
     Library-Profiling-detail: all-functions
     Optimization: 2
-
+    Split-Sections:    True
+    
 -- Applies to *only* the specified package!
 Package PhyG
     Benchmarks:           True

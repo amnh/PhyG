@@ -339,7 +339,7 @@ Executable phyg
     PhyG:tcm,
     PHANE-PhyloLib,
 --    array,
-    async,
+--    async,
     base >= 4.10,
     bimap,
     bv,
@@ -383,7 +383,7 @@ Executable phyg
     th-lift-instances,
     time,
     unbounded-delays,     
-    unliftio >= 0.2 && < 1.0,
+--    unliftio >= 0.2 && < 1.0,
     unliftio-core >= 0.2 && < 1.0,
     vector >= 0.13 && < 1.0,
     zlib
