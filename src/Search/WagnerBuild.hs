@@ -36,37 +36,35 @@ import Utilities.Utilities qualified as U
 Does not filter by best, unique etc.  That happens with the select() command specified separately.
 -}
 rasWagnerBuild ∷ GlobalSettings → ProcessedData → Int → PhyG [ReducedPhylogeneticGraph]
-rasWagnerBuild inGS inData numReplicates =
-    if numReplicates == 0
-        then do
-            pure []
-        else
-            let numLeaves = V.length $ fst3 inData
+rasWagnerBuild inGS inData = \case
+    0 → pure []
+    numReplicates →
+        let numLeaves = V.length $ fst3 inData
 
-                -- "graph" of leaf nodes without any edges
-                leafGraph = GO.makeSimpleLeafGraph inData
-                leafDecGraph = GO.makeLeafGraph inData
-                leafIndexVec = V.generate numLeaves id
+            -- "graph" of leaf nodes without any edges
+            leafGraph = GO.makeSimpleLeafGraph inData
+            leafDecGraph = GO.makeLeafGraph inData
+            leafIndexVec = V.generate numLeaves id
 
-                hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
+            hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
 
-                wagnerTreeAction ∷ (V.Vector Int, Int) → PhyG ReducedPhylogeneticGraph
-                wagnerTreeAction = wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars
-            in  do
-                    randomizedAdditionSequences <- replicateM numReplicates $ shuffleList leafIndexVec
-                    logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
-                    -- seqParMap better for high level parallel stuff
-                    -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
-                    -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
+            wagnerTreeAction ∷ (V.Vector Int, Int) → PhyG ReducedPhylogeneticGraph
+            wagnerTreeAction = wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars
+        in  do
+                randomizedAdditionSequences ← replicateM numReplicates $ shuffleList leafIndexVec
+                logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
+                -- seqParMap better for high level parallel stuff
+                -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
+                -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
 
-                    -- TODO
-                    wagnerTreeActionTraverse ← getParallelChunkTraverse
-                    rasResult ← wagnerTreeActionTraverse wagnerTreeAction $ zip randomizedAdditionSequences [0 .. numReplicates - 1]
+                -- TODO
+                wagnerTreeActionTraverse ← getParallelChunkTraverse
+                rasResult ← wagnerTreeActionTraverse wagnerTreeAction $ zip randomizedAdditionSequences [0 .. numReplicates - 1]
 
-                    -- rasResult <- mapM (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
-                    -- PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
-                    -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
-                    pure rasResult
+                -- rasResult <- mapM (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
+                -- PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
+                -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
+                pure rasResult
 
 
 -- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallelization--(zipWith not doing so well?)
