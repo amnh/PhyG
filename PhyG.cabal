@@ -124,6 +124,8 @@ Common ffi-build-info
 
   CC-Options:
     --std=c11
+    -- this for LINUX compile
+    -fPIC
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
