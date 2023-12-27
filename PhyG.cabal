@@ -363,7 +363,7 @@ Executable phyg
     gitrev,
     graphviz   >=2999.20,
     hashable,
-    hmatrix,
+--    hmatrix,
     inflist,
     logfloat,     
     MissingH >= 1.4.3,
