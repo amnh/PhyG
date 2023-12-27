@@ -124,6 +124,8 @@ Common ffi-build-info
 
   CC-Options:
     --std=c11
+    --this needed for static copile on LINUX
+    -fPIC
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
@@ -361,7 +363,7 @@ Executable phyg
     gitrev,
     graphviz   >=2999.20,
     hashable,
-    hmatrix,
+    --hmatrix,
     inflist,
     logfloat,     
     MissingH >= 1.4.3,
