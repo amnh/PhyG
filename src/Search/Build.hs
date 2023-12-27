@@ -10,7 +10,7 @@ module Search.Build (
 ) where
 
 import Commands.Verify qualified as VER
-import Control.Monad (when)
+import Control.Monad (replicateM, when)
 import Control.Monad.Random.Class
 import Data.Char
 import Data.Foldable (fold)
@@ -481,6 +481,8 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
 
         directedGraphAction ∷ TreeWithData → SimpleGraph
         directedGraphAction = DU.convertToDirectedGraphText leafNames outgroupValue . snd4
+
+        leafIndexVec = V.generate (V.length leafNames) id
     in  do
             randomizedAdditionSequences ← replicateM numReplicates $ shuffleList leafIndexVec
             randomizedAdditionWagnerTreeList ←
