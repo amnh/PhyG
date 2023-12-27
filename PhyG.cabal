@@ -162,7 +162,7 @@ Common ffi-build-info
     ffi/external-direct-optimization/ukkCommon.c
 
 -- This is required as compile option to make static binaries on Linux at least
---enable-executable-static
+--enable-executable-static -fPIC
 
 -- Global build directives
 Common build-defaults
