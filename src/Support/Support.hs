@@ -262,7 +262,6 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
     -- pairwise distances for distance analysis
     -- pairwiseDistances ← DD.getPairwiseDistances newData
     let buildGraphs = B.buildGraph buildOptions inGS newData
-    let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
 
     -- if not a tree then try to add net edges
     let netAddArgs = [("netadd", ""), ("keep", show (1 ∷ Int)), ("steepest", ""), ("atrandom", ""), ("maxnetedges", "5")]
@@ -273,7 +272,8 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
         else do
             -- build graphs
             buildGraphs ← B.buildGraph buildOptions inGS newData
-            let bestBuildGraphList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) buildGraphs
+            bestBuildGraphList ← GO.selectGraphs Best (maxBound ∷ Int) 0.0 buildGraphs
+
             edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
             let netGraphList = case graphType inGS of
                     Tree → bestBuildGraphList
@@ -910,11 +910,11 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
                     startVertex ∷ ∀ {a}. Maybe a
                     startVertex = Nothing
 
-
                     generatedResult = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
 
                     generaterNewGraph
-                        | graphType inGS == Tree || LG.isTree newGraph || ( (not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph ) = generatedResult
+                        | graphType inGS == Tree || LG.isTree newGraph || ((not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph) =
+                            generatedResult
                         | otherwise = pure emptyReducedPhylogeneticGraph
                 in  do
                         newPhylogeneticGraph ← generaterNewGraph
@@ -936,10 +936,10 @@ mergeTupleLists
     → [(Int, Int, NameBV, NameBV, VertexCost)]
     → [(Int, Int, NameBV, NameBV, VertexCost)]
 mergeTupleLists = \case
-    [] -> id
-    tl:tls -> \case
-        [] -> mergeTupleLists tls tl
-        accumList ->
+    [] → id
+    tl : tls → \case
+        [] → mergeTupleLists tls tl
+        accumList →
             let newTupleList = zipWith chooseBetterTuple tl accumList
             in  mergeTupleLists tls newTupleList
 
@@ -1002,9 +1002,9 @@ Just graph cost if not present for Goodman-Bremer calculations
 -}
 getNotFoundCost ∷ NameBV → NameBV → VertexCost → [(Int, Int, NameBV, NameBV, VertexCost)] → Maybe VertexCost
 getNotFoundCost uBV vBV inTupleCost = \case
-    [] -> Just inTupleCost
-    (_, _, uInBV, vInBV, _):_ | uBV == uInBV && vBV == vInBV -> Nothing
-    _:ts -> getNotFoundCost uBV vBV inTupleCost ts
+    [] → Just inTupleCost
+    (_, _, uInBV, vInBV, _) : _ | uBV == uInBV && vBV == vInBV → Nothing
+    _ : ts → getNotFoundCost uBV vBV inTupleCost ts
 
 
 {- | getTBRSplitGraphs takes a split gaph and the original split edge and

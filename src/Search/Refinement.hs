@@ -491,7 +491,7 @@ netEdgeMaster inArgs inGS inData inGraphList
 
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
 
-                getSimAnnealParams :: Maybe SAParams
+                getSimAnnealParams ∷ Maybe SAParams
                 getSimAnnealParams
                     | not doAnnealing && not doDrift = Nothing
                     | otherwise =
@@ -519,20 +519,20 @@ netEdgeMaster inArgs inGS inData inGraphList
                             worseFactor = max (fromJust acceptWorseFactor) 0.0
 
                             changes = case maxChanges of
-                                Nothing -> 15
-                                Just num | num < 0 -> 15
-                                Just num -> num
-                                
-                        in  Just $ SAParams
-                                { method = saMethod
-                                , numberSteps = steps
-                                , currentStep = 0
-                                , rounds = max annealingRounds driftRounds
-                                , driftAcceptEqual = equalProb
-                                , driftAcceptWorse = worseFactor
-                                , driftMaxChanges = changes
-                                , driftChanges = 0
-                                }
+                                Nothing → 15
+                                Just num | num < 0 → 15
+                                Just num → num
+                        in  Just $
+                                SAParams
+                                    { method = saMethod
+                                    , numberSteps = steps
+                                    , currentStep = 0
+                                    , rounds = max annealingRounds driftRounds
+                                    , driftAcceptEqual = equalProb
+                                    , driftAcceptWorse = worseFactor
+                                    , driftMaxChanges = changes
+                                    , driftChanges = 0
+                                    }
 
                 -- parallel stuff
                 insertAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
@@ -590,10 +590,9 @@ netEdgeMaster inArgs inGS inData inGraphList
                         ([], infinity)
 
                 simAnnealParams = getSimAnnealParams
-                    -- create simulated annealing random lists uniquely for each fmap
+                -- create simulated annealing random lists uniquely for each fmap
                 newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) $ simAnnealParams
             in  do
-
                     -- perform add/delete/move operations
                     {-
                                         bannerText
@@ -691,7 +690,8 @@ netEdgeMaster inArgs inGS inData inGraphList
                                         graphPairList1 ← insertPar insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList1
-                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                        graphs ← GO.selectGraphs Unique (fromJust keepNum) 0.0 $ concat graphListList
+                                        pure (graphs, sum counterList)
                             else pure (inGraphList, 0)
 
                     (newGraphList', counterDelete) ←
@@ -701,14 +701,13 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogWarn ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
                                         pure (newGraphList, 0)
                                     else do
-                                        -- trace ("REFINE Delete") (
                                         deletePar ← getParallelChunkTraverse
                                         graphPairList2 ← deletePar deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList2
-                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                            else -- )
-                                pure (newGraphList, 0)
+                                        graphs ← GO.selectGraphs Unique (fromJust keepNum) 0.0 $ concat graphListList
+                                        pure (graphs, sum counterList)
+                            else pure (newGraphList, 0)
 
                     (newGraphList'', counterMove) ←
                         if doMove
@@ -719,7 +718,8 @@ netEdgeMaster inArgs inGS inData inGraphList
                                 graphPairList3 ← movePar moveAction . zip newSimAnnealParamList $ (: []) <$> newGraphList'
 
                                 let (graphListList, counterList) = unzip graphPairList3
-                                pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                graphs ← GO.selectGraphs Unique (fromJust keepNum) 0.0 $ concat graphListList
+                                pure (graphs, sum counterList)
                             else pure (newGraphList', 0)
 
                     (newGraphList''', counterAddDelete) ←
@@ -733,12 +733,13 @@ netEdgeMaster inArgs inGS inData inGraphList
                                         graphPairList4 ← addDeletePar addDeleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList''
 
                                         let (graphListList, counterList) = unzip graphPairList4
-                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                        graphs ← GO.selectGraphs Unique (fromJust keepNum) 0.0 $ concat graphListList
+                                        pure (graphs, sum counterList)
                             else pure (newGraphList'', 0)
 
-                    let resultGraphList
-                            | null newGraphList''' = inGraphList
-                            | otherwise = GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) newGraphList'''
+                    resultGraphList ← case newGraphList''' of
+                        [] → pure inGraphList
+                        gs → GO.selectGraphs Unique (fromJust keepNum) 0.0 gs
 
                     logWith LogInfo $
                         unwords

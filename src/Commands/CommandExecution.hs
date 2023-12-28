@@ -64,7 +64,7 @@ executeCommands
     → [ReducedPhylogeneticGraph]
     → [ReducedPhylogeneticGraph]
     → [Command]
-    -> Bool
+    → Bool
     → PhyG ([ReducedPhylogeneticGraph], GlobalSettings, [ReducedPhylogeneticGraph])
 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs supportGraphList commandList isFirst = do
     if null commandList
@@ -282,8 +282,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                                                 else
                                                                                     if firstOption == Select
                                                                                         then do
-                                                                                            rSeed <- getRandom
-                                                                                            (elapsedSeconds, newGraphList) ← timeOp $ pure $ GO.selectPhylogeneticGraphReduced firstArgs rSeed curGraphs
+                                                                                            (elapsedSeconds, newGraphList) ← timeOp $ GO.selectPhylogeneticGraphReduced firstArgs curGraphs
 
                                                                                             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                                             let newSearchData = searchInfo : searchData globalSettings
@@ -505,7 +504,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                             lGraphComplexityList
                                                                 | localCriterion `elem` [Just Parsimony, Just NCM] = Just $ IL.repeat (0.0, 0.0)
                                                                 | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculateGraphComplexity processedData
-                                                                | localCriterion `elem`  [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
+                                                                | localCriterion `elem` [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
                                                                 | otherwise = Nothing
 
                                                             lRootComplexity
@@ -525,8 +524,9 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                                     else graphFactor globalSettings
 
                                                             lModelComplexity =
-                                                                if localCriterion `elem` [Just PMDL] then modelComplexity globalSettings
-                                                                else 0.0
+                                                                if localCriterion `elem` [Just PMDL]
+                                                                    then modelComplexity globalSettings
+                                                                    else 0.0
                                                         in  if isNothing localCriterion
                                                                 then do
                                                                     failWithPhase Parsing ("Error in 'set' command. Criterion '" <> head optionList <> "' is not 'parsimony', 'ml', or 'pmdl'")
@@ -1222,7 +1222,8 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                                                                                                                                                                         | (head optionList == "pmdl") = PMDLRoot
                                                                                                                                                                                                         | (head optionList == "si") = SIRoot
                                                                                                                                                                                                         | otherwise =
-                                                                                                                                                                                                            errorWithoutStackTrace ("Error in 'set' command. RootCost  '" <> head optionList <> "' is not 'NoRootCost', 'MAPA', 'NCM', 'PMDL', or 'SI'")
+                                                                                                                                                                                                            errorWithoutStackTrace
+                                                                                                                                                                                                                ("Error in 'set' command. RootCost  '" <> head optionList <> "' is not 'NoRootCost', 'MAPA', 'NCM', 'PMDL', or 'SI'")
 
                                                                                                                                                                                                     lRootComplexity
                                                                                                                                                                                                         | localMethod == NoRootCost = Just 0.0
@@ -1239,14 +1240,12 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                                                                                                                                                                 pure (globalSettings{rootCost = localMethod, rootComplexity = fromJust lRootComplexity}, processedData)
                                                                                                                                                                                             else
                                                                                                                                                                                                 if head commandList == "seed"
-                                                                                                                                                                                                    then
-                                                                                                                                                                                                        case readMaybe (head optionList) ∷ Maybe Int of
-                                                                                                                                                                                                            Nothing ->  failWithPhase Parsing ("Set option 'seed' must be set to an integer value (e.g. seed:123): " <> head optionList)
-                                                                                                                                                                                                            Just localValue -> do
-                                                                                                                                                                                                                    logWith LogInfo ("Random Seed set to " <> head optionList <> "\n")
-                                                                                                                                                                                                                    setRandomSeed localValue
-                                                                                                                                                                                                                    pure (globalSettings, processedData)
-                                                                                                                                                                                
+                                                                                                                                                                                                    then case readMaybe (head optionList) ∷ Maybe Int of
+                                                                                                                                                                                                        Nothing → failWithPhase Parsing ("Set option 'seed' must be set to an integer value (e.g. seed:123): " <> head optionList)
+                                                                                                                                                                                                        Just localValue → do
+                                                                                                                                                                                                            logWith LogInfo ("Random Seed set to " <> head optionList <> "\n")
+                                                                                                                                                                                                            setRandomSeed localValue
+                                                                                                                                                                                                            pure (globalSettings, processedData)
                                                                                                                                                                                                     else
                                                                                                                                                                                                         if head commandList == "softwiredmethod"
                                                                                                                                                                                                             then do

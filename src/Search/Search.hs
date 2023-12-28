@@ -142,7 +142,7 @@ search inArgs inGS inData inGraphList' =
                                 [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
                                 inGS
                                 inData
-                        pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
+                        fmap (take keepNum) . GO.selectGraphs Unique (maxBound ∷ Int) 0.0 $ dWagGraphList <> inGraphList'
 
             let threadCount = instances -- <- (max 1) <$> getNumCapabilities
             let startGraphs = replicate threadCount (inGraphList, mempty)
@@ -165,7 +165,7 @@ search inArgs inGS inData inGraphList' =
                         <> "\n"
                     )
             let completeGraphList = inGraphList <> fold newGraphList
-            let filteredGraphList = GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) completeGraphList
+            filteredGraphList ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 completeGraphList
             let selectedGraphList = take keepNum filteredGraphList
 
             logWith LogInfo iterationHitString
@@ -213,15 +213,15 @@ searchForDuration
 searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction totalThetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex (inGraphList, infoStringList) =
     let timeLimit = fromIntegral $ toMicroseconds allotedSeconds
 
-        -- this line to keep control of graph number
-        inGraphList' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) inGraphList
-
         logWarning ∷ b → [String] → PhyG b
         logWarning val tokens = logWith LogWarn ((unwords $ "Thread" : show refIndex : tokens) <> "\n") $> val
 
         runForDuration ∷ PhyG a → PhyG (Maybe a)
         runForDuration = liftIOOp (timeout timeLimit)
     in  do
+            -- this line to keep control of graph number
+            inGraphList' ← take keepNum <$> GO.selectGraphs Unique (maxBound ∷ Int) 0.0 inGraphList
+
             -- searchingInnerOp ∷ PhyG ([ReducedPhylogeneticGraph], [String])
             let searchingInnerOp =
                     force $
@@ -657,9 +657,10 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
             searchBandit ← getSearchBandit
             -- unless fuse or genetic algorithm, only operate on "best" input graphs
             -- this to reduce memory footrpint when have multiple iterations
-            let inGraphList''
-                    | searchBandit `elem` ["fuse", "fuseSPR", "fuseTBR", "geneticAlgorithm"] = inGraphList'
-                    | otherwise = GO.selectGraphs Best keepNum 0.0 (-1) inGraphList'
+            inGraphList'' ←
+                if searchBandit `elem` ["fuse", "fuseSPR", "fuseTBR", "geneticAlgorithm"]
+                    then pure inGraphList'
+                    else GO.selectGraphs Best keepNum 0.0 inGraphList'
 
             -- Can't do both static approx and multitraverse:False
             newDataMTF ← TRANS.transform [("multitraverse", "false")] inGS' inData' inData' inGraphList''
@@ -740,12 +741,12 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                 "buildSPR" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData'
                         -- swap options
                         swapType = "spr"
                     in  -- search
                         do
-                            buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
+                            buildGraphs ← B.buildGraph buildArgs inGS' inData'
+                            buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 buildGraphs
                             swapKeep ← getSwapKeep
                             let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                             swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
@@ -753,12 +754,12 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                 "buildAlternate" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
-                        buildGraphs = B.buildGraph buildArgs inGS' inData'
                         -- swap options
                         swapType = "alternate" -- default anyway
                     in  -- search
                         do
-                            buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) <$> buildGraphs
+                            buildGraphs ← B.buildGraph buildArgs inGS' inData'
+                            buildGraphs' ← GO.selectGraphs Unique (maxBound ∷ Int) 0.0 buildGraphs
                             swapKeep ← getSwapKeep
                             let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
                             swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
@@ -926,7 +927,7 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                 _ → error ("Unknown/unimplemented method in search: " <> searchBandit)
 
             -- process
-            let uniqueGraphs' = take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (searchGraphs <> inGraphList)
+            uniqueGraphs' ← fmap (take keepNum) . GO.selectGraphs Unique (maxBound ∷ Int) 0.0 $ searchGraphs <> inGraphList
             newDataMT ← TRANS.transform [("multiTraverse", "true")] inGS origData inData uniqueGraphs'
             newDataT ← TRANS.transform [("dynamic", [])] inGS' origData inData uniqueGraphs'
             let (uniqueGraphs, transString)

@@ -11,7 +11,6 @@ module Search.Build (
 
 import Commands.Verify qualified as VER
 import Control.Monad (replicateM, when)
-import Control.Monad.Random.Class
 import Data.Char
 import Data.Foldable (fold)
 import Data.Functor (($>))
@@ -26,7 +25,6 @@ import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Reconciliation.ReconcileGraphs qualified as R
 import Search.DistanceMethods qualified as DM
 import Search.DistanceWagner qualified as DW
@@ -47,7 +45,7 @@ with appropriate options
 transforms graph type to Tree for builds then back to initial graph type
 -}
 buildGraph ∷ [Argument] → GlobalSettings → ProcessedData → PhyG [ReducedPhylogeneticGraph]
-buildGraph inArgs inGS inData  =
+buildGraph inArgs inGS inData =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -55,7 +53,7 @@ buildGraph inArgs inGS inData  =
     in  -- check for valid command options
         if not checkCommandList
             then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
-            else 
+            else
                 let -- block build options including number of display trees to return
                     buildBlock = filter ((== "block") . fst) lcArgList
                     displayBlock = filter ((== "displaytrees") . fst) lcArgList
@@ -112,7 +110,7 @@ buildGraph inArgs inGS inData  =
                     pairwiseAction = DD.getPairwiseDistances
 
                     buildAction ∷ ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
-                    buildAction = buildTree' True inArgs treeGS 
+                    buildAction = buildTree' True inArgs treeGS
 
                     traverseAction ∷ Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
                     traverseAction = T.multiTraverseFullyLabelGraphReduced inGS inData -- False False Nothing
@@ -151,28 +149,30 @@ buildGraph inArgs inGS inData  =
                                     pure traverseList
 
                         -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
-                        let firstGraphs
-                                | null buildBlock = GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 (-1) firstGraphs'
-                                | otherwise = firstGraphs'
+                        firstGraphs ← case buildBlock of
+                            [] → GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 firstGraphs'
+                            _ → pure firstGraphs'
 
                         -- reporting info
                         let returnString
                                 | null firstGraphs = "\t\tReturning 0 graphs"
-                                | otherwise = unwords
-                                    [ "\tReturning"
-                                    , show $ length firstGraphs
-                                    , "graphs at cost range"
-                                    , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
-                                    ]
+                                | otherwise =
+                                    unwords
+                                        [ "\tReturning"
+                                        , show $ length firstGraphs
+                                        , "graphs at cost range"
+                                        , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
+                                        ]
 
                         let costString
                                 | null firstGraphs = "\t\tBlock build returned 0 graphs"
-                                | otherwise = unwords
-                                    [ "\tBlock build yielded"
-                                    , show $ length firstGraphs
-                                    , "graphs at cost range"
-                                    , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
-                                    ]
+                                | otherwise =
+                                    unwords
+                                        [ "\tBlock build yielded"
+                                        , show $ length firstGraphs
+                                        , "graphs at cost range"
+                                        , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
+                                        ]
 
                         if isNothing numDisplayTrees
                             then errorWithoutStackTrace ("DisplayTrees specification in build not an integer: " <> show (snd $ head displayBlock))
@@ -230,8 +230,9 @@ reconcileBlockTrees blockTrees numDisplayTrees returnTrees returnGraph returnRan
                     | not $ LG.isEmpty reconciledGraph = reconciledGraph
                     | otherwise = reconciledGraphInitial
 
-            displayGraphs' <-
-                    if not returnRandomDisplayTrees then pure $ take numDisplayTrees $ LG.generateDisplayTrees True reconciledGraph'
+            displayGraphs' ←
+                if not returnRandomDisplayTrees
+                    then pure $ take numDisplayTrees $ LG.generateDisplayTrees True reconciledGraph'
                     else LG.generateDisplayTreesRandom numDisplayTrees reconciledGraph'
 
             -- need this to fix up some graphs after other stuff changed
@@ -303,7 +304,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
         performBuildCharacter numReplicates =
             let treeList = WB.rasWagnerBuild inGS inData numReplicates
                 treeList'
-                    | simpleTreeOnly = GO.selectGraphs Best 1 0.0 (-1) treeList
+                    | simpleTreeOnly = GO.selectGraphs Best 1 0.0 treeList
                     | otherwise = treeList
             in  do
                     logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList'
@@ -318,10 +319,12 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 nameStringVect = fmap TL.unpack nameTextVect
                 distMatrix = M.fromLists pairwiseDistances
 
-                whenKey ∷ (Monoid p) ⇒ [Char] → p → p
-                whenKey key value
-                    | hasKey key = value
-                    | otherwise = mempty
+                {-
+                                whenKey ∷ (Monoid p) ⇒ [Char] → p → p
+                                whenKey key value
+                                    | hasKey key = value
+                                    | otherwise = mempty
+                -}
 
                 refinement
                     | hasKey "tbr" = "tbr"
@@ -344,20 +347,21 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
 
                 do
                     -- logWith LogInfo ("L455: " <> (show (numReplicates,numToSave)))
-                    treeList1 ← {-# SCC buildTree_treeList1 #-}
-                        if hasKey "rdwag"
-                            then
-                                randomizedDistanceWagner
-                                    simpleTreeOnly
-                                    inGS
-                                    inData
-                                    nameStringVect
-                                    distMatrix
-                                    outgroupElem
-                                    numReplicates
-                                    numToSave
-                                    refinement
-                            else pure []
+                    treeList1 ←
+                        {-# SCC buildTree_treeList1 #-}
+                            if hasKey "rdwag"
+                                then
+                                    randomizedDistanceWagner
+                                        simpleTreeOnly
+                                        inGS
+                                        inData
+                                        nameStringVect
+                                        distMatrix
+                                        outgroupElem
+                                        numReplicates
+                                        numToSave
+                                        refinement
+                                else pure []
                     treeList2 ←
                         if hasKey "dwag"
                             then distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
@@ -380,7 +384,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                             logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs) <> "\n"
                             if not simpleTreeOnly
                                 then pure xs
-                                else pure $ GO.selectGraphs Best 1 0.0 (-1) xs
+                                else GO.selectGraphs Best 1 0.0 xs
     in  do
             failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
             failWhen (buildDistance && buildCharacter) $
@@ -404,7 +408,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 do
                     -- character build
                     treeList ← WB.rasWagnerBuild inGS inData numReplicates
-                    let treeList' = GO.selectGraphs Best 1 0.0 (-1) treeList
+                    treeList' ← GO.selectGraphs Best 1 0.0 treeList
                     if simpleTreeOnly
                         then do
                             logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList') <> "\n"
@@ -457,24 +461,26 @@ randomizedDistanceWagner
     → Int
     → String
     → PhyG [ReducedPhylogeneticGraph]
-randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates numToKeep refinement = {-# SCC randomizedDistanceWagner_TOP_DEF #-}
+randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue numReplicates numToKeep refinement =
+    {-# SCC randomizedDistanceWagner_TOP_DEF #-}
     -- set up parallel structures
     let refineAction ∷ TreeWithData → PhyG [TreeWithData]
         refineAction = DW.performRefinement refinement "best:1" "first" leafNames outgroupValue
 
         traverseGraphAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
-        traverseGraphAction g0 = {-# SCC randomizedDistanceWagner_traverseGraphAction #-} do
-            let -- debugger :: (Logger m, Show a, Show b, Show c) => a -> LG.Gr b c -> m ()
+        traverseGraphAction g0 =
+            {-# SCC randomizedDistanceWagner_traverseGraphAction #-}
+            do
+                let -- debugger :: (Logger m, Show a, Show b, Show c) => a -> LG.Gr b c -> m ()
                 -- debugger n g = logWith LogTech $ "In: 'randomizedDistanceWagner.traverseGraphAction'\n  Graph [ G_" <> show n <> " ]:\n" <> LG.prettify g
-            -- debugger 0 g0
-            let g1 = LG.switchRootTree (length leafNames) g0
-            -- debugger 1 g1
-            let g2 = GO.dichotomizeRoot outgroupValue g1
-            -- debugger 2 g2
-            result@(g3,_,_,_,_) <- T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g2
-            -- debugger 3 g3
-            pure result
-
+                -- debugger 0 g0
+                let g1 = LG.switchRootTree (length leafNames) g0
+                -- debugger 1 g1
+                let g2 = GO.dichotomizeRoot outgroupValue g1
+                -- debugger 2 g2
+                result@(g3, _, _, _, _) ← T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g2
+                -- debugger 3 g3
+                pure result
 
         dichotomizeAction ∷ SimpleGraph → SimpleGraph
         dichotomizeAction = GO.dichotomizeRoot outgroupValue . (LG.switchRootTree (length leafNames))
