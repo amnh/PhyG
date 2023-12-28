@@ -170,7 +170,6 @@ addDeleteNetEdges' inGS inData maxNetEdges numToKeep maxRounds counter returnMut
                             doSteepest
                             doRandomOrder
                             (curBestGraphList, curBestGraphCost)
-                            -- randIntList
                             inSimAnnealParams
                             inPhyloGraphList
 
@@ -181,7 +180,6 @@ addDeleteNetEdges' inGS inData maxNetEdges numToKeep maxRounds counter returnMut
                                 else [Nothing, Nothing]
 
                     -- if no better--take input for delte phase
-                    -- let randIntList2 = randomIntList (randIntList !! 1)
                     (insertGraphList', insertGraphCost, toDeleteList) ← case insertGraphList of
                         [] → pure (curBestGraphList, curBestGraphCost, inPhyloGraphList)
                         gs → do
@@ -199,7 +197,6 @@ addDeleteNetEdges' inGS inData maxNetEdges numToKeep maxRounds counter returnMut
                             doSteepest
                             doRandomOrder
                             (insertGraphList', insertGraphCost)
-                            -- randIntList2
                             (head updatedSAParamList)
                             toDeleteList
 
@@ -219,7 +216,6 @@ addDeleteNetEdges' inGS inData maxNetEdges numToKeep maxRounds counter returnMut
                             addDeleteNetEdges'
                                 inGS
                                 inData
-                                -- (randIntList !! 2)
                                 maxNetEdges
                                 numToKeep
                                 maxRounds
@@ -606,10 +602,8 @@ insertAllNetEdges inGS inData maxNetEdges numToKeep maxRounds counter returnMuta
                         let intList = replicate maxRounds (0 ∷ Int)
                         let intListList = replicate maxRounds intList
                         -- TODO
-                        -- (insertGraphList, counterList) = unzip $ PU.seqParMap (parStrategy $ strictParStrat inGS) (insertAllNetEdgesRand inGS inData maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList) randIntListList
                         randPar ← getParallelChunkTraverse
-                        insertGraphResult ← randPar randAction intListList -- randIntListList
-                        -- mapM (insertAllNetEdgesRand inGS inData maxNetEdges numToKeep counter returnMutated doSteepest (curBestGraphList, curBestGraphCost) Nothing inPhyloGraphList) randIntListList
+                        insertGraphResult ← randPar randAction intListList
                         let (insertGraphList, counterList) = unzip insertGraphResult
                         -- insert functions take care of returning "better" or empty
                         -- should be empty if nothing better
@@ -662,7 +656,6 @@ insertAllNetEdgesRand inGS inData maxNetEdges numToKeep counter returnMutated do
         doSteepest
         True
         (curBestGraphList, curBestGraphCost)
-        -- randIntList
         inSimAnnealParams
         inPhyloGraphList
 
@@ -782,7 +775,6 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                                 doRandomOrder
                                                 (curBestGraphList, curBestGraphCost)
                                                 (newGraphList, newGraphCost)
-                                                -- (tail randIntList)
                                                 inSimAnnealParams
                                                 netNodes
                                                 currentCost
@@ -802,7 +794,6 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                                     doRandomOrder
                                                     (curBestGraphList, curBestGraphCost)
                                                     (newGraphList, newGraphCost)
-                                                    -- (tail randIntList)
                                                     newSAParams
                                                     netNodes
                                                     currentCost
@@ -827,7 +818,6 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                                             doSteepest
                                                             doRandomOrder
                                                             (saGraphs, annealBestCost)
-                                                            -- (randomIntList $ head randIntList)
                                                             Nothing
                                                             saGraphs
                                                     bestList ← GO.selectGraphs Best numToKeep 0.0 bestList'
@@ -1446,7 +1436,6 @@ deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSt
         doSteepest
         doRandomOrder
         (curBestGraphList, curBestGraphCost)
-        -- randIntList
         inSimAnnealParams
         inPhyloGraphList
 
@@ -1486,7 +1475,6 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                         doSteepest
                         doRandomOrder
                         (curBestGraphList, curBestGraphCost)
-                        -- randIntList
                         inSimAnnealParams
                         (tail inPhyloGraphList)
                 else do
@@ -1496,7 +1484,6 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                         deleteEachNetEdge
                             inGS
                             inData
-                            -- (head randIntList)
                             numToKeep
                             doSteepest
                             doRandomOrder
@@ -1526,7 +1513,6 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                 doSteepest
                                 doRandomOrder
                                 ((head inPhyloGraphList) : curBestGraphList, currentCost)
-                                -- (tail randIntList)
                                 inSimAnnealParams
                                 (tail inPhyloGraphList)
                         else -- is this an issue for SA?
@@ -1548,7 +1534,6 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                                 doSteepest
                                                 doRandomOrder
                                                 (curBestGraphList, curBestGraphCost)
-                                                -- (tail randIntList)
                                                 inSimAnnealParams
                                                 inPhyloGraphList
                                                 newGraphList
@@ -1567,7 +1552,6 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                                     doSteepest
                                                     doRandomOrder
                                                     (curBestGraphList, curBestGraphCost)
-                                                    -- (tail randIntList)
                                                     newSAParams
                                                     inPhyloGraphList
                                                     newGraphList
@@ -1593,7 +1577,6 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                                             doSteepest
                                                             doRandomOrder
                                                             (saGraphs, annealBestCost)
-                                                            -- (randomIntList $ head randIntList)
                                                             Nothing
                                                             saGraphs
                                                     let (bestList', counter') = insertedGraphs
@@ -1643,7 +1626,6 @@ postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutat
                     doSteepest
                     doRandomOrder
                     (newGraphList, newGraphCost)
-                    -- randIntList
                     inSimAnnealParams
                     graphsToDelete
             else -- check if hit max change/ cooling steps
@@ -1703,7 +1685,6 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
                 doSteepest
                 doRandomOrder
                 ((head inPhyloGraphList) : curBestGraphList, currentCost)
-                -- randIntList
                 inSimAnnealParams
                 (tail inPhyloGraphList)
         else -- "steepest style descent" abandons existing list if better cost found
@@ -1723,7 +1704,6 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
                                 doSteepest
                                 doRandomOrder
                                 (newGraphList, newGraphCost)
-                                -- randIntList
                                 inSimAnnealParams
                                 newGraphList
                         else do
@@ -1737,7 +1717,6 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
                                 doSteepest
                                 doRandomOrder
                                 (newGraphList, newGraphCost)
-                                -- randIntList
                                 inSimAnnealParams
                                 (newGraphList <> (tail inPhyloGraphList))
                 else -- equal cost
@@ -1757,7 +1736,6 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
                         doSteepest
                         doRandomOrder
                         (newCurSameBestList, currentCost)
-                        -- randIntList
                         inSimAnnealParams
                         (tail inPhyloGraphList)
 
@@ -2157,55 +2135,38 @@ deltaPenaltyAdjustment inGS inGraph modification =
     let numLeaves = numDataLeaves inGS
         edgeCostModel = graphFactor inGS
         (_, _, _, networkNodeList) = LG.splitVertexList (fst5 inGraph)
-    in  if edgeCostModel == NoNetworkPenalty
-            then -- trace ("DPA: No penalty")
-                0.0
-            else -- else if length networkNodeList == 0 then
-            -- trace ("DPA: No cost")
-            --   0.0
+    in  case edgeCostModel of
+            NoNetworkPenalty → 0
+            Wheeler2015Network →
+                (snd5 inGraph) / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
+            _ | optimalityCriterion inGS `elem` [PMDL, SI] → case graphType inGS of
+                Tree → fst . IL.head $ graphComplexityList inGS
+                SoftWired →
+                    let currentComplexity = fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+                        nextComplexity =
+                            if modification == "add"
+                                then fst $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) + 1)
+                                else
+                                    if modification == "delete"
+                                        then fst $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) - 1)
+                                        else error ("SoftWired deltaPenaltyAdjustment modification not recognized: " <> modification)
+                    in  abs (currentComplexity - nextComplexity)
+                HardWired →
+                    let currentComplexity = snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+                        nextComplexity =
+                            if modification == "add"
+                                then snd $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) + 1)
+                                else
+                                    if modification == "delete"
+                                        then snd $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) - 1)
+                                        else error ("HardWired deltaPenaltyAdjustment modification not recognized: " <> modification)
+                    in  abs (currentComplexity - nextComplexity)
+                val → error $ "Graph type not yet implemented: " <> show val
+            Wheeler2023Network →
+                -- same as W15 for heuristic penalty for single edge
+                (snd5 inGraph) / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
+            _ → error $ "Network edge cost model not yet implemented: " <> show edgeCostModel
 
-                if edgeCostModel == Wheeler2015Network
-                    then (snd5 inGraph) / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
-                    else
-                        if (optimalityCriterion inGS) `elem` [PMDL, SI]
-                            then -- trace  ("DPW: In PMDLGraph") (
-
-                                if graphType inGS == Tree
-                                    then fst $ IL.head (graphComplexityList inGS)
-                                    else
-                                        if graphType inGS == SoftWired
-                                            then
-                                                let currentComplexity = fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
-                                                    nextComplexity =
-                                                        if modification == "add"
-                                                            then fst $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) + 1)
-                                                            else
-                                                                if modification == "delete"
-                                                                    then fst $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) - 1)
-                                                                    else error ("SoftWired deltaPenaltyAdjustment modification not recognized: " <> modification)
-                                                in  abs (currentComplexity - nextComplexity)
-                                            else
-                                                if graphType inGS == HardWired
-                                                    then
-                                                        let currentComplexity = snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
-                                                            nextComplexity =
-                                                                if modification == "add"
-                                                                    then snd $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) + 1)
-                                                                    else
-                                                                        if modification == "delete"
-                                                                            then snd $ (graphComplexityList inGS) IL.!!! ((length networkNodeList) - 1)
-                                                                            else error ("HardWired deltaPenaltyAdjustment modification not recognized: " <> modification)
-                                                        in  abs (currentComplexity - nextComplexity)
-                                                    else error ("Graph type not yet implemented: " <> (show $ graphType inGS))
-                            else -- )
-
-                                if edgeCostModel == Wheeler2023Network
-                                    then -- same as W15 for heuristic penalty for single edge
-                                        (snd5 inGraph) / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
-                                    else error ("Network edge cost model not yet implemented: " <> (show edgeCostModel))
-
-
--- )
 
 {- | deleteEachNetEdge takes a phylogenetic graph and deletes all network edges one at time
 and returns best list of new Phylogenetic Graphs and cost
@@ -2282,11 +2243,8 @@ deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force inSimAnne
                                                         deleteAction ∷ (Maybe SAParams, ReducedPhylogeneticGraph) → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
                                                         deleteAction = deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force
                                                     in  do
-                                                            -- TODO
-                                                            -- nextGraphTripleList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force) (zip3 annealParamList newRandIntList bestCostGraphList)
                                                             deletePar ← getParallelChunkTraverse
                                                             nextGraphDoubleList ← deletePar deleteAction (zip annealParamList bestCostGraphList)
-                                                            -- mapM (deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force) (zip3 annealParamList newRandIntList bestCostGraphList)
 
                                                             let newMinCost = minimum $ fmap snd3 nextGraphDoubleList
                                                             let newGraphListBetter = filter ((== newMinCost) . snd5) $ concatMap fst3 nextGraphDoubleList
@@ -2440,7 +2398,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
                                                 else do
                                                     -- need to update edge list for new graph
                                                     -- potentially randomize order of list
-                                                    deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams (drop numGraphsToExamine inEdgeToDeleteList)
+                                                    deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams $ drop numGraphsToExamine inEdgeToDeleteList
                                         else -- sim anneal/drift
 
                                         -- if better always accept
