@@ -991,7 +991,7 @@ getGeneralSwapSteepestOne refineType swapFunction leafNames outGroup inTreeList 
                     let steepCost = minimum $ fmap thd4 steepTreeList
 
                     -- this to maintain the trajectories untill final swap--otherwise could converge down to single tree prematurely
-                    pure $ keepTrees steepTreeList "unique" "first" steepCost
+                    keepTrees steepTreeList "unique" "first" steepCost
 
 
 {- | getGeneralSwap performs a "re-add" of terminal identical to wagner build addition to available edges
@@ -1046,8 +1046,8 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
                                         if costOfFoundTrees < overallBestCost
                                             then
                                                 let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing) $ fmap (filterNewTrees inTreeList) firstTreeList'
-                                                    treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
-                                                in  getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave firstTreeList')
+                                                in  do  treesToSwap <- keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
+                                                        getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave firstTreeList')
                                             else
                                                 if costOfFoundTrees == overallBestCost
                                                     then
@@ -1055,16 +1055,16 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
                                                             then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
                                                             else
                                                                 let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing) $ fmap (filterNewTrees inTreeList) firstTreeList'
-                                                                    treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
-                                                                in  getGeneralSwap
-                                                                        refineType
-                                                                        swapFunction
-                                                                        saveMethod
-                                                                        keepMethod
-                                                                        leafNames
-                                                                        outGroup
-                                                                        treesToSwap
-                                                                        (take maxNumSave $ savedTrees <> firstTreeList')
+                                                                in  do  treesToSwap <- keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
+                                                                        getGeneralSwap
+                                                                            refineType
+                                                                            swapFunction
+                                                                            saveMethod
+                                                                            keepMethod
+                                                                            leafNames
+                                                                            outGroup
+                                                                            treesToSwap
+                                                                            . take maxNumSave $ savedTrees <> firstTreeList'
                                                     else getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
 
 
