@@ -335,7 +335,7 @@ makeSampledPairVectBootstrap inCharInfoVect inCharDataVect =
 
         numDynamicChars = V.length dynamicCharsV
     in  do
-            dynCharIndices ← V.replicateM numDynamicChars $ randIndex numDynamicChars <$> getRandom
+            dynCharIndices ← V.replicateM numDynamicChars $ getRandomR (0, numDynamicChars - 1)
             let resampleDynamicChars = V.map (dynamicCharsV V.!) dynCharIndices
             let resampleDynamicCharInfo = V.map (dynamicCharsInfoV V.!) dynCharIndices
 
@@ -344,10 +344,6 @@ makeSampledPairVectBootstrap inCharInfoVect inCharDataVect =
             resampleStaticChars ← V.zipWithM subSampleStatic staticCharsV staticCharsInfoV
             -- cons the vectors for chrater data and character info
             pure (resampleStaticChars <> resampleDynamicChars, staticCharsInfoV <> resampleDynamicCharInfo)
-    where
-        -- )
-        randIndex ∷ ∀ {b}. (Integral b) ⇒ b → b → b
-        randIndex a b = snd $ divMod (abs b) a
 
 
 {- | subSampleStatic takes a random int list and a static charcter
@@ -851,22 +847,6 @@ splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGr
             let newTupleList = mergeTupleLists rejoinTupleListList []
             pure newTupleList
 
-
-{-
--- | rejoinGBPair is a wrapper around rejoinGBPair
-rejoinGBPair
-    ∷ GlobalSettings
-    → ProcessedData
-    → Int
-    → Bool
-    → [(Int, Int, NameBV, NameBV, VertexCost)]
-    → [SimpleGraph]
-    → LG.LEdge Double
-    → ([Int], LG.LEdge Double)
-    → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
-rejoinGBPair inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge (randIntList, edgeToInvade) =
-    rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList originalBreakEdge edgeToInvade
--}
 
 {- | rejoinGB rejoins split graph at specific edge, id SPR then that's it, if TBR reroot pruned subgraph
 splitGraph is SimpleGraph
