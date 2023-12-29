@@ -134,7 +134,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                             if firstOption == Fuse
                                                                 then do
                                                                     (elapsedSeconds, newGraphList) ←
-                                                                        timeOp $ REF.fuseGraphs firstArgs globalSettings processedData (head seedList) curGraphs
+                                                                        timeOp $ REF.fuseGraphs firstArgs globalSettings processedData curGraphs
 
                                                                     let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
                                                                     let newSearchData = searchInfo : searchData globalSettings
@@ -516,7 +516,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                             lGraphComplexityList
                                                                 | localCriterion `elem` [Just Parsimony, Just NCM] = Just $ IL.repeat (0.0, 0.0)
                                                                 | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculateGraphComplexity processedData
-                                                                | localCriterion `elem`  [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
+                                                                | localCriterion `elem` [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
                                                                 | otherwise = Nothing
 
                                                             lRootComplexity
@@ -536,8 +536,9 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                     else graphFactor globalSettings
 
                                                             lModelComplexity =
-                                                                if localCriterion `elem` [Just PMDL] then modelComplexity globalSettings
-                                                                else 0.0
+                                                                if localCriterion `elem` [Just PMDL]
+                                                                    then modelComplexity globalSettings
+                                                                    else 0.0
                                                         in  if isNothing localCriterion
                                                                 then do
                                                                     failWithPhase Parsing ("Error in 'set' command. Criterion '" <> head optionList <> "' is not 'parsimony', 'ml', or 'pmdl'")
@@ -1236,7 +1237,8 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                         | (head optionList == "pmdl") = PMDLRoot
                                                                                                                                                                                                         | (head optionList == "si") = SIRoot
                                                                                                                                                                                                         | otherwise =
-                                                                                                                                                                                                            errorWithoutStackTrace ("Error in 'set' command. RootCost  '" <> head optionList <> "' is not 'NoRootCost', 'MAPA', 'NCM', 'PMDL', or 'SI'")
+                                                                                                                                                                                                            errorWithoutStackTrace
+                                                                                                                                                                                                                ("Error in 'set' command. RootCost  '" <> head optionList <> "' is not 'NoRootCost', 'MAPA', 'NCM', 'PMDL', or 'SI'")
 
                                                                                                                                                                                                     lRootComplexity
                                                                                                                                                                                                         | localMethod == NoRootCost = Just 0.0
@@ -1253,14 +1255,12 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                                                                                                                                                                                                 pure (globalSettings{rootCost = localMethod, rootComplexity = fromJust lRootComplexity}, processedData, inSeedList)
                                                                                                                                                                                             else
                                                                                                                                                                                                 if head commandList == "seed"
-                                                                                                                                                                                                    then
-                                                                                                                                                                                                        case readMaybe (head optionList) ∷ Maybe Int of
-                                                                                                                                                                                                            Nothing ->  failWithPhase Parsing ("Set option 'seed' must be set to an integer value (e.g. seed:123): " <> head optionList)
-                                                                                                                                                                                                            Just localValue -> do
-                                                                                                                                                                                                                    logWith LogInfo ("Random Seed set to " <> head optionList <> "\n")
-                                                                                                                                                                                                                    setRandomSeed localValue
-                                                                                                                                                                                                                    pure (globalSettings, processedData, randomIntList localValue)
-                                                                                                                                                                                
+                                                                                                                                                                                                    then case readMaybe (head optionList) ∷ Maybe Int of
+                                                                                                                                                                                                        Nothing → failWithPhase Parsing ("Set option 'seed' must be set to an integer value (e.g. seed:123): " <> head optionList)
+                                                                                                                                                                                                        Just localValue → do
+                                                                                                                                                                                                            logWith LogInfo ("Random Seed set to " <> head optionList <> "\n")
+                                                                                                                                                                                                            setRandomSeed localValue
+                                                                                                                                                                                                            pure (globalSettings, processedData, randomIntList localValue)
                                                                                                                                                                                                     else
                                                                                                                                                                                                         if head commandList == "softwiredmethod"
                                                                                                                                                                                                             then do

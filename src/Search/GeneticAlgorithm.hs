@@ -118,7 +118,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                             swapParams
                                             inGS
                                             inData
-                                            (drop 6 seedList)
+                                            -- (drop 6 seedList)
                                             0
                                             returnBest
                                             returnUnique
@@ -232,15 +232,13 @@ mutateGraph inGS inData maxNetEdges inGraph
 
             mutateOption1 = do
                 rSAParams ← getRandomSAParams
-                rStream ← getRandoms
                 rSwapParams ← getRandomSwapParams
-                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rStream, rSAParams, inGraph)]
+                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
 
             mutateOption2 = do
                 rSAParams ← getRandomSAParams
-                rStream ← getRandoms
                 rSwapParams ← getRandomSwapParams
-                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rStream, rSAParams, inGraph)]
+                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
 
             mutateOption3 = do
                 rSAParams ← getRandomSAParams

@@ -18,15 +18,15 @@ import Control.Monad.Random.Class
 import Data.Bifunctor (bimap)
 import Data.Char
 import Data.Foldable
+import Data.Foldable1 qualified as F1
 import Data.Functor (($>), (<&>))
 import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.Split qualified as LS
 import Data.Maybe
 import Data.Vector qualified as V
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
-import Data.List.NonEmpty (NonEmpty (..))
-import Data.Foldable1 qualified as F1
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
@@ -127,7 +127,7 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                             0
                             stopNum
             let infoIndices = [1 ..]
-            rSeed <- getRandom
+            rSeed ← getRandom
             let seadStreams = randomIntList <$> randomIntList rSeed
 
             logWith
@@ -265,8 +265,8 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                         else infinity
             let finalTimeString = ",Final Values,," <> (show bestCost) <> "," <> (show $ toSeconds outTotalSeconds)
             case snd output of
-                [] -> pure output
-                x:xs -> do
+                [] → pure output
+                x : xs → do
                     -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
                     (updatedThetaList, newStopCount) ←
                         updateTheta
@@ -348,7 +348,7 @@ updateTheta
     → Int
     → Int
     → PhyG ([(String, Double)], Int)
-updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString:|infoStringList) inPairList elapsedSeconds totalSeconds stopCount stopNum =
+updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString :| infoStringList) inPairList elapsedSeconds totalSeconds stopCount stopNum =
     if null inPairList
         then do
             pure ([], stopCount)
@@ -839,7 +839,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "fuseSPR" →
                     let -- fuse arguments
                         -- inGSgs1 = inGS{graphsSteepest = 1}
@@ -853,7 +853,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "fuseTBR" →
                     let -- fuse arguments
                         -- inGSgs1 = inGS{graphsSteepest = 1}
@@ -867,7 +867,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "networkAdd" →
                     let -- network add args
                         netEditArgs = netAddArgs
