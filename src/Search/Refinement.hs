@@ -355,7 +355,6 @@ fuseGraphs inArgs inGS inData inGraphList
                 (swapParams withIA)
                 (inGS{graphsSteepest = 1})
                 inData
-                -- seedList
                 0
                 returnBest
                 returnUnique

@@ -601,26 +601,18 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
 
 -- | getNetworkPentaltyFactor get scale network penalty for graph
 getNetworkPentaltyFactor ∷ GlobalSettings → ProcessedData → VertexCost → ReducedPhylogeneticGraph → PhyG VertexCost
-getNetworkPentaltyFactor inGS inData graphCost inGraph =
-    if LG.isEmpty $ thd5 inGraph
-        then pure 0.0
-        else do
-            inGraphNetPenalty ←
-                if (graphType inGS == Tree)
-                    then pure 0.0
-                    else -- else if (graphType inGS == HardWired) then 0.0
+getNetworkPentaltyFactor inGS inData graphCost inGraph@(_,_,decG,_,_)
+    | LG.isEmpty decG = pure 0
+    | otherwise = do
+        inGraphNetPenalty ← case graphType inGS of
+            Tree -> pure 0
+            _ -> case graphFactor inGS of
+                NoNetworkPenalty -> pure 0
+                Wheeler2015Network -> POSW.getW15NetPenaltyFull Nothing inGS inData Nothing $ GO.convertReduced2PhylogeneticGraphSimple inGraph
+                Wheeler2023Network -> pure $ POSW.getW23NetPenaltyReduced inGraph
+                val -> failWithPhase Computing $ unwords [ "Network penalty type", show val, "is not yet implemented" ]
 
-                        if (graphFactor inGS) == NoNetworkPenalty
-                            then pure 0.0
-                            else
-                                if (graphFactor inGS) == Wheeler2015Network
-                                    then POSW.getW15NetPenaltyFull Nothing inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple inGraph)
-                                    else
-                                        if (graphFactor inGS) == Wheeler2023Network
-                                            then pure $ POSW.getW23NetPenaltyReduced inGraph
-                                            else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
-
-            pure $ inGraphNetPenalty / graphCost
+        pure $ inGraphNetPenalty / graphCost
 
 
 {- | getBaseGraphEdges gets the edges in the base graph the the exchanged sub graphs can be rejoined
@@ -629,32 +621,18 @@ adds original edge connection edges (those with nodes in original edge) at front
 prevent redundancy if swap not "none"
 -}
 getBaseGraphEdges ∷ (Eq b) ⇒ LG.Node → (LG.Gr a b, [LG.LEdge b], LG.LEdge b) → [LG.LEdge b]
-getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph, origSiteEdge) =
-    if LG.isEmpty inGraph
-        then []
-        else
-            let baseGraphEdges = filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
-                baseMatchList = filter (edgeMatch origSiteEdge) baseGraphEdges
-            in  -- origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
+getBaseGraphEdges graphRoot (inGraph, edgesInSubGraph, origSiteEdge)
+    | LG.isEmpty inGraph = []
+    | otherwise =
+        let edgeMatch (a, b, _) (e, v, _) = or [ e == a, e == b, v == a, v == b ]
+            baseGraphEdges = filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ edgesInSubGraph
+            baseMatchList = filter (edgeMatch origSiteEdge) baseGraphEdges
+        in  -- origSiteEdge : (filter ((/= graphRoot) . fst3) $ (LG.labEdges inGraph) L.\\ (origSiteEdge : edgesInSubGraph))
 
                 -- trace ("GBGE: " <> (show $ length baseMatchList))
                 -- trace ("GBGE sub: " <> (show $ origEdge `elem` (fmap LG.toEdge edgesInSubGraph)) <> " base: " <> (show $ origEdge `elem` (fmap LG.toEdge baseGraphEdges)) <> " total: " <> (show $ origEdge `elem` (fmap LG.toEdge $ LG.labEdges inGraph)) <> "\n" <> (show origEdge) <> " sub " <> (show $ fmap LG.toEdge edgesInSubGraph) <> " base " <> (show $ fmap LG.toEdge baseGraphEdges) <> "\nTotal " <> (show $ fmap LG.toEdge $ LG.labEdges inGraph))
 
-                baseMatchList <> (baseGraphEdges L.\\ baseMatchList)
-    where
-        edgeMatch (a, b, _) (e, v, _) =
-            if e == a
-                then True
-                else
-                    if e == b
-                        then True
-                        else
-                            if v == a
-                                then True
-                                else
-                                    if v == b
-                                        then True
-                                        else False
+            baseMatchList <> (baseGraphEdges L.\\ baseMatchList)
 
 
 {- | getCompatibleNonIdenticalSplits takes the number of leaves, splitGraph of the left graph, the splitGraph if the right graph,
