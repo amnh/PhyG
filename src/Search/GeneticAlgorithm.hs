@@ -50,16 +50,11 @@ geneticAlgorithm
     → Int
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList =
-    if null inGraphList
-        then return ([], 0)
-        else
-            if generationCounter == generations
-                then return (inGraphList, generationCounter)
-                else
-                    if stopCount >= stopNum
-                        then return (inGraphList, generationCounter)
-                        else
+geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum [] = pure ([], 0)
+geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations generationCounter severity recombinations stopCount stopNum inGraphList
+    | generationCounter == generations = pure (inGraphList, generationCounter)
+    | stopCount >= stopNum = pure (inGraphList, generationCounter)
+    | otherwise =
                             let -- get elite list of best solutions
                                 initialEliteList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) inGraphList
                             in  do
@@ -118,7 +113,6 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                             swapParams
                                             inGS
                                             inData
-                                            -- (drop 6 seedList)
                                             0
                                             returnBest
                                             returnUnique
