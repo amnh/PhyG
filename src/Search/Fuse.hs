@@ -63,8 +63,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
 
             curBestGraph = head $ filter ((== curBest) . snd5) inGraphList
         in  do
-                randomSeed ← getRandom
-
                 -- get net penalty estimate from optimal graph for delta recombine later
                 -- Nothing here so starts at overall root
                 inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
@@ -73,13 +71,12 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
 
                 -- get fuse pairs
                 let graphPairList' = getListPairs inGraphList
-                let (graphPairList, randString) =
-                        if isNothing fusePairs
-                            then (graphPairList', "")
-                            else
-                                if randomPairs
-                                    then (takeRandom randomSeed (fromJust fusePairs) graphPairList', " randomized")
-                                    else (takeNth (fromJust fusePairs) graphPairList', "")
+                (graphPairList, randString) ← case fusePairs of
+                    Nothing → pure (graphPairList', "")
+                    Just count | randomPairs → do
+                        selectedGraphs ← take count <$> shuffleList graphPairList'
+                        pure (selectedGraphs, " randomized")
+                    Just index → pure (takeNth index graphPairList', "")
 
                 -- could be fusePairRecursive to save on memory
                 -- action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
@@ -126,7 +123,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                                 swapParams
                                                 inGS
                                                 inData
-                                                -- (drop 2 rSeedList)
                                                 (counter + 1)
                                                 returnBest
                                                 returnUnique
@@ -154,7 +150,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                                     swapParams
                                                     inGS
                                                     inData
-                                                    -- (drop 2 rSeedList)
                                                     (counter + 1)
                                                     returnBest
                                                     returnUnique
@@ -203,18 +198,16 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
                     let fusePairResult = concat fusePairResult'
                     -- fusePairResult = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (head leftRightList)
 
-                    bestResultList ←
-                        if graphType inGS == Tree
-                            then pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) fusePairResult
-                            else do
-                                -- check didn't make weird network
-                                goodGraphList ← filterM (LG.isPhylogeneticGraph . fst5) fusePairResult
-                                pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) goodGraphList
+                    bestResultList ← case graphType inGS of
+                        Tree → pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) fusePairResult
+                        _ → do
+                            -- check didn't make weird network
+                            goodGraphList ← filterM (LG.isPhylogeneticGraph . fst5) fusePairResult
+                            pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) goodGraphList
 
-                    let pairScore =
-                            if (not . null) bestResultList
-                                then snd5 $ head bestResultList
-                                else infinity
+                    let pairScore = case bestResultList of
+                            [] → infinity
+                            (_, val, _, _, _) : _ → val
 
                     let newCurBestScore = min curBestScore pairScore
 
@@ -321,16 +314,16 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                             let recombinablePairList = L.zipWith (getCompatibleNonIdenticalSplits numLeaves) leftRightMatchList leftPrunedGraphBVList'
                             let (leftValidTupleList, rightValidTupleList, _) = L.unzip3 $ filter ((== True) . thd3) $ zip3 leftSplitTupleList' rightSplitTupleList' recombinablePairList
 
-                            if null leftValidTupleList
-                                then pure []
-                                else do
+                            case leftValidTupleList of
+                                [] → pure []
+                                _ → do
                                     -- create new "splitgraphs" by replacing nodes and edges of pruned subgraph in reciprocal graphs
                                     -- returns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
 
                                     -- leftRight first then rightLeft if reciprocal
 
                                     exchangeLeftPar ← getParallelChunkMap
-                                    let exchangeLeftResult = exchangeLeftPar exchangeAction (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)
+                                    let exchangeLeftResult = exchangeLeftPar exchangeAction $ zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList
                                     let ( leftBaseRightPrunedSplitGraphList
                                             , leftRightGraphRootIndexList
                                             , leftRightPrunedParentRootIndexList
@@ -507,8 +500,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                         ∷ (DecoratedGraph, SimpleGraph, VertexCost, LG.Node, LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)
                         → PhyG [ReducedPhylogeneticGraph]
                     action = S.rejoinGraphTuple swapParams inGS inData overallBestCost [] inSimAnnealParams
-                in  -- alternate -- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
-                    do
+                in  do
                         -- do "all additions" -
                         pTraverse ← getParallelChunkTraverse
                         recombinedGraphList' ← pTraverse action graphDataList
@@ -605,20 +597,13 @@ getNetworkPentaltyFactor inGS inData graphCost inGraph =
     if LG.isEmpty $ thd5 inGraph
         then pure 0.0
         else do
-            inGraphNetPenalty ←
-                if (graphType inGS == Tree)
-                    then pure 0.0
-                    else -- else if (graphType inGS == HardWired) then 0.0
-
-                        if (graphFactor inGS) == NoNetworkPenalty
-                            then pure 0.0
-                            else
-                                if (graphFactor inGS) == Wheeler2015Network
-                                    then POSW.getW15NetPenaltyFull Nothing inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple inGraph)
-                                    else
-                                        if (graphFactor inGS) == Wheeler2023Network
-                                            then pure $ POSW.getW23NetPenaltyReduced inGraph
-                                            else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
+            inGraphNetPenalty ← case graphType inGS of
+                Tree -> pure 0.0
+                _ -> case graphFactor inGS of
+                    NoNetworkPenalty -> pure 0.0
+                    Wheeler2015Network -> POSW.getW15NetPenaltyFull Nothing inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple inGraph)
+                    Wheeler2023Network -> pure $ POSW.getW23NetPenaltyReduced inGraph
+                    val -> failWithPhase Computing $ unwords [ "Network penalty type" <> show val, "is not yet implemented" ]
 
             pure $ inGraphNetPenalty / graphCost
 
