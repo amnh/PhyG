@@ -12,8 +12,12 @@ import Control.Monad (filterM, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.Foldable (fold, toList)
+import Data.Foldable1 (Foldable1)
+import Data.Foldable1 qualified as F1
 import Data.Functor (($>))
 import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty qualified as NE
 import Data.Maybe
 import Data.Ord (comparing)
 import Data.Vector qualified as V
@@ -30,7 +34,7 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
-
+import GHC.Real qualified as Real (infinity)
 
 {- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
 runs both SPR and TBR depending on argument since so much duplicated functionality
@@ -1420,34 +1424,29 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                     rerootAction ∷ LG.LEdge EdgeInfo → SimpleGraph
                     rerootAction = rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge
 
+                    getRerootingEdges ∷ [(LG.Node, b, c)] -> [(LG.Node, b, c)]
+--                    getRerootingEdges = filter (\(x,_,_) -> x /= prunedGraphRootIndex && x /= originalConnectionOfPruned)
+                    getRerootingEdges = filter ((`notElem` [ prunedGraphRootIndex, originalConnectionOfPruned ]) . fst3)
+
                     -- Debugging info
                     -- debugger ∷ (Logger m, Show a, Show b, Show c) ⇒ String -> a → LG.Gr b c → m ()
                     -- debugger str n g = logWith LogTech $ fold
                     --    [ "In: 'tbrJoin' with '", str, "'\n  Graph [ G_", show n, " ]:\n", LG.prettify g ]
 
                     reoptimizeAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
-                    reoptimizeAction g0 = do
-                        -- debugger "reoptimizeAction" 0 g0
-                        result@(g1, _, _, _, _) ← T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g0
-                        -- debugger "reoptimizeAction" 1 g1
-                        pure result
+                    reoptimizeAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
                 in  -- logic for annealing/Drift  regular swap first
                     case inSimAnnealParams of
                         -- get heuristic delta joins for edges in pruned graph
                         Nothing
                             | not (steepest swapParams) →
-                                let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
+                                let rerootEdgeList = getRerootingEdges edgesInPrunedGraph
                                 in  do
                                         -- debugger "CASE OF -> Nothing( 1 )" 0 splitGraphSimple
                                         -- True True to use IA fields and filter gaps
-                                        makeEdgePar ← getParallelChunkMap
-                                        let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
-                                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
-
-                                        joinPar ← getParallelChunkMap
-                                        let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
+                                        pMap ← getParallelChunkMap
+                                        let rerootEdgeDeltaList = pMap ((+ splitCost) . joinAction . makeEdgeAction) rerootEdgeList
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
-                                        let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
                                         -- check for possible better/equal graphs and verify
                                         let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
@@ -1492,18 +1491,13 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                                 -- get heuristic delta joins for steepest edge set
-                                rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
+                                rerootEdgeList = getRerootingEdges firstSetEdges
                             in  do
                                     -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    makeEdgePar ← getParallelChunkMap
-                                    let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
-                                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
-
-                                    joinPar ← getParallelChunkMap
-                                    let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
+                                    pMap ← getParallelChunkMap
+                                    let rerootEdgeDeltaList = pMap ((+ splitCost) . joinAction . makeEdgeAction) rerootEdgeList
                                     -- let rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
-                                    let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
                                     -- check for possible better/equal graphs and verify
                                     let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
@@ -1567,27 +1561,19 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                                 -- get heuristic delta joins for steepest edge set
-                                rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
+                                rerootEdgeList = getRerootingEdges firstSetEdges
                             in  do
                                     -- debugger "CASE OF -> Just" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    makeEdgePar ← getParallelChunkMap
-                                    let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
+                                    pMap ← getParallelChunkMap
+                                    -- TODO: Laziness here?
+                                    let rerootEdgeDeltaList = pMap ((+ splitCost) . joinAction . makeEdgeAction) rerootEdgeList
                                     -- rerootEdgeDataList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
-
-                                    joinPar ← getParallelChunkMap
-                                    let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
-                                    let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
 
-                                    let minDelta =
-                                            if (not . null) rerootEdgeDeltaList
-                                                then minimum $ rerootEdgeDeltaList
-                                                else infinity
-                                    let minEdgeList =
-                                            if (not . null) rerootEdgeDeltaList
-                                                then fmap fst $ filter ((== minDelta) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
-                                                else []
+                                    let minDelta = minimum `orInfinity` rerootEdgeDeltaList
+
+                                    let minEdgeList = fmap fst . filter ((== minDelta) . snd) $ zip rerootEdgeList rerootEdgeDeltaList
 
                                     -- check for possible better/equal graphs and verify
                                     -- rerootPar ← getParallelChunkMap
@@ -1608,10 +1594,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                     -- rediagnosedGraphList ← reoptimizePar reoptimizeAction candidateJoinedGraphList
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
 
-                                    let newMinCost =
-                                            if (not . null) minEdgeList
-                                                then minimum $ fmap snd5 rediagnosedGraphList
-                                                else infinity
+                                    let newMinCost = (minimum . fmap snd5) `orInfinity` rediagnosedGraphList
 
                                     -- only taking one for SA/Drift check
                                     let newMinGraph =
@@ -2018,3 +2001,11 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
 
 getGraphCost ∷ [ReducedPhylogeneticGraph] → VertexCost
 getGraphCost = snd5 . head
+
+
+
+orInfinity :: forall a r t . (Foldable t, Fractional r, Real r) => (t a -> r) -> t a -> r
+orInfinity f xs
+    | null xs = fromRational Real.infinity
+    | otherwise = f xs
+
