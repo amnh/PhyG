@@ -633,7 +633,9 @@ insertAllNetEdges inGS inData maxNetEdges numToKeep maxRounds counter returnMuta
                             Nothing
                             inPhyloGraphList
                     else do
-                        -- need to concat and send different randomization lists for each "round"
+                        -- this odd contruction is to ensure that the correct number of annealing rounds are
+                        -- done even though the values in the lists are ignored.  Should be refactored.
+                        -- this happened during migration to monadic getRandom
                         let intList = replicate  maxRounds (0 :: Int)
                         let intListList = replicate maxRounds intList
                         -- TODO
