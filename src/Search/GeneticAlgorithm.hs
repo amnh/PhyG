@@ -67,19 +67,22 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
 
                                     seedList ← getRandoms
                                     -- mutate input graphs, produces number input, limited to popsize
-                                    mutatedGraphList' ←
-                                        traverse (mutateGraph inGS inData maxNetEdges) $ (takeRandom (seedList !! 1) popSize inGraphList)
+                                    let action = mutateGraph inGS inData maxNetEdges
+                                    mutatedGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
+                                          action `pTraverse` takeRandom (seedList !! 1) popSize inGraphList
 
                                     let numShort = popSize - (length mutatedGraphList')
                                     let randList = (randomIntList $ seedList !! 2)
                                     let graphList = takeRandom (seedList !! 3) numShort inGraphList
 
-                                    additionalMutated ← traverse (mutateGraph inGS inData maxNetEdges) graphList
                                     -- adjust to correct populationsize if input number < popSize
-                                    let mutatedGraphList =
-                                            if length mutatedGraphList' >= popSize
-                                                then mutatedGraphList'
-                                                else mutatedGraphList' <> additionalMutated
+                                    mutatedGraphList <- case length mutatedGraphList' `compare` popSize of
+                                        LT -> do
+                                            additionalMutated ← getParallelChunkTraverse >>= \pTraverse ->
+                                                action `pTraverse` graphList
+                                            pure $ mutatedGraphList' <> additionalMutated
+                                        _ -> pure mutatedGraphList'
+                                                        
 
                                     -- get unique graphs, no point in recombining repetitions
                                     let uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (mutatedGraphList <> inGraphList)
