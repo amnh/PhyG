@@ -244,12 +244,10 @@ mutateGraph inGS inData maxNetEdges inGraph
             mutateOption3 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
-                rVal ← getRandom
                 firstOrOldIfNoneExists
                     =<< N.moveAllNetEdges
                         inGS
                         inData
-                        rVal
                         maxNetEdges
                         valNumToKeep
                         0
@@ -262,12 +260,10 @@ mutateGraph inGS inData maxNetEdges inGraph
             mutateOption4 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
-                rVal ← getRandom
                 firstOrOldIfNoneExists
                     =<< N.moveAllNetEdges
                         inGS
                         inData
-                        rVal
                         maxNetEdges
                         valNumToKeep
                         0
@@ -281,12 +277,10 @@ mutateGraph inGS inData maxNetEdges inGraph
                 rMaxRounds ← getRandomFrom [1 .. 5]
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
-                rVal ← getRandom
                 firstOrOldIfNoneExists
                     =<< N.insertAllNetEdges
                         inGS
                         inData
-                        rVal
                         maxNetEdges
                         valNumToKeep
                         rMaxRounds
@@ -301,12 +295,10 @@ mutateGraph inGS inData maxNetEdges inGraph
                 rMaxRounds ← getRandomFrom [1 .. 5]
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
-                rVal ← getRandom
                 firstOrOldIfNoneExists
                     =<< N.addDeleteNetEdges
                         inGS
                         inData
-                        rVal
                         maxNetEdges
                         valNumToKeep
                         rMaxRounds
@@ -320,12 +312,10 @@ mutateGraph inGS inData maxNetEdges inGraph
             mutateOption7 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
-                rVal ← getRandom
                 firstOrOldIfNoneExists
                     =<< N.deleteAllNetEdges
                         inGS
                         inData
-                        rVal
                         maxNetEdges
                         valNumToKeep
                         0

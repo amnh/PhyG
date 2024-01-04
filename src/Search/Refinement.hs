@@ -536,12 +536,11 @@ netEdgeMaster inArgs inGS inData inGraphList
                                 pure $ Just saValues
 
                 -- parallel stuff
-                insertAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
-                insertAction rVal =
+                insertAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                insertAction =
                     N.insertAllNetEdges
                         inGS
                         inData
-                        rVal
                         (fromJust maxNetEdges)
                         (fromJust keepNum)
                         (fromJust maxRounds)
@@ -551,12 +550,11 @@ netEdgeMaster inArgs inGS inData inGraphList
                         doRandomOrder
                         ([], infinity)
 
-                deleteAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
-                deleteAction rVal =
+                deleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                deleteAction =
                     N.deleteAllNetEdges
                         inGS
                         inData
-                        rVal
                         (fromJust maxNetEdges)
                         (fromJust keepNum)
                         0
@@ -565,12 +563,11 @@ netEdgeMaster inArgs inGS inData inGraphList
                         doRandomOrder
                         ([], infinity)
 
-                moveAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
-                moveAction rVal =
+                moveAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                moveAction =
                     N.moveAllNetEdges
                         inGS
                         inData
-                        rVal
                         (fromJust maxNetEdges)
                         (fromJust keepNum)
                         0
@@ -579,12 +576,11 @@ netEdgeMaster inArgs inGS inData inGraphList
                         doRandomOrder
                         ([], infinity)
 
-                addDeleteAction ∷ Int → (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
-                addDeleteAction rVal =
+                addDeleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                addDeleteAction =
                     N.addDeleteNetEdges
                         inGS
                         inData
-                        rVal
                         (fromJust maxNetEdges)
                         (fromJust keepNum)
                         (fromJust maxRounds)
@@ -693,7 +689,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     else do
                                         -- trace ("REFINE Add") (
                                         insertPar ← getParallelChunkTraverse
-                                        graphPairList1 ← insertPar (insertAction rSeed) (zip newSimAnnealParamList (fmap (: []) inGraphList))
+                                        graphPairList1 ← insertPar insertAction (zip newSimAnnealParamList (fmap (: []) inGraphList))
                                         -- mapM (N.insertAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) inGraphList))
 
                                         let (graphListList, counterList) = unzip graphPairList1
@@ -709,7 +705,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     else do
                                         -- trace ("REFINE Delete") (
                                         deletePar ← getParallelChunkTraverse
-                                        graphPairList2 ← deletePar (deleteAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList))
+                                        graphPairList2 ← deletePar deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
                                         -- mapM (N.deleteAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList))
 
                                         let (graphListList, counterList) = unzip graphPairList2
@@ -723,7 +719,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                 -- trace ("Network move option currently disabled--skipping.")
                                 -- (newGraphList', 0 :: Int)
                                 movePar ← getParallelChunkTraverse
-                                graphPairList3 ← movePar (moveAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
+                                graphPairList3 ← movePar moveAction . zip newSimAnnealParamList $ (: []) <$> newGraphList'
                                 -- mapM (N.moveAllNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList'))
 
                                 let (graphListList, counterList) = unzip graphPairList3
@@ -738,7 +734,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                         pure (newGraphList'', 0)
                                     else do
                                         addDeletePar ← getParallelChunkTraverse
-                                        graphPairList4 ← addDeletePar (addDeleteAction rSeed) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
+                                        graphPairList4 ← addDeletePar addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
                                         -- mapM (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
 
                                         let (graphListList, counterList) = unzip graphPairList4
