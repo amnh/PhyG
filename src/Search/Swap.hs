@@ -12,9 +12,16 @@ import Control.Monad (filterM, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.Foldable (fold, toList)
+import Data.Foldable1 (Foldable1)
+import Data.Foldable1 qualified as F1
+import Data.Functor (($>))
 import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty (..))
+import Data.List.NonEmpty qualified as NE
 import Data.Maybe
+import Data.Ord (comparing)
 import Data.Vector qualified as V
+import GHC.Real qualified as Real (infinity)
 import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
@@ -47,57 +54,45 @@ swapSPRTBR
     → [ReducedPhylogeneticGraph]
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBR swapParams inGS inData inCounter curBestGraphs inDoubleList =
-    -- trace ("SWAPSPRTBR: " <> swapType <> " " <> joinType <> " " <> (show $ snd5 $ thd3 $ head inTripleList)) $
-    if null inDoubleList
-        then do pure (curBestGraphs, inCounter)
-        else
-            let (inSimAnnealParams, inGraph) = head inDoubleList
-            in  -- dont swap if worse than current best
-                -- if snd5 inGraph > (snd5 . head) curBestGraphs then
-                --   swapSPRTBR swapType joinType atRandom inGS inData numToKeep maxMoveEdgeDist steepest alternate doIA returnMutated curBestGraphs inCounter (tail inTripleList)
-                -- else
-                if (joinType swapParams) == JoinAll || isJust inSimAnnealParams
-                    then swapSPRTBR' (swapParams{joinType = JoinAll}) inGS inData inCounter (inSimAnnealParams, inGraph)
-                    else do
-                        -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
-                        (firstList, firstCounter) ←
-                            swapSPRTBR' (swapParams{joinType = JoinPruned}) inGS inData inCounter (inSimAnnealParams, inGraph)
+swapSPRTBR swapParams inGS inData inCounter curBestGraphs = \case
+    [] → pure (curBestGraphs, inCounter)
+    firstPair@(inSimAnnealParams, _) : _
+        | joinType swapParams == JoinAll || isJust inSimAnnealParams →
+            swapSPRTBR' (swapParams{joinType = JoinAll}) inGS inData inCounter firstPair
+    firstPair@(inSimAnnealParams, inGraph) : morePairs → do
+        -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
+        (firstList, firstCounter) ←
+            swapSPRTBR' (swapParams{joinType = JoinPruned}) inGS inData inCounter firstPair
+        -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
+        bestFirstList ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ inGraph : firstList
+        (alternateList, alternateCounter') ←
+            swapSPRTBRList (swapParams{joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $
+                zip
+                    (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
+                    bestFirstList
+        (bestAlternateList, alternateCounter) ← case joinType swapParams of
+            JoinAlternate →
+                let graphs = inGraph : (alternateList <> bestFirstList)
+                    tag x = (x, alternateCounter')
+                in  tag <$> GO.selectGraphs Best (keepNum swapParams) 0.0 graphs
+            -- JoinPruned-don't alternate during search
+            _ → pure (bestFirstList, firstCounter)
 
-                        -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
-                        bestFirstList ← GO.selectGraphs Best (keepNum swapParams) 0.0 (inGraph : firstList)
+        -- recursive list version as opposed ot parMap version
+        -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
+        (afterSecondList, afterSecondCounter) ←
+            swapSPRTBRList (swapParams{joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $
+                zip
+                    (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams)
+                    bestAlternateList
 
-                        ---change JoinAlternate for return to pruned union
-                        (alternateList, alternateCounter') ←
-                            swapSPRTBRList (swapParams{joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $
-                                zip
-                                    (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
-                                    bestFirstList
-                        (bestAlternateList, alternateCounter) ← case joinType swapParams of
-                            JoinAlternate →
-                                let graphs = inGraph : (alternateList <> bestFirstList)
-                                    tag x = (x, alternateCounter')
-                                in  tag <$> GO.selectGraphs Best (keepNum swapParams) 0.0 graphs
-                            -- JoinPruned-don't alternate during search
-                            _ → pure (bestFirstList, firstCounter)
+        bestSecondList ← GO.selectGraphs Best (keepNum swapParams) 0.0 afterSecondList
 
-                        -- recursive list version as opposed ot parMap version
-                        -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
-                        (afterSecondList, afterSecondCounter) ←
-                            swapSPRTBRList (swapParams{joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $
-                                zip
-                                    (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams)
-                                    bestAlternateList
+        -- add final joinall if buffer full?
+        case comparing getGraphCost bestSecondList curBestGraphs of
+            LT → swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) bestSecondList morePairs
+            _ → swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) curBestGraphs morePairs
 
-                        bestSecondList ← GO.selectGraphs Best (keepNum swapParams) 0.0 afterSecondList
-
-                        -- add final joinall if buffer full?
-                        if (snd5 $ head bestSecondList) < (snd5 $ head curBestGraphs)
-                            then swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) bestSecondList (tail inDoubleList)
-                            else swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) curBestGraphs (tail inDoubleList)
-
-
--- (bestSecondList, afterSecondCounter + inCounter)
 
 {- | swapSPRTBRList is a wrapper around swapSPRTBR' allowing for a list of graphs and a current best cost
 reduce time of swap
@@ -110,39 +105,32 @@ swapSPRTBRList
     → [ReducedPhylogeneticGraph]
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBRList swapParams inGS inData inCounter curBestGraphs doubleList =
-    if null doubleList
-        then do pure (curBestGraphs, inCounter)
-        else
-            let (inSimAnnealParams, inGraph) = head doubleList
-            in  -- currrent graph worse than best saved
-                if snd5 inGraph > (snd5 . head) curBestGraphs
-                    then swapSPRTBRList swapParams inGS inData inCounter curBestGraphs (tail doubleList)
-                    else do
-                        (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter (inSimAnnealParams, inGraph)
-                        bestNewGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 graphList
+swapSPRTBRList swapParams inGS inData inCounter curBestGraphs = \case
+    [] → pure (curBestGraphs, inCounter)
+    -- currrent graph worse than best saved
+    (_, inGraph) : otherDoubles
+        | snd5 inGraph > getGraphCost curBestGraphs →
+            swapSPRTBRList swapParams inGS inData inCounter curBestGraphs otherDoubles
+    firstPair@(inSimAnnealParams, inGraph) : otherDoubles → do
+        (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter firstPair
+        bestNewGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 graphList
 
-                        -- found better
-                        if (snd5 $ head bestNewGraphList) < (snd5 $ head curBestGraphs)
-                            then
-                                if (joinType swapParams == JoinAlternate || joinType swapParams == JoinPruned)
-                                    then
-                                        let doubleToSwap =
-                                                zip
-                                                    -- (U.generateRandIntLists (head $ drop (inCounter + 1) $ randomIntListSwap) (length bestNewGraphList))
-                                                    (U.generateUniqueRandList (length bestNewGraphList) inSimAnnealParams)
-                                                    bestNewGraphList
-                                        in  swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (doubleToSwap <> tail doubleList)
-                                    else swapSPRTBRList swapParams inGS inData swapCounter bestNewGraphList (tail doubleList)
-                            else -- found worse
-
-                                if (snd5 $ head bestNewGraphList) > (snd5 $ head curBestGraphs)
-                                    then swapSPRTBRList swapParams inGS inData swapCounter curBestGraphs (tail doubleList)
-                                    else -- found equal
-
-                                    do
-                                        newUniqueBestGraphList ← GO.selectGraphs Unique (keepNum swapParams) 0.0 (curBestGraphs <> bestNewGraphList)
-                                        swapSPRTBRList swapParams inGS inData swapCounter newUniqueBestGraphList (tail doubleList)
+        let recurse = swapSPRTBRList swapParams inGS inData swapCounter
+        let recurse' = flip recurse otherDoubles
+        case comparing getGraphCost bestNewGraphList curBestGraphs of
+            -- found equal
+            EQ → recurse' =<< GO.selectGraphs Unique (keepNum swapParams) 0.0 (curBestGraphs <> bestNewGraphList)
+            -- found worse
+            GT → recurse' curBestGraphs
+            -- found better
+            LT →
+                let betterResult =
+                        let doubleToSwap = zip (U.generateUniqueRandList (length bestNewGraphList) inSimAnnealParams) bestNewGraphList
+                        in  recurse bestNewGraphList $ doubleToSwap <> otherDoubles
+                in  case joinType swapParams of
+                        JoinAlternate → betterResult
+                        JoinPruned → betterResult
+                        _ → recurse' bestNewGraphList
 
 
 {- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
@@ -157,98 +145,71 @@ swapSPRTBR'
     → Int
     → (Maybe SAParams, ReducedPhylogeneticGraph)
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBR' swapParams inGS inData inCounter (inSimAnnealParams, inGraph) =
-    -- trace ("SPRTBRList:" <> (show $ joinType swapParams)) $
-    if LG.isEmpty (fst5 inGraph)
-        then do pure ([], 0)
-        else
-            let numLeaves = V.length $ fst3 inData
-                {-
-                leafGraph = GO.makeSimpleLeafGraph inData
-                leafDecGraph = GO.makeLeafGraph inData
-                leafGraphSoftWired = POSW.makeLeafGraphSoftWired inGS inData
-                -}
-                -- parallel setup
-                action ∷ VertexCost → Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
-                action = swapAll swapParams inGS inData 0 (snd5 inGraph) [] [inGraph] numLeaves -- inGraphNetPenaltyFactor
-            in  do
-                    -- inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
-                    inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraph inGraph)
-                    let inGraphNetPenaltyFactor = inGraphNetPenalty / (snd5 inGraph)
+swapSPRTBR' swapParams inGS inData@(leafNames, _, _) inCounter (inSimAnnealParams, inGraph@(simpleG, costG, _, _, _))
+    | LG.isEmpty simpleG = pure ([], 0)
+    | otherwise = do
+        -- inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
+        inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph inGraph
+        let inGraphNetPenaltyFactor = inGraphNetPenalty / costG
+        let numLeaves = V.length leafNames
+        case inSimAnnealParams of
+            Nothing → do
+                -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
+                (swappedGraphs, counter, _) ←
+                    swapAll
+                        swapParams
+                        inGS
+                        inData
+                        inCounter
+                        costG
+                        []
+                        [inGraph]
+                        numLeaves
+                        inGraphNetPenaltyFactor
+                        Nothing
+                pure $ case swappedGraphs of
+                    [] → ([inGraph], counter)
+                    gs → (gs, counter)
+            -- simulated annealing/drifting acceptance does a steepest with SA acceptance
+            Just simAnneal →
+                -- then a swap steepest and all on annealed graph
+                -- same at this level method (SA, Drift) choice occurs at lower level
+                -- annealed should only yield a single graph
+                let -- create list of params with unique list of random values for rounds of annealing
+                    annealDriftRounds = rounds simAnneal
+                    newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
+                    -- parallel setup
+                    action ∷ Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
+                    action = swapAll swapParams inGS inData 0 costG [] [inGraph] numLeaves inGraphNetPenaltyFactor
+                in  -- this to ensure current step set to 0
+                    do
+                        swapPar ← getParallelChunkTraverse
+                        (annealDriftGraphs', anealDriftCounterList, _) ← unzip3 <$> swapPar action newSimAnnealParamList
 
-                    if inSimAnnealParams == Nothing
-                        then do
-                            -- trace ("Non SA swap") (
-                            -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
-                            -- Nothing for SimAnneal Params
-                            (swappedGraphs, counter, _) ←
-                                swapAll
-                                    swapParams
-                                    inGS
-                                    inData
-                                    -- randomIntListSwap
-                                    inCounter
-                                    (snd5 inGraph)
-                                    []
-                                    [inGraph]
-                                    numLeaves
-                                    inGraphNetPenaltyFactor
-                                    inSimAnnealParams
+                        -- annealed/Drifted 'mutated' graphs
+                        annealDriftGraphs ← GO.selectGraphs Unique (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
 
-                            if null swappedGraphs
-                                then do pure ([inGraph], counter)
-                                else do pure (swappedGraphs, counter)
-                        else -- simulated annealing/drifting acceptance does a steepest with SA acceptance
-                        -- then a swap steepest and all on annealed graph
-                        -- same at this level method (SA, Drift) choice occurs at lower level
+                        -- swap back "normally" if desired for full drifting/annealing
+                        (swappedGraphs, counter, _) ←
+                            swapAll
+                                swapParams
+                                inGS
+                                inData
+                                (sum anealDriftCounterList)
+                                (min costG (minimum $ snd5 <$> annealDriftGraphs))
+                                []
+                                annealDriftGraphs
+                                numLeaves
+                                inGraphNetPenaltyFactor
+                                Nothing
 
-                        -- annealed should only yield a single graph
-                        -- trace ("\tAnnealing/Drifting Swap: " <> swapType <> (show (method $ fromJust inSimAnnealParams, numberSteps $ fromJust inSimAnnealParams, currentStep $ fromJust inSimAnnealParams, head $ randomIntegerList $ fromJust inSimAnnealParams, rounds $ fromJust inSimAnnealParams, driftAcceptEqual $ fromJust inSimAnnealParams, driftAcceptWorse $ fromJust inSimAnnealParams, driftMaxChanges $ fromJust inSimAnnealParams, driftChanges $ fromJust inSimAnnealParams))) (
+                        bestGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ inGraph : swappedGraphs
+                        -- this Bool for Genetic Algorithm mutation step
+                        pure $
+                            if not $ returnMutated swapParams
+                                then (bestGraphs, counter)
+                                else (annealDriftGraphs, sum anealDriftCounterList)
 
-                            let -- create list of params with unique list of random values for rounds of annealing
-                                annealDriftRounds = rounds $ fromJust inSimAnnealParams
-                                newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
-                            in  -- this to ensure current step set to 0
-                                -- TODO
-                                -- (annealDriftGraphs', anealDriftCounterList, _) = unzip3 $ (PU.seqParMap (parStrategy $ lazyParStrat inGS) (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
-                                do
-                                    swapPar ← getParallelChunkTraverse
-                                    swapResult ← swapPar (action inGraphNetPenaltyFactor) newSimAnnealParamList
-                                    -- mapM (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList
-                                    let (annealDriftGraphs', anealDriftCounterList, _) = unzip3 swapResult
-
-                                    -- annealed/Drifted 'mutated' graphs
-                                    annealDriftGraphs ← GO.selectGraphs Unique (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
-
-                                    -- swap back "normally" if desired for full drifting/annealing
-                                    (swappedGraphs, counter, _) ←
-                                        swapAll
-                                            swapParams
-                                            inGS
-                                            inData
-                                            -- randomIntListSwap
-                                            (sum anealDriftCounterList)
-                                            (min (snd5 inGraph) (minimum $ fmap snd5 annealDriftGraphs))
-                                            []
-                                            annealDriftGraphs
-                                            numLeaves
-                                            inGraphNetPenaltyFactor
-                                            Nothing
-
-                                    bestGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ inGraph : swappedGraphs
-                                    -- trace ("Steepest SSPRTBR: " <> (show (length swappedGraphs, counter)))
-                                    -- trace ("AC:" <> (show $ fmap snd5 $ concat annealedGraphs') <> " -> " <> (show $ fmap snd5 $ swappedGraphs')) (
-
-                                    -- this Bool for Genetic Algorithm mutation step
-                                    if not (returnMutated swapParams)
-                                        then do
-                                            pure (bestGraphs, counter)
-                                        else do
-                                            pure (annealDriftGraphs, sum anealDriftCounterList)
-
-
--- )
--- )
 
 {- | swapAll is a high level function that basically deals with portioning out swap-type swaps
 and performs the high level options for Alternate where SPR is perfomred first, then TBR,
@@ -270,117 +231,102 @@ swapAll
     → VertexCost
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
-swapAll swapParams inGS inData counter curBestCost curSameBetterList inGraphList numLeaves netPenaltyFactor inSimAnnealParams =
+swapAll swapParams inGS inData counter curBestCost curSameBetterList [] numLeaves netPenaltyFactor inSimAnnealParams = pure (curSameBetterList, counter, inSimAnnealParams)
+swapAll swapParams inGS inData counter curBestCost curSameBetterList inGraphList@(firstGraph : otherGraphs) numLeaves netPenaltyFactor inSimAnnealParams =
     {-# SCC swapAll_TOP_DEF #-}
-    -- trace ("SWAPALL: " <> swapType <> " " <> joinType <> " " <> (show curBestCost)) $
-    if null inGraphList
-        then do pure (curSameBetterList, counter, inSimAnnealParams)
-        else -- nni, spr, tbr
+    -- nni, spr, tbr
+    case swapType swapParams of
+        Alternate → do
+            (sprGraphs, sprCounter, sprSAPArams) ←
+                swapAll'
+                    (swapParams{swapType = SPR})
+                    inGS
+                    inData
+                    counter
+                    curBestCost
+                    curSameBetterList
+                    inGraphList
+                    numLeaves
+                    netPenaltyFactor
+                    0
+                    inSimAnnealParams
+            graphsToTBR ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ sprGraphs <> inGraphList
+            let sprBestCost = getGraphCost graphsToTBR
 
-            if (swapType swapParams) /= Alternate
-                then -- 0 is for list of edges so move through list past stable edges
+            -- tbr until find better or novel equal
+            (tbrGraphs, tbrCounter, tbrSAPArams) ←
+                swapAll'
+                    (swapParams{swapType = TBRAlternate})
+                    inGS
+                    inData
+                    sprCounter
+                    sprBestCost
+                    graphsToTBR
+                    graphsToTBR
+                    numLeaves
+                    netPenaltyFactor
+                    0
+                    sprSAPArams
+            let tbrBestCost = case tbrGraphs of
+                    [] → infinity
+                    (_, c, _, _, _) : _ → c
 
-                    swapAll'
-                        swapParams
-                        inGS
-                        inData
-                        -- randomIntListSwap
-                        counter
-                        curBestCost
-                        curSameBetterList
-                        inGraphList
-                        numLeaves
-                        netPenaltyFactor
-                        0
-                        inSimAnnealParams
-                else -- alternate
-                do
-                    (sprGraphs, sprCounter, sprSAPArams) ←
-                        swapAll'
-                            (swapParams{swapType = SPR})
+            {- This isn't improving performance so turned off in SwapSPRTBR-}
+            -- if found better and alternating union pruning then return so can go back to start union pruning again
+            case joinType swapParams of
+                JoinAlternate | sprBestCost < curBestCost → pure (sprGraphs, sprCounter, sprSAPArams)
+                JoinAlternate | tbrBestCost < curBestCost → pure (tbrGraphs, tbrCounter, tbrSAPArams)
+                _ → case tbrBestCost `compare` sprBestCost of
+                    -- found nothing better or equal
+                    GT → pure (graphsToTBR, tbrCounter, tbrSAPArams)
+                    -- if TBR found better go around again with SPR first--since returned if found better during TBR rejoin
+                    LT →
+                        swapAll
+                            swapParams
                             inGS
                             inData
-                            -- randomIntListSwap
-                            counter
-                            curBestCost
-                            curSameBetterList
-                            inGraphList
+                            tbrCounter
+                            tbrBestCost
+                            tbrGraphs
+                            tbrGraphs
                             numLeaves
                             netPenaltyFactor
-                            0
-                            inSimAnnealParams
-                    graphsToTBR ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ sprGraphs <> inGraphList
-                    let sprBestCost = (snd5 . head) graphsToTBR
+                            tbrSAPArams
+                    -- check if found additional
+                    EQ → do
+                        bestTBRGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 tbrGraphs
+                        let newTBRGraphs = GO.reducedphylogeneticGraphListMinus bestTBRGraphs $ sprGraphs <> curSameBetterList
+                        case newTBRGraphs of
+                            g : gs
+                                | length bestTBRGraphs < keepNum swapParams →
+                                    swapAll
+                                        swapParams
+                                        inGS
+                                        inData
+                                        tbrCounter
+                                        tbrBestCost
+                                        tbrGraphs
+                                        newTBRGraphs
+                                        numLeaves
+                                        netPenaltyFactor
+                                        tbrSAPArams
+                            -- found nothing new
+                            _ → pure (tbrGraphs, tbrCounter, tbrSAPArams)
 
-                    -- tbr until find better or novel equal
-                    (tbrGraphs, tbrCounter, tbrSAPArams) ←
-                        swapAll'
-                            (swapParams{swapType = TBRAlternate})
-                            inGS
-                            inData
-                            -- (tail randomIntListSwap)
-                            sprCounter
-                            sprBestCost
-                            graphsToTBR
-                            graphsToTBR
-                            numLeaves
-                            netPenaltyFactor
-                            0
-                            sprSAPArams
-                    let tbrBestCost =
-                            if (not . null) tbrGraphs
-                                then (snd5 . head) tbrGraphs
-                                else infinity
-
-                    {- This isn't improving performance so turned off in SwapSPRTBR-}
-                    -- if found better and alternating union pruning then return so can go back to start union pruning again
-                    if (joinType swapParams) == JoinAlternate && sprBestCost < curBestCost
-                        then do
-                            pure (sprGraphs, sprCounter, sprSAPArams)
-                        else
-                            if (joinType swapParams) == JoinAlternate && tbrBestCost < curBestCost
-                                then do
-                                    pure (tbrGraphs, tbrCounter, tbrSAPArams)
-                                else -- if TBR found better go around again with SPR first--since returned if found better during TBR rejoin
-
-                                    if tbrBestCost < sprBestCost
-                                        then
-                                            swapAll
-                                                swapParams
-                                                inGS
-                                                inData
-                                                -- (drop 2 randomIntListSwap)
-                                                tbrCounter
-                                                tbrBestCost
-                                                tbrGraphs
-                                                tbrGraphs
-                                                numLeaves
-                                                netPenaltyFactor
-                                                tbrSAPArams
-                                        else -- check if found additional
-
-                                            if tbrBestCost == sprBestCost
-                                                then do
-                                                    bestTBRGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 tbrGraphs
-                                                    let newTBRGraphs = bestTBRGraphs `GO.reducedphylogeneticGraphListMinus` (sprGraphs <> curSameBetterList)
-                                                    if (not . null) newTBRGraphs && (length bestTBRGraphs < keepNum swapParams)
-                                                        then
-                                                            swapAll
-                                                                swapParams
-                                                                inGS
-                                                                inData
-                                                                -- (drop 3 randomIntListSwap)
-                                                                tbrCounter
-                                                                tbrBestCost
-                                                                tbrGraphs
-                                                                newTBRGraphs
-                                                                numLeaves
-                                                                netPenaltyFactor
-                                                                tbrSAPArams
-                                                        else -- found nothing new
-                                                            pure (tbrGraphs, tbrCounter, tbrSAPArams)
-                                                else -- found nothing better or equal
-                                                    pure (graphsToTBR, tbrCounter, tbrSAPArams)
+        -- 0 is for list of edges so move through list past stable edges
+        _ →
+            swapAll'
+                swapParams
+                inGS
+                inData
+                counter
+                curBestCost
+                curSameBetterList
+                inGraphList
+                numLeaves
+                netPenaltyFactor
+                0
+                inSimAnnealParams
 
 
 {- | swapAll' performs branch swapping on all 'break' edges and all readditions
@@ -456,8 +402,7 @@ swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphLis
                         -- randomize edges list order for anneal and drift
                         breakEdgeList'' ←
                             if atRandom swapParams
-                                then -- then (\randVal -> permuteList randVal breakEdgeList') <$> getRandom
-                                    (`permuteList` breakEdgeList') <$> getRandom
+                                then shuffleList breakEdgeList'
                                 else pure breakEdgeList'
 
                         -- move first "breakEdgeFactor" edges in split list to end
@@ -467,7 +412,9 @@ swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphLis
                         -- yet still insures that all edges will be visited in final (or ay time needed) split.
                         -- used in POY v 1-3, Came from Steve Farris pers. com.
                         let breakEdgeFactor = snd $ divMod breakEdgeNumber (length breakEdgeList'')
-                        let breakEdgeList = (drop breakEdgeFactor breakEdgeList'') <> (take breakEdgeFactor breakEdgeList'')
+                        let breakEdgeList =
+                                let (prefix, suffix) = splitAt breakEdgeFactor breakEdgeList''
+                                in  suffix <> prefix
 
                         -- perform intial split and rejoin on each edge in first graph
                         splitJoinResult ←
@@ -491,36 +438,106 @@ swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphLis
                         newGraphList ← Best `selectionOf` newGraphList'
 
                         -- get unique return graph list-can be empty if nothing better ort same cost
-                        let newMinCost
-                                | (not . null) newGraphList' = snd5 $ head newGraphList
-                                | otherwise = infinity
+                        let newMinCost = getGraphCost `orInfinity` newGraphList
 
                         -- logic for returning normal swap operations (better only)
                         -- versus simulated annealin/Drifing returning potentially sub-optimal
                         case inSimAnnealParams of
-                            -- found better cost graph
-                            Nothing | newMinCost < curBestCost → do
-                                logWith LogInfo ("\t->" <> (show newMinCost)) --  <> " " <> (show curBestCost)) $
-                                -- for alternarte do SPR first then TBR
-                                -- for alternate in TBR or prune union alternate if found better return immediately
-                                if (swapType swapParams == TBRAlternate) || (joinType swapParams == JoinAlternate)
-                                    then do
-                                        pure (newGraphList, counter, newSAParams)
-                                    else -- regular swap--keep going with better graphs
+                            Nothing → case newMinCost `compare` curBestCost of
+                                -- found better cost graph
+                                LT → do
+                                    logWith LogInfo $ "\t->" <> show newMinCost
+                                    -- for alternate do SPR first then TBR
+                                    -- for alternate in TBR or prune union alternate if found better return immediately
+                                    if swapType swapParams == TBRAlternate || joinType swapParams == JoinAlternate
+                                        then pure (newGraphList, counter, newSAParams)
+                                        else -- regular swap--keep going with better graphs
 
-                                        swapAll'
-                                            swapParams
-                                            inGS
-                                            inData
-                                            -- randomIntListSwap
-                                            (counter + 1)
-                                            newMinCost
-                                            newGraphList
-                                            newGraphList
-                                            numLeaves
-                                            netPenaltyFactor
-                                            newBreakEdgeNumber
-                                            newSAParams
+                                            swapAll'
+                                                swapParams
+                                                inGS
+                                                inData
+                                                (counter + 1)
+                                                newMinCost
+                                                newGraphList
+                                                newGraphList
+                                                numLeaves
+                                                netPenaltyFactor
+                                                newBreakEdgeNumber
+                                                newSAParams
+
+                                -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
+                                -- but could change
+                                GT →
+                                    swapAll'
+                                        swapParams
+                                        inGS
+                                        inData
+                                        (counter + 1)
+                                        curBestCost
+                                        curSameBetterList
+                                        (tail inGraphList)
+                                        numLeaves
+                                        netPenaltyFactor
+                                        0 -- breakEdgeNumber set to zero for new graph to look at
+                                        newSAParams
+                                -- found same cost graphs
+                                EQ →
+                                    -- Important to not limit curSameBest since may rediscover graphs via swapping on equal when limiting the number to keep
+                                    -- can be a cause of infinite running issues.
+                                    -- let newCurSameBetterList = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (curSameBetterList <> newGraphList)
+                                    let graphChoices = (tailGraphs <> newGraphList) `GO.reducedphylogeneticGraphListMinus` curSameBetterList
+                                    in  do
+                                            newCurSameBetterList ← (Best `selectionOf`) $ curSameBetterList <> newGraphList
+                                            graphsToDo ← Best `selectionOf` graphChoices
+
+                                            -- these conditions help to prevent recswapping endlessly on new graphs thatare not in buffers,
+                                            -- but have same cost
+                                            let graphsToDo'
+                                                    | keepNum swapParams - 1 <= length graphsToDo = tailGraphs
+                                                    -- found nothing better that is new
+                                                    | keepNum swapParams - 1 <= length newCurSameBetterList = tailGraphs
+                                                    | otherwise = graphsToDo
+
+                                            swapAll'
+                                                swapParams
+                                                inGS
+                                                inData
+                                                (counter + 1)
+                                                curBestCost
+                                                newCurSameBetterList
+                                                graphsToDo'
+                                                numLeaves
+                                                netPenaltyFactor
+                                                newBreakEdgeNumber
+                                                newSAParams
+
+                            -- simulated annealing/Drift post processing
+                            Just simAnneal → case newMinCost `compare` curBestCost of
+                                -- found better cost graph
+                                LT → logWith LogInfo ("\t->" <> show newMinCost) $> (newGraphList, counter, newSAParams)
+                                -- not better so check for drift changes or annealing steps and return if reached maximum number
+                                _
+                                    | currentStep simAnneal >= numberSteps simAnneal || driftChanges simAnneal >= driftMaxChanges simAnneal → do
+                                        g ← selectionOf Unique $ newGraphList <> curSameBetterList
+                                        pure (g, counter, newSAParams)
+
+                                -- didn't hit stopping numbers so continuing--but based on current best cost not whatever was found
+                                _ → do
+                                    newBestGraph ← selectionOf Unique $ newGraphList <> curSameBetterList
+                                    graphsToDo ← selectionOf Unique $ (newGraphList <> tailGraphs) `GO.reducedphylogeneticGraphListMinus` curSameBetterList
+                                    swapAll'
+                                        swapParams
+                                        inGS
+                                        inData
+                                        (counter + 1)
+                                        curBestCost
+                                        newBestGraph
+                                        graphsToDo
+                                        numLeaves
+                                        netPenaltyFactor
+                                        newBreakEdgeNumber
+                                        newSAParams
 
                             -- found only worse graphs--never happens due to the way splitjoin returns only better or equal
                             -- but could change
@@ -630,172 +647,157 @@ splitJoinGraph
     → [LG.LEdge EdgeInfo]
     → [LG.LEdge EdgeInfo]
     → PhyG ([ReducedPhylogeneticGraph], Maybe SAParams, Int)
-splitJoinGraph swapParams inGS inData curBestCost curSameBetterList numLeaves netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber' breakEdgeListComplete breakEdgeList =
-    {-# SCC splitJoinGraph_TOP_DEF #-}
-    if null breakEdgeList
-        then pure (curSameBetterList, inSimAnnealParams, 0)
-        else -- split on first input edge
+splitJoinGraph swapParams inGS inData curBestCost curSameBetterList numLeaves netPenaltyFactor inSimAnnealParams firstGraph breakEdgeNumber' breakEdgeListComplete = \case
+    [] → pure (curSameBetterList, inSimAnnealParams, 0)
+    -- split on first input edge
+    edgeToBreakOn : otherEdges →
+        let -- this so breaking edges can contnue where current left off
+            -- since "rotates" edges all will be done.
+            breakEdgeNumber = breakEdgeNumber' + 1
 
-            let edgeToBreakOn = head breakEdgeList
+            -- split input graph into a part with the original root ("base") and the "pruned" graph -- the piece split off w/o original root
+            (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd5 firstGraph) edgeToBreakOn
+        in  do
+                -- reoptimize split graph for re-addition heuristics
+                (reoptimizedSplitGraph, splitCost) ←
+                    reoptimizeSplitGraphFromVertex inGS inData (doIA swapParams) netPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
 
-                -- this so breaking edges can contnue where current left off
-                -- since "rotates" edges all will be done.
-                breakEdgeNumber = breakEdgeNumber' + 1
+                -- check for malformed network split--do nothing if malformed
+                if splitCost == infinity
+                    then pure ([], inSimAnnealParams, breakEdgeNumber)
+                    else do
+                        -- regular swap
+                        -- get root in base (for readdition) and edges in pruned section for rerooting during TBR readdition
+                        let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
 
-                -- split input graph into a part with the original root ("base") and the "pruned" graph -- the piece split off w/o original root
-                (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd5 firstGraph) edgeToBreakOn
-            in  do
-                    -- reoptimize split graph for re-addition heuristics
-                    (reoptimizedSplitGraph, splitCost) ←
-                        reoptimizeSplitGraphFromVertex inGS inData (doIA swapParams) netPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
+                        let edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
 
-                    -- check for malformed network split--do nothing if malformed
-                    if splitCost == infinity
-                        then pure ([], inSimAnnealParams, breakEdgeNumber)
-                        else do
-                            -- regular swap
+                        -- insert here union calcuations based on Varon and Wheeler (2013)
+                        -- basically--rebuild edge to rejoin list based on critical value, totalCost - splitCost, and
+                        -- edge union distance
+                        -- build edges pre-order and add to rejoin list if
+                        -- 1) not network (but still recurse to children)
+                        -- 2) union delta below threshold and recurse to children
+                        -- if > threshold then stop, no add, no recurse since children can only get hihger ubnion distance
+                        -- use split graph (with reoptimized nodes) and overall graph root to get avialbel edges in base graph for rejoin
 
-                            -- get root in base (for readdition) and edges in pruned section for rerooting during TBR readdition
-                            let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraph [(originalConnectionOfPruned, fromJust $ LG.lab splitGraph originalConnectionOfPruned)]
+                        let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
+                        -- prunedToRejoinUnionData = vertData $ fromJust $ LG.lab (thd5 firstGraph) prunedGraphRootIndex
+                        let charInfoVV = fft5 firstGraph
+                        let unionEdgeList =
+                                getUnionRejoinEdgeList
+                                    inGS
+                                    reoptimizedSplitGraph
+                                    charInfoVV
+                                    [graphRoot]
+                                    ((snd5 firstGraph) - splitCost)
+                                    prunedToRejoinUnionData
+                                    []
 
-                            let edgesInBaseGraph = breakEdgeListComplete L.\\ (edgeToBreakOn : edgesInPrunedGraph)
+                        -- builds graph edge list with unions--need to be able to turn off and just used edges in base graph for some sort
+                        -- of "no-union" swap
+                        -- determine those edges within distance of original if limited (ie NNI etc)
+                        let veryBigDist = (maxMoveEdgeDist swapParams) >= ((maxBound ∷ Int) `div` 3)
+                        -- NOTE: There might be a strictness issue here
+                        let ~candidateEdges = take (maxMoveEdgeDist swapParams) $ LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot]
+                        let rejoinEdges' = case (veryBigDist, joinType swapParams) of
+                                (True, JoinAll) → edgesInBaseGraph
+                                (True, _) → unionEdgeList
+                                (False, JoinAll) → candidateEdges
+                                (False, _) → L.intersect candidateEdges unionEdgeList
 
-                            -- insert here union calcuations based on Varon and Wheeler (2013)
-                            -- basically--rebuild edge to rejoin list based on critical value, totalCost - splitCost, and
-                            -- edge union distance
-                            -- build edges pre-order and add to rejoin list if
-                            -- 1) not network (but still recurse to children)
-                            -- 2) union delta below threshold and recurse to children
-                            -- if > threshold then stop, no add, no recurse since children can only get hihger ubnion distance
-                            -- use split graph (with reoptimized nodes) and overall graph root to get avialbel edges in base graph for rejoin
+                        -- randomize edges list order for anneal and drift
+                        rejoinEdges ←
+                            if atRandom swapParams
+                                then shuffleList rejoinEdges'
+                                else pure rejoinEdges'
 
-                            let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
-                            -- prunedToRejoinUnionData = vertData $ fromJust $ LG.lab (thd5 firstGraph) prunedGraphRootIndex
-                            let charInfoVV = fft5 firstGraph
-                            let unionEdgeList =
-                                    getUnionRejoinEdgeList
-                                        inGS
-                                        reoptimizedSplitGraph
-                                        charInfoVV
-                                        [graphRoot]
-                                        ((snd5 firstGraph) - splitCost)
-                                        prunedToRejoinUnionData
-                                        []
+                        -- rejoin graph to all possible edges in base graph
+                        rejoinResult ←
+                            {-# SCC rejoinResult #-}
+                                rejoinGraph
+                                    swapParams
+                                    inGS
+                                    inData
+                                    curBestCost
+                                    []
+                                    netPenaltyFactor
+                                    reoptimizedSplitGraph
+                                    (GO.convertDecoratedToSimpleGraph splitGraph)
+                                    splitCost
+                                    graphRoot
+                                    prunedGraphRootIndex
+                                    originalConnectionOfPruned
+                                    rejoinEdges
+                                    edgesInPrunedGraph
+                                    inSimAnnealParams
+                        let (newGraphList, newSAParams) = rejoinResult
+                        {-
+                        trace ("Edge to break on:" <> (show $ LG.toEdge edgeToBreakOn)
+                        <> "\nBase graph edges: " <> (show $ fmap LG.toEdge edgesInBaseGraph)
+                        <> "\nPruned graph edges: " <> (show $ fmap LG.toEdge edgesInPrunedGraph)
+                        <> "\nTarget edges to rejoin: " <> (show $ fmap LG.toEdge rejoinEdges)
+                        <> "\nFull edgelist: " <> (show $ fmap LG.toEdge breakEdgeListComplete))
+                        -}
 
-                            -- builds graph edge list with unions--need to be able to turn off and just used edges in base graph for some sort
-                            -- of "no-union" swap
-                            -- determine those edges within distance of original if limited (ie NNI etc)
-                            let veryBigDist = (maxMoveEdgeDist swapParams) >= ((maxBound ∷ Int) `div` 3)
-                            -- NOTE: There might be a strictness issue here
-                            let ~candidateEdges = take (maxMoveEdgeDist swapParams) $ (LG.sortEdgeListByDistance splitGraph [graphRoot] [graphRoot])
-                            let rejoinEdges' = case (veryBigDist, joinType swapParams) of
-                                    (True, JoinAll) → edgesInBaseGraph
-                                    (True, _) → unionEdgeList
-                                    (False, JoinAll) → candidateEdges
-                                    (False, _) → L.intersect candidateEdges unionEdgeList
+                        newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList
 
-                            -- randomize edges list order for anneal and drift
-                            rejoinEdges ←
-                                if atRandom swapParams
-                                    then {-
-                                         NOTE: Optional Syntax
-                                         f x y = undefined
-                                         z = f x y
-                                         z = x `f` y -- Infix notation
-                                             Could use infix notation for this randomness call:
-                                         then (`permuteList` rejoinEdges') <$> getRandom
-                                             or lambda:
-                                         then (\randVal -> permuteList randVal rejoinEdges') <$> getRandom
-                                         -}
-                                        (`permuteList` rejoinEdges') <$> getRandom
-                                    else pure rejoinEdges'
-
-                            -- rejoin graph to all possible edges in base graph
-                            rejoinResult ←
-                                {-# SCC rejoinResult #-}
-                                    rejoinGraph
+                        case inSimAnnealParams of
+                            -- only returns graphs if same of better else empty
+                            -- adds null o\r better graphs to reurn list
+                            Nothing
+                                | (not . null) newGraphList && (steepest swapParams) →
+                                    pure (newGraphList', inSimAnnealParams, breakEdgeNumber)
+                            Nothing → do
+                                splitJoinResult ←
+                                    splitJoinGraph
                                         swapParams
                                         inGS
                                         inData
+                                        -- (tail randomIntListSwap)
                                         curBestCost
-                                        []
+                                        curSameBetterList
+                                        numLeaves
                                         netPenaltyFactor
-                                        reoptimizedSplitGraph
-                                        (GO.convertDecoratedToSimpleGraph splitGraph)
-                                        splitCost
-                                        graphRoot
-                                        prunedGraphRootIndex
-                                        originalConnectionOfPruned
-                                        rejoinEdges
-                                        edgesInPrunedGraph
                                         inSimAnnealParams
-                            let (newGraphList, newSAParams) = rejoinResult
-                            {-
-                            trace ("Edge to break on:" <> (show $ LG.toEdge edgeToBreakOn)
-                            <> "\nBase graph edges: " <> (show $ fmap LG.toEdge edgesInBaseGraph)
-                            <> "\nPruned graph edges: " <> (show $ fmap LG.toEdge edgesInPrunedGraph)
-                            <> "\nTarget edges to rejoin: " <> (show $ fmap LG.toEdge rejoinEdges)
-                            <> "\nFull edgelist: " <> (show $ fmap LG.toEdge breakEdgeListComplete))
-                            -}
+                                        firstGraph
+                                        breakEdgeNumber
+                                        breakEdgeListComplete
+                                        otherEdges
+                                let (recurseGraphList, _, newEdgeBreakNumber) = splitJoinResult
+                                pure (newGraphList' <> recurseGraphList, inSimAnnealParams, newEdgeBreakNumber)
+                            -- Annealing/Drift swap
+                            -- return if better
+                            -- return if other chosen probabalistically
+                            -- recurse if nothing returned
 
-                            newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList
+                            -- if better than current graph return
+                            Just simAnnealParams →
+                                let newMinCost
+                                        | null newGraphList = infinity
+                                        | otherwise = (snd5 . head) newGraphList'
 
-                            case inSimAnnealParams of
-                                -- only returns graphs if same of better else empty
-                                -- adds null o\r better graphs to reurn list
-                                Nothing
-                                    | (not . null) newGraphList && (steepest swapParams) →
-                                        pure (newGraphList', inSimAnnealParams, breakEdgeNumber)
-                                Nothing → do
-                                    splitJoinResult ←
-                                        splitJoinGraph
-                                            swapParams
-                                            inGS
-                                            inData
-                                            -- (tail randomIntListSwap)
-                                            curBestCost
-                                            curSameBetterList
-                                            numLeaves
-                                            netPenaltyFactor
-                                            inSimAnnealParams
-                                            firstGraph
-                                            breakEdgeNumber
-                                            breakEdgeListComplete
-                                            (tail breakEdgeList)
-                                    let (recurseGraphList, _, newEdgeBreakNumber) = splitJoinResult
-                                    pure (newGraphList' <> recurseGraphList, inSimAnnealParams, newEdgeBreakNumber)
-                                -- Annealing/Drift swap
-                                -- return if better
-                                -- return if other chosen probabalistically
-                                -- recurse if nothing returned
-
-                                -- if better than current graph return
-                                Just simAnnealParams →
-                                    let newMinCost
-                                            | null newGraphList = infinity
-                                            | otherwise = (snd5 . head) newGraphList'
-
-                                        result
-                                            | newMinCost < curBestCost = pure (newGraphList', newSAParams, breakEdgeNumber)
-                                            -- if SA returned graphs--return them
-                                            | (not . null) newGraphList = pure (newGraphList, newSAParams, breakEdgeNumber)
-                                            -- keep going if nothing
-                                            | otherwise =
-                                                splitJoinGraph
-                                                    swapParams
-                                                    inGS
-                                                    inData
-                                                    -- (tail randomIntListSwap)
-                                                    curBestCost
-                                                    curSameBetterList
-                                                    numLeaves
-                                                    netPenaltyFactor
-                                                    newSAParams
-                                                    firstGraph
-                                                    breakEdgeNumber
-                                                    breakEdgeListComplete
-                                                    (tail breakEdgeList)
-                                    in  result
+                                    result
+                                        | newMinCost < curBestCost = pure (newGraphList', newSAParams, breakEdgeNumber)
+                                        -- if SA returned graphs--return them
+                                        | (not . null) newGraphList = pure (newGraphList, newSAParams, breakEdgeNumber)
+                                        -- keep going if nothing
+                                        | otherwise =
+                                            splitJoinGraph
+                                                swapParams
+                                                inGS
+                                                inData
+                                                -- (tail randomIntListSwap)
+                                                curBestCost
+                                                curSameBetterList
+                                                numLeaves
+                                                netPenaltyFactor
+                                                newSAParams
+                                                firstGraph
+                                                breakEdgeNumber
+                                                breakEdgeListComplete
+                                                otherEdges
+                                in  result
 
 
 {- | getUnionRejoinEdgeList takes a graph (split and reoptimized usually), the overall root index (of split),
@@ -960,10 +962,9 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
         then pure (curBestGraphs, inSimAnnealParams)
         else -- this is for no  swapping option in fuse and genetic algorithm-fuse
 
-            let rejoinEdges =
-                    if (swapType swapParams) == NoSwap
-                        then take 6 rejoinEdges'
-                        else rejoinEdges'
+            let rejoinEdges = case swapType swapParams of
+                    NoSwap → take 6 rejoinEdges'
+                    _ → rejoinEdges'
             in  -- regular swapping
                 if isNothing inSimAnnealParams
                     then -- check if split graph cost same as graph then return since graph can only get longer on readdition
@@ -1029,7 +1030,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                 if null rejoinGraphList
                                                     then pure ([], inSimAnnealParams)
                                                     else
-                                                        if (snd5 . head) newGraphList <= curBestCost
+                                                        if getGraphCost newGraphList <= curBestCost
                                                             then pure (newGraphList, inSimAnnealParams)
                                                             else pure ([], inSimAnnealParams)
                                     else -- famp over number of threads edges in base graph
@@ -1068,16 +1069,11 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                 -- rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
                                                 joinPar ← getParallelChunkTraverse
                                                 joinResult ← joinPar action rejoinEdgeList
-                                                let rejoinGraphList = concat $ fmap fst $ joinResult
-                                                -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList
-
-                                                -- newGraphList = fmap (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
-                                                newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 rejoinGraphList -- newGraphList
+                                                let rejoinGraphList = foldMap fst joinResult
 
                                                 -- found nothing better or equal
-                                                if null rejoinGraphList
-                                                    then -- trace ("In steepest worse: " <> (show $ length (drop PU.getNumThreads rejoinEdges)))
-
+                                                case rejoinGraphList of
+                                                    [] →
                                                         rejoinGraph
                                                             swapParams
                                                             inGS
@@ -1094,52 +1090,48 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                             (drop numGraphsToExamine rejoinEdges)
                                                             edgesInPrunedGraph
                                                             inSimAnnealParams
-                                                    else -- found better graph
-
-                                                        if (snd5 . head) newGraphList' < curBestCost
-                                                            then -- trace ("Steepest better")
-                                                                pure (newGraphList', inSimAnnealParams)
-                                                            else -- found equal cost graph
-
-                                                                if (snd5 . head) newGraphList' == curBestCost
-                                                                    then do
-                                                                        newBestList ← GO.selectGraphs Best (keepNum swapParams) 0.0 (curBestGraphs <> newGraphList')
-                                                                        rejoinGraph
-                                                                            swapParams
-                                                                            inGS
-                                                                            inData
-                                                                            curBestCost
-                                                                            newBestList
-                                                                            netPenaltyFactor
-                                                                            reoptimizedSplitGraph
-                                                                            splitGraphSimple
-                                                                            splitGraphCost
-                                                                            graphRoot
-                                                                            prunedGraphRootIndex
-                                                                            originalConnectionOfPruned
-                                                                            (drop numGraphsToExamine rejoinEdges)
-                                                                            edgesInPrunedGraph
-                                                                            inSimAnnealParams
-                                                                    else -- found worse graphs only
-
-                                                                    -- trace ("In steepest worse (after recalculation): " <> (show $ length (drop PU.getNumThreads rejoinEdges)))
-
-                                                                        rejoinGraph
-                                                                            swapParams
-                                                                            inGS
-                                                                            inData
-                                                                            curBestCost
-                                                                            curBestGraphs
-                                                                            netPenaltyFactor
-                                                                            reoptimizedSplitGraph
-                                                                            splitGraphSimple
-                                                                            splitGraphCost
-                                                                            graphRoot
-                                                                            prunedGraphRootIndex
-                                                                            originalConnectionOfPruned
-                                                                            (drop numGraphsToExamine rejoinEdges)
-                                                                            edgesInPrunedGraph
-                                                                            inSimAnnealParams
+                                                    -- found better graph
+                                                    _ → do
+                                                        newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 rejoinGraphList
+                                                        case getGraphCost newGraphList' `compare` curBestCost of
+                                                            LT → pure (newGraphList', inSimAnnealParams)
+                                                            -- found equal cost graph
+                                                            EQ → do
+                                                                newBestList ← GO.selectGraphs Best (keepNum swapParams) 0.0 (curBestGraphs <> newGraphList')
+                                                                rejoinGraph
+                                                                    swapParams
+                                                                    inGS
+                                                                    inData
+                                                                    curBestCost
+                                                                    newBestList
+                                                                    netPenaltyFactor
+                                                                    reoptimizedSplitGraph
+                                                                    splitGraphSimple
+                                                                    splitGraphCost
+                                                                    graphRoot
+                                                                    prunedGraphRootIndex
+                                                                    originalConnectionOfPruned
+                                                                    (drop numGraphsToExamine rejoinEdges)
+                                                                    edgesInPrunedGraph
+                                                                    inSimAnnealParams
+                                                            -- found worse graphs only
+                                                            GT →
+                                                                rejoinGraph
+                                                                    swapParams
+                                                                    inGS
+                                                                    inData
+                                                                    curBestCost
+                                                                    curBestGraphs
+                                                                    netPenaltyFactor
+                                                                    reoptimizedSplitGraph
+                                                                    splitGraphSimple
+                                                                    splitGraphCost
+                                                                    graphRoot
+                                                                    prunedGraphRootIndex
+                                                                    originalConnectionOfPruned
+                                                                    (drop numGraphsToExamine rejoinEdges)
+                                                                    edgesInPrunedGraph
+                                                                    inSimAnnealParams
                     else -- Drifting/Simulated annealing
                     -- basically if it accepted a graph (better or probabalistically) then pass up
                     -- otherwise move to next rejoin, changes in graphs counted at higher level
@@ -1512,34 +1504,28 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                     rerootAction ∷ LG.LEdge EdgeInfo → SimpleGraph
                     rerootAction = rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge
 
+                    getRerootingEdges ∷ [(LG.Node, b, c)] → [(LG.Node, b, c)]
+                    getRerootingEdges = filter ((`notElem` [prunedGraphRootIndex, originalConnectionOfPruned]) . fst3)
+
                     -- Debugging info
                     -- debugger ∷ (Logger m, Show a, Show b, Show c) ⇒ String -> a → LG.Gr b c → m ()
                     -- debugger str n g = logWith LogTech $ fold
                     --    [ "In: 'tbrJoin' with '", str, "'\n  Graph [ G_", show n, " ]:\n", LG.prettify g ]
 
                     reoptimizeAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
-                    reoptimizeAction g0 = do
-                        -- debugger "reoptimizeAction" 0 g0
-                        result@(g1, _, _, _, _) ← T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g0
-                        -- debugger "reoptimizeAction" 1 g1
-                        pure result
+                    reoptimizeAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
                 in  -- logic for annealing/Drift  regular swap first
                     case inSimAnnealParams of
                         -- get heuristic delta joins for edges in pruned graph
                         Nothing
                             | not (steepest swapParams) →
-                                let rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) edgesInPrunedGraph
+                                let rerootEdgeList = getRerootingEdges edgesInPrunedGraph
                                 in  do
                                         -- debugger "CASE OF -> Nothing( 1 )" 0 splitGraphSimple
                                         -- True True to use IA fields and filter gaps
-                                        makeEdgePar ← getParallelChunkMap
-                                        let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
-                                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
-
-                                        joinPar ← getParallelChunkMap
-                                        let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
+                                        pMap ← getParallelChunkMap
+                                        let rerootEdgeDeltaList = pMap ((+ splitCost) . joinAction . makeEdgeAction) rerootEdgeList
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
-                                        let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
                                         -- check for possible better/equal graphs and verify
                                         let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
@@ -1584,18 +1570,13 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                                 -- get heuristic delta joins for steepest edge set
-                                rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
+                                rerootEdgeList = getRerootingEdges firstSetEdges
                             in  do
                                     -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    makeEdgePar ← getParallelChunkMap
-                                    let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
-                                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
-
-                                    joinPar ← getParallelChunkMap
-                                    let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
+                                    pMap ← getParallelChunkMap
+                                    let rerootEdgeDeltaList = pMap ((+ splitCost) . joinAction . makeEdgeAction) rerootEdgeList
                                     -- let rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
-                                    let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
                                     -- check for possible better/equal graphs and verify
                                     let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
@@ -1659,27 +1640,19 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                 firstSetEdges = take numEdgesToExamine edgesInPrunedGraph
 
                                 -- get heuristic delta joins for steepest edge set
-                                rerootEdgeList = filter ((/= prunedGraphRootIndex) . fst3) $ filter ((/= originalConnectionOfPruned) . fst3) firstSetEdges
+                                rerootEdgeList = getRerootingEdges firstSetEdges
                             in  do
                                     -- debugger "CASE OF -> Just" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    makeEdgePar ← getParallelChunkMap
-                                    let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
+                                    pMap ← getParallelChunkMap
+                                    -- TODO: Laziness here?
+                                    let rerootEdgeDeltaList = pMap ((+ splitCost) . joinAction . makeEdgeAction) rerootEdgeList
                                     -- rerootEdgeDataList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
-
-                                    joinPar ← getParallelChunkMap
-                                    let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
-                                    let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
 
-                                    let minDelta =
-                                            if (not . null) rerootEdgeDeltaList
-                                                then minimum $ rerootEdgeDeltaList
-                                                else infinity
-                                    let minEdgeList =
-                                            if (not . null) rerootEdgeDeltaList
-                                                then fmap fst $ filter ((== minDelta) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
-                                                else []
+                                    let minDelta = minimum `orInfinity` rerootEdgeDeltaList
+
+                                    let minEdgeList = fmap fst . filter ((== minDelta) . snd) $ zip rerootEdgeList rerootEdgeDeltaList
 
                                     -- check for possible better/equal graphs and verify
                                     -- rerootPar ← getParallelChunkMap
@@ -1700,10 +1673,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                     -- rediagnosedGraphList ← reoptimizePar reoptimizeAction candidateJoinedGraphList
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
 
-                                    let newMinCost =
-                                            if (not . null) minEdgeList
-                                                then minimum $ fmap snd5 rediagnosedGraphList
-                                                else infinity
+                                    let newMinCost = (minimum . fmap snd5) `orInfinity` rediagnosedGraphList
 
                                     -- only taking one for SA/Drift check
                                     let newMinGraph =
@@ -2107,4 +2077,12 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
                                 )
                         else pure (fullSplitGraph, splitGraphCost)
 
--- )
+
+getGraphCost ∷ [ReducedPhylogeneticGraph] → VertexCost
+getGraphCost = snd5 . head
+
+
+orInfinity ∷ ∀ a r t. (Foldable t, Fractional r, Real r) ⇒ (t a → r) → t a → r
+orInfinity f xs
+    | null xs = fromRational Real.infinity
+    | otherwise = f xs

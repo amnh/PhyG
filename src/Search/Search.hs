@@ -16,6 +16,7 @@ import Control.Monad.Random.Class qualified as Sample
 import Data.Bifunctor (bimap)
 import Data.Char
 import Data.Foldable
+import Data.Foldable1 qualified as F1
 import Data.Functor (($>), (<&>))
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty (..))
@@ -340,44 +341,30 @@ updateTheta
 updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString :| infoStringList) inPairList elapsedSeconds totalSeconds stopCount stopNum = case inPairList of
     [] → pure ([], stopCount)
     _ →
-        let searchBandit =
-                if thisBandit == SearchBandit
-                    then takeWhile (/= ',') (tail infoString)
-                    else -- GraphBandit
+        let searchBandit = case thisBandit of
+                SearchBandit → takeWhile (/= ',') $ tail infoString
+                -- GraphBandit
+                _ → case LS.splitOn "," infoString of
+                    toks | "StaticApprox" `elem` toks → "StaticApproximation"
+                    toks | "MultiTraverse:False" `elem` toks → "SingleTraverse"
+                    _ → "MultiTraverse"
 
-                        if "StaticApprox" `elem` (LS.splitOn "," infoString)
-                            then -- trace
-                            --    ("GraphBandit is StaticApprox")
-                                "StaticApproximation"
-                            else
-                                if "MultiTraverse:False" `elem` (LS.splitOn "," infoString)
-                                    then -- trace
-                                    --    ("GraphBandit is SingleTraverse")
-                                        "SingleTraverse"
-                                    else -- trace
-                                    --    ("GraphBandit is MultiTraverse ")
-                                        "MultiTraverse"
             searchDeltaString = takeWhile (/= ',') $ tail $ dropWhile (/= ',') (tail infoString)
             searchDelta ∷ r
             searchDelta = fromRational . toRational $ (read searchDeltaString ∷ Double)
         in  if not thompsonSample
                 then
-                    let newStopCount =
-                            if searchDelta <= 0.0
-                                then stopCount + 1
-                                else 0
-                        stopString =
-                            if newStopCount >= stopNum
-                                then
-                                    ( "\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n"
-                                    )
-                                else ""
-                    in  if thisBandit == SearchBandit
-                            then do
-                                logWith LogInfo stopString
-                                pure (inPairList, newStopCount)
-                            else do
-                                pure (inPairList, newStopCount)
+                    let newStopCount
+                            | searchDelta <= 0.0 = stopCount + 1
+                            | otherwise = 0
+
+                        stopString
+                            | newStopCount >= stopNum =
+                                "\n\tSearch iterations have not improved for " <> (show newStopCount) <> " iterations--terminating this search command" <> "\n"
+                            | otherwise = ""
+                    in  do
+                            when (thisBandit == SearchBandit) $ logWith LogInfo stopString
+                            pure (inPairList, newStopCount)
                 else -- trace ("UT1: " <> (show infoStringList)) (
                 -- update via results, previous history, memory \factor and type of memory "loss"
 

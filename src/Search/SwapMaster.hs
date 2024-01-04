@@ -10,6 +10,7 @@ import Control.Monad (when)
 import Data.Char
 import Data.Foldable (fold)
 import Data.Functor (($>))
+import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
@@ -29,209 +30,207 @@ swapMaster
     → ProcessedData
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-swapMaster inArgs inGS inData = \case
-    [] → logWith LogInfo "No graphs to swap\n" $> []
-    inGraphListInput → do
-        -- process args for swap
-        ( keepNum
-            , maxMoveEdgeDist'
-            , steps'
-            , annealingRounds'
-            , doDrift
-            , driftRounds'
-            , acceptEqualProb
-            , acceptWorseFactor
-            , maxChanges
-            , replicateNumber
-            , lcArgList
-            ) ←
-            getSwapParams inArgs
+swapMaster inArgs inGS inData [] = logWith LogInfo "No graphs to swap\n" $> []
+swapMaster inArgs inGS inData inGraphListInput = do
+    ( keepNum
+        , maxMoveEdgeDist'
+        , steps'
+        , annealingRounds'
+        , doDrift
+        , driftRounds'
+        , acceptEqualProb
+        , acceptWorseFactor
+        , maxChanges
+        , replicateNumber
+        , lcArgList
+        ) ←
+        getSwapParams inArgs
 
-        let swapType
-                | any ((== "nni") . fst) lcArgList = NNI
-                | any ((== "spr") . fst) lcArgList = SPR
-                | any ((== "tbr") . fst) lcArgList = TBR
-                | any ((== "alternate") . fst) lcArgList = Alternate
-                | otherwise = Alternate
+    let swapType
+            | any ((== "nni") . fst) lcArgList = NNI
+            | any ((== "spr") . fst) lcArgList = SPR
+            | any ((== "tbr") . fst) lcArgList = TBR
+            | any ((== "alternate") . fst) lcArgList = Alternate
+            | otherwise = Alternate
 
-        let maxMoveEdgeDist = case swapType of
-                NNI → 2
-                _ → maxMoveEdgeDist'
+    let maxMoveEdgeDist = case swapType of
+            NNI → 2
+            _ → maxMoveEdgeDist'
 
-        -- randomized orders of split and join-- not implemented
-        -- doRandomized = any ((=="randomized").fst) lcArgList
+    -- randomized orders of split and join-- not implemented
+    -- doRandomized = any ((=="randomized").fst) lcArgList
 
-        -- set implied alignment swapping
-        let doIA'' = any ((== "ia") . fst) lcArgList
+    -- set implied alignment swapping
+    let doIA'' = any ((== "ia") . fst) lcArgList
 
-        -- steepest/all options
-        let doSteepest' = any ((== "steepest") . fst) lcArgList
-        let doAll = any ((== "all") . fst) lcArgList
+    -- steepest/all options
+    let doSteepest' = any ((== "steepest") . fst) lcArgList
+    let doAll = any ((== "all") . fst) lcArgList
 
-        -- steepest default
-        let doSteepest = ((not doSteepest' && not doAll) || doSteepest')
+    -- steepest default
+    let doSteepest = ((not doSteepest' && not doAll) || doSteepest')
 
-        -- simulated annealing parameters
-        -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
-        let doAnnealing = any ((== "annealing") . fst) lcArgList
+    -- simulated annealing parameters
+    -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
+    let doAnnealing = any ((== "annealing") . fst) lcArgList
 
-        let returnMutated = any ((== "returnmutated") . fst) lcArgList
+    let returnMutated = any ((== "returnmutated") . fst) lcArgList
 
-        -- turn off union selection of rejoin--default to do both, union first
-        let joinType
-                | graphType inGS == HardWired = JoinAll
-                | any ((== "joinall") . fst) lcArgList = JoinAll
-                | any ((== "joinpruned") . fst) lcArgList = JoinPruned
-                | any ((== "joinalternate") . fst) lcArgList = JoinAlternate
-                | otherwise = JoinAlternate
+    -- turn off union selection of rejoin--default to do both, union first
+    let joinType
+            | graphType inGS == HardWired = JoinAll
+            | any ((== "joinall") . fst) lcArgList = JoinAll
+            | any ((== "joinpruned") . fst) lcArgList = JoinPruned
+            | any ((== "joinalternate") . fst) lcArgList = JoinAlternate
+            | otherwise = JoinAlternate
 
-        -- randomize split graph and rejoin edges, defualt to randomize
-        let atRandom
-                | any ((== "atrandom") . fst) lcArgList = True
-                | any ((== "inOrder") . fst) lcArgList = False
-                | otherwise = True
+    -- randomize split graph and rejoin edges, defualt to randomize
+    let atRandom
+            | any ((== "atrandom") . fst) lcArgList = True
+            | any ((== "inOrder") . fst) lcArgList = False
+            | otherwise = True
 
-        -- populate SwapParams structure
-        let localSwapParams =
-                SwapParams
-                    { swapType = swapType
-                    , joinType = joinType
-                    , atRandom = atRandom
-                    , keepNum = keepNum
-                    , maxMoveEdgeDist = maxMoveEdgeDist
-                    , steepest = doSteepest
-                    , joinAlternate = False -- join prune alternates--turned off for now
-                    , doIA = doIA''
-                    , returnMutated = returnMutated
-                    }
+    -- populate SwapParams structure
+    let localSwapParams =
+            SwapParams
+                { swapType = swapType
+                , joinType = joinType
+                , atRandom = atRandom
+                , keepNum = keepNum
+                , maxMoveEdgeDist = maxMoveEdgeDist
+                , steepest = doSteepest
+                , joinAlternate = False -- join prune alternates--turned off for now
+                , doIA = doIA''
+                , returnMutated = returnMutated
+                }
 
-        -- swap replicates is meant to allow multiple randomized swap trajectories
-        -- set to 1 if not randomized swap or SA/Drifting (set by their own options)
-        let replicates
-                | not atRandom = 1
-                | doAnnealing = 1
-                | otherwise = replicateNumber
+    -- swap replicates is meant to allow multiple randomized swap trajectories
+    -- set to 1 if not randomized swap or SA/Drifting (set by their own options)
+    let replicates
+            | not atRandom = 1
+            | doAnnealing = 1
+            | otherwise = replicateNumber
 
-        -- replicate inGraphList based on 'replicates' for randomized trajectories
-        let inGraphList = concat $ replicate replicates inGraphListInput
-        let numGraphs = length inGraphList
+    -- replicate inGraphList based on 'replicates' for randomized trajectories
+    let inGraphList = concat $ replicate replicates inGraphListInput
+    let numGraphs = length inGraphList
 
-        -- parallel setup
-        let action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
-            action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
-        simAnnealParams ←
-            getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
+    -- parallel setup
+    let action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
+        action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
+    simAnnealParams ←
+        getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
-        -- create simulated annealing random lists uniquely for each fmap
-        let newSimAnnealParamList = replicate numGraphs simAnnealParams
+    -- create simulated annealing random lists uniquely for each fmap
+    let newSimAnnealParamList = replicate numGraphs simAnnealParams
 
-        let progressString
-                | (not doAnnealing && not doDrift) =
-                    unwords
-                        [ "Swapping"
-                        , show $ length inGraphListInput
-                        , "input graph(s) with"
-                        , show replicates
-                        , "trajectories at minimum cost"
-                        , show . minimum $ snd5 <$> inGraphList
-                        , "keeping maximum of"
-                        , show keepNum
-                        , "graphs per input graph\n"
-                        ]
-                | otherwise =
-                    case simAnnealParams of
-                        Nothing → "Unknown procesing"
-                        Just simAnneal → case method simAnneal of
-                            SimAnneal →
-                                unwords
-                                    [ "Simulated Annealing (Swapping)"
-                                    , show $ rounds simAnneal
-                                    , "rounds with"
-                                    , show $ numberSteps simAnneal
-                                    , "cooling steps"
-                                    , show $ length inGraphList
-                                    , "input graph(s) at minimum cost"
-                                    , show . minimum $ snd5 <$> inGraphList
-                                    , "keeping maximum of"
-                                    , show keepNum
-                                    , "graphs\n"
-                                    ]
-                            _ →
-                                unwords
-                                    [ "Drifting (Swapping)"
-                                    , show $ rounds simAnneal
-                                    , "rounds with"
-                                    , show $ driftMaxChanges simAnneal
-                                    , "maximum changes per round on"
-                                    , show $ length inGraphList
-                                    , "input graph(s) at minimum cost"
-                                    , show . minimum $ snd5 <$> inGraphList
-                                    , "keeping maximum of"
-                                    , show keepNum
-                                    , "graphs\n"
-                                    ]
+    let progressString
+            | (not doAnnealing && not doDrift) =
+                unwords
+                    [ "Swapping"
+                    , show $ length inGraphListInput
+                    , "input graph(s) with"
+                    , show replicates
+                    , "trajectories at minimum cost"
+                    , show . minimum $ snd5 <$> inGraphList
+                    , "keeping maximum of"
+                    , show keepNum
+                    , "graphs per input graph\n"
+                    ]
+            | otherwise =
+                case simAnnealParams of
+                    Nothing → "Unknown procesing"
+                    Just simAnneal → case method simAnneal of
+                        SimAnneal →
+                            unwords
+                                [ "Simulated Annealing (Swapping)"
+                                , show $ rounds simAnneal
+                                , "rounds with"
+                                , show $ numberSteps simAnneal
+                                , "cooling steps"
+                                , show $ length inGraphList
+                                , "input graph(s) at minimum cost"
+                                , show . minimum $ snd5 <$> inGraphList
+                                , "keeping maximum of"
+                                , show keepNum
+                                , "graphs\n"
+                                ]
+                        _ →
+                            unwords
+                                [ "Drifting (Swapping)"
+                                , show $ rounds simAnneal
+                                , "rounds with"
+                                , show $ driftMaxChanges simAnneal
+                                , "maximum changes per round on"
+                                , show $ length inGraphList
+                                , "input graph(s) at minimum cost"
+                                , show . minimum $ snd5 <$> inGraphList
+                                , "keeping maximum of"
+                                , show keepNum
+                                , "graphs\n"
+                                ]
 
-        logWith LogInfo progressString
-        -- TODO
-        -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
+    logWith LogInfo progressString
+    -- TODO
+    -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
-        let simAnnealList ∷ [[(Maybe SAParams, ReducedPhylogeneticGraph)]] -- [(Maybe SAParams,
-            simAnnealList = fmap pure $ zip newSimAnnealParamList inGraphList
-        swapPar ← getParallelChunkTraverse
-        graphPairList ← swapPar action simAnnealList
-        -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
+    let simAnnealList ∷ [[(Maybe SAParams, ReducedPhylogeneticGraph)]] -- [(Maybe SAParams,
+        simAnnealList = fmap pure $ zip newSimAnnealParamList inGraphList
+    pTraverse ← getParallelChunkTraverse
+    graphPairList ← pTraverse action simAnnealList
+    -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
 
-        let (graphListList, counterList) = unzip graphPairList
-        newGraphList ← GO.selectGraphs Best keepNum 0.0 $ concat graphListList
-        let counter = sum counterList
+    let (graphListList, counterList) = unzip graphPairList
+    newGraphList ← GO.selectGraphs Best keepNum 0.0 $ concat graphListList
+    let counter = sum counterList
 
-        let finalGraphList
-                | null newGraphList = inGraphList
-                | otherwise = newGraphList
+    let finalGraphList
+            | null newGraphList = inGraphList
+            | otherwise = newGraphList
 
-        let fullBuffWarning
-                | length newGraphList < keepNum = ""
-                | otherwise =
-                    "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
+    let fullBuffWarning
+            | length newGraphList < keepNum = ""
+            | otherwise =
+                "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
 
-        let endString
-                | (not doAnnealing && not doDrift) =
-                    unwords
-                        [ "\n\tAfter swap:"
-                        , show $ length finalGraphList
-                        , "resulting graphs with minimum cost"
-                        , show . minimum $ snd5 <$> finalGraphList
-                        , "with swap rounds (total):"
-                        , show counter
-                        , show swapType
-                        ]
-                | otherwise =
-                    case simAnnealParams of
-                        Nothing → "Unknown procesing"
-                        Just simAnneal → case method simAnneal of
-                            SimAnneal →
-                                unwords
-                                    [ "\n\tAfter Simulated Annealing:"
-                                    , show $ length finalGraphList
-                                    , "resulting graphs with minimum cost"
-                                    , show . minimum $ snd5 <$> finalGraphList
-                                    , "with swap rounds (total):"
-                                    , show counter
-                                    , show swapType
-                                    ]
-                            _ →
-                                unwords
-                                    [ "\n\tAfter Drifting:"
-                                    , show $ length finalGraphList
-                                    , "resulting graphs with minimum cost"
-                                    , show . minimum $ snd5 <$> finalGraphList
-                                    , "with swap rounds (total):"
-                                    , show counter
-                                    , show swapType
-                                    ]
+    let endString
+            | (not doAnnealing && not doDrift) =
+                unwords
+                    [ "\n\tAfter swap:"
+                    , show $ length finalGraphList
+                    , "resulting graphs with minimum cost"
+                    , show . minimum $ snd5 <$> finalGraphList
+                    , "with swap rounds (total):"
+                    , show counter
+                    , show swapType
+                    ]
+            | otherwise =
+                case simAnnealParams of
+                    Nothing → "Unknown procesing"
+                    Just simAnneal → case method simAnneal of
+                        SimAnneal →
+                            unwords
+                                [ "\n\tAfter Simulated Annealing:"
+                                , show $ length finalGraphList
+                                , "resulting graphs with minimum cost"
+                                , show . minimum $ snd5 <$> finalGraphList
+                                , "with swap rounds (total):"
+                                , show counter
+                                , show swapType
+                                ]
+                        _ →
+                            unwords
+                                [ "\n\tAfter Drifting:"
+                                , show $ length finalGraphList
+                                , "resulting graphs with minimum cost"
+                                , show . minimum $ snd5 <$> finalGraphList
+                                , "with swap rounds (total):"
+                                , show counter
+                                , show swapType
+                                ]
 
-        logWith LogInfo $ endString <> fullBuffWarning <> "\n"
-        pure finalGraphList
+    logWith LogInfo $ endString <> fullBuffWarning <> "\n"
+    pure finalGraphList
 
 
 -- | getSimumlatedAnnealingParams returns SA parameters
