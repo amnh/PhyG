@@ -268,10 +268,9 @@ fuseGraphs
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-fuseGraphs inArgs inGS inData rSeed inGraphList
+fuseGraphs inArgs inGS inData inGraphList
     | null inGraphList = logWith LogMore "Fusing--skipped: No graphs to fuse\n" $> []
     | length inGraphList == 1 = logWith LogMore "Fusing--skipped: Need > 1 graphs to fuse\n" $> inGraphList
     -- \| graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
@@ -325,8 +324,6 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                 | notReciprocal = False
                 | otherwise = True
 
-        let seedList = randomIntList rSeed
-
         -- populate SwapParams structure
         let swapParams withIA =
                 SwapParams
@@ -358,7 +355,6 @@ fuseGraphs inArgs inGS inData rSeed inGraphList
                 (swapParams withIA)
                 (inGS{graphsSteepest = 1})
                 inData
-                seedList
                 0
                 returnBest
                 returnUnique

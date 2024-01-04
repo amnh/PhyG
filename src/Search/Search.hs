@@ -576,7 +576,6 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
         randIntList = randomIntList rSeed
         randDoubleList = randoms (mkStdGen rSeed) ∷ [Double]
         randSeed0 = randIntList !! 0
-        randSeed1 = randIntList !! 1
 
         -- this for constant access to random doubles need take for infinite list
         -- need to update as more random doubles are needed
@@ -839,7 +838,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "fuseSPR" →
                     let -- fuse arguments
                         -- inGSgs1 = inGS{graphsSteepest = 1}
@@ -853,7 +852,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "fuseTBR" →
                     let -- fuse arguments
                         -- inGSgs1 = inGS{graphsSteepest = 1}
@@ -867,7 +866,7 @@ performSearch inGS' inData' pairwiseDistances keepNum _ totalThetaList maxNetEdg
                             , ("noreciprocal", "")
                             ]
                     in  -- perform search
-                        R.fuseGraphs fuseArgs inGS inData randSeed1 inGraphList <&> (\x → (x, fuseArgs))
+                        R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
                 "networkAdd" →
                     let -- network add args
                         netEditArgs = netAddArgs

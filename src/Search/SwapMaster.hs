@@ -128,8 +128,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 -- parallel setup
                 action ∷ [([Int], Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
                 action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
-            in  do
-                    
+            in  do                    
                     simAnnealParams ←
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
