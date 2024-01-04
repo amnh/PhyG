@@ -50,9 +50,10 @@ buildGraph inArgs inGS inData =
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
         checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
+        failure = failWithPhase Parsing . unwords
     in  -- check for valid command options
         if not checkCommandList
-            then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
+            then failure [ "Unrecognized command in 'build':",  show inArgs ]
             else
                 let -- block build options including number of display trees to return
                     buildBlock = filter ((== "block") . fst) lcArgList
@@ -74,10 +75,10 @@ buildGraph inArgs inGS inData =
 
                     doEUN' = any ((== "eun") . fst) lcArgList
                     doCUN' = any ((== "cun") . fst) lcArgList
-                    doEUN =
-                        if not doEUN' && not doCUN'
-                            then True
-                            else doEUN'
+                    doEUN
+                        | not doEUN' && not doCUN' = True
+                        | otherwise = doEUN'
+                        
                     returnTrees' = any ((== "displaytrees") . fst) lcArgList
                     returnGraph' = any ((== "graph") . fst) lcArgList
                     returnRandomDisplayTrees' = any ((== "atrandom") . fst) lcArgList
@@ -89,13 +90,10 @@ buildGraph inArgs inGS inData =
                     treeGS = inGS{graphType = Tree}
 
                     -- really only trees now--but maybe later if can ensure phylogenetic graph from recocnile
-                    (returnGraph, returnTrees) =
-                        if (graphType inGS) == Tree
-                            then (False, True)
-                            else
-                                if returnGraph' || returnTrees'
-                                    then (returnGraph', returnTrees')
-                                    else (False, True)
+                    (returnGraph, returnTrees) = case graphType inGS of
+                        Tree -> (False, True)
+                        _ | returnGraph' || returnTrees' -> (returnGraph', returnTrees')
+                        _ -> (False, True)
 
                     -- default to return reandom and overrides if both specified
                     (returnRandomDisplayTrees, _) =
@@ -134,8 +132,7 @@ buildGraph inArgs inGS inData =
                                         if buildDistance
                                             then do
                                                 parwisePar ← getParallelChunkTraverse
-                                                distances ← parwisePar pairwiseAction processedDataList
-                                                pure distances
+                                                parwisePar pairwiseAction processedDataList
                                             else pure $ replicate (length processedDataList) []
                                     buildPar ← getParallelChunkTraverse
                                     blockList ← buildPar buildAction (zip distanceMatrixList processedDataList)
@@ -154,46 +151,33 @@ buildGraph inArgs inGS inData =
                             _ → pure firstGraphs'
 
                         -- reporting info
-                        let returnString
-                                | null firstGraphs = "\t\tReturning 0 graphs"
-                                | otherwise =
-                                    unwords
-                                        [ "\tReturning"
-                                        , show $ length firstGraphs
-                                        , "graphs at cost range"
-                                        , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
-                                        ]
+                        let (costString, returnString) = case firstGraphs of
+                                [] -> ("\t\tBlock build returned 0 graphs", "\t\tReturning 0 graphs")
+                                g:gs ->
+                                    let gCosts = snd5 <$> firstGraphs
+                                        hiCost = maximum gCosts
+                                        loCost = minimum gCosts
+                                        suffix = unwords
+                                            [ show $ length firstGraphs
+                                            , "graphs at cost range"
+                                            , fold [ "(", show loCost, ", ", show hiCost, ")" ]
+                                            ]
+                                    in  ("\tBlock build yielded" <> suffix, "\tReturning " <> suffix)
 
-                        let costString
-                                | null firstGraphs = "\t\tBlock build returned 0 graphs"
-                                | otherwise =
-                                    unwords
-                                        [ "\tBlock build yielded"
-                                        , show $ length firstGraphs
-                                        , "graphs at cost range"
-                                        , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
-                                        ]
 
-                        if isNothing numDisplayTrees
-                            then errorWithoutStackTrace ("DisplayTrees specification in build not an integer: " <> show (snd $ head displayBlock))
-                            else
-                                if isNothing numReturnTrees
-                                    then errorWithoutStackTrace ("Return number specifications in build not an integer: " <> show (snd $ head returnList))
-                                    else do
-                                        logWith LogInfo (returnString <> "\n")
-                                        if inputGraphType == Tree || (not . null) buildBlock
-                                            then -- trace ("BB: " <> (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
-
-                                                if null buildBlock
-                                                    then pure firstGraphs
-                                                    else do
-                                                        logWith LogInfo (costString <> "\n")
-                                                        pure firstGraphs
-                                            else do
-                                                logWith LogInfo ("\tRediagnosing as " <> (show (graphType inGS)) <> "\n")
+                        case numDisplayTrees of
+                            Nothing -> failure [ "DisplayTrees specification in build not an integer:", show . snd $ head displayBlock ]
+                            Just nDistplayTrees -> case numReturnTrees of
+                                Nothing -> failure [ "Return number specifications in build not an integer:", show . snd $ head returnList ]
+                                Just nReturnTrees -> do
+                                    logWith LogInfo $ returnString <> "\n"
+                                    case (inputGraphType, buildBlock) of
+                                        (Tree, []) -> pure firstGraphs
+                                        (_, x:xs) -> logWith LogInfo (costString <> "\n") $> firstGraphs
+                                        (_, []) -> do
+                                                logWith LogInfo $ unwords [ "\tRediagnosing as", show $ graphType inGS, "\n" ]
                                                 traversePar ← getParallelChunkTraverse
-                                                traverseList ← traversePar (traverseAction False False Nothing) (fmap fst5 firstGraphs)
-                                                pure traverseList
+                                                traversePar (traverseAction False False Nothing) (fst5 <$> firstGraphs)
 
 
 {- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
@@ -381,7 +365,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                     case treeListFull of
                         [] → errorWithoutStackTrace $ "Distance build is specified, but without any method: " <> show inArgs
                         xs → do
-                            logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs) <> "\n"
+                            logWith LogMore $ getBuildLogMessage "Distance" "yielded" "trees" xs <> "\n"
                             if not simpleTreeOnly
                                 then pure xs
                                 else GO.selectGraphs Best 1 0.0 xs
@@ -408,13 +392,13 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 do
                     -- character build
                     treeList ← WB.rasWagnerBuild inGS inData numReplicates
-                    treeList' ← GO.selectGraphs Best 1 0.0 treeList
                     if simpleTreeOnly
                         then do
-                            logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList') <> "\n"
+                            treeList' ← GO.selectGraphs Best 1 0.0 treeList
+                            logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList' <> "\n"
                             pure treeList'
                         else do
-                            logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList) <> "\n"
+                            logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList <> "\n"
                             pure treeList
 
 
@@ -440,11 +424,11 @@ distanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgroupValue ref
                         False
                         False
                         Nothing
-                        (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph)
-                return $ [result]
+                        . GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph
+                pure [result]
             else
-                let simpleWag = GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph
-                in  return $ [(simpleWag, 0.0, LG.empty, V.empty, charInfoVV)]
+                let simpleWag = GO.renameSimpleGraphNodes . GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) distWagTreeSimpleGraph
+                in  pure [(simpleWag, 0.0, LG.empty, V.empty, charInfoVV)]
 
 
 {- | randomizedDistanceWagner takes Processed data and pairwise distance matrix and returns
@@ -483,7 +467,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
                 pure result
 
         dichotomizeAction ∷ SimpleGraph → SimpleGraph
-        dichotomizeAction = GO.dichotomizeRoot outgroupValue . (LG.switchRootTree (length leafNames))
+        dichotomizeAction = GO.dichotomizeRoot outgroupValue . LG.switchRootTree (length leafNames)
 
         directedGraphAction ∷ TreeWithData → SimpleGraph
         directedGraphAction = DU.convertToDirectedGraphText leafNames outgroupValue . snd4
@@ -521,8 +505,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
                 do
                     -- logWith LogInfo ("L590 :" <> (show $ length randomizedAdditionWagnerSimpleGraphList))
                     traverseFunction ← getParallelChunkTraverse
-                    reOptimizedGraphList ← traverseFunction traverseGraphAction randomizedAdditionWagnerSimpleGraphList
-                    pure reOptimizedGraphList
+                    traverseFunction traverseGraphAction randomizedAdditionWagnerSimpleGraphList
                 else {-
                      return $ PU.seqParMap
                          PU.myStrategyHighLevel
@@ -548,7 +531,7 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
                         do
                             traverseFunction ← getParallelChunkMap
                             let simpleRDWagList = traverseFunction dichotomizeAction randomizedAdditionWagnerSimpleGraphList
-                            return $
+                            pure $
                                 L.zip5
                                     simpleRDWagList
                                     (replicate numTrees 0.0)
@@ -608,10 +591,10 @@ wPGMA simpleTreeOnly inGS inData leafNames distMatrix outgroupValue refinement =
                         False
                         Nothing
                         (GO.renameSimpleGraphNodes $ GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph)
-                return $ [result]
+                pure [result]
             else
                 let simpleWPGMA = GO.dichotomizeRoot outgroupValue $ LG.switchRootTree (length leafNames) wpgmaSimpleGraph
-                in  return [(simpleWPGMA, 0.0, LG.empty, V.empty, charInfoVV)]
+                in  pure [(simpleWPGMA, 0.0, LG.empty, V.empty, charInfoVV)]
 
 
 {-
