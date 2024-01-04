@@ -111,7 +111,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                                                     if firstOption == Refine
                                                         then do
                                                             (elapsedSeconds, newGraphList') ←
-                                                                timeOp $ pure $ REF.refineGraph firstArgs globalSettings processedData curGraphs
+                                                                timeOp . pure $ REF.refineGraph firstArgs globalSettings processedData curGraphs
 
                                                             newGraphList ← newGraphList'
                                                             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"

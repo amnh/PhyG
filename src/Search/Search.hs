@@ -81,6 +81,10 @@ graphBanditList = fmap show [MultiTraverse, SingleTraverse, StaticApproximation]
 
 
 -- | A strict, three-way version of 'uncurry'.
+uncurry' ∷ (Functor f, NFData d) ⇒ (a → b → f d) → (a, b) → f d
+uncurry' f (a, b) = force <$> f a b
+
+-- | A strict, three-way version of 'uncurry'.
 uncurry3' ∷ (Functor f, NFData d) ⇒ (a → b → c → f d) → (a, b, c) → f d
 uncurry3' f (a, b, c) = force <$> f a b c
 
@@ -110,7 +114,7 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
             let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
             let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
             let searchTimed =
-                    uncurry3' $
+                    uncurry' $
                         searchForDuration
                             inGS
                             inData
@@ -126,9 +130,8 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                             threshold
                             0
                             stopNum
-            let infoIndices = [1 ..]
+
             rSeed <- getRandom
-            let seadStreams = randomIntList <$> randomIntList rSeed
 
             logWith
                 LogInfo
@@ -159,7 +162,7 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
             --  threadCount <- (max 1) <$> getNumCapabilities
             let threadCount = instances -- <- (max 1) <$> getNumCapabilities
             let startGraphs = replicate threadCount (inGraphList, mempty)
-            let threadInits = zip3 infoIndices seadStreams startGraphs
+            let threadInits = zip [1 .. ] startGraphs
             resultList ← pooledMapConcurrently searchTimed threadInits -- If there are no input graphs--make some via distance
             let (newGraphList, commentList) = unzip resultList
             let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
@@ -216,10 +219,9 @@ searchForDuration
     → Int
     → Int
     → Int
-    → [Int]
     → ([ReducedPhylogeneticGraph], [String])
     → PhyG ([ReducedPhylogeneticGraph], [String])
-searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction totalThetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex seedList (inGraphList, infoStringList) =
+searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor mFunction totalThetaList counter maxNetEdges inTotalSeconds allotedSeconds stopCount stopNum refIndex (inGraphList, infoStringList) =
     let timeLimit = fromIntegral $ toMicroseconds allotedSeconds
 
         -- this line to keep control of graph number
@@ -233,7 +235,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
 
         searchingInnerOp ∷ PhyG ([ReducedPhylogeneticGraph], [String])
         searchingInnerOp =
-            force $
+            force $ getRandom >>= \rVal ->
                 performSearch
                     inGS
                     inData
@@ -242,7 +244,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                     thompsonSample
                     totalThetaList
                     maxNetEdges
-                    (head seedList)
+                    rVal
                     inTotalSeconds
                     (inGraphList', infoStringList)
 
@@ -330,7 +332,6 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                                 newStopCount
                                 stopNum
                                 refIndex
-                                (tail seedList)
                                 $ bimap (inGraphList <>) (infoStringList <>) output
 
 

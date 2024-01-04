@@ -79,16 +79,8 @@ refineGraph inArgs inGS inData inGraphList =
                         in  -- network edge edits
                             if doNetAdd || doNetDel || doNetAddDel || doNetMov
                                 then netEdgeMaster inArgs inGS inData inGraphList
-                                else -- genetic algorithm
-
-                                    if doGenAlg
-                                        then do
-                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData inGraphList
-                                            pure gaReturn
-                                        else -- genetic algorithm default
-                                        do
-                                            gaReturn ← geneticAlgorithmMaster inArgs inGS inData inGraphList
-                                            pure gaReturn
+                                -- genetic algorithm
+                                else geneticAlgorithmMaster inArgs inGS inData inGraphList
 
 
 -- error "No refinement operation specified"
