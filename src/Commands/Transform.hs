@@ -200,7 +200,7 @@ transform inArgs inGS origData inData rSeed inGraphList =
                                                                             displayGraphList <-
                                                                                 if chooseFirst
                                                                                     then pure $ fmap (take (fromJust numDisplayTrees) . (LG.generateDisplayTrees) contractIn1Out1Nodes) (fmap fst5 inGraphList)
-                                                                                    else mapM (LG.generateDisplayTreesRandom rSeed (fromJust numDisplayTrees)) (fmap fst5 inGraphList)
+                                                                                    else traverse (LG.generateDisplayTreesRandom (fromJust numDisplayTrees)) $ fst5 <$> inGraphList
 
                                                                             -- prob not required
                                                                             let displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)

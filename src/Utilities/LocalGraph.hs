@@ -1,66 +1,37 @@
 {- |
-Module      :  Utilities.LocalGraph.hs
-Description :  Module specifying graph types and functionality
-                This is for indirection so can change underlying graph library
-                without  polutting the rest of the code
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module specifying graph types and functionality.
+This is for indirection so can change underlying graph library without polutting the rest of the code.
 -}
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Utilities.LocalGraph  where
 
-import PHANE.Evaluation
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
+import Control.Parallel.Strategies
+import Cyclic qualified as C
 import Data.Graph.Inductive.Basic qualified as B
+import Data.Graph.Inductive.Graph qualified as G
 import Data.Graph.Inductive.PatriciaTree qualified as P
 import Data.Graph.Inductive.Query.ArtPoint qualified as AP
 import Data.Graph.Inductive.Query.BCC qualified as BCC
 import Data.Graph.Inductive.Query.BFS qualified as BFS
 import Data.Graph.Inductive.Query.DFS qualified as DFS
-import GraphFormatUtilities qualified as GFU
 import Data.GraphViz as GV
-import Data.Text.Lazy qualified as T
-import Control.Parallel.Strategies
-import Cyclic qualified as C
-import Data.Graph.Inductive.Graph qualified as G
 import Data.GraphViz.Commands.IO as GVIO
 import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty qualified as NE
 import Data.Map qualified as MAP
 import Data.Maybe
+import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import GeneralUtilities
+import GraphFormatUtilities qualified as GFU
+import PHANE.Evaluation
+import PHANE.Evaluation.ErrorPhase (ErrorPhase(Computing))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import System.IO
 --import ParallelUtilities qualified as PU
 --import           Debug.Trace
@@ -1916,54 +1887,45 @@ getToFlipEdges parentNodeIndex inEdgeList =
 
 -- | Random generates display trees up to input number by choosing
 -- to keep indegree nodes > 1 unifomaly at random
-generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Int -> Gr a b -> PhyG [Gr a b]
-generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
-  if isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
-  else if isTree inGraph then pure [inGraph]
-  else
-    let atRandomList = take numDisplayTrees $ randomIntList rSeed
-        --resolveAction :: Int -> Gr a b
-        resolveAction = randomlyResolveGraphToTree inGraph
-    in do
-         pMap <- getParallelChunkMap
-         let randDisplayTreeList = pMap resolveAction atRandomList
-         --PU.seqParMap PU.myStrategy  (randomlyResolveGraphToTree inGraph) atRandomList -- `using` PU.myParListChunkRDS
-    
-         pure randDisplayTreeList
+generateDisplayTreesRandom :: forall a b . (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Gr a b -> PhyG [Gr a b]
+generateDisplayTreesRandom numDisplayTrees inGraph
+    | isEmpty inGraph = failWithPhase Computing "Empty graph in generateDisplayTreesRandom"
+    | isTree inGraph  = pure [inGraph]
+    | otherwise =
+        let clonedGraphs :: [Gr a b]
+            clonedGraphs = replicate numDisplayTrees inGraph
+        in  getParallelChunkTraverse >>= \pTraverse -> 
+                randomlyResolveGraphToTree `pTraverse` clonedGraphs
 
--- | randomlyResolveGraphToTree resolves a single graph to a tree by choosing single indegree edges
--- uniformly at random and deleting all others from graph
--- in=out=1 nodes are contracted, HTU's withn outdegree 0 removed, graph reindexed
--- but not renamed--edges from root are left alone.
-randomlyResolveGraphToTree :: (Show a, Show b, Eq a, Eq b) => Gr a b -> Int -> Gr a b
-randomlyResolveGraphToTree inGraph randVal =
-  if isEmpty inGraph then error "Empty graph in randomlyResolveGraphToTree"
-  else
-    let (_, leafList, _, _) = splitVertexList inGraph
-        -- rootEdgeList = fmap (out inGraph) $ fmap fst rootList
-        inEdgeListByVertex = (fmap (inn inGraph) (nodes inGraph)) -- L.\\ rootEdgeList
-        randList = fmap abs $ randomIntList randVal
-        edgesToDelete = concat $ zipWith  chooseOneDumpRest randList  (fmap (fmap toEdge) inEdgeListByVertex)
-        newTree = delEdges edgesToDelete inGraph
-        newTree' = removeNonLeafOut0Nodes leafList newTree
-        newTree'' = contractIn1Out1Edges newTree'
-        reindexTree = reindexGraph newTree''
-    in
-    -- trace ("RRGT\n" <> (prettify inGraph) <> "\n to delete " <> (show edgesToDelete) <> "\nNew graph:\n" <> (prettify newTree)
-    --   <> "\nnewTree'\n" <> (prettify newTree') <> "\nnewTree''\n" <> (prettify newTree'') <> "\reindex\n" <> (prettify reindexTree))
-    reindexTree
+
+{- |
+Resolves a single graph to a tree by choosing single indegree edges
+uniformly at random and deleting all others from graph
+in=out=1 nodes are contracted, HTU's withn outdegree 0 removed, graph reindexed
+but not renamed--edges from root are left alone.
+-}
+randomlyResolveGraphToTree :: (Show a, Show b, Eq a, Eq b) => Gr a b -> PhyG (Gr a b)
+randomlyResolveGraphToTree inGraph
+    | isEmpty inGraph = pure inGraph
+    | otherwise =
+        let (_, leafList, _, _) = splitVertexList inGraph
+            inEdgeListByVertex = inn inGraph <$> nodes inGraph
+        in  do  edgesToDelete <- fmap concat . traverse chooseOneDumpRest $ fmap toEdge <$> inEdgeListByVertex
+                let newTree = delEdges edgesToDelete inGraph
+                let newTree' = removeNonLeafOut0Nodes leafList newTree
+                let newTree'' = contractIn1Out1Edges newTree'
+                let reindexTree = reindexGraph newTree''
+                -- trace ("RRGT\n" <> (prettify inGraph) <> "\n to delete " <> (show edgesToDelete) <> "\nNew graph:\n" <> (prettify newTree)
+                --   <> "\nnewTree'\n" <> (prettify newTree') <> "\nnewTree''\n" <> (prettify newTree'') <> "\reindex\n" <> (prettify reindexTree))
+                pure reindexTree
+
 
 -- | chooseOneDumpRest takes random val and chooses to keep the edge in list returning list of edges to delete
-chooseOneDumpRest :: Int -> [Edge] -> [Edge]
-chooseOneDumpRest randVal inEdgeList =
-  if null inEdgeList then []
-  else if length inEdgeList == 1 then []
-  else
-    let numEdgesIn = length inEdgeList
-        (_, indexToKeep) = divMod randVal numEdgesIn
-    in
-    -- trace ("CODR: " <> (show inEdgeList) <> " keeping " <> (show $ inEdgeList !! indexToKeep) <> " deleting " <> (show $ inEdgeList L.\\ [inEdgeList !! indexToKeep]) <> "based on " <> (show (randVal, indexToKeep)))
-    inEdgeList L.\\ [inEdgeList !! indexToKeep]
+chooseOneDumpRest :: [Edge] -> PhyG [Edge]
+chooseOneDumpRest = \case
+    [] -> pure []
+    x:[] -> pure []
+    x:xs -> fmap NE.tail . shuffleList $ x :| xs 
 
 
 -- | generateDisplayTrees nice wrapper around generateDisplayTrees' with clean interface

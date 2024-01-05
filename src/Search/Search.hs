@@ -133,8 +133,6 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                             0
                             stopNum
 
-            rSeed <- getRandom
-
             logWith
                 LogInfo
                 ( "Randomized seach for "
@@ -158,7 +156,7 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                                 inGS
                                 inData
                                 pairwiseDistances
-                                rSeed
+
                         pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
 
             --  threadCount <- (max 1) <$> getNumCapabilities
@@ -715,7 +713,7 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                             ]
                 _ → pure []
 
-            let builder bArgs = getRandom >>= B.buildGraph bArgs inGS' inData' pairwiseDistances
+            let builder bArgs = B.buildGraph bArgs inGS' inData' pairwiseDistances
             let attach = flip (,)
             let selectUniqueGraphs = pure . GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1)
 
