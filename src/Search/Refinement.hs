@@ -432,7 +432,7 @@ netEdgeMaster
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
 netEdgeMaster inArgs inGS inData inGraphList
-    | null inGraphList = logWith LogInfo "No graphs to edit network edges\n" $> []
+    | null inGraphList = [] <$ logWith LogInfo "No graphs to edit network edges\n"
     | otherwise = case graphType inGS of
         Tree →
             inGraphList

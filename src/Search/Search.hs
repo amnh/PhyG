@@ -102,12 +102,16 @@ search
 search inArgs inGS inData pairwiseDistances inGraphList' =
     -- flatThetaList is the initial prior list (flat) of search (bandit) choices
     -- can also be used in search for non-Thomspon search
-    let flatThetaList =
-            if graphType inGS == Tree
-                then zip treeBanditList (L.replicate (length treeBanditList) (1.0 / (fromIntegral $ length treeBanditList)))
-                else zip fullBanditList (L.replicate (length fullBanditList) (1.0 / (fromIntegral $ length fullBanditList)))
+    let flattenList xs =
+            let count = length xs
+                limit = 1 / fromIntegral count
+            in  zip xs $ L.replicate count limit
 
-        flatGraphBanditList = zip graphBanditList (L.replicate (length graphBanditList) (1.0 / (fromIntegral $ length graphBanditList)))
+        flatGraphBanditList = flattenList graphBanditList
+
+        flatThetaList = flattenList $ case graphType inGS of
+            Tree -> treeBanditList
+            _ -> fullBanditList
 
         totalFlatTheta = flatGraphBanditList <> flatThetaList
     in  do
@@ -115,7 +119,8 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
 
             let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
             let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
-            let searchTimed =
+            let searchTimed :: (Int, ([ReducedPhylogeneticGraph], [String])) -> Evaluation () ([ReducedPhylogeneticGraph], [String])
+                searchTimed =
                     uncurry' $
                         searchForDuration
                             inGS
@@ -146,10 +151,8 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                 )
             -- if initial graph list is empty make some
 
-            inGraphList ←
-                if (length inGraphList' >= keepNum)
-                    then pure inGraphList'
-                    else do
+            inGraphList ← case length inGraphList' `compare` keepNum of
+                LT -> do
                         dWagGraphList ←
                             B.buildGraph
                                 [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
@@ -158,12 +161,16 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                                 pairwiseDistances
 
                         pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
+                _ -> pure inGraphList'
 
-            --  threadCount <- (max 1) <$> getNumCapabilities
             let threadCount = instances -- <- (max 1) <$> getNumCapabilities
             let startGraphs = replicate threadCount (inGraphList, mempty)
-            let threadInits = zip [1 .. ] startGraphs
-            resultList ← pooledMapConcurrently searchTimed threadInits -- If there are no input graphs--make some via distance
+            let threadInits :: [(Int, ([ReducedPhylogeneticGraph], [String]))]
+                threadInits = zip [ 1 .. ] startGraphs
+            -- If there are no input graphs--make some via distance
+            --resultList ← pooledMapConcurrently searchTimed threadInits
+            resultList ← getParallelChunkTraverse >>= \pTraverse ->
+                searchTimed `pTraverse` threadInits
             let (newGraphList, commentList) = unzip resultList
             let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
 
