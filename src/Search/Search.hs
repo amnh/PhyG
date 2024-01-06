@@ -96,10 +96,9 @@ search
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → [[VertexCost]]
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], [[String]])
-search inArgs inGS inData pairwiseDistances inGraphList' =
+search inArgs inGS inData inGraphList' =
     -- flatThetaList is the initial prior list (flat) of search (bandit) choices
     -- can also be used in search for non-Thomspon search
     let flattenList xs =
@@ -125,7 +124,7 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                         searchForDuration
                             inGS
                             inData
-                            pairwiseDistances
+                            [[]]
                             keepNum
                             thompsonSample
                             mFactor
@@ -158,7 +157,6 @@ search inArgs inGS inData pairwiseDistances inGraphList' =
                                 [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
                                 inGS
                                 inData
-                                pairwiseDistances
 
                         pure $ take keepNum $ GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (dWagGraphList <> inGraphList')
                 _ -> pure inGraphList'
@@ -661,7 +659,7 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                     else pure $ GO.selectGraphs Best keepNum 0.0 (-1) inGraphList'
 
             -- Can't do both static approx and multitraverse:False
-            let transformBy xs = TRANS.transform xs inGS' inData' inData' 0 inGraphList''
+            let transformBy xs = TRANS.transform xs inGS' inData' inData' inGraphList''
             newDataMTF ← transformBy [("multitraverse", "false")]
             newDataSA ← transformBy[("staticapprox", [])]
 
@@ -720,7 +718,7 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                             ]
                 _ → pure []
 
-            let builder bArgs = B.buildGraph bArgs inGS' inData' pairwiseDistances
+            let builder bArgs = B.buildGraph bArgs inGS' inData'
             let attach = flip (,)
             let selectUniqueGraphs = pure . GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1)
 
@@ -928,7 +926,7 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
 
             -- process
             uniqueGraphs' ← fmap (take keepNum) . selectUniqueGraphs $ searchGraphs <> inGraphList
-            let transformBy' xs = TRANS.transform xs inGS origData inData 0 uniqueGraphs'
+            let transformBy' xs = TRANS.transform xs inGS origData inData uniqueGraphs'
             newDataMT ← transformBy' [("multiTraverse", "true")]
             newDataT ← transformBy' [("dynamic", [])]
             let (uniqueGraphs, transString)

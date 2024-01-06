@@ -46,8 +46,8 @@ import Utilities.Utilities qualified as U
 with appropriate options
 transforms graph type to Tree for builds then back to initial graph type
 -}
-buildGraph ∷ [Argument] → GlobalSettings → ProcessedData → [[VertexCost]] → PhyG [ReducedPhylogeneticGraph]
-buildGraph inArgs inGS inData pairwiseDistances =
+buildGraph ∷ [Argument] → GlobalSettings → ProcessedData → PhyG [ReducedPhylogeneticGraph]
+buildGraph inArgs inGS inData =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -111,8 +111,8 @@ buildGraph inArgs inGS inData pairwiseDistances =
                     pairwiseAction ∷ ProcessedData → PhyG [[VertexCost]]
                     pairwiseAction = DD.getPairwiseDistances
 
-                    buildAction ∷ ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
-                    buildAction = buildTree' True inArgs treeGS
+                    buildAction ∷ (ProcessedData, [[VertexCost]]) → PhyG [ReducedPhylogeneticGraph]
+                    buildAction = uncurry $ buildTree' True inArgs treeGS 
 
                     traverseAction ∷ Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
                     traverseAction = T.multiTraverseFullyLabelGraphReduced inGS inData -- False False Nothing
@@ -140,7 +140,7 @@ buildGraph inArgs inGS inData pairwiseDistances =
                                                 pure distances
                                             else pure $ replicate (length processedDataList) []
                                     buildPar ← getParallelChunkTraverse
-                                    blockList ← buildPar buildAction (zip distanceMatrixList processedDataList)
+                                    blockList ← buildPar buildAction (zip processedDataList distanceMatrixList)
                                     let blockTrees = concat blockList
 
                                     returnGraphs ←
@@ -272,8 +272,8 @@ reconcileBlockTrees blockTrees numDisplayTrees returnTrees returnGraph returnRan
 {- |
 'buildTree'' wraps build tree and changes order of arguments for mapping.
 -}
-buildTree' ∷ Bool → [Argument] → GlobalSettings → ([[VertexCost]], ProcessedData) → PhyG [ReducedPhylogeneticGraph]
-buildTree' simpleTreeOnly inArgs inGS (pairwiseDistances, inData) =
+buildTree' ∷ Bool → [Argument] → GlobalSettings → ProcessedData → [[VertexCost]] → PhyG [ReducedPhylogeneticGraph]
+buildTree' simpleTreeOnly inArgs inGS inData pairwiseDistances =
     buildTree simpleTreeOnly inArgs inGS inData pairwiseDistances
 
 

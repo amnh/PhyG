@@ -11,7 +11,6 @@ import Commands.ProcessCommands qualified as PC
 import Commands.Verify qualified as V
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Random.Class
 import Data.CSV qualified as CSV
 import Data.Foldable (fold)
 import Data.InfList qualified as IL
@@ -76,7 +75,6 @@ performSearch initialSeed inputFilePath = do
     logWith LogInfo $ "\nCommand script file: '" <> inputFilePath <> "'\n"
     logWith LogInfo $ "Initial random seed set to " <> show initialSeed <> "\n"
     timeCDBegin ← liftIO getCurrentTime
-    seedList ← getRandoms
 
     -- Process commands to get list of actions
     commandContents ← liftIO $ readFile inputFilePath
@@ -114,11 +112,11 @@ performSearch initialSeed inputFilePath = do
         then failWithPhase Unifying "\n\nNeither data nor graphs entered.  Nothing can be done.\n"
         else logWith LogInfo $ unwords ["Entered", show (length rawData), "data file(s) and", show (length rawGraphs), "input graphs\n"]
 
-    -- get set partitions character from Set commands early, the enpty seed list puts in first section--only processing a few fields
+    -- get set partitions character from Set commands early, the isFirst==True puts in first section--only processing a few fields
     -- confusing and should be changed
     let setCommands = filter ((== Set) . fst) thingsToDo
-    (_, partitionCharOptimalityGlobalSettings, _, _) ←
-        CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
+    (_, partitionCharOptimalityGlobalSettings, _) ←
+        CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty setCommands True
 
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     rawDataSplit ← DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
@@ -290,7 +288,7 @@ performSearch initialSeed inputFilePath = do
     let commandsAfterInitialDiagnose = filter ((/= Set) . fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings, seedList', _) ←
+    (_, initialGlobalSettings, _) ←
         CE.executeCommands
             defaultGlobalSettings
             (terminalsToExclude, renameFilePairs)
@@ -301,9 +299,8 @@ performSearch initialSeed inputFilePath = do
             reportingData
             []
             []
-            seedList
-            []
             initialSetCommands
+            False
 
     -- Get CPUTime so far ()data input and processing
     dataCPUTime ← liftIO getCPUTime
@@ -322,11 +319,9 @@ performSearch initialSeed inputFilePath = do
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime ← liftIO getCPUTime
-    let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) =
-            if null inputGraphList
-                then (0, 0, infinity, infinity)
-                else
-                    ( fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime
+    let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) = case inputGraphList of
+            [] -> (0, 0, infinity, infinity)
+            _ ->    ( fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime
                     , length inputGraphList
                     , minimum $ fmap snd5 inputGraphList
                     , maximum $ fmap snd5 inputGraphList
@@ -342,12 +337,8 @@ performSearch initialSeed inputFilePath = do
                 , duration = inputGraphTime
                 }
 
-    -- Create lazy pairwise distances if needed later for build or report
-    -- appears no longer lazy with Eval
-    pairDist ← pure [] -- D.getPairwiseDistances optimizedData
-
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) ←
+    (finalGraphList, _, _) ←
         CE.executeCommands
             (initialGlobalSettings{searchData = [inputGraphProcessing, inputProcessingData]})
             (terminalsToExclude, renameFilePairs)
@@ -357,10 +348,9 @@ performSearch initialSeed inputFilePath = do
             optimizedData
             reportingData
             inputGraphList
-            pairDist
-            seedList'
             []
             commandsAfterInitialDiagnose -- (transformString <> commandsAfterInitialDiagnose)
+            False
 
     -- print global setting just to check
     -- logWith LogInfo (show _finalGlobalSettings)
