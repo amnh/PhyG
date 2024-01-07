@@ -498,63 +498,51 @@ moveAllNetEdges' inGS inData  maxNetEdges numToKeep counter returnMutated doStee
 
                                                         -- get acceptance based on heuristic costs
                                                         uniqueGraphList = GO.selectGraphs Unique numToKeep 0.0 (-1) newGraphList'
-                                                        annealBestCost =
-                                                            if (not . null) uniqueGraphList
-                                                                then min curBestGraphCost (snd5 $ head uniqueGraphList)
-                                                                else curBestGraphCost
-                                                        (acceptFirstGraph, newSAParams) =
-                                                            if (not . null) uniqueGraphList
-                                                                then U.simAnnealAccept inSimAnnealParams annealBestCost (snd5 $ head uniqueGraphList)
-                                                                else (False, U.incrementSimAnnealParams inSimAnnealParams)
-                                                    in  -- trace ("ACG" <> (show acceptFirstGraph) <> " " <> (show $ snd5 $ head uniqueGraphList)) (
-                                                        if (numDone < numMax)
-                                                            then -- this fixes tail fail
+                                                        (annealBestCost, nextUniqueList) = case uniqueGraphList of
+                                                            [] -> (curBestGraphCost, [])
+                                                            (_,cost,_,_,_):more -> (min curBestGraphCost cost, more)
+                                                    in  do
+                                                            (acceptFirstGraph, newSAParams) <- case uniqueGraphList of
+                                                                [] -> pure (False, U.incrementSimAnnealParams inSimAnnealParams)
+                                                                (_,c,_,_,_):_ -> U.simAnnealAccept inSimAnnealParams annealBestCost c
+                                                            case numDone `compare` numMax of
+                                                                LT | acceptFirstGraph -> do
+                                                                    moveAllNetEdges'
+                                                                        inGS
+                                                                        inData
+                                                                        maxNetEdges
+                                                                        numToKeep
+                                                                        (counter + 1)
+                                                                        returnMutated
+                                                                        doSteepest
+                                                                        doRandomOrder
+                                                                        ((head uniqueGraphList) : curBestGraphList, annealBestCost)
+                                                                        newSAParams
+                                                                        (nextUniqueList <> (tail inPhyloGraphList))
 
-                                                                let nextUniqueList =
-                                                                        if (not . null) uniqueGraphList
-                                                                            then tail uniqueGraphList
-                                                                            else []
-                                                                in  if acceptFirstGraph
-                                                                        then do
-                                                                            moveAllNetEdges'
-                                                                                inGS
-                                                                                inData
-                                                                                --rSeed
-                                                                                maxNetEdges
-                                                                                numToKeep
-                                                                                (counter + 1)
-                                                                                returnMutated
-                                                                                doSteepest
-                                                                                doRandomOrder
-                                                                                ((head uniqueGraphList) : curBestGraphList, annealBestCost)
-                                                                                newSAParams
-                                                                                (nextUniqueList <> (tail inPhyloGraphList))
-                                                                        else do
-                                                                            moveAllNetEdges'
-                                                                                inGS
-                                                                                inData
-                                                                                --rSeed
-                                                                                maxNetEdges
-                                                                                numToKeep
-                                                                                (counter + 1)
-                                                                                returnMutated
-                                                                                doSteepest
-                                                                                doRandomOrder
-                                                                                (curBestGraphList, annealBestCost)
-                                                                                newSAParams
-                                                                                (nextUniqueList <> (tail inPhyloGraphList))
-                                                            else -- if want non-optimized list for GA or whatever
+                                                                LT -> do
+                                                                    moveAllNetEdges'
+                                                                        inGS
+                                                                        inData
+                                                                        maxNetEdges
+                                                                        numToKeep
+                                                                        (counter + 1)
+                                                                        returnMutated
+                                                                        doSteepest
+                                                                        doRandomOrder
+                                                                        (curBestGraphList, annealBestCost)
+                                                                        newSAParams
+                                                                        (nextUniqueList <> (tail inPhyloGraphList))
 
-                                                                if returnMutated
-                                                                    then do
-                                                                        pure (take numToKeep curBestGraphList, counter)
-                                                                    else -- optimize list and return
-                                                                    do
+                                                                -- if want non-optimized list for GA or whatever
+                                                                _ | returnMutated -> pure (take numToKeep curBestGraphList, counter)
+
+                                                                -- optimize list and return
+                                                                _ -> do
                                                                         (bestMoveList', counter') ←
                                                                             moveAllNetEdges'
                                                                                 inGS
                                                                                 inData
-                                                                                --rSeed
                                                                                 maxNetEdges
                                                                                 numToKeep
                                                                                 (counter + 1)
@@ -563,14 +551,12 @@ moveAllNetEdges' inGS inData  maxNetEdges numToKeep counter returnMutated doStee
                                                                                 doRandomOrder
                                                                                 ([], annealBestCost)
                                                                                 Nothing
-                                                                                (take numToKeep curBestGraphList)
+                                                                                $ take numToKeep curBestGraphList
                                                                         let bestMoveList = GO.selectGraphs Best numToKeep 0.0 (-1) bestMoveList'
 
                                                                         -- trace ("BM: " <> (show $ snd5 $ head  bestMoveList))
-                                                                        pure (take numToKeep bestMoveList, counter')
+                                                                        pure (take numToKeep bestMoveList, counter') 
 
-
--- )
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 insertAllNetEdges
@@ -1158,12 +1144,10 @@ insertEachNetEdge inGS inData maxNetEdges numToKeep doSteepest doRandomOrder pre
                                                                     pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
                                                                 else -- otherwise do the anneal/Drift accept, or keep going on input graph
 
-                                                                    let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams currentCost minCost
-                                                                    in  if acceptGraph
-                                                                            then do
-                                                                                pure (newGraphList, minCost, newSAParams)
-                                                                            else do
-                                                                                insertEachNetEdge
+                                                                    do  (acceptGraph, nextSAParams) <- U.simAnnealAccept inSimAnnealParams currentCost minCost
+                                                                        case acceptGraph of
+                                                                            True -> pure (newGraphList, minCost, newSAParams)
+                                                                            _ -> insertEachNetEdge
                                                                                     inGS
                                                                                     inData
                                                                                     maxNetEdges
@@ -1276,7 +1260,6 @@ insertNetEdgeRecursive inGS inData maxNetEdges doSteepest doRandomOrder inPhyloG
                                                     insertNetEdgeRecursive
                                                         inGS
                                                         inData
-                                                        --rSeedList
                                                         maxNetEdges
                                                         doSteepest
                                                         doRandomOrder
@@ -1290,30 +1273,24 @@ insertNetEdgeRecursive inGS inData maxNetEdges doSteepest doRandomOrder inPhyloG
                                         -- if better always accept
 
                                             if newGraphCost < snd5 inPhyloGraph
-                                                then -- cyclic check in insert edge function
-                                                -- trace ("INER: Better -> " <> (show $ snd5 newGraph))
-                                                -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
-
-                                                    let (_, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
-                                                    in  do
-                                                            pure (newGraphList, nextSAParams)
+                                                then do -- cyclic check in insert edge function
+                                                        -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
+                                                        (_, nextSAParams) <- U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
+                                                        pure (newGraphList, nextSAParams)
                                                 else -- check if hit step limit--more for SA than drift
 
                                                     if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams))
                                                         || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams))
                                                         then do
                                                             pure ([inPhyloGraph], inSimAnnealParams)
-                                                        else -- otherwise do the anneal/Drift accept
+                                                        else do -- otherwise do the anneal/Drift accept
 
-                                                            let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
-                                                            in  if acceptGraph
-                                                                    then do
-                                                                        pure (newGraphList, nextSAParams)
-                                                                    else do
-                                                                        insertNetEdgeRecursive
+                                                                (acceptGraph, nextSAParams) <-  U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) newGraphCost
+                                                                case acceptGraph of
+                                                                    True -> pure (newGraphList, nextSAParams)
+                                                                    _ -> insertNetEdgeRecursive
                                                                             inGS
                                                                             inData
-                                                                            --rSeedList
                                                                             maxNetEdges
                                                                             doSteepest
                                                                             doRandomOrder
@@ -1322,9 +1299,6 @@ insertNetEdgeRecursive inGS inData maxNetEdges doSteepest doRandomOrder inPhyloG
                                                                             nextSAParams
                                                                             (drop numGraphsToExamine inEdgePairList)
 
-
--- )
--- )
 
 {- | insertNetEdge inserts an edge between two other edges, creating 2 new nodes and rediagnoses graph
 contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
@@ -2357,14 +2331,11 @@ deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force inSimAnne
                                                         || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams))
                                                         then do
                                                             pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
-                                                        else -- otherwise do the anneal/Drift accept, or keep going on input graph
-
-                                                            let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams currentCost minCost
-                                                            in  if acceptGraph
-                                                                    then do
-                                                                        pure (bestCostGraphList, minCost, newSAParams)
-                                                                    else do
-                                                                        deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force nextSAParams inPhyloGraph
+                                                        else do -- otherwise do the anneal/Drift accept, or keep going on input graph
+                                                                (acceptGraph, nextSAParams) <- U.simAnnealAccept inSimAnnealParams currentCost minCost
+                                                                case acceptGraph of 
+                                                                    True -> pure (bestCostGraphList, minCost, newSAParams)
+                                                                    _ -> deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force nextSAParams inPhyloGraph
 
 
 {- | deleteEachNetEdge' is a wrapper around deleteEachNetEdge to allow for zipping new random seeds for each
@@ -2496,25 +2467,21 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
                                         -- if better always accept
 
                                             if (snd5 $ head newPhyloGraphList) < (snd5 inPhyloGraph)
-                                                then -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
-
-                                                    let (_, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) (snd5 $ head newPhyloGraphList)
-                                                    in  do
-                                                            pure (newPhyloGraphList, nextSAParams)
+                                                then do -- these graph costs are "exact" or at least non-heuristic--needs to be updated when get a good heuristic
+                                                        (_, nextSAParams) <- U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) . snd5 $ head newPhyloGraphList
+                                                        pure (newPhyloGraphList, nextSAParams)
                                                 else -- check if hit step limit--more for SA than drift
 
                                                     if ((currentStep $ fromJust inSimAnnealParams) >= (numberSteps $ fromJust inSimAnnealParams))
                                                         || ((driftChanges $ fromJust inSimAnnealParams) >= (driftMaxChanges $ fromJust inSimAnnealParams))
                                                         then do
                                                             pure ([inPhyloGraph], inSimAnnealParams)
-                                                        else -- otherwise do the anneal/Drift accept
+                                                        else do -- otherwise do the anneal/Drift accept
 
-                                                            let (acceptGraph, nextSAParams) = U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) (snd5 $ head newPhyloGraphList)
-                                                            in  if acceptGraph
-                                                                    then do
-                                                                        pure (newPhyloGraphList, nextSAParams)
-                                                                    else do
-                                                                        deleteNetEdgeRecursive inGS inData inPhyloGraph force nextSAParams (drop numGraphsToExamine inEdgeToDeleteList)
+                                                                (acceptGraph, nextSAParams) <- U.simAnnealAccept inSimAnnealParams (snd5 inPhyloGraph) . snd5 $ head newPhyloGraphList
+                                                                case acceptGraph of
+                                                                    True -> pure (newPhyloGraphList, nextSAParams)
+                                                                    _ -> deleteNetEdgeRecursive inGS inData inPhyloGraph force nextSAParams (drop numGraphsToExamine inEdgeToDeleteList)
 
 
 {- | deleteEdge deletes an edge (checking if network) and rediagnoses graph

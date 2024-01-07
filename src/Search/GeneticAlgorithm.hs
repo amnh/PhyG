@@ -193,13 +193,11 @@ mutateGraph inGS inData maxNetEdges inGraph
                 rDrift ← getRandomFrom [5, 10, 20]
                 rSteps ← getRandomFrom [5, 10, 20]
                 rMethod ← getRandomFrom [Drift, SimAnneal]
-                rStream ← getRandoms
                 pure . Just $
                     SAParams
                         { method = rMethod
                         , numberSteps = rSteps
                         , currentStep = 0
-                        , randomIntegerList = rStream
                         , rounds = 1
                         , driftAcceptEqual = 0.5
                         , driftAcceptWorse = 2.0

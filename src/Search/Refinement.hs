@@ -482,50 +482,44 @@ netEdgeMaster inArgs inGS inData inGraphList
 
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
 
-                getSimAnnealParams rVal
-                    | not doAnnealing && not doDrift = pure Nothing
+                getSimAnnealParams
+                    | not doAnnealing && not doDrift = Nothing
                     | otherwise =
                         let steps = max 3 (fromJust steps')
-                            annealingRounds
-                                | isNothing annealingRounds' = 1
-                                | fromJust annealingRounds' < 1 = 1
-                                | otherwise = fromJust annealingRounds'
-
-                            driftRounds
-                                | isNothing driftRounds' = 1
-                                | fromJust driftRounds' < 1 = 1
-                                | otherwise = fromJust driftRounds'
+                            annealingRounds = case annealingRounds' of
+                                Just v | v >= 1 -> v
+                                _ -> 1
+ 
+                            driftRounds = case driftRounds' of
+                                Just v | v >= 1 -> v
+                                _ -> 1
 
                             saMethod
                                 | doDrift && doAnnealing = Drift
                                 | doDrift = Drift
                                 | otherwise = SimAnneal
 
-                            equalProb
-                                | fromJust acceptEqualProb < 0.0 = 0.0
-                                | fromJust acceptEqualProb > 1.0 = 1.0
-                                | otherwise = fromJust acceptEqualProb
+                            equalProb = case acceptEqualProb of
+                                Nothing -> 0
+                                Just v | v > 1 -> 1
+                                Just v | v < 0 -> 0
+                                Just v -> v
 
                             worseFactor = max (fromJust acceptWorseFactor) 0.0
 
-                            changes =
-                                if fromJust maxChanges < 0
-                                    then 15
-                                    else fromJust maxChanges
-                        in  do
-                                let saValues =
-                                        SAParams
-                                            { method = saMethod
-                                            , numberSteps = steps
-                                            , currentStep = 0
-                                            , randomIntegerList = randomIntList rVal
-                                            , rounds = max annealingRounds driftRounds
-                                            , driftAcceptEqual = equalProb
-                                            , driftAcceptWorse = worseFactor
-                                            , driftMaxChanges = changes
-                                            , driftChanges = 0
-                                            }
-                                pure $ Just saValues
+                            changes = case maxChanges of
+                                Just v | v >= 0 -> v
+                                _ -> 15
+                        in  Just $ SAParams
+                                { method = saMethod
+                                , numberSteps = steps
+                                , currentStep = 0
+                                , rounds = max annealingRounds driftRounds
+                                , driftAcceptEqual = equalProb
+                                , driftAcceptWorse = worseFactor
+                                , driftMaxChanges = changes
+                                , driftChanges = 0
+                                }
 
                 -- parallel stuff
                 insertAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
@@ -581,11 +575,11 @@ netEdgeMaster inArgs inGS inData inGraphList
                         doSteepest
                         doRandomOrder
                         ([], infinity)
+
+                simAnnealParams = getSimAnnealParams
+                -- create simulated annealing random lists uniquely for each fmap
+                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
             in  do
-                    rSeed ← getRandom
-                    simAnnealParams ← getSimAnnealParams rSeed
-                    -- create simulated annealing random lists uniquely for each fmap
-                    let newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
 
                     -- perform add/delete/move operations
                     {-

@@ -278,13 +278,11 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                         then 15
                         else fromJust maxChanges
 
-                getResult = do
-                    rStream <- getRandoms
-                    pure . Just $ SAParams
+                getResult =
+                    Just $ SAParams
                         { method = saMethod
                         , numberSteps = steps
                         , currentStep = 0
-                        , randomIntegerList = rStream
                         , rounds = max annealingRounds driftRounds
                         , driftAcceptEqual = equalProb
                         , driftAcceptWorse = worseFactor
@@ -296,7 +294,7 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                         logWith
                             LogWarn
                             "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
-                    getResult
+                    pure $ getResult
 
 
 -- | getSwapParams takes areg list and preocesses returning parameter values

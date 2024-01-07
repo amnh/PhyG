@@ -1447,32 +1447,33 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                                 | otherwise = mempty
                         case toList sprResult of
                             -- spr better than current
-                            (_, cost, _, _, _) : _ →
-                                let (_, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost cost
-                                in  -- trace ("SPR found better " <> show newCost)
-                                    pure (sprResult, newSAParams)
+                            (_, cost, _, _, _) : _ → do
+                                (_, newSAParams) <- U.simAnnealAccept inSimAnnealParams curBestCost cost
+                                pure (sprResult, newSAParams)
                             -- do simAnneal/Drift for SPR and on to tbr if not accept
-                            [] → case U.simAnnealAccept inSimAnnealParams curBestCost (sprReJoinCost + splitCost) of
-                                -- if accepted (better or random) then return with updated annealing/Drift parameters
-                                (True, newSAParams) → pure ([rediagnosedSPRGraph], newSAParams)
-                                -- rejected-recurse with updated SA params
-                                (False, newSAParams) → case swapType swapParams of
-                                    SPR → pure (mempty, newSAParams)
-                                    _ | length edgesInPrunedGraph < 4 → pure (mempty, newSAParams)
-                                    _ →
-                                        tbrJoin
-                                            swapParams
-                                            inGS
-                                            inData
-                                            splitGraph
-                                            splitGraphSimple
-                                            splitCost
-                                            prunedGraphRootIndex
-                                            originalConnectionOfPruned
-                                            curBestCost
-                                            edgesInPrunedGraph'
-                                            newSAParams
-                                            targetEdge
+                            [] → do
+                                    acceptance <- U.simAnnealAccept inSimAnnealParams curBestCost (sprReJoinCost + splitCost)
+                                    case acceptance of
+                                        -- if accepted (better or random) then return with updated annealing/Drift parameters
+                                        (True, newSAParams) → pure ([rediagnosedSPRGraph], newSAParams)
+                                        -- rejected-recurse with updated SA params
+                                        (False, newSAParams) → case swapType swapParams of
+                                            SPR → pure (mempty, newSAParams)
+                                            _ | length edgesInPrunedGraph < 4 → pure (mempty, newSAParams)
+                                            _ →
+                                                tbrJoin
+                                                    swapParams
+                                                    inGS
+                                                    inData
+                                                    splitGraph
+                                                    splitGraphSimple
+                                                    splitCost
+                                                    prunedGraphRootIndex
+                                                    originalConnectionOfPruned
+                                                    curBestCost
+                                                    edgesInPrunedGraph'
+                                                    newSAParams
+                                                    targetEdge
 
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
@@ -1744,41 +1745,39 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                                     -- if better always return it--hope this conditions short circuits so don't fully diagnose graph all the time
                                     if minDelta < curBestCost && newMinCost < curBestCost
-                                        then
-                                            let (_, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost newMinCost
-                                            in  -- trace ("TBR SA Drift better: " <> (show $ driftChanges $ fromJust newSAParams))
-                                                pure ([newMinGraph], newSAParams)
+                                        then do
+                                            (_, newSAParams) <- U.simAnnealAccept inSimAnnealParams curBestCost newMinCost
+                                            pure ([newMinGraph], newSAParams)
                                         else -- check if hit step limit--more for SA than drift
 
                                             if ((currentStep simAnnealParams) >= (numberSteps simAnnealParams))
                                                 || ((driftChanges simAnnealParams) >= (driftMaxChanges simAnnealParams))
                                                 then pure ([], inSimAnnealParams)
-                                                else
-                                                    let (acceptGraph, newSAParams) = U.simAnnealAccept inSimAnnealParams curBestCost minDelta
-                                                    in  -- banner = if newMinCost <  curBestCost then "TBR heur better"
-                                                        --         else "TBR Accepted not better"
-
-                                                        -- if accepted (better or random) then return with updated annealing/Drift parameters
-                                                        if acceptGraph
-                                                            then -- trace (banner <> (show $ driftChanges $ fromJust newSAParams))
-                                                                pure ([newMinGraph], newSAParams)
-                                                            else -- rejected--recurse wirth updated params
+                                                else do
+                                                    (acceptGraph, newSAParams) <- U.simAnnealAccept inSimAnnealParams curBestCost minDelta
+                                                    -- banner = if newMinCost <  curBestCost then "TBR heur better"
+                                                    --         else "TBR Accepted not better"
+                                                    -- if accepted (better or random) then return with updated annealing/Drift parameters
+                                                    if acceptGraph
+                                                        then -- trace (banner <> (show $ driftChanges $ fromJust newSAParams))
+                                                            pure ([newMinGraph], newSAParams)
+                                                        else -- rejected--recurse wirth updated params
 
                                                             -- trace ("TBR SA Drift Reject: " <> (show $ driftChanges $ fromJust newSAParams))
 
-                                                                tbrJoin
-                                                                    swapParams
-                                                                    inGS
-                                                                    inData
-                                                                    splitGraph
-                                                                    splitGraphSimple
-                                                                    splitCost
-                                                                    prunedGraphRootIndex
-                                                                    originalConnectionOfPruned
-                                                                    curBestCost
-                                                                    (drop numEdgesToExamine edgesInPrunedGraph)
-                                                                    newSAParams
-                                                                    targetEdge
+                                                            tbrJoin
+                                                                swapParams
+                                                                inGS
+                                                                inData
+                                                                splitGraph
+                                                                splitGraphSimple
+                                                                splitCost
+                                                                prunedGraphRootIndex
+                                                                originalConnectionOfPruned
+                                                                curBestCost
+                                                                (drop numEdgesToExamine edgesInPrunedGraph)
+                                                                newSAParams
+                                                                targetEdge
 
 
 -- | rerootPrunedAndMakeGraph reroots the pruned graph component on the rerootEdge and joins to base gaph at target edge
