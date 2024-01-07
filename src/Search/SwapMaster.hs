@@ -133,7 +133,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
                     -- create simulated annealing random lists uniquely for each fmap
-                    let newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
+                    let newSimAnnealParamList = replicate numGraphs simAnnealParams
 
                     let progressString
                             | (not doAnnealing && not doDrift) =
@@ -183,17 +183,16 @@ swapMaster inArgs inGS inData inGraphListInput =
                     rStreamList ← U.generateRandIntLists numGraphs
                     
                     let simAnnealList = (: []) <$> zip3 rStreamList newSimAnnealParamList inGraphList
-                    swapPar ← getParallelChunkTraverse
-                    graphPairList ← swapPar action simAnnealList
+                    graphPairList ← getParallelChunkTraverse >>= \pTraverse ->
+                        action `pTraverse` simAnnealList
                     -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
 
                     let (graphListList, counterList) = unzip graphPairList
                     let (newGraphList, counter) = (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
 
-                    let finalGraphList =
-                            if null newGraphList
-                                then inGraphList
-                                else newGraphList
+                    let finalGraphList = case newGraphList of
+                            [] -> inGraphList
+                            _ -> newGraphList
 
                     let fullBuffWarning =
                             if length newGraphList >= (fromJust keepNum)

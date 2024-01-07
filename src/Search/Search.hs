@@ -109,8 +109,8 @@ search inArgs inGS inData inGraphList' =
         flatGraphBanditList = flattenList graphBanditList
 
         flatThetaList = flattenList $ case graphType inGS of
-            Tree -> treeBanditList
-            _ -> fullBanditList
+            Tree → treeBanditList
+            _ → fullBanditList
 
         totalFlatTheta = flatGraphBanditList <> flatThetaList
     in  do
@@ -118,7 +118,7 @@ search inArgs inGS inData inGraphList' =
 
             let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
             let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
-            let searchTimed :: (Int, ([ReducedPhylogeneticGraph], [String])) -> Evaluation () ([ReducedPhylogeneticGraph], [String])
+            let searchTimed ∷ (Int, ([ReducedPhylogeneticGraph], [String])) → Evaluation () ([ReducedPhylogeneticGraph], [String])
                 searchTimed =
                     uncurry' $
                         searchForDuration
