@@ -128,7 +128,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 -- parallel setup
                 action ∷ [([Int], Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
                 action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
-            in  do                    
+            in  do
                     simAnnealParams ←
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
@@ -181,7 +181,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
                     rStreamList ← U.generateRandIntLists numGraphs
-                    
+
                     let simAnnealList = (: []) <$> zip3 rStreamList newSimAnnealParamList inGraphList
                     graphPairList ← getParallelChunkTraverse >>= \pTraverse ->
                         action `pTraverse` simAnnealList
@@ -250,32 +250,31 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
    | not doAnnealing && not doDrift = pure Nothing
    | otherwise =
             let steps = max 3 (fromJust steps')
-                annealingRounds
-                    | isNothing annealingRounds' = 1
-                    | fromJust annealingRounds' < 1 = 1
-                    | otherwise = fromJust annealingRounds'
 
-                driftRounds
-                    | isNothing driftRounds' = 1
-                    | fromJust driftRounds' < 1 = 1
-                    | otherwise = fromJust driftRounds'
+                annealingRounds = case annealingRounds' of
+                    Just v | 1 <= v -> v
+                    _ -> 1
+
+                driftRounds = case driftRounds' of
+                    Just v | 1 <= v -> v
+                    _ -> 1
 
                 saMethod
                     | doDrift && doAnnealing = Drift
                     | doDrift = Drift
                     | otherwise = SimAnneal
 
-                equalProb
-                    | fromJust acceptEqualProb < 0.0 = 0.0
-                    | fromJust acceptEqualProb > 1.0 = 1.0
-                    | otherwise = fromJust acceptEqualProb
+                equalProb = case acceptEqualProb of
+                    Nothing -> 0
+                    Just v | v > 1 -> 1
+                    Just v | v < 0 -> 0
+                    Just v -> v
 
                 worseFactor = max (fromJust acceptWorseFactor) 0.0
 
-                changes =
-                    if fromJust maxChanges < 0
-                        then 15
-                        else fromJust maxChanges
+                changes = case maxChanges of
+                    Just num | num >= 0 -> num
+                    _ -> 15
 
                 getResult =
                     Just $ SAParams
