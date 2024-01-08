@@ -155,8 +155,8 @@ makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList myVertex =
           action = makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList
 
       in do
-          recursePar <- getParallelChunkTraverse
-          myChildrenNodes <- recursePar action myChildren
+          myChildrenNodes <- getParallelChunkTraverse >>= \pTraverse ->
+               action `pTraverse` myChildren
             -- PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves leafNodes out1VertexList) myChildren -- `using` PU.myParListChunkRDS
 
           let rawBV = BV.or $ fmap (snd . head) myChildrenNodes
@@ -185,8 +185,8 @@ getNodesFromARoot inGraph nLeaves leafNodes rootVertex =
     in do
         -- recurse to children since assume only leaves can be labbeled with BV.BVs
         -- fmap becasue could be > 2 (as in at root)
-        recursePar <- getParallelChunkTraverse
-        rootChildNewNodes <- recursePar action rootChildVerts
+        rootChildNewNodes <- getParallelChunkTraverse >>= \pTraverse ->
+            action `pTraverse` rootChildVerts
             -- rootChildNewNodes = PU.seqParMap PU.myStrategyRDS (makeNodeFromChildren inGraph nLeaves (V.fromList leafNodes) out1VertexList) rootChildVerts -- `using` PU.myParListChunkRDS
 
         -- check if outdegree = 1
@@ -812,8 +812,8 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
         -- intersectionAction = getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes
   in do
         -- Reformat graphs with appropriate annotations, BV.BVs, etc
-        reAnnotatePar <- getParallelChunkTraverse 
-        processedGraphs <- reAnnotatePar reAnnotate inputGraphList
+        processedGraphs <- getParallelChunkTraverse >>= \pTraverse ->
+            reAnnotate `pTraverse` inputGraphList
           -- PU.seqParMap PU.myStrategyRDS reAnnotateGraphs inputGraphList -- `using` PU.myParListChunkRDS
 
         -- Create lists of reindexed unique nodes and edges, identity by BV.BVs

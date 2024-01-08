@@ -1391,16 +1391,14 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                         else
                                             if "diagnosis" `elem` commandList
                                                 then do
-                                                    -- action :: SimpleGraph -> ReducedPhylogeneticGraph
-                                                    let action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
-                                                    pTraverse ← getParallelChunkTraverse
-                                                    rediagnosedGraph ← pTraverse action (fmap fst5 curGraphs)
-
-                                                    let curGraphs' =
-                                                            if not (reportNaiveData globalSettings)
-                                                                then curGraphs
-                                                                else rediagnosedGraph
-                                                    -- else PU.seqParMap (parStrategy $ strictParStrat globalSettings) (TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing) (fmap fst5 curGraphs)
+                                                    curGraphs' <-
+                                                        if not (reportNaiveData globalSettings)
+                                                        then pure curGraphs
+                                                        else
+                                                            let action :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
+                                                                action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
+                                                            in  getParallelChunkTraverse >>= \pTraverse ->
+                                                                    (action . fst5) `pTraverse` curGraphs
 
                                                     let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
                                                     if null curGraphs
@@ -1563,20 +1561,16 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                             logWith LogInfo "No graphs to create implied alignments for TNT output\n"
                                                                                                                             pure ("No impliedAlgnments for TNT to report", outfileName, writeMode)
                                                                                                                         else do
-                                                                                                                            -- action :: SinmpleGraph -> ReducedPhylogeneticGraph
-                                                                                                                            let action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
-                                                                                                                            pTraverse ← getParallelChunkTraverse
-                                                                                                                            reoptimizedGraphs ← pTraverse action (fmap fst5 curGraphs)
-                                                                                                                            let curGraphs' =
-                                                                                                                                    if not (reportNaiveData globalSettings)
-                                                                                                                                        then (fmap GO.convertReduced2PhylogeneticGraph curGraphs)
-                                                                                                                                        else reoptimizedGraphs
-                                                                                                                            -- PU.seqParMap
-                                                                                                                            --     (parStrategy $ strictParStrat globalSettings)
-                                                                                                                            --     (TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing)
-                                                                                                                            --     (fmap fst5 curGraphs)
+                                                                                                                            curGraphs' ←
+                                                                                                                                if not (reportNaiveData globalSettings)
+                                                                                                                                    then pure $ GO.convertReduced2PhylogeneticGraph <$> curGraphs
+                                                                                                                                    else
+                                                                                                                                        let action :: SimpleGraph -> PhyG PhylogeneticGraph
+                                                                                                                                            action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
+                                                                                                                                        in  getParallelChunkTraverse >>= \pTraverse ->
+                                                                                                                                                pTraverse (action . fst5) curGraphs  
 
-                                                                                                                            tntContentList' ← mapM (getTNTString globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
+                                                                                                                            tntContentList' ← traverse (getTNTString globalSettings processedData) $ zip curGraphs' [ 0 .. length curGraphs' - 1 ]
                                                                                                                             let tntContentList = concat tntContentList'
                                                                                                                             pure (tntContentList, outfileName, writeMode)
                                                                                                                 else do

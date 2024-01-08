@@ -12,6 +12,7 @@ import Control.Monad (filterM, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.Foldable (fold, toList)
+import Data.Functor ((<&>))
 import Data.List qualified as L
 import Data.Maybe
 import Data.Vector qualified as V
@@ -211,9 +212,8 @@ swapSPRTBR' swapParams inGS inData inCounter (randomIntListSwap, inSimAnnealPara
                                 -- TODO
                                 -- (annealDriftGraphs', anealDriftCounterList, _) = unzip3 $ (PU.seqParMap (parStrategy $ lazyParStrat inGS) (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList) -- `using` PU.myParListChunkRDS)
                                 do
-                                    swapPar ← getParallelChunkTraverse
-                                    swapResult ← swapPar (action inGraphNetPenaltyFactor) newSimAnnealParamList
-                                    -- mapM (swapAll swapParams inGS inData randomIntListSwap 0 (snd5 inGraph) [] [inGraph] numLeaves inGraphNetPenaltyFactor) newSimAnnealParamList
+                                    swapResult ← getParallelChunkTraverse >>= \pTraverse ->
+                                        pTraverse (action inGraphNetPenaltyFactor) newSimAnnealParamList
                                     let (annealDriftGraphs', anealDriftCounterList, _) = unzip3 swapResult
 
                                     -- annealed/Drifted 'mutated' graphs
@@ -1029,9 +1029,8 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     edgesInPrunedGraph
                                                     inSimAnnealParams
                                         in  do
-                                                rejoinPar ← getParallelChunkTraverse
-                                                rejoinResult ← rejoinPar action rejoinEdges
-                                                let rejoinGraphList = concat $ fmap fst rejoinResult
+                                                rejoinGraphList ← getParallelChunkTraverse >>= \pTraverse ->
+                                                    fold <$> pTraverse (fmap fst . action) rejoinEdges
                                                 {-
                                                 rejoinOperation = fst . singleJoin
                                                     swapParams
@@ -1097,11 +1096,8 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     edgesInPrunedGraph
                                                     inSimAnnealParams
                                         in  do
-                                                -- rejoinGraphList = concatMap (singleJoin swapType steepest inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost doIA prunedGraphRootIndex originalConnectionOfPruned charInfoVV curBestCost edgesInPrunedGraph) rejoinEdgeList `using` PU.myParListChunkRDS
-                                                joinPar ← getParallelChunkTraverse
-                                                joinResult ← joinPar action rejoinEdgeList
-                                                let rejoinGraphList = concat $ fmap fst $ joinResult
-                                                -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (singleJoin swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph inSimAnnealParams) rejoinEdgeList
+                                                rejoinGraphList ← getParallelChunkTraverse >>= \pTraverse ->
+                                                    fold <$> pTraverse (fmap fst . action) rejoinEdgeList
 
                                                 -- newGraphList = fmap (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
                                                 let newGraphList' = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) rejoinGraphList -- newGraphList
@@ -1204,9 +1200,8 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                     curBestCost
                                     edgesInPrunedGraph
                         in  do
-                                joinPar ← getParallelChunkTraverse
-                                rejoinGraphPairList ← joinPar action (zip simAnnealParamList rejoinEdgeList)
-                                -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (singleJoin' swapParams inGS inData reoptimizedSplitGraph splitGraphSimple splitGraphCost prunedGraphRootIndex originalConnectionOfPruned curBestCost edgesInPrunedGraph) (zip simAnnealParamList rejoinEdgeList)
+                                rejoinGraphPairList ← getParallelChunkTraverse >>= \pTraverse ->
+                                    pTraverse action $ zip simAnnealParamList rejoinEdgeList
 
                                 -- mechanics to see if trhere is a better graph in return set
                                 -- only taking first of each list--so can keep sa params with them--really all should have length == 1 anyway
@@ -1589,8 +1584,8 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                                         -- check for graph wierdness
                                         -- rediagnosedGraphList = filter (not . GO.parentsInChainGraph . thd5) $ filter ((<= curBestCost) . snd5) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
-                                        reoptimizePar ← getParallelChunkTraverse
-                                        rediagnosedGraphList' ← reoptimizePar reoptimizeAction candidateJoinedGraphList
+                                        rediagnosedGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
+                                            reoptimizeAction `pTraverse` candidateJoinedGraphList
                                         let rediagnosedGraphList = filter ((<= curBestCost) . snd5) rediagnosedGraphList'
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
 
@@ -1620,27 +1615,24 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                             in  do
                                     -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    makeEdgePar ← getParallelChunkMap
-                                    let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
-                                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
+                                    rerootEdgeDataList ← getParallelChunkMap <&> \pMap ->
+                                        makeEdgeAction `pMap` rerootEdgeList
 
-                                    joinPar ← getParallelChunkMap
-                                    let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
-                                    -- let rerootEdgeDeltaList = fmap (+ splitCost) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
+                                    rerootEdgeDeltaList' ← getParallelChunkMap <&> \pMap ->
+                                        joinAction `pMap` rerootEdgeDataList
+
                                     let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
                                     -- check for possible better/equal graphs and verify
                                     let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                                     let candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
 
-                                    rerootPar ← getParallelChunkMap
-                                    let candidateJoinedGraphList = rerootPar rerootAction candidateEdgeList
-                                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
+                                    candidateJoinedGraphList ← getParallelChunkMap <&> \pMap ->
+                                        rerootAction `pMap` candidateEdgeList
 
-                                    reoptimizePar ← getParallelChunkTraverse
-                                    rediagnosedGraphList' ← reoptimizePar reoptimizeAction candidateJoinedGraphList
+                                    rediagnosedGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
+                                        reoptimizeAction `pTraverse` candidateJoinedGraphList
                                     let rediagnosedGraphList = filter ((<= curBestCost) . snd5) rediagnosedGraphList'
-                                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList-- get
 
                                     -- trace ("TBR steepest: " <> (show $ length rerootEdgeList) <> " edges to go " <> (show $ length $ (drop numEdgesToExamine edgesInPrunedGraph))) (
                                     if null candidateEdgeList
@@ -1714,23 +1706,10 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                                 else []
 
                                     -- check for possible better/equal graphs and verify
-                                    -- rerootPar ← getParallelChunkMap
-                                    -- let candidateJoinedGraphList = rerootPar rerootAction minEdgeList
-                                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) minEdgeList
-
-                                    rediagnosedGraphList ←
-                                        if (not . null) minEdgeList
-                                            then do
-                                                rerootPar ← getParallelChunkMap
-                                                let candidateJoinedGraphList = rerootPar rerootAction minEdgeList
-                                                reoptimizePar ← getParallelChunkTraverse
-                                                reoptimizeResult ← reoptimizePar reoptimizeAction candidateJoinedGraphList
-                                                pure reoptimizeResult
-                                            else pure []
-
-                                    -- reoptimizePar ← getParallelChunkTraverse
-                                    -- rediagnosedGraphList ← reoptimizePar reoptimizeAction candidateJoinedGraphList
-                                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
+                                    rediagnosedGraphList ← case minEdgeList of
+                                        [] -> pure []
+                                        xs -> getParallelChunkTraverse >>= \pTraverse ->
+                                            (reoptimizeAction . rerootAction) `pTraverse` xs
 
                                     let newMinCost =
                                             if (not . null) minEdgeList

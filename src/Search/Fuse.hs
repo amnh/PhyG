@@ -69,7 +69,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                 -- get net penalty estimate from optimal graph for delta recombine later
                 -- Nothing here so starts at overall root
                 inGraphNetPenalty <- T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
-                    
+
                 let inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
 
                 -- get fuse pairs
@@ -85,12 +85,10 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                 -- could be fusePairRecursive to save on memory
                 -- action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
                 let action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
-   
-                --        newGraphList' <- mapM (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
-                {--}
-                pTraverse ← getParallelChunkTraverse
-                newGraphList' ← pTraverse action graphPairList
-                {--}
+
+                newGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
+                    pTraverse action graphPairList
+
                 let newGraphList = concat newGraphList'
 
                 let fuseBest =
@@ -197,12 +195,9 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
                 action = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal
             in  do
                     -- paralleized high level
-                    -- fusePairResult = concat $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) (take numPairsToExamine leftRightList)
-                    fusePair ← getParallelChunkTraverse
-                    fusePairResult' ← fusePair action (take numPairsToExamine leftRightList)
-                    -- mapM (fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal) $ take numPairsToExamine leftRightList
+                    fusePairResult' ← getParallelChunkTraverse >>= \pTraverse ->
+                         action `pTraverse` take numPairsToExamine leftRightList
                     let fusePairResult = concat fusePairResult'
-                    -- fusePairResult = fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (head leftRightList)
 
                     bestResultList <-
                             if graphType inGS == Tree
@@ -297,16 +292,16 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                     in  do
                             splitLeftPar ← getParallelChunkMap
                             let leftSplitTupleList = splitLeftPar splitLeftAction leftBreakEdgeList
-                             
+
                             let (_, _, leftPrunedGraphRootIndexList, leftOriginalConnectionOfPrunedList, leftOriginalEdgeList, _) = L.unzip6 leftSplitTupleList
-                             
+
                             let leftPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab leftDecoratedGraph) leftPrunedGraphRootIndexList
 
                             splitRightPar ← getParallelChunkMap
                             let rightSplitTupleList = splitRightPar splitRightAction rightBreakEdgeList
-                             
+
                             let (_, _, rightPrunedGraphRootIndexList, rightOriginalConnectionOfPrunedList, rightOriginalEdgeList, _) = L.unzip6 rightSplitTupleList
-                             
+
                             let rightPrunedGraphBVList = fmap bvLabel $ fmap fromJust $ fmap (LG.lab rightDecoratedGraph) rightPrunedGraphRootIndexList
 
                             -- get all pairs of split graphs
@@ -338,12 +333,9 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                         , leftRightOriginalConnectionOfPrunedList
                                         ) =
                                         L.unzip5 exchangeLeftResult
-                                
-                                reoptimizeLeftPar ← getParallelChunkTraverse
-                                leftRightOptimizedSplitGraphCostList ←
-                                    reoptimizeLeftPar
-                                        reoptimizeAction
-                                        (zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList)
+
+                                leftRightOptimizedSplitGraphCostList ← getParallelChunkTraverse >>= \pTraverse ->
+                                    pTraverse reoptimizeAction $ zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
                                 let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
 
@@ -363,14 +355,14 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                                     leftRightPrunedRootIndexList
                                                     leftRightPrunedParentRootIndexList
                                                     leftRightOriginalConnectionOfPrunedList
-                               
+
                                 -- re-add pruned component to base component left-right and right-left
                                 -- need curent best cost
                                 let curBetterCost = min (snd5 leftGraph) (snd5 rightGraph)
 
                                 -- get network penalty factors to pass on
                                 leftPenalty <- getNetworkPentaltyFactor inGS inData (snd5 leftGraph) leftGraph
-                                rightPenalty <- getNetworkPentaltyFactor inGS inData (snd5 rightGraph) rightGraph        
+                                rightPenalty <- getNetworkPentaltyFactor inGS inData (snd5 rightGraph) rightGraph
                                 let networkCostFactor = min leftPenalty rightPenalty
 
                                 -- left and right root indices should be the same
@@ -401,13 +393,9 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                                                         ) =
                                                                         L.unzip5 exchangeRightResult
 
-                                                                reoptimizeRightPar ← getParallelChunkTraverse
-                                                                rightLeftOptimizedSplitGraphCostList ←
-                                                                    reoptimizeRightPar
-                                                                        reoptimizeAction
-                                                                        (zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList)
-                                                                
-                                                                
+                                                                rightLeftOptimizedSplitGraphCostList ← getParallelChunkTraverse >>= \pTraverse ->
+                                                                    pTraverse reoptimizeAction $ zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+
                                                                 let ( _
                                                                         , rightLeftOptimizedSplitGraphCostList'
                                                                         , _
@@ -509,10 +497,8 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                     -- alternate -- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
                 in  do
                         -- do "all additions" -
-                        pTraverse ← getParallelChunkTraverse
-                        recombinedGraphList' ← pTraverse action graphDataList
+                        recombinedGraphList' ← getParallelChunkTraverse >>= \pTraverse -> pTraverse action graphDataList
                         let recombinedGraphList = concat recombinedGraphList'
-                        
 
                         -- this based on heuristic deltas
                         let bestFuseCost =
@@ -526,9 +512,6 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                                     then pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) recombinedGraphList
                                     else pure []
 
-
--- )
--- )
 
 {- | rejoinGraphTupleRecursive is a wrapper for S.rejoinGraphTuple that recursively goes through list as opposd to parMapping
 this to save on memory footprint since there would be many calls generated
@@ -619,7 +602,7 @@ getNetworkPentaltyFactor inGS inData graphCost inGraph =
                                             if (graphFactor inGS) == Wheeler2023Network
                                                 then pure $ POSW.getW23NetPenaltyReduced inGraph
                                                 else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
-            
+
             pure $ inGraphNetPenalty / graphCost
 
 

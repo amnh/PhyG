@@ -411,12 +411,8 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                                     if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData))
                                         then -- trace ("\t\tCannot update cost with original data--skipping")
                                             pure inGraphList
-                                        else do
-                                            -- let newGraphList = PU.seqParMap PU.myStrategy  (multiTraverseFullyLabelGraphReduced inGS reportingData False False Nothing) (fmap fst5 inGraphList)
-                                            -- in
-                                            traversePar ← getParallelChunkTraverse
-                                            newGraphList ← traversePar traverseAction (fmap fst5 inGraphList)
-                                            pure newGraphList
+                                        else getParallelChunkTraverse >>= \pTraverse ->
+                                                 (traverseAction . fst5) `pTraverse` inGraphList
 
                                 logWith LogInfo ("\tFinalizing graph cost (updating NCM)" <> "\n")
                                 pure updatedGraphList

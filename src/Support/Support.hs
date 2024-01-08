@@ -681,37 +681,28 @@ getGBTuples
     → [(Int, Int, NameBV, NameBV, VertexCost)]
     → ReducedPhylogeneticGraph
     → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
-getGBTuples inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph =
+getGBTuples inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph = do
     -- traverse swap (SPR/TBR) neighborhood optimizing each graph fully
-    let -- parallel stuff
-        deleteAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
-        deleteAction = updateDeleteTuple inGS inData inGraph
+    swapTuples ← performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
+    case graphType inGS of
+        -- swap only for Tree-do nothing
+        Tree -> pure swapTuples
+        _ | LG.isTree (fst5 inGraph) -> pure swapTuples
 
-        moveAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
-        moveAction = updateMoveTuple inGS inData inGraph
-    in  do
-            swapTuples ← performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
+        -- network edge support if not Tree
+        -- SoftWired => delete edge -- could add net move if needed
+        SoftWired ->
+            let deleteAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
+                deleteAction = updateDeleteTuple inGS inData inGraph
+            in  getParallelChunkTraverse >>= \pTraverse ->
+                    deleteAction `pTraverse` swapTuples
 
-            -- network edge support if not Tree
-            deletePar ← getParallelChunkTraverse
-            updateDelResult ← deletePar deleteAction swapTuples -- mapM (updateDeleteTuple inGS inData inGraph) swapTuples
-            movePar ← getParallelChunkTraverse
-            updateMoveResult ← movePar moveAction swapTuples -- mapM (updateMoveTuple inGS inData inGraph) swapTuples
-            let netTuples =
-                    if (graphType inGS == Tree) || LG.isTree (fst5 inGraph)
-                        then swapTuples -- swap only for Tree-do nothing
-                        else -- SoftWired => delete edge -- could add net move if needed
-
-                            if graphType inGS == SoftWired
-                                then -- TODO
-                                -- then PU.seqParMap (parStrategy $ strictParStrat inGS) (updateDeleteTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
-                                    updateDelResult
-                                else -- HardWired => move edge
-                                -- TODO
-                                    updateMoveResult
-            -- PU.seqParMap (parStrategy $ strictParStrat inGS) (updateMoveTuple inGS inData inGraph) swapTuples -- `using` PU.myParListChunkRDS
-
-            pure netTuples
+        -- HardWired => move edge
+        _ ->
+            let moveAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
+                moveAction = updateMoveTuple inGS inData inGraph
+            in  getParallelChunkTraverse >>= \pTraverse ->
+                    moveAction `pTraverse` swapTuples
 
 
 {- | updateDeleteTuple take a graph and and edge and delete a network edge (or retunrs tuple if not network)

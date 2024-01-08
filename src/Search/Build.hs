@@ -134,21 +134,18 @@ buildGraph inArgs inGS inData =
                                     -- trace ("Block building initial graph(s)") $
                                     distanceMatrixList ←
                                         if buildDistance
-                                            then do
-                                                parwisePar ← getParallelChunkTraverse
-                                                distances ← parwisePar pairwiseAction processedDataList
-                                                pure distances
+                                            then getParallelChunkTraverse >>= \pTraverse ->
+                                                    pairwiseAction `pTraverse` processedDataList
                                             else pure $ replicate (length processedDataList) []
-                                    buildPar ← getParallelChunkTraverse
-                                    blockList ← buildPar buildAction (zip processedDataList distanceMatrixList)
+                                    blockList ← getParallelChunkTraverse >>= \pTraverse ->
+                                        buildAction `pTraverse` zip processedDataList distanceMatrixList
                                     let blockTrees = concat blockList
 
                                     returnGraphs ←
                                         reconcileBlockTrees blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
 
-                                    traversePar ← getParallelChunkTraverse
-                                    traverseList ← traversePar (traverseAction True True Nothing) returnGraphs
-                                    pure traverseList
+                                    getParallelChunkTraverse >>= \pTraverse ->
+                                        traverseAction True True Nothing `pTraverse` returnGraphs
 
                         -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
                         let firstGraphs
@@ -191,9 +188,8 @@ buildGraph inArgs inGS inData =
                                                         pure firstGraphs
                                             else do
                                                 logWith LogInfo ("\tRediagnosing as " <> (show (graphType inGS)) <> "\n")
-                                                traversePar ← getParallelChunkTraverse
-                                                traverseList ← traversePar (traverseAction False False Nothing) (fmap fst5 firstGraphs)
-                                                pure traverseList
+                                                getParallelChunkTraverse >>= \pTraverse ->
+                                                    (traverseAction False False Nothing . fst5) `pTraverse` firstGraphs
 
 
 {- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
@@ -236,8 +232,8 @@ reconcileBlockTrees blockTrees numDisplayTrees returnTrees returnGraph returnRan
 
             -- need this to fix up some graphs after other stuff changed
             -- displayGraphs <- mapM (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
-            convertPar ← getParallelChunkTraverse
-            displayGraphs ← convertPar convertAction displayGraphs'
+            displayGraphs ← getParallelChunkTraverse >>= \pTraverse ->
+                convertAction `pTraverse` displayGraphs'
 
             -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
             let numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
@@ -525,8 +521,8 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
                         -}
 
                         do
-                            pMap ← getParallelChunkMap
-                            let simpleRDWagList = dichotomizeAction `pMap` randomizedAdditionWagnerSimpleGraphList
+                            simpleRDWagList <- getParallelChunkMap <&> \pMap ->
+                                dichotomizeAction `pMap` randomizedAdditionWagnerSimpleGraphList
                             return $
                                 L.zip5
                                     simpleRDWagList

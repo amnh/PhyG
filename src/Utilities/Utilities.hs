@@ -15,6 +15,7 @@ import Data.Alphabet
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special
 import Data.BitVector.LittleEndian qualified as BV
+import Data.Functor ((<&>))
 import Data.List qualified as L
 import Data.List.NonEmpty qualified as NE
 import Data.List.Split qualified as SL
@@ -655,48 +656,28 @@ getPairCharLength (iIndex, jIndex) charDataV =
 -- taxa over all charcaters (sequence and qiualitative)
 -- used for various normalizations
 getMaxNumberObservations :: V.Vector BlockData -> PhyG VertexCost
-getMaxNumberObservations blocKDataV =
-    if V.null blocKDataV then pure 0
-    else
-        let --parallel setup
-            action :: BlockData -> PhyG Int
-            action = getMaxBlockObs
-        in do
-            pTraverse <- getParallelChunkTraverse
-            result <- pTraverse action (V.toList blocKDataV)
-                -- fromIntegral $ V.sum (P.seqParMap P.myStrategyHighLevel getMaxBlockObs blocKDataV)
-            pure $ fromIntegral $ sum result
+getMaxNumberObservations blocKDataV
+    | V.null blocKDataV = pure 0
+    | otherwise = getParallelChunkTraverse >>= \pTraverse ->
+        fmap (fromIntegral . sum) . pTraverse getMaxBlockObs $ V.toList blocKDataV
+
 
 -- | getMaxBlockObs gets the supremum over taxa number of characters in a block of data
 getMaxBlockObs :: BlockData -> PhyG Int
-getMaxBlockObs (_, charDataVV, _) =
-    if V.null charDataVV then pure 0
-    else
+getMaxBlockObs (_, charDataVV, _)
+    | V.null charDataVV = pure 0
+    | otherwise =
         let newListList = L.transpose $ V.toList $ fmap V.toList charDataVV
-            -- charTaxVect = fmap V.fromList newListList
-            --parallel setup
-            action :: [CharacterData] -> PhyG Int
-            action = getSupCharLength
-        in do
-            pTraverse <- getParallelChunkTraverse
-            result <- pTraverse action newListList
-                    -- V.sum (P.seqParMap P.myStrategyHighLevel getSupCharLength charTaxVect)
-            pure $ sum result
+        in  getParallelChunkTraverse >>= \pTraverse ->
+                sum <$> pTraverse getSupCharLength newListList
 
 -- | getMaxCharLength takes a vector of charcters and returns the supremum of observations for that character
 -- over all taxa
 getSupCharLength :: [CharacterData] -> PhyG Int
-getSupCharLength charDataV =
-    if null charDataV then pure 0
-    else
-        let --parallel setup
-            action :: CharacterData -> Int
-            action = getMaxCharLength
-        in do
-            pTraverse <- getParallelChunkMap
-            let result = pTraverse action charDataV
-            pure $ maximum result
-                -- V.maximum (P.seqParMap P.myStrategyHighLevel getMaxCharLength charDataV)
+getSupCharLength charDataV
+    | null charDataV = pure 0
+    | otherwise = getParallelChunkMap <&> \pMap ->
+        maximum $ getMaxCharLength `pMap` charDataV
 
 
 -- getFractionDynamic returns fraction (really of length) of dynamic charcters for adjustment to dynamicEpsilon
