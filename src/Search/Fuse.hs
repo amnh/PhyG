@@ -12,6 +12,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
+import Data.Functor ((<&>))
 import Data.InfList qualified as IL
 import Data.List qualified as L
 import Data.Map qualified as MAP
@@ -116,35 +117,32 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                     then return (inGraphList, counter + 1)
                     else
                         if returnUnique
-                            then
-                                let uniqueList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
-                                in  if fuseBest < curBest -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
-                                        then do
-                                            -- logWith LogInfo ("\t->" <> (show fuseBest))
-                                            fuseAllGraphs
-                                                swapParams
-                                                inGS
-                                                inData
-                                                --(drop 2 rSeedList)
-                                                (counter + 1)
-                                                returnBest
-                                                returnUnique
-                                                singleRound
-                                                fusePairs
-                                                randomPairs
-                                                reciprocal
-                                                uniqueList
-                                        else return (uniqueList, counter + 1)
+                            then do
+                                uniqueList <- GO.selectGraphs Unique (keepNum swapParams) 0 $ inGraphList <> newGraphList
+                                if fuseBest < curBest -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
+                                    then fuseAllGraphs
+                                            swapParams
+                                            inGS
+                                            inData
+                                            (counter + 1)
+                                            returnBest
+                                            returnUnique
+                                            singleRound
+                                            fusePairs
+                                            randomPairs
+                                            reciprocal
+                                            uniqueList
+                                    else pure (uniqueList, counter + 1)
                             else -- return best
                             -- only do one round of fusing
 
                                 if singleRound
-                                    then return (GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList), counter + 1)
+                                    then GO.selectGraphs Best (keepNum swapParams) 0.0 (inGraphList <> newGraphList) <&> \x -> (x, counter + 1)
                                     else -- recursive rounds
                                     do
                                         -- need unique list to keep going
 
-                                        let allBestList = GO.selectGraphs Unique (keepNum swapParams) 0.0 (-1) (inGraphList <> newGraphList)
+                                        allBestList <- GO.selectGraphs Unique (keepNum swapParams) 0 $ inGraphList <> newGraphList
                                         -- found better
                                         if fuseBest < curBest
                                             then do
@@ -153,7 +151,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                                     swapParams
                                                     inGS
                                                     inData
-                                                    --(drop 2 rSeedList)
                                                     (counter + 1)
                                                     returnBest
                                                     returnUnique
@@ -201,10 +198,10 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
 
                     bestResultList <-
                             if graphType inGS == Tree
-                                then pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) fusePairResult
+                                then GO.selectGraphs Best (keepNum swapParams) 0 fusePairResult
                                 else do -- check didn't make weird network
                                     goodGraphList <- filterM (LG.isPhylogeneticGraph . fst5) fusePairResult
-                                    pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) goodGraphList
+                                    GO.selectGraphs Best (keepNum swapParams) 0 goodGraphList
 
                     let pairScore =
                             if (not . null) bestResultList
@@ -427,9 +424,9 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                                                     rightOriginalEdgeList
 
                                 -- get "best" fused graphs from leftRight and rightLeft
-                                let bestFusedGraphs = GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) (leftRightFusedGraphList <> rightLeftFusedGraphList)
+                                bestFusedGraphs <- GO.selectGraphs Best (keepNum swapParams) 0 $ leftRightFusedGraphList <> rightLeftFusedGraphList
 
-                                return bestFusedGraphs
+                                pure bestFusedGraphs
     where
         first4of6 (a, b, c, d, _, _) = (a, b, c, d)
 
@@ -509,7 +506,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                             then pure []
                             else
                                 if bestFuseCost <= curBetterCost
-                                    then pure $ GO.selectGraphs Best (keepNum swapParams) 0.0 (-1) recombinedGraphList
+                                    then GO.selectGraphs Best (keepNum swapParams) 0 recombinedGraphList
                                     else pure []
 
 

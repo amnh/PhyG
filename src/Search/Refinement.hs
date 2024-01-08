@@ -21,7 +21,7 @@ import Control.Monad (when)
 import Control.Monad.Random.Class
 import Data.Char
 import Data.Foldable (fold)
-import Data.Functor (($>), (<$))
+import Data.Functor (($>), (<$), (<&>))
 import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
@@ -677,7 +677,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                             pTraverse insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList1
-                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
                             else pure (inGraphList, 0)
 
                     (newGraphList', counterDelete) ←
@@ -691,7 +691,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                             pTraverse deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList2
-                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
                             else -- )
                                 pure (newGraphList, 0)
 
@@ -702,7 +702,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     pTraverse moveAction . zip newSimAnnealParamList $ pure <$> newGraphList'
 
                                 let (graphListList, counterList) = unzip graphPairList3
-                                pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
                             else pure (newGraphList', 0)
 
                     (newGraphList''', counterAddDelete) ←
@@ -716,12 +716,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                                             pTraverse addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
 
                                         let (graphListList, counterList) = unzip graphPairList4
-                                        pure (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
                             else pure (newGraphList'', 0)
 
-                    let resultGraphList
-                            | null newGraphList''' = inGraphList
-                            | otherwise = GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) newGraphList'''
+                    resultGraphList <- case newGraphList''' of
+                        [] -> pure inGraphList
+                        _ -> GO.selectGraphs Unique (fromJust keepNum) 0 newGraphList'''
 
                     logWith
                         LogInfo

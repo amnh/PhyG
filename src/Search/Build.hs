@@ -52,9 +52,10 @@ buildGraph inArgs inGS inData =
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
         checkCommandList = checkCommandArgs "build" fstArgList VER.buildArgList
+        failure = failWithPhase Parsing . unwords
     in  -- check for valid command options
         if not checkCommandList
-            then errorWithoutStackTrace ("Unrecognized command in 'build': " <> show inArgs)
+            then failure [ "Unrecognized command in 'build':",  show inArgs ]
             else
                 let -- block build options including number of display trees to return
                     buildBlock = filter ((== "block") . fst) lcArgList
@@ -76,10 +77,10 @@ buildGraph inArgs inGS inData =
 
                     doEUN' = any ((== "eun") . fst) lcArgList
                     doCUN' = any ((== "cun") . fst) lcArgList
-                    doEUN =
-                        if not doEUN' && not doCUN'
-                            then True
-                            else doEUN'
+                    doEUN
+                        | not doEUN' && not doCUN' = True
+                        | otherwise = doEUN'
+                        
                     returnTrees' = any ((== "displaytrees") . fst) lcArgList
                     returnGraph' = any ((== "graph") . fst) lcArgList
                     returnRandomDisplayTrees' = any ((== "atrandom") . fst) lcArgList
@@ -91,13 +92,10 @@ buildGraph inArgs inGS inData =
                     treeGS = inGS{graphType = Tree}
 
                     -- really only trees now--but maybe later if can ensure phylogenetic graph from recocnile
-                    (returnGraph, returnTrees) =
-                        if (graphType inGS) == Tree
-                            then (False, True)
-                            else
-                                if returnGraph' || returnTrees'
-                                    then (returnGraph', returnTrees')
-                                    else (False, True)
+                    (returnGraph, returnTrees) = case graphType inGS of
+                        Tree -> (False, True)
+                        _ | returnGraph' || returnTrees' -> (returnGraph', returnTrees')
+                        _ -> (False, True)
 
                     -- default to return reandom and overrides if both specified
                     (returnRandomDisplayTrees, _) =
@@ -112,7 +110,7 @@ buildGraph inArgs inGS inData =
                     pairwiseAction = DD.getPairwiseDistances
 
                     buildAction ∷ (ProcessedData, [[VertexCost]]) → PhyG [ReducedPhylogeneticGraph]
-                    buildAction = uncurry $ buildTree' True inArgs treeGS 
+                    buildAction = uncurry $ buildTree' True inArgs treeGS
 
                     traverseAction ∷ Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
                     traverseAction = T.multiTraverseFullyLabelGraphReduced inGS inData -- False False Nothing
@@ -134,62 +132,50 @@ buildGraph inArgs inGS inData =
                                     -- trace ("Block building initial graph(s)") $
                                     distanceMatrixList ←
                                         if buildDistance
-                                            then getParallelChunkTraverse >>= \pTraverse ->
-                                                    pairwiseAction `pTraverse` processedDataList
+                                            then getParallelChunkTraverse >>= \pTraverse -> pairwiseAction `pTraverse` processedDataList
                                             else pure $ replicate (length processedDataList) []
                                     blockList ← getParallelChunkTraverse >>= \pTraverse ->
-                                        buildAction `pTraverse` zip processedDataList distanceMatrixList
+                                          buildAction `pTraverse` zip processedDataList distanceMatrixList
                                     let blockTrees = concat blockList
 
                                     returnGraphs ←
                                         reconcileBlockTrees blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
 
-                                    getParallelChunkTraverse >>= \pTraverse ->
-                                        traverseAction True True Nothing `pTraverse` returnGraphs
+                                    getParallelChunkTraverse >>= \pTraverse -> traverseAction True True Nothing `pTraverse` returnGraphs
 
                         -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
-                        let firstGraphs
-                                | null buildBlock = GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 (-1) firstGraphs'
-                                | otherwise = firstGraphs'
+                        firstGraphs ← case buildBlock of
+                            [] → GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 firstGraphs'
+                            _ → pure firstGraphs'
 
                         -- reporting info
-                        let returnString
-                                | null firstGraphs = "\t\tReturning 0 graphs"
-                                | otherwise = unwords
-                                    [ "\tReturning"
-                                    , show $ length firstGraphs
-                                    , "graphs at cost range"
-                                    , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
-                                    ]
+                        let (costString, returnString) = case firstGraphs of
+                                [] -> ("\t\tBlock build returned 0 graphs", "\t\tReturning 0 graphs")
+                                g:gs ->
+                                    let gCosts = snd5 <$> firstGraphs
+                                        hiCost = maximum gCosts
+                                        loCost = minimum gCosts
+                                        suffix = unwords
+                                            [ show $ length firstGraphs
+                                            , "graphs at cost range"
+                                            , fold [ "(", show loCost, ", ", show hiCost, ")" ]
+                                            ]
+                                    in  ("\tBlock build yielded" <> suffix, "\tReturning " <> suffix)
 
-                        let costString
-                                | null firstGraphs = "\t\tBlock build returned 0 graphs"
-                                | otherwise = unwords
-                                    [ "\tBlock build yielded"
-                                    , show $ length firstGraphs
-                                    , "graphs at cost range"
-                                    , show (minimum $ fmap snd5 firstGraphs, maximum $ fmap snd5 firstGraphs)
-                                    ]
 
-                        if isNothing numDisplayTrees
-                            then errorWithoutStackTrace ("DisplayTrees specification in build not an integer: " <> show (snd $ head displayBlock))
-                            else
-                                if isNothing numReturnTrees
-                                    then errorWithoutStackTrace ("Return number specifications in build not an integer: " <> show (snd $ head returnList))
-                                    else do
-                                        logWith LogInfo (returnString <> "\n")
-                                        if inputGraphType == Tree || (not . null) buildBlock
-                                            then -- trace ("BB: " <> (concat $ fmap  LG.prettify $ fmap fst6 firstGraphs)) (
-
-                                                if null buildBlock
-                                                    then pure firstGraphs
-                                                    else do
-                                                        logWith LogInfo (costString <> "\n")
-                                                        pure firstGraphs
-                                            else do
-                                                logWith LogInfo ("\tRediagnosing as " <> (show (graphType inGS)) <> "\n")
+                        case numDisplayTrees of
+                            Nothing -> failure [ "DisplayTrees specification in build not an integer:", show . snd $ head displayBlock ]
+                            Just nDistplayTrees -> case numReturnTrees of
+                                Nothing -> failure [ "Return number specifications in build not an integer:", show . snd $ head returnList ]
+                                Just nReturnTrees -> do
+                                    logWith LogInfo $ returnString <> "\n"
+                                    case (inputGraphType, buildBlock) of
+                                        (Tree, []) -> pure firstGraphs
+                                        (_, x:xs) -> logWith LogInfo (costString <> "\n") $> firstGraphs
+                                        (_, []) -> do
+                                                logWith LogInfo $ unwords [ "\tRediagnosing as", show $ graphType inGS, "\n" ]
                                                 getParallelChunkTraverse >>= \pTraverse ->
-                                                    (traverseAction False False Nothing . fst5) `pTraverse` firstGraphs
+                                                    pTraverse (traverseAction False False Nothing) $ fst5 <$> firstGraphs
 
 
 {- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
@@ -297,7 +283,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
         -- character build
         performBuildCharacter ∷ Int → PhyG [ReducedPhylogeneticGraph]
         performBuildCharacter numReplicates =
-            let treeList = WB.rasWagnerBuild inGS inData rSeed numReplicates
+            let treeList = WB.rasWagnerBuild inGS inData numReplicates
                 treeList'
                     | simpleTreeOnly = GO.selectGraphs Best 1 0.0 (-1) treeList
                     | otherwise = treeList
@@ -325,7 +311,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                     | hasKey "otu" = "otu"
                     | otherwise = "none"
             in  {-
-                treeList1 = if hasKey "rdwag" then randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates rSeed numToSave refinement
+                treeList1 = if hasKey "rdwag" then randomizedDistanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem numReplicates numToSave refinement
                             else pure []
                 treeList2 = if hasKey  "dwag" then distanceWagner simpleTreeOnly inGS inData nameStringVect distMatrix outgroupElem refinement
                             else pure []
@@ -376,7 +362,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                             logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs) <> "\n"
                             if not simpleTreeOnly
                                 then pure xs
-                                else pure $ GO.selectGraphs Best 1 0.0 (-1) xs
+                                else GO.selectGraphs Best 1 0 xs
     in  do
             failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
             failWhen (buildDistance && buildCharacter) $
@@ -400,7 +386,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 do
                     -- character build
                     treeList ← WB.rasWagnerBuild inGS inData numReplicates
-                    let treeList' = GO.selectGraphs Best 1 0.0 (-1) treeList
+                    treeList' ← GO.selectGraphs Best 1 0 treeList
                     if simpleTreeOnly
                         then do
                             logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList') <> "\n"

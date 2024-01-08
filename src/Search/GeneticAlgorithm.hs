@@ -59,10 +59,10 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                 else
                     if stopCount >= stopNum
                         then return (inGraphList, generationCounter)
-                        else
-                            let -- get elite list of best solutions
-                                initialEliteList = GO.selectGraphs Best (maxBound ∷ Int) 0.0 (-1) inGraphList
-                            in  do
+                        else do
+                                    -- get elite list of best solutions
+                                    initialEliteList <- GO.selectGraphs Best (maxBound ∷ Int) 0 inGraphList
+
                                     logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter) <> "\n")
 
                                     seedList ← getRandoms
@@ -83,9 +83,8 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                             pure $ mutatedGraphList' <> additionalMutated
                                         _ -> pure mutatedGraphList'
                                                         
-
                                     -- get unique graphs, no point in recombining repetitions
-                                    let uniqueMutatedGraphList = GO.selectGraphs Unique (maxBound ∷ Int) 0.0 (-1) (mutatedGraphList <> inGraphList)
+                                    uniqueMutatedGraphList <- GO.selectGraphs Unique (maxBound ∷ Int) 0 $ mutatedGraphList <> inGraphList
 
                                     -- recombine elite with mutated and mutated with mutated
                                     let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
@@ -132,7 +131,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
 
                                     -- selection of graphs population
                                     -- unique sorted on cost so getting unique with lowest cost
-                                    let selectedGraphs = GO.selectGraphs Unique popSize 0.0 (-1) recombinedGraphList
+                                    selectedGraphs <- GO.selectGraphs Unique popSize 0 recombinedGraphList
                                     let newCost = snd5 $ head selectedGraphs
 
                                     -- if new graphs better cost then take those
@@ -152,10 +151,10 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                                 0
                                                 stopNum
                                                 selectedGraphs
-                                        else -- if new graphs not better then add in elites to ensure monotonic decrease in cost
-
-                                            let newGraphList = GO.selectGraphs Unique keepNum 0.0 (-1) (initialEliteList <> selectedGraphs)
-                                            in  geneticAlgorithm
+                                        else do
+                                            -- if new graphs not better then add in elites to ensure monotonic decrease in cost
+                                            newGraphList <- GO.selectGraphs Unique keepNum 0 $ initialEliteList <> selectedGraphs
+                                            geneticAlgorithm
                                                     inGS
                                                     inData
                                                     doElitist
@@ -232,15 +231,13 @@ mutateGraph inGS inData maxNetEdges inGraph
 
             mutateOption1 = do
                 rSAParams ← getRandomSAParams
-                rStream ← getRandoms
                 rSwapParams ← getRandomSwapParams
-                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rStream, rSAParams, inGraph)]
+                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
 
             mutateOption2 = do
                 rSAParams ← getRandomSAParams
-                rStream ← getRandoms
                 rSwapParams ← getRandomSwapParams
-                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rStream, rSAParams, inGraph)]
+                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
 
             mutateOption3 = do
                 rSAParams ← getRandomSAParams

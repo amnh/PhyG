@@ -10,6 +10,9 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.Char
+import Data.Bifunctor (first)
+import Data.Foldable (fold)
+import Data.Functor ((<&>))
 import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
@@ -126,7 +129,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 numGraphs = length inGraphList
 
                 -- parallel setup
-                action ∷ [([Int], Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
+                action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
                 action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
             in  do
                     simAnnealParams ←
@@ -180,15 +183,14 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- TODO
                     -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
-                    rStreamList ← U.generateRandIntLists numGraphs
-
-                    let simAnnealList = (: []) <$> zip3 rStreamList newSimAnnealParamList inGraphList
+                    let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList
                     graphPairList ← getParallelChunkTraverse >>= \pTraverse ->
                         action `pTraverse` simAnnealList
                     -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
 
-                    let (graphListList, counterList) = unzip graphPairList
-                    let (newGraphList, counter) = (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                    let (graphListList, counterList) = first fold $ unzip graphPairList
+                    (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x -> (x, sum counterList)
+
 
                     let finalGraphList = case newGraphList of
                             [] -> inGraphList

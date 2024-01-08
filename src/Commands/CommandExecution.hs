@@ -256,9 +256,8 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 isFirst
 
         Select -> do
-            rSeed <- getRandom
-            (elapsedSeconds, newGraphList) ← timeOp . pure $
-                GO.selectPhylogeneticGraphReduced firstArgs rSeed curGraphs
+            (elapsedSeconds, newGraphList) ← timeOp $
+                GO.selectPhylogeneticGraphReduced firstArgs curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             let typeSelected = case firstArgs of
