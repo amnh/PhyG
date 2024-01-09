@@ -1402,7 +1402,7 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                             pure (tbrResult, inSimAnnealParams)
 
                     -- simulated annealing/Drift swap
-                    Just simAnnealParams → do
+                    Just _simAnnealParams → do
                         -- check if spr better always return if so
                         sprNewGraphChecked ← getCheckedGraphNewSPR
                         rediagnosedSPRGraph@(_, newCost, _, _, _) ←
@@ -2093,7 +2093,7 @@ getGraphCost ∷ [ReducedPhylogeneticGraph] → VertexCost
 getGraphCost = snd5 . head
 
 
-orInfinity ∷ ∀ a r t. (Foldable t, Fractional r, Real r) ⇒ (t a → r) → t a → r
+orInfinity ∷ ∀ a r t. (Foldable t, Fractional r) ⇒ (t a → r) → t a → r
 orInfinity f xs
     | null xs = fromRational Real.infinity
     | otherwise = f xs

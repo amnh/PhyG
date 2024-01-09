@@ -93,12 +93,13 @@ build(distance, rdwag)
 
 --refine(netadd, atrandom, maxnetedges:5)
 
-
 swap()
 fuse()
 
 -- transform(dynamic)
---select(best)
+-- select(best)
+select(best)
+
 --report("test0-crossrefs.csv", crossrefs, overwrite)
 --report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)

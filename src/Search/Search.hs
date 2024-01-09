@@ -53,8 +53,7 @@ import Utilities.Utilities qualified as U
 treeBanditList ∷ [String]
 treeBanditList =
     [ "buildCharacter"
-    , -- , "buildDistance" -- "buildSPR", "buildAlternate", distance only up front to reduce memory footprint
-      "swapSPR"
+    , "swapSPR"
     , "swapAlternate"
     , "fuse"
     , "fuseSPR"
@@ -64,6 +63,7 @@ treeBanditList =
     , "annealSPR"
     , "annealAlternate"
     , "geneticAlgorithm"
+    -- , "buildDistance" -- "buildSPR", "buildAlternate", distance only up front to reduce memory footprint
     ]
 
 
@@ -942,11 +942,14 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                     | otherwise = (fth4 newDataMT, ",MultiTraverse:True")
 
             -- string of delta and cost of graphs
+            let extract = minimum . fmap snd5
+
             let deltaString
                     | null inGraphList' = "10.0,"
-                    | otherwise = show ((minimum $ fmap snd5 inGraphList') - (minimum $ fmap snd5 uniqueGraphs)) -- <> ","
+                    | otherwise = show $ extract inGraphList' - extract uniqueGraphs
+
             let currentBestString
-                    | not $ null uniqueGraphs = show $ minimum $ fmap snd5 uniqueGraphs
+                    | not $ null uniqueGraphs = show $ extract uniqueGraphs
                     | otherwise = show infinity
 
             -- create string for search stats
@@ -966,7 +969,9 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
             pure (uniqueGraphs, [searchString <> thompsonString])
 
 
--- | getSearchParams takes arguments and returns search params
+{- |
+'getSearchParams' takes arguments and returns search params.
+-}
 getSearchParams ∷ [Argument] → PhyG (Int, Int, Int, Bool, Int, String, Int, Int)
 getSearchParams inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs

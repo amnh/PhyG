@@ -185,6 +185,7 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
         --trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
         sum rootCostList
 
+
 -- | calculatePMDLRootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
 -- this for a single root
@@ -194,6 +195,7 @@ calculatePMDLRootCost (nameVect, _, blockDataV) =
         insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
     in
     insertDataCost /  fromIntegral numLeaves
+
 
 -- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block
 -- this most easily done before bit packing since won't vary anyway.

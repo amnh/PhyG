@@ -496,13 +496,13 @@ Library dynamic-character
     lib/dynamic-character/src
 
   Build-Depends:
-    PHANE-alphabet,
+--    PHANE-alphabet,
     PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PhyG:tcm,
     PhyG:utility,
     base                     >= 4.11      && < 5.0,
-    bv-little,
+--    bv-little,
     containers               >= 0.6.2     && < 1.0,
     matrices                 >= 0.5       && < 1.0,
     monad-loops              >= 0.4       && < 1.0,
@@ -545,7 +545,7 @@ Library tcm
     lib/tcm/src
 
   Build-Depends:
-    PHANE-dynamic-character,
+--    PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PhyG:utility,
     binary                   >= 0.8       && < 1.0,

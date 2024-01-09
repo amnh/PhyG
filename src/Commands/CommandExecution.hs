@@ -12,12 +12,14 @@ module Commands.CommandExecution (
 import Commands.CommandUtilities
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
+import Control.Arrow ((&&&))
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Random.Class
+import Data.Bifunctor (bimap)
 import Data.CSV qualified as CSV
 import Data.Char
 import Data.Char qualified as C
+import Data.Foldable (fold)
 import Data.Functor (($>))
 import Data.InfList qualified as IL
 import Data.List qualified as L
@@ -33,7 +35,6 @@ import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Reconciliation.ReconcileGraphs qualified as R
 import Search.Build qualified as B
 import Search.Refinement qualified as REF
@@ -166,7 +167,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         (Data.Ord.Down . snd5)
                         updatedCostGraphs
             -- (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
-            reportStuff@(reportString, outFile, writeMode) ←
+            reportStuff@(reportString, outFile, _writeMode) ←
                 reportCommand
                     globalSettings
                     firstArgs
@@ -192,6 +193,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                     supportGraphList
                     otherCommands
                     isFirst
+
                 _ | doDotPDF -> do
                     let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = none];\n" reportString
                     printGraphVizDot reportString' outFile
@@ -303,7 +305,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 newGraphList
                 supportGraphList
                 otherCommands
-                isFirst
+                False
 
         Swap -> do
             (elapsedSeconds, newGraphList) ← timeOp $
@@ -402,916 +404,683 @@ if seed list is empty [] then processes first set--confusing--shold be refactore
 -}
 setCommand ∷ [Argument] → GlobalSettings → ProcessedData → ProcessedData → Bool → PhyG (GlobalSettings, ProcessedData)
 setCommand argList globalSettings origProcessedData processedData isFirst =
-    let commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argList
-        optionList = fmap (fmap C.toLower) $ filter (/= "") $ fmap snd argList
+    let material ∷ Argument -> Bool
+        material (k,v) = not $ null k || null v
+        normalize = fmap C.toLower
+        niceArgs = bimap normalize normalize <$> filter material argList
+        (commandList, optionList) = unzip niceArgs
         checkCommandList = checkCommandArgs "set" commandList VER.setArgList
         leafNameVect = fst3 processedData
-    in  if not checkCommandList
-            then do failWithPhase Parsing ("Unrecognized command in 'set': " <> show argList)
-            else -- this could be changed later
+    in  case niceArgs of
+            [] -> failWithPhase Computing "Attempting to process a non existant 'set' command"
+            (firstCommand, firstOption) : _otherArgs -> do
 
-                if length commandList > 1 || length optionList > 1
-                    then do
-                        failWithPhase Parsing ("Set option error: can only have one set argument for each command: " <> show (commandList, optionList))
-                    else -- early extraction of partition character and bc2-gt64 follows from null inputs
-                    -- this due to not having all info required for all global settings, so options restricted and repeated
-                    -- needs to be fixed to be more clear and clean
+                when (not checkCommandList) . failWithPhase Parsing $
+                    "Unrecognized command in 'set': " <> show argList
 
-                        if isFirst
-                            then
-                                if head commandList == "partitioncharacter"
-                                    then
-                                        let localPartitionChar = head optionList
-                                        in  if length localPartitionChar /= 1
-                                                then do
-                                                    failWithPhase
-                                                        Parsing
-                                                        ("Error in 'set' command. Partitioncharacter '" <> show localPartitionChar <> "' must be a single character" <> "\n")
-                                                else do
-                                                    logWith LogInfo ("PartitionCharacter set to '" <> head optionList <> "'" <> "\n")
-                                                    pure (globalSettings{partitionCharacter = localPartitionChar}, processedData)
-                                    else
-                                        if head commandList == "missingthreshold"
-                                            then
-                                                let localValue = readMaybe (head optionList) ∷ Maybe Int
-                                                in  if isNothing localValue
-                                                        then do
-                                                            failWithPhase
-                                                                Parsing
-                                                                ("Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> head optionList <> "\n")
-                                                        else
-                                                            if (fromJust localValue < 0) || (fromJust localValue > 100)
-                                                                then do
-                                                                    failWithPhase
-                                                                        Parsing
-                                                                        ("Set option 'missingThreshold' must be set to an integer value between 0 and 100: " <> head optionList <> "\n")
-                                                                else do
-                                                                    logWith LogInfo ("MissingThreshold set to " <> head optionList <> "\n")
-                                                                    pure (globalSettings{missingThreshold = fromJust localValue}, processedData)
-                                            else -- sets root cost as well-- need in both places--one to process data and one to
-                                            -- keep in current global
+                when (length commandList > 1 || length optionList > 1) . failWithPhase Parsing $
+                    "Set option error: can only have one set argument for each command: " <> show (commandList, optionList)
 
-                                                if head commandList == "criterion"
-                                                    then
-                                                        let localCriterion
-                                                                | (head optionList == "parsimony") = Just Parsimony
-                                                                | (head optionList == "pmdl") = Just PMDL
-                                                                | (head optionList == "si") = Just SI
-                                                                | (head optionList == "mapa") = Just MAPA
-                                                                | (head optionList == "ncm") = Just NCM
-                                                                | otherwise = Nothing
+                case isFirst of
 
-                                                            -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
-                                                            -- only used for PMDL and SI
-                                                            lGraphComplexityList
-                                                                | localCriterion `elem` [Just Parsimony, Just NCM] = Just $ IL.repeat (0.0, 0.0)
-                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculateGraphComplexity processedData
-                                                                | localCriterion `elem`  [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
-                                                                | otherwise = Nothing
+                    True -> case firstCommand of
 
-                                                            lRootComplexity
-                                                                | localCriterion == Just Parsimony = Just 0.0
-                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculatePMDLRootCost processedData
-                                                                | localCriterion `elem` [Just MAPA] = Just $ U.calculateMAPARootCost processedData
-                                                                | localCriterion == Just NCM =
-                                                                    -- this for reorganized data (bit packed non-additive really)
-                                                                    if origProcessedData /= emptyProcessedData
-                                                                        then Just $ U.calculateNCMRootCost origProcessedData
-                                                                        else Just $ U.calculateNCMRootCost processedData
-                                                                | otherwise = Nothing
+                        "partitioncharacter" → case firstOption of
+                            localPartitionChar@[_] →
+                                do
+                                    logWith LogInfo $ "PartitionCharacter set to '" <> localPartitionChar <> "'\n"
+                                    let x = globalSettings{partitionCharacter = localPartitionChar}
+                                    pure (x, processedData)
+                            val →
+                                failWithPhase Parsing $
+                                    "Error in 'set' command. Partitioncharacter '" <> val <> "' must be a single character\n"
 
-                                                            lGraphFactor =
-                                                                if localCriterion `elem` [Just PMDL, Just SI]
-                                                                    then PMDLGraph
-                                                                    else graphFactor globalSettings
+                        "missingthreshold" → case readMaybe (firstOption) ∷ Maybe Int of
+                            Nothing →
+                                failWithPhase Parsing $
+                                    "Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> firstOption
+                            Just val
+                                | val < 0 || 100 < val →
+                                    failWithPhase Parsing $
+                                        "Set option 'missingThreshold' must be set to an integer value between 0 and 100: " <> firstOption
+                            Just val → do
+                                logWith LogInfo $ "MissingThreshold set to " <> firstOption
+                                pure (globalSettings{missingThreshold = val}, processedData)
 
-                                                            lModelComplexity =
-                                                                if localCriterion `elem` [Just PMDL] then modelComplexity globalSettings
-                                                                else 0.0
-                                                        in  if isNothing localCriterion
-                                                                then do
-                                                                    failWithPhase Parsing ("Error in 'set' command. Criterion '" <> head optionList <> "' is not 'parsimony', 'ml', or 'pmdl'")
-                                                                else
-                                                                    if isNothing lGraphComplexityList
-                                                                        then do
-                                                                            failWithPhase Parsing ("Optimality criterion not recognized: " <> show localCriterion)
-                                                                        else
-                                                                            if isNothing lRootComplexity
-                                                                                then do
-                                                                                    failWithPhase Parsing ("Optimality criterion not recognized: " <> show localCriterion)
-                                                                                else
-                                                                                    pure
-                                                                                        ( globalSettings
-                                                                                            { graphComplexityList = fromJust lGraphComplexityList
-                                                                                            , graphFactor = lGraphFactor
-                                                                                            , rootComplexity = fromJust lRootComplexity
-                                                                                            , modelComplexity = lModelComplexity
-                                                                                            , optimalityCriterion = fromJust localCriterion
-                                                                                            }
-                                                                                        , processedData
-                                                                                        )
-                                                    else
-                                                        if head commandList == "bc2"
-                                                            then
-                                                                let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                    noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                    changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                    changeValue = readMaybe changeString ∷ Maybe Double
-                                                                in  if length commandList /= length optionList
-                                                                        then do
-                                                                            failWithPhase Parsing ("Set option error: number of values and options do not match: " <> show (commandList, optionList))
-                                                                        else
-                                                                            if (null . head) optionList
-                                                                                then
-                                                                                    failWithPhase
-                                                                                        Parsing
-                                                                                        "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no values found\n"
-                                                                                else
-                                                                                    if ',' `notElem` head optionList
-                                                                                        then do
-                                                                                            failWithPhase
-                                                                                                Parsing
-                                                                                                "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no comma found\n"
-                                                                                        else
-                                                                                            if isNothing noChangeValue || isNothing changeValue
-                                                                                                then do
-                                                                                                    failWithPhase
-                                                                                                        Parsing
-                                                                                                        ( "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): "
-                                                                                                            <> head optionList
-                                                                                                            <> "\n"
-                                                                                                        )
-                                                                                                else
-                                                                                                    if bc2 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                        then do
-                                                                                                            logWith LogInfo ("bit cost 2 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                            pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                        else pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                            else
-                                                                if head commandList == "bc4"
-                                                                    then
-                                                                        let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                            noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                            changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                            changeValue = readMaybe changeString ∷ Maybe Double
-                                                                        in  if (null . head) optionList
-                                                                                then do
-                                                                                    failWithPhase
-                                                                                        Parsing
-                                                                                        "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no values found "
-                                                                                else
-                                                                                    if ',' `notElem` head optionList
-                                                                                        then do
-                                                                                            failWithPhase
-                                                                                                Parsing
-                                                                                                "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no comma found "
-                                                                                        else
-                                                                                            if isNothing noChangeValue || isNothing changeValue
-                                                                                                then do
-                                                                                                    failWithPhase
-                                                                                                        Parsing
-                                                                                                        ( "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): "
-                                                                                                            <> head optionList
-                                                                                                        )
-                                                                                                else
-                                                                                                    if bc4 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                        then do
-                                                                                                            logWith LogInfo ("bit cost 4 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                            pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                        else pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                    else
-                                                                        if head commandList == "bc5"
-                                                                            then
-                                                                                let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                    noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                                    changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                    changeValue = readMaybe changeString ∷ Maybe Double
-                                                                                in  if (null . head) optionList
-                                                                                        then do
-                                                                                            failWithPhase
-                                                                                                Parsing
-                                                                                                "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no values found\n"
-                                                                                        else
-                                                                                            if ',' `notElem` head optionList
-                                                                                                then do
-                                                                                                    failWithPhase
-                                                                                                        Parsing
-                                                                                                        "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no comma found\n"
-                                                                                                else
-                                                                                                    if isNothing noChangeValue || isNothing changeValue
-                                                                                                        then do
-                                                                                                            failWithPhase
-                                                                                                                Parsing
-                                                                                                                ( "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): "
-                                                                                                                    <> head optionList
-                                                                                                                )
-                                                                                                        else
-                                                                                                            if bc5 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                                then do
-                                                                                                                    logWith LogInfo ("bit cost 5 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                                    pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                                else pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                            else
-                                                                                if head commandList == "bc8"
-                                                                                    then
-                                                                                        let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                            noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                                            changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                            changeValue = readMaybe changeString ∷ Maybe Double
-                                                                                        in  if (null . head) optionList
-                                                                                                then do
-                                                                                                    failWithPhase
-                                                                                                        Parsing
-                                                                                                        "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no values found\n"
-                                                                                                else
-                                                                                                    if ',' `notElem` head optionList
-                                                                                                        then do
-                                                                                                            failWithPhase
-                                                                                                                Parsing
-                                                                                                                "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no comma found\n"
-                                                                                                        else
-                                                                                                            if isNothing noChangeValue || isNothing changeValue
-                                                                                                                then do
-                                                                                                                    failWithPhase
-                                                                                                                        Parsing
-                                                                                                                        ( "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): "
-                                                                                                                            <> head optionList
-                                                                                                                            <> "\n"
-                                                                                                                        )
-                                                                                                                else
-                                                                                                                    if bc8 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                                        then do
-                                                                                                                            logWith LogInfo ("bit cost 8 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                                            pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                                        else pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                    else
-                                                                                        if head commandList == "bc64"
-                                                                                            then
-                                                                                                let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                                    noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                                                    changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                                    changeValue = readMaybe changeString ∷ Maybe Double
-                                                                                                in  if (null . head) optionList
-                                                                                                        then do
-                                                                                                            failWithPhase
-                                                                                                                Parsing
-                                                                                                                "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no values found\n"
-                                                                                                        else
-                                                                                                            if ',' `notElem` head optionList
-                                                                                                                then do
-                                                                                                                    failWithPhase
-                                                                                                                        Parsing
-                                                                                                                        "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no comma foun\n"
-                                                                                                                else
-                                                                                                                    if isNothing noChangeValue || isNothing changeValue
-                                                                                                                        then do
-                                                                                                                            failWithPhase
-                                                                                                                                Parsing
-                                                                                                                                ( "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): "
-                                                                                                                                    <> head optionList
-                                                                                                                                    <> "\n"
-                                                                                                                                )
-                                                                                                                        else
-                                                                                                                            if bc64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                                                then do
-                                                                                                                                    logWith LogInfo ("bit cost 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                                                    pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                                                else pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                            else
-                                                                                                if head commandList == "bcgt64"
-                                                                                                    then
-                                                                                                        let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                                            noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                                                            changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                                            changeValue = readMaybe changeString ∷ Maybe Double
-                                                                                                        in  if (null . head) optionList
-                                                                                                                then do
-                                                                                                                    failWithPhase
-                                                                                                                        Parsing
-                                                                                                                        "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no values found\n"
-                                                                                                                else
-                                                                                                                    if ',' `notElem` head optionList
-                                                                                                                        then do
-                                                                                                                            failWithPhase
-                                                                                                                                Parsing
-                                                                                                                                "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no comma found\n"
-                                                                                                                        else
-                                                                                                                            if isNothing noChangeValue || isNothing changeValue
-                                                                                                                                then do
-                                                                                                                                    failWithPhase
-                                                                                                                                        Parsing
-                                                                                                                                        ( "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1):\n"
-                                                                                                                                            <> head optionList
-                                                                                                                                        )
-                                                                                                                                else
-                                                                                                                                    if bcgt64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                                                        then do
-                                                                                                                                            logWith LogInfo ("bit cost > 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                                                            pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                                                        else do pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                    else -- partition character to reset
-                                                                                                    do
-                                                                                                        -- trace ("PartitionCharacter set to '" <> (partitionCharacter globalSettings) <> "'")
-                                                                                                        pure (globalSettings, processedData)
-                            else -- regular command stuff not initial at start
+                        -- sets root cost as well-- need in both places--one to process data and one to
+                        -- keep in current global
+                        "criterion" → do
+                            localCriterion ← case firstOption of
+                                "parsimony" → pure Parsimony
+                                "pmdl" → pure PMDL
+                                "si" → pure SI
+                                "mapa" → pure MAPA
+                                "ncm" → pure NCM
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. Criterion '" <> val <> "' is not 'parsimony', 'ml', or 'pmdl'"
 
-                                if head commandList == "bc2"
-                                    then
-                                        let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                            noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                            changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                            changeValue = readMaybe changeString ∷ Maybe Double
-                                        in  if length commandList /= length optionList
-                                                then do
-                                                    failWithPhase
-                                                        Parsing
-                                                        ("Set option error: number of values and options do not match: " <> show (commandList, optionList) <> "\n")
-                                                else
-                                                    if (null . head) optionList
-                                                        then
-                                                            failWithPhase
-                                                                Parsing
-                                                                "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no values found\n"
-                                                        else
-                                                            if ',' `notElem` head optionList
-                                                                then do
-                                                                    failWithPhase
-                                                                        Parsing
-                                                                        "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no comma found\n"
-                                                                else
-                                                                    if isNothing noChangeValue || isNothing changeValue
-                                                                        then do
-                                                                            failWithPhase
-                                                                                Parsing
-                                                                                ( "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): "
-                                                                                    <> head optionList
-                                                                                    <> "\n"
-                                                                                )
-                                                                        else
-                                                                            if bc2 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                then do
-                                                                                    logWith LogInfo ("bit cost 2 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                    pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                else pure (globalSettings{bc2 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                    else
-                                        if head commandList == "bc4"
-                                            then
-                                                let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                    noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                    changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                    changeValue = readMaybe changeString ∷ Maybe Double
-                                                in  if (null . head) optionList
-                                                        then do
-                                                            failWithPhase
-                                                                Parsing
-                                                                "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no values found\n"
-                                                        else
-                                                            if ',' `notElem` head optionList
-                                                                then do
-                                                                    failWithPhase
-                                                                        Parsing
-                                                                        "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no comma found\n"
-                                                                else
-                                                                    if isNothing noChangeValue || isNothing changeValue
-                                                                        then do
-                                                                            failWithPhase
-                                                                                Parsing
-                                                                                ( "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): "
-                                                                                    <> head optionList
-                                                                                    <> "\n"
-                                                                                )
-                                                                        else
-                                                                            if bc4 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                then do
-                                                                                    logWith LogInfo ("bit cost 4 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                    pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                else pure (globalSettings{bc4 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                            else
-                                                if head commandList == "bc5"
-                                                    then
-                                                        let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                            noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                            changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                            changeValue = readMaybe changeString ∷ Maybe Double
-                                                        in  if (null . head) optionList
-                                                                then do
-                                                                    failWithPhase
-                                                                        Parsing
-                                                                        "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no values found\n"
-                                                                else
-                                                                    if ',' `notElem` head optionList
-                                                                        then do
-                                                                            failWithPhase
-                                                                                Parsing
-                                                                                "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no comma found\n"
-                                                                        else
-                                                                            if isNothing noChangeValue || isNothing changeValue
-                                                                                then do
-                                                                                    failWithPhase
-                                                                                        Parsing
-                                                                                        ( "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): "
-                                                                                            <> head optionList
-                                                                                            <> "\n"
-                                                                                        )
-                                                                                else
-                                                                                    if bc5 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                        then do
-                                                                                            logWith LogInfo ("bit cost 5 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                            pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                        else pure (globalSettings{bc5 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                    else
-                                                        if head commandList == "bc8"
-                                                            then
-                                                                let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                    noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                    changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                    changeValue = readMaybe changeString ∷ Maybe Double
-                                                                in  if (null . head) optionList
-                                                                        then do
-                                                                            failWithPhase
-                                                                                Parsing
-                                                                                "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no values found\n"
-                                                                        else
-                                                                            if ',' `notElem` head optionList
-                                                                                then do
-                                                                                    failWithPhase
-                                                                                        Parsing
-                                                                                        "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no comma found\n"
-                                                                                else
-                                                                                    if isNothing noChangeValue || isNothing changeValue
-                                                                                        then do
-                                                                                            failWithPhase
-                                                                                                Parsing
-                                                                                                ( "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): "
-                                                                                                    <> head optionList
-                                                                                                    <> "\n"
-                                                                                                )
-                                                                                        else
-                                                                                            if bc8 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                then do
-                                                                                                    logWith LogInfo ("bit cost 8 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                    pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                else pure (globalSettings{bc8 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                            else
-                                                                if head commandList == "bc64"
-                                                                    then
-                                                                        let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                            noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                            changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                            changeValue = readMaybe changeString ∷ Maybe Double
-                                                                        in  if (null . head) optionList
-                                                                                then do
-                                                                                    failWithPhase
-                                                                                        Parsing
-                                                                                        "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no values found\n"
-                                                                                else
-                                                                                    if ',' `notElem` head optionList
-                                                                                        then do
-                                                                                            failWithPhase
-                                                                                                Parsing
-                                                                                                "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no comma found\n"
-                                                                                        else
-                                                                                            if isNothing noChangeValue || isNothing changeValue
-                                                                                                then do
-                                                                                                    failWithPhase
-                                                                                                        Parsing
-                                                                                                        ( "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): "
-                                                                                                            <> head optionList
-                                                                                                            <> "\n"
-                                                                                                        )
-                                                                                                else
-                                                                                                    if bc64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                        then do
-                                                                                                            logWith LogInfo ("bit cost 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                            pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                        else pure (globalSettings{bc64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                    else
-                                                                        if head commandList == "bcgt64"
-                                                                            then
-                                                                                let noChangeString = takeWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                    noChangeValue = readMaybe noChangeString ∷ Maybe Double
-                                                                                    changeString = tail $ dropWhile (/= ',') $ filter (`notElem` ['(', ')']) $ head optionList
-                                                                                    changeValue = readMaybe changeString ∷ Maybe Double
-                                                                                in  if (null . head) optionList
-                                                                                        then do
-                                                                                            failWithPhase
-                                                                                                Parsing
-                                                                                                "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no values found\n"
-                                                                                        else
-                                                                                            if ',' `notElem` head optionList
-                                                                                                then do
-                                                                                                    failWithPhase
-                                                                                                        Parsing
-                                                                                                        "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no comma found\n"
-                                                                                                else
-                                                                                                    if isNothing noChangeValue || isNothing changeValue
-                                                                                                        then do
-                                                                                                            failWithPhase
-                                                                                                                Parsing
-                                                                                                                ( "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1):"
-                                                                                                                    <> head optionList
-                                                                                                                    <> "\n"
-                                                                                                                )
-                                                                                                        else
-                                                                                                            if bcgt64 globalSettings /= (fromJust noChangeValue, fromJust changeValue)
-                                                                                                                then do
-                                                                                                                    logWith LogInfo ("bit cost > 64 state set to " <> show (fromJust noChangeValue, fromJust changeValue) <> "\n")
-                                                                                                                    pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                                                                else pure (globalSettings{bcgt64 = (fromJust noChangeValue, fromJust changeValue)}, processedData)
-                                                                            else -- processed above, but need here since put in different value
+                            -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
+                            (lGraphComplexityList, lRootComplexity) ← case localCriterion of
+                                NCM | origProcessedData /= emptyProcessedData →
+                                    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
 
-                                                                                if head commandList == "criterion"
-                                                                                -- {-
-                                                                                -- trace ("In Set: " <> (show optionList)) $
-                                                                                    then
-                                                                                        let localCriterion
-                                                                                                | (head optionList == "parsimony") = Just Parsimony
-                                                                                                | (head optionList == "pmdl") = Just PMDL
-                                                                                                | (head optionList == "si") = Just SI
-                                                                                                | (head optionList == "mapa") = Just MAPA
-                                                                                                | (head optionList == "ncm") = Just NCM
-                                                                                                | otherwise = Nothing
+                                NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost processedData)
 
-                                                                                            -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
-                                                                                            lGraphComplexityList
-                                                                                                | localCriterion `elem` [Just Parsimony, Just NCM] = Just $ IL.repeat (0.0, 0.0)
-                                                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculateGraphComplexity processedData
-                                                                                                | localCriterion `elem` [Just MAPA] = Just $ IL.repeat (0.0, 0.0)
-                                                                                                | otherwise = Nothing
+                                Parsimony → pure $ (IL.repeat (0.0, 0.0), 0.0)
 
-                                                                                            lRootComplexity
-                                                                                                | localCriterion == Just Parsimony = Just 0.0
-                                                                                                | localCriterion `elem` [Just PMDL, Just SI] = Just $ U.calculatePMDLRootCost processedData
-                                                                                                | localCriterion `elem` [Just MAPA] = Just $ U.calculateMAPARootCost processedData
-                                                                                                | localCriterion == Just NCM =
-                                                                                                    -- for bit-packed ncm
-                                                                                                    if origProcessedData /= emptyProcessedData
-                                                                                                        then Just $ U.calculateNCMRootCost origProcessedData
-                                                                                                        else Just $ U.calculateNCMRootCost processedData
-                                                                                                | otherwise = Nothing
+                                MAPA → pure $ (U.calculateGraphComplexity &&& U.calculateMAPARootCost) processedData
 
-                                                                                            lGraphFactor =
-                                                                                                if localCriterion `elem` [Just PMDL, Just SI]
-                                                                                                    then PMDLGraph
-                                                                                                    else graphFactor globalSettings
-                                                                                        in  if isNothing localCriterion
-                                                                                                then do
-                                                                                                    failWithPhase Parsing ("Error in 'set' command. Criterion '" <> head optionList <> "' is not 'parsimony', 'ml', or 'pmdl'")
-                                                                                                else
-                                                                                                    if isNothing lGraphComplexityList
-                                                                                                        then do
-                                                                                                            failWithPhase Parsing ("Optimality criterion not recognized: " <> show localCriterion)
-                                                                                                        else
-                                                                                                            if isNothing lRootComplexity
-                                                                                                                then do
-                                                                                                                    failWithPhase Parsing ("Optimality criterion not recognized: " <> show localCriterion)
-                                                                                                                else
-                                                                                                                    pure
-                                                                                                                        ( globalSettings
-                                                                                                                            { optimalityCriterion = fromJust localCriterion
-                                                                                                                            , graphComplexityList = fromJust lGraphComplexityList
-                                                                                                                            , rootComplexity = fromJust lRootComplexity
-                                                                                                                            , graphFactor = lGraphFactor
-                                                                                                                            }
-                                                                                                                        , processedData
-                                                                                                                        )
-                                                                                    else -- }
+                                val | val `elem` [PMDL, SI] →
+                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) processedData
 
-                                                                                    -- modify the behavior of resolutionCache softwired optimization
+                                val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
 
-                                                                                        if head commandList == "compressresolutions"
-                                                                                            then
-                                                                                                let localCriterion
-                                                                                                        | (head optionList == "true") = Just True
-                                                                                                        | (head optionList == "false") = Just False
-                                                                                                        | otherwise = Nothing
-                                                                                                in  if isNothing localCriterion
-                                                                                                        then do
-                                                                                                            failWithPhase
-                                                                                                                Parsing
-                                                                                                                ("Error in 'set' command. CompressResolutions '" <> head optionList <> "' is not 'true' or 'false'" <> "\n")
-                                                                                                        else do
-                                                                                                            logWith LogInfo ("CompressResolutions set to " <> head optionList <> "\n")
-                                                                                                            pure (globalSettings{compressResolutions = fromJust localCriterion}, processedData)
-                                                                                            else -- this not intended to be for users
+                            let lGraphFactor
+                                    | localCriterion `elem` [PMDL, SI, MAPA] = PMDLGraph
+                                    | otherwise = graphFactor globalSettings
 
-                                                                                                if head commandList == "dynamicepsilon"
-                                                                                                    then
-                                                                                                        let localValue = readMaybe (head optionList) ∷ Maybe Double
-                                                                                                        in  if isNothing localValue
-                                                                                                                then error ("Set option 'dynamicEpsilon' must be set to an double value >= 0.0 (e.g. dynamicepsilon:0.02): " <> head optionList)
-                                                                                                                else
-                                                                                                                    if fromJust localValue < 0.0
-                                                                                                                        then
-                                                                                                                            errorWithoutStackTrace
-                                                                                                                                ("Set option 'dynamicEpsilon' must be set to a double value >= 0.0 (e.g. dynamicepsilon:0.02): " <> head optionList)
-                                                                                                                        else do
-                                                                                                                            logWith LogInfo ("Dynamic Epsilon factor set to " <> head optionList <> "\n")
-                                                                                                                            pure
-                                                                                                                                (globalSettings{dynamicEpsilon = 1.0 + (fromJust localValue * fractionDynamic globalSettings)}, processedData)
-                                                                                                    else
-                                                                                                        if head commandList == "finalassignment"
-                                                                                                            then
-                                                                                                                let localMethod
-                                                                                                                        | ((head optionList == "do") || (head optionList == "directoptimization")) = Just DirectOptimization
-                                                                                                                        | ((head optionList == "ia") || (head optionList == "impliedalignment")) = Just ImpliedAlignment
-                                                                                                                        | otherwise = Nothing
-                                                                                                                in  if isNothing localMethod
-                                                                                                                        then do
-                                                                                                                            failWithPhase
-                                                                                                                                Parsing
-                                                                                                                                ( "Error in 'set' command. FinalAssignment  '"
-                                                                                                                                    <> head optionList
-                                                                                                                                    <> "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'"
-                                                                                                                                    <> "\n"
-                                                                                                                                )
-                                                                                                                        else
-                                                                                                                            if graphType globalSettings == Tree
-                                                                                                                                then do
-                                                                                                                                    logWith LogInfo ("FinalAssignment set to " <> head optionList <> "\n")
-                                                                                                                                    pure (globalSettings{finalAssignment = fromJust localMethod}, processedData)
-                                                                                                                                else
-                                                                                                                                    if localMethod == Just DirectOptimization
-                                                                                                                                        then do
-                                                                                                                                            pure (globalSettings{finalAssignment = fromJust localMethod}, processedData)
-                                                                                                                                        else do
-                                                                                                                                            logWith LogInfo ("FinalAssignment set to DO (ignoring IA option) for non-Tree graphs" <> "\n")
-                                                                                                                                            pure (globalSettings{finalAssignment = DirectOptimization}, processedData)
-                                                                                                            else
-                                                                                                                if head commandList == "graphfactor"
-                                                                                                                    then
-                                                                                                                        let localMethod
-                                                                                                                                | (head optionList == "nopenalty") = Just NoNetworkPenalty
-                                                                                                                                | (head optionList == "w15") = Just Wheeler2015Network
-                                                                                                                                | (head optionList == "w23") = Just Wheeler2023Network
-                                                                                                                                | (head optionList == "pmdl") = Just PMDLGraph
-                                                                                                                                | otherwise = Nothing
-                                                                                                                        in  if isNothing localMethod
-                                                                                                                                then do
-                                                                                                                                    failWithPhase
-                                                                                                                                        Parsing
-                                                                                                                                        ("Error in 'set' command. GraphFactor  '" <> head optionList <> "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'" <> "\n")
-                                                                                                                                else do
-                                                                                                                                    logWith LogInfo ("GraphFactor set to " <> show localMethod <> "\n")
-                                                                                                                                    pure (globalSettings{graphFactor = fromJust localMethod}, processedData)
-                                                                                                                    else
-                                                                                                                        if head commandList == "graphssteepest"
-                                                                                                                            then
-                                                                                                                                let localValue = readMaybe (head optionList) ∷ Maybe Int
-                                                                                                                                in  if isNothing localValue
-                                                                                                                                        then do
-                                                                                                                                            failWithPhase
-                                                                                                                                                Parsing
-                                                                                                                                                ("Set option 'graphsSteepest' must be set to an integer value (e.g. graphsSteepest:5): " <> head optionList <> "\n")
-                                                                                                                                        else do
-                                                                                                                                            logWith LogInfo ("GraphsStreepest set to " <> head optionList <> "\n")
-                                                                                                                                            pure (globalSettings{graphsSteepest = fromJust localValue}, processedData)
-                                                                                                                            else
-                                                                                                                                if head commandList == "graphtype"
-                                                                                                                                    then
-                                                                                                                                        let localGraphType
-                                                                                                                                                | (head optionList == "tree") = Just Tree
-                                                                                                                                                | (head optionList == "softwired") = Just SoftWired
-                                                                                                                                                | (head optionList == "hardwired") = Just HardWired
-                                                                                                                                                | otherwise = Nothing
-                                                                                                                                        in  if isNothing localGraphType
-                                                                                                                                                then do
-                                                                                                                                                    failWithPhase
-                                                                                                                                                        Parsing
-                                                                                                                                                        ("Error in 'set' command. Graphtype '" <> head optionList <> "' is not 'tree', 'hardwired', or 'softwired'" <> "\n")
-                                                                                                                                                else
-                                                                                                                                                    if localGraphType /= Just Tree
-                                                                                                                                                        then do
-                                                                                                                                                            let netPenalty =
-                                                                                                                                                                    if localGraphType == Just HardWired
-                                                                                                                                                                        then NoNetworkPenalty
-                                                                                                                                                                        else graphFactor globalSettings
+                            logWith LogInfo $ case localCriterion of
+                                NCM → unwords ["Optimality criterion set to", show NCM, "in -log (base 10) likelihood units"]
+                                val
+                                    | val `elem` [PMDL, SI] →
+                                        unwords ["Optimality criterion set to", show val, "Tree Complexity =", show . fst $ IL.head lGraphComplexityList, "bits"]
+                                val → "Optimality criterion set to " <> show val
 
-                                                                                                                                                            logWith LogInfo ("Graphtype set to " <> head optionList <> " with graph factor NoPenalty and final assignment to DO" <> "\n")
-                                                                                                                                                            pure
-                                                                                                                                                                ( globalSettings{graphType = fromJust localGraphType, finalAssignment = DirectOptimization, graphFactor = netPenalty}
-                                                                                                                                                                , processedData
-                                                                                                                                                                )
-                                                                                                                                                        else do
-                                                                                                                                                            logWith LogInfo ("Graphtype set to " <> head optionList <> "\n")
-                                                                                                                                                            pure (globalSettings{graphType = fromJust localGraphType}, processedData)
-                                                                                                                                    else -- In first to do stuff above also
+                            pure $
+                                ( globalSettings
+                                    { optimalityCriterion = localCriterion
+                                    , graphComplexityList = lGraphComplexityList
+                                    , rootComplexity = lRootComplexity
+                                    , graphFactor = lGraphFactor
+                                    }
+                                , processedData
+                                )
 
-                                                                                                                                        if head commandList == "missingthreshold"
-                                                                                                                                            then
-                                                                                                                                                let localValue = readMaybe (head optionList) ∷ Maybe Int
-                                                                                                                                                in  if isNothing localValue
-                                                                                                                                                        then error ("Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> head optionList)
-                                                                                                                                                        else
-                                                                                                                                                            if fromJust localValue == missingThreshold globalSettings
-                                                                                                                                                                then pure (globalSettings, processedData)
-                                                                                                                                                                else do
-                                                                                                                                                                    logWith LogInfo ("MissingThreshold set to " <> head optionList <> "\n")
-                                                                                                                                                                    pure (globalSettings{missingThreshold = fromJust localValue}, processedData)
-                                                                                                                                            else
-                                                                                                                                                if head commandList == "modelcomplexity"
-                                                                                                                                                    then
-                                                                                                                                                        let localValue = readMaybe (head optionList) ∷ Maybe Double
-                                                                                                                                                        in  if isNothing localValue
-                                                                                                                                                                then error ("Set option 'modelComplexity' must be set to a double value (e.g. modelComplexity:123.456): " <> head optionList)
-                                                                                                                                                                else do
-                                                                                                                                                                    logWith LogInfo ("Model Complexity set to " <> head optionList <> "\n")
-                                                                                                                                                                    pure (globalSettings{modelComplexity = fromJust localValue}, processedData)
-                                                                                                                                                    else -- modify the behavior of rerooting character trees for all graph types
+                        "bc2" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc2 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 2 state set to " <> show val
+                                            pure (globalSettings{bc2 = val}, processedData)
 
-                                                                                                                                                        if head commandList == "multitraverse"
-                                                                                                                                                            then do
-                                                                                                                                                                let localCriterion
-                                                                                                                                                                        | (head optionList == "true") = Just True
-                                                                                                                                                                        | (head optionList == "false") = Just False
-                                                                                                                                                                        | otherwise = Nothing
+                        "bc4" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc4 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 4 state set to " <> show val
+                                            pure (globalSettings{bc4 = val}, processedData)
 
-                                                                                                                                                                if isNothing localCriterion
-                                                                                                                                                                    then do failWithPhase Parsing ("Error in 'set' command. MultiTraverse '" <> head optionList <> "' is not 'true' or 'false'")
-                                                                                                                                                                    else do
-                                                                                                                                                                        logWith LogInfo ("MultiTraverse set to " <> head optionList <> "\n")
-                                                                                                                                                                        pure (globalSettings{multiTraverseCharacters = fromJust localCriterion}, processedData)
-                                                                                                                                                            else
-                                                                                                                                                                if head commandList == "outgroup"
-                                                                                                                                                                    then
-                                                                                                                                                                        let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
-                                                                                                                                                                            outTaxonIndex = V.elemIndex outTaxonName leafNameVect
-                                                                                                                                                                        in  if isNothing outTaxonIndex
-                                                                                                                                                                                then do
-                                                                                                                                                                                    failWithPhase
-                                                                                                                                                                                        Parsing
-                                                                                                                                                                                        ( "Error in 'set' command. Out-taxon "
-                                                                                                                                                                                            <> T.unpack outTaxonName
-                                                                                                                                                                                            <> " not found in input leaf list"
-                                                                                                                                                                                            <> show (fmap T.unpack leafNameVect)
-                                                                                                                                                                                        )
-                                                                                                                                                                                else do
-                                                                                                                                                                                    logWith LogInfo ("Outgroup set to " <> T.unpack outTaxonName <> "\n")
-                                                                                                                                                                                    pure (globalSettings{outgroupIndex = fromJust outTaxonIndex, outGroupName = outTaxonName}, processedData)
-                                                                                                                                                                    else
-                                                                                                                                                                        if head commandList == "partitioncharacter"
-                                                                                                                                                                            then
-                                                                                                                                                                                let localPartitionChar = head optionList
-                                                                                                                                                                                in  if length localPartitionChar /= 1
-                                                                                                                                                                                        then
-                                                                                                                                                                                            errorWithoutStackTrace
-                                                                                                                                                                                                ("Error in 'set' command. Partitioncharacter '" <> show localPartitionChar <> "' must be a single character")
-                                                                                                                                                                                        else
-                                                                                                                                                                                            if localPartitionChar /= partitionCharacter globalSettings
-                                                                                                                                                                                                then do
-                                                                                                                                                                                                    logWith LogInfo ("PartitionCharacter set to '" <> head optionList <> "'" <> "\n")
-                                                                                                                                                                                                    pure (globalSettings{partitionCharacter = localPartitionChar}, processedData)
-                                                                                                                                                                                                else pure (globalSettings, processedData)
-                                                                                                                                                                            else
-                                                                                                                                                                                if head commandList == "reportnaivedata"
-                                                                                                                                                                                    then do
-                                                                                                                                                                                        let localMethod
-                                                                                                                                                                                                | (head optionList == "true") = True
-                                                                                                                                                                                                | (head optionList == "false") = False
-                                                                                                                                                                                                | otherwise =
-                                                                                                                                                                                                    errorWithoutStackTrace ("Error in 'set' command. NeportNaive  '" <> head optionList <> "' is not 'True' or 'False'")
+                        "bc5" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc5 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 5 state set to " <> show val
+                                            pure (globalSettings{bc5 = val}, processedData)
 
-                                                                                                                                                                                        logWith LogInfo ("ReportNaiveData set to " <> show localMethod <> "\n")
-                                                                                                                                                                                        pure (globalSettings{reportNaiveData = localMethod}, processedData)
-                                                                                                                                                                                    else
-                                                                                                                                                                                        if head commandList == "rootcost"
-                                                                                                                                                                                            then do
-                                                                                                                                                                                                let localMethod
-                                                                                                                                                                                                        | (head optionList == "norootcost") = NoRootCost
-                                                                                                                                                                                                        | (head optionList == "mapa") = MAPARoot
-                                                                                                                                                                                                        | (head optionList == "ncm") = NCMRoot
-                                                                                                                                                                                                        | (head optionList == "pmdl") = PMDLRoot
-                                                                                                                                                                                                        | (head optionList == "si") = SIRoot
-                                                                                                                                                                                                        | otherwise =
-                                                                                                                                                                                                            errorWithoutStackTrace ("Error in 'set' command. RootCost  '" <> head optionList <> "' is not 'NoRootCost', 'MAPA', 'NCM', 'PMDL', or 'SI'")
+                        "bc8" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc8 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 8 state set to " <> show val
+                                            pure (globalSettings{bc8 = val}, processedData)
 
-                                                                                                                                                                                                    lRootComplexity
-                                                                                                                                                                                                        | localMethod == NoRootCost = Just 0.0
-                                                                                                                                                                                                        | localMethod `elem` [PMDLRoot, SIRoot] = Just $ U.calculatePMDLRootCost processedData
-                                                                                                                                                                                                        | localMethod `elem` [MAPARoot] = Just $ U.calculateMAPARootCost processedData
-                                                                                                                                                                                                        | localMethod == NCMRoot =
-                                                                                                                                                                                                            -- this for reorganized data (bit packed non-additive really)
-                                                                                                                                                                                                            if origProcessedData /= emptyProcessedData
-                                                                                                                                                                                                                then Just $ U.calculateNCMRootCost origProcessedData
-                                                                                                                                                                                                                else Just $ U.calculateNCMRootCost processedData
-                                                                                                                                                                                                        | otherwise = Nothing
+                        "bc64" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc64 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 64 state set to " <> show val
+                                            pure (globalSettings{bc64 = val}, processedData)
 
-                                                                                                                                                                                                logWith LogInfo ("RootCost set to " <> show localMethod <> " " <> (show $ fromJust lRootComplexity) <> "\n")
-                                                                                                                                                                                                pure (globalSettings{rootCost = localMethod, rootComplexity = fromJust lRootComplexity}, processedData)
-                                                                                                                                                                                            else
-                                                                                                                                                                                                if head commandList == "seed"
-                                                                                                                                                                                                    then
-                                                                                                                                                                                                        case readMaybe (head optionList) ∷ Maybe Int of
-                                                                                                                                                                                                            Nothing ->  failWithPhase Parsing ("Set option 'seed' must be set to an integer value (e.g. seed:123): " <> head optionList)
-                                                                                                                                                                                                            Just localValue -> do
-                                                                                                                                                                                                                    logWith LogInfo ("Random Seed set to " <> head optionList <> "\n")
-                                                                                                                                                                                                                    setRandomSeed localValue
-                                                                                                                                                                                                                    pure (globalSettings, processedData)
+                        "bcgt64" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bcgt64 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost > 64 state set to " <> show val
+                                            pure (globalSettings{bcgt64 = val}, processedData)
 
-                                                                                                                                                                                                    else
-                                                                                                                                                                                                        if head commandList == "softwiredmethod"
-                                                                                                                                                                                                            then do
-                                                                                                                                                                                                                let localMethod
-                                                                                                                                                                                                                        | (head optionList == "naive") = Naive
-                                                                                                                                                                                                                        | (head optionList == "exhaustive") = Naive
-                                                                                                                                                                                                                        | (head optionList == "resolutioncache") = ResolutionCache
-                                                                                                                                                                                                                        | otherwise =
-                                                                                                                                                                                                                            errorWithoutStackTrace
-                                                                                                                                                                                                                                ("Error in 'set' command. SoftwiredMethod  '" <> head optionList <> "' is not 'Exhaustive' or 'ResolutionCache'")
+                        -- partition character to reset
+                        "bcgt64" → pure (globalSettings, processedData)
 
-                                                                                                                                                                                                                logWith LogInfo ("SoftwiredMethod " <> show localMethod <> "\n")
-                                                                                                                                                                                                                pure (globalSettings{softWiredMethod = localMethod}, processedData)
-                                                                                                                                                                                                            else -- modify the use of Network Add heurisitcs in network optimization
+                        val → do
+                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option in of '", val, "' in ", show argList ]
+                            pure (globalSettings, processedData)
 
-                                                                                                                                                                                                                if head commandList == "usenetaddheuristic"
-                                                                                                                                                                                                                    then do
-                                                                                                                                                                                                                        let localCriterion
-                                                                                                                                                                                                                                | (head optionList == "true") = True
-                                                                                                                                                                                                                                | (head optionList == "false") = False
-                                                                                                                                                                                                                                | otherwise =
-                                                                                                                                                                                                                                    errorWithoutStackTrace ("Error in 'set' command. UseNetAddHeuristic '" <> head optionList <> "' is not 'true' or 'false'")
+                    -- =-=-=-=-=-=-=-=-=-=-=-=-=
+                    -- =                       =
+                    -- = regular command stuff =
+                    -- = not initial at start  =
+                    -- =                       =
+                    -- =-=-=-=-=-=-=-=-=-=-=-=-=
+                    _ -> case firstCommand of
 
-                                                                                                                                                                                                                        logWith LogInfo ("UseNetAddHeuristic set to " <> head optionList <> "\n")
-                                                                                                                                                                                                                        pure (globalSettings{useNetAddHeuristic = localCriterion}, processedData)
-                                                                                                                                                                                                                    else -- these not intended for users
+                        "bc2" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc2' must be set to a pair of double values in parens, separated by a comma (e.g. bc2:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc2 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 2 state set to " <> show val
+                                            pure (globalSettings{bc2 = val}, processedData)
 
-                                                                                                                                                                                                                        if head commandList == "jointhreshold"
-                                                                                                                                                                                                                            then
-                                                                                                                                                                                                                                let localValue = readMaybe (head optionList) ∷ Maybe Double
-                                                                                                                                                                                                                                in  if isNothing localValue
-                                                                                                                                                                                                                                        then error ("Set option 'joinThreshold' must be set to an double value >= 1.0 (e.g. joinThreshold:1.17): " <> head optionList)
-                                                                                                                                                                                                                                        else
-                                                                                                                                                                                                                                            if fromJust localValue < 1.0
-                                                                                                                                                                                                                                                then
-                                                                                                                                                                                                                                                    errorWithoutStackTrace
-                                                                                                                                                                                                                                                        ("Set option 'joinThreshold' must be set to a double value >= 1.0 (e.g. joinThreshold:1.17): " <> head optionList)
-                                                                                                                                                                                                                                                else do
-                                                                                                                                                                                                                                                    logWith LogInfo ("JoinThreshold set to " <> head optionList <> "\n")
-                                                                                                                                                                                                                                                    pure (globalSettings{unionThreshold = fromJust localValue}, processedData)
-                                                                                                                                                                                                                            else -- parallel strategy settings options
+                        "bc4" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc4' must be set to a pair of double values in parens, separated by a comma (e.g. bc4:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc4 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 4 state set to " <> show val
+                                            pure (globalSettings{bc4 = val}, processedData)
 
-                                                                                                                                                                                                                                if head commandList == "defparstrat"
-                                                                                                                                                                                                                                    then do
-                                                                                                                                                                                                                                        let localMethod
-                                                                                                                                                                                                                                                | (head optionList == "r0") = R0
-                                                                                                                                                                                                                                                | (head optionList == "rpar") = RPar
-                                                                                                                                                                                                                                                | (head optionList == "rseq") = RSeq
-                                                                                                                                                                                                                                                | (head optionList == "rdeepseq") = RDeepSeq
-                                                                                                                                                                                                                                                | otherwise =
-                                                                                                                                                                                                                                                    errorWithoutStackTrace
-                                                                                                                                                                                                                                                        ("Error in 'set' command. DefParStrat  '" <> head optionList <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'" <> "\n")
+                        "bc5" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc5' must be set to a pair of double values in parens, separated by a comma (e.g. bc5:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc5 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 5 state set to " <> show val
+                                            pure (globalSettings{bc5 = val}, processedData)
 
-                                                                                                                                                                                                                                        logWith LogInfo ("DefParStrat set to " <> show localMethod <> "\n")
-                                                                                                                                                                                                                                        pure (globalSettings{defaultParStrat = localMethod}, processedData)
-                                                                                                                                                                                                                                    else
-                                                                                                                                                                                                                                        if head commandList == "lazyparstrat"
-                                                                                                                                                                                                                                            then do
-                                                                                                                                                                                                                                                let localMethod
-                                                                                                                                                                                                                                                        | (head optionList == "r0") = R0
-                                                                                                                                                                                                                                                        | (head optionList == "rpar") = RPar
-                                                                                                                                                                                                                                                        | (head optionList == "rseq") = RSeq
-                                                                                                                                                                                                                                                        | (head optionList == "rdeepseq") = RDeepSeq
-                                                                                                                                                                                                                                                        | otherwise =
-                                                                                                                                                                                                                                                            errorWithoutStackTrace
-                                                                                                                                                                                                                                                                ("Error in 'set' command. LazyParStrat  '" <> head optionList <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'" <> "\n")
+                        "bc8" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc8' must be set to a pair of double values in parens, separated by a comma (e.g. bc8:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc8 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 8 state set to " <> show val
+                                            pure (globalSettings{bc8 = val}, processedData)
 
-                                                                                                                                                                                                                                                logWith LogInfo ("LazyParStrat set to " <> show localMethod <> "\n")
-                                                                                                                                                                                                                                                pure (globalSettings{lazyParStrat = localMethod}, processedData)
-                                                                                                                                                                                                                                            else
-                                                                                                                                                                                                                                                if head commandList == "strictparstrat"
-                                                                                                                                                                                                                                                    then do
-                                                                                                                                                                                                                                                        let localMethod
-                                                                                                                                                                                                                                                                | (head optionList == "r0") = R0
-                                                                                                                                                                                                                                                                | (head optionList == "rpar") = RPar
-                                                                                                                                                                                                                                                                | (head optionList == "rseq") = RSeq
-                                                                                                                                                                                                                                                                | (head optionList == "rdeepseq") = RDeepSeq
-                                                                                                                                                                                                                                                                | otherwise =
-                                                                                                                                                                                                                                                                    errorWithoutStackTrace
-                                                                                                                                                                                                                                                                        ("Error in 'set' command. StrictParStrat  '" <> head optionList <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'" <> "\n")
+                        "bc64" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bc64' must be set to a pair of double values in parens, separated by a comma (e.g. bc64:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bc64 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost 64 state set to " <> show val
+                                            pure (globalSettings{bc64 = val}, processedData)
 
-                                                                                                                                                                                                                                                        logWith LogInfo ("StrictParStrat set to " <> show localMethod <> "\n")
-                                                                                                                                                                                                                                                        pure (globalSettings{strictParStrat = localMethod}, processedData)
-                                                                                                                                                                                                                                                    else -- modify the use of implied alkignemnt in heuristics
+                        "bcgt64" →
+                            let (noChangeString, changeString) = changingStrings firstOption
+                                noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
+                                changeMaybe = readMaybe changeString ∷ Maybe Double
+                            in  do
+                                    when (length commandList /= length optionList) . failWithPhase Parsing $
+                                        "Set option error: number of values and options do not match:" <> show (commandList, optionList)
+                                    when (null $ firstOption) . failWithPhase Parsing $
+                                        "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no values found "
+                                    when (',' `notElem` firstOption) . failWithPhase Parsing $
+                                        "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): no comma found "
+                                    case liftA2 (,) noChangeMaybe changeMaybe of
+                                        Nothing →
+                                            failWithPhase Parsing $
+                                                "Set option 'bcgt64' must be set to a pair of double values in parens, separated by a comma (e.g. bcgt64:(0.1, 1.1): "
+                                                    <> firstOption
+                                        Just val@(_, _) → do
+                                            when (bcgt64 globalSettings /= val) . logWith LogInfo $
+                                                "bit cost > 64 state set to " <> show val
+                                            pure (globalSettings{bcgt64 = val}, processedData)
 
-                                                                                                                                                                                                                                                        if head commandList == "useia"
-                                                                                                                                                                                                                                                            then do
-                                                                                                                                                                                                                                                                let localCriterion
-                                                                                                                                                                                                                                                                        | (head optionList == "true") = True
-                                                                                                                                                                                                                                                                        | (head optionList == "false") = False
-                                                                                                                                                                                                                                                                        | otherwise = errorWithoutStackTrace ("Error in 'set' command. UseIA '" <> head optionList <> "' is not 'true' or 'false'")
+                        -- processed above, but need here since put in different value
+                        "criterion" → do
+                            localCriterion ← case firstOption of
+                                "parsimony" → pure Parsimony
+                                "pmdl" → pure PMDL
+                                "si" → pure SI
+                                "mapa" → pure MAPA
+                                "ncm" → pure NCM
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. Criterion '" <> val <> "' is not 'parsimony', 'ml', or 'pmdl'"
 
-                                                                                                                                                                                                                                                                logWith LogInfo ("UseIA set to " <> head optionList <> "\n")
-                                                                                                                                                                                                                                                                pure (globalSettings{useIA = localCriterion}, processedData)
-                                                                                                                                                                                                                                                            else do
-                                                                                                                                                                                                                                                                logWith LogInfo ("Warning: Unrecognized/missing 'set' option in " <> show argList <> "\n")
-                                                                                                                                                                                                                                                                pure (globalSettings, processedData)
+                            -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
+                            (lGraphComplexityList, lRootComplexity) ← case localCriterion of
+                                NCM | origProcessedData /= emptyProcessedData →
+                                    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
+
+                                NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost processedData)
+
+                                Parsimony → pure $ (IL.repeat (0.0, 0.0), 0.0)
+
+                                MAPA → pure $ (U.calculateGraphComplexity &&& U.calculateMAPARootCost) processedData
+
+                                val | val `elem` [PMDL, SI] →
+                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) processedData
+
+                                val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
+
+                            let lGraphFactor
+                                    | localCriterion `elem` [PMDL, SI, MAPA] = PMDLGraph
+                                    | otherwise = graphFactor globalSettings
+
+                            logWith LogInfo $ case localCriterion of
+                                NCM → unwords ["Optimality criterion set to", show NCM, "in -log (base 10) likelihood units"]
+                                val
+                                    | val `elem` [PMDL, SI] →
+                                        unwords ["Optimality criterion set to", show val, "Tree Complexity =", show . fst $ IL.head lGraphComplexityList, "bits"]
+                                val → "Optimality criterion set to " <> show val
+
+                            pure $
+                                ( globalSettings
+                                    { optimalityCriterion = localCriterion
+                                    , graphComplexityList = lGraphComplexityList
+                                    , rootComplexity = lRootComplexity
+                                    , graphFactor = lGraphFactor
+                                    }
+                                , processedData
+                                )
+
+                        -- modify the behavior of resolutionCache softwired optimization
+                        "compressresolutions" → do
+                            localCriterion ← case toLower <$> firstOption of
+                                "true" → pure True
+                                "false" → pure False
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. CompressResolutions '" <> val <> "' is not 'true' or 'false'"
+                            logWith LogInfo $ "CompressResolutions set to " <> show localCriterion
+                            pure (globalSettings{compressResolutions = localCriterion}, processedData)
+
+                        -- this not intended to be for users
+                        "dynamicepsilon" → case readMaybe (firstOption) ∷ Maybe Double of
+                            Nothing →
+                                failWithPhase Parsing $
+                                    "Set option 'dynamicEpsilon' must be set to a double value >= 0.0 (e.g. dynamicepsilon:0.02): " <> firstOption
+                            Just val
+                                | val < 0.0 →
+                                    failWithPhase Parsing $
+                                        "Set option 'dynamicEpsilon' must be set to a double value >= 0.0 (e.g. dynamicepsilon:0.02): " <> show val
+                            Just localValue → do
+                                logWith LogInfo $ "Dynamic Epsilon factor set to " <> firstOption
+                                pure (globalSettings{dynamicEpsilon = 1.0 + (localValue * fractionDynamic globalSettings)}, processedData)
+
+                        "finalassignment" → do
+                            localMethod ← case firstOption of
+                                "do" → pure DirectOptimization
+                                "directoptimization" → pure DirectOptimization
+                                "ia" → pure ImpliedAlignment
+                                "impliedalignment" → pure ImpliedAlignment
+                                val → failWithPhase Parsing $ fold
+                                    [ "Error in 'set' command. FinalAssignment  '"
+                                    , val
+                                    , "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'"
+                                    ]
+
+                            case graphType globalSettings of
+                                Tree -> do
+                                    logWith LogInfo $ "FinalAssignment set to " <> show localMethod
+                                    pure (globalSettings{finalAssignment = localMethod}, processedData)
+                                _ -> do
+                                    unless (localMethod == DirectOptimization) $
+                                        logWith LogInfo "FinalAssignment set to DO (ignoring IA option) for non-Tree graphs"
+                                    pure (globalSettings{finalAssignment = DirectOptimization}, processedData)
+
+                        "graphfactor" → do
+                            localMethod ← case toLower <$> firstOption of
+                                "nopenalty" → pure NoNetworkPenalty
+                                "w15" → pure Wheeler2015Network
+                                "w23" → pure Wheeler2023Network
+                                "pmdl" → pure PMDLGraph
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. GraphFactor  '" <> val <> "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'"
+                            logWith LogInfo $ "GraphFactor set to " <> show localMethod
+                            pure (globalSettings{graphFactor = localMethod}, processedData)
+
+                        "graphssteepest" → case readMaybe (firstOption) ∷ Maybe Int of
+                            Nothing →
+                                failWithPhase Parsing $
+                                    "Set option 'graphsSteepest' must be set to an integer value (e.g. graphsSteepest:5): " <> firstOption
+                            Just localValue → do
+                                logWith LogInfo $ "GraphsStreepest set to " <> show localValue
+                                pure (globalSettings{graphsSteepest = localValue}, processedData)
+
+                        "graphtype" → do
+                            localGraphType ← case firstOption of
+                                "tree" → pure Tree
+                                "softwired" → pure SoftWired
+                                "hardwired" → pure HardWired
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. Graphtype '" <> val <> "' is not 'tree', 'hardwired', or 'softwired'"
+
+                            let netPenalty = case localGraphType of
+                                    HardWired → NoNetworkPenalty
+                                    _ → graphFactor globalSettings
+
+                            let settingResult = case localGraphType of
+                                    Tree → globalSettings{graphType = localGraphType}
+                                    _ →
+                                        globalSettings
+                                            { graphType = localGraphType
+                                            , finalAssignment = DirectOptimization
+                                            , graphFactor = netPenalty
+                                            }
+                            when (localGraphType /= Tree) $
+                                logWith LogInfo $
+                                    unwords
+                                        ["Graphtype set to", show localGraphType, "with graph factor NoPenalty and final assignment to DO"]
+
+                            pure (settingResult, processedData)
+
+                        -- In first to do stuff above also
+                        "missingthreshold" → case readMaybe (firstOption) ∷ Maybe Int of
+                            Nothing →
+                                failWithPhase Parsing $
+                                    "Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> firstOption
+                            Just localValue | localValue == missingThreshold globalSettings → pure (globalSettings, processedData)
+                            Just localValue → do
+                                logWith LogWarn $ "MissingThreshold set to " <> show localValue
+                                pure (globalSettings{missingThreshold = localValue}, processedData)
+
+                        "modelcomplexity" → case readMaybe (firstOption) ∷ Maybe Double of
+                            Nothing →
+                                failWithPhase Parsing $
+                                    "Set option 'modelComplexity' must be set to a double value (e.g. modelComplexity:123.456): " <> firstOption
+                            Just localValue → do
+                                logWith LogInfo $ "Model Complexity set to " <> firstOption
+                                pure (globalSettings{modelComplexity = localValue}, processedData)
+
+                        -- modify the behavior of rerooting character trees for all graph types
+                        "multitraverse" → do
+                            localCriterion ← case toLower <$> firstOption of
+                                "true" → pure True
+                                "false" → pure False
+                                _ →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. MultiTraverse '" <> firstOption <> "' is not 'true' or 'false'"
+                            logWith LogInfo $ "MultiTraverse set to " <> show localCriterion
+                            pure (globalSettings{multiTraverseCharacters = localCriterion}, processedData)
+
+                        "outgroup" →
+                            let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
+                            in  case V.elemIndex outTaxonName leafNameVect of
+                                    Nothing →
+                                        failWithPhase Parsing $
+                                            unwords
+                                                ["Error in 'set' command. Out-taxon", T.unpack outTaxonName, "not found in input leaf list", show $ T.unpack <$> leafNameVect]
+                                    Just outTaxonIndex → do
+                                        logWith LogInfo $ "Outgroup set to " <> T.unpack outTaxonName
+                                        pure (globalSettings{outgroupIndex = outTaxonIndex, outGroupName = outTaxonName}, processedData)
+
+                        "partitioncharacter" → case firstOption of
+                            localPartitionChar@[_] → do
+                                when (localPartitionChar /= partitionCharacter globalSettings) . logWith LogInfo $
+                                    "PartitionCharacter set to '" <> firstOption <> "'"
+                                pure (globalSettings{partitionCharacter = localPartitionChar}, processedData)
+                            val →
+                                failWithPhase Parsing $
+                                    "Error in 'set' command. Partitioncharacter '" <> val <> "' must be a single character"
+
+                        "reportnaivedata" → do
+                            localMethod ← case toLower <$> firstOption of
+                                "true" → pure True
+                                "false" → pure False
+                                val → failWithPhase Parsing $ "Error in 'set' command. NeportNaive  '" <> val <> "' is not 'True' or 'False'"
+                            logWith LogInfo $ "ReportNaiveData set to " <> show localMethod
+                            pure (globalSettings{reportNaiveData = localMethod}, processedData)
+
+                        "rootcost" → do
+                            localMethod ← case toLower <$> firstOption of
+                                "mapa" → pure MAPARoot
+                                "ncm" → pure NCMRoot
+                                "norootcost" → pure NoRootCost
+                                "pmdl" → pure PMDLRoot
+                                "si" → pure SIRoot
+                                "w15" → pure Wheeler2015Root
+                                val → failWithPhase Parsing $ "Error in 'set' command. RootCost '" <> val <> "' is not 'NoRootCost', 'W15', or 'PMDL'"
+
+                            lRootComplexity ← case localMethod of
+                                NoRootCost → pure 0.0
+                                val | val `elem` [Wheeler2015Root, PMDLRoot] → pure $ U.calculatePMDLRootCost processedData
+                                val → failWithPhase Parsing $ "Error in 'set' command. No determined root complexity of '" <> show val <> "'"
+
+                            logWith LogInfo $ unwords ["RootCost set to", show localMethod, show lRootComplexity, "bits"]
+                            pure (globalSettings{rootCost = localMethod, rootComplexity = lRootComplexity}, processedData)
+
+                        "seed" → case readMaybe firstOption ∷ Maybe Int of
+                            Nothing → failWithPhase Parsing $ "Set option 'seed' must be set to an integer value (e.g. seed:123): " <> firstOption
+                            Just localValue → do
+                                logWith LogInfo $ "Random Seed set to " <> firstOption <> "\n"
+                                setRandomSeed localValue
+                                pure (globalSettings, processedData)
+
+                        "softwiredmethod" → do
+                            localMethod ← case firstOption of
+                                "naive" → pure Naive
+                                "exhaustive" → pure Naive
+                                "resolutioncache" → pure ResolutionCache
+                                _ → failWithPhase Parsing $ fold [ "Error in 'set' command. SoftwiredMethod '", firstOption, "' is not 'Exhaustive' or 'ResolutionCache'" ]
+
+                            logWith LogInfo $ "SoftwiredMethod " <> show localMethod <> "\n"
+                            pure (globalSettings{softWiredMethod = localMethod}, processedData)
+
+                        -- modify the use of Network Add heurisitcs in network optimization
+                        "usenetaddheuristic" → do
+                            localCriterion ← case firstOption of
+                                "true" → pure True
+                                "false" → pure False
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. UseNetAddHeuristic '" <> val <> "' is not 'true' or 'false'"
+                            logWith LogInfo $ "UseNetAddHeuristic set to " <> show localCriterion
+                            pure (globalSettings{useNetAddHeuristic = localCriterion}, processedData)
+
+                        -- these not intended for users
+                        "jointhreshold" → case readMaybe (firstOption) ∷ Maybe Double of
+                            Nothing →
+                                failWithPhase Parsing $
+                                    "Set option 'joinThreshold' must be set to an double value >= 1.0 (e.g. joinThreshold:1.17): " <> firstOption
+                            Just localValue
+                                | localValue < 1.0 →
+                                    failWithPhase Parsing $
+                                        "Set option 'joinThreshold' must be set to a double value >= 1.0 (e.g. joinThreshold:1.17): " <> show localValue
+                            Just localValue → do
+                                logWith LogInfo $ "JoinThreshold set to " <> show localValue
+                                pure (globalSettings{unionThreshold = localValue}, processedData)
+
+                        -- parallel strategy settings options
+                        "defparstrat" → do
+                            localMethod ← case firstOption of
+                                "r0" → pure R0
+                                "rpar" → pure RPar
+                                "rseq" → pure RSeq
+                                "rdeepseq" → pure RDeepSeq
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
+                            logWith LogInfo $ "DefParStrat set to " <> show localMethod
+                            pure (globalSettings{defaultParStrat = localMethod}, processedData)
+
+                        "lazyparstrat" → do
+                            localMethod ← case firstOption of
+                                "r0" → pure R0
+                                "rpar" → pure RPar
+                                "rseq" → pure RSeq
+                                "rdeepseq" → pure RDeepSeq
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
+                            logWith LogInfo $ "LazyParStrat set to " <> show localMethod
+                            pure (globalSettings{lazyParStrat = localMethod}, processedData)
+
+                        "strictparstrat" → do
+                            localMethod ← case firstOption of
+                                "r0" → pure R0
+                                "rpar" → pure RPar
+                                "rseq" → pure RSeq
+                                "rdeepseq" → pure RDeepSeq
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
+                            logWith LogInfo $ "StrictParStrat set to " <> show localMethod
+                            pure (globalSettings{strictParStrat = localMethod}, processedData)
+
+                        -- modify the use of implied alkignemnt in heuristics
+                        "useia" → do
+                            localCriterion ← case firstOption of
+                                "true" → pure True
+                                "false" → pure False
+                                val →
+                                    failWithPhase Parsing $
+                                        "Error in 'set' command. UseIA '" <> val <> "' is not 'true' or 'false'"
+                            logWith LogInfo $ "UseIA set to " <> show localCriterion
+                            pure (globalSettings{useIA = localCriterion}, processedData)
+
+                        val → do
+                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option in of '", val, "' in ", show argList ]
+                            pure (globalSettings, processedData)
 
 
-{- | reportCommand takes report options, current data and graphs and returns a
-(potentially large) String to print and the channel to print it to
-and write mode overwrite/append
-if global settings reportNaiveData is True then need to rediagnose graph with processed data since
-naiveData was sent to command and will not match what is in the optimized graphs
+{- |
+'reportCommand' takes report options, current data and graphs and returns a
+(potentially large) String to print and the channel to print it to and write mode
+overwrite/append if global settings reportNaiveData is True then need to rediagnose
+graph with processed data since naiveData was sent to command and will not match
+what is in the optimized graphs.
 -}
 reportCommand
     ∷ GlobalSettings
@@ -1567,7 +1336,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                                         let action :: SimpleGraph -> PhyG PhylogeneticGraph
                                                                                                                                             action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
                                                                                                                                         in  getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                                                pTraverse (action . fst5) curGraphs  
+                                                                                                                                                pTraverse (action . fst5) curGraphs
 
                                                                                                                             tntContentList' ← traverse (getTNTString globalSettings processedData) $ zip curGraphs' [ 0 .. length curGraphs' - 1 ]
                                                                                                                             let tntContentList = concat tntContentList'
@@ -1585,10 +1354,15 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                                 ("Reporting " <> show (length curGraphs) <> " graph(s) at minimum cost " <> show (minimum $ fmap snd5 curGraphs) <> "\n")
                                                                                                                             pure (graphString, outfileName, writeMode)
     where
-        bracketToCurly a =
-            if a == '('
-                then '{'
-                else
-                    if a == ')'
-                        then '}'
-                        else a
+        bracketToCurly = \case
+            '(' -> '{'
+            ')' -> '}'
+            val -> val
+
+
+
+
+changingStrings :: String -> (String, String)
+changingStrings str = case span (/= ',') $ filter (`notElem` ['(', ')']) str of
+    (prefix, ',':suffix) -> (prefix, suffix)
+    (prefix, _) -> (prefix, mempty)
