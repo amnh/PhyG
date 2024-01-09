@@ -38,7 +38,7 @@ Portability :  portable (I hope)
 module Complexity.Utilities
   (  getInformationContent
   ,  split2Matrix
-  ,  invertMatrixExt
+  --,  invertMatrixExt
   ,  ppMatrix
   )  where
 
@@ -48,7 +48,7 @@ import Data.ByteString.Lazy qualified as B
 import Data.String.Encode qualified as E
 import Data.List
 -- import Complexity.Constants
-import Numeric.LinearAlgebra
+-- import Numeric.LinearAlgebra
 
 -- | occurencesInList counts occurences elements in list--makes result double so can divide later
 occurencesInList :: Eq a => [a] -> a -> Double
@@ -133,8 +133,9 @@ split2Matrix lengthPieces inList
   | otherwise =
       take lengthPieces inList : split2Matrix lengthPieces (drop lengthPieces inList)
 
+{-
 -- | exportable versions of functions
---invertMatrixExt uses l;ibrary to invert matrix but uses simple
+--invertMatrixExt uses library to invert matrix but uses simple
 invertMatrixExt :: [[Double]] -> [[Double]]
 invertMatrixExt a =
   if null a then error "Null matrix to invert"
@@ -145,6 +146,7 @@ invertMatrixExt a =
         invA' = inv a'
     in
     toLists invA'
+-}
 
 -- | ppMatrix makes a nice(er) string for matrix
 ppMatrix :: [[Double]] -> String
