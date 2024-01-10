@@ -169,7 +169,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         (Data.Ord.Down . snd5)
                         updatedCostGraphs
             -- (TRAV.updateGraphCostsComplexities globalSettings reportingData processedData rediagnoseWithReportingData curGraphs')
-            reportStuff@(reportString, outFile, _writeMode) ←
+            reportStuff@(reportString, outFile, writeMode) ←
                 reportCommand
                     globalSettings
                     firstArgs
@@ -216,10 +216,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                     case outFile of
                         "stderr" -> liftIO $ hPutStr stderr reportString
                         "stdout" -> liftIO $ putStr reportString
-                        "overwrite" -> liftIO $ writeFile outFile reportString
-                        "append" -> liftIO $ appendFile outFile reportString
-                        _ -> failWithPhase Parsing $
-                            "Error 'read' command not properly formatted" <> show reportStuff
+                        _ -> case writeMode of
+                            "overwrite" -> liftIO $ writeFile outFile reportString
+                            "append" -> liftIO $ appendFile outFile reportString
+                            _ -> failWithPhase Parsing $
+                                "Error 'report' command not properly formatted" <> show reportStuff
 
                     executeCommands
                         globalSettings
