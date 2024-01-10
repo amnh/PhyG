@@ -180,13 +180,10 @@ swapMaster inArgs inGS inData inGraphListInput =
                                     <> "\n"
 
                     logWith LogInfo progressString
-                    -- TODO
-                    -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
                     let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList
                     graphPairList ← getParallelChunkTraverse >>= \pTraverse ->
                         action `pTraverse` simAnnealList
-                    -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
 
                     let (graphListList, counterList) = first fold $ unzip graphPairList
                     (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x -> (x, sum counterList)

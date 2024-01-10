@@ -1104,8 +1104,8 @@
 		amount of time necessary to perform a thorough search (perhaps 10 times the 
 		amount of time it took to perform this simple search). It is recommended to perform 
 		a \texttt{swap(joinAll)} (see Section \ref{subsec:swap}) after the \texttt{search} has 
-		completed. The user should also allow some time for the program to collate and write 
-		the results to files.}
+		completed. The user should also allow some time for the program to collate and 
+		write the results to files.}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -1131,33 +1131,35 @@
 		maximum total execution time for the search.
 
 		\item[stop:INT] Causes a search instance to terminate after the number of iterations 
-		without graph optimality improvement. This argument is an adjunct to the specified time. 
-		The search iteration will continue until the maximum execution time for the search has ended
-		or until the cost of the best graph fails to improve after the specified integer (whichever comes first).
-		The overall search will terminate only when all instances have completed.
+		without graph optimality improvement. This argument is an adjunct to the specified 
+		time. The search iteration will continue until the maximum execution time for the search 
+		has ended or until the cost of the best graph fails to improve after the specified integer 
+		(whichever comes first). The overall search will terminate only when all instances have 
+		completed.
 		
-		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. Wagner 
-		Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. This
-		sampling method is a heuristic for timed search decision making. The integer value \hl{...}
-				
+		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. 
+		Wagner Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. 
+		This form of sampling uses machine learning techniques to guide the randomized option selection 
+		of the search \hl{Wheeler\_submitted}. This sampling method is a heuristic for timed search 
+		decision making. The integer value specifies the memory value for the Thompson sampling.
+		The lower the value (down to 0), the shorter the memory allowing for more rapid adjustment 
+		of search strategy probabilities. This parameter is applied to both the \texttt{linear} and 
+		\texttt{exponential} arguments of \texttt{Thompson}.
+			
 			\begin{description}
+		
 			\item[exponential] Specifies that the Thompson memory is an exponential function of 
-			\texttt{mFactor}, $m$.  Updating of search type, $\theta^k$, probability for iteration 
-			$n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) + \left(\frac{1}{2^m} \theta^k_n \right)$.  
+			$m$ (the \texttt{INT} value specified by \texttt{Thompson} above). Updating of search 
+			type, $\theta^k$, probability for iteration $n$ is $ \left(1 - \frac{1}{2^m} \theta^k_{n-1}\right) 
+			+ \left(\frac{1}{2^m} \theta^k_n \right)$. Thompson success is a function of whether a 
+			search was successful in reducing the graph cost and how long that search took to complete.
+			
+			\item[linear] Specifies that the Thompson memory is a linear function of $m$ (the 
+			\texttt{INT} value specified by \texttt{Thompson} above). Updating of search type, $\theta^k$, 
+			probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  
 			Thompson success is a function of whether a search was successful in reducing the graph 
 			cost and how long that search took to complete.
-			
-			\item[linear] Specifies that the Thompson memory is a linear function of \texttt{mFactor}, 
-			$m$.  Updating of search type, $\theta^k$, probability for iteration $n$ is $\frac{m}{m+1} 
-			\theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  Thompson success is a function of whether 
-			a search was successful in reducing the graph cost and how long that search took to 
-			complete.
-			
-			\item[mFactor:INT] Specifies the memory factor for Thompson sampling, as 
-			indicated by the integer value. The lower the value (down to 0), the shorter the memory
-			allowing for more rapid adjustment of search strategy probabilities.
-			This parameter is applied to both the \texttt{linear}
-			and \texttt{exponential} arguments of \texttt{Thompson}.
+
 			\end{description}
 	\end{description}		
 	
@@ -1166,15 +1168,15 @@
 		instance of a search for at most 30 seconds.
 		
 	\begin{example}
-		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 simultaneous searches (instances)
-		for 10 hours each.}
+		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 searches (instances) for 10 hours 
+		each. These searches will be performed simultaneously if the computer capacity allows.}
 				
 		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance (the default) 
 		for 10 hours and 30 minutes.}
 		
-		\item{\texttt{search(days:3, \hl{thompson}, linear, mfactor:5)}\\ This command will attempt
-		as many iterations of the randomized search strategy, employing Thompson sampling, 
-		with linear memory function and the mFactor value set to 5.}
+		\item{\texttt{search(days:1, thompson:2, linear)}\\ Employs Thompson sampling to guide the 
+		randomized option selection of the search. The Thompson memory value is a linear function 
+		of the parameter 2. This search is performed for 1 day.}
 	\end{example}
 	
 %---------------------------------------------
@@ -1185,9 +1187,9 @@
 		\texttt{select([argument list])}
 	
 	\begin{phygdescription}
-		{Specifies the method for choosing and number of graphs to be saved at any point during the 
-		analysis. When multiple graphs are present, the \texttt{select} command will specify 
-		which graphs are retained for subsequent analysis or reporting.}
+		{Specifies the method for choosing and number of graphs to be saved at any point 
+		during the analysis. When multiple graphs are present, the \texttt{select} command 
+		will specify which graphs are retained for subsequent analysis or reporting.}
 	\end{phygdescription}
 				
 	\subsubsection{Arguments}

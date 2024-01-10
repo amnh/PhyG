@@ -54,6 +54,8 @@ module GraphOptimization.PostOrderSoftWiredFunctions  ( updateAndFinalizePostOrd
                                                       --, getNetPenaltyReduced
                                                       ) where
 
+import Control.DeepSeq
+import Control.Parallel.Strategies
 import Data.Bits
 import Data.Functor ((<&>))
 import Data.List qualified as L
@@ -335,7 +337,6 @@ rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect =
                                                                                  existingCost = sum $ fmap (subGraphCost . snd) rootCharLabelNodes
                                                                              in
                                                                              pure (backPortCharTreeNodesToBlockTree blockDisplayTree charTreeVect, charTreeVect, existingCost)
-
             pure (updateBlockDisplayTree, updatedDisplayVect, blockCost)
 
 -- | getCharTreeBestRoot' is awrapper around getCharTreeBestRoot to use parMap

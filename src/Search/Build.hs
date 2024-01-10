@@ -162,7 +162,6 @@ buildGraph inArgs inGS inData =
                                             ]
                                     in  ("\tBlock build yielded" <> suffix, "\tReturning " <> suffix)
 
-
                         case numDisplayTrees of
                             Nothing -> failure [ "DisplayTrees specification in build not an integer:", show . snd $ head displayBlock ]
                             Just nDistplayTrees -> case numReturnTrees of

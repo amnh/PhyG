@@ -50,6 +50,8 @@ import Types.Types
 import Utilities.Distances qualified as D
 import Utilities.Utilities qualified as U
 
+import Debug.Trace
+
 
 {- | executeCommands reads input files and returns raw data
 need to close files after read

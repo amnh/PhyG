@@ -159,14 +159,6 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                 leafToAdd = V.head additionSequence
                 leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
 
-                -- since this is apporximate--can get a bit off
-                {-
-                --add unions here
-                -- not clear what the delta to compare is--have an existing tree cost and the leaf to add would be 0.
-                -- use a single tree after first addition?
-                unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
-                -}
-
                 addTaxonAction ∷ LG.LEdge EdgeInfo → (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
                 addTaxonAction = addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd
             in  do

@@ -46,6 +46,8 @@ module GraphOptimization.PostOrderSoftWiredFunctionsNew  ( postDecorateSoftWired
                                                          , backPortBlockTreeNodesToCanonicalGraph
                                                          ) where
 
+import Control.DeepSeq
+import Control.Parallel.Strategies
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.List qualified as L
@@ -92,7 +94,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
             leftChildTree <- postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex leftChild
             rightLeftChildTree <- if length nodeChildren == 2 then postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                                   else pure leftChildTree
-        
+
             -- Checks on children
             if length nodeChildren > 2 then error ("Graph not dichotomous in postDecorateSoftWired node " <> show curNode <> "\n" <> LG.prettyIndices simpleGraph)
             else if null nodeChildren then error ("Leaf not in graph in postDecorateSoftWired node " <> show curNode <> "\n" <> LG.prettyIndices simpleGraph)
@@ -142,7 +144,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                                              , edgeType = TreeEdge
                                              }
 
-                        
+
                     in do
                         resolutionBlockVL <- mapM (createBlockResolutions' (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType (GO.getNodeType simpleGraph curNode)) (V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo)
 
@@ -323,7 +325,7 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
                                     , vertexCost = 0.0 --newCost
                                     , subGraphCost = 0.0 -- (subGraphCost leftChildLabel) + (subGraphCost rightChildLabel) + newCost
                                     }
-        
+
         pure newVertexLabel
 
 -- | addNodeAndEdgeToResolutionData adds  node and edge to resolution data in outdegree = 1 nodes
@@ -349,7 +351,7 @@ addNodeEdgeToResolutionList newNode newEdge _ inResData resolutionIndex =
 
         -- this check for redundant edges in resolution cash from combinations
         newEdgeList = if newEdge `notElem` inEdgeList then newEdge : inEdgeList
-                      else --trace "Should not happen: Extra edge in addNodeEdgeToResolutionListNew" 
+                      else --trace "Should not happen: Extra edge in addNodeEdgeToResolutionListNew"
                         inEdgeList
         newFirstData = inResData { displaySubGraph  = (newNodeList, newEdgeList)
                                    -- both set because can be a display node left right added to 2 child resolutoins
@@ -457,7 +459,7 @@ createBlockResolutions
         -- trace ("CNR: " <> (show (length leftChild, length rightChild))) ( --  <> "\n" <> (show childResolutionIndices) <> "\n" <> (show $ fmap snd validPairs)) (
         if compressResolutions then pure $ compressBlockResolution (newResolutionList <> V.toList addLeft <> V.toList addRight)
         else pure $ V.fromList newResolutionList <> (addLeft <> addRight)
-        
+
 -- | compressBlockResolution 'compresses' resolutions of a block by taking only the first of resolutions with the
 -- same set of leaves (via bitvector) and lowest cost
 -- can speed up graph diagnosis, but at the cost of potentially loosing resolutions whihc would be better later
@@ -655,8 +657,8 @@ softWiredPostOrderTraceBack  :: Int -> PhylogeneticGraph -> PhyG PhylogeneticGra
 softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph, _, _, f)  =
     if LG.isEmpty canonicalGraph then pure emptyPhylogeneticGraph
         -- this condition can arise due to strictness in graph evaluation in parallel
-    else if length (LG.descendants canonicalGraph rootIndex) /= 2 then pure emptyPhylogeneticGraph 
-            -- error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <>"\n" <> (LG.prettyIndices canonicalGraph))      
+    else if length (LG.descendants canonicalGraph rootIndex) /= 2 then pure emptyPhylogeneticGraph
+            -- error ("Root node has improper number of children: " <> show (LG.descendants canonicalGraph rootIndex) <>"\n" <> (LG.prettyIndices canonicalGraph))
     else
       let -- extract display trees and bloxck char trees from PhylogeneticGraph
           -- block character trees do not exist yet
@@ -665,8 +667,6 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           -- get root node resolution data from canonical Graph created in postorder
           rootLabel = fromJust $ LG.lab canonicalGraph rootIndex
           rootResData = vertexResolutionData rootLabel
-
-          
 
           -- traceback for each block based on its display tree, updating trees as it goes, left descendent then right
           -- at this stage all character trees will have same root descendents sionce all rooted from outgropu postorder traversal
@@ -687,7 +687,6 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
           traceBackAction = traceBackBlock canonicalGraph
 
       in do
-          
               --let (rootNodes, leafNode, treeNodes,networkNodes) = LG.splitVertexList inSimpleGraph
               --logWith LogInfo ("SWPOT: " <> (show (length rootNodes, length leafNode, length treeNodes, length networkNodes)))
 
@@ -701,27 +700,27 @@ softWiredPostOrderTraceBack  rootIndex inGraph@(inSimpleGraph, b, canonicalGraph
               -- get preliminary character data for blocks
               -- these should be ok wihtout left right check since were creted with that check on post order
               let (leftIndexList, rightIndexList) = V.unzip $ fmap childResolutionIndices $ V.fromList firstOfEachRootRes
-              
+
               -- update root vertex info for display and character trees for each block
               -- this includes preliminary data and other fields
               updatePar <- getParallelChunkMap
               let updateResult = updatePar updateAction (zip  firstOfEachRootRes (V.toList displayTreeV))
-              
+
               let (rootUpdatedDisplayTreeV, rootUpdatedCharTreeVV) = unzip updateResult -- $ PU.seqParMap PU.myStrategy (updateRootBlockTrees rootIndex) (V.zip  (V.fromList firstOfEachRootRes) displayTreeV)
 
               traceLeftPar <- getParallelChunkMap
               let leftResult = traceLeftPar (traceBackAction leftChild') (L.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV (V.toList leftIndexList) ([0..(length rootUpdatedDisplayTreeV - 1)]))
-              let (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = unzip leftResult 
+              let (traceBackDisplayTreeVLeft, traceBackCharTreeVVLeft) = unzip leftResult
               -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph leftChild') (V.zip4 rootUpdatedDisplayTreeV rootUpdatedCharTreeVV leftIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
               traceRightPar <- getParallelChunkMap
               let rightResult = traceRightPar (traceBackAction rightChild') (L.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft (V.toList rightIndexList) ([0..(length rootUpdatedDisplayTreeV - 1)]))
-              let (traceBackDisplayTreeV, traceBackCharTreeVV) = unzip rightResult 
+              let (traceBackDisplayTreeV, traceBackCharTreeVV) = unzip rightResult
               -- $ PU.seqParMap PU.myStrategy (traceBackBlock canonicalGraph rightChild') (V.zip4 traceBackDisplayTreeVLeft traceBackCharTreeVVLeft rightIndexList (V.fromList [0..(V.length rootUpdatedDisplayTreeV - 1)]))
 
-              
+
               let newCanonicalGraph = backPortBlockTreeNodesToCanonicalGraph canonicalGraph (V.fromList traceBackDisplayTreeV)
-             
+
               -- this is a hack due to missing nodes in some character trees--perhpas issue with postorder resolutions?
               if LG.isEmpty newCanonicalGraph then pure emptyPhylogeneticGraph
               else pure $ (inSimpleGraph, b, newCanonicalGraph, fmap (:[]) (V.fromList traceBackDisplayTreeV), (V.fromList traceBackCharTreeVV), f)
@@ -742,9 +741,9 @@ traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex
           nodeResolutionData = vertexResolutionData nodeCanonicalLabel
 
           -- hack checking for too high res index here
-          newIndex = if (fromJust resolutionIndex) < length (nodeResolutionData V.! blockIndex) then 
+          newIndex = if (fromJust resolutionIndex) < length (nodeResolutionData V.! blockIndex) then
                         fromJust resolutionIndex
-                     else 
+                     else
                         -- traceNoLF ("(" <> (show (fromJust resolutionIndex, length (nodeResolutionData V.! blockIndex))) <> ")")
                         (length (nodeResolutionData V.! blockIndex)) - 1
 
@@ -891,7 +890,7 @@ backPortBlockTreeNodesToCanonicalGraph inCanonicalGraph blockTreeVect =
     --trace ("BPTCG: " <> (show (fmap fst unModifiedNodes)))
 
     -- this is a hack if graph is imporper--not sure why htis happens yet
-    if (V.null blockTreeVect) || (not $ allSameLength blockTreeNodeLabelsVV) then 
+    if (V.null blockTreeVect) || (not $ allSameLength blockTreeNodeLabelsVV) then
         -- trace ("BPTCG: " <> (show (fmap length blockTreeNodeLabelsVV)))
         LG.empty
     else LG.mkGraph (updatedCanonicalNodes <> unModifiedNodes) canonicalEdges
@@ -941,4 +940,3 @@ orderedNodeMinus firstList secondList
                 else if af == as then orderedNodeMinus (tail firstList) (tail secondList)
                 else -- asf > as
                    orderedNodeMinus firstList (tail secondList)
-

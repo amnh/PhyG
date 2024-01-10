@@ -1784,10 +1784,9 @@ getPermissibleEdgePairs inGS inGraph =
             in  do
                     actionPar ← getParallelChunkMap
                     let coevalNodeConstraintList' = actionPar action coevalNodeConstraintList
-                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
-
-                    -- edgeAction :: (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
-                    let edgeAction = isEdgePairPermissible inGraph coevalNodeConstraintList'
+                    let edgeAction :: (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
+                        edgeAction = isEdgePairPermissible inGraph coevalNodeConstraintList'
+                        
                     edgePar ← getParallelChunkMap
                     let edgeTestList = edgePar edgeAction edgePairs
                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (isEdgePairPermissible inGraph coevalNodeConstraintList') edgePairs -- `using`  PU.myParListChunkRDS
@@ -2262,22 +2261,22 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
                     -- \$ PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteNetworkEdge (fst5 inPhyloGraph)) edgeToDeleteList
 
                     -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst5 inPhyloGraph
-
+                    -- full two-pass optimization
+                    let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
+                                 
                     -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
                     -- heuristicDelta = 0.0
 
                     -- can treat as negative for delete
                     -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
 
-                    newPhyloGraphList' ←
-                        if (graphType inGS == SoftWired)
-                            then getParallelChunkTraverse >>= \pTraverse -> softTraverse `pTraverse` simpleGraphList
-                            else -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex) simpleGraphList
-
-                                if (graphType inGS == HardWired)
-                                    then getParallelChunkTraverse >>= \pTraverse -> hardTraverse `pTraverse` simpleGraphList
-                                    else -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex) simpleGraphList
-                                        error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
+                    newPhyloGraphList' ← case graphType inGS of
+                        SoftWired -> getParallelChunkTraverse >>= \pTraverse ->
+                            softTraverse `pTraverse` simpleGraphList
+                        HardWired -> getParallelChunkTraverse >>= \pTraverse ->
+                            hardTraverse `pTraverse` simpleGraphList
+                        val -> failWithPhase Computing $ fold
+                            [ "Unsupported graph type '", show val, "' in deleteNetEdge. Must be soft- or hard-wired" ]
 
                     newPhyloGraphList ← GO.selectGraphs Best (maxBound ∷ Int) 0 newPhyloGraphList'
 

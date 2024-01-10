@@ -34,6 +34,7 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
 
+
 {- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
 runs both SPR and TBR depending on argument since so much duplicated functionality
 'steepest' abandons swap graph and switces to found graph as soon as anyhting 'better'
@@ -976,7 +977,6 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                         if splitGraphCost >= curBestCost
                             then pure ([], inSimAnnealParams)
                             else -- fmap over all edges in base graph
-
                                 if not (steepest swapParams)
                                     then
                                         let {-
@@ -1039,8 +1039,6 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                     else -- famp over number of threads edges in base graph
                                     -- then recurse
 
-                                    -- trace ("In steepest: " <> (show PU.getNumThreads) <> " " <> (show $ length $ take PU.getNumThreads rejoinEdges)) (
-
                                         let -- this could be made a little parallel--but if lots of threads basically can do all
                                             -- to not overload paralle threads
                                             {-  This not so efficient is swapping in single graphs so leaving it be
@@ -1077,7 +1075,6 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                 -- found nothing better or equal
                                                 if null rejoinGraphList
                                                     then -- trace ("In steepest worse: " <> (show $ length (drop PU.getNumThreads rejoinEdges)))
-
                                                         rejoinGraph
                                                             swapParams
                                                             inGS
@@ -1095,7 +1092,6 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                             edgesInPrunedGraph
                                                             inSimAnnealParams
                                                     else -- found better graph
-
                                                         if (snd5 . head) newGraphList' < curBestCost
                                                             then -- trace ("Steepest better")
                                                                 pure (newGraphList', inSimAnnealParams)

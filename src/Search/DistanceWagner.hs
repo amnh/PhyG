@@ -977,21 +977,17 @@ getGeneralSwapSteepestOne
     → [TreeWithData]
     → [TreeWithData]
     → PhyG [TreeWithData]
-getGeneralSwapSteepestOne refineType swapFunction leafNames outGroup inTreeList savedTrees =
-    if null inTreeList
-        then pure savedTrees
-        else -- trace ("In " <> refineType <> " Swap (steepest) with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
-
-            let -- steepTreeList = PU.seqParMap PU.myStrategyHighLevel  (splitJoinWrapper swapFunction refineType leafNames outGroup) inTreeList -- `using` myParListChunkRDS
-                splitAction ∷ TreeWithData → TreeWithData
-                splitAction = splitJoinWrapper swapFunction refineType leafNames outGroup
-            in  do
-                    splitJoinPar ← getParallelChunkMap
-                    let steepTreeList = splitJoinPar splitAction inTreeList
-                    let steepCost = minimum $ fmap thd4 steepTreeList
-
-                    -- this to maintain the trajectories untill final swap--otherwise could converge down to single tree prematurely
-                    pure $ keepTrees steepTreeList "unique" "first" steepCost
+getGeneralSwapSteepestOne refineType swapFunction leafNames outGroup inTreeList savedTrees = case inTreeList of
+    [] -> pure savedTrees
+    t:ts ->
+        let splitAction ∷ TreeWithData → TreeWithData
+            splitAction = splitJoinWrapper swapFunction refineType leafNames outGroup
+        in  do
+                splitJoinPar ← getParallelChunkMap
+                let steepTreeList = splitJoinPar splitAction inTreeList
+                let steepCost = minimum $ fmap thd4 steepTreeList
+                -- this to maintain the trajectories untill final swap--otherwise could converge down to single tree prematurely
+                pure $ keepTrees steepTreeList "unique" "first" steepCost
 
 
 {- | getGeneralSwap performs a "re-add" of terminal identical to wagner build addition to available edges
@@ -1009,10 +1005,9 @@ getGeneralSwap
     → [TreeWithData]
     → [TreeWithData]
     → PhyG [TreeWithData]
-getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup inTreeList savedTrees =
-    if null inTreeList
-        then pure savedTrees
-        else
+getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup inTreeList savedTrees = case inTreeList of
+    [] → pure savedTrees
+    curFullTree:otherTrees →
             let maxNumSave = getSaveNumber saveMethod
                 splitAction ∷ Edge → SplitTreeData
                 splitAction = splitTree curTreeMatrix curTree curTreeCost
@@ -1020,8 +1015,6 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
                 swapAction ∷ SplitTreeData → [TreeWithData]
                 swapAction = swapFunction refineType curTreeCost leafNames outGroup
 
-                -- trace ("In " <> refineType <> " Swap with " <> show (length inTreeList) <> " trees with minimum length " <> show (minimum $ fmap thd4 inTreeList)) (
-                curFullTree = head inTreeList
                 overallBestCost = minimum $ fmap thd4 savedTrees
                 (_, curTree, curTreeCost, curTreeMatrix) = curFullTree
             in  do
@@ -1029,33 +1022,31 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
                     splitPar ← getParallelChunkMap
                     swapPar ← getParallelChunkMap
                     let splitTreeList = splitPar splitAction (V.toList $ snd curTree)
-                    -- splitTreeList = PU.seqParMap PU.myStrategyHighLevel   (splitTree curTreeMatrix curTree curTreeCost) (V.toList $ snd curTree)  -- `using` myParListChunkRDS
                     let firstTreeList = swapPar swapAction splitTreeList
-                    -- firstTreeList = PU.seqParMap PU.myStrategyHighLevel   (swapFunction refineType curTreeCost leafNames outGroup) splitTreeList  -- `using` myParListChunkRDS
-                    let firstTreeList' = filterNewTreesOnCost overallBestCost (curFullTree : concat firstTreeList) savedTrees -- keepTrees (concat $ V.toList firstTreeList) saveMethod overallBestCost
+                    let firstTreeList' = filterNewTreesOnCost overallBestCost (curFullTree : concat firstTreeList) savedTrees
 
                     -- Work around for negative NT.infinity tree costs (could be dst matrix issue)
                     if NT.isInfinite curTreeCost || null firstTreeList'
-                        then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
+                        then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup otherTrees savedTrees
                         else
                             let (_, _, costOfFoundTrees, _) = head firstTreeList'
                             in  -- workaround for negatrive NT.infinity trees
                                 if NT.isInfinite costOfFoundTrees
-                                    then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
+                                    then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup otherTrees savedTrees
                                     else
                                         if costOfFoundTrees < overallBestCost
                                             then
                                                 let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing) $ fmap (filterNewTrees inTreeList) firstTreeList'
-                                                    treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
+                                                    treesToSwap = keepTrees (otherTrees <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
                                                 in  getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup treesToSwap (take maxNumSave firstTreeList')
                                             else
                                                 if costOfFoundTrees == overallBestCost
                                                     then
                                                         if length savedTrees >= maxNumSave
-                                                            then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
+                                                            then getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup otherTrees savedTrees
                                                             else
                                                                 let uniqueTreesToAdd = fmap fromJust $ filter (/= Nothing) $ fmap (filterNewTrees inTreeList) firstTreeList'
-                                                                    treesToSwap = keepTrees (tail inTreeList <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
+                                                                    treesToSwap = keepTrees (otherTrees <> uniqueTreesToAdd) saveMethod keepMethod costOfFoundTrees
                                                                 in  getGeneralSwap
                                                                         refineType
                                                                         swapFunction
@@ -1065,7 +1056,8 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
                                                                         outGroup
                                                                         treesToSwap
                                                                         (take maxNumSave $ savedTrees <> firstTreeList')
-                                                    else getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup (tail inTreeList) savedTrees
+
+                                                    else getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup otherTrees savedTrees
 
 
 {- | performRefinement takes input trees in TRE and Newick format and performs different forms of tree refinement

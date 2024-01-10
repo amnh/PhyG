@@ -1,4 +1,4 @@
--- Used lazyParStrat for fusing operations--hopefully reduce memory footprint
+-- Used defaultParStrat for fusing operations--hopefully reduce memory footprint
 
 {- |
 Module specifying graph fusing recombination functions.
@@ -12,6 +12,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
+import Data.Foldable (fold)
 import Data.Functor ((<&>))
 import Data.InfList qualified as IL
 import Data.List qualified as L
@@ -63,34 +64,28 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
             curBest = minimum $ fmap snd5 inGraphList
 
             curBestGraph = head $ filter ((== curBest) . snd5) inGraphList
-
         in do
-                randomSeed <- getRandom
-
                 -- get net penalty estimate from optimal graph for delta recombine later
                 -- Nothing here so starts at overall root
-                inGraphNetPenalty <- T.getPenaltyFactor inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
+                inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraphSimple curBestGraph
 
                 let inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
 
+                -- could be fusePairRecursive to save on memory
+                let action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
+                    action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
+
                 -- get fuse pairs
                 let graphPairList' = getListPairs inGraphList
-                let (graphPairList, randString) =
-                        if isNothing fusePairs
-                            then (graphPairList', "")
-                            else
-                                if randomPairs
-                                    then (takeRandom randomSeed (fromJust fusePairs) graphPairList', " randomized")
-                                    else (takeNth (fromJust fusePairs) graphPairList', "")
+                (graphPairList, randString) ← case fusePairs of
+                    Nothing → pure (graphPairList', "")
+                    Just count | randomPairs → do
+                        selectedGraphs ← take count <$> shuffleList graphPairList'
+                        pure (selectedGraphs, " randomized")
+                    Just index → pure (takeNth index graphPairList', "")
 
-                -- could be fusePairRecursive to save on memory
-                -- action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
-                let action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
-
-                newGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
-                    pTraverse action graphPairList
-
-                let newGraphList = concat newGraphList'
+                newGraphList ← getParallelChunkTraverse >>= \pTraverse ->
+                    fold <$> pTraverse action graphPairList
 
                 let fuseBest =
                         if not (null newGraphList)
