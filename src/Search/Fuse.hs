@@ -1,4 +1,4 @@
--- Used lazyParStrat for fusing operations--hopefully reduce memory footprint
+-- Used defaultParStrat for fusing operations--hopefully reduce memory footprint
 
 {- |
 Module specifying graph fusing recombination functions.
@@ -63,36 +63,20 @@ fuseAllGraphs swapParams inGS inData rSeedList counter returnBest returnUnique s
             curBestGraph = head $ filter ((== curBest) . snd5) inGraphList
 
             -- get net penalty estimate from optimal graph for delta recombine later
-            inGraphNetPenalty =
-                if (graphType inGS == Tree)
-                    then 0.0
-                    else
-                        if (graphFactor inGS) == NoNetworkPenalty
-                            then 0.0
-                            else
-                                if (graphFactor inGS) == Wheeler2015Network
-                                    then -- if (graphType inGS) == HardWired then 0.0
-                                    -- else
-                                        POSW.getW15NetPenaltyFull Nothing inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
-                                    else
-                                        if (graphFactor inGS) == Wheeler2023Network
-                                            then -- if (graphType inGS) == HardWired then 0.0
-                                            -- else
-                                                POSW.getW23NetPenaltyReduced curBestGraph
-                                            else
-                                                if (graphFactor inGS) == PMDLGraph
-                                                    then
-                                                        let (_, _, _, networkNodeList) = LG.splitVertexList (fst5 curBestGraph)
-                                                        in  if (graphType inGS) == Tree
-                                                                then fst $ IL.head (graphComplexityList inGS)
-                                                                else
-                                                                    if (graphType inGS) == SoftWired
-                                                                        then fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
-                                                                        else
-                                                                            if (graphType inGS) == HardWired
-                                                                                then snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
-                                                                                else error ("Graph type " <> (show $ graphType inGS) <> " is not yet implemented in fuseAllGraphs")
-                                                    else error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
+            inGraphNetPenalty = case graphType inGS of
+                Tree -> 0.0
+                _ -> case graphFactor inGS of
+                    NoNetworkPenalty -> 0.0
+                    Wheeler2015Network -> POSW.getW15NetPenaltyFull Nothing inGS inData Nothing (GO.convertReduced2PhylogeneticGraphSimple curBestGraph)
+                    Wheeler2023Network -> POSW.getW23NetPenaltyReduced curBestGraph
+                    PMDLGraph ->
+                        let (_, _, _, networkNodeList) = LG.splitVertexList (fst5 curBestGraph)
+                        in  case graphType inGS of
+                                Tree -> fst $ IL.head (graphComplexityList inGS)
+                                SoftWired -> fst $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+                                HardWired -> snd $ (graphComplexityList inGS) IL.!!! (length networkNodeList)
+                                _ ->  error ("Graph type " <> (show $ graphType inGS) <> " is not yet implemented in fuseAllGraphs")
+                    _ ->  error ("Network penalty type " <> (show $ graphFactor inGS) <> " is not yet implemented")
             inGraphNetPenaltyFactor = inGraphNetPenalty / curBest
 
             -- get fuse pairs

@@ -1073,7 +1073,6 @@ insertEachNetEdge inGS inData rSeed maxNetEdges numToKeep doSteepest doRandomOrd
                                 then permuteList (head rSeedList) candidateNetworkEdgeList'
                                 else candidateNetworkEdgeList'
 
-                    -- newGraphList = concat (fmap (insertNetEdgeBothDirections inGS inData inPhyloGraph) candidateNetworkEdgeList `using`  PU.myParListChunkRDS)
                     inNetEdRList ←
                         insertNetEdgeRecursive
                             inGS
@@ -1335,9 +1334,6 @@ insertNetEdgeRecursive inGS inData rSeedList maxNetEdges doSteepest doRandomOrde
                                                                             (drop numGraphsToExamine inEdgePairList)
 
 
--- )
--- )
-
 {- | insertNetEdge inserts an edge between two other edges, creating 2 new nodes and rediagnoses graph
 contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
 does not check any edge reasonable-ness properties
@@ -1471,8 +1467,6 @@ deleteAllNetEdges inGS inData rSeed maxNetEdges numToKeep counter returnMutated 
                     -- TODO
                     actionPar ← getParallelChunkTraverse
                     deleteResult ← actionPar action (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList))
-                    -- mapM (deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList))
-                    -- (annealRoundsList, counterList) = unzip (PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost)) (zip3 replicateRandIntList annealParamGraphList (replicate annealingRounds inPhyloGraphList)))
                     let (annealRoundsList, counterList) = unzip deleteResult
                     pure (GO.selectGraphs Best numToKeep 0.0 (-1) (concat annealRoundsList), sum counterList)
 
@@ -1974,10 +1968,9 @@ getPermissibleEdgePairs inGS inGraph =
             in  do
                     actionPar ← getParallelChunkMap
                     let coevalNodeConstraintList' = actionPar action coevalNodeConstraintList
-                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
-
-                    -- edgeAction :: (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
-                    let edgeAction = isEdgePairPermissible inGraph coevalNodeConstraintList'
+                    let edgeAction :: (LG.LEdge EdgeInfo, LG.LEdge EdgeInfo) -> Bool
+                        edgeAction = isEdgePairPermissible inGraph coevalNodeConstraintList'
+                        
                     edgePar ← getParallelChunkMap
                     let edgeTestList = edgePar edgeAction edgePairs
                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (isEdgePairPermissible inGraph coevalNodeConstraintList') edgePairs -- `using`  PU.myParListChunkRDS
@@ -2461,7 +2454,9 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
                     -- \$ PU.seqParMap (parStrategy $ lazyParStrat inGS) (deleteNetworkEdge (fst5 inPhyloGraph)) edgeToDeleteList
 
                     -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst5 inPhyloGraph
-
+                    -- full two-pass optimization
+                    let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
+                                 
                     -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
                     -- heuristicDelta = 0.0
 
@@ -2474,8 +2469,7 @@ deleteNetEdgeRecursive inGS inData inPhyloGraph force inSimAnnealParams inEdgeTo
                                 softPar ← getParallelChunkTraverse
                                 softResult ← softPar softTraverse simpleGraphList
                                 pure softResult
-                            else -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex) simpleGraphList
-
+                            else
                                 if (graphType inGS == HardWired)
                                     then do
                                         hardPar ← getParallelChunkTraverse

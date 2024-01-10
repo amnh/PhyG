@@ -82,14 +82,9 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
     if LG.isEmpty inDecorated then pure emptyPhylogeneticGraph  -- error "Empty tree in preOrderTreeTraversal"
     else do
         -- trace ("In PreOrder\n" <> "Simple:\n" <> (LG.prettify inSimple) <> "Decorated:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) <> "\n" <> (GFU.showGraph inDecorated)) (
-        -- mapped recursive call over blkocks, later character 
+        -- mapped recursive call over blocks, later character 
         blockPar <- getParallelChunkMap
         let preOrderBlockVect = V.fromList $ blockPar doBlockAction (V.toList $ V.zip inCharInfoVV blockCharacterDecoratedVV)
-              {-( PU.seqParMap
-                  (parStrategy $ lazyParStrat inGS)
-                  (doBlockTraversal' inGS finalMethod staticIA rootIndex)
-                  (V.zip inCharInfoVV blockCharacterDecoratedVV)
-              )  -- `using` PU.myParListChunkRDS) -}
 
             -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
             -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
@@ -105,23 +100,12 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                                             -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
                                             contractPar <- getParallelChunkMap
                                             let contractedBlockVect = contractPar doBlockAction (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV))
-                                                -- (PU.seqParMap (parStrategy $ lazyParStrat inGS) (doBlockTraversal' inGS finalMethod staticIA rootIndex) (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV)))
 
                                             -- update leaf IA fields with contracted IAs
                                             let maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
                                         
                                             blockIAPar <- getParallelChunkMap
                                             let blockCharDecNewLeafIA = V.fromList $ blockIAPar (updateLeafAction maxLeafIndex) $ V.toList $ V.zip3 preOrderBlockVect (V.fromList contractedBlockVect) inCharInfoVV
-                                                {-PU.seqParMap
-                                                (parStrategy $ lazyParStrat inGS)
-                                                (updateLeafIABlock' maxLeafIndex)
-                                                $ V.zip3
-                                                    preOrderBlockVect
-                                                    (V.fromList contractedBlockVect)
-                                                    inCharInfoVV
-                                                -}
-
-                                        
                                             -- holder for now
                                             pure blockCharDecNewLeafIA
 
@@ -129,12 +113,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
               if hasNonExact && (graphType inGS /= HardWired ) then 
                 do
                     preOrderPar <- getParallelChunkMap
-                    let result = V.fromList $ preOrderPar makeIAAction $ V.toList $ V.zip softwiredUpdatedLeafIA inCharInfoVV
-                        {- PU.seqParMap (parStrategy $ lazyParStrat inGS)
-                                (makeIAUnionAssignments' finalMethod rootIndex)
-                                $ V.zip softwiredUpdatedLeafIA inCharInfoVV -}
-                    pure result
-
+                    pure . V.fromList . preOrderPar makeIAAction . V.toList $ V.zip softwiredUpdatedLeafIA inCharInfoVV
               else pure preOrderBlockVect
 
         let fullyDecoratedGraph = assignPreorderStatesAndEdges inGS finalMethod calculateBranchLengths rootIndex preOrderBlockVect' useMap inCharInfoVV inDecorated
@@ -142,7 +121,7 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
         if null blockCharacterDecoratedVV then error ("Empty preOrderBlockVect in preOrderTreeTraversal at root index rootIndex: " <> show rootIndex <> " This can be caused if the graphType not set correctly: " <> show (graphType inGS))
         else
              pure (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
-    -- )
+
 
 -- | updateLeafIABlock' is a  triple argument to allow for parMap
 updateLeafIABlock' :: Int -> (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> V.Vector DecoratedGraph

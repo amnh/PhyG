@@ -116,7 +116,7 @@ reportArgList = ["append", "ascii", "branchlengths", "collapse", "concatenate", 
 
 -- | search arguments
 searchArgList :: [String]
-searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnetedges", "minutes", "mfactor", "seconds", "simple",
+searchArgList = ["days", "exponential", "hours", "instances", "linear", "maxnetedges", "minutes", "seconds", "simple",
     "stop", "thompson"]
 
 -- | selectArgList is the list of valid select arguments

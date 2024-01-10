@@ -182,9 +182,8 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                     -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
                     let simAnnealList = (fmap (: []) (zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList))
-                    swapPar ← getParallelChunkTraverse
-                    graphPairList ← swapPar action simAnnealList
-                    -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
+                    graphPairList ← getParallelChunkTraverse >>= \pTraverse ->
+                        action `pTraverse` simAnnealList
 
                     let (graphListList, counterList) = unzip graphPairList
                     let (newGraphList, counter) = (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)

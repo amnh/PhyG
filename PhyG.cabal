@@ -214,7 +214,7 @@ Executable phyg
     -O2
     -rtsopts
     -Wall
---  Maybe this is required for good paralellism?          
+    --  Maybe this is required for good paralellism?          
     -fno-omit-yields 
     -- There is/are known compiler bug(s) with this optimization in GHC 9.6.2 (and earlier?).
     -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.

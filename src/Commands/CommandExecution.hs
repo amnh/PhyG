@@ -48,6 +48,8 @@ import Types.Types
 import Utilities.Distances qualified as D
 import Utilities.Utilities qualified as U
 
+import Debug.Trace
+
 
 {- | executeCommands reads input files and returns raw data
 need to close files after read
@@ -452,9 +454,10 @@ if seed list is empty [] then processes first set--confusing--shold be refactore
 -}
 setCommand
     ∷ [Argument] → GlobalSettings → ProcessedData → ProcessedData → [Int] → PhyG (GlobalSettings, ProcessedData, [Int])
+setCommand argList globalSettings origProcessedData processedData inSeedList | trace (unwords [ "\n\n>>> setCommand", show argList ] ) False = undefined
 setCommand argList globalSettings origProcessedData processedData inSeedList =
     let processor f = fmap (fmap C.toLower) . filter (/= "") . fmap f
-        commandList = processor fst argList
+        commandList = traceShowId $ processor fst argList
         optionList = processor snd argList
         checkCommandList = checkCommandArgs "set" commandList VER.setArgList
         leafNameVect = fst3 processedData
@@ -469,7 +472,9 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
             -- this due to not having all info required for all global settings,
             -- so options restricted and repeated
             -- needs to be fixed to be more clear and clean
-            case inSeedList of
+            case trace (unlines [ "commandList:\t" <> show commandList
+                                , "inSeedList:\t" <> show inSeedList
+                                ] ) inSeedList of
                 [] → case head commandList of
                     "partitioncharacter" → case head optionList of
                         localPartitionChar@[x] →
@@ -480,7 +485,6 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
                         val →
                             failWithPhase Parsing $
                                 "Error in 'set' command. Partitioncharacter '" <> val <> "' must be a single character\n"
-                    {--}
 
                     "missingthreshold" → case readMaybe (head optionList) ∷ Maybe Int of
                         Nothing →
@@ -673,6 +677,7 @@ setCommand argList globalSettings origProcessedData processedData inSeedList =
 
                     -- partition character to reset
                     "bcgt64" → pure (globalSettings, processedData, inSeedList)
+
                 -- =-=-=-=-=-=-=-=-=-=-=-=-=
                 -- =                       =
                 -- = regular command stuff =

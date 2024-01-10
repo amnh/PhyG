@@ -20,6 +20,7 @@ module GraphOptimization.Traversals (
 
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.DeepSeq
 import Data.List qualified as L
 import Data.Maybe
 import GeneralUtilities

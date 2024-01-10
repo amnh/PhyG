@@ -1,6 +1,5 @@
 --read(fasta:"metazoa-aa-1.fas")
-read(fasta:"chel.fas")
---read(fasta:"chel-16.fas")
+read(fasta:"chel-16.fas")
 --set(criterion:NCM)
 --read(prefasta:"chel-prealigned.fas")
 --read(prefasta:"chel-prealigned-16.fas")
@@ -13,7 +12,7 @@ read(fasta:"chel.fas")
 --read(fasta:"chel.fas", tcm:"sg200t100-d1.mat")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
 
---read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)
+read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)
 
 --read(fasta:"chel-16.fas", tcm:"sg2t1.mat")
 --read("chel.ss")
@@ -21,7 +20,7 @@ read(fasta:"chel.fas")
 --read("chel-3.hen")
 --transform(weight:0.01, name:"chel.fas#0*")
 
---set(seed:1698651238)
+--set(seed:1666899539)
 
 --set(missingThreshold:10)
 
@@ -83,6 +82,9 @@ build(distance, rdwag, replicates:20, best:5)
 --search(minutes:5, instances:1, Thompson:1, simple)
 --search(minutes:5, instances:1, stop:50)
 
+--swap()
+--search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
+-- transform(dynamic)
 swap()
 
 -- transform(dynamic)
@@ -104,4 +106,4 @@ report("test0-dist-mat.csv", pairdist, overwrite)
 report("test0-reconcile-strict.tre", reconcile, method:strict, newick, threshold:51, overwrite)
 report("test0-reconcile-adams.dot", reconcile, graphs, method:adams, dotpdf, nobranchlengths, overwrite)
 --report("test0-reconcile.dot", reconcile)
-report("test0-reconcile-majority.dot", reconcile, method:majority, dotpdf, threshold:51, overwrite)
+--report("test0-reconcile-majority.dot", reconcile, method:majority, dotpdf, threshold:51, overwrite)

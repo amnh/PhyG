@@ -750,17 +750,12 @@ netEdgeMaster inArgs inGS inData rSeed inGraphList =
                             addDeletePar ← getParallelChunkTraverse
                             graphPairList4 ← addDeletePar addDeleteAction (zip newSimAnnealParamList (fmap (: []) newGraphList''))
                             -- mapM (N.addDeleteNetEdges inGS inData rSeed (fromJust maxNetEdges) (fromJust keepNum) (fromJust maxRounds) 0 returnMutated doSteepest doRandomOrder ([], infinity)) (zip newSimAnnealParamList (fmap (: []) newGraphList''))
-                            let (newGraphList''', counterAddDelete) =
-                                    if doAddDelete
-                                        then
-                                            if graphType inGS == HardWired
-                                                then do
-                                                    -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
-                                                    (newGraphList'', 0)
-                                                else
-                                                    let (graphListList, counterList) = unzip graphPairList4
-                                                    in  (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
-                                        else (newGraphList'', 0)
+                            let (newGraphList''', counterAddDelete)
+                                    | not doAddDelete = (newGraphList'', 0)
+                                    | otherwise = case graphType inGS of
+                                        HardWired -> (newGraphList'', 0)
+                                        _ -> let (graphListList, counterList) = unzip graphPairList4
+                                             in  (GO.selectGraphs Unique (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
 
                             let resultGraphList =
                                     if null newGraphList'''
