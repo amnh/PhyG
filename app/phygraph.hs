@@ -239,7 +239,7 @@ performSearch initialSeed inputFilePath = do
 
     -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
     let reportingData
-            | reportNaiveData partitionCharOptimalityGlobalSettings =naiveData
+            | reportNaiveData partitionCharOptimalityGlobalSettings = naiveData
             | otherwise = emptyProcessedData
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent

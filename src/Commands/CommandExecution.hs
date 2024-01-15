@@ -283,14 +283,14 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 isFirst
 
         Set -> do
-            -- if set changes graph aspects--may nned to reoptimize
-            (newGlobalSettings, newProcessedData) ← setCommand firstArgs globalSettings origProcessedData processedData isFirst
-            let needReoptimize = requireReoptimization globalSettings newGlobalSettings
+            -- if set changes graph aspects--may need to reoptimize
+            (newGlobalSettings, newProcessedData) ← setCommand firstArgs globalSettings reportingData processedData isFirst
+            let needReoptimize = (requireReoptimization globalSettings newGlobalSettings) || (optimalityCriterion globalSettings `elem` [SI, NCM, PMDL])
             newGraphList ←
                 if not needReoptimize
                     then logWith LogInfo "No need to reoptimize graphs\n" $> curGraphs
                     else do
-                        logWith LogInfo "Reoptimizing gaphs\n"
+                        logWith LogInfo "Reoptimizing graphs\n"
                         -- TODO should be parallel
                         mapM (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) $ fst5 <$> curGraphs
 
@@ -466,17 +466,17 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
                             (lGraphComplexityList, lRootComplexity) ← case localCriterion of
-                                NCM | origProcessedData /= emptyProcessedData →
-                                    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
+                                --NCM | origProcessedData /= emptyProcessedData →
+                                --    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
 
-                                NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost processedData)
+                                NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
 
                                 Parsimony → pure $ (IL.repeat (0.0, 0.0), 0.0)
 
-                                MAPA → pure $ (U.calculateGraphComplexity &&& U.calculateMAPARootCost) processedData
+                                MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost origProcessedData) 
 
                                 val | val `elem` [PMDL, SI] →
-                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) processedData
+                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) origProcessedData
 
                                 val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
 
@@ -782,17 +782,17 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
                             (lGraphComplexityList, lRootComplexity) ← case localCriterion of
-                                NCM | origProcessedData /= emptyProcessedData →
-                                    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
+                                --NCM | origProcessedData /= emptyProcessedData →
+                                --    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
 
-                                NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost processedData)
+                                NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
 
                                 Parsimony → pure $ (IL.repeat (0.0, 0.0), 0.0)
 
-                                MAPA → pure $ (U.calculateGraphComplexity &&& U.calculateMAPARootCost) processedData
+                                MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost processedData)
 
                                 val | val `elem` [PMDL, SI] →
-                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) processedData
+                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) origProcessedData
 
                                 val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
 
@@ -979,7 +979,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             lRootComplexity ← case localMethod of
                                 NoRootCost → pure 0.0
-                                val | val `elem` [Wheeler2015Root, PMDLRoot] → pure $ U.calculatePMDLRootCost processedData
+                                val | val `elem` [Wheeler2015Root, PMDLRoot] → pure $ U.calculatePMDLRootCost origProcessedData
                                 val → failWithPhase Parsing $ "Error in 'set' command. No determined root complexity of '" <> show val <> "'"
 
                             logWith LogInfo $ unwords ["RootCost set to", show localMethod, show lRootComplexity, "bits"]

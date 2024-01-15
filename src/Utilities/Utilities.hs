@@ -194,6 +194,7 @@ calculatePMDLRootCost (nameVect, _, blockDataV) =
     let numLeaves = V.length nameVect
         insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
     in
+    --trace ("InCPMDLRC") $ 
     insertDataCost /  fromIntegral numLeaves
 
 
@@ -214,19 +215,28 @@ getLeafInsertCost charInfoV charDataV =
 -- for PMDL of add, non add matrix log2 of alphabet size 
 getCharacterInsertCost :: CharacterData -> CharInfo -> Double
 getCharacterInsertCost inChar charInfo =
+    --trace ("In GCIC: " <> (show $ charType charInfo) <> " " <> (show $ weight charInfo) <> " " <> (show $ logBase 2.0 $ (fromIntegral $ length (alphabet charInfo) :: Double)) <> " " <> (show $  (alphabet charInfo)) <> " " <> (show $ BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar))) $
     let localCharType = charType charInfo
         thisWeight = weight charInfo
         -- init since don't wan't gap-gap match cost in there
         rowIndelSum = fromIntegral $ V.sum $ V.init $ S.getFullRowVect (costMatrix charInfo) (length (alphabet charInfo) - 1)
         -- inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
         inDelCost = rowIndelSum / (fromIntegral $ length (alphabet charInfo) - 1)
-        alphabetWeight = logBase 2.0 $ (fromIntegral $ length (costMatrix charInfo) :: Double)
+        numStates = if localCharType == NonAdd then BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar)
+                    else if localCharType == Add then 
+                        let (a,b) = V.head $ GU.snd3 $ rangePrelim inChar
+                        in
+                        toEnum (b - a) 
+                    else if localCharType == Matrix then  toEnum $ V.length $ V.head $ matrixStatesPrelim inChar
+                    else 0 :: Word
+        alphabetWeight = logBase 2.0 $ (fromIntegral $ numStates :: Double)
+
     in
-    if localCharType == Add then alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
-    else if localCharType == NonAdd then alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+    if localCharType == Add then thisWeight * alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+    else if localCharType == NonAdd then thisWeight * alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
     -- this wrong--need to count actual characters packed2/32, packed4/32
     else if localCharType `elem` packedNonAddTypes then thisWeight * fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
-    else if localCharType == Matrix then alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+    else if localCharType == Matrix then thisWeight * alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
     else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
     else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * inDelCost * fromIntegral (UV.length $ widePrelim inChar)
     else if localCharType == HugeSeq then thisWeight * inDelCost * fromIntegral (V.length $ hugePrelim inChar)

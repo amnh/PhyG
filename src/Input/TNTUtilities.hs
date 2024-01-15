@@ -647,7 +647,7 @@ scopeToIndex fileName numChars scopeText =
                                 in  if isNothing scopeSingleton
                                         then
                                             errorWithoutStackTrace
-                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer")
+                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer (0)")
                                         else
                                             if fromJust scopeSingleton < numChars
                                                 then [fromJust scopeSingleton]
@@ -672,7 +672,7 @@ scopeToIndex fileName numChars scopeText =
                                 in  if isNothing startIndex || isNothing stopIndex
                                         then
                                             errorWithoutStackTrace
-                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer")
+                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer (1)")
                                         else
                                             if fromJust startIndex >= numChars
                                                 then
