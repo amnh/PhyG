@@ -789,7 +789,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                                 Parsimony → pure $ (IL.repeat (0.0, 0.0), 0.0)
 
-                                MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost processedData)
+                                MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost origProcessedData)
 
                                 val | val `elem` [PMDL, SI] →
                                     pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) origProcessedData
