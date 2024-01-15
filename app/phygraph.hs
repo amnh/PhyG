@@ -364,7 +364,7 @@ performSearch initialSeed inputFilePath = do
         rediagnose for NCM and PMDL due to packing, in most cases not required, just being sure etc
     -}
     let rediagnoseWithReportingdata = True
-    finalGraphList' ← if optimalityCriterion initialGlobalSettings `elem` [NCM, PMDL] then
+    finalGraphList' ← if optimalityCriterion initialGlobalSettings `elem` [SI, NCM, PMDL] then
                         T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
                       else pure finalGraphList
     
