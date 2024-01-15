@@ -160,7 +160,7 @@ getGraphComplexity numLeaves numRoots numBlocks numNetNodes =
 calculateMAPARootCost :: ProcessedData -> VertexCost
 calculateMAPARootCost  = calculateNCMRootCost
 
--- | calculateNCMRootCost calcuates the contant fact of SUM -log 1/r over all characters
+-- | calculateNCMRootCost calcuates the contant fact of SUM -log 10 1/r over all characters
 -- approximate for packed data (based on alphabet size for packed)
 calculateNCMRootCost :: ProcessedData -> VertexCost
 calculateNCMRootCost (_, _, blockDataV) =
@@ -211,6 +211,7 @@ getLeafInsertCost charInfoV charDataV =
     V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
 
 -- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
+-- for PMDL of add, non add matrix log2 of alphabet size 
 getCharacterInsertCost :: CharacterData -> CharInfo -> Double
 getCharacterInsertCost inChar charInfo =
     let localCharType = charType charInfo
@@ -219,12 +220,13 @@ getCharacterInsertCost inChar charInfo =
         rowIndelSum = fromIntegral $ V.sum $ V.init $ S.getFullRowVect (costMatrix charInfo) (length (alphabet charInfo) - 1)
         -- inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
         inDelCost = rowIndelSum / (fromIntegral $ length (alphabet charInfo) - 1)
+        alphabetWeight = logBase 2.0 $ (fromIntegral $ length (costMatrix charInfo) :: Double)
     in
-    if localCharType == Add then thisWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
-    else if localCharType == NonAdd then thisWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+    if localCharType == Add then alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+    else if localCharType == NonAdd then alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
     -- this wrong--need to count actual characters packed2/32, packed4/32
     else if localCharType `elem` packedNonAddTypes then thisWeight * fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
-    else if localCharType == Matrix then thisWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+    else if localCharType == Matrix then alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
     else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
     else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * inDelCost * fromIntegral (UV.length $ widePrelim inChar)
     else if localCharType == HugeSeq then thisWeight * inDelCost * fromIntegral (V.length $ hugePrelim inChar)

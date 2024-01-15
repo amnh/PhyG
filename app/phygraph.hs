@@ -361,10 +361,10 @@ performSearch initialSeed inputFilePath = do
 
     {- 
     This should not be necessary--moved to traversal with root cost adjustment 
-        rediagnose for NCM due to packing, in most cases not required, just being sure etc
+        rediagnose for NCM and PMDL due to packing, in most cases not required, just being sure etc
     -}
     let rediagnoseWithReportingdata = True
-    finalGraphList' ← if optimalityCriterion initialGlobalSettings == NCM then
+    finalGraphList' ← if optimalityCriterion initialGlobalSettings `elem` NCM, PMDL] then
                         T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
                       else pure finalGraphList
     

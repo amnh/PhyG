@@ -452,6 +452,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                         -- sets root cost as well-- need in both places--one to process data and one to
                         -- keep in current global
+                        --MUST be set aheard of data packing so correct--otherwise alhobaet etc modified
                         "criterion" → do
                             localCriterion ← case firstOption of
                                 "parsimony" → pure Parsimony
