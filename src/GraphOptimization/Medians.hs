@@ -104,23 +104,23 @@ makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.
 -- character
 -- for parallel fmap over all then parallelized by type and sequences
 -- used for distances and post-order assignments
-median2 ::   V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
-median2 = V.zipWith3 (median2Single False)
+median2 ::   Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
+median2 = V.zipWith3 (median2Single adjustNoCost False)
 
 
 -- | median2NonExact takes the vectors of characters and applies median2NonExact to each
 -- character for parallel fmap over all then parallelized by type and sequences
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
-median2NonExact :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
-median2NonExact = V.zipWith3 median2SingleNonExact
+median2NonExact :: Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
+median2NonExact = V.zipWith3 (median2SingleNonExact adjustNoCost)
 
 -- | median2StaticIA takes the vectors of characters and applies median2SingleStaticIA to each
 -- character for parallel fmap over all then parallelized by type and sequences
 -- this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
 -- and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
-median2StaticIA :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
-median2StaticIA = V.zipWith3 (median2Single True)
+median2StaticIA :: Bool -> V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> V.Vector (CharacterData, VertexCost)
+median2StaticIA = V.zipWith3 (median2Single adjustNoCost True)
 
 -- | median2Single takes character data and returns median character and cost
 -- median2single assumes that the character vectors in the various states are the same length
@@ -130,8 +130,8 @@ median2StaticIA = V.zipWith3 (median2Single True)
 -- staticIA for dynm,aic assumes all same length
 -- PMDL costs are calculated by type--additive by conversion to non-additive --but if states> 129 won't do it so warning in docs
 -- bp2,4,5,8,64, nonadd are by weights vis set command, matrix, sequence are set by tcm with non-zero diagnonal
-median2Single :: Bool -> CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
-median2Single staticIA firstVertChar secondVertChar inCharInfo =
+median2Single :: Bool -> Bool -> CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+median2Single adjustNoCost staticIA firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
@@ -155,7 +155,7 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
 
     else if thisType `elem` packedNonAddTypes then
         --assumes all weight 1
-        let newCharVect = BP.median2Packed thisType thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
+        let newCharVect = BP.median2Packed adjustNoCost thisType thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
@@ -165,13 +165,13 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` prealignedCharacterTypes then
-      let newCharVect = getPreAligned2Median inCharInfo emptyCharacter firstVertChar secondVertChar
+      let newCharVect = getPreAligned2Median adjustNoCost inCharInfo emptyCharacter firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` nonExactCharacterTypes then
-      let newCharVect = if staticIA then makeIAPrelimCharacter inCharInfo emptyCharacter firstVertChar secondVertChar
-                        else getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+      let newCharVect = if staticIA then makeIAPrelimCharacter adjustNoCost inCharInfo emptyCharacter firstVertChar secondVertChar
+                        else getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       -- trace ("M2S: " <> (show $ localCost  newCharVect))
       (newCharVect, localCost  newCharVect)
@@ -183,8 +183,8 @@ median2Single staticIA firstVertChar secondVertChar inCharInfo =
 -- that is--all leaves (hencee other vertices later) have the same number of each type of character
 -- this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 -- and skips optimization placing a dummy value exact (Add, NonAdd, Matrix) for the others.
-median2SingleNonExact :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
-median2SingleNonExact firstVertChar secondVertChar inCharInfo =
+median2SingleNonExact :: Bool -> CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+median2SingleNonExact adjustNoCost firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
@@ -196,14 +196,14 @@ median2SingleNonExact firstVertChar secondVertChar inCharInfo =
     in
     if not thisActive || (thisType `elem` exactCharacterTypes) then (dummyStaticCharacter, 0)
     else if thisType `elem` prealignedCharacterTypes then
-         let newCharVect = getPreAligned2Median inCharInfo dummyStaticCharacter firstVertChar secondVertChar
+         let newCharVect = getPreAligned2Median adjustNoCost inCharInfo dummyStaticCharacter firstVertChar secondVertChar
          in
          -- trace ("M2S:" <> (show $ localCost  newCharVect) <> (show (firstVertChar, secondVertChar)))
          -- trace ("M2SNEP: " <> (show thisType))
          (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` nonExactCharacterTypes then
-         let newCharVect = getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+         let newCharVect = getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
          in
          --trace ("M2SNE: " <> (show thisType) <> (show $ localCost  newCharVect))
          (newCharVect, localCost  newCharVect)
@@ -237,8 +237,8 @@ distance2UnionsBlock firstBlock secondBlock charInfoV =
     -- 2) check cost for each type
     -- 3) use DO for alignments even on unoin fields (triple)
 -- as a result can use non-alignred dynamic characters as unions for comparison
-distance2UnionsCharacter :: CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
-distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
+distance2UnionsCharacter :: Bool -> CharacterData -> CharacterData -> CharInfo -> (CharacterData, VertexCost)
+distance2UnionsCharacter adjustNoCost firstVertChar secondVertChar inCharInfo =
     let thisType    = charType inCharInfo
         thisWeight  = weight inCharInfo
         thisMatrix  = costMatrix inCharInfo
@@ -253,13 +253,13 @@ distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
         (newCharVect, localCost  newCharVect)
 
     else if thisType == NonAdd then
-        let newCharVect = interUnionUnionField thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
+        let newCharVect = interUnionUnionField adjustNoCost thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` packedNonAddTypes then
         --assumes all weight 1
-        let newCharVect = BP.median2PackedUnionField thisType thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
+        let newCharVect = BP.median2PackedUnionField adjustNoCost thisType thisWeight (thisNoChangeCost, thisChangeCost) firstVertChar secondVertChar
         in
         (newCharVect, localCost  newCharVect)
 
@@ -269,12 +269,12 @@ distance2UnionsCharacter firstVertChar secondVertChar inCharInfo =
         (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` prealignedCharacterTypes then
-      let newCharVect = getPreAligned2MedianUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
+      let newCharVect = getPreAligned2MedianUnionFields adjustNoCost inCharInfo emptyCharacter firstVertChar secondVertChar
       in
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` nonExactCharacterTypes then
-      let newCharVect = getDOMedianCharInfoUnion inCharInfo firstVertChar secondVertChar
+      let newCharVect = getDOMedianCharInfoUnion adjustNoCost inCharInfo firstVertChar secondVertChar
       -- let newCharVect = getNonExactUnionFields inCharInfo emptyCharacter firstVertChar secondVertChar
       in
       -- trace ("M2S: " <> (show $ localCost  newCharVect))
@@ -299,10 +299,15 @@ interUnionBV leftBV rightBV =
 -- snd3 $ rangePrelim left/rightChar due to triple in prelim
 -- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since
 -- only for nonadd characters with > 64 states.
-interUnion :: Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
-interUnion thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
+interUnion :: Bool -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
+interUnion adjustNoCost thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
-        newCost = thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+        newCost = if not adjustNoCost then
+                         thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+                  else 
+                        let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
+                        in  thisWeight * ((lNoChangeCost * fromIntegral noChangeCostNum) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+
         newCharacter = emptyCharacter { stateBVPrelim = (snd3 $ stateBVPrelim leftChar, newStateVect, snd3 $ stateBVPrelim rightChar)
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
@@ -319,10 +324,15 @@ interUnion thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
 -- snd3 $ rangePrelim left/rightChar due to triple in prelim
 -- could have done noChnageCoast/Chaneg cost with length subtraction but very small issue in real use since
 -- only for nonadd characters with > 64 states.
-interUnionUnionField :: Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
-interUnionUnionField thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
+interUnionUnionField :: Bool -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
+interUnionUnionField adjustNoCost thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (stateBVUnion leftChar) (stateBVUnion rightChar)
-        newCost = thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+        newCost = if not adjustNoCost then
+                         thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+                  else 
+                        let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
+                        in  thisWeight * ((lNoChangeCost * fromIntegral noChangeCostNum) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+
         newCharacter = emptyCharacter { stateBVUnion = newStateVect
                                       , localCost = newCost
                                       , globalCost = newCost + globalCost leftChar + globalCost rightChar
@@ -525,44 +535,62 @@ unionMatrix thisMatrix firstVertChar secondVertChar =
 
 -- | pairwiseDO is a wrapper around slim/wise/hugeParwiseDO to allow direct call and return of
 -- DO medians and cost.  This is used in final state assignment
-pairwiseDO :: CharInfo
+pairwiseDO :: Bool
+           -> CharInfo
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter, Double)
-pairwiseDO charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
+pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     let thisType = charType charInfo
     in
     if thisType `elem` [SlimSeq,   NucSeq]      then
         let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
+            -- adjustment based on aligned left and right
+            noChangeAdjust = if not adjustNoCost then 0
+                             else 
+                                let (lCost, _) = get2WaySlim (slimTCM charInfo)  (extractMediansLeftGapped r) (extractMediansLeftGapped r)
+                                    (rCost, _) = get2WaySlim (slimTCM charInfo)  (extractMediansRightGapped r) (extractMediansRightGapped r)
+                                in min lCost rCost
         in
         -- trace ("pDO:" <> (show (GV.length $ fst3 slim1, GV.length $ snd3 slim1)) <> " " <> (show (GV.length $ fst3 slim2, GV.length $ snd3 slim2)))
-        (r, mempty, mempty, weight charInfo * fromIntegral cost)
+        (r, mempty, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
 
     else if thisType `elem` [WideSeq, AminoSeq] then
         let coefficient = MR.minInDelCost (wideTCM charInfo)
             (cost, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
+            noChangeAdjust = if not adjustNoCost then 0
+                             else 
+                                let (lCost, _) = get2WayWideHuge (wideTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r) 
+                                    (rCost, _) = get2WayWideHuge (wideTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
+                                in min lCost rCost
         in
-        (mempty, r, mempty, weight charInfo * fromIntegral cost)
+        (mempty, r, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
 
     else if thisType == HugeSeq           then
         let coefficient = MR.minInDelCost (hugeTCM charInfo)
             (cost, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
+            noChangeAdjust = if not adjustNoCost then 0
+                             else 
+                                let (lCost, _) = get2WayWideHuge (hugeTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r) 
+                                    (rCost, _) = get2WayWideHuge (hugeTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
+                                in min lCost rCost
         in
-        (mempty, mempty, r, weight charInfo * fromIntegral cost)
+        (mempty, mempty, r, weight charInfo * fromIntegral (cost + noChangeAdjust))
 
     else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
 
 -- | getDOMedianCharInfoUnion  is a wrapper around getDOMedian with CharInfo-based interface
 -- for union fields.
 -- Strips out solo gapos (0/1) before DO step
-getDOMedianCharInfoUnion :: CharInfo -> CharacterData -> CharacterData -> CharacterData
-getDOMedianCharInfoUnion charInfo = getDOMedianUnion (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
+getDOMedianCharInfoUnion :: Bool -> CharInfo -> CharacterData -> CharacterData -> CharacterData
+getDOMedianCharInfoUnion adjustNoCost charInfo = getDOMedianUnion adjustNoCost (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
 -- | getDOMedianUnion calls appropriate pairwise DO to create sequence median after some type wrangling
 -- works on union states
 -- filters out gaps (0/1) values before DO (>1)
 getDOMedianUnion
-  :: Double
+  :: Bool
+  -> Double
   -> S.Matrix Int
   -> TCMD.DenseTransitionCostMatrix
   -> MR.MetricRepresentation WideState
@@ -571,7 +599,7 @@ getDOMedianUnion
   -> CharacterData
   -> CharacterData
   -> CharacterData
-getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
+getDOMedianUnion adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
   | null thisMatrix = error "Null cost matrix in getDOMedian"
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
   | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
@@ -581,23 +609,29 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
     blankCharacterData = emptyCharacter
 
     newSlimCharacterData =
-        let newCost     = thisWeight * fromIntegral cost
+        let newCost     = thisWeight * fromIntegral (cost + adjustNoCost)
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             slimIAUnionNoGapsLeft = extractMediansSingle $ slimIAUnion leftChar
             slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
             (cost, r)   = slimPairwiseDO
                 thisSlimTCM (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector slimIAUnionNoGapsRight)
+            noChangeAdjust = if not adjustNoCost then 0
+                             else 
+                                let (lCost, _) = get2WaySlim thisSlimTCM (extractMediansLeftGapped r) (extractMediansLeftGapped r)
+                                    (rCost, _) = get2WaySlim thisSlimTCM (extractMediansRightGapped r) (extractMediansRightGapped r)
+                                in min lCost rCost
+
         in
         --trace ("GDOMU:" <> show (cost, extractMedians r, slimIAUnionNoGapsLeft, slimIAUnionNoGapsRight)) $
         blankCharacterData
               { slimIAUnion   = extractMedians r
-              , localCostVect = V.singleton $ fromIntegral cost
+              , localCostVect = V.singleton $ fromIntegral (cost + adjustNoCost)
               , localCost     = newCost
               , globalCost    = subtreeCost
               }
 
     newWideCharacterData =
-        let newCost     = thisWeight * fromIntegral cost
+        let newCost     = thisWeight * fromIntegral (cost + adjustNoCost)
             coefficient = MR.minInDelCost thisWideTCM
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             wideIAUnionNoGapsLeft = extractMediansSingle $ wideIAUnion leftChar
@@ -606,15 +640,23 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
                 coefficient
                 (MR.retreivePairwiseTCM thisWideTCM)
                 (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector wideIAUnionNoGapsRight)
+
+            noChangeAdjust = if not adjustNoCost then 0
+                             else 
+                                let (lCost, _) = get2WayWideHuge thisWideTCM (extractMediansLeftGapped r) (extractMediansLeftGapped r) 
+                                    (rCost, _) = get2WayWideHuge thisWideTCM (extractMediansRightGapped r) (extractMediansRightGapped r)
+                                in min lCost rCost
+
+
         in  blankCharacterData
               { wideIAUnion    = extractMedians r
-              , localCostVect = V.singleton $ fromIntegral cost
+              , localCostVect = V.singleton $ fromIntegral (cost + adjustNoCost)
               , localCost     = newCost
               , globalCost    = subtreeCost
               }
 
     newHugeCharacterData =
-        let newCost     = thisWeight * fromIntegral cost
+        let newCost     = thisWeight * fromIntegral (cost + adjustNoCost)
             coefficient = MR.minInDelCost thisHugeTCM
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             hugeIAUnionNoGapsLeft = extractMediansSingle $ hugeIAUnion leftChar
@@ -623,22 +665,30 @@ getDOMedianUnion thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisT
                 coefficient
                 (MR.retreivePairwiseTCM thisHugeTCM)
                 (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsLeft) (makeDynamicCharacterFromSingleVector hugeIAUnionNoGapsRight)
+
+            noChangeAdjust = if not adjustNoCost then 0
+                             else 
+                                let (lCost, _) = get2WayWideHuge thisHugeTCM (extractMediansLeftGapped r) (extractMediansLeftGapped r) 
+                                    (rCost, _) = get2WayWideHuge thisHugeTCM (extractMediansRightGapped r) (extractMediansRightGapped r)
+                                in min lCost rCost
+
         in blankCharacterData
               { hugeIAUnion = extractMedians r
-              , localCostVect = V.singleton $ fromIntegral cost
+              , localCostVect = V.singleton $ fromIntegral (cost + adjustNoCost)
               , localCost  = newCost
               , globalCost = subtreeCost
               }
 
 
 -- | getDOMedianCharInfo  is a wrapper around getDOMedian with CharInfo-based interface
-getDOMedianCharInfo :: CharInfo -> CharacterData -> CharacterData -> CharacterData
-getDOMedianCharInfo charInfo = getDOMedian (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
+getDOMedianCharInfo :: Bool -> CharInfo -> CharacterData -> CharacterData -> CharacterData
+getDOMedianCharInfo adjustNoCost charInfo = getDOMedian adjustNoCost (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
 -- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
 -- works on preliminary states
 getDOMedian
-  :: Double
+  :: Bool
+  -> Double
   -> S.Matrix Int
   -> TCMD.DenseTransitionCostMatrix
   -> MR.MetricRepresentation WideState
@@ -647,7 +697,7 @@ getDOMedian
   -> CharacterData
   -> CharacterData
   -> CharacterData
-getDOMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
+getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType leftChar rightChar
   | null thisMatrix = error "Null cost matrix in getDOMedian"
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
   | thisType `elem` [WideSeq, AminoSeq] = newWideCharacterData
@@ -894,8 +944,10 @@ createEdgeUnionOverBlocks useIA filterGaps leftBlockData rightBlockData blockCha
 
 -- | getPreAligned2Median takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
 -- uses IA-type functions for slim/wide/huge
-getPreAligned2Median :: CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
-getPreAligned2Median charInfo nodeChar leftChar rightChar =
+-- adjustNoCost distance between two nodes or creating a median with two edges
+-- calcuated by the no change for entire length based min of the two nodes to self for non-change
+getPreAligned2Median :: Bool -> CharInfo -> CharacterData -> CharacterData -> CharacterData -> CharacterData
+getPreAligned2Median adjustNoCost charInfo nodeChar leftChar rightChar =
     let setCost :: forall {a}.
                    Integral a =>
                    a -> CharacterData -> CharacterData
@@ -921,7 +973,12 @@ getPreAligned2Median charInfo nodeChar leftChar rightChar =
                 let cL = getCharL alignedSlimPrelim
                     cR = getCharR alignedSlimPrelim
                     (cM, score) = get2WaySlim (slimTCM charInfo) cL cR
-                in  (setSlimPrelim (cL, cM, cR), score)
+                    noChangeAdjustment = if not adjustNoCost then 0 :: Word
+                                         else 
+                                            let (_, lCost) = get2WaySlim (slimTCM charInfo) cL cL
+                                                (_, rCost) = get2WaySlim (slimTCM charInfo) cR cR
+                                            in min lCost rCost
+                in  (setSlimPrelim (cL, cM, cR), score + noChangeAdjustment)
 
             AlignedWide ->
                 let cL = getCharL alignedWidePrelim
