@@ -42,6 +42,19 @@ import Utilities.LocalGraph qualified as LG
 
 import Debug.Trace
 
+
+-- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI 
+-- and whether the required median is a distance (ie single edge)
+-- or two edge median (as in creating a vertex for post order traversal)
+-- and returns a boolean is adjustment is required.
+-- this to add in the extra "noChange" costs when required
+needTwoEdgeNoCostAdjust :: GlobalSettings -> Bool -> Bool
+needTwoEdgeNoCostAdjust inGS isTwoEdgeMedian = 
+    if not isTwoEdgeMedian then False
+    else if optimalityCriterion inGS `notElem` [SI, PMDL] then False
+    else True
+
+ 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
 -- fst6 and thd6 (both) are modified since this is used for output
