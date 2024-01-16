@@ -1127,6 +1127,10 @@ minMaxPacked64 (lNoChangeCost, lChangeCost) a b =
 
 -- | median2Packed takes two characters of packedNonAddTypes
 -- and retuns new character data based on 2-median and cost
+-- the change/no change numbers are adjuted based on two edgwes gogin into a singel vertex
+--    each change would be coupled by a nochange on the sidter edge
+--    each noChnage is really for two erdges so multiplied by two
+--    this will enforce 2 edges from root so 2n - 2 edges for possible changes
 median2Packed :: CharType -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
 median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftChar rightChar =
     let (newStateVect, numNoChange, numChange) = if inCharType == Packed2  then median2Word64 andOR2  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
@@ -1138,7 +1142,9 @@ median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftCha
 
         -- this for PMDL/ML costs
         newCost = if thisNoChangeCost == 0.0 then inCharWeight * (fromIntegral numChange)
-                  else inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral numNoChange)))
+                  else 
+                      let adjustedNoChangeNumber = numChange + (2 * numNoChange)
+                      in inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral adjustedNoChangeNumber)))
 
         newCharacter = emptyCharacter { packedNonAddPrelim = (snd3 $ packedNonAddPrelim leftChar, newStateVect, snd3 $ packedNonAddPrelim rightChar)
                                       , localCost = newCost
