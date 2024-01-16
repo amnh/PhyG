@@ -64,7 +64,7 @@ import GeneralUtilities
 import Types.Types
 import Utilities.Utilities qualified as U
 -- import ParallelUtilities qualified as PU
--- import Debug.Trace
+import Debug.Trace
 
 
 {-
@@ -498,6 +498,8 @@ minMaxCharDiff inCharType bitCosts a b =
     in
     (minVal, maxVal)
 
+-- I think order of minMaxPacked checking has to be rearranged--equality 
+-- placed before '.&.' otherwise if both are null then 1 for max
 
 -- | minMaxPacked2 minium and maximum cost 32x2 bit nonadditive character
 -- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
@@ -768,6 +770,7 @@ minMaxPacked2 (lNoChangeCost, lChangeCost) a b =
               , max30, max31]
 
     in
+    --trace ("2-state: " <> (show (minNumNoChange, minNumChange))) $
     -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
     else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
@@ -912,6 +915,7 @@ minMaxPacked4 (lNoChangeCost, lChangeCost) a b =
               , max10, max11, max12, max13, max14, max15]
 
     in
+    -- trace ("4-state: " <> (show (minNumNoChange, minNumChange))) $
     -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
     else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((16 :: Int)- maxVal)) + (lChangeCost * fromIntegral maxVal))
@@ -1141,6 +1145,7 @@ median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftCha
                                       , globalCost =newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
+    -- trace ("MSP: " <> (show inCharType) <> " " <> (show (numChange, numNoChange)) <> (show newCost)) $
     -- trace ("M2P: " <> (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) <> " " <> (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) <> " -> " <>   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) <> " at cost " <> (show newCost))
     newCharacter
 

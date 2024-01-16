@@ -285,10 +285,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
         Set -> do
             -- if set changes graph aspects--may need to reoptimize
             (newGlobalSettings, newProcessedData) ← setCommand firstArgs globalSettings reportingData processedData isFirst
-            let needReoptimize = (requireReoptimization globalSettings newGlobalSettings) || (optimalityCriterion globalSettings `elem` [SI, NCM, PMDL])
+            let needReoptimize = requireReoptimization globalSettings newGlobalSettings 
             newGraphList ←
                 if not needReoptimize
-                    then logWith LogInfo "No need to reoptimize graphs\n" $> curGraphs
+                    then pure curGraphs
+                    --then logWith LogInfo "No need to reoptimize graphs\n" $> curGraphs
                     else do
                         logWith LogInfo "Reoptimizing graphs\n"
                         -- TODO should be parallel
@@ -519,7 +520,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc2 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 2 state set to " <> show val
+                                                "bit cost 2 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc2 = val}, processedData)
 
                         "bc4" →
@@ -540,7 +541,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc4 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 4 state set to " <> show val
+                                                "bit cost 4 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc4 = val}, processedData)
 
                         "bc5" →
@@ -561,7 +562,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc5 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 5 state set to " <> show val
+                                                "bit cost 5 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc5 = val}, processedData)
 
                         "bc8" →
@@ -582,7 +583,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc8 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 8 state set to " <> show val
+                                                "bit cost 8 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc8 = val}, processedData)
 
                         "bc64" →
@@ -603,7 +604,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc64 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 64 state set to " <> show val
+                                                "bit cost 64 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc64 = val}, processedData)
 
                         "bcgt64" →
@@ -624,7 +625,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bcgt64 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost > 64 state set to " <> show val
+                                                "bit cost > 64 state set to " <> show val <> "\n"
                                             pure (globalSettings{bcgt64 = val}, processedData)
 
                         -- partition character to reset
@@ -660,7 +661,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc2 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 2 state set to " <> show val
+                                                "bit cost 2 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc2 = val}, processedData)
 
                         "bc4" →
@@ -681,7 +682,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc4 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 4 state set to " <> show val
+                                                "bit cost 4 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc4 = val}, processedData)
 
                         "bc5" →
@@ -702,7 +703,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc5 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 5 state set to " <> show val
+                                                "bit cost 5 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc5 = val}, processedData)
 
                         "bc8" →
@@ -723,7 +724,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc8 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 8 state set to " <> show val
+                                                "bit cost 8 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc8 = val}, processedData)
 
                         "bc64" →
@@ -744,7 +745,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bc64 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost 64 state set to " <> show val
+                                                "bit cost 64 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc64 = val}, processedData)
 
                         "bcgt64" →
@@ -765,7 +766,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                     <> firstOption
                                         Just val@(_, _) → do
                                             when (bcgt64 globalSettings /= val) . logWith LogInfo $
-                                                "bit cost > 64 state set to " <> show val
+                                                "bit cost > 64 state set to " <> show val <> "\n"
                                             pure (globalSettings{bcgt64 = val}, processedData)
 
                         -- processed above, but need here since put in different value
