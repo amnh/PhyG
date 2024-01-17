@@ -883,9 +883,11 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost nodeT
 -- )
 
 -- | getUnionDistance gets distance between two the union fields of two characters
+-- since its a distance no need for no change cost adjustment
 getUnionDistance ∷ VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → Double
 getUnionDistance union1 union2 charInfoVV =
-    let (_, newUnionCost) = M.distance2Unions union1 union2 charInfoVV
+    let noChangeCostAdjut = False
+        (_, newUnionCost) = M.distance2Unions noChangeCostAdjut union1 union2 charInfoVV
     in  newUnionCost
 
 
@@ -1303,11 +1305,11 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                 -- only uswe wqhere they exist
                 (makeEdgeDataFunction, edgeJoinFunction) =
                     if graphType inGS == HardWired
-                        then (M.makeEdgeData False True, edgeJoinDelta False)
+                        then (M.makeEdgeData False True, edgeJoinDelta inGS False)
                         else
                             if not (useIA inGS)
-                                then (M.makeEdgeData False True, edgeJoinDelta False)
-                                else (M.makeEdgeData True True, edgeJoinDelta True)
+                                then (M.makeEdgeData False True, edgeJoinDelta inGS False)
+                                else (M.makeEdgeData True True, edgeJoinDelta inGS True)
 
                 -- set edge union creation type to IA-based, filtering gaps (should be linear)
                 -- hence True True
@@ -1440,13 +1442,13 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
-I a filed is faster--but has to be there and not for harwired
+    IA field is faster--but has to be there and not for harwired
 -}
-edgeJoinDelta ∷ Bool → V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → VertexCost
-edgeJoinDelta useIA charInfoVV edgeA edgeB =
+edgeJoinDelta ∷ GlobalSettings -> Bool → V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → VertexCost
+edgeJoinDelta inGS useIA charInfoVV edgeA edgeB =
     if (not useIA)
-        then V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks edgeA edgeB charInfoVV []
-        else V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocksStaticIA edgeA edgeB charInfoVV []
+        then V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks inGS edgeA edgeB charInfoVV []
+        else V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocksStaticIA inGS edgeA edgeB charInfoVV []
 
 
 {- | tbrJoin performs TBR rearrangements on pruned graph component
@@ -1491,9 +1493,9 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                     -- graphType with IA field
                     -- only uswe wqhere they exist\
                     (makeEdgeDataFunction, edgeJoinFunction)
-                        | graphType inGS == HardWired = (M.makeEdgeData False True, edgeJoinDelta False)
-                        | not (useIA inGS) = (M.makeEdgeData False True, edgeJoinDelta False)
-                        | otherwise = (M.makeEdgeData True True, edgeJoinDelta True)
+                        | graphType inGS == HardWired = (M.makeEdgeData False True, edgeJoinDelta inGS False)
+                        | not (useIA inGS) = (M.makeEdgeData False True, edgeJoinDelta inGS False)
+                        | otherwise = (M.makeEdgeData True True, edgeJoinDelta inGS True)
 
                     targetEdgeData = makeEdgeDataFunction splitGraph charInfoVV targetEdge
 

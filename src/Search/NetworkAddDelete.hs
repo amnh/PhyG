@@ -1924,12 +1924,14 @@ if existing is lower then zero, else (existing - new)
  calculate d(u,v) + d(u',v') [existing display tree cost estimate] compared to
  d((union u,v), v') - d(u'.v')
 need to use final assignemnts--so set prelim to final first
+Since a distance--no need for No chanage cost adjustment
 -}
 getCharacterDelta
     ∷ (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) → DecoratedGraph → CharInfo → (VertexCost, VertexCost)
 getCharacterDelta (_, v, _, v', a, b) inCharTree charInfo =
     -- getCharacterDelta (u,v,u',v',a,b) inCharTree charInfo =
     let doIA = False
+        noChangeCostAdjust = False
         -- filterGaps = True
         -- uData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree u
         vData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree v
@@ -1947,10 +1949,10 @@ getCharacterDelta (_, v, _, v', a, b) inCharTree charInfo =
         -- dU'V' = vertexCost $ fromJust $ LG.lab inCharTree u'
         -- (_, dUnionUVV') = M.median2Single doIA unionUV v'Data charInfo
 
-        (newX, dVV') = M.median2Single doIA vFinalData v'FinalData charInfo
-        (_, dAX) = M.median2Single doIA aFinalData newX charInfo
-        (_, dAV) = M.median2Single doIA aData vData charInfo
-        (_, dV'B) = M.median2Single doIA v'Data bData charInfo
+        (newX, dVV') = M.median2Single noChangeCostAdjust doIA vFinalData v'FinalData charInfo
+        (_, dAX) = M.median2Single noChangeCostAdjust doIA aFinalData newX charInfo
+        (_, dAV) = M.median2Single noChangeCostAdjust doIA aData vData charInfo
+        (_, dV'B) = M.median2Single noChangeCostAdjust doIA v'Data bData charInfo
     in  -- trace ("GCD: " <> (show (dVV' + dAX, dAV + dV'B))) (
         (dVV' + dAX, dAV + dV'B)
 
@@ -1981,7 +1983,7 @@ heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
                 then
                     let uvVertData = M.makeEdgeData False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u, v, dummyEdge)
                         uvPrimeData = M.makeEdgeData False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u', v', dummyEdge)
-                        hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks uvVertData uvPrimeData (fft5 inPhyloGraph) []
+                        hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks inGS uvVertData uvPrimeData (fft5 inPhyloGraph) []
                     in  pure (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
                 else -- softwired
 

@@ -320,7 +320,7 @@ rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect =
             grandChildrenOfRoot = concatMap (LG.descendants blockDisplayTree) childrenOfRoot
 
             getCharAction :: (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
-            getCharAction = getCharTreeBestRoot' rootIndex grandChildrenOfRoot
+            getCharAction = getCharTreeBestRoot' inGS rootIndex grandChildrenOfRoot
 
 
         in do
@@ -340,37 +340,37 @@ rerootBlockCharTrees inGS rootIndex blockDisplayTree charTreeVect charInfoVect =
             pure (updateBlockDisplayTree, updatedDisplayVect, blockCost)
 
 -- | getCharTreeBestRoot' is awrapper around getCharTreeBestRoot to use parMap
-getCharTreeBestRoot' :: LG.Node -> [LG.Node] -> (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
-getCharTreeBestRoot' rootIndex nodesToRoot (inCharacterGraph, charInfo) =
-    getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo
+getCharTreeBestRoot' :: GlobalSettings -> LG.Node -> [LG.Node] -> (DecoratedGraph, CharInfo) -> (DecoratedGraph, VertexCost)
+getCharTreeBestRoot' inGS rootIndex nodesToRoot (inCharacterGraph, charInfo) =
+    getCharTreeBestRoot inGS rootIndex nodesToRoot inCharacterGraph charInfo
 
 -- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
 --- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments
-getCharTreeBestRoot :: LG.Node -> [LG.Node] -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
-getCharTreeBestRoot rootIndex nodesToRoot inCharacterGraph charInfo =
+getCharTreeBestRoot :: GlobalSettings -> LG.Node -> [LG.Node] -> DecoratedGraph -> CharInfo -> (DecoratedGraph, VertexCost)
+getCharTreeBestRoot inGS rootIndex nodesToRoot inCharacterGraph charInfo =
     -- if prealigned should be rerooted?
     let (bestRootCharGraph, bestRootCost) = if (charType charInfo `notElem` sequenceCharacterTypes) then (inCharacterGraph, (subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex)
-                                            else rerootCharacterTree rootIndex nodesToRoot charInfo inCharacterGraph
+                                            else rerootCharacterTree inGS rootIndex nodesToRoot charInfo inCharacterGraph
     in
     (bestRootCharGraph, bestRootCost)
 
 -- | rerootCharacterTree wrapper around rerootCharacterTree' with cleaner interface for "best" results
-rerootCharacterTree :: LG.Node -> [LG.Node] ->  CharInfo -> DecoratedGraph -> (DecoratedGraph, VertexCost)
-rerootCharacterTree  rootIndex nodesToRoot charInfo inCharacterGraph =
-    rerootCharacterTree' rootIndex nodesToRoot charInfo ((subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex) inCharacterGraph inCharacterGraph
+rerootCharacterTree :: GlobalSettings -> LG.Node -> [LG.Node] ->  CharInfo -> DecoratedGraph -> (DecoratedGraph, VertexCost)
+rerootCharacterTree  inGS rootIndex nodesToRoot charInfo inCharacterGraph =
+    rerootCharacterTree' inGS rootIndex nodesToRoot charInfo ((subGraphCost . snd) $ LG.labelNode inCharacterGraph rootIndex) inCharacterGraph inCharacterGraph
 
 -- | rerootCharacterTree' takes a character tree and root index and returns best rooted character tree and cost
 -- this is recursive taking best cost to save on memory over an fmap and minimum
 -- since does reroot stuff over character trees--that component is less efficient
 -- root index always same--just edges conenct to change with rerooting
 -- graph is prgressively rerooted to be efficient
-rerootCharacterTree' ::LG.Node -> [LG.Node] -> CharInfo -> VertexCost -> DecoratedGraph -> DecoratedGraph -> (DecoratedGraph, VertexCost)
-rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
+rerootCharacterTree' :: GlobalSettings -> LG.Node -> [LG.Node] -> CharInfo -> VertexCost -> DecoratedGraph -> DecoratedGraph -> (DecoratedGraph, VertexCost)
+rerootCharacterTree' inGS rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
     if null nodesToRoot then (bestGraph, bestCost)
     else
         let firstRerootIndex = head nodesToRoot
             nextReroots = (LG.descendants inGraph firstRerootIndex) <> tail nodesToRoot
-            newGraph = rerootAndDiagnoseTree rootIndex firstRerootIndex charInfo inGraph
+            newGraph = rerootAndDiagnoseTree inGS rootIndex firstRerootIndex charInfo inGraph
             newGraphCost = ((subGraphCost . snd) $ LG.labelNode newGraph rootIndex)
             (bestGraph', bestCost') = if newGraphCost < bestCost then (newGraph, newGraphCost)
                                       else (bestGraph, bestCost)
@@ -379,14 +379,14 @@ rerootCharacterTree' rootIndex nodesToRoot charInfo bestCost bestGraph inGraph =
         -- trace ("RRCT:" <> (show (rootIndex, firstRerootIndex, bestCost, newGraphCost)))
         --else
         -- trace ("RRCT: " <> (show (newGraphCost, bestCost)))
-        rerootCharacterTree' rootIndex nextReroots charInfo bestCost' bestGraph' newGraph
+        rerootCharacterTree' inGS rootIndex nextReroots charInfo bestCost' bestGraph' newGraph
 
 -- | rerootAndDiagnoseTree takes tree and reroots and reoptimizes nodes
-rerootAndDiagnoseTree :: LG.Node -> LG.Node ->  CharInfo -> DecoratedGraph -> DecoratedGraph
-rerootAndDiagnoseTree rootIndex newRerootIndex charInfo inGraph =
+rerootAndDiagnoseTree :: GlobalSettings -> LG.Node -> LG.Node ->  CharInfo -> DecoratedGraph -> DecoratedGraph
+rerootAndDiagnoseTree inGS rootIndex newRerootIndex charInfo inGraph =
     let reRootGraph = LG.rerootDisplayTree rootIndex newRerootIndex inGraph
         (nodesToOptimize, _) = LG.pathToRoot inGraph (LG.labelNode inGraph newRerootIndex)
-        reOptimizedGraph = reOptimizeCharacterNodes charInfo reRootGraph nodesToOptimize
+        reOptimizedGraph = reOptimizeCharacterNodes inGS charInfo reRootGraph nodesToOptimize
     in
     if LG.isEmpty reRootGraph then inGraph
     else reOptimizedGraph
@@ -395,8 +395,8 @@ rerootAndDiagnoseTree rootIndex newRerootIndex charInfo inGraph =
 -- them based on children in input graph
 -- simple recursive since each node depends on children
 -- check for out-degree 1 since can be resolved form diplay trees
-reOptimizeCharacterNodes :: CharInfo -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
-reOptimizeCharacterNodes charInfo inGraph oldNodeList =
+reOptimizeCharacterNodes :: GlobalSettings -> CharInfo -> DecoratedGraph -> [LG.LNode VertexInfo] -> DecoratedGraph
+reOptimizeCharacterNodes inGS charInfo inGraph oldNodeList =
   -- trace ("RON:" <> (show $ fmap fst oldNodeList)) (
   if null oldNodeList then inGraph
   else
@@ -413,7 +413,7 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
 
     if not $ null foundCurChildern then
       -- trace ("Current node " <> (show curNodeIndex) <> " has children " <> (show nodeChildren) <> " in optimize list (optimization order error)" <> (show $ fmap fst $ tail oldNodeList))
-      reOptimizeCharacterNodes charInfo inGraph (tail oldNodeList <> [curNode])
+      reOptimizeCharacterNodes inGS charInfo inGraph (tail oldNodeList <> [curNode])
 
     -- somehow root before others -- remove if not needed after debug
     --else if LG.isRoot inGraph curNodeIndex && length oldNodeList > 1 then
@@ -428,7 +428,7 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
 
             -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
             (leftChildLabel, rightChildLabel) = U.leftRightChildLabelBV (fromJust $ LG.lab inGraph leftChild, fromJust $ LG.lab inGraph rightChild)
-            (newVertexData, newVertexCost) = M.median2Single False ((V.head . V.head . vertData) leftChildLabel) ((V.head . V.head . vertData)  rightChildLabel) charInfo
+            (newVertexData, newVertexCost) = M.median2Single (U.needTwoEdgeNoCostAdjust inGS True) False ((V.head . V.head . vertData) leftChildLabel) ((V.head . V.head . vertData)  rightChildLabel) charInfo
 
         in
 
@@ -452,7 +452,7 @@ reOptimizeCharacterNodes charInfo inGraph oldNodeList =
             newGraph = LG.insEdges replacementEdges $ LG.insNode (curNodeIndex, newVertexLabel) $ LG.delNode curNodeIndex inGraph
          in
          --trace ("New vertexCost " <> show newCost) --  <> " lcn " <> (show (vertData leftChildLabel, vertData rightChildLabel, vertData curnodeLabel)))
-         reOptimizeCharacterNodes charInfo newGraph (tail oldNodeList)
+         reOptimizeCharacterNodes inGS charInfo newGraph (tail oldNodeList)
 
 
 -- | backPortCharTreeNodesToBlockTree assigned nodes states (labels) of character trees to block display Tree
@@ -785,8 +785,8 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
             let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                 -- larger bitvector is Right, smaller or equal Left
 
-                newCharData = if staticIA then createVertexDataOverBlocksStaticIA  (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
-                              else createVertexDataOverBlocks  (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
+                newCharData = if staticIA then createVertexDataOverBlocksStaticIA inGS (vertData leftChildLabel) (vertData  rightChildLabel) blockCharInfo []
+                              else createVertexDataOverBlocks inGS (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
 
                 newCost =  V.sum $ V.map V.sum $ V.map (V.map snd) newCharData
 
@@ -833,29 +833,32 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
             else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
 -- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
-createVertexDataOverBlocks :: VertexBlockData
+createVertexDataOverBlocks :: GlobalSettings
+                           -> VertexBlockData
                            -> VertexBlockData
                            -> V.Vector (V.Vector CharInfo)
                            -> [V.Vector (CharacterData, VertexCost)]
                            -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocks = generalCreateVertexDataOverBlocks M.median2
+createVertexDataOverBlocks inGS = generalCreateVertexDataOverBlocks (M.median2 (U.needTwoEdgeNoCostAdjust inGS True))
 
 -- | createVertexDataOverBlocksNonExact is a partial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
-createVertexDataOverBlocksNonExact :: VertexBlockData
+createVertexDataOverBlocksNonExact :: GlobalSettings
+                                   -> VertexBlockData
                                    -> VertexBlockData
                                    -> V.Vector (V.Vector CharInfo)
                                    -> [V.Vector (CharacterData, VertexCost)]
                                    -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact = generalCreateVertexDataOverBlocks M.median2NonExact
+createVertexDataOverBlocksNonExact inGS = generalCreateVertexDataOverBlocks (M.median2NonExact (U.needTwoEdgeNoCostAdjust inGS True))
 
 -- | createVertexDataOverBlocksStaticIA is an  application of generalCreateVertexDataOverBlocks with exact charcater median calculation
 -- and IA claculation for dynmaic characters--not full optimizations
-createVertexDataOverBlocksStaticIA :: VertexBlockData
+createVertexDataOverBlocksStaticIA :: GlobalSettings
+                                   -> VertexBlockData
                                    -> VertexBlockData
                                    -> V.Vector (V.Vector CharInfo)
                                    -> [V.Vector (CharacterData, VertexCost)]
                                    -> V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksStaticIA = generalCreateVertexDataOverBlocks M.median2StaticIA
+createVertexDataOverBlocksStaticIA inGS = generalCreateVertexDataOverBlocks (M.median2StaticIA (U.needTwoEdgeNoCostAdjust inGS True))
 
 
 -- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)

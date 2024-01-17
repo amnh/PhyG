@@ -146,7 +146,7 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
 
 
                     in do
-                        resolutionBlockVL <- mapM (createBlockResolutions' (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType (GO.getNodeType simpleGraph curNode)) (V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo)
+                        resolutionBlockVL <- mapM (createBlockResolutions' inGS (compressResolutions inGS) curNode leftChild' rightChild' leftChildNodeType rightChildNodeType (GO.getNodeType simpleGraph curNode)) (V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo)
 
                         -- create canonical Decorated Graph vertex
                         -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -310,7 +310,7 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
         rightChildNodeType = nodeType rightChildLabel'
     in do
         -- TODO PArallelize? its parallel in lower call
-        resolutionBlockVL <- mapM (createBlockResolutions' (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType TreeNode) (V.zip3 (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect)
+        resolutionBlockVL <- mapM (createBlockResolutions' inGS (compressResolutions inGS) curNodeIndex leftChild' rightChild' leftChildNodeType rightChildNodeType TreeNode) (V.zip3 (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect)
 
         -- create canonical Decorated Graph vertex
         -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -363,7 +363,8 @@ addNodeEdgeToResolutionList newNode newEdge _ inResData resolutionIndex =
 
 
 -- | createBlockResolutions' is a wrapper around createBlockResolutions
-createBlockResolutions' :: Bool
+createBlockResolutions' :: GlobalSettings 
+                       -> Bool
                        -> LG.Node
                        -> Int
                        -> Int
@@ -372,12 +373,13 @@ createBlockResolutions' :: Bool
                        -> NodeType
                        -> (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo)
                        -> PhyG ResolutionBlockData
-createBlockResolutions' compressResolutions curNode leftIndex rightIndex leftChildNodeType rightChildNodeType curNodeNodeType (leftChild, rightChild, charInfoV) =
-    createBlockResolutions compressResolutions curNode leftIndex rightIndex leftChildNodeType rightChildNodeType curNodeNodeType leftChild rightChild charInfoV
+createBlockResolutions' inGS compressResolutions curNode leftIndex rightIndex leftChildNodeType rightChildNodeType curNodeNodeType (leftChild, rightChild, charInfoV) =
+    createBlockResolutions inGS compressResolutions curNode leftIndex rightIndex leftChildNodeType rightChildNodeType curNodeNodeType leftChild rightChild charInfoV
 
 -- | createBlockResolutions takes left and right child resolution data for a block (same display tree)
 -- and generates node resolution data
-createBlockResolutions :: Bool
+createBlockResolutions :: GlobalSettings
+                       -> Bool
                        -> LG.Node
                        -> Int
                        -> Int
@@ -389,6 +391,7 @@ createBlockResolutions :: Bool
                        -> V.Vector CharInfo
                        -> PhyG ResolutionBlockData
 createBlockResolutions
+  inGS
   compressResolutions
   curNode
   leftIndex
@@ -449,7 +452,7 @@ createBlockResolutions
                         mempty
 
         resolutionAction :: ((ResolutionData, ResolutionData),(Int, Int)) -> ResolutionData
-        resolutionAction = createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV
+        resolutionAction = createNewResolution inGS curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV
 
     in do
         resolutionPar <- getParallelChunkMap
@@ -487,7 +490,8 @@ getMinCostList inList =
 
 -- | createNewResolution takes a pair of resolutions and creates the median resolution
 -- need to watch let/right (based on BV) for preorder stuff
-createNewResolution :: LG.Node
+createNewResolution :: GlobalSettings
+                    -> LG.Node
                     -> Int
                     -> Int
                     -> NodeType
@@ -495,7 +499,7 @@ createNewResolution :: LG.Node
                     -> V.Vector CharInfo
                     -> ((ResolutionData, ResolutionData),(Int, Int))
                     -> ResolutionData
-createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) =
+createNewResolution inGS curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) =
     let -- make  bvLabel for resolution
         resBV = displayBVLabel leftRes .|. displayBVLabel rightRes
 
@@ -548,12 +552,13 @@ createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNod
         resolutionNodeList = newNode : (fst leftChildTree <> fst rightChildTree)
 
         -- Make the data and cost for the resolution
+        -- No chnage cost adjustment is True here if PMDL/SI
         leftBlockLength = V.length $ displayData leftRes
         rightBlockLength = V.length $ displayData rightRes
         resolutionMedianCostV
           | (leftBlockLength == 0) = V.zip (displayData rightRes) (V.replicate rightBlockLength 0)
           | (rightBlockLength == 0) = V.zip (displayData leftRes) (V.replicate leftBlockLength 0)
-          | otherwise = M.median2 (displayData leftRes) (displayData rightRes) charInfoV
+          | otherwise = M.median2 (U.needTwoEdgeNoCostAdjust inGS True) (displayData leftRes) (displayData rightRes) charInfoV
         (resolutionMedianV, resolutionCostV) = V.unzip resolutionMedianCostV
         thisResolutionCost = V.sum resolutionCostV
         displaySubTreeCost = displayCost leftRes + displayCost rightRes + thisResolutionCost

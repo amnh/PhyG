@@ -65,6 +65,8 @@ the character specific decorated graphs have appropriate post and pre-order assi
 the traversal begins at the root (for a tree) and proceeds to leaves.
 
 Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
+
+INgeneral, no Chnage adjustmnent (for PMDL and SI) are not perfomred (False option) since graph costs are not calculated in the preorder passes
 -}
 preOrderTreeTraversal :: GlobalSettings -> AssignmentMethod -> Bool -> Bool -> Bool -> Int -> Bool -> PhylogeneticGraph -> PhyG PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
@@ -198,8 +200,9 @@ makeCharacterIAUnion finalMethod rootIndex inGraph charInfo =
 -- | postOrderIAUnion performs a post-order IA pass assigning leaf preliminary states
 -- from the "alignment" fields and setting HTU preliminary by calling the apropriate 2-way
 -- matrix
--- should eb OK for any root--or partial graph as in for branch swapping
+-- should be OK for any root--or partial graph as in for branch swapping
 -- also sets unions for all character types, IA based for sequence
+-- Since costs are not used here, No Change Adjust is set to False
 postOrderIAUnion :: DecoratedGraph -> CharInfo -> [LG.LNode VertexInfo] -> DecoratedGraph
 postOrderIAUnion inGraph charInfo inNodeList =
     if null inNodeList then inGraph
@@ -258,7 +261,11 @@ postOrderIAUnion inGraph charInfo inNodeList =
                     childCharacters = fmap vertData childlabels
                     leftChar = V.head $ V.head $ head childCharacters
                     rightChar = V.head $ V.head $ last childCharacters
-                    newCharacter = M.makeIAPrelimCharacter charInfo inCharacter leftChar rightChar
+                    
+                    -- Since costs are not used here, No Change Adjust is set to False
+                    noChangeCostAdjust = False
+                    newCharacter = M.makeIAPrelimCharacter noChangeCostAdjust charInfo inCharacter leftChar rightChar
+                    
                     newLabel = nodeLabel  {vertData = V.singleton (V.singleton newCharacter), nodeType = nodeType'}
                     newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
                 in
@@ -798,6 +805,7 @@ getBlockCostPairsFinal finalMethod uNodeCharDataV vNodeCharDataV charInfoV =
 
 -- | getCharacterDistFinal takes a pair of characters and character type, returning the minimum and maximum character distances
 -- for sequence characters this is based on slim/wide/hugeAlignment field, hence all should be O(n) in num characters/sequence length
+-- Since these are charcater distances--no need for no change cost adjustment
 getCharacterDistFinal :: AssignmentMethod -> CharacterData -> CharacterData -> CharInfo -> (VertexCost, VertexCost)
 getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
     let thisWeight = weight charInfo
@@ -834,7 +842,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
 
     else if thisCharType `elem` packedNonAddTypes then
         let -- minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
-            (minDiffV, maxDiffV) = UV.unzip $ UV.zipWith (BP.minMaxCharDiff thisCharType (lNoChangeCost, lChangeCost)) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
+            noChnageCostAdjust = False
+            (minDiffV, maxDiffV) = UV.unzip $ UV.zipWith (BP.minMaxCharDiff noChnageCostAdjust thisCharType (lNoChangeCost, lChangeCost)) (packedNonAddFinal uCharacter) (packedNonAddFinal vCharacter)
             maxCost = thisWeight * UV.sum maxDiffV
             minCost = thisWeight * UV.sum minDiffV
         in
@@ -861,7 +870,10 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         let minMaxDiffList = if finalMethod == DirectOptimization then
                                 let uFinal = M.makeDynamicCharacterFromSingleVector (slimFinal uCharacter)
                                     vFinal = M.makeDynamicCharacterFromSingleVector (slimFinal vCharacter)
-                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {slimGapped = uFinal}) (vCharacter {slimGapped = vFinal})
+
+                                    -- Since these are charcater distances--no need for no change cost adjustment
+                                    noChangeCostAdjust = False
+                                    newEdgeCharacter = M.getDOMedianCharInfo noChangeCostAdjust charInfo (uCharacter {slimGapped = uFinal}) (vCharacter {slimGapped = vFinal})
                                     (newU, _, newV) = slimGapped newEdgeCharacter
                                 in
                                 --trace ("GCD:\n" <> (show (slimFinal uCharacter, newU)) <> "\n" <> (show (slimFinal vCharacter, newV)) <> "\nDO Cost:" <> (show doCOST))
@@ -880,7 +892,10 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         let minMaxDiffList = if finalMethod == DirectOptimization then
                                 let uFinal = M.makeDynamicCharacterFromSingleVector (wideFinal uCharacter)
                                     vFinal = M.makeDynamicCharacterFromSingleVector (wideFinal vCharacter)
-                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {wideGapped = uFinal}) (vCharacter {wideGapped = vFinal})
+                                    
+                                    -- Since these are charcater distances--no need for no change cost adjustment
+                                    noChangeCostAdjust = False
+                                    newEdgeCharacter = M.getDOMedianCharInfo noChangeCostAdjust charInfo (uCharacter {wideGapped = uFinal}) (vCharacter {wideGapped = vFinal})
                                     (newU, _, newV) = wideGapped newEdgeCharacter
                                 in
                                 --trace ("GCD:\n" <> (show m) <> "\n" <> (show (uFinal, newU)) <> "\n" <> (show (vFinal, newV)))
@@ -896,7 +911,10 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         let minMaxDiffList = if finalMethod == DirectOptimization then
                                 let uFinal = M.makeDynamicCharacterFromSingleVector (hugeFinal uCharacter)
                                     vFinal = M.makeDynamicCharacterFromSingleVector (hugeFinal vCharacter)
-                                    newEdgeCharacter = M.getDOMedianCharInfo charInfo (uCharacter {hugeGapped = uFinal}) (vCharacter {hugeGapped = vFinal})
+                                    
+                                    -- Since these are charcater distances--no need for no change cost adjustment
+                                    noChangeCostAdjust = False
+                                    newEdgeCharacter = M.getDOMedianCharInfo noChangeCostAdjust charInfo (uCharacter {hugeGapped = uFinal}) (vCharacter {hugeGapped = vFinal})
                                     (newU, _, newV) = hugeGapped newEdgeCharacter
                                 in
                                 -- trace ("GCD:\n" <> (show (uFinal, newU)) <> "\n" <> (show (vFinal, newV)))
@@ -1380,12 +1398,14 @@ doPreOrderWithParentCheck isLeft alignmentParent gappedParent gappedChild =
 --    3) apply appropriate get3way for the structure
 -- The final is then returned--with gaps to be filtered afterwards
 -- getDOFinal :: (FiniteBits a, GV.Vector v a) => v a -> (v a, v a, v a) -> CharInfo -> v a
+-- Since just getting final states--not using noChangeCostAdjust
 getDOFinal :: CharInfo
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
 getDOFinal charInfo parentFinal nodeGapped =
-   let (a,b,c,_) = M.pairwiseDO charInfo parentFinal nodeGapped
+   let noChangeCostAdjust = False
+       (a,b,c,_) = M.pairwiseDO noChangeCostAdjust charInfo parentFinal nodeGapped
        parentNodeChar = (a,b,c)
 
        -- put "new" gaps into 2nd and thd gapped fields of appropriate seqeunce type
