@@ -1,7 +1,7 @@
 --read(fasta:"metazoa-aa-1.fas")
 --read(fasta:"chel.fas")
 --read(fasta:"chel-16.fas")
-set(criterion:PMDL)
+--set(criterion:PMDL)
 --set(graphfactor:nopenalty)
 set(modelComplexity:10000)
 --set(graphtype:softwired)

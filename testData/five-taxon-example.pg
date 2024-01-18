@@ -1,0 +1,19 @@
+set(criterion:SI)
+set(modelComplexity:3758)
+
+read("five-taxon-example.tnt")
+read("five-taxon-example.tre")
+
+set(seed:1701287416)
+
+set(bc2:(0.829934760886531, 1.192825403552391))
+set(bc4:(1.0003608090655018, 1.9996392811480421 ))
+
+
+-- build(distance, rdwag)
+
+select(best)
+
+report("five-taxon-example..dot", overwrite, graphs, dotpdf, nocollapse, noHTULabels)
+report("five-taxon-example-r.tre", overwrite, graphs, newick, nobraNCHLENGTHS, noHTULabels, collapse)
+report("five-taxon-example.csv", diagnosis, overwrite)
