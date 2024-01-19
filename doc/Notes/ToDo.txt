@@ -612,3 +612,6 @@
                                 then (\randVal -> permuteList randVal rejoinEdges') <$> getRandom
                                 else pure rejoinEdges'
 
+473) Add Moilannen recombination.  Different and intersting method (Moilanen 1999, fig 1.)
+
+474) Change fuse to recombine, drift to SA

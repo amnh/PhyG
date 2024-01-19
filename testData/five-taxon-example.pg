@@ -1,4 +1,4 @@
-set(criterion:SI)
+--set(criterion:SI)
 set(modelComplexity:3758)
 
 read("five-taxon-example.tnt")
