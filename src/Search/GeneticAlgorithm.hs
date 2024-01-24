@@ -342,3 +342,7 @@ mutateGraph inGS inData maxNetEdges inGraph
                         failWithPhase Parsing $
                             fold
                                 ["Unrecognized edit type '", val, "' for sofwired network"]
+                    otherwise -> 
+                        failWithPhase Parsing $
+                            fold
+                                ["Unrecognized situation " <> (show (graphType inGS, editType, netEditType))]
