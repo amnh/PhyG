@@ -51,7 +51,7 @@ import Debug.Trace
 needTwoEdgeNoCostAdjust :: GlobalSettings -> Bool -> Bool
 needTwoEdgeNoCostAdjust inGS isTwoEdgeMedian = 
     if not isTwoEdgeMedian then False
-    else if optimalityCriterion inGS `notElem` [SI, PMDL] then False
+    else if optimalityCriterion inGS `notElem` [SI, PMDL, MAPA] then False
     else True
 
  
