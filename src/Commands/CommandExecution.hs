@@ -632,7 +632,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                         "bcgt64" → pure (globalSettings, processedData)
 
                         val → do
-                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option in of '", val, "' in ", show argList ]
+                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList ]
                             pure (globalSettings, processedData)
 
                     -- =-=-=-=-=-=-=-=-=-=-=-=-=
@@ -1076,7 +1076,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             pure (globalSettings{useIA = localCriterion}, processedData)
 
                         val → do
-                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option in of '", val, "' in ", show argList ]
+                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList ]
                             pure (globalSettings, processedData)
 
 

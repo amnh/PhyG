@@ -328,7 +328,8 @@ mutateGraph inGS inData maxNetEdges inGraph
                 netEditType ← getRandomFrom ["netAdd", "netDelete", "netAddDelete"] -- , "netMove"]
                 case (graphType inGS, editType, netEditType) of
                     -- only swap mutation stuff for tree
-                    (Tree, _, nEdit) | nEdit `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"] → mutateOption1
+                    -- (Tree, _, nEdit) | nEdit `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"] → mutateOption1
+                    (Tree, _, _)  → mutateOption1
                     -- graphs choose what type of mutation at random
                     (_, "swap", _) → mutateOption2
                     -- move only for Hardwired
