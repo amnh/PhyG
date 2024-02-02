@@ -615,3 +615,10 @@
 473) Add Moilannen recombination.  Different and intersting method (Moilanen 1999, fig 1.)
 
 474) Change fuse to recombine, drift to SA
+
+475) Fix refactor issues in:
+	TNT parsing
+	IA errors + length
+	Diagnosis non-dequence states and differences in IA alignment states
+	
+

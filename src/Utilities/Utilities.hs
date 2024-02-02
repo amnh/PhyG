@@ -1149,3 +1149,12 @@ hasResolutionDuplicateEdges inResData =
 getUnionFieldsNode :: VertexBlockData -> String
 getUnionFieldsNode inVertData =
     "UnionFields " <> show inVertData
+
+-- | transposeVector transposes a vrctor via conversino to lists transposing those and converting back
+transposeVector :: V.Vector (V.Vector a) -> V.Vector (V.Vector a)
+transposeVector inVect =
+    if V.null inVect then V.empty
+    else 
+        let newListList = L.transpose $ V.toList $ fmap V.toList inVect
+        in V.fromList $ fmap V.fromList newListList
+            
