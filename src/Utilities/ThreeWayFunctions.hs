@@ -7,7 +7,6 @@ ToDo:
 Module specifying three way optimization functions for use in pre-order of
 HardWired graphs and iterative pass-type optimization for Trees
 -}
-
 module Utilities.ThreeWayFunctions (
     threeMedianFinal,
     addGapsToChildren,
@@ -194,20 +193,20 @@ getMinStatePair
     → V.Vector StateCost
     → V.Vector (StateCost, [ChildStateIndex], [ChildStateIndex])
 getMinStatePair inCostMatrix maxCost numStates p1CostV p2CostV curCostV =
-    let f :: Num a => a -> a -> a -> a
+    let f ∷ (Num a) ⇒ a → a → a → a
         f a b c = a + b + c
 
-        getBestPairCost' :: V.Vector StateCost -> Int -> StateCost
+        getBestPairCost' ∷ V.Vector StateCost → Int → StateCost
         getBestPairCost' = getBestPairCost inCostMatrix maxCost numStates
 
-        range = [ 0 .. numStates - 1 ]
+        range = [0 .. numStates - 1]
 
         -- get costs to parents-- will assume parent costs are 0 or max
         bestMedianP1Cost = getBestPairCost' p1CostV <$> range
         bestMedianP2Cost = getBestPairCost' p2CostV <$> range
 
---        bestMedianP1Cost = getBestPairCost inCostMatrix maxCost numStates  p1CostV <$> range
---        bestMedianP2Cost = getBestPairCost inCostMatrix maxCost numStates  p2CostV <$> range
+        --        bestMedianP1Cost = getBestPairCost inCostMatrix maxCost numStates  p1CostV <$> range
+        --        bestMedianP2Cost = getBestPairCost inCostMatrix maxCost numStates  p2CostV <$> range
 
         -- get costs to single child via preliminary states
         medianChildCostPairVect = getBestPairCostAndState inCostMatrix maxCost numStates curCostV <$> range
@@ -218,53 +217,49 @@ getMinStatePair inCostMatrix maxCost numStates p1CostV p2CostV curCostV =
         minThreeWayCost = minimum threeWayStateCostList
 
         finalStateCostL = zipWith (assignBestMax minThreeWayCost maxCost) threeWayStateCostList medianChildCostPairVect
-
     in  V.fromList finalStateCostL
-
 
 
 {- |
 'assignBestMax' checks 3-way median state cost and if minimum sets to that otherwise sets to max
 double 2nd field for 2-child type asumption
 -}
-assignBestMax :: StateCost -> StateCost -> StateCost -> (StateCost, [ChildStateIndex]) -> (StateCost, [ChildStateIndex], [ChildStateIndex])
+assignBestMax
+    ∷ StateCost → StateCost → StateCost → (StateCost, [ChildStateIndex]) → (StateCost, [ChildStateIndex], [ChildStateIndex])
 assignBestMax minCost maxCost stateCost (_, stateChildList)
     | stateCost == minCost = (minCost, stateChildList, stateChildList)
-    | otherwise =  (maxCost, stateChildList, stateChildList)
-
+    | otherwise = (maxCost, stateChildList, stateChildList)
 
 
 {- |
 getBestPairCost gets the baest cost for a state to each of parent states--does not keep parent state
 -}
-getBestPairCost :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> Int -> StateCost
+getBestPairCost ∷ S.Matrix Int → StateCost → Int → V.Vector StateCost → Int → StateCost
 getBestPairCost inCostMatrix maxCost numStates parentStateCostV medianStateIndex =
-    let stateIndices = V.fromList [ 0 .. numStates - 1 ]
+    let stateIndices = V.fromList [0 .. numStates - 1]
 
-        g :: Eq a => S.Matrix a -> a -> Int -> a -> Int -> a
+        g ∷ (Eq a) ⇒ S.Matrix a → a → Int → a → Int → a
         g cM mC mS pC pS
             | pC == mC = mC
             | otherwise = cM S.! (mS, pS)
-
-    in   V.minimum $ V.zipWith (g inCostMatrix maxCost medianStateIndex) parentStateCostV stateIndices
+    in  V.minimum $ V.zipWith (g inCostMatrix maxCost medianStateIndex) parentStateCostV stateIndices
 
 
 {- |
 getBestPairCostAndState gets best pair of median state and chikd states based on preliminarr states of node
 -}
-getBestPairCostAndState :: S.Matrix Int -> StateCost -> Int -> V.Vector StateCost -> Int -> (StateCost, [ChildStateIndex])
+getBestPairCostAndState ∷ S.Matrix Int → StateCost → Int → V.Vector StateCost → Int → (StateCost, [ChildStateIndex])
 getBestPairCostAndState inCostMatrix maxCost numStates childStateCostV medianStateIndex =
-    let g :: Eq a => S.Matrix a -> a -> Int -> a -> Int -> (a, Int)
+    let g ∷ (Eq a) ⇒ S.Matrix a → a → Int → a → Int → (a, Int)
         g cM mC mS pC pS
             | pC == mC = (mC, pS)
             | otherwise = (cM S.! (mS, pS), pS)
 
-        statecostV = V.zipWith (g inCostMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0..(numStates - 1)])
+        statecostV = V.zipWith (g inCostMatrix maxCost medianStateIndex) childStateCostV (V.fromList [0 .. (numStates - 1)])
         minStateCost = V.minimum $ fmap fst statecostV
         bestPairs = V.filter ((== minStateCost) . fst) statecostV
         bestChildStates = V.toList $ fmap snd bestPairs
     in  (minStateCost, L.sort bestChildStates)
-
 
 
 {- | threeWaySlim take charInfo, 2 parents, and curNOde and creates 3 median via
@@ -286,6 +281,7 @@ threeWaySlim charInfo parent1 parent2 curNode =
         p1p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo p1p2 curNode
         p1cNp2 = M.getDOMedianCharInfo noChangeAdjust charInfo p1cN parent2
         p2cNp1 = M.getDOMedianCharInfo noChangeAdjust charInfo p2cN parent1
+
         (a1, b1, c1) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
         (median1, cost1) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (slimTCM charInfo)) a1 b1 c1
 
@@ -297,10 +293,10 @@ threeWaySlim charInfo parent1 parent2 curNode =
 
         minCost = minimum [cost1, cost2, cost3]
     in  case cost1 `compare` minCost of
-            EQ -> median1
-            _ -> case cost2 `compare` minCost of
-                EQ -> median2
-                _ -> median3
+            EQ → median1
+            _ → case cost2 `compare` minCost of
+                EQ → median2
+                _ → median3
 
 
 {- | threeWayWide take charInfo, 2 parents, and curNOde and creates 3 median via
@@ -324,6 +320,7 @@ threeWayWide charInfo parent1 parent2 curNode =
         p2cNp1 = M.getDOMedianCharInfo noChangeAdjust charInfo p2cN parent1
 
         (a1, b1, c1) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
+
         (median1, cost1) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (wideTCM charInfo)) a1 b1 c1
 
         (a2, b2, c2) = addGapsToChildren (wideGapped p1cNp2) (wideGapped p1cN)
@@ -334,10 +331,10 @@ threeWayWide charInfo parent1 parent2 curNode =
 
         minCost = minimum [cost1, cost2, cost3]
     in  case cost1 `compare` minCost of
-            EQ -> median1
-            _ -> case cost2 `compare` minCost of
-                EQ -> median2
-                _ -> median3
+            EQ → median1
+            _ → case cost2 `compare` minCost of
+                EQ → median2
+                _ → median3
 
 
 {- | threeWayHuge take charInfo, 2 parents, and curNOde and creates 3 median via
@@ -361,6 +358,7 @@ threeWayHuge charInfo parent1 parent2 curNode =
         p2cNp1 = M.getDOMedianCharInfo noChangeAdjust charInfo p2cN parent1
 
         (a1, b1, c1) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
+
         (median1, cost1) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (hugeTCM charInfo)) a1 b1 c1
 
         (a2, b2, c2) = addGapsToChildren (hugeGapped p1cNp2) (hugeGapped p1cN)
@@ -371,10 +369,10 @@ threeWayHuge charInfo parent1 parent2 curNode =
 
         minCost = minimum [cost1, cost2, cost3]
     in  case cost1 `compare` minCost of
-            EQ -> median1
-            _ -> case cost2 `compare` minCost of
-                EQ -> median2
-                _ -> median3
+            EQ → median1
+            _ → case cost2 `compare` minCost of
+                EQ → median2
+                _ → median3
 
 
 {- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
@@ -437,7 +435,6 @@ get3WayGeneric tcm in1 in2 in3 =
 
 
 {-Not using this now--but could.  Would need to add Aligned Types-}
-
 
 {- | threeWayGeneric take charInfo, 2 parents, and curNOde and creates 3 median via
 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)

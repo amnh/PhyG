@@ -31,217 +31,264 @@ either expressed or implied, of the FreeBSD Project.
 Maintainer  :  Ward Wheeler <wheeler@amnh.org>
 Stability   :  unstable
 Portability :  portable (I hope)
-
 -}
+module Reconciliation.ReconcileGraphs (
+    makeReconcileGraph,
+) where
 
-module Reconciliation.ReconcileGraphs  ( makeReconcileGraph
-                                       ) where
-import PHANE.Evaluation
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Data.List      qualified      as L
-import Data.Text.Lazy qualified      as T
+import Data.List qualified as L
+import Data.Maybe
+import Data.Text.Lazy qualified as T
 import GeneralUtilities
 import GraphFormatUtilities qualified as GFU
-import Reconciliation.Eun  qualified as E
+import PHANE.Evaluation
+import PHANE.Evaluation.Verbosity (Verbosity (..))
+import Reconciliation.Eun qualified as E
 import Types.Types
 import Utilities.LocalGraph qualified as LG
-import Data.Maybe      
+
+
 -- import           Debug.Trace
 
 -- | makeReconcileGraph is a wrapper around eun.hs functions to return String of reconciled graph
-makeReconcileGraph :: [String] -> [(String, String)] -> [SimpleGraph] -> PhyG (String, SimpleGraph)
+makeReconcileGraph ∷ [String] → [(String, String)] → [SimpleGraph] → PhyG (String, SimpleGraph)
 makeReconcileGraph validCommandList commandPairList inGraphList =
-   --trace ("MRG: " <> (concatMap LG.prettyIndices inGraphList)) $
-   if null inGraphList then pure ("Error: No input graphs to reconcile", LG.empty)
-   else if length inGraphList == 1 then pure ("Warning: Only single input graph to reconcile", head inGraphList)
+    -- trace ("MRG: " <> (concatMap LG.prettyIndices inGraphList)) $
+    if null inGraphList
+        then pure ("Error: No input graphs to reconcile", LG.empty)
+        else
+            if length inGraphList == 1
+                then pure ("Warning: Only single input graph to reconcile", head inGraphList)
+                else
+                    let -- convert SimpleGraph to String String from Text Double
+                        stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True . GFU.textGraph2StringGraph) inGraphList
 
-   else
-      let -- convert SimpleGraph to String String from Text Double
-          stringGraphs = fmap (GFU.modifyVertexEdgeLabels True True . GFU.textGraph2StringGraph) inGraphList
+                        -- parse arguements
+                        commandList = (mergePair <$> filter (('"' `notElem`) . snd) commandPairList)
+                        (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
+                    in  do
+                            -- call EUN/reconcile functions
+                            (reconcileString, reconcileGraph) ←
+                                E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, stringGraphs)
 
-          -- parse arguements
-          commandList = (mergePair <$> filter (('"' `notElem`).snd) commandPairList)
-          (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat) = processReconcileArgs validCommandList commandList
-      in do
-          -- call EUN/reconcile functions
-          (reconcileString, reconcileGraph) <- E.reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat,stringGraphs)
+                            -- convert eun format graph back to SimpleGraph
+                            let reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
 
-          -- convert eun format graph back to SimpleGraph
-          let reconcileSimpleGraph = GFU.stringGraph2TextGraphDouble reconcileGraph
-      
-          --trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
-          --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
-          pure ("", reconcileSimpleGraph)
-          where mergePair (a,b) = if a /= [] && b /= [] then a <> (':' : b)
-                                  else a <> b
+                            -- trace ("MRG :" <> (show (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)) <> "\n" <> reconcileString
+                            --  <> "\n" <> (LG.prettyIndices reconcileSimpleGraph))
+                            pure ("", reconcileSimpleGraph)
+    where
+        mergePair (a, b) =
+            if a /= [] && b /= []
+                then a <> (':' : b)
+                else a <> b
 
 
--- | processReconcileArgs takes a list of strings and returns values of commands for proram execution
--- including defaults
--- checks commands for misspellings
-processReconcileArgs :: [String] -> [String] -> (String, String, Int, Bool, Bool, Bool, String)
+{- | processReconcileArgs takes a list of strings and returns values of commands for proram execution
+including defaults
+checks commands for misspellings
+-}
+processReconcileArgs ∷ [String] → [String] → (String, String, Int, Bool, Bool, Bool, String)
 processReconcileArgs validCommandList inList' =
-    let inList = inList' L.\\ ["overwrite", "append", "reconcile","dot", "newick","dotpdf"]
-    in
-    if null inList then
-      let -- default values
-          localMethod = "eun"
-          compareMethod = "combinable"
-          threshold = 0
-          connectComponents = True
-          edgeLabel = True
-          vertexLabel = True
-          outputFormat = "dot"
-      in
-      (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
+    let inList = inList' L.\\ ["overwrite", "append", "reconcile", "dot", "newick", "dotpdf"]
+    in  if null inList
+            then
+                let -- default values
+                    localMethod = "eun"
+                    compareMethod = "combinable"
+                    threshold = 0
+                    connectComponents = True
+                    edgeLabel = True
+                    vertexLabel = True
+                    outputFormat = "dot"
+                in  (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat)
+            else -- trace ("Rec args: " <> (show inList)) $
 
-    else
-        --trace ("Rec args: " <> (show inList)) $
-        let inTextList = fmap T.pack inList
-            inTextListLC = fmap T.toLower inTextList
-            commandList = filter (T.any (== ':')) inTextListLC
-            stringCommands = fmap (T.unpack . T.takeWhile (/= ':')) commandList
-            (editCostList, matchList) = unzip $ fmap (getBestMatch (maxBound :: Int ,"no suggestion") validCommandList) stringCommands
-            commandMatch = zip3 editCostList stringCommands matchList
-            notMatchedList = filter ((>0).fst3) commandMatch
-            localMethod = getMethod inTextListLC
-            compareMethod = getCompareMethod inTextListLC
-            connect = getConnect inTextListLC
-            edgeLabel = getEdgeLabel inTextListLC
-            vertexLabel = getVertexLabel inTextListLC
-            threshold
-              | localMethod == "cun" = 0
-              | localMethod == "strict" = 100
-              | otherwise = getThreshold inTextListLC
-            outFormat = getOutputFormat inTextListLC
-        in
-        if null notMatchedList then
-            (localMethod, compareMethod, threshold, connect, edgeLabel, vertexLabel, outFormat)
-        else errorWithoutStackTrace ("\n\nError(s) in reconcile command specification (case insensitive):\n" <> getCommandErrorString notMatchedList)
-        -- )
+                let inTextList = fmap T.pack inList
+                    inTextListLC = fmap T.toLower inTextList
+                    commandList = filter (T.any (== ':')) inTextListLC
+                    stringCommands = fmap (T.unpack . T.takeWhile (/= ':')) commandList
+                    (editCostList, matchList) = unzip $ fmap (getBestMatch (maxBound ∷ Int, "no suggestion") validCommandList) stringCommands
+                    commandMatch = zip3 editCostList stringCommands matchList
+                    notMatchedList = filter ((> 0) . fst3) commandMatch
+                    localMethod = getMethod inTextListLC
+                    compareMethod = getCompareMethod inTextListLC
+                    connect = getConnect inTextListLC
+                    edgeLabel = getEdgeLabel inTextListLC
+                    vertexLabel = getVertexLabel inTextListLC
+                    threshold
+                        | localMethod == "cun" = 0
+                        | localMethod == "strict" = 100
+                        | otherwise = getThreshold inTextListLC
+                    outFormat = getOutputFormat inTextListLC
+                in  if null notMatchedList
+                        then (localMethod, compareMethod, threshold, connect, edgeLabel, vertexLabel, outFormat)
+                        else
+                            errorWithoutStackTrace
+                                ("\n\nError(s) in reconcile command specification (case insensitive):\n" <> getCommandErrorString notMatchedList)
 
--- | getMethod returns method value or dedfault otherwise
--- assumes in lower case
-getMethod :: [T.Text] -> String
+
+-- )
+
+{- | getMethod returns method value or dedfault otherwise
+assumes in lower case
+-}
+getMethod ∷ [T.Text] → String
 getMethod inTextList =
     -- default
-    if null inTextList then "eun"
-    else
-        let firstCommand = T.takeWhile (/= ':') $ head inTextList
-            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-        in
-        if isNothing (T.find (== ':') (head inTextList)) then getMethod (tail inTextList)
-        else if firstCommand == T.pack "method" then
-            let option = T.unpack firstOption
-            in
-            if option == "eun" then "eun"
-            else if option == "cun" then "cun"
-            else if option == "majority" then "majority"
-            else if option == "strict" then "strict"
-            else if option == "adams" then "adams"
-            else errorWithoutStackTrace ("Reconcile option \'" <> option <> "\' not recognized (eun|cun|majority|strict)")
-        else getMethod (tail inTextList)
+    if null inTextList
+        then "eun"
+        else
+            let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+            in  if isNothing (T.find (== ':') (head inTextList))
+                    then getMethod (tail inTextList)
+                    else
+                        if firstCommand == T.pack "method"
+                            then
+                                let option = T.unpack firstOption
+                                in  if option == "eun"
+                                        then "eun"
+                                        else
+                                            if option == "cun"
+                                                then "cun"
+                                                else
+                                                    if option == "majority"
+                                                        then "majority"
+                                                        else
+                                                            if option == "strict"
+                                                                then "strict"
+                                                                else
+                                                                    if option == "adams"
+                                                                        then "adams"
+                                                                        else errorWithoutStackTrace ("Reconcile option \'" <> option <> "\' not recognized (eun|cun|majority|strict)")
+                            else getMethod (tail inTextList)
 
--- | getCompareMethod returns compareMethod value or default otherwise
--- assumes in lower case
-getCompareMethod :: [T.Text] -> String
+
+{- | getCompareMethod returns compareMethod value or default otherwise
+assumes in lower case
+-}
+getCompareMethod ∷ [T.Text] → String
 getCompareMethod inTextList =
     -- default
-    if null inTextList then "combinable"
-    else
-        let firstCommand = T.takeWhile (/= ':') $ head inTextList
-            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-        in
-        if isNothing (T.find (== ':') (head inTextList)) then getCompareMethod (tail inTextList)
-        else if firstCommand == T.pack "compare" then
-            let option = T.unpack firstOption
-            in
-            if option == "combinable" then "combinable"
-            else if option == "identity" then "identity"
-            else errorWithoutStackTrace ("Compare option \'" <> option <> "\' not recognized (combinable|identity)")
-        else getCompareMethod (tail inTextList)
+    if null inTextList
+        then "combinable"
+        else
+            let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+            in  if isNothing (T.find (== ':') (head inTextList))
+                    then getCompareMethod (tail inTextList)
+                    else
+                        if firstCommand == T.pack "compare"
+                            then
+                                let option = T.unpack firstOption
+                                in  if option == "combinable"
+                                        then "combinable"
+                                        else
+                                            if option == "identity"
+                                                then "identity"
+                                                else errorWithoutStackTrace ("Compare option \'" <> option <> "\' not recognized (combinable|identity)")
+                            else getCompareMethod (tail inTextList)
 
--- | getConect returns connect value or default otherwise (True|False)
--- assumes in lower case
-getConnect :: [T.Text] -> Bool
+
+{- | getConect returns connect value or default otherwise (True|False)
+assumes in lower case
+-}
+getConnect ∷ [T.Text] → Bool
 getConnect inTextList =
     -- default
-    not (null inTextList) && (let firstCommand = T.takeWhile (/= ':') $ head inTextList
-                                  firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-                              in
-                              if isNothing (T.find (== ':') (head inTextList)) then getConnect (tail inTextList)
-                              else if firstCommand == T.pack "connect" then
-                                  let option = T.unpack firstOption
-                                  in
-                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("Connect option \'" <> option <> "\' not recognized (True|False)"))
-                              else getConnect (tail inTextList))
+    not (null inTextList)
+        && ( let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                 firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+             in  if isNothing (T.find (== ':') (head inTextList))
+                    then getConnect (tail inTextList)
+                    else
+                        if firstCommand == T.pack "connect"
+                            then
+                                let option = T.unpack firstOption
+                                in  (option == "true")
+                                        || (option /= "false" && errorWithoutStackTrace ("Connect option \'" <> option <> "\' not recognized (True|False)"))
+                            else getConnect (tail inTextList)
+           )
 
 
--- | getEdgeLabel returns edgeLabel value or default otherwise (True|False)
--- assumes in lower case
-getEdgeLabel :: [T.Text] -> Bool
+{- | getEdgeLabel returns edgeLabel value or default otherwise (True|False)
+assumes in lower case
+-}
+getEdgeLabel ∷ [T.Text] → Bool
 getEdgeLabel inTextList = True
-    {-
-    -- default
-    null inTextList || (let firstCommand = T.takeWhile (/= ':') $ head inTextList
-                            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+
+
+{-
+-- default
+null inTextList || (let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                        firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+                    in
+                    if isNothing (T.find (== ':') (head inTextList)) then getEdgeLabel (tail inTextList)
+                    else if firstCommand == T.pack "edgelabel" then
+                        let option = T.unpack firstOption
                         in
-                        if isNothing (T.find (== ':') (head inTextList)) then getEdgeLabel (tail inTextList)
-                        else if firstCommand == T.pack "edgelabel" then
-                            let option = T.unpack firstOption
-                            in
-                            (option == "true") || (option /= "false" && errorWithoutStackTrace ("EdgeLAbel option \'" <> option <> "\' not recognized (True|False)"))
-                        else getEdgeLabel (tail inTextList))
-    -}
+                        (option == "true") || (option /= "false" && errorWithoutStackTrace ("EdgeLAbel option \'" <> option <> "\' not recognized (True|False)"))
+                    else getEdgeLabel (tail inTextList))
+-}
 
--- | chanaged to True and modified later if need be
--- | getVertexLabel returns edgeLabel value or default otherwise (True|False)
--- assumes in lower case
-getVertexLabel :: [T.Text] -> Bool
+{- | chanaged to True and modified later if need be
+| getVertexLabel returns edgeLabel value or default otherwise (True|False)
+assumes in lower case
+-}
+getVertexLabel ∷ [T.Text] → Bool
 getVertexLabel inTextList = True
-    {-
-    -- default
-    not (null inTextList) && (let firstCommand = T.takeWhile (/= ':') $ head inTextList
-                                  firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-                              in
-                              if isNothing (T.find (== ':') (head inTextList)) then getVertexLabel (tail inTextList)
-                              else if firstCommand == T.pack "vertexlabel" then
-                                  let option = T.unpack firstOption
-                                  in
-                                  (option == "true") || (option /= "false" && errorWithoutStackTrace ("VertexLabel option \'" <> option <> "\' not recognized (True|False)"))
-                              else getVertexLabel (tail inTextList))
-    -}
 
--- | getThreshold returns threshold value or default otherwise
--- assumes in lower case
-getThreshold :: [T.Text] -> Int
+
+{-
+-- default
+not (null inTextList) && (let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                              firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+                          in
+                          if isNothing (T.find (== ':') (head inTextList)) then getVertexLabel (tail inTextList)
+                          else if firstCommand == T.pack "vertexlabel" then
+                              let option = T.unpack firstOption
+                              in
+                              (option == "true") || (option /= "false" && errorWithoutStackTrace ("VertexLabel option \'" <> option <> "\' not recognized (True|False)"))
+                          else getVertexLabel (tail inTextList))
+-}
+
+{- | getThreshold returns threshold value or default otherwise
+assumes in lower case
+-}
+getThreshold ∷ [T.Text] → Int
 getThreshold inTextList =
     -- default
-    if null inTextList then 0 :: Int
-    else
-        let firstCommand = T.takeWhile (/= ':') $ head inTextList
-            firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
-        in
-        if isNothing (T.find (== ':') (head inTextList)) then getThreshold (tail inTextList)
-        else if firstCommand == T.pack "threshold" then read (T.unpack firstOption) :: Int
-        else getThreshold (tail inTextList)
+    if null inTextList
+        then 0 ∷ Int
+        else
+            let firstCommand = T.takeWhile (/= ':') $ head inTextList
+                firstOption = T.tail $ T.dropWhile (/= ':') $ head inTextList
+            in  if isNothing (T.find (== ':') (head inTextList))
+                    then getThreshold (tail inTextList)
+                    else
+                        if firstCommand == T.pack "threshold"
+                            then read (T.unpack firstOption) ∷ Int
+                            else getThreshold (tail inTextList)
 
--- | getOutputFormat returns output file format or default otherwise
--- assumes in lower case
-getOutputFormat :: [T.Text] -> String
+
+{- | getOutputFormat returns output file format or default otherwise
+assumes in lower case
+-}
+getOutputFormat ∷ [T.Text] → String
 getOutputFormat inTextList =
     -- default
-    if null inTextList then "dot"
-    else
-         --removed prefix for output graph format
-        let firstOption = head inTextList
-            outFormat = T.unpack firstOption
-         in
-         if outFormat == "dot" then "dot"
-         else if outFormat == "dotpdf" then "dot"
-         else (if (outFormat == "fenewick") || (outFormat == "newick") then "fenewick" else getOutputFormat (tail inTextList))
+    if null inTextList
+        then "dot"
+        else -- removed prefix for output graph format
 
-
--- |
+            let firstOption = head inTextList
+                outFormat = T.unpack firstOption
+            in  if outFormat == "dot"
+                    then "dot"
+                    else
+                        if outFormat == "dotpdf"
+                            then "dot"
+                            else (if (outFormat == "fenewick") || (outFormat == "newick") then "fenewick" else getOutputFormat (tail inTextList))

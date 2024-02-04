@@ -50,15 +50,15 @@ packNonAdditive
 -}
 optimizePrealignedData ∷ GlobalSettings → ProcessedData → PhyG ProcessedData
 optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPrealignedCharacters blockDataVect of
-    0 -> logWith LogMore "Not bitpacking..." $> inData
-    _ -> do
+    0 → logWith LogMore "Not bitpacking..." $> inData
+    _ → do
         logWith LogMore "Bitpacking..."
         -- remove constant characters from prealigned
         inData' ← removeConstantCharactersPrealigned inData
-    
+
         -- convert prealigned to nonadditive if all 1 tcms
         let inData'' = convertPrealignedToNonAdditive inData'
-    
+
         -- bit packing for non-additivecharacters
         BP.packNonAdditiveData inGS inData''
 
@@ -480,15 +480,18 @@ getSameMatrixChars inCharsPairList testMatrix =
         matchList = filter ((== testMatrix) . costMatrix . fst . snd) matrixPairPair
     in  fmap snd matchList
 
-{- | removeConstantCharactersPrealigned takes processed data and removes constant characters
+
+{- |
+removeConstantCharactersPrealigned takes processed data and removes constant characters
 from prealignedCharacterTypes
 -}
-removeConstantCharactersPrealigned :: ProcessedData -> PhyG ProcessedData
+removeConstantCharactersPrealigned ∷ ProcessedData → PhyG ProcessedData
 removeConstantCharactersPrealigned inData@(nameVect, bvNameVect, blockDataVect)
     | V.null blockDataVect = pure inData
     | otherwise = do
-        newBlockData ← getParallelChunkTraverse >>= \pTraverse ->
-            removeConstantBlockPrealigned `pTraverse` blockDataVect
+        newBlockData ←
+            getParallelChunkTraverse >>= \pTraverse →
+                removeConstantBlockPrealigned `pTraverse` blockDataVect
         pure (nameVect, bvNameVect, newBlockData)
 
 
@@ -507,8 +510,9 @@ removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInf
             -- create vector of single characters with vector of taxon data of sngle character each
             -- like a standard matrix with a single character
             singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) $ V.fromList [0 .. numChars - 1]
-        in  do  -- actually remove constants form chaarcter list
-                singleCharVect' <- V.zipWithM removeConstantCharsPrealigned singleCharVect charInfoV
+        in  do
+                -- actually remove constants form chaarcter list
+                singleCharVect' ← V.zipWithM removeConstantCharsPrealigned singleCharVect charInfoV
                 -- recreate the taxa vext by character vect block data expects
                 -- should filter out length zero characters
                 let newTaxVectByCharVect = U.glueBackTaxChar singleCharVect'
@@ -521,8 +525,8 @@ packed types already filtered when created
 -}
 removeConstantCharsPrealigned ∷ V.Vector CharacterData → CharInfo → PhyG (V.Vector CharacterData)
 removeConstantCharsPrealigned singleChar charInfo = case charType charInfo of
-    cType | cType `elem` prealignedCharacterTypes -> getVariableChars cType singleChar
-    _ -> pure singleChar
+    cType | cType `elem` prealignedCharacterTypes → getVariableChars cType singleChar
+    _ → pure singleChar
 
 
 {- | getVariableChars checks identity of states in a vector positin in all taxa
@@ -540,13 +544,13 @@ getVariableChars inCharType singleChar =
 
         -- get identity vect
         boolVar = case inCharType of
-            NonAdd -> getVarVectBits inCharType nonAddV []
-            Add ->  getVarVectAdd addV []
-            Matrix -> getVarVectMatrix matrixV []
-            AlignedSlim -> getVarVectBits inCharType alSlimV []
-            AlignedWide -> getVarVectBits inCharType alWideV []
-            AlignedHuge -> getVarVectBits inCharType alHugeV []
-            cType ->  error $ "Char type unrecognized in getVariableChars: " <> show cType
+            NonAdd → getVarVectBits inCharType nonAddV []
+            Add → getVarVectAdd addV []
+            Matrix → getVarVectMatrix matrixV []
+            AlignedSlim → getVarVectBits inCharType alSlimV []
+            AlignedWide → getVarVectBits inCharType alWideV []
+            AlignedHuge → getVarVectBits inCharType alHugeV []
+            cType → error $ "Char type unrecognized in getVariableChars: " <> show cType
 
         boolVar' = V.fromList boolVar
 
@@ -560,9 +564,8 @@ getVariableChars inCharType singleChar =
         -- this is a hack-not sure why popCount etc don't work with HugeVector little endian BVs
         -- these should be short seqs in general so no ral impact on effeciancy
         alHugeVariable = alHugeV -- fmap (filterConstantsV (V.fromList boolVar)) alHugeV
-
-        -- assign to proper character fields
-    in  V.zipWithM (assignNewField inCharType) singleChar $
+    in  -- assign to proper character fields
+        V.zipWithM (assignNewField inCharType) singleChar $
             V.zip6 nonAddVariable addVariable matrixVariable alSlimVariable alWideVariable alHugeVariable
 
 
@@ -720,9 +723,9 @@ filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 filterConstantsUV ∷ (UV.Unbox a) ⇒ V.Vector Bool → UV.Vector a → UV.Vector a
 filterConstantsUV inVarBoolV charVect
     | V.null inVarBoolV = charVect
-    | otherwise =     
+    | otherwise =
         let varVect = filterConstantsV inVarBoolV (V.fromList $ UV.toList charVect)
-        in UV.fromList $ V.toList varVect
+        in  UV.fromList $ V.toList varVect
 
 
 {- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate

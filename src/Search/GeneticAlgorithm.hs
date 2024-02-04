@@ -60,114 +60,116 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                     if stopCount >= stopNum
                         then return (inGraphList, generationCounter)
                         else do
-                                    -- get elite list of best solutions
-                                    initialEliteList <- GO.selectGraphs Best (maxBound ∷ Int) 0 inGraphList
+                            -- get elite list of best solutions
+                            initialEliteList ← GO.selectGraphs Best (maxBound ∷ Int) 0 inGraphList
 
-                                    logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter) <> "\n")
+                            logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter) <> "\n")
 
-                                    seedList ← getRandoms
-                                    -- mutate input graphs, produces number input, limited to popsize
-                                    let action = mutateGraph inGS inData maxNetEdges
-                                    mutatedGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
-                                          action `pTraverse` takeRandom (seedList !! 1) popSize inGraphList
+                            seedList ← getRandoms
+                            -- mutate input graphs, produces number input, limited to popsize
+                            let action = mutateGraph inGS inData maxNetEdges
+                            mutatedGraphList' ←
+                                getParallelChunkTraverse >>= \pTraverse →
+                                    action `pTraverse` takeRandom (seedList !! 1) popSize inGraphList
 
-                                    let numShort = popSize - (length mutatedGraphList')
-                                    let randList = (randomIntList $ seedList !! 2)
-                                    let graphList = takeRandom (seedList !! 3) numShort inGraphList
+                            let numShort = popSize - (length mutatedGraphList')
+                            let randList = (randomIntList $ seedList !! 2)
+                            let graphList = takeRandom (seedList !! 3) numShort inGraphList
 
-                                    -- adjust to correct populationsize if input number < popSize
-                                    mutatedGraphList <- case length mutatedGraphList' `compare` popSize of
-                                        LT -> do
-                                            additionalMutated ← getParallelChunkTraverse >>= \pTraverse ->
-                                                action `pTraverse` graphList
-                                            pure $ mutatedGraphList' <> additionalMutated
-                                        _ -> pure mutatedGraphList'
-                                                        
-                                    -- get unique graphs, no point in recombining repetitions
-                                    uniqueMutatedGraphList <- GO.selectGraphs Unique (maxBound ∷ Int) 0 $ mutatedGraphList <> inGraphList
+                            -- adjust to correct populationsize if input number < popSize
+                            mutatedGraphList ← case length mutatedGraphList' `compare` popSize of
+                                LT → do
+                                    additionalMutated ←
+                                        getParallelChunkTraverse >>= \pTraverse →
+                                            action `pTraverse` graphList
+                                    pure $ mutatedGraphList' <> additionalMutated
+                                _ → pure mutatedGraphList'
 
-                                    -- recombine elite with mutated and mutated with mutated
-                                    let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
+                            -- get unique graphs, no point in recombining repetitions
+                            uniqueMutatedGraphList ← GO.selectGraphs Unique (maxBound ∷ Int) 0 $ mutatedGraphList <> inGraphList
 
-                                    -- options to join via union choices or all in fuse
-                                    -- this is ignored for now in fuse--JoinAll is what it does
-                                    let joinType = getRandomElement (seedList !! 6) [JoinAlternate, JoinAll]
+                            -- recombine elite with mutated and mutated with mutated
+                            let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
 
-                                    let doSteepest = True
-                                    let returnBest = False
-                                    let returnUnique = True
-                                    let singleRound = False
-                                    let fusePairs = Just recombinations
-                                    let randomPairs = True
-                                    let reciprocal = False
+                            -- options to join via union choices or all in fuse
+                            -- this is ignored for now in fuse--JoinAll is what it does
+                            let joinType = getRandomElement (seedList !! 6) [JoinAlternate, JoinAll]
 
-                                    -- populate SwapParams structure
-                                    let swapParams =
-                                            SwapParams
-                                                { swapType = recombineSwap
-                                                , joinType = joinType
-                                                , atRandom = True -- randomize swap order
-                                                , keepNum = (2 * popSize)
-                                                , maxMoveEdgeDist = (maxBound ∷ Int)
-                                                , steepest = doSteepest
-                                                , joinAlternate = False -- not working now
-                                                , doIA = False
-                                                , returnMutated = False
-                                                }
+                            let doSteepest = True
+                            let returnBest = False
+                            let returnUnique = True
+                            let singleRound = False
+                            let fusePairs = Just recombinations
+                            let randomPairs = True
+                            let reciprocal = False
 
-                                    (recombinedGraphList, _) ←
-                                        F.fuseAllGraphs
-                                            swapParams
-                                            inGS
-                                            inData
-                                            0
-                                            returnBest
-                                            returnUnique
-                                            singleRound
-                                            fusePairs
-                                            randomPairs
-                                            reciprocal
-                                            uniqueMutatedGraphList
+                            -- populate SwapParams structure
+                            let swapParams =
+                                    SwapParams
+                                        { swapType = recombineSwap
+                                        , joinType = joinType
+                                        , atRandom = True -- randomize swap order
+                                        , keepNum = (2 * popSize)
+                                        , maxMoveEdgeDist = (maxBound ∷ Int)
+                                        , steepest = doSteepest
+                                        , joinAlternate = False -- not working now
+                                        , doIA = False
+                                        , returnMutated = False
+                                        }
 
-                                    -- selection of graphs population
-                                    -- unique sorted on cost so getting unique with lowest cost
-                                    selectedGraphs <- GO.selectGraphs Unique popSize 0 recombinedGraphList
-                                    let newCost = snd5 $ head selectedGraphs
+                            (recombinedGraphList, _) ←
+                                F.fuseAllGraphs
+                                    swapParams
+                                    inGS
+                                    inData
+                                    0
+                                    returnBest
+                                    returnUnique
+                                    singleRound
+                                    fusePairs
+                                    randomPairs
+                                    reciprocal
+                                    uniqueMutatedGraphList
 
-                                    -- if new graphs better cost then take those
-                                    if newCost < (snd5 $ head initialEliteList)
-                                        then
-                                            geneticAlgorithm
-                                                inGS
-                                                inData
-                                                doElitist
-                                                maxNetEdges
-                                                keepNum
-                                                popSize
-                                                generations
-                                                (generationCounter + 1)
-                                                severity
-                                                recombinations
-                                                0
-                                                stopNum
-                                                selectedGraphs
-                                        else do
-                                            -- if new graphs not better then add in elites to ensure monotonic decrease in cost
-                                            newGraphList <- GO.selectGraphs Unique keepNum 0 $ initialEliteList <> selectedGraphs
-                                            geneticAlgorithm
-                                                    inGS
-                                                    inData
-                                                    doElitist
-                                                    maxNetEdges
-                                                    keepNum
-                                                    popSize
-                                                    generations
-                                                    (generationCounter + 1)
-                                                    severity
-                                                    recombinations
-                                                    (stopCount + 1)
-                                                    stopNum
-                                                    newGraphList
+                            -- selection of graphs population
+                            -- unique sorted on cost so getting unique with lowest cost
+                            selectedGraphs ← GO.selectGraphs Unique popSize 0 recombinedGraphList
+                            let newCost = snd5 $ head selectedGraphs
+
+                            -- if new graphs better cost then take those
+                            if newCost < (snd5 $ head initialEliteList)
+                                then
+                                    geneticAlgorithm
+                                        inGS
+                                        inData
+                                        doElitist
+                                        maxNetEdges
+                                        keepNum
+                                        popSize
+                                        generations
+                                        (generationCounter + 1)
+                                        severity
+                                        recombinations
+                                        0
+                                        stopNum
+                                        selectedGraphs
+                                else do
+                                    -- if new graphs not better then add in elites to ensure monotonic decrease in cost
+                                    newGraphList ← GO.selectGraphs Unique keepNum 0 $ initialEliteList <> selectedGraphs
+                                    geneticAlgorithm
+                                        inGS
+                                        inData
+                                        doElitist
+                                        maxNetEdges
+                                        keepNum
+                                        popSize
+                                        generations
+                                        (generationCounter + 1)
+                                        severity
+                                        recombinations
+                                        (stopCount + 1)
+                                        stopNum
+                                        newGraphList
 
 
 -- | mutateGraph mutates a graph using drift functionality
@@ -329,7 +331,7 @@ mutateGraph inGS inData maxNetEdges inGraph
                 case (graphType inGS, editType, netEditType) of
                     -- only swap mutation stuff for tree
                     -- (Tree, _, nEdit) | nEdit `notElem` ["netAdd", "netDelete", "netAddDelete", "netMove"] → mutateOption1
-                    (Tree, _, _)  → mutateOption1
+                    (Tree, _, _) → mutateOption1
                     -- graphs choose what type of mutation at random
                     (_, "swap", _) → mutateOption2
                     -- move only for Hardwired
@@ -343,7 +345,7 @@ mutateGraph inGS inData maxNetEdges inGraph
                         failWithPhase Parsing $
                             fold
                                 ["Unrecognized edit type '", val, "' for sofwired network"]
-                    otherwise -> 
+                    otherwise →
                         failWithPhase Parsing $
                             fold
                                 ["Unrecognized situation " <> (show (graphType inGS, editType, netEditType))]

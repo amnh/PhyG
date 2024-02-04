@@ -13,10 +13,15 @@ module Input.FastAC (
     genDiscreteDenseOfDimension,
 ) where
 
+-- import Prelude hiding (head, init, last, tail)
+-- import SymMatrix qualified as S
+
+import Bio.DynamicCharacter.Element
 import Control.DeepSeq
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
+import Data.BitVector.LittleEndian (BitVector)
 import Data.Bits
 import Data.Char qualified as C
 import Data.Foldable (fold)
@@ -32,21 +37,16 @@ import Data.Vector qualified as V
 import Debug.Trace
 import GeneralUtilities
 import Input.DataTransformation qualified as DT
+import Layout.Compact.Class qualified as TMD
+import Layout.Compact.States qualified as TMD
 import Measure.Unit.SymbolCount (SymbolCount (..), symbolCount)
--- import Prelude hiding (head, init, last, tail)
--- import SymMatrix qualified as S
-
-import Data.BitVector.LittleEndian (BitVector)
-import Bio.DynamicCharacter.Element
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), LogMessage, Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import TransitionMatrix qualified as TM
-import Layout.Compact.Class qualified as TMD
-import Layout.Compact.States qualified as TMD
-import TransitionMatrix.Metricity (Metricity(..), SpecializableMetric(..))
+import TransitionMatrix.Metricity (Metricity (..), SpecializableMetric (..))
 import Types.Types
 
 
@@ -117,37 +117,37 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM
                 | length sequenceData <= 64 {- trace ("File " <> dataName <> " is wide alphabet data.") -} = WideSeq
                 | otherwise {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
 
-{-
-getFastaCharInfo inData dataName dataType isPrealigned localTCM =
-    if null inData
-        then error "Empty inData in getFastaCharInfo"
-        else
-            let nucleotideAlphabet = fmap ST.fromString ["A", "C", "G", "T", "U", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N", "?", "-"]
-                lAminoAcidAlphabet =
-                    fmap
-                        ST.fromString
-                        ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-", "?"]
-                -- onlyInNucleotides = [ST.fromString "U"]
-                -- onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
-                sequenceData = getAlphabet [] $ foldMap snd inData
+            {-
+            getFastaCharInfo inData dataName dataType isPrealigned localTCM =
+                if null inData
+                    then error "Empty inData in getFastaCharInfo"
+                    else
+                        let nucleotideAlphabet = fmap ST.fromString ["A", "C", "G", "T", "U", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N", "?", "-"]
+                            lAminoAcidAlphabet =
+                                fmap
+                                    ST.fromString
+                                    ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-", "?"]
+                            -- onlyInNucleotides = [ST.fromString "U"]
+                            -- onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
+                            sequenceData = getAlphabet [] $ foldMap snd inData
 
-                seqType
-                    | dataType == "nucleotide" {- trace ("File " <> dataName <> " is nucleotide data.") -} = NucSeq
-                    | dataType == "aminoacid" {- trace ("File " <> dataName <> " is aminoacid data.") -} = AminoSeq
-                    | dataType == "hugeseq" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
-                    | dataType == "custom_alphabet" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
-                    | ( sequenceData `L.intersect` nucleotideAlphabet == sequenceData {- trace ("Assuming file " <> dataName
-                                                                                      <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") -}
-                      ) =
-                        NucSeq
-                    | ( sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData {- trace ("Assuming file " <> dataName
-                                                                                      <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") -}
-                      ) =
-                        AminoSeq
-                    | length sequenceData <= 8 {- trace ("File " <> dataName <> " is small alphabet data.") -} = SlimSeq
-                    | length sequenceData <= 64 {- trace ("File " <> dataName <> " is wide alphabet data.") -} = WideSeq
-                    | otherwise {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
--}
+                            seqType
+                                | dataType == "nucleotide" {- trace ("File " <> dataName <> " is nucleotide data.") -} = NucSeq
+                                | dataType == "aminoacid" {- trace ("File " <> dataName <> " is aminoacid data.") -} = AminoSeq
+                                | dataType == "hugeseq" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
+                                | dataType == "custom_alphabet" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
+                                | ( sequenceData `L.intersect` nucleotideAlphabet == sequenceData {- trace ("Assuming file " <> dataName
+                                                                                                  <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") -}
+                                  ) =
+                                    NucSeq
+                                | ( sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData {- trace ("Assuming file " <> dataName
+                                                                                                  <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") -}
+                                  ) =
+                                    AminoSeq
+                                | length sequenceData <= 8 {- trace ("File " <> dataName <> " is small alphabet data.") -} = SlimSeq
+                                | length sequenceData <= 64 {- trace ("File " <> dataName <> " is wide alphabet data.") -} = WideSeq
+                                | otherwise {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
+            -}
             seqAlphabet = fromSymbols seqSymbols
 
             seqSymbols =
@@ -192,42 +192,42 @@ commonFastCharInfo ∷ String → Bool → ([ST.ShortText], [[Int]], Double) →
 commonFastCharInfo dataName isPrealigned localTCM@(localSymbols, localValues, localWeight) seqType thisAlphabet =
     let numSymbols = symbolCount thisAlphabet
 
-{-
-        constructCompnentsOfTCM =
-            let -- this 2x2 so if some Show instances are called don't get error
-                slimMetricNil = slimTCM emptyCharInfo
-                wideMetricNil = wideTCM emptyCharInfo
-                hugeMetricNil = hugeTCM emptyCharInfo
+        {-
+                constructCompnentsOfTCM =
+                    let -- this 2x2 so if some Show instances are called don't get error
+                        slimMetricNil = slimTCM emptyCharInfo
+                        wideMetricNil = wideTCM emptyCharInfo
+                        hugeMetricNil = hugeTCM emptyCharInfo
 
-                (slimCoefficient, slimMetric) = buildTransitionMatrix numSymbols localTCM
-                (wideCoefficient, wideMetric) = buildTransitionMatrix numSymbols localTCM
-                (hugeCoefficient, hugeMetric) = buildTransitionMatrix numSymbols localTCM
-------
-                resultSlim = pure (slimCoefficient, slimMetric, wideMetricNil, hugeMetricNil)
-                resultWide = pure (wideCoefficient, slimMetricNil, wideMetric, hugeMetricNil)
-                resultHuge = pure (hugeCoefficient, slimMetricNil, wideMetricNil, hugeMetric)
-            in  case seqType of
-                    NucSeq → resultSlim
-                    SlimSeq → resultSlim
-                    WideSeq → resultWide
-                    AminoSeq → resultWide
-                    HugeSeq → resultHuge
-                    val →
-                        failWithPhase Parsing $
-                            fold
-                                ["getFastaCharInfo: Failure proceesing the CharType: '", show val, "'"]
+                        (slimCoefficient, slimMetric) = buildTransitionMatrix numSymbols localTCM
+                        (wideCoefficient, wideMetric) = buildTransitionMatrix numSymbols localTCM
+                        (hugeCoefficient, hugeMetric) = buildTransitionMatrix numSymbols localTCM
+        ------
+                        resultSlim = pure (slimCoefficient, slimMetric, wideMetricNil, hugeMetricNil)
+                        resultWide = pure (wideCoefficient, slimMetricNil, wideMetric, hugeMetricNil)
+                        resultHuge = pure (hugeCoefficient, slimMetricNil, wideMetricNil, hugeMetric)
+                    in  case seqType of
+                            NucSeq → resultSlim
+                            SlimSeq → resultSlim
+                            WideSeq → resultWide
+                            AminoSeq → resultWide
+                            HugeSeq → resultHuge
+                            val →
+                                failWithPhase Parsing $
+                                    fold
+                                        ["getFastaCharInfo: Failure proceesing the CharType: '", show val, "'"]
 
-        constructAlignedSeqType
-            | not isPrealigned = pure seqType
-            | seqType `elem` [NucSeq, SlimSeq] = pure AlignedSlim
-            | seqType `elem` [WideSeq, AminoSeq] = pure AlignedWide
-            | seqType == HugeSeq = pure AlignedHuge
-            | otherwise = failWithPhase Parsing $ "Unrecognozed data type in getFastcCharInfo: " <> show seqType
+                constructAlignedSeqType
+                    | not isPrealigned = pure seqType
+                    | seqType `elem` [NucSeq, SlimSeq] = pure AlignedSlim
+                    | seqType `elem` [WideSeq, AminoSeq] = pure AlignedWide
+                    | seqType == HugeSeq = pure AlignedHuge
+                    | otherwise = failWithPhase Parsing $ "Unrecognozed data type in getFastcCharInfo: " <> show seqType
 
-        outputMessage = case (null . fst3) localTCM && (null . snd3) localTCM of
-            True →
--}
-        localCostMatrix :: S.Matrix Int
+                outputMessage = case (null . fst3) localTCM && (null . snd3) localTCM of
+                    True →
+        -}
+        localCostMatrix ∷ S.Matrix Int
         localCostMatrix = S.fromLists localValues
 
         tcmWeightFactor = thd3 localTCM
@@ -254,26 +254,29 @@ commonFastCharInfo dataName isPrealigned localTCM@(localSymbols, localValues, lo
         updateSlimInfo ∷ CharInfo → PhyG CharInfo
         updateSlimInfo info = do
             (slimWeight, slimMetric) ← buildTransitionMatrix numSymbols localTCM
-            pure info
-                { weight = tcmWeightFactor * fromRational slimWeight
-                , slimTCM = slimMetric
-                }
+            pure
+                info
+                    { weight = tcmWeightFactor * fromRational slimWeight
+                    , slimTCM = slimMetric
+                    }
 
         updateWideInfo ∷ CharInfo → PhyG CharInfo
         updateWideInfo info = do
             (wideWeight, wideMetric) ← buildTransitionMatrix numSymbols localTCM
-            pure info
-                { weight = tcmWeightFactor * fromRational wideWeight
-                , wideTCM = wideMetric
-                }
+            pure
+                info
+                    { weight = tcmWeightFactor * fromRational wideWeight
+                    , wideTCM = wideMetric
+                    }
 
         updateHugeInfo ∷ CharInfo → PhyG CharInfo
         updateHugeInfo info = do
             (hugeWeight, hugeMetric) ← buildTransitionMatrix numSymbols localTCM
-            pure info
-                { weight = tcmWeightFactor * fromRational hugeWeight
-                , hugeTCM = hugeMetric
-                }
+            pure
+                info
+                    { weight = tcmWeightFactor * fromRational hugeWeight
+                    , hugeTCM = hugeMetric
+                    }
 
         updateCharacterTypeInfo ∷ CharInfo → PhyG CharInfo
         updateCharacterTypeInfo =
@@ -301,28 +304,28 @@ commonFastCharInfo dataName isPrealigned localTCM@(localSymbols, localValues, lo
                         , ". Using default, all 1 diagonal 0 cost matrix."
                         , "\n"
                         ]
-{-
-                        ]
-            _ → logWith LogInfo $ "Processing TCM data for file : " <> dataName
-    in  do
-            outputMessage
-            (coefficient, localSlimTCM, localWideTCM, localHugeTCM) ← constructCompnentsOfTCM
-            alignedSeqType ← constructAlignedSeqType
-            pure $
-                emptyCharInfo
-                    { charType = alignedSeqType
-                    , activity = True
-                    , weight = localWeight * fromRational coefficient
-                    , slimTCM = localSlimTCM
-                    , wideTCM = localWideTCM
-                    , hugeTCM = localHugeTCM
-                    , name = T.pack (filter (/= ' ') dataName <> "#0")
-                    , alphabet = thisAlphabet
-                    , prealigned = isPrealigned
-                    , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
-                    }
--}
-    in  do
+    in  {-
+                                ]
+                    _ → logWith LogInfo $ "Processing TCM data for file : " <> dataName
+            in  do
+                    outputMessage
+                    (coefficient, localSlimTCM, localWideTCM, localHugeTCM) ← constructCompnentsOfTCM
+                    alignedSeqType ← constructAlignedSeqType
+                    pure $
+                        emptyCharInfo
+                            { charType = alignedSeqType
+                            , activity = True
+                            , weight = localWeight * fromRational coefficient
+                            , slimTCM = localSlimTCM
+                            , wideTCM = localWideTCM
+                            , hugeTCM = localHugeTCM
+                            , name = T.pack (filter (/= ' ') dataName <> "#0")
+                            , alphabet = thisAlphabet
+                            , prealigned = isPrealigned
+                            , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
+                            }
+        -}
+        do
             logProcessingOfCharInfo
             emptyCharInfo >>= updateCharacterTypeInfo . updateStandardInfo
 
@@ -361,7 +364,6 @@ getTCMMemo (_inAlphabet, inMatrix) =
             pure (coefficient, metric)
 
 -}
-
 
 {- |
 'getSequenceAphabet' take a list of ShortText with information and accumulatiors
@@ -598,13 +600,13 @@ single Short Tex for later processing
 -}
 concatAmbig ∷ String → [ST.ShortText] → [ST.ShortText]
 concatAmbig fileName = \case
-    [] -> []
-    x:xs -> 
+    [] → []
+    x : xs →
         let firstGroup = ST.toString x
         in  case firstGroup of
-                [] -> concatAmbig fileName xs
-                y:_ | y /= '[' -> x : concatAmbig fileName xs
-                _ -> 
+                [] → concatAmbig fileName xs
+                y : _ | y /= '[' → x : concatAmbig fileName xs
+                _ →
                     let ambiguityGroup = x : getRestAmbiguityGroup fileName xs
                     in  ST.concat ambiguityGroup : concatAmbig fileName (drop (length ambiguityGroup) $ x : xs)
 

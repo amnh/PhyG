@@ -195,18 +195,19 @@ transform inArgs inGS origData inData inGraphList =
 
                                                                             -- generate and return display trees-- displayTreNUm / graph
                                                                             contractIn1Out1Nodes = True
-                                                                        in do
-                                                                            displayGraphList <-
-                                                                                if chooseFirst
-                                                                                    then pure $ fmap (take (fromJust numDisplayTrees) . (LG.generateDisplayTrees) contractIn1Out1Nodes) (fmap fst5 inGraphList)
-                                                                                    else traverse (LG.generateDisplayTreesRandom (fromJust numDisplayTrees)) $ fst5 <$> inGraphList
+                                                                        in  do
+                                                                                displayGraphList ←
+                                                                                    if chooseFirst
+                                                                                        then pure $ fmap (take (fromJust numDisplayTrees) . (LG.generateDisplayTrees) contractIn1Out1Nodes) (fmap fst5 inGraphList)
+                                                                                        else traverse (LG.generateDisplayTreesRandom (fromJust numDisplayTrees)) $ fst5 <$> inGraphList
 
-                                                                            -- prob not required
-                                                                            let displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)
-                                                                            -- reoptimize as Trees
-                                                                            newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex `pTraverse` displayGraphs
-                                                                            pure (newGS, origData, inData, newPhylogeneticGraphList)
+                                                                                -- prob not required
+                                                                                let displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes (concat displayGraphList)
+                                                                                -- reoptimize as Trees
+                                                                                newPhylogeneticGraphList ←
+                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                        reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex `pTraverse` displayGraphs
+                                                                                pure (newGS, origData, inData, newPhylogeneticGraphList)
                                                             else -- transform to softwired
 
                                                                 if toSoftWired
@@ -217,8 +218,9 @@ transform inArgs inGS origData inData inGraphList =
                                                                             else
                                                                                 let newGS = inGS{graphType = SoftWired}
                                                                                 in  do
-                                                                                        newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                            pTraverse (reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                        newPhylogeneticGraphList ←
+                                                                                            getParallelChunkTraverse >>= \pTraverse →
+                                                                                                pTraverse (reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
                                                                                         pure (newGS, origData, inData, newPhylogeneticGraphList)
                                                                     else -- transform to hardwired
 
@@ -231,15 +233,17 @@ transform inArgs inGS origData inData inGraphList =
                                                                                         let newGS = inGS{graphType = HardWired, graphFactor = NoNetworkPenalty}
                                                                                         in  do
                                                                                                 logWith LogInfo ("Changing GraphFactor to NoNetworkPenalty for HardWired graphs" <> "\n")
-                                                                                                newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                     pTraverse (reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                                newPhylogeneticGraphList ←
+                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                        pTraverse (reoptimizeAction newGS inData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
                                                                                                 pure (newGS, origData, inData, newPhylogeneticGraphList)
                                                                             else -- roll back to dynamic data from static approx
 
                                                                                 if toDynamic
                                                                                     then do
-                                                                                        newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse -> 
-                                                                                            pTraverse (reoptimizeAction inGS origData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                        newPhylogeneticGraphList ←
+                                                                                            getParallelChunkTraverse >>= \pTraverse →
+                                                                                                pTraverse (reoptimizeAction inGS origData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
 
                                                                                         logWith
                                                                                             LogInfo
@@ -255,8 +259,9 @@ transform inArgs inGS origData inData inGraphList =
                                                                                         if toStaticApprox
                                                                                             then do
                                                                                                 newData ← makeStaticApprox inGS False inData (head $ L.sortOn snd5 inGraphList)
-                                                                                                newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                    pTraverse (reoptimizeAction inGS newData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                                newPhylogeneticGraphList ←
+                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                        pTraverse (reoptimizeAction inGS newData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
                                                                                                 if null inGraphList
                                                                                                     then do
                                                                                                         logWith LogInfo ("No graphs to base static approximation on--skipping." <> "\n")
@@ -294,8 +299,9 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                             <> "\n\tReoptimizing graphs"
                                                                                                                             <> "\n"
                                                                                                                         )
-                                                                                                                    newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                        pTraverse (reoptimizeAction inGS newData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                                                    newPhylogeneticGraphList ←
+                                                                                                                        getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                            pTraverse (reoptimizeAction inGS newData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
                                                                                                                     -- PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS newData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                                                                                                                     pure (inGS, newOrigData, newData, newPhylogeneticGraphList)
                                                                                                     else -- changes the softwired optimization algorithm--this really for experimental use
@@ -321,8 +327,11 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                                         <> (show (snd $ head changeSoftwiredMethodBlock))
                                                                                                                                                     )
                                                                                                                         in  do
-                                                                                                                                newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                                    pTraverse (reoptimizeAction (inGS{compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                                                                newPhylogeneticGraphList ←
+                                                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                        pTraverse
+                                                                                                                                            (reoptimizeAction (inGS{compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5)
+                                                                                                                                            inGraphList
                                                                                                                                 -- PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced (inGS  {compressResolutions = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList)
                                                                                                                                 if newMethod /= compressResolutions inGS
                                                                                                                                     then do
@@ -370,8 +379,9 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                                                                         <> (show (snd $ head changeGraphFactorBlock))
                                                                                                                                                                                     )
                                                                                                                                         in  do
-                                                                                                                                                newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                                                    pTraverse (reoptimizeAction (inGS{graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                                                                                newPhylogeneticGraphList ←
+                                                                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                                        pTraverse (reoptimizeAction (inGS{graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
                                                                                                                                                 -- PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced (inGS  {graphFactor = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                                                                                                                                                 if newMethod /= graphFactor inGS
                                                                                                                                                     then do
@@ -414,8 +424,11 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                                                                         <> (show (snd $ head changeMultiTraverseBlock))
                                                                                                                                                                                     )
                                                                                                                                                         in  do
-                                                                                                                                                                newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                                                                    pTraverse (reoptimizeAction (inGS{multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                                                                                                newPhylogeneticGraphList ←
+                                                                                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                                                        pTraverse
+                                                                                                                                                                            (reoptimizeAction (inGS{multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5)
+                                                                                                                                                                            inGraphList
                                                                                                                                                                 -- PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced (inGS  {multiTraverseCharacters = newMethod}) origData pruneEdges warnPruneEdges startVertex) (fmap fst5 inGraphList) -- `using` PU.myParListChunkRDS
                                                                                                                                                                 if newMethod /= multiTraverseCharacters inGS
                                                                                                                                                                     then
@@ -458,8 +471,11 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                                                             then "ResolutionCache"
                                                                                                                                                                             else "Exhaustive"
                                                                                                                                                                 in  do
-                                                                                                                                                                        newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                                                                            pTraverse (reoptimizeAction (inGS{softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5) inGraphList
+                                                                                                                                                                        newPhylogeneticGraphList ←
+                                                                                                                                                                            getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                                                                pTraverse
+                                                                                                                                                                                    (reoptimizeAction (inGS{softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5)
+                                                                                                                                                                                    inGraphList
 
                                                                                                                                                                         if newMethod /= softWiredMethod inGS
                                                                                                                                                                             then do
@@ -477,14 +493,20 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                                                         let newOutgroupName = TL.filter (/= '"') $ fromJust outgroupValue
                                                                                                                                                                             newOutgroupIndex = V.elemIndex newOutgroupName (fst3 origData)
                                                                                                                                                                         in  do
-                                                                                                                                                                                newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                                                                                    pTraverse (reoptimizeAction inGS origData pruneEdges warnPruneEdges startVertex . LG.rerootTree (fromJust newOutgroupIndex) . fst5) inGraphList
+                                                                                                                                                                                newPhylogeneticGraphList ←
+                                                                                                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                                                                        pTraverse
+                                                                                                                                                                                            (reoptimizeAction inGS origData pruneEdges warnPruneEdges startVertex . LG.rerootTree (fromJust newOutgroupIndex) . fst5)
+                                                                                                                                                                                            inGraphList
                                                                                                                                                                                 -- PU.seqParMap (parStrategy $ strictParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS origData pruneEdges warnPruneEdges startVertex) (fmap (LG.rerootTree (fromJust newOutgroupIndex)) $ fmap fst5 inGraphList)
                                                                                                                                                                                 if isNothing newOutgroupIndex
                                                                                                                                                                                     then errorWithoutStackTrace ("Outgoup name not found: " <> (snd $ head reRootBlock))
                                                                                                                                                                                     else do
-                                                                                                                                                                                        newPhylogeneticGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                                                                                                                                                            pTraverse (reoptimizeAction inGS origData pruneEdges warnPruneEdges startVertex . LG.rerootTree (fromJust newOutgroupIndex) . fst5) inGraphList
+                                                                                                                                                                                        newPhylogeneticGraphList ←
+                                                                                                                                                                                            getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                                                                                pTraverse
+                                                                                                                                                                                                    (reoptimizeAction inGS origData pruneEdges warnPruneEdges startVertex . LG.rerootTree (fromJust newOutgroupIndex) . fst5)
+                                                                                                                                                                                                    inGraphList
 
                                                                                                                                                                                         logWith LogInfo ("Changing outgroup to " <> (TL.unpack newOutgroupName) <> "\n")
                                                                                                                                                                                         pure
@@ -627,20 +649,19 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                     if leavePrealigned
                         then do
                             pure (nameV, nameBVV, V.fromList newBlockDataV)
+                        else do
+                            -- convert prealigned to non-additive if all 1's tcm
 
-                    else do -- convert prealigned to non-additive if all 1's tcm
+                            -- remove constants from new prealigned  this may be redundant since bit packing also removes constants
+                            -- error here in case where there is missing seqeunce data for all but one input block for a character
+                            newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
 
-                        -- remove constants from new prealigned  this may be redundant since bit packing also removes constants
-                        -- error here in case where there is missing seqeunce data for all but one input block for a character
-                        newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+                            -- bit pack any new non-additive characters
+                            newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, V.fromList newBlockDataV) -- newProcessedData
 
-                        -- bit pack any new non-additive characters
-                        newProcessedData' ← BP.packNonAdditiveData inGS  newProcessedData -- (nameV, nameBVV, V.fromList newBlockDataV) -- newProcessedData
-
-                        -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
-                        -- issues if no variation in block reducing length to zero so need leave "prealigned" if so
-                        pure newProcessedData'
-
+                            -- trace ("MSA:" <> (show (fmap (V.length . thd3) blockDataV, fmap (V.length . thd3) newBlockDataV)))
+                            -- issues if no variation in block reducing length to zero so need leave "prealigned" if so
+                            pure newProcessedData'
                 else -- network static approx relies on display tree implied alignments after contacting out in=out=1 vertices
                 -- harwired based on softwired optimization
 
@@ -662,8 +683,9 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                                     -- create seprate processed data for each block
                                     let blockProcessedDataList = fmap (CU.makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
-                                    decoratedBlockTreeList' ← getParallelChunkTraverse >>= \pTraverse ->
-                                        pTraverse action . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
+                                    decoratedBlockTreeList' ←
+                                        getParallelChunkTraverse >>= \pTraverse →
+                                            pTraverse action . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
 
                                     -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
                                     let decoratedBlockTreeList = V.fromList decoratedBlockTreeList'
@@ -674,16 +696,14 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                                     if leavePrealigned
                                         then do
                                             pure (nameV, nameBVV, newBlockDataV)
+                                        else do
+                                            -- remove constants from new prealigned-- this may be redundant since bit packing also removes constants
+                                            -- error here in case where there is missing seqeunce data for all but one input block for a character
+                                            newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
 
-                                    else do
-                                        -- remove constants from new prealigned-- this may be redundant since bit packing also removes constants
-                                        -- error here in case where there is missing seqeunce data for all but one input block for a character
-                                        newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
-
-                                        -- bit pack any new non-additive characters
-                                        newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, newBlockDataV) -- newProcessedData
-
-                                        pure newProcessedData'
+                                            -- bit pack any new non-additive characters
+                                            newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, newBlockDataV) -- newProcessedData
+                                            pure newProcessedData'
                         else do
                             logWith LogWarn ("Static Approx not yet implemented for graph type : " <> (show $ graphType inGS) <> " skipping" <> "\n")
                             pure inData

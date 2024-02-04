@@ -18,9 +18,9 @@ import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.InfList qualified as IL
 import Data.List.NonEmpty (NonEmpty (..))
---import Data.MetricRepresentation as MR
---import Data.TCM qualified as TCM
---import Data.TCM.Dense qualified as TCMD
+-- import Data.MetricRepresentation as MR
+-- import Data.TCM qualified as TCM
+-- import Data.TCM.Dense qualified as TCMD
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
@@ -909,7 +909,7 @@ dummyEdge =
 
 
 -- emptyCharInfo for convenience
-emptyCharInfo :: MonadIO m => m CharInfo
+emptyCharInfo ∷ (MonadIO m) ⇒ m CharInfo
 emptyCharInfo =
     let minAlphabet = fromSymbols $ "0" :| ["1"]
         numSymbols = symbolCount minAlphabet
@@ -917,43 +917,20 @@ emptyCharInfo =
             case TM.fromRows [[0, 1], [1, 0]] ∷ Either (DiagnosisFailure Word) (TM.TransitionMeasureDiagnosis Word) of
                 Right v → v
                 Left _ → error "Impossible construction of 'empyCharInfo'"
-    in  pure CharInfo
-            { name = "EmptyCharName"
-            , charType = NonAdd
-            , activity = True
-            , weight = 1.0
-            , metricity = foundMetric
-            , costMatrix = S.empty
-            , slimTCM = TM.discreteMetric numSymbols
-            , wideTCM = TM.discreteMetric numSymbols
-            , hugeTCM = TM.discreteMetric numSymbols
-            , changeCost = 1.0
-            , noChangeCost = 0.0
-            , alphabet = minAlphabet
-            , prealigned = False
-            , origInfo = V.empty
-            }
-{-
-    let minimalMatrix :: [[Int]]
-        minimalMatrix = [[0, 1],[1, 0]]
-        (_, tcm) = TCM.fromRows minimalMatrix
-        sTCM = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList minimalMatrix
-    in  do  wTCM <- MR.metricRepresentation tcm
-            hTCM <- MR.metricRepresentation tcm
-            pure CharInfo
-                { name       = "EmptyCharName"
-                , charType   = NonAdd
-                , activity   = True
-                , weight     = 1.0
+    in  pure
+            CharInfo
+                { name = "EmptyCharName"
+                , charType = NonAdd
+                , activity = True
+                , weight = 1.0
                 , metricity = foundMetric
                 , costMatrix = S.empty
-                , slimTCM    = sTCM
-                , wideTCM    = wTCM
-                , hugeTCM    = hTCM
+                , slimTCM = TM.discreteMetric numSymbols
+                , wideTCM = TM.discreteMetric numSymbols
+                , hugeTCM = TM.discreteMetric numSymbols
                 , changeCost = 1.0
                 , noChangeCost = 0.0
-                , alphabet   = fromSymbols $ "0" :| [ "1" ]
+                , alphabet = minAlphabet
                 , prealigned = False
-                , origInfo   = V.empty
+                , origInfo = V.empty
                 }
--}

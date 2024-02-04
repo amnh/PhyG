@@ -1,6 +1,7 @@
 module BitPackingDimension where
 
-data  BitDimension
+
+data BitDimension
     = BitDim0
     | BitDim1
     | BitDim2
@@ -13,7 +14,6 @@ data  BitDimension
 
 
 instance Enum BitDimension where
-
     fromEnum BitDim0 = 0
     fromEnum BitDim1 = 1
     fromEnum BitDim2 = 2
@@ -22,6 +22,7 @@ instance Enum BitDimension where
     fromEnum BitDim5 = 5
     fromEnum BitDim6 = 6
     fromEnum BitDimN = maxBound
+
 
     toEnum i = case i `mod` 7 of
         0 -> BitDim0
@@ -35,7 +36,6 @@ instance Enum BitDimension where
 
 
 instance Show BitDimension where
-
     show d =
         let getExp BitDim0 = '⁰'
             getExp BitDim1 = '¹'
@@ -45,8 +45,7 @@ instance Show BitDimension where
             getExp BitDim5 = '⁵'
             getExp BitDim6 = '⁶'
             getExp BitDimN = 'ⁿ'
-
-        in '❬' : '2' : getExp d : "❭"
+        in  '❬' : '2' : getExp d : "❭"
 
 
 bitWidth :: BitDimension -> Maybe Word
