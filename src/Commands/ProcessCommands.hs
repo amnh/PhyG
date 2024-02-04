@@ -30,13 +30,12 @@ import Input.ReadInputFiles qualified as RIF
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Types.Types
 
 
 {- | preprocessOptimalityCriteriaScripts takes a processed command list and
 processes for optimlity criteria that change tcms and such for
-PMDL, SI, MAPA, and NCM
+Parsimony, PMDL, SI, MAPA, and NCM
 -}
 preprocessOptimalityCriteriaScripts ∷ [Command] → [Command]
 preprocessOptimalityCriteriaScripts inCommandList = inCommandList
@@ -150,20 +149,16 @@ getCommandList rawContents =
 after double dash "--"
 -}
 removeComments ∷ [String] → [String]
-removeComments inLineList =
-    if null inLineList
-        then []
-        else
-            let firstLine = head inLineList
-                firstTwo = take 2 firstLine
-            in  -- Comment line
-                if (firstTwo == "--") || null firstLine
-                    then removeComments $ tail inLineList
-                    else
-                        ( -- Remove commments from line to end
-                          let nonComment = filter isPrint $ head $ splitOn "--" firstLine
-                          in  nonComment : removeComments (tail inLineList)
-                        )
+removeComments = \case
+    [] -> []
+    firstLine:otherLines -> case firstLine of
+        [] -> removeComments otherLines
+        '-':'-':_ -> removeComments otherLines
+        _ ->
+            let nonComment = case splitOn "--" firstLine of
+                    [] -> firstLine
+                    prefix:_ -> filter isPrint prefix
+            in  nonComment : removeComments otherLines
 
 
 {- | getInstruction returns the command type from an input String
@@ -198,23 +193,22 @@ getInstruction inString possibleCommands
 assumes single command per line
 -}
 parseCommand ∷ String → PhyG [Command]
-parseCommand inLine =
-    if null inLine
-        then return []
-        else
-            let (firstString, restString) = getSubCommand inLine False
-                instructionString = takeWhile (/= '(') firstString -- inLine
-            in  do
-                    -- this doesn not allow recursive multi-option arguments
-                    -- NEED TO FIX
-                    -- make in to a more sophisticated split outside of parens
-                    argList ← argumentSplitter inLine $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
+parseCommand = \case
+    [] -> pure []
+    inLine ->
+        let (firstString, restString) = getSubCommand inLine False
+            instructionString = takeWhile (/= '(') firstString -- inLine
+        in  do
+                -- this does not allow recursive multi-option arguments
+                -- NEED TO FIX
+                -- make in to a more sophisticated split outside of parens
+                argList ← argumentSplitter inLine $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
 
-                    localInstruction ← getInstruction instructionString V.allowedCommandList
-                    processedArg ← parseCommandArg firstString localInstruction argList
-                    parsedRest ← parseCommand restString
+                localInstruction ← getInstruction instructionString V.allowedCommandList
+                processedArg ← parseCommandArg firstString localInstruction argList
+                parsedRest ← parseCommand restString
 
-                    return $ (localInstruction, processedArg) : parsedRest
+                pure $ (localInstruction, processedArg) : parsedRest
 
 
 {- | getSubCommand takes a string and extracts the first occurrence of the

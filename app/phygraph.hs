@@ -11,9 +11,9 @@ import Commands.ProcessCommands qualified as PC
 import Commands.Verify qualified as V
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Random.Class
 import Data.CSV qualified as CSV
 import Data.Foldable (fold)
+import Data.InfList qualified as IL
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.String (fromString)
@@ -61,7 +61,7 @@ and randomness.
 -}
 evaluatePhyG ∷ FilePath → IO ()
 evaluatePhyG path = do
-    logConfig ← initializeLogging Info Warn Nothing
+    logConfig ← initializeLogging Dump Warn Nothing
     firstSeed ← initializeRandomSeed
     runEvaluation logConfig firstSeed () $ performSearch firstSeed path
 
@@ -75,7 +75,6 @@ performSearch initialSeed inputFilePath = do
     logWith LogInfo $ "\nCommand script file: '" <> inputFilePath <> "'\n"
     logWith LogInfo $ "Initial random seed set to " <> show initialSeed <> "\n"
     timeCDBegin ← liftIO getCurrentTime
-    seedList ← getRandoms
 
     -- Process commands to get list of actions
     commandContents ← liftIO $ readFile inputFilePath
@@ -113,11 +112,11 @@ performSearch initialSeed inputFilePath = do
         then failWithPhase Unifying "\n\nNeither data nor graphs entered.  Nothing can be done.\n"
         else logWith LogInfo $ unwords ["Entered", show (length rawData), "data file(s) and", show (length rawGraphs), "input graphs\n"]
 
-    -- get set partitions character from Set commands early, the enpty seed list puts in first section--only processing a few fields
+    -- get set partitions character from Set commands early, the isFirst==True puts in first section--only processing a few fields
     -- confusing and should be changed
     let setCommands = filter ((== Set) . fst) thingsToDo
-    (_, partitionCharOptimalityGlobalSettings, _, _) ←
-        CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty mempty mempty setCommands
+    (_, partitionCharOptimalityGlobalSettings, _) ←
+        CE.executeCommands emptyGlobalSettings mempty 0 [] mempty mempty mempty mempty mempty setCommands True
 
     -- Split fasta/fastc sequences into corresponding pieces based on '#' partition character
     rawDataSplit ← DT.partitionSequences (ST.fromString (partitionCharacter partitionCharOptimalityGlobalSettings)) rawData
@@ -240,7 +239,7 @@ performSearch initialSeed inputFilePath = do
 
     -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
     let reportingData
-            | reportNaiveData partitionCharOptimalityGlobalSettings =naiveData
+            | reportNaiveData partitionCharOptimalityGlobalSettings = naiveData
             | otherwise = emptyProcessedData
 
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
@@ -289,7 +288,7 @@ performSearch initialSeed inputFilePath = do
     let commandsAfterInitialDiagnose = filter ((/= Set) . fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
-    (_, initialGlobalSettings, seedList', _) ←
+    (_, initialGlobalSettings, _) ←
         CE.executeCommands
             defaultGlobalSettings
             (terminalsToExclude, renameFilePairs)
@@ -300,9 +299,8 @@ performSearch initialSeed inputFilePath = do
             reportingData
             []
             []
-            seedList
-            []
             initialSetCommands
+            False
 
     -- Get CPUTime so far ()data input and processing
     dataCPUTime ← liftIO getCPUTime
@@ -321,11 +319,9 @@ performSearch initialSeed inputFilePath = do
 
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime ← liftIO getCPUTime
-    let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) =
-            if null inputGraphList
-                then (0, 0, infinity, infinity)
-                else
-                    ( fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime
+    let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) = case inputGraphList of
+            [] -> (0, 0, infinity, infinity)
+            _ ->    ( fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime
                     , length inputGraphList
                     , minimum $ fmap snd5 inputGraphList
                     , maximum $ fmap snd5 inputGraphList
@@ -341,12 +337,8 @@ performSearch initialSeed inputFilePath = do
                 , duration = inputGraphTime
                 }
 
-    -- Create lazy pairwise distances if needed later for build or report
-    -- appears no longer lazy with Eval
-    pairDist ← pure [] -- D.getPairwiseDistances optimizedData
-
     -- Execute Following Commands (searches, reports etc)
-    (finalGraphList, _, _, _) ←
+    (finalGraphList, _, _) ←
         CE.executeCommands
             (initialGlobalSettings{searchData = [inputGraphProcessing, inputProcessingData]})
             (terminalsToExclude, renameFilePairs)
@@ -356,10 +348,9 @@ performSearch initialSeed inputFilePath = do
             optimizedData
             reportingData
             inputGraphList
-            pairDist
-            seedList'
             []
             commandsAfterInitialDiagnose -- (transformString <> commandsAfterInitialDiagnose)
+            False
 
     -- print global setting just to check
     -- logWith LogInfo (show _finalGlobalSettings)
@@ -368,13 +359,31 @@ performSearch initialSeed inputFilePath = do
     -- if (rootComplexity initialGlobalSettings) /= 0.0 then logWith LogInfo ("\tUpdating final graph with any root priors")
     -- else logWith LogInfo ""
 
-    -- rediagnose for NCM due to packing, in most cases not required, just being sure etc
+    {- 
+    This should not be necessary--moved to traversal with root cost adjustment 
+        rediagnose for NCM and PMDL due to packing, in most cases not required, just being sure etc
+    -}
     let rediagnoseWithReportingdata = True
-    finalGraphList' ←
-        T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+    finalGraphList' ← if rediagnoseWithReportingdata then
+                      -- if optimalityCriterion initialGlobalSettings `elem` [SI, NCM, PMDL] then 
+                        T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+                      else pure finalGraphList
+    
+    -- let finalGraphList' = finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd5 finalGraphList'
     let maxCost = if null finalGraphList then 0.0 else maximum $ fmap snd5 finalGraphList'
+
+    -- get network numbers for graph complexities (PMDL, SI)
+    let grabber = length . fth4 . LG.splitVertexList . fst5 <$> finalGraphList'
+    let pairFunction :: forall {a}. (a, a) -> a
+        (netWorkVertexList, pairFunction, units)
+            | optimalityCriterion initialGlobalSettings == Parsimony = (replicate (length finalGraphList') 0, fst, "") 
+            -- PMDL and DI in base 2
+            | optimalityCriterion initialGlobalSettings `elem` [PMDL, SI]  = (grabber, fst, " bits") 
+            -- | graphType initialGlobalSettings == SoftWired = (grabber, fst, " bits")
+            -- NCM and MAPA in base 10
+            | otherwise = (grabber, snd, " dits")
 
     -- final results reporting to stderr
     logWith LogInfo $
@@ -382,8 +391,21 @@ performSearch initialSeed inputFilePath = do
             [ "Execution returned"
             , show $ length finalGraphList'
             , "graph(s) at cost range"
-            , show (minCost, maxCost)
+            , (show (minCost, maxCost)) <> units
             , "\n"
+            ]
+
+    -- insures model complexity 0 if not PMDL  correctly accounted for in traversals
+    let adjModelComplexity = if optimalityCriterion initialGlobalSettings == PMDL then modelComplexity initialGlobalSettings
+                             else 0.0
+
+
+    when (optimalityCriterion initialGlobalSettings /= Parsimony) $ logWith LogInfo $
+        unwords
+            [ "\tModel complexity " <> (show adjModelComplexity) <> units <> "\n"
+            , "\tRoot complexity " <> (show $ rootComplexity initialGlobalSettings) <> units <> "\n"
+            , "\tGraph complexities " <> (show $ fmap pairFunction $ fmap ((graphComplexityList initialGlobalSettings) IL.!!! ) netWorkVertexList) <> units
+            , "\n\n"
             ]
 
     -- Final Stderr report

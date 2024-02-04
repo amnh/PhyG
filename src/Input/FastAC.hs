@@ -29,18 +29,24 @@ import Data.List.NonEmpty qualified as NE
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
+import Debug.Trace
 import GeneralUtilities
 import Input.DataTransformation qualified as DT
 import Measure.Unit.SymbolCount (SymbolCount (..), symbolCount)
 -- import Prelude hiding (head, init, last, tail)
 -- import SymMatrix qualified as S
 
+import Data.BitVector.LittleEndian (BitVector)
+import Bio.DynamicCharacter.Element
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), LogMessage, Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import TransitionMatrix qualified as TM
+import Layout.Compact.Class qualified as TMD
+import Layout.Compact.States qualified as TMD
+import TransitionMatrix.Metricity (Metricity(..), SpecializableMetric(..))
 import Types.Types
 
 
@@ -111,6 +117,37 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM
                 | length sequenceData <= 64 {- trace ("File " <> dataName <> " is wide alphabet data.") -} = WideSeq
                 | otherwise {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
 
+{-
+getFastaCharInfo inData dataName dataType isPrealigned localTCM =
+    if null inData
+        then error "Empty inData in getFastaCharInfo"
+        else
+            let nucleotideAlphabet = fmap ST.fromString ["A", "C", "G", "T", "U", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N", "?", "-"]
+                lAminoAcidAlphabet =
+                    fmap
+                        ST.fromString
+                        ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-", "?"]
+                -- onlyInNucleotides = [ST.fromString "U"]
+                -- onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
+                sequenceData = getAlphabet [] $ foldMap snd inData
+
+                seqType
+                    | dataType == "nucleotide" {- trace ("File " <> dataName <> " is nucleotide data.") -} = NucSeq
+                    | dataType == "aminoacid" {- trace ("File " <> dataName <> " is aminoacid data.") -} = AminoSeq
+                    | dataType == "hugeseq" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
+                    | dataType == "custom_alphabet" {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
+                    | ( sequenceData `L.intersect` nucleotideAlphabet == sequenceData {- trace ("Assuming file " <> dataName
+                                                                                      <> " is nucleotide data. Specify `aminoacid' filetype if this is incorrect.") -}
+                      ) =
+                        NucSeq
+                    | ( sequenceData `L.intersect` lAminoAcidAlphabet == sequenceData {- trace ("Assuming file " <> dataName
+                                                                                      <> " is amino acid data. Specify `nucleotide' filetype if this is incorrect.") -}
+                      ) =
+                        AminoSeq
+                    | length sequenceData <= 8 {- trace ("File " <> dataName <> " is small alphabet data.") -} = SlimSeq
+                    | length sequenceData <= 64 {- trace ("File " <> dataName <> " is wide alphabet data.") -} = WideSeq
+                    | otherwise {- trace ("File " <> dataName <> " is large alphabet data.") -} = HugeSeq
+-}
             seqAlphabet = fromSymbols seqSymbols
 
             seqSymbols =
@@ -152,9 +189,10 @@ makeUpperCaseTermData (taxName, dataList) =
 
 -- | commonFastCharInfo breaks out common functions between fasta and fastc parsing
 commonFastCharInfo ∷ String → Bool → ([ST.ShortText], [[Int]], Double) → CharType → Alphabet ST.ShortText → PhyG CharInfo
-commonFastCharInfo dataName isPrealigned localTCM@(_localSymbols, _localValues, localWeight) seqType thisAlphabet =
+commonFastCharInfo dataName isPrealigned localTCM@(localSymbols, localValues, localWeight) seqType thisAlphabet =
     let numSymbols = symbolCount thisAlphabet
 
+{-
         constructCompnentsOfTCM =
             let -- this 2x2 so if some Show instances are called don't get error
                 slimMetricNil = slimTCM emptyCharInfo
@@ -164,7 +202,7 @@ commonFastCharInfo dataName isPrealigned localTCM@(_localSymbols, _localValues, 
                 (slimCoefficient, slimMetric) = buildTransitionMatrix numSymbols localTCM
                 (wideCoefficient, wideMetric) = buildTransitionMatrix numSymbols localTCM
                 (hugeCoefficient, hugeMetric) = buildTransitionMatrix numSymbols localTCM
-
+------
                 resultSlim = pure (slimCoefficient, slimMetric, wideMetricNil, hugeMetricNil)
                 resultWide = pure (wideCoefficient, slimMetricNil, wideMetric, hugeMetricNil)
                 resultHuge = pure (hugeCoefficient, slimMetricNil, wideMetricNil, hugeMetric)
@@ -188,11 +226,82 @@ commonFastCharInfo dataName isPrealigned localTCM@(_localSymbols, _localValues, 
 
         outputMessage = case (null . fst3) localTCM && (null . snd3) localTCM of
             True →
+-}
+        localCostMatrix :: S.Matrix Int
+        localCostMatrix = S.fromLists localValues
+
+        tcmWeightFactor = thd3 localTCM
+
+        alignedSeqType
+            | not isPrealigned = seqType
+            | seqType `elem` [NucSeq, SlimSeq] = AlignedSlim
+            | seqType `elem` [WideSeq, AminoSeq] = AlignedWide
+            | seqType == HugeSeq = AlignedHuge
+            | otherwise = error "Unrecognozed data type in getFastcCharInfo"
+
+        updateStandardInfo ∷ CharInfo → CharInfo
+        updateStandardInfo info =
+            info
+                { charType = alignedSeqType
+                , activity = True
+                , costMatrix = localCostMatrix
+                , name = T.pack (filter (/= ' ') dataName <> "#0")
+                , alphabet = thisAlphabet
+                , prealigned = isPrealigned
+                , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
+                }
+
+        updateSlimInfo ∷ CharInfo → PhyG CharInfo
+        updateSlimInfo info = do
+            (slimWeight, slimMetric) ← buildTransitionMatrix numSymbols localTCM
+            pure info
+                { weight = tcmWeightFactor * fromRational slimWeight
+                , slimTCM = slimMetric
+                }
+
+        updateWideInfo ∷ CharInfo → PhyG CharInfo
+        updateWideInfo info = do
+            (wideWeight, wideMetric) ← buildTransitionMatrix numSymbols localTCM
+            pure info
+                { weight = tcmWeightFactor * fromRational wideWeight
+                , wideTCM = wideMetric
+                }
+
+        updateHugeInfo ∷ CharInfo → PhyG CharInfo
+        updateHugeInfo info = do
+            (hugeWeight, hugeMetric) ← buildTransitionMatrix numSymbols localTCM
+            pure info
+                { weight = tcmWeightFactor * fromRational hugeWeight
+                , hugeTCM = hugeMetric
+                }
+
+        updateCharacterTypeInfo ∷ CharInfo → PhyG CharInfo
+        updateCharacterTypeInfo =
+            case seqType of
+                NucSeq → updateSlimInfo
+                SlimSeq → updateSlimInfo
+                WideSeq → updateWideInfo
+                AminoSeq → updateWideInfo
+                HugeSeq → updateHugeInfo
+                val →
+                    const . failWithPhase Parsing $
+                        "getFastaCharInfo: Failure proceesing the CharType: '" <> show val <> "'"
+
+        notNullFromTCM f = not . null $ f localTCM
+        noNeedToEmitWarning = notNullFromTCM fst3 || notNullFromTCM snd3
+
+        logProcessingOfCharInfo ∷ PhyG ()
+        logProcessingOfCharInfo
+            | noNeedToEmitWarning = logWith LogInfo $ fold ["Processing TCM data for file : ", dataName, "\n"]
+            | otherwise =
                 logWith LogWarn $
                     fold
                         [ "Warning: no tcm file specified for use with fasta/c file : "
                         , dataName
                         , ". Using default, all 1 diagonal 0 cost matrix."
+                        , "\n"
+                        ]
+{-
                         ]
             _ → logWith LogInfo $ "Processing TCM data for file : " <> dataName
     in  do
@@ -212,21 +321,28 @@ commonFastCharInfo dataName isPrealigned localTCM@(_localSymbols, _localValues, 
                     , prealigned = isPrealigned
                     , origInfo = V.singleton (T.pack (filter (/= ' ') dataName <> "#0"), alignedSeqType, thisAlphabet)
                     }
+-}
+    in  do
+            logProcessingOfCharInfo
+            emptyCharInfo >>= updateCharacterTypeInfo . updateStandardInfo
 
 
 {-
+
 {- |
 'getTCMMemo' creates the memoized tcm for large alphabet sequences.
 -}
 getTCMMemo
     ∷ ( FiniteBits b
       , Hashable b
-      , NFData b
       , Integral i
+      , MonadIO m
+      , NFData b
       )
     ⇒ (a, S.Matrix i)
-    → (Rational, MR.MetricRepresentation b)
+    → m (Rational, MR.MetricRepresentation b)
 getTCMMemo (_inAlphabet, inMatrix) =
+{-
     let (coefficient, tcm) = fmap transformGapLastToGapFirst . TM.fromRows $ S.getFullVects inMatrix
         metric = case tcmStructure $ TM.diagnoseTcm tcm of
                    NonAdditive -> TM.discreteMetric
@@ -234,6 +350,18 @@ getTCMMemo (_inAlphabet, inMatrix) =
                    _           -> metricRepresentation tcm
     in (coefficient, metric)
 -}
+--    let (coefficient, tcm) = force . TCM.fromRows $ S.getFullVects inMatrix
+    let (coefficient, tcm) = fmap transformGapLastToGapFirst . TM.fromRows $ S.getFullVects inMatrix
+    in  do
+            metric ← case tcmStructure $ TM.diagnoseTcm tcm of
+                Special spec → case spec of
+                    DiscreteMetric dim → pure $ discreteMetric dim
+                    L1Norm dim → pure $ linearNorm dim -- . toEnum $ TCM.size tcm
+                _ → {-# SCC "tcmStructure_OTHER" #-} metricRepresentation tcm
+            pure (coefficient, metric)
+
+-}
+
 
 {- |
 'getSequenceAphabet' take a list of ShortText with information and accumulatiors
@@ -469,25 +597,17 @@ recodeFASTCAmbiguities fileName inData =
 single Short Tex for later processing
 -}
 concatAmbig ∷ String → [ST.ShortText] → [ST.ShortText]
-concatAmbig fileName inList =
-    if null inList
-        then []
-        else
-            let firstGroup = ST.toString $ head inList
-            in  -- not ambiguity group
-                -- trace (firstGroup <> show inList) (
-                if null firstGroup
-                    then concatAmbig fileName (tail inList)
-                    else
-                        if head firstGroup /= '['
-                            then head inList : concatAmbig fileName (tail inList)
-                            else
-                                let ambiguityGroup = head inList : getRestAmbiguityGroup fileName (tail inList)
-                                in  -- trace (show ambiguityGroup)
-                                    ST.concat ambiguityGroup : concatAmbig fileName (drop (length ambiguityGroup) inList)
+concatAmbig fileName = \case
+    [] -> []
+    x:xs -> 
+        let firstGroup = ST.toString x
+        in  case firstGroup of
+                [] -> concatAmbig fileName xs
+                y:_ | y /= '[' -> x : concatAmbig fileName xs
+                _ -> 
+                    let ambiguityGroup = x : getRestAmbiguityGroup fileName xs
+                    in  ST.concat ambiguityGroup : concatAmbig fileName (drop (length ambiguityGroup) $ x : xs)
 
-
--- )
 
 -- | getRestAmbiguityGroup takes a list of ShorText and keeps added them until one is found with ']'
 getRestAmbiguityGroup ∷ String → [ST.ShortText] → [ST.ShortText]
@@ -569,25 +689,25 @@ transformGapLastToGapFirst tcm =
 -}
 
 buildTransitionMatrix
-    ∷ (FiniteBits e, Hashable e, NFData e) ⇒ SymbolCount → ([ST.ShortText], [[Int]], Double) → (Rational, TM.TransitionMatrix e)
+    ∷ (FiniteBits e, Hashable e, NFData e) ⇒ SymbolCount → ([ST.ShortText], [[Int]], Double) → PhyG (Rational, TM.TransitionMatrix e)
 buildTransitionMatrix numSymbols (localSymbols, localValues, _) = case localSymbols of
     [] →
         {-# SCC buildTransitionMatrix_NULL #-}
         case localValues of
-            [] → (1, TM.discreteMetric numSymbols)
+            [] → pure (1, TM.discreteMetric numSymbols)
             r : _ → case r of
-                [] → (1, TM.discreteMetric numSymbols)
+                [] → pure (1, TM.discreteMetric numSymbols)
                 v : vs →
                     let gapCost = toEnum v
                         subCost = toEnum . NE.head $ v :| vs
-                    in  (1, TM.discreteCrossGap numSymbols subCost gapCost)
+                    in  pure (1, TM.discreteCrossGap numSymbols subCost gapCost)
     _ →
         {-# SCC buildTransitionMatrix_CONS #-}
         case localValues of
-            [] → {-# SCC buildTransitionMatrix_CONS_NULL #-} (1, TM.discreteMetric numSymbols)
+            [] → {-# SCC buildTransitionMatrix_CONS_NULL #-} pure (1, TM.discreteMetric numSymbols)
             r : rs →
                 {-# SCC buildTransitionMatrix_CONS_CONS #-}
                 let fullValues = fmap NE.fromList $ r :| rs
                 in  case TM.fromRows $ swapFirstRowAndColumn fullValues of
-                        Left msg → error $ show msg
-                        Right val → (TM.factoredCoefficient val, TM.transitionMatrix val)
+                        Left msg → failWithPhase Parsing $ show msg
+                        Right val → pure (TM.factoredCoefficient val, TM.transitionMatrix val)

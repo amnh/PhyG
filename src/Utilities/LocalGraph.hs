@@ -1,71 +1,45 @@
 {- |
-Module      :  Utilities.LocalGraph.hs
-Description :  Module specifying graph types and functionality
-                This is for indirection so can change underlying graph library
-                without  polutting the rest of the code
-Copyright   :  (c) 2021 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module specifying graph types and functionality.
+This is for indirection so can change underlying graph library without polutting the rest of the code.
 -}
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Utilities.LocalGraph  where
 
-import qualified Data.Graph.Inductive.Basic          as B
-import qualified Data.Graph.Inductive.PatriciaTree   as P
-import qualified Data.Graph.Inductive.Query.ArtPoint as AP
-import qualified Data.Graph.Inductive.Query.BCC      as BCC
-import qualified Data.Graph.Inductive.Query.BFS      as BFS
-import qualified Data.Graph.Inductive.Query.DFS      as DFS
-import qualified GraphFormatUtilities                as GFU
---import qualified Data.Text as T
-import           Data.GraphViz                       as GV
-import qualified Data.Text.Lazy                      as T
---import           Data.GraphViz.Attributes.Complete (Attribute (Label),
-                                                    --Label (..))
-import           Control.Parallel.Strategies
-import qualified Cyclic                              as C
-import qualified Data.Graph.Inductive.Graph          as G
-import           Data.GraphViz.Commands.IO           as GVIO
-import qualified Data.List                           as L
-import qualified Data.Map                            as MAP
-import           Data.Maybe
-import qualified Data.Vector                         as V
-import           GeneralUtilities
-import qualified ParallelUtilities                   as PU
-import           System.IO
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
+import Control.Parallel.Strategies
+import Cyclic qualified as C
+import Data.Graph.Inductive.Basic qualified as B
+import Data.Graph.Inductive.Graph qualified as G
+import Data.Graph.Inductive.PatriciaTree qualified as P
+import Data.Graph.Inductive.Query.ArtPoint qualified as AP
+import Data.Graph.Inductive.Query.BCC qualified as BCC
+import Data.Graph.Inductive.Query.BFS qualified as BFS
+import Data.Graph.Inductive.Query.DFS qualified as DFS
+import Data.GraphViz as GV
+import Data.GraphViz.Commands.IO as GVIO
+import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty qualified as NE
+import Data.Map qualified as MAP
+import Data.Maybe
+import Data.Text.Lazy qualified as T
+import Data.Vector qualified as V
+import GeneralUtilities
+import GraphFormatUtilities qualified as GFU
+import PHANE.Evaluation
+import PHANE.Evaluation.ErrorPhase (ErrorPhase(Computing))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
+import System.IO
+--import ParallelUtilities qualified as PU
 --import           Debug.Trace
 
-
+{- | to avoid circular dependency with Types.hs
+Core monad transformer stack for evaluating computations within the application PhyG.
+-}
+type PhyG = Evaluation ()
 
 -- | Gr local graph definition using FGL
 type Gr a b = P.Gr a b
@@ -427,23 +401,25 @@ labParents inGraph inNode =
 
 -- | isPhylogeneticGraph checks various issues to see if
 -- there is wierdness in graph
-isPhylogeneticGraph :: (Show a, Eq a, NFData a, Show b, Eq b) => Gr a b -> Bool
+isPhylogeneticGraph :: (Show a, Eq a, NFData a, Show b, Eq b) => Gr a b -> PhyG Bool
 isPhylogeneticGraph inGraph =
-    if isEmpty inGraph then False
+    if isEmpty inGraph then pure False
     else
         let nodeList = fmap fst $ labNodes inGraph
             indegreeList = fmap (inn inGraph) nodeList
             outdegreeList = fmap (out inGraph) nodeList
         in
-        if hasDuplicateEdgesNub inGraph then False
-        else if length (getRoots inGraph) /= 1 then False
-        else if outdeg inGraph (head $ getRoots inGraph) /= 2 then False
-        else if (not . null) (getIsolatedNodes inGraph) then False
-        else if (not . null) (filter ((> 2) . length) indegreeList) then False
-        else if (not . null) (filter ((> 2) . length) outdegreeList) then False
-        else if parentsInChain inGraph then False
-        else if not (isGraphTimeConsistent inGraph) then False
-        else True
+        if hasDuplicateEdgesNub inGraph then pure False
+        else if length (getRoots inGraph) /= 1 then pure False
+        else if outdeg inGraph (head $ getRoots inGraph) /= 2 then pure False
+        else if (not . null) (getIsolatedNodes inGraph) then pure False
+        else if (not . null) (filter ((> 2) . length) indegreeList) then pure False
+        else if (not . null) (filter ((> 2) . length) outdegreeList) then pure False
+        else if parentsInChain inGraph then pure False
+        else do
+            consistent <- isGraphTimeConsistent inGraph
+            if not consistent then pure False
+            else pure True
 
 -- | removeParentsInChain checks the parents of each netowrk node are not anc/desc of each other
 parentsInChain :: (Eq a, Eq b,Show a) => Gr a b -> Bool
@@ -1295,27 +1271,40 @@ getCoevalConstraintEdges inGraph inNode =
 
 
 -- | getGraphCoevalConstraints takes a graph and returns coeval constraints based on network nodes
-getGraphCoevalConstraints :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> [([LEdge b],[LEdge b])]
+getGraphCoevalConstraints :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> PhyG [([LEdge b],[LEdge b])]
 getGraphCoevalConstraints inGraph =
    if isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
    else
        let (_, _, _, networkNodeList) = splitVertexList inGraph
        in
-       if null networkNodeList then []
-       else PU.seqParMap PU.myStrategy  (getCoevalConstraintEdges inGraph) networkNodeList -- `using`  PU.myParListChunkRDS
+       if null networkNodeList then pure []
+       else 
+        let --coevalAction ∷ (Eq a, Eq b, Show a) => LNode a -> ([LEdge b],[LEdge b])
+            coevalAction = getCoevalConstraintEdges inGraph
+        in do
+            pTraverse ← getParallelChunkMap
+            let coevalResult = pTraverse coevalAction networkNodeList
+            pure coevalResult
+            -- PU.seqParMap PU.myStrategy  (getCoevalConstraintEdges inGraph) networkNodeList -- `using`  PU.myParListChunkRDS
 
 -- | getGraphCoevalConstraintsNodes takes a graph and returns coeval constraints based on network nodes
 -- and nodes as a triple
-getGraphCoevalConstraintsNodes :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> [(LNode a, [LEdge b],[LEdge b])]
+getGraphCoevalConstraintsNodes :: (Eq a, Eq b, Show a, NFData b) => Gr a b -> PhyG [(LNode a, [LEdge b],[LEdge b])]
 getGraphCoevalConstraintsNodes inGraph =
    if isEmpty inGraph then error "Empty input graph in getGraphCoevalConstraints"
    else
        let (_, _, _, networkNodeList) = splitVertexList inGraph
        in
-       if null networkNodeList then []
+       if null networkNodeList then pure []
        else
-            let (edgeBeforeList, edgeAfterList) = unzip (PU.seqParMap PU.myStrategy   (getCoevalConstraintEdges inGraph) networkNodeList) --  `using`  PU.myParListChunkRDS)
-            in zip3 networkNodeList edgeBeforeList edgeAfterList
+            let --coevalAction ∷ (Eq a, Eq b, Show a) => LNode a -> ([LEdge b],[LEdge b])
+                coevalAction = getCoevalConstraintEdges inGraph
+            in do
+                pTraverse ← getParallelChunkMap
+                let coevalResult = pTraverse coevalAction networkNodeList
+                let (edgeBeforeList, edgeAfterList) = unzip coevalResult
+                -- let (edgeBeforeList, edgeAfterList) = unzip (PU.seqParMap PU.myStrategy   (getCoevalConstraintEdges inGraph) networkNodeList) --  `using`  PU.myParListChunkRDS)
+                pure $ zip3 networkNodeList edgeBeforeList edgeAfterList
 
 -- | meetsAllCoevalConstraintsNodes checks constraint pair list and examines
 -- whether one edge is from before and one after--if so fails False
@@ -1374,18 +1363,23 @@ notMatchEdgeIndices unlabeledEdegList labelledEdge =
     else True
 
 -- | isGraphTimeConsistent retuns False if graph fails time consistency
-isGraphTimeConsistent ::  (Show a,Eq a,Eq b, NFData a) => Gr a b -> Bool
+isGraphTimeConsistent ::  (Show a,Eq a,Eq b, NFData a) => Gr a b -> PhyG Bool
 isGraphTimeConsistent inGraph =
-  if isEmpty inGraph then True
+  if isEmpty inGraph then pure True
   else
-    if isTree inGraph then True
+    if isTree inGraph then pure True
     else
       let coevalNodeConstraintList = coevalNodePairs inGraph
-          coevalNodeConstraintList' = PU.seqParMap PU.myStrategy  (addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
-          coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
-          timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
-      in
-      null timeOffendingEdgeList
+          -- addAction :: (LNode a, LNode a) -> (LNode a, LNode a, [LNode a], [LNode a], [LNode a], [LNode a])
+          addAction = addBeforeAfterToPair inGraph
+      in do
+            pMap <- getParallelChunkMap
+            let coevalNodeConstraintList' = pMap addAction coevalNodeConstraintList
+            --coevalNodeConstraintList' = PU.seqParMap PU.myStrategy  (addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
+            let coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
+            let timeOffendingEdgeList = getEdgesToRemoveForTime inGraph coevalPairsToCompareList
+      
+            pure $ null timeOffendingEdgeList
 
 -- | addBeforeAfterToPair adds before and after node list to pari of nodes for later use
 -- in time contraint edge removal
@@ -1893,49 +1887,45 @@ getToFlipEdges parentNodeIndex inEdgeList =
 
 -- | Random generates display trees up to input number by choosing
 -- to keep indegree nodes > 1 unifomaly at random
-generateDisplayTreesRandom :: (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Int -> Gr a b -> [Gr a b]
-generateDisplayTreesRandom rSeed numDisplayTrees inGraph =
-  if isEmpty inGraph then error "Empty graph in generateDisplayTreesRandom"
-  else if isTree inGraph then [inGraph]
-  else
-    let atRandomList = take numDisplayTrees $ randomIntList rSeed
-        randDisplayTreeList = PU.seqParMap PU.myStrategy  (randomlyResolveGraphToTree inGraph) atRandomList -- `using` PU.myParListChunkRDS
-    in
-    randDisplayTreeList
+generateDisplayTreesRandom :: forall a b . (Show a, Show b, Eq a, Eq b, NFData a, NFData b) => Int -> Gr a b -> PhyG [Gr a b]
+generateDisplayTreesRandom numDisplayTrees inGraph
+    | isEmpty inGraph = failWithPhase Computing "Empty graph in generateDisplayTreesRandom"
+    | isTree inGraph  = pure [inGraph]
+    | otherwise =
+        let clonedGraphs :: [Gr a b]
+            clonedGraphs = replicate numDisplayTrees inGraph
+        in  getParallelChunkTraverse >>= \pTraverse -> 
+                randomlyResolveGraphToTree `pTraverse` clonedGraphs
 
--- | randomlyResolveGraphToTree resolves a single graph to a tree by choosing single indegree edges
--- uniformly at random and deleting all others from graph
--- in=out=1 nodes are contracted, HTU's withn outdegree 0 removed, graph reindexed
--- but not renamed--edges from root are left alone.
-randomlyResolveGraphToTree :: (Show a, Show b, Eq a, Eq b) => Gr a b -> Int -> Gr a b
-randomlyResolveGraphToTree inGraph randVal =
-  if isEmpty inGraph then error "Empty graph in randomlyResolveGraphToTree"
-  else
-    let (_, leafList, _, _) = splitVertexList inGraph
-        -- rootEdgeList = fmap (out inGraph) $ fmap fst rootList
-        inEdgeListByVertex = (fmap (inn inGraph) (nodes inGraph)) -- L.\\ rootEdgeList
-        randList = fmap abs $ randomIntList randVal
-        edgesToDelete = concat $ zipWith  chooseOneDumpRest randList  (fmap (fmap toEdge) inEdgeListByVertex)
-        newTree = delEdges edgesToDelete inGraph
-        newTree' = removeNonLeafOut0Nodes leafList newTree
-        newTree'' = contractIn1Out1Edges newTree'
-        reindexTree = reindexGraph newTree''
-    in
-    -- trace ("RRGT\n" <> (prettify inGraph) <> "\n to delete " <> (show edgesToDelete) <> "\nNew graph:\n" <> (prettify newTree)
-    --   <> "\nnewTree'\n" <> (prettify newTree') <> "\nnewTree''\n" <> (prettify newTree'') <> "\reindex\n" <> (prettify reindexTree))
-    reindexTree
+
+{- |
+Resolves a single graph to a tree by choosing single indegree edges
+uniformly at random and deleting all others from graph
+in=out=1 nodes are contracted, HTU's withn outdegree 0 removed, graph reindexed
+but not renamed--edges from root are left alone.
+-}
+randomlyResolveGraphToTree :: (Show a, Show b, Eq a, Eq b) => Gr a b -> PhyG (Gr a b)
+randomlyResolveGraphToTree inGraph
+    | isEmpty inGraph = pure inGraph
+    | otherwise =
+        let (_, leafList, _, _) = splitVertexList inGraph
+            inEdgeListByVertex = inn inGraph <$> nodes inGraph
+        in  do  edgesToDelete <- fmap concat . traverse chooseOneDumpRest $ fmap toEdge <$> inEdgeListByVertex
+                let newTree = delEdges edgesToDelete inGraph
+                let newTree' = removeNonLeafOut0Nodes leafList newTree
+                let newTree'' = contractIn1Out1Edges newTree'
+                let reindexTree = reindexGraph newTree''
+                -- trace ("RRGT\n" <> (prettify inGraph) <> "\n to delete " <> (show edgesToDelete) <> "\nNew graph:\n" <> (prettify newTree)
+                --   <> "\nnewTree'\n" <> (prettify newTree') <> "\nnewTree''\n" <> (prettify newTree'') <> "\reindex\n" <> (prettify reindexTree))
+                pure reindexTree
+
 
 -- | chooseOneDumpRest takes random val and chooses to keep the edge in list returning list of edges to delete
-chooseOneDumpRest :: Int -> [Edge] -> [Edge]
-chooseOneDumpRest randVal inEdgeList =
-  if null inEdgeList then []
-  else if length inEdgeList == 1 then []
-  else
-    let numEdgesIn = length inEdgeList
-        (_, indexToKeep) = divMod randVal numEdgesIn
-    in
-    -- trace ("CODR: " <> (show inEdgeList) <> " keeping " <> (show $ inEdgeList !! indexToKeep) <> " deleting " <> (show $ inEdgeList L.\\ [inEdgeList !! indexToKeep]) <> "based on " <> (show (randVal, indexToKeep)))
-    inEdgeList L.\\ [inEdgeList !! indexToKeep]
+chooseOneDumpRest :: [Edge] -> PhyG [Edge]
+chooseOneDumpRest = \case
+    [] -> pure []
+    x:[] -> pure []
+    x:xs -> fmap NE.tail . shuffleList $ x :| xs 
 
 
 -- | generateDisplayTrees nice wrapper around generateDisplayTrees' with clean interface

@@ -8,7 +8,11 @@ module Search.SwapMaster (
 import Commands.Verify qualified as VER
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Char
+import Data.Bifunctor (first)
+import Data.Foldable (fold)
+import Data.Functor ((<&>))
 import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
@@ -29,10 +33,10 @@ swapMaster
     ∷ [Argument]
     → GlobalSettings
     → ProcessedData
-    → Int
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-swapMaster inArgs inGS inData rSeed inGraphListInput =
+swapMaster inArgs inGS inData inGraphListInput =
+    {-# SCC swapMaster_TOP_DEF #-}
     if null inGraphListInput
         then do
             logWith LogInfo "No graphs to swap\n"
@@ -99,8 +103,6 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                     | any ((== "inOrder") . fst) lcArgList = False
                     | otherwise = True
 
-                randomIntListSwap = randomIntList rSeed
-
                 -- populate SwapParams structure
                 localSwapParams =
                     SwapParams
@@ -127,14 +129,14 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                 numGraphs = length inGraphList
 
                 -- parallel setup
-                action ∷ [([Int], Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
-                action = S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
+                action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
+                action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
             in  do
                     simAnnealParams ←
-                        getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed
+                        getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
                     -- create simulated annealing random lists uniquely for each fmap
-                    let newSimAnnealParamList = U.generateUniqueRandList numGraphs simAnnealParams
+                    let newSimAnnealParamList = replicate numGraphs simAnnealParams
 
                     let progressString
                             | (not doAnnealing && not doDrift) =
@@ -178,21 +180,18 @@ swapMaster inArgs inGS inData rSeed inGraphListInput =
                                     <> "\n"
 
                     logWith LogInfo progressString
-                    -- TODO
-                    -- let graphPairList = PU.seqParMap (parStrategy $ strictParStrat inGS) (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) ((:[]) <$> zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList)
 
-                    let simAnnealList = (fmap (: []) (zip3 (U.generateRandIntLists (head randomIntListSwap) numGraphs) newSimAnnealParamList inGraphList))
-                    swapPar ← getParallelChunkTraverse
-                    graphPairList ← swapPar action simAnnealList
-                    -- mapM (S.swapSPRTBR localSwapParams inGS inData 0 inGraphList) simAnnealList
+                    let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList
+                    graphPairList ← getParallelChunkTraverse >>= \pTraverse ->
+                        action `pTraverse` simAnnealList
 
-                    let (graphListList, counterList) = unzip graphPairList
-                    let (newGraphList, counter) = (GO.selectGraphs Best (fromJust keepNum) 0.0 (-1) $ concat graphListList, sum counterList)
+                    let (graphListList, counterList) = first fold $ unzip graphPairList
+                    (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x -> (x, sum counterList)
 
-                    let finalGraphList =
-                            if null newGraphList
-                                then inGraphList
-                                else newGraphList
+
+                    let finalGraphList = case newGraphList of
+                            [] -> inGraphList
+                            _ -> newGraphList
 
                     let fullBuffWarning =
                             if length newGraphList >= (fromJust keepNum)
@@ -245,46 +244,42 @@ getSimAnnealParams
     → Maybe Double
     → Maybe Double
     → Maybe Int
-    → Int
     → PhyG (Maybe SAParams)
-getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges rSeed =
-    if not doAnnealing && not doDrift
-        then return Nothing
-        else
+getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
+   | not doAnnealing && not doDrift = pure Nothing
+   | otherwise =
             let steps = max 3 (fromJust steps')
-                annealingRounds
-                    | isNothing annealingRounds' = 1
-                    | fromJust annealingRounds' < 1 = 1
-                    | otherwise = fromJust annealingRounds'
 
-                driftRounds
-                    | isNothing driftRounds' = 1
-                    | fromJust driftRounds' < 1 = 1
-                    | otherwise = fromJust driftRounds'
+                annealingRounds = case annealingRounds' of
+                    Just v | 1 <= v -> v
+                    _ -> 1
+
+                driftRounds = case driftRounds' of
+                    Just v | 1 <= v -> v
+                    _ -> 1
 
                 saMethod
                     | doDrift && doAnnealing = Drift
                     | doDrift = Drift
                     | otherwise = SimAnneal
 
-                equalProb
-                    | fromJust acceptEqualProb < 0.0 = 0.0
-                    | fromJust acceptEqualProb > 1.0 = 1.0
-                    | otherwise = fromJust acceptEqualProb
+                equalProb = case acceptEqualProb of
+                    Nothing -> 0
+                    Just v | v > 1 -> 1
+                    Just v | v < 0 -> 0
+                    Just v -> v
 
                 worseFactor = max (fromJust acceptWorseFactor) 0.0
 
-                changes =
-                    if fromJust maxChanges < 0
-                        then 15
-                        else fromJust maxChanges
+                changes = case maxChanges of
+                    Just num | num >= 0 -> num
+                    _ -> 15
 
-                saValues =
-                    SAParams
+                getResult =
+                    Just $ SAParams
                         { method = saMethod
                         , numberSteps = steps
                         , currentStep = 0
-                        , randomIntegerList = randomIntList rSeed
                         , rounds = max annealingRounds driftRounds
                         , driftAcceptEqual = equalProb
                         , driftAcceptWorse = worseFactor
@@ -296,8 +291,7 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                         logWith
                             LogWarn
                             "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
-
-                    pure $ Just saValues
+                    pure $ getResult
 
 
 -- | getSwapParams takes areg list and preocesses returning parameter values

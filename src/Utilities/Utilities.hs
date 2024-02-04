@@ -1,76 +1,60 @@
 {- |
-Module      :  Utilities.hs
-Description :  Module specifying utility functions for use with PhyGraph
-Copyright   :  (c) 2021-2022 Ward C. Wheeler, Division of Invertebrate Zoology, AMNH. All rights reserved.
-License     :
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-
-Maintainer  :  Ward Wheeler <wheeler@amnh.org>
-Stability   :  unstable
-Portability :  portable (I hope)
-
+Module specifying utility functions for use with PhyGraph
 -}
 
 module Utilities.Utilities  where
 
 import PHANE.Evaluation
 import PHANE.Evaluation.Verbosity (Verbosity (..))
+import Complexity.Graphs qualified as GC
+import Complexity.Utilities qualified as GCU
+import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Alphabet
 import Data.Alphabet.IUPAC
 import Data.Alphabet.Special
 import Data.BitVector.LittleEndian qualified as BV
-import Data.List  qualified                 as L
-import Data.List.NonEmpty   qualified       as NE
-import Data.List.Split  qualified           as SL
+import Data.Functor ((<&>))
+import Data.List qualified as L
+import Data.List.NonEmpty qualified as NE
+import Data.List.Split qualified as SL
 import Data.Maybe
-import  Data.Vector   qualified              as V
+import  Data.Vector qualified as V
 -- import Data.Alphabet.Special
-import Data.Bimap    qualified              as BM
+import Data.Bimap qualified as BM
 import Data.Bits
 import Data.Foldable
-import Data.InfList   qualified             as IL
+import Data.InfList qualified as IL
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.List.NonEmpty qualified as NE
-import Data.Set        qualified            as SET
-import Data.Text.Lazy  qualified            as T
-import Data.Text.Short    qualified         as ST
-import Data.Vector.Storable  qualified      as SV
-import Data.Vector.Unboxed   qualified      as UV
+import Data.Set qualified as SET
+import Data.Text.Lazy qualified as T
+import Data.Text.Short qualified as ST
+import Data.Vector.Storable qualified as SV
+import Data.Vector.Unboxed qualified as UV
 import GeneralUtilities
-import GeneralUtilities  qualified          as GU
-import SymMatrix     qualified              as S
+import GeneralUtilities qualified as GU
+import SymMatrix qualified as S
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import Types.Types
-import Utilities.LocalGraph  qualified      as LG
+import Utilities.LocalGraph qualified as LG
 
---import Control.Parallel.Strategies
----import ParallelUtilities qualified as P
---import Debug.Trace
+import Debug.Trace
 
+
+-- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI 
+-- and whether the required median is a distance (ie single edge)
+-- or two edge median (as in creating a vertex for post order traversal)
+-- and returns a boolean is adjustment is required.
+-- this to add in the extra "noChange" costs when required
+needTwoEdgeNoCostAdjust :: GlobalSettings -> Bool -> Bool
+needTwoEdgeNoCostAdjust inGS isTwoEdgeMedian = 
+    if not isTwoEdgeMedian then False
+    else if optimalityCriterion inGS `notElem` [SI, PMDL, MAPA] then False
+    else True
+
+ 
 -- | collapseGraph collapses zero-length edges in 3rd field of a phylogenetic graph
 -- does not affect display trees or character graphs
 -- fst6 and thd6 (both) are modified since this is used for output
@@ -82,7 +66,7 @@ import Utilities.LocalGraph  qualified      as LG
 -- done recusively until no minLength == zero edges so edges renumbered properly
 -- network edges, pendant edges and root edges, are not collapsed
 -- this wierd thype is to allow for polymorphism in graph type--basically a general phylogenetic graph
-collapseGraph :: GenPhyloGraph a b 
+collapseGraph :: GenPhyloGraph a b
                  -> GenPhyloGraph a b
 collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
     if LG.isEmpty inSimple then inPhylograph
@@ -125,27 +109,31 @@ collapseGraph inPhylograph@(inSimple, inC, inDecorated, inD, inE, inF) =
 
 -- | collapseReducedGraph is a wrpper to collapseGraph
 collapseReducedGraph :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
-collapseReducedGraph (inSimple, inC, inDecorated, inD, inF) = 
+collapseReducedGraph (inSimple, inC, inDecorated, inD, inF) =
     let (newSimpleGraph, _, newDecGraph, _, _, _) = collapseGraph (inSimple, inC, inDecorated, mempty, mempty, inF)
     in
     (newSimpleGraph, inC, newDecGraph, inD, inF)
 
--- | calculateGraphComplexity returns an infiniat list of graph complexities indexed by
--- number of network nodes-assumes for now--single component gaph not forest
+-- | calculateGraphComplexity returns an infinite list of graph complexities indexed by
+-- number of network nodes-assumes for now--single component graph not forest
 -- first in pair is softwired complexity, second hardwired complexity
+-- could coppy to vector for say 100 or so and offset infinite list after
+-- to reduce lisyt access facvtor
 calculateGraphComplexity :: ProcessedData -> IL.InfList (VertexCost, VertexCost)
-calculateGraphComplexity (nameVect, _, _) =
+calculateGraphComplexity (nameVect, _, blockDatVect) =
     let numNetNodesList = IL.fromList [(0 :: Int)..]
         numRoots = 1
-        graphComplexity = IL.map (getGraphComplexity (V.length nameVect) numRoots) numNetNodesList
+        numBlocks = V.length blockDatVect
+        graphComplexity = IL.map (getGraphComplexity (V.length nameVect) numRoots numBlocks) numNetNodesList
     in
     graphComplexity
 
--- | getGraphComplexity takes the number of leaves and number of
--- network nodes and calculates the graph complexity
+-- | old version with direct bit calcualtions
+-- | getGraphComplexity' takes the number of leaves and number of
+-- network nodes and calculates the graph complexity in bits
 -- tree num edges (2n-2) n leaves * 2 nodes for each edge * (log 2n -1 vertices-- min specify)
-getGraphComplexity :: Int -> Int -> Int -> (VertexCost, VertexCost)
-getGraphComplexity numLeaves numRoots numNetNodes =
+getGraphComplexity' :: Int -> Int -> Int -> (VertexCost, VertexCost)
+getGraphComplexity' numLeaves numRoots numNetNodes =
     -- place holder for now
     let nodeComplexity = logBase 2.0 (fromIntegral $ (2 * numLeaves) - 1 + numNetNodes) -- bits to specify each vertex
         treeEdges = (2 * numLeaves) - 2
@@ -158,7 +146,34 @@ getGraphComplexity numLeaves numRoots numNetNodes =
     -- maybe softwired is numDisplatTrees * harWired since have those edges in input
     (baseTreeComplexity * numDisplayTrees, hardwiredAddComplexity)
 
--- | calculateNCMRootCost calcuates the contant fact of SUM -log 1/r over all charctaers
+
+-- | getGraphComplexity takes the number of leaves and number of
+-- network nodes and calculates the algorithmic graph complexity in bits
+getGraphComplexity :: Int -> Int -> Int -> Int -> (VertexCost, VertexCost)
+getGraphComplexity numLeaves numRoots numBlocks numNetNodes =
+    -- place holder for now
+    let graphProgram = GC.makeProgramStringGraph numLeaves 0 numRoots numNetNodes
+        (_, _, _, gzipGraph) = GCU.getInformationContent graphProgram
+
+        graphDisplayProgram = GC.makeDisplayGraphString numLeaves 0 numRoots numNetNodes
+        (_, _, _, gzipDisplay) = GCU.getInformationContent graphDisplayProgram
+
+        displayTreeSwitchingComplexity = fromIntegral numNetNodes
+        marginalDisplayComplexity = gzipDisplay - gzipGraph -- graphDisplayShannonBits - graphShannonBits
+
+        -- cost of swithing (speciying) 1 bit per netNode then minimum of blocks as duspolay tree number since only have a few block usually
+        softWiredFactor = displayTreeSwitchingComplexity + ((min (2 ** fromIntegral numNetNodes) (fromIntegral numBlocks)) * marginalDisplayComplexity)
+    in
+
+    (gzipGraph + softWiredFactor, gzipGraph)
+
+
+-- | calculateMAPARootCost-- for  now used NCM--but better to reflect empirical Pi (frequency) values
+-- won't affect the search choice since a constant factor
+calculateMAPARootCost :: ProcessedData -> VertexCost
+calculateMAPARootCost  = calculateNCMRootCost
+
+-- | calculateNCMRootCost calcuates the contant fact of SUM -log 10 1/r over all characters
 -- approximate for packed data (based on alphabet size for packed)
 calculateNCMRootCost :: ProcessedData -> VertexCost
 calculateNCMRootCost (_, _, blockDataV) =
@@ -180,18 +195,21 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
             weightList = fmap weight (V.toList charInfoV)
             rootCostList = zipWith (*) weightList (fmap fromIntegral maxCharLengthList)
         in
-        -- trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
+        --trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
         sum rootCostList
 
--- | calculateW15RootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
+
+-- | calculatePMDLRootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
 -- leaf taxa
 -- this for a single root
-calculateW15RootCost :: ProcessedData -> VertexCost
-calculateW15RootCost (nameVect, _, blockDataV) =
+calculatePMDLRootCost :: ProcessedData -> VertexCost
+calculatePMDLRootCost (nameVect, _, blockDataV) =
     let numLeaves = V.length nameVect
         insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
     in
+    --trace ("InCPMDLRC") $ 
     insertDataCost /  fromIntegral numLeaves
+
 
 -- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block
 -- this most easily done before bit packing since won't vary anyway.
@@ -207,23 +225,37 @@ getLeafInsertCost charInfoV charDataV =
     V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
 
 -- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
+-- for PMDL of add, non add matrix log2 of alphabet size 
 getCharacterInsertCost :: CharacterData -> CharInfo -> Double
 getCharacterInsertCost inChar charInfo =
+    --trace ("In GCIC: " <> (show $ charType charInfo) <> " " <> (show $ weight charInfo) <> " " <> (show $ logBase 2.0 $ (fromIntegral $ length (alphabet charInfo) :: Double)) <> " " <> (show $  (alphabet charInfo)) <> " " <> (show $ BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar))) $
     let localCharType = charType charInfo
         thisWeight = weight charInfo
-        inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
+        -- init since don't wan't gap-gap match cost in there
+        rowIndelSum = fromIntegral $ V.sum $ V.init $ S.getFullRowVect (costMatrix charInfo) (length (alphabet charInfo) - 1)
+        -- inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
+        inDelCost = rowIndelSum / (fromIntegral $ length (alphabet charInfo) - 1)
+        numStates = if localCharType == NonAdd then BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar)
+                    else if localCharType == Add then 
+                        let (a,b) = V.head $ GU.snd3 $ rangePrelim inChar
+                        in
+                        toEnum (b - a) 
+                    else if localCharType == Matrix then  toEnum $ V.length $ V.head $ matrixStatesPrelim inChar
+                    else 0 :: Word
+        alphabetWeight = logBase 2.0 $ (fromIntegral $ numStates :: Double)
+
     in
-    if localCharType == Add then thisWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
-    else if localCharType == NonAdd then thisWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+    if localCharType == Add then thisWeight * alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+    else if localCharType == NonAdd then thisWeight * alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
     -- this wrong--need to count actual characters packed2/32, packed4/32
     else if localCharType `elem` packedNonAddTypes then thisWeight * fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
-    else if localCharType == Matrix then thisWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
-    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * fromIntegral inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
-    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * fromIntegral inDelCost * fromIntegral (UV.length $ widePrelim inChar)
-    else if localCharType == HugeSeq then thisWeight * fromIntegral inDelCost * fromIntegral (V.length $ hugePrelim inChar)
-    else if localCharType == AlignedSlim then thisWeight * fromIntegral inDelCost * fromIntegral (SV.length $ snd3 $ alignedSlimPrelim inChar)
-    else if localCharType == AlignedWide then thisWeight * fromIntegral inDelCost * fromIntegral (UV.length $ snd3 $ alignedWidePrelim inChar)
-    else if localCharType == AlignedHuge then thisWeight * fromIntegral inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
+    else if localCharType == Matrix then thisWeight * alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+    else if localCharType == SlimSeq || localCharType == NucSeq then thisWeight * inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
+    else if localCharType == WideSeq || localCharType ==  AminoSeq then thisWeight * inDelCost * fromIntegral (UV.length $ widePrelim inChar)
+    else if localCharType == HugeSeq then thisWeight * inDelCost * fromIntegral (V.length $ hugePrelim inChar)
+    else if localCharType == AlignedSlim then thisWeight * inDelCost * fromIntegral (SV.length $ snd3 $ alignedSlimPrelim inChar)
+    else if localCharType == AlignedWide then thisWeight * inDelCost * fromIntegral (UV.length $ snd3 $ alignedWidePrelim inChar)
+    else if localCharType == AlignedHuge then thisWeight * inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
     else error ("Character type unimplemented : " <> show localCharType)
 
 
@@ -272,7 +304,7 @@ bitVectToCharStateNonAdd localAlphabet bitValue =
  else if popCount bitValue > 1
      then "[" <> charString <> "]"
  else charString
- 
+
 -- See Bio.DynamicCharacter.decodeState for a better implementation for dynamic character elements
 bitVectToCharState' :: (FiniteBits b, Bits b) => Alphabet String -> b -> String
 bitVectToCharState' localAlphabet bitValue =
@@ -304,8 +336,8 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
   {-
   if length stringVal == 1 then L.intercalate "," stringVal' <> " "
   else
-    
-    
+
+
     -- if isAlphabetAminoAcid localAlphabet then
     if SET.size (alphabetSymbols localAlphabet) > 5 then
 
@@ -324,49 +356,49 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
 
     if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5) then
         if stringVal == "" then ""
-        else if length stringVal == 1 then stringVal 
-        else if stringVal == "AG" then "R" 
-        else if stringVal == "CT" then "Y" 
+        else if length stringVal == 1 then stringVal
+        else if stringVal == "AG" then "R"
+        else if stringVal == "CT" then "Y"
         else if stringVal == "CG" then "S"
-        else if stringVal == "AT" then "W" 
-        else if stringVal == "GT" then "K" 
-        else if stringVal == "AC" then "M" 
-        else if stringVal == "CGT" then "B" 
-        else if stringVal == "AGT" then "D" 
-        else if stringVal == "ACT" then "H" 
-        else if stringVal == "ACG" then "V" 
-        else if stringVal == "ACGT" then "N" 
-        else if stringVal == "-ACGT" then "?" 
+        else if stringVal == "AT" then "W"
+        else if stringVal == "GT" then "K"
+        else if stringVal == "AC" then "M"
+        else if stringVal == "CGT" then "B"
+        else if stringVal == "AGT" then "D"
+        else if stringVal == "ACT" then "H"
+        else if stringVal == "ACG" then "V"
+        else if stringVal == "ACGT" then "N"
+        else if stringVal == "-ACGT" then "?"
 
         -- ours for gap chars and nuc
-        else if stringVal == "-A" then "a" 
-        else if stringVal == "-C" then "c" 
-        else if stringVal == "-G" then "g" 
-        else if stringVal == "-T" then "t" 
-        else if stringVal == "-AG" then "r" 
-        else if stringVal == "-CT" then "y" 
-        else if stringVal == "-CG" then "s" 
-        else if stringVal == "-AT" then "w" 
-        else if stringVal == "-GT" then "k" 
-        else if stringVal == "-AC" then "m" 
-        else if stringVal == "-CGT" then "b" 
-        else if stringVal == "-AGT" then "d" 
-        else if stringVal == "-ACT" then "h" 
-        else if stringVal == "-ACG" then "v" 
+        else if stringVal == "-A" then "a"
+        else if stringVal == "-C" then "c"
+        else if stringVal == "-G" then "g"
+        else if stringVal == "-T" then "t"
+        else if stringVal == "-AG" then "r"
+        else if stringVal == "-CT" then "y"
+        else if stringVal == "-CG" then "s"
+        else if stringVal == "-AT" then "w"
+        else if stringVal == "-GT" then "k"
+        else if stringVal == "-AC" then "m"
+        else if stringVal == "-CGT" then "b"
+        else if stringVal == "-AGT" then "d"
+        else if stringVal == "-ACT" then "h"
+        else if stringVal == "-ACG" then "v"
 
         else "Unrecognized nucleic acid ambiguity code : " <> "|" <> stringVal <> "|"
 
     -- AA IUPAC
     else if isAlphabetAminoAcid localAlphabet && (SET.size (alphabetSymbols localAlphabet) > 5) then
         if length stringVal == 1 then stringVal <> " "
-        else if stringVal == "DN" then "B" 
-        else if stringVal == "EQ" then "Z" 
-        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X" 
-        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?" 
+        else if stringVal == "DN" then "B"
+        else if stringVal == "EQ" then "Z"
+        else if stringVal == "ACDEFGHIKLMNPQRSTVWY" then "X"
+        else if stringVal == "-ACDEFGHIKLMNPQRSTVWY" then "?"
          -- amino acid polymorphisms without ambiguity codes
         else "[" <> stringVal <> "]" <> " "
 
-    -- else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet) 
+    -- else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet)
     --    <> " RNA: " <> (show $ isAlphabetRna localAlphabet) <> " Size: " <> (show $ SET.size (alphabetSymbols localAlphabet)) )
     else bitVectToCharState'' localAlphabetNEString localAlphabetVect bitValue
     where
@@ -408,7 +440,7 @@ matrixStateToString inStateVect =
 -- [ab] if not
 -- [a-b] causes problems with TNT
 additivStateToString ::  V.Vector String -> (Int, Int) ->String
-additivStateToString localAlphabet (a,b) = 
+additivStateToString localAlphabet (a,b) =
     if a == b then show a
     else if (show a == V.head localAlphabet) && (show b == V.last localAlphabet) then "?"
     else "[" <> show a <> show b <> "]"
@@ -463,7 +495,7 @@ vectResolveMaybe inVect =
     --trace ("VRM " <> show (length inVect)) $
     if isNothing (V.head inVect) then V.empty
     else V.singleton $ fromJust $ V.head inVect
-    
+
 
 -- | getNumberPrealignedCharacters takes processed data and returns the number of prealigned sequence characters
 -- used to special case procedurs with prealigned sequences
@@ -615,22 +647,22 @@ getPairCharNonMissing iTaxon jTaxon =
 getPairwiseObservations:: V.Vector BlockData -> (Int, Int) -> VertexCost
 getPairwiseObservations blocKDataV pairTax =
     if V.null blocKDataV then 0
-    else 
+    else
         fromIntegral $ V.sum (fmap (getPairBlockObs pairTax) blocKDataV)
 
 -- | getMaxBlockObs gets the supremum over taxa number of characters in a block of data
 getPairBlockObs :: (Int, Int) -> BlockData -> Int
 getPairBlockObs pairTax (_, charDataVV, _) =
     if V.null charDataVV then 0
-    else 
+    else
         let newListList = L.transpose $ V.toList $ fmap V.toList charDataVV
             charTaxVect = V.fromList $ fmap V.fromList newListList
         in
         --trace ("GPBO: " <> (show (V.length charDataVV, V.length charTaxVect, fmap V.length charTaxVect))) $
-        V.sum (fmap (getPairCharLength pairTax) charTaxVect)    
+        V.sum (fmap (getPairCharLength pairTax) charTaxVect)
 
 -- | getPairBlockObs get non-missing observations between taxa
--- NB--does not go into qualitative or packed charcters and check for missing values 
+-- NB--does not go into qualitative or packed charcters and check for missing values
 -- other than "all missing"  packed
 getPairCharLength :: (Int, Int) -> V.Vector CharacterData -> Int
 getPairCharLength (iIndex, jIndex) charDataV =
@@ -648,51 +680,31 @@ getPairCharLength (iIndex, jIndex) charDataV =
 
 
 -- | getMaxNumberObservations takes data set and returns the supremum of character numbers from all
--- taxa over all charcaters (sequence and qiualitative) 
+-- taxa over all charcaters (sequence and qiualitative)
 -- used for various normalizations
 getMaxNumberObservations :: V.Vector BlockData -> PhyG VertexCost
-getMaxNumberObservations blocKDataV =
-    if V.null blocKDataV then pure 0
-    else 
-        let --parallel setup
-            action :: BlockData -> PhyG Int
-            action = getMaxBlockObs
-        in do
-            pTraverse <- getParallelChunkTraverse
-            result <- pTraverse action (V.toList blocKDataV)
-                -- fromIntegral $ V.sum (P.seqParMap P.myStrategyHighLevel getMaxBlockObs blocKDataV)
-            pure $ fromIntegral $ sum result
+getMaxNumberObservations blocKDataV
+    | V.null blocKDataV = pure 0
+    | otherwise = getParallelChunkTraverse >>= \pTraverse ->
+        fmap (fromIntegral . sum) . pTraverse getMaxBlockObs $ V.toList blocKDataV
+
 
 -- | getMaxBlockObs gets the supremum over taxa number of characters in a block of data
 getMaxBlockObs :: BlockData -> PhyG Int
-getMaxBlockObs (_, charDataVV, _) =
-    if V.null charDataVV then pure 0
-    else 
+getMaxBlockObs (_, charDataVV, _)
+    | V.null charDataVV = pure 0
+    | otherwise =
         let newListList = L.transpose $ V.toList $ fmap V.toList charDataVV
-            -- charTaxVect = fmap V.fromList newListList
-            --parallel setup
-            action :: [CharacterData] -> PhyG Int
-            action = getSupCharLength
-        in do
-            pTraverse <- getParallelChunkTraverse
-            result <- pTraverse action newListList
-                    -- V.sum (P.seqParMap P.myStrategyHighLevel getSupCharLength charTaxVect)
-            pure $ sum result
+        in  getParallelChunkTraverse >>= \pTraverse ->
+                sum <$> pTraverse getSupCharLength newListList
 
--- | getMaxCharLength takes a vector of charcters and returns the supremum of observations for that character 
+-- | getMaxCharLength takes a vector of charcters and returns the supremum of observations for that character
 -- over all taxa
 getSupCharLength :: [CharacterData] -> PhyG Int
-getSupCharLength charDataV =
-    if null charDataV then pure 0
-    else
-        let --parallel setup
-            action :: CharacterData -> Int
-            action = getMaxCharLength
-        in do
-            pTraverse <- getParallelChunkMap
-            let result = pTraverse action charDataV
-            pure $ maximum result
-                -- V.maximum (P.seqParMap P.myStrategyHighLevel getMaxCharLength charDataV)
+getSupCharLength charDataV
+    | null charDataV = pure 0
+    | otherwise = getParallelChunkMap <&> \pMap ->
+        maximum $ getMaxCharLength `pMap` charDataV
 
 
 -- getFractionDynamic returns fraction (really of length) of dynamic charcters for adjustment to dynamicEpsilon
@@ -823,164 +835,127 @@ copyToNothing = fmap setNothing
 copyToJust :: VertexBlockData -> VertexBlockDataMaybe
 copyToJust = fmap (fmap Just)
 
--- | simAnnealAccept takes simulated annealing parameters, current best graph (e) cost,
--- candidate graph cost (e') and a uniform random integer and returns a Bool to accept or reject
--- the candidate solution
--- the basic method is
---  1) accepts if current is better
---  2) Otherwise prob accept = exp(-(e' -e)/T)
--- where T is a step from max to min
--- maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
--- curStep == 0 random walk (always accept)
--- curStep == (numSteps -1) greedy False is not better
-simAnnealAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
-simAnnealAccept inParams curBestCost candCost  =
-    if isNothing inParams then error "simAnnealAccept Simulated anneling parameters = Nothing"
 
-    -- drifting probs
-    else if method (fromJust inParams) == Drift then
-        driftAccept inParams curBestCost candCost
+{- | simAnnealAccept takes simulated annealing parameters, current best graph (e) cost,
+candidate graph cost (e') and a uniform random integer and returns a Bool to accept or reject
+the candidate solution
+the basic method is
+ 1) accepts if current is better
+ 2) Otherwise prob accept = exp(-(e' -e)/T)
+where T is a step from max to min
+maxT and minT can probbaly be set to 100 and 1 or something but leaving some flexibility
+curStep == 0 random walk (always accept)
+curStep == (numSteps -1) greedy False is not better
+-}
+simAnnealAccept ∷ Maybe SAParams → VertexCost → VertexCost → PhyG (Bool, Maybe SAParams)
+simAnnealAccept inParams curBestCost candCost = case inParams of
+    Nothing → error "simAnnealAccept Simulated anneling parameters = Nothing"
+    Just simAnealVals → case method simAnealVals of
+        -- drifting probs
+        Drift → driftAccept inParams curBestCost candCost
+        _ →
+            -- simulated annealing probs
+            let numSteps = numberSteps simAnealVals
+                curStep = currentStep simAnealVals
 
-    -- simulated annealing probs
-    else
-        let simAnealVals =  fromJust inParams
-            numSteps = numberSteps simAnealVals
-            curStep  = currentStep simAnealVals
-            randIntList = randomIntegerList simAnealVals
+                -- stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
+                -- tempFactor = curBestCost  * stepFactor
 
-            -- stepFactor =  (fromIntegral $ numSteps - curStep) / (fromIntegral numSteps)
-            -- tempFactor = curBestCost  * stepFactor
+                candCost'
+                    | curBestCost == candCost = candCost + 1
+                    | otherwise = candCost
 
-            candCost' = if curBestCost == candCost then candCost + 1
-                        else candCost
+                -- factors here for tweaking
+                energyFactor = 10.0 * (100 * (curBestCost - candCost') / curBestCost)
+                tempFactor' = 10.0 * fromIntegral (numSteps - curStep) / fromIntegral numSteps
 
-            -- factors here for tweaking
-            energyFactor = 10.0 * (100 * (curBestCost - candCost') / curBestCost)
-            tempFactor' = 10.0 * fromIntegral (numSteps - curStep) / fromIntegral numSteps
+                -- flipped order - (e' -e)
+                -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
+                -- probAcceptance' = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
 
-            -- flipped order - (e' -e)
-            -- probAcceptance = exp ((curBestCost - candCost) / ((maxTemp - minTemp) * tempFactor))
-            -- probAcceptance' = exp ( (fromIntegral (curStep + 1)) * (curBestCost - candCost') / tempFactor)
+                probAcceptance = exp (energyFactor / tempFactor')
 
-            probAcceptance =  exp (energyFactor / tempFactor')
+                -- multiplier for resolution 1000, 100 prob be ok
+                randMultiplier ∷ Word
+                randMultiplier = 1000
+                intAccept = floor $ fromIntegral randMultiplier * probAcceptance
 
-            -- multiplier for resolution 1000, 100 prob be ok
-            randMultiplier = 1000
-            intAccept = floor $ fromIntegral randMultiplier * probAcceptance
+                nextSAParams = simAnealVals{currentStep = curStep + 1}
 
-            -- use remainder for testing--passing infinite list and take head
-            (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
+                withUpdatedParams ∷ Bool → (Bool, Maybe SAParams)
+                withUpdatedParams b = (b, Just nextSAParams)
 
-            nextSAParams = Just $ (fromJust inParams) {currentStep = curStep + 1, randomIntegerList = tail randIntList}
-        in
-        -- lowest cost-- greedy
-        -- but increment this if using heuristic costs
-        if candCost < curBestCost then
-                -- trace ("SAB: " <> (show curStep) <> " Better ")
-                (True, nextSAParams)
+                costCheck
+                    -- lowest cost-- greedy
+                    -- but increment this if using heuristic costs
+                    | candCost < curBestCost = pure True
+                    -- not better and at lowest temp
+                    | curStep >= numSteps - 1 = pure False
+                    -- test for non-lowest temp conditions
+                    | otherwise =
+                        -- use remainder for testing
+                        (< intAccept) . snd . (`divMod` randMultiplier) . abs <$> getRandom
+            in  withUpdatedParams <$> costCheck
 
-        -- not better and at lowest temp
-        else if curStep >= (numSteps - 1) then
-                -- trace ("SAEnd: " <> (show curStep) <> " Hit limit ")
-                (False, nextSAParams)
-
-        -- test for non-lowest temp conditions
-        else if intRandVal < intAccept then
-                -- trace ("SAAccept: " <> (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance)) <> " True")
-                (True, nextSAParams)
-        else
-                -- trace ("SAReject: " <> (show (curStep, candCost, curBestCost, tempFactor', probAcceptance, intAccept, intRandVal, 1000.0 * probAcceptance )) <> " False")
-                (False, nextSAParams)
-        -- )
 
 -- | incrementSimAnnealParams increments the step number by 1 but returns all other the same
-incrementSimAnnealParams :: Maybe SAParams -> Maybe SAParams
-incrementSimAnnealParams inParams =
-    if isNothing inParams then error "incrementSimAnnealParams Simulated anneling parameters = Nothing"
-    else
-        let curStep = currentStep $ fromJust inParams
-            curChanges = driftChanges $ fromJust inParams
-            randList = tail $ randomIntegerList $ fromJust inParams
-        in
-
-        -- simulated annelaing temperature step
-        if method (fromJust inParams) == SimAnneal then
-            Just $ (fromJust inParams) { currentStep = curStep + 1
-                                       , randomIntegerList = randList
-                                       }
-        -- drifting change number
-        else
-            Just $ (fromJust inParams) { driftChanges = curChanges + 1
-                                       , randomIntegerList = randList
-                                       }
+incrementSimAnnealParams ∷ Maybe SAParams → Maybe SAParams
+incrementSimAnnealParams =
+    let incrementor params = case method params of
+            SimAnneal → params{currentStep = currentStep params + 1}
+            _ → params{driftChanges = driftChanges params + 1}
+    in  fmap incrementor
 
 -- | generateRandLists generates n random lists from seed
-generateRandIntLists :: Int -> Int -> [[Int]]
-generateRandIntLists rSeed number =
-    if number == 0 then []
-    else
-        fmap GU.randomIntList  (take number $ GU.randomIntList  rSeed)
+generateRandIntLists :: Int -> PhyG [[Int]]
+generateRandIntLists count = replicateM count getRandoms
 
--- | generateUniqueRandList take a int and simulated anealing parameter slist and creates
--- a list of SA paramter values with unique rnandomInt lists
--- sets current step to 0
-generateUniqueRandList :: Int -> Maybe SAParams -> [Maybe SAParams]
-generateUniqueRandList number inParams
-  | number == 0 = []
-  | isNothing inParams = replicate number Nothing
-  | otherwise = let randIntList = randomIntegerList $ fromJust inParams
-                    randSeedList = take number randIntList
-                    randIntListList = fmap GU.randomIntList randSeedList
-                    -- simAnnealParamList = replicate number inParams
-                    newSimAnnealParamList = fmap (Just . updateSAParams (fromJust inParams)) randIntListList
-                in
-                -- trace ("New random list fist elements: " <> (show $ fmap (take 1) randIntListList))
-                newSimAnnealParamList
-  where
-      updateSAParams a b = a {randomIntegerList = b}
 
--- | driftAccept takes SAParams, currrent best cost, and candidate cost
--- and returns a Boolean and an incremented set of params
--- this based on a percentage of diffference in graph cost
-driftAccept :: Maybe SAParams -> VertexCost -> VertexCost -> (Bool, Maybe SAParams)
-driftAccept simAnealVals curBestCost candCost  =
-    if isNothing simAnealVals then error "Nothing value in driftAccept"
-    else
-        let curNumChanges = driftChanges $ fromJust simAnealVals
-            randIntList = randomIntegerList $ fromJust simAnealVals
+{- | generateUniqueRandList take a int and simulated anealing parameter slist and creates
+a list of SA paramter values with unique rnandomInt lists
+sets current step to 0
+-}
+generateUniqueRandList ∷ Int → Maybe SAParams → [Maybe SAParams]
+generateUniqueRandList number inParams = replicate number inParams
 
-            --- prob acceptance for better, same, and worse costs
+
+{- | driftAccept takes SAParams, currrent best cost, and candidate cost
+and returns a Boolean and an incremented set of params
+this based on a percentage of diffference in graph cost
+-}
+driftAccept ∷ Maybe SAParams → VertexCost → VertexCost → PhyG (Bool, Maybe SAParams)
+driftAccept simAnealVals curBestCost candCost = case simAnealVals of
+    Nothing → error "Nothing value in driftAccept"
+    Just params →
+        let -- prob acceptance for better, same, and worse costs
             probAcceptance
-              | candCost < curBestCost = 1.0
-              | candCost == curBestCost = driftAcceptEqual $ fromJust simAnealVals
-              | otherwise = 1.0 / (driftAcceptWorse (fromJust simAnealVals) + (100.0 * (candCost - curBestCost) / curBestCost))
+                | candCost < curBestCost = 1.0
+                | candCost == curBestCost = driftAcceptEqual params
+                | otherwise = 1.0 / (driftAcceptWorse params + (100.0 * (candCost - curBestCost) / curBestCost))
 
             -- multiplier for resolution 1000, 100 prob be ok
+            randMultiplier ∷ Word
             randMultiplier = 1000
             intAccept = floor $ fromIntegral randMultiplier * probAcceptance
 
-            -- use remainder for testing--passing infinite list and take head
-            (_, intRandVal) = divMod (abs $ head randIntList) randMultiplier
-
             -- not always incrementing becasue may not result in changes
-            nextSAParams = Just $ (fromJust simAnealVals) {driftChanges = curNumChanges + 1, randomIntegerList = tail randIntList}
-            nextSAPAramsNoChange = Just $ (fromJust simAnealVals) {randomIntegerList = tail randIntList}
+            nextSAParams = Just $ params{driftChanges = driftChanges params + 1}
+            nextSAPAramsNoChange = simAnealVals
 
-        in
-        -- only increment numberof changes for True values
-        -- but increment this if using heuristic costs
-        if candCost < curBestCost then
-            -- trace ("Drift B: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) <> " Better")
-            (True, nextSAParams)
-
-        else if intRandVal < intAccept then
-            -- trace ("Drift T: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) <> " True")
-            (True, nextSAParams)
-
-        else
-            -- trace ("Drift F: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal, abs $ head randIntList)) <> " False")
-            (False, nextSAPAramsNoChange)
-            -- )
+            resultParams
+                -- only increment numberof changes for True values
+                -- but increment this if using heuristic costs
+                | candCost < curBestCost = pure (True, nextSAParams)
+                | otherwise = do
+                    -- use remainder for testing--passing infinite list and take head
+                    intRandVal ← snd . (`divMod` randMultiplier) . abs <$> getRandom
+                    pure $
+                        if intRandVal < intAccept
+                            then -- trace ("Drift T: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) <> " True")
+                                (True, nextSAParams)
+                            else -- trace ("Drift F: " <> (show (curNumChanges, candCost, curBestCost, probAcceptance, intAccept, intRandVal)) <> " False")
+                                (False, nextSAPAramsNoChange)
+        in  resultParams
 
 
 -- | getTraversalCosts takes a Phylogenetic Graph and returns costs of traversal trees
@@ -992,6 +967,7 @@ getTraversalCosts inGraph =
     in
     traversalRootCosts
 
+{- SAme as getCharacterLength
 -- | getSequenceCharacterLengths returns a the length of block characters
 getSequenceCharacterLengths :: CharacterData -> CharInfo -> Int
 getSequenceCharacterLengths inCharData inCharInfo =
@@ -1011,6 +987,7 @@ getSequenceCharacterLengths inCharData inCharInfo =
       x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData
       _                                -> error ("Un-implemented data type " <> show inCharType)
       -- )
+-}
 
 -- | getCharacterLengths returns a the length of block characters
 getCharacterLength :: CharacterData -> CharInfo -> Int
@@ -1023,9 +1000,9 @@ getCharacterLength inCharData inCharInfo =
       x | x `elem` packedNonAddTypes   -> UV.length  $ snd3 $ packedNonAddPrelim inCharData
       x | x == Add -> V.length  $ snd3 $ rangePrelim inCharData
       x | x == Matrix -> V.length  $ matrixStatesPrelim inCharData
-      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimAlignment inCharData
-      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideAlignment inCharData
-      x | x == HugeSeq           -> V.length  $ snd3 $ hugeAlignment inCharData
+      x | x `elem` [SlimSeq, NucSeq  ] -> SV.length $ snd3 $ slimGapped inCharData -- slimAlignment inCharData
+      x | x `elem` [WideSeq, AminoSeq] -> UV.length $ snd3 $ wideGapped inCharData --  wideAlignment inCharData
+      x | x == HugeSeq           -> V.length  $ snd3 $ hugeGapped inCharData --  hugeAlignment inCharData
       x | x == AlignedSlim       -> SV.length $ snd3 $ alignedSlimPrelim inCharData
       x | x == AlignedWide       -> UV.length $ snd3 $ alignedWidePrelim inCharData
       x | x == AlignedHuge       -> V.length  $ snd3 $ alignedHugePrelim inCharData

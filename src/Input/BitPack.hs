@@ -47,14 +47,15 @@ module Input.BitPack
   , minMaxCharDiff
   ) where
 
-import Bio.DynamicCharacter 
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+-- import Bio.DynamicCharacter 
+-- import Bio.DynamicCharacter.Element (SlimState, WideState)
 import PHANE.Evaluation
-import PHANE.Evaluation.Verbosity (Verbosity (..))
+-- import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.List qualified as L
 import Data.List.Split qualified as SL
+import Data.Maybe
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
@@ -487,23 +488,22 @@ Packed character minimum and maximum length functions
 
 -- | mainMxCharDiff get the approximate minimum and maximum difference in number of states
 -- uses masking with &/==
-minMaxCharDiff :: CharType -> (Double, Double) -> Word64 -> Word64 -> (Double, Double)
-minMaxCharDiff inCharType bitCosts a b =
-    let (minVal, maxVal) =  if inCharType == Packed2       then minMaxPacked2 bitCosts a b
-                            else if inCharType == Packed4  then minMaxPacked4 bitCosts a b
-                            else if inCharType == Packed5  then minMaxPacked5 bitCosts a b
-                            else if inCharType == Packed8  then minMaxPacked8 bitCosts a b
-                            else if inCharType == Packed64 then minMaxPacked64 bitCosts a b
+minMaxCharDiff :: Bool -> CharType -> (Double, Double) -> Word64 -> Word64 -> (Double, Double)
+minMaxCharDiff adjustNoCost inCharType bitCosts a b =
+    let (minVal, maxVal) =  if inCharType == Packed2       then minMaxPacked2 adjustNoCost bitCosts a b
+                            else if inCharType == Packed4  then minMaxPacked4 adjustNoCost bitCosts a b
+                            else if inCharType == Packed5  then minMaxPacked5 adjustNoCost bitCosts a b
+                            else if inCharType == Packed8  then minMaxPacked8 adjustNoCost bitCosts a b
+                            else if inCharType == Packed64 then minMaxPacked64 adjustNoCost bitCosts a b
                             else error ("Character type " <> show inCharType <> " unrecognized/not implemented")
     in
     (minVal, maxVal)
 
-
 -- | minMaxPacked2 minium and maximum cost 32x2 bit nonadditive character
 -- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
 -- basically unrolled to make faster
-minMaxPacked2 :: (Double, Double) -> Word64 -> Word64 -> (Double, Double)
-minMaxPacked2 (lNoChangeCost, lChangeCost) a b =
+minMaxPacked2 :: Bool -> (Double, Double) -> Word64 -> Word64 -> (Double, Double)
+minMaxPacked2 adjustNoCost (lNoChangeCost, lChangeCost) a b =
     let a0 = a .&. mask2sc0
         b0 = b .&. mask2sc0
         max0
@@ -768,16 +768,21 @@ minMaxPacked2 (lNoChangeCost, lChangeCost) a b =
               , max30, max31]
 
     in
+    --trace ("2-state: " <> (show (minNumNoChange, minNumChange))) $
     -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
-    else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else if not adjustNoCost then ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else 
+        let minNumNoChange' =  (2 * minNumNoChange) + minNumChange
+        in ((lNoChangeCost * fromIntegral minNumNoChange') + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
+
 
 -- | minMaxPacked4 minium and maximum cost 16x4 bit nonadditive character
 -- could add popcount == 1 for equality A/C -> A/C is identical but could be A->C so max 1
 -- basically unrolled to make faster
 -- any diffference between states gets 1 for max
-minMaxPacked4 :: (Double, Double) ->  Word64 -> Word64 -> (Double, Double)
-minMaxPacked4 (lNoChangeCost, lChangeCost) a b =
+minMaxPacked4 :: Bool -> (Double, Double) ->  Word64 -> Word64 -> (Double, Double)
+minMaxPacked4 adjustNoCost (lNoChangeCost, lChangeCost) a b =
     let a0 = a .&. mask4sc0
         b0 = b .&. mask4sc0
         max0
@@ -912,15 +917,19 @@ minMaxPacked4 (lNoChangeCost, lChangeCost) a b =
               , max10, max11, max12, max13, max14, max15]
 
     in
+    -- trace ("4-state: " <> (show (minNumNoChange, minNumChange))) $
     -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
-    else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((16 :: Int)- maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else if not adjustNoCost then ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else 
+        let minNumNoChange' =  (2 * minNumNoChange) + minNumChange
+        in ((lNoChangeCost * fromIntegral minNumNoChange') + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
 
 -- | minMaxPacked5 minium and maximum cost 12x5 bit nonadditive character
 -- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
 -- basically unrolled to make faster
-minMaxPacked5 :: (Double, Double) ->  Word64 -> Word64 -> (Double, Double)
-minMaxPacked5 (lNoChangeCost, lChangeCost) a b =
+minMaxPacked5 :: Bool -> (Double, Double) ->  Word64 -> Word64 -> (Double, Double)
+minMaxPacked5 adjustNoCost (lNoChangeCost, lChangeCost) a b =
     let a0 = a .&. mask8sc0
         b0 = b .&. mask5sc0
         max0
@@ -1026,13 +1035,16 @@ minMaxPacked5 (lNoChangeCost, lChangeCost) a b =
     in
     -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
-    else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((12 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else if not adjustNoCost then ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else 
+        let minNumNoChange' =  (2 * minNumNoChange) + minNumChange
+        in ((lNoChangeCost * fromIntegral minNumNoChange') + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
 
 -- | minMaxPacked8 minium and maximum cost 12x5 bit nonadditive character
 -- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
 -- basically unrolled to make faster
-minMaxPacked8 :: (Double, Double) -> Word64 -> Word64 -> (Double, Double)
-minMaxPacked8 (lNoChangeCost, lChangeCost) a b =
+minMaxPacked8 :: Bool -> (Double, Double) -> Word64 -> Word64 -> (Double, Double)
+minMaxPacked8 adjustNoCost (lNoChangeCost, lChangeCost) a b =
     let a0 = a .&. mask8sc0
         b0 = b .&. mask8sc0
         max0
@@ -1105,26 +1117,37 @@ minMaxPacked8 (lNoChangeCost, lChangeCost) a b =
     in
     -- trace ("MM2:" <> "\t" <> (showBits a0) <> " " <> (showBits b0) <> "->" <> (showBits $ a0 .&. b0) <> "=>" <> (show max0) <> "\n\t" <> (showBits a10) <> " " <> (showBits b10) <> "->" <> (showBits $ a10 .&. b10) <> "=>" <> (show max10))
     if lNoChangeCost == 0.0 then (fromIntegral minNumChange, fromIntegral maxVal)
-    else ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((7 :: Int)- maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else if not adjustNoCost then ((lNoChangeCost * fromIntegral minNumNoChange) + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
+    else 
+        let minNumNoChange' =  (2 * minNumNoChange) + minNumChange
+        in ((lNoChangeCost * fromIntegral minNumNoChange') + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
 
 
 
 -- | minMaxPacked64 minium and maximum cost 64 bit nonadditive character
 -- the popcount for equality A/C -> A/C is identical but could be A->C so max 1
 -- operattion over each sub-character
-minMaxPacked64 :: (Double, Double) -> Word64 -> Word64 -> (Double, Double)
-minMaxPacked64 (lNoChangeCost, lChangeCost) a b =
+minMaxPacked64 :: Bool -> (Double, Double) -> Word64 -> Word64 -> (Double, Double)
+minMaxPacked64 adjustNoCost (lNoChangeCost, lChangeCost) a b =
     let maxVal = if (a == b) && (popCount a == 1) then (0 :: Int) else (1 :: Int)
         minVal = if (a .&. b) == (0 :: Word64) then (1 :: Int) else (0 :: Int)
     in
     if lNoChangeCost == 0.0 then (fromIntegral minVal, fromIntegral maxVal)
-    else ((lNoChangeCost * fromIntegral maxVal) + (lChangeCost * fromIntegral minVal), (lNoChangeCost * fromIntegral minVal) + (lChangeCost * fromIntegral maxVal))
+    else if not adjustNoCost then ((lNoChangeCost * fromIntegral maxVal) + (lChangeCost * fromIntegral minVal), (lNoChangeCost * fromIntegral minVal) + (lChangeCost * fromIntegral maxVal))
+    else 
+      let (_, minNumNoChange, minNumChange) = andOR64 a b 
+          minNumNoChange' = (2 * minNumNoChange) + minNumChange
+      in ((lNoChangeCost * fromIntegral minNumNoChange') + (lChangeCost * fromIntegral minNumChange), (lNoChangeCost * fromIntegral ((32 :: Int) - maxVal)) + (lChangeCost * fromIntegral maxVal))
 
 
 -- | median2Packed takes two characters of packedNonAddTypes
 -- and retuns new character data based on 2-median and cost
-median2Packed :: CharType -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
-median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftChar rightChar =
+-- the change/no change numbers are adjuted based on two edgwes gogin into a singel vertex
+--    each change would be coupled by a nochange on the sidter edge
+--    each noChnage is really for two erdges so multiplied by two
+--    this will enforce 2 edges from root so 2n - 2 edges for possible changes
+median2Packed :: Bool -> CharType -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
+median2Packed adjustNoCost inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftChar rightChar =
     let (newStateVect, numNoChange, numChange) = if inCharType == Packed2  then median2Word64 andOR2  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed4  then median2Word64 andOR4  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
                                   else if inCharType == Packed5  then median2Word64 andOR5  (snd3 $ packedNonAddPrelim leftChar) (snd3 $ packedNonAddPrelim rightChar)
@@ -1134,20 +1157,25 @@ median2Packed inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftCha
 
         -- this for PMDL/ML costs
         newCost = if thisNoChangeCost == 0.0 then inCharWeight * (fromIntegral numChange)
-                  else inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral numNoChange)))
+                  else if not adjustNoCost then 
+                      inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral numNoChange)))
+                  else 
+                      let adjustedNoChangeNumber = numChange + (2 * numNoChange)
+                      in inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral adjustedNoChangeNumber)))
 
         newCharacter = emptyCharacter { packedNonAddPrelim = (snd3 $ packedNonAddPrelim leftChar, newStateVect, snd3 $ packedNonAddPrelim rightChar)
                                       , localCost = newCost
                                       , globalCost =newCost + globalCost leftChar + globalCost rightChar
                                       }
     in
+    -- trace ("MSP: " <> (show inCharType) <> " " <> (show (numChange, numNoChange)) <> (show newCost)) $
     -- trace ("M2P: " <> (showBitsV $ (snd3 . packedNonAddPrelim) leftChar) <> " " <> (showBitsV $ (snd3 . packedNonAddPrelim) rightChar) <> " -> " <>   (showBitsV $ (snd3 . packedNonAddPrelim) newCharacter) <> " at cost " <> (show newCost))
     newCharacter
 
 -- | median2PackedUnionField takes two characters of packedNonAddTypes
 -- and retuns new character data based on 2-median and cost
-median2PackedUnionField :: CharType -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
-median2PackedUnionField inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftChar rightChar =
+median2PackedUnionField :: Bool -> CharType -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
+median2PackedUnionField adjustNoCost inCharType inCharWeight (thisNoChangeCost, thisChangeCost) leftChar rightChar =
     let (newStateVect, numNoChange, numChange) = if inCharType == Packed2  then median2Word64 andOR2  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
                                   else if inCharType == Packed4  then median2Word64 andOR4  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
                                   else if inCharType == Packed5  then median2Word64 andOR5  (packedNonAddUnion leftChar) (packedNonAddUnion rightChar)
@@ -1157,7 +1185,10 @@ median2PackedUnionField inCharType inCharWeight (thisNoChangeCost, thisChangeCos
 
         -- this for PMDL/ML costs
         newCost = if thisNoChangeCost == 0.0 then inCharWeight * (fromIntegral numChange)
-                  else inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral numNoChange)))
+                  else if not adjustNoCost then inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral numNoChange)))
+                  else 
+                      let adjustedNoChangeNumber = numChange + (2 * numNoChange)
+                      in inCharWeight * ((thisChangeCost * (fromIntegral numChange)) + (thisNoChangeCost * (fromIntegral adjustedNoChangeNumber)))
 
         newCharacter = emptyCharacter { packedNonAddUnion = newStateVect
                                       , localCost = newCost
@@ -1544,9 +1575,9 @@ packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
         action ::  BlockData -> PhyG BlockData
         action = recodeNonAddCharacters inGS
     in do
-        pTraverse <- getParallelChunkTraverse
-        newBlockDataList <- pTraverse action (V.toList blockDataVect)
-          --PU.seqParMap (parStrategy $ strictParStrat inGS) (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
+        newBlockDataList <- getParallelChunkTraverse >>= \pTraverse ->
+            action `pTraverse` V.toList blockDataVect
+            --PU.seqParMap (parStrategy $ strictParStrat inGS) (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
     
         pure (nameVect, bvNameVect, V.fromList newBlockDataList)
 
@@ -1560,9 +1591,13 @@ recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
 
         -- create vector of single characters with vector of taxon data of sngle character each
         singleCharVectList = V.toList $ fmap (U.getSingleCharacter charDataVV) (V.fromList [0.. numChars - 1])
+
+        packAction :: (V.Vector CharacterData, CharInfo) -> PhyG ([[CharacterData]], [CharInfo])
+        packAction = packNonAddPair inGS 
     in do
         -- bit pack the nonadd
-        result <- mapM (packNonAddPair inGS) (zip singleCharVectList (V.toList charInfoV))
+        result <- getParallelChunkTraverse >>= \pTraverse ->
+            packAction `pTraverse` zip singleCharVectList (V.toList charInfoV)
         let (recodedSingleVecList, newCharInfoLL) = unzip result -- $ zipWith (packNonAdd inGS) singleCharVectList (V.toList charInfoV)
 
         -- recreate BlockData, tacxon dominant structure
@@ -1612,8 +1647,8 @@ packNonAdd inGS inCharDataV charInfo =
             let (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([],[],[],[],[],[])
 
             -- make new characters based on state size
-            charPar <- getParallelChunkTraverse
-            result <- charPar charAction (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL])
+            result <- getParallelChunkTraverse >>= \pTraverse ->
+                charAction `pTraverse` zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]
             let (newStateCharListList, newCharInfoList) = unzip result
               -- (PU.seqParMap (parStrategy $ strictParStrat inGS)  (makeStateNCharacterTuple inGS charInfo) (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]))
 
@@ -1804,12 +1839,18 @@ makeSubCharacter stateNumber stateIndexList inBV subCharacterIndex =
 -- | setOnBits recursively sets On bits in a list of Bool
 setOnBits :: Word64 -> [Bool] -> Int -> Word64
 setOnBits baseVal onList bitIndex =
-    if null onList then baseVal
+    let c = L.uncons onList
+    in
+    if isNothing c then baseVal
+    -- if null onList then baseVal
     else
-        let newVal = if head onList then setBit baseVal bitIndex
+        let (a,b) = fromJust c
+            --newVal = if head onList then setBit baseVal bitIndex
+            newVal = if a then setBit baseVal bitIndex
                      else baseVal
         in
-        setOnBits newVal (tail onList) (bitIndex + 1)
+         setOnBits newVal b (bitIndex + 1)
+        -- setOnBits newVal (tail onList) (bitIndex + 1)
 
 -- | getStateIndexList takes list of list bit vectors and for each taxon for a given bv character
 -- and returns a list of
@@ -1835,21 +1876,24 @@ binStateNumber :: [(Int, [BV.BitVector])]
                -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]])
                -> ([[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]],[[BV.BitVector]])
 binStateNumber inPairList (cur2, cur4, cur5, cur8, cur64, cur128) =
-    if null inPairList then
+    let c = L.uncons inPairList
+    in
+    if isNothing c then
         --dont' really need to reverse here but seems hygenic
         -- trace ("Recoding NonAdditive Characters : " <> (show (length cur2, length cur4, length cur5, length cur8, length cur64,  length cur128)))
         (L.reverse cur2, L.reverse cur4, L.reverse cur5, L.reverse cur8, L.reverse cur64,  L.reverse cur128)
     else
-        let (stateNum, stateData) = head inPairList
+        let (a,b) = fromJust c
+            (stateNum, stateData) = a
         in
         -- skip--constant
-        if stateNum < 2 then binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, cur64, cur128)
-        else if stateNum == 2 then binStateNumber (tail inPairList) (stateData : cur2, cur4, cur5, cur8, cur64, cur128)
-        else if stateNum <= 4 then binStateNumber (tail inPairList) (cur2, stateData : cur4, cur5, cur8, cur64, cur128)
-        else if stateNum <= 5 then binStateNumber (tail inPairList) (cur2, cur4, stateData : cur5, cur8, cur64, cur128)
-        else if stateNum <= 8 then binStateNumber (tail inPairList) (cur2, cur4, cur5, stateData : cur8, cur64, cur128)
-        else if stateNum <= 64 then binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, stateData : cur64, cur128)
-        else binStateNumber (tail inPairList) (cur2, cur4, cur5, cur8, cur64, stateData : cur128)
+        if stateNum < 2 then binStateNumber b (cur2, cur4, cur5, cur8, cur64, cur128)
+        else if stateNum == 2 then binStateNumber b (stateData : cur2, cur4, cur5, cur8, cur64, cur128)
+        else if stateNum <= 4 then binStateNumber b (cur2, stateData : cur4, cur5, cur8, cur64, cur128)
+        else if stateNum <= 5 then binStateNumber b (cur2, cur4, stateData : cur5, cur8, cur64, cur128)
+        else if stateNum <= 8 then binStateNumber b (cur2, cur4, cur5, stateData : cur8, cur64, cur128)
+        else if stateNum <= 64 then binStateNumber b (cur2, cur4, cur5, cur8, stateData : cur64, cur128)
+        else binStateNumber b (cur2, cur4, cur5, cur8, cur64, stateData : cur128)
 
 -- | getStateNumber returns the number of uniqe (non missing) states for a 'column'
 -- of nonadd bitvector values

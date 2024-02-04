@@ -19,7 +19,7 @@ One Big thing--
             NEED TO FIX
 -}
 
-{-# OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {- |
 Module to read TNT input files for phylogenetic analysis.
@@ -28,7 +28,7 @@ module Input.TNTUtilities (
     getTNTDataText,
 ) where
 
-import Control.Monad (when)
+import Control.Monad (replicateM, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
 import Data.Char
@@ -57,6 +57,7 @@ import SymMatrix qualified as SM
 import Text.Read
 import TransitionMatrix qualified as TM
 import Types.Types
+
 
 
 {- |
@@ -129,8 +130,8 @@ getTNTDataText inString fileName
                                                                                         nameLengthList = zip (fmap fst sortedData) charNumberList
                                                                                         incorrectLengthList = filter ((/= numChar) . snd) nameLengthList
                                                                                         (hasDupTerminals, dupList) = DT.checkDuplicatedTerminals sortedData
-                                                                                        renamedDefaultCharInfo = renameTNTChars fileName 0 (replicate numChar defaultTNTCharInfo)
                                                                                     in  do
+                                                                                            renamedDefaultCharInfo ← renameTNTChars fileName 0 <$> (replicateM numChar defaultTNTCharInfo)
                                                                                             charInfoData ← getTNTCharInfo fileName numChar renamedDefaultCharInfo charInfoBlock
                                                                                             let checkInfo = length charInfoData == numChar
 
@@ -173,12 +174,38 @@ getTNTDataText inString fileName
                                                                                                                             <> " characters"
                                                                                                                             <> "\n"
                                                                                                                         )
-                                                                                                                    pure $ (zip curNames curData', charInfoData')
+                                                                                                                    -- logWith LogInfo ("TNTU:" <> (show (fmap length curData', length charInfoData')))
+                                                                                                                    let (newData, newCharInfoL) = filterInvariant curData' charInfoData' ([], [])
+                                                                                                                    -- logWith LogInfo ("TNTUF:" <> (show (fmap length newData, length newCharInfoL)))
+                                                                                                                    if null newCharInfoL
+                                                                                                                        then failWithPhase Parsing ("TNT file " <> fileName <> " has no variant data")
+                                                                                                                        else pure $ (zip curNames newData, newCharInfoL)
+
     where
         printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
 
-{- | removeNCharNTax removes teh first two "words" of nchar and ntax, but leaves text  with line feeds so can use
+-- | filterInvariant filters out charcters that are identical in all terminals
+filterInvariant
+    ∷ [[ST.ShortText]] → [charInfoData] → ([[ST.ShortText]], [charInfoData]) → ([[ST.ShortText]], [charInfoData])
+filterInvariant inDataLL inCharInfoL newData@(newDataLL, newCharInfoL) =
+    if null inCharInfoL
+        then (fmap reverse newDataLL, reverse newCharInfoL)
+        else
+            let firstCharData = fmap head inDataLL
+                firstCharData' = filter (`notElem` [ST.pack "-", ST.pack "?"]) firstCharData
+                allSameL = fmap ((== (head firstCharData'))) (tail firstCharData')
+                allSame = foldl' (&&) True allSameL
+            in  -- trace ("FI:" <> (show (allSameL, allSame))) $
+                if allSame
+                    then filterInvariant (fmap tail inDataLL) (tail inCharInfoL) (newDataLL, newCharInfoL)
+                    else
+                        if null newCharInfoL
+                            then filterInvariant (fmap tail inDataLL) (tail inCharInfoL) (fmap (: []) firstCharData, head inCharInfoL : newCharInfoL)
+                            else filterInvariant (fmap tail inDataLL) (tail inCharInfoL) (zipWith (:) firstCharData newDataLL, head inCharInfoL : newCharInfoL)
+
+
+{- | removeNCharNTax removes the first two "words" of nchar and ntax, but leaves text  with line feeds so can use
 lines later
 -}
 removeNCharNTax ∷ T.Text → (T.Text, T.Text, T.Text)
@@ -307,35 +334,31 @@ collectAmbiguities fileName inStringList =
 -- )
 
 -- | defaultTNTCharInfo default values for TNT characters
-defaultTNTCharInfo ∷ CharInfo
+defaultTNTCharInfo ∷ (MonadIO m) ⇒ m CharInfo
 defaultTNTCharInfo =
-    let a = fromSymbols $ ST.fromString "0" :| [] -- fromSymbols []
-        tcmDef = TM.discreteMetric $ SymbolCount 2
-    in  emptyCharInfo
-            { charType = NonAdd
-            , activity = True
-            , weight = 1.0
-            , costMatrix = SM.empty
-            , name = T.empty
-            , alphabet = a
-            , prealigned = True
-            , slimTCM = FAC.genDiscreteDenseOfDimension (0 ∷ Word)
-            , wideTCM = tcmDef
-            , hugeTCM = tcmDef
-            , origInfo = V.singleton (T.empty, NonAdd, a)
-            }
+    let a = fromSymbols $ ST.fromString "0" :| []
+        f info =
+            info
+                { charType = NonAdd
+                , activity = True
+                , weight = 1.0
+                , costMatrix = SM.empty
+                , name = T.empty
+                , alphabet = a
+                , prealigned = True
+                , origInfo = V.singleton (T.empty, NonAdd, a)
+                }
+    in  f <$> emptyCharInfo
 
 
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number
 renameTNTChars ∷ String → Int → [CharInfo] → [CharInfo]
-renameTNTChars fileName charIndex inCharInfo =
-    if null inCharInfo
-        then []
-        else
-            let newName = T.pack $ filter (/= ' ') fileName <> "#" <> show charIndex
-                firstCharInfo = head inCharInfo
-                localCharInfo = firstCharInfo{name = newName}
-            in  localCharInfo : renameTNTChars fileName (charIndex + 1) (tail inCharInfo)
+renameTNTChars fileName charIndex = \case
+    [] -> []
+    firstInfo:otherInfo ->
+        let newName = T.pack $ filter (/= ' ') fileName <> "#" <> show charIndex
+            localInfo = firstInfo{name = newName}
+        in  localInfo : renameTNTChars fileName (charIndex + 1) otherInfo
 
 
 {- | getTNTCharInfo numChar charInfoBlock
@@ -611,7 +634,7 @@ scopeToIndex fileName numChars scopeText =
                                 in  if isNothing scopeSingleton
                                         then
                                             errorWithoutStackTrace
-                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer")
+                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer (0)")
                                         else
                                             if fromJust scopeSingleton < numChars
                                                 then [fromJust scopeSingleton]
@@ -636,7 +659,7 @@ scopeToIndex fileName numChars scopeText =
                                 in  if isNothing startIndex || isNothing stopIndex
                                         then
                                             errorWithoutStackTrace
-                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer")
+                                                ("\n\nTNT file " <> fileName <> " ccode processing error: ccode '" <> T.unpack scopeText <> "' contains non-integer (1)")
                                         else
                                             if fromJust startIndex >= numChars
                                                 then
@@ -741,12 +764,12 @@ newCharInfoMatrix inCharList localAlphabet localMatrix indexList charIndex curCh
                         else reverse curCharList <> inCharList
                 else
                     let firstIndex = head indexList
-                        firstCharInfo = head inCharList
+                        firstInfo = head inCharList
                     in  if charIndex /= firstIndex
-                            then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix indexList (charIndex + 1) (firstCharInfo : curCharList)
-                            else -- let updatedCharInfo = firstCharInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
+                            then newCharInfoMatrix (tail inCharList) localAlphabet localMatrix indexList (charIndex + 1) (firstInfo : curCharList)
+                            else -- let updatedCharInfo = firstInfo {alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
 
-                                let updatedCharInfo = firstCharInfo{alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
+                                let updatedCharInfo = firstInfo{alphabet = fromSymbols localAlphabet, costMatrix = SM.fromLists localMatrix}
                                 in  -- trace ("TNT2" <> (show $ alphabet updatedCharInfo))
                                     newCharInfoMatrix (tail inCharList) localAlphabet localMatrix (tail indexList) (charIndex + 1) (updatedCharInfo : curCharList)
 
@@ -816,14 +839,14 @@ checkAndRecodeCharacterAlphabets fileName inData inCharInfo newData newCharInfo
         (L.transpose $ reverse newData, reverse newCharInfo)
     | otherwise =
         let firstColumn = fmap head inData
-            firstCharInfo = head inCharInfo
-            originalAlphabet = alphabet firstCharInfo
-            thisName = name firstCharInfo
-            (firstAlphabet, newWeight, newColumn) = getAlphabetFromSTList fileName firstColumn firstCharInfo
+            firstInfo = head inCharInfo
+            originalAlphabet = alphabet firstInfo
+            thisName = name firstInfo
+            (firstAlphabet, newWeight, newColumn) = getAlphabetFromSTList fileName firstColumn firstInfo
             updatedCharInfo =
-                if (Matrix == charType firstCharInfo) && (firstAlphabet /= originalAlphabet)
-                    then firstCharInfo{alphabet = reconcileAlphabetAndCostMatrix fileName (T.unpack thisName) firstAlphabet originalAlphabet}
-                    else firstCharInfo{alphabet = firstAlphabet, weight = newWeight}
+                if (Matrix == charType firstInfo) && (firstAlphabet /= originalAlphabet)
+                    then firstInfo{alphabet = reconcileAlphabetAndCostMatrix fileName (T.unpack thisName) firstAlphabet originalAlphabet}
+                    else firstInfo{alphabet = firstAlphabet, weight = newWeight}
         in  -- checkAndRecodeCharacterAlphabets fileName (fmap tail inData) (tail inCharInfo) (prependColumn newColumn newData []) (updatedCharInfo : newCharInfo)
             checkAndRecodeCharacterAlphabets
                 fileName

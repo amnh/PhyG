@@ -1074,20 +1074,17 @@ createDisplayTreeTNT inGS inData inGraph =
             -- blockProcessedDataList = PU.seqParMap PU.myStrategyHighLevel (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
             -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
-            traversePar ← getParallelChunkTraverse
-            decoratedBlockTreeList ← traversePar traverseAction (zip blockProcessedDataList blockDisplayList)
-            -- decoratedBlockTreeList = zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) blockDisplayList `using` PU.myParListChunkRDS
+            decoratedBlockTreeList ← getParallelChunkTraverse >>= \pTraverse ->
+                traverseAction `pTraverse` zip blockProcessedDataList blockDisplayList
 
             -- create leaf data by merging display graph block data (each one a phylogentic graph)
             let (leafDataList, mergedCharInfoVV) = mergeDataBlocks decoratedBlockTreeList [] []
 
             -- get character block strings as interleaved groups
-            taxonStringPar ← getParallelChunkTraverse
-            blockStringListstList ← taxonStringPar taxonString (zip (V.toList leafDataList) leafNameList)
-            -- let blockStringListstList = zipWith (getTaxonCharStringList charInfoVV) (V.toList leafDataList) leafNameList `using` PU.myParListChunkRDS
+            blockStringListstList ← getParallelChunkTraverse >>= \pTraverse ->
+                taxonString `pTraverse` zip (V.toList leafDataList) leafNameList
 
-            interleavedBlocks' ← makePairInterleave blockStringListstList charTypeList
-            let interleavedBlocks = concat interleavedBlocks'
+            interleavedBlocks ← fold <$> makePairInterleave blockStringListstList charTypeList
 
             -- taxonCharacterStringList = V.toList $ fmap ((<> "\n") . getTaxonCharString mergedCharInfoVV) leafDataList
             -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
@@ -1163,10 +1160,8 @@ getTaxonCharString charInfoVV charDataVV =
         -- parallel stuff
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
-    in  do
-            pTraverse ← getParallelChunkTraverse
-            blockResult ← pTraverse action (zip (V.toList charInfoVV) (V.toList charDataVV))
-            pure $ concat blockResult
+    in  getParallelChunkTraverse >>= \pTraverse ->
+            fmap fold . pTraverse action . zip (V.toList charInfoVV) $ V.toList charDataVV
 
 
 -- concat (zipWith (getBlockString lengthBlock) (V.toList charInfoVV) (V.toList charDataVV) `using` PU.myParListChunkRDS)
@@ -1185,10 +1180,9 @@ getTaxonCharStringList charInfoVV charDataVV leafName =
         -- parallel stuff
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
-    in  do
-            pTraverse ← getParallelChunkTraverse
-            blockResult ← pTraverse action (zip (V.toList charInfoVV) (V.toList charDataVV))
-            pure $ fmap (leafName <>) blockResult
+        prefix = (fmap (leafName <>))
+    in  getParallelChunkTraverse >>= \pTraverse ->
+            fmap prefix . pTraverse action . zip (V.toList charInfoVV) $ V.toList charDataVV
 
 
 -- fmap (leafName <>) $ (zipWith (getBlockString lengthBlock) (V.toList charInfoVV) (V.toList charDataVV) `using` PU.myParListChunkRDS)
@@ -1443,11 +1437,10 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
                                     -- create seprate processed data for each block
                                     blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
                                 in  do
-                                        reoptimizePar ← getParallelChunkTraverse
-                                        decoratedBlockTreeList' ← reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
+                                        decoratedBlockTreeList' ← getParallelChunkTraverse >>= \pTraverse ->
+                                            pTraverse reoptimize . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
                                         -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
                                         let decoratedBlockTreeList = V.fromList decoratedBlockTreeList'
-                                        -- (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
 
                                         -- extract IA strings as if multiple graphs
                                         diplayIAStringList ← mapM (getTreeIAString includeMissing) (V.toList decoratedBlockTreeList)
@@ -1477,16 +1470,14 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
 
                                                 let blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
-                                                reoptimizePar ← getParallelChunkTraverse
-                                                decoratedBlockTreeList' ← reoptimizePar reoptimize (zip (V.toList blockProcessedDataList) (V.toList blockDisplayList))
+                                                decoratedBlockTreeList' ← getParallelChunkTraverse >>= \pTraverse ->
+                                                    pTraverse reoptimize . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
                                                 -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
                                                 let decoratedBlockTreeList = V.fromList decoratedBlockTreeList'
-                                                -- (zipWith (TRAV.multiTraverseFullyLabelGraph' (inGS {graphType = Tree}) False False Nothing) (V.toList blockProcessedDataList) (V.toList blockDisplayList) `using` PU.myParListChunkRDS)
 
                                                 -- extract IA strings as if mutiple graphs
-                                                displayPar ← getParallelChunkTraverse
-                                                diplayIAStringList ← displayPar getIAAction (V.toList decoratedBlockTreeList)
-                                                -- mapM (getTreeIAString includeMissing) (V.toList decoratedBlockTreeList)
+                                                diplayIAStringList ← getParallelChunkTraverse >>= \pTraverse ->
+                                                    getIAAction `pTraverse` V.toList decoratedBlockTreeList
 
                                                 logWith
                                                     LogWarn
@@ -1526,13 +1517,9 @@ makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList =
         -- parallel stuff
         action ∷ Int → PhyG [String]
         action = makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV
-    in  do
-            pTraverse ← getParallelChunkTraverse
-            blockResult ← pTraverse action [0 .. numBlocks - 1]
-            pure $ concat blockResult
+    in  getParallelChunkTraverse >>= \pTraverse ->
+            fold <$> pTraverse action [ 0 .. numBlocks - 1 ]
 
-
--- concat (PU.seqParMap PU.myStrategyHighLevel (makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV) [0.. numBlocks - 1])
 
 -- | makeBlockIAStrings extracts data for a block (via index) and calls function to make iaStrings for each character
 makeBlockIAStrings

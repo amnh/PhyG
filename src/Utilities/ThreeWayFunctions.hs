@@ -266,25 +266,26 @@ getBestPairCostAndState inCostMatrix maxCost numStates childStateCostV medianSta
     in  (minStateCost, L.sort bestChildStates)
 
 
+
 {- | threeWaySlim take charInfo, 2 parents, and curNOde and creates 3 median via
 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 2) inserting gaps to make all 3 line up
 3) creating 3-medians
 4) choosing lowest cost median
+No change adjust is False since the 3-way lookup shold include that factor when it returns cost
 -}
 threeWaySlim ∷ CharInfo → CharacterData → CharacterData → CharacterData → SV.Vector SlimState
 threeWaySlim charInfo parent1 parent2 curNode =
-    -- trace ("3WSlim: ") (
-    let -- pairwise median structures
-        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
-        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
-        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
+    let noChangeAdjust = False
+        -- pairwise median structures
+        p1p2 = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 parent2
+        p1cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 curNode
+        p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent2 curNode
 
         -- get 3rd to pairwise
-        p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
-        p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
-        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
-
+        p1p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo p1p2 curNode
+        p1cNp2 = M.getDOMedianCharInfo noChangeAdjust charInfo p1cN parent2
+        p2cNp1 = M.getDOMedianCharInfo noChangeAdjust charInfo p2cN parent1
         (a1, b1, c1) = addGapsToChildren (slimGapped p1p2cN) (slimGapped p1p2)
         (median1, cost1) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (slimTCM charInfo)) a1 b1 c1
 
@@ -295,33 +296,32 @@ threeWaySlim charInfo parent1 parent2 curNode =
         (median3, cost3) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (slimTCM charInfo)) a3 b3 c3
 
         minCost = minimum [cost1, cost2, cost3]
-    in  if cost1 == minCost
-            then median1
-            else
-                if cost2 == minCost
-                    then median2
-                    else median3
+    in  case cost1 `compare` minCost of
+            EQ -> median1
+            _ -> case cost2 `compare` minCost of
+                EQ -> median2
+                _ -> median3
 
-
--- )
 
 {- | threeWayWide take charInfo, 2 parents, and curNOde and creates 3 median via
 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 2) inserting gaps to make all 3 line up
 3) creating 3-medians
 4) choosing lowest cost median
+No change adjust is False since the 3-way lookup shold include that factor when it returns cost
 -}
 threeWayWide ∷ CharInfo → CharacterData → CharacterData → CharacterData → UV.Vector WideState
 threeWayWide charInfo parent1 parent2 curNode =
-    let -- pairwise median structures
-        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
-        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
-        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
+    let noChangeAdjust = False
+        -- pairwise median structures
+        p1p2 = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 parent2
+        p1cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 curNode
+        p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent2 curNode
 
         -- get 3rd to pairwise
-        p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
-        p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
-        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
+        p1p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo p1p2 curNode
+        p1cNp2 = M.getDOMedianCharInfo noChangeAdjust charInfo p1cN parent2
+        p2cNp1 = M.getDOMedianCharInfo noChangeAdjust charInfo p2cN parent1
 
         (a1, b1, c1) = addGapsToChildren (wideGapped p1p2cN) (wideGapped p1p2)
         (median1, cost1) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (wideTCM charInfo)) a1 b1 c1
@@ -333,12 +333,11 @@ threeWayWide charInfo parent1 parent2 curNode =
         (median3, cost3) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (wideTCM charInfo)) a3 b3 c3
 
         minCost = minimum [cost1, cost2, cost3]
-    in  if cost1 == minCost
-            then median1
-            else
-                if cost2 == minCost
-                    then median2
-                    else median3
+    in  case cost1 `compare` minCost of
+            EQ -> median1
+            _ -> case cost2 `compare` minCost of
+                EQ -> median2
+                _ -> median3
 
 
 {- | threeWayHuge take charInfo, 2 parents, and curNOde and creates 3 median via
@@ -346,18 +345,20 @@ threeWayWide charInfo parent1 parent2 curNode =
 2) inserting gaps to make all 3 line up
 3) creating 3-medians
 4) choosing lowest cost median
+No change adjust is False since the 3-way lookup shold include that factor when it returns cost.
 -}
 threeWayHuge ∷ CharInfo → CharacterData → CharacterData → CharacterData → V.Vector HugeState
 threeWayHuge charInfo parent1 parent2 curNode =
-    let -- pairwise median structures
-        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
-        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
-        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
+    let noChangeAdjust = False
+        -- pairwise median structures
+        p1p2 = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 parent2
+        p1cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 curNode
+        p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent2 curNode
 
         -- get 3rd to pairwise
-        p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
-        p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
-        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
+        p1p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo p1p2 curNode
+        p1cNp2 = M.getDOMedianCharInfo noChangeAdjust charInfo p1cN parent2
+        p2cNp1 = M.getDOMedianCharInfo noChangeAdjust charInfo p2cN parent1
 
         (a1, b1, c1) = addGapsToChildren (hugeGapped p1p2cN) (hugeGapped p1p2)
         (median1, cost1) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (hugeTCM charInfo)) a1 b1 c1
@@ -369,12 +370,11 @@ threeWayHuge charInfo parent1 parent2 curNode =
         (median3, cost3) = get3WayGeneric (Measure.stateTransitionThreewayDispersion (hugeTCM charInfo)) a3 b3 c3
 
         minCost = minimum [cost1, cost2, cost3]
-    in  if cost1 == minCost
-            then median1
-            else
-                if cost2 == minCost
-                    then median2
-                    else median3
+    in  case cost1 `compare` minCost of
+            EQ -> median1
+            _ -> case cost2 `compare` minCost of
+                EQ -> median2
+                _ -> median3
 
 
 {- | addGapsToChildren pads out "new" gaps based on identity--if not identical--adds a gap based on cost matrix size
@@ -438,24 +438,27 @@ get3WayGeneric tcm in1 in2 in3 =
 
 {-Not using this now--but could.  Would need to add Aligned Types-}
 
+
 {- | threeWayGeneric take charInfo, 2 parents, and curNOde and creates 3 median via
 1) 3 DO medians (choosing lowest cost median) ((p1,p2), cn), ((cn,p1), p2), and ((cn,p2), p1)
 2) inserting gaps to make all 3 line up
 3) creating 3-medians
 4) choosing lowest cost median
+No change adjust is False since the 3-way lookup shold include that factor when it returns cost.
 -}
 threeWayGeneric ∷ CharInfo → CharacterData → CharacterData → CharacterData → CharacterData
 threeWayGeneric charInfo parent1 parent2 curNode =
-    let localCharType = charType charInfo
+    let noChangeAdjust = False
+        localCharType = charType charInfo
         -- pairwise medina structures
-        p1p2 = M.getDOMedianCharInfo charInfo parent1 parent2
-        p1cN = M.getDOMedianCharInfo charInfo parent1 curNode
-        p2cN = M.getDOMedianCharInfo charInfo parent2 curNode
+        p1p2 = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 parent2
+        p1cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent1 curNode
+        p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo parent2 curNode
 
         -- get 3rd to pairwise
-        p1p2cN = M.getDOMedianCharInfo charInfo p1p2 curNode
-        p1cNp2 = M.getDOMedianCharInfo charInfo p1cN parent2
-        p2cNp1 = M.getDOMedianCharInfo charInfo p2cN parent1
+        p1p2cN = M.getDOMedianCharInfo noChangeAdjust charInfo p1p2 curNode
+        p1cNp2 = M.getDOMedianCharInfo noChangeAdjust charInfo p1cN parent2
+        p2cNp1 = M.getDOMedianCharInfo noChangeAdjust charInfo p2cN parent1
 
         (median1Slim, median1Wide, median1Huge, cost1) = case localCharType of
             t

@@ -17,7 +17,7 @@ import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
-import Data.Functor (($>))
+import Data.Functor (($>), (<&>))
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Maybe
@@ -49,17 +49,16 @@ bitPack new non-additive
 packNonAdditive
 -}
 optimizePrealignedData ∷ GlobalSettings → ProcessedData → PhyG ProcessedData
-optimizePrealignedData inGS inData@(_, _, blockDataVect)
-    | U.getNumberPrealignedCharacters blockDataVect == 0 = logWith LogMore "Not bitpacking..." $> inData
-    | otherwise = do
+optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPrealignedCharacters blockDataVect of
+    0 -> logWith LogMore "Not bitpacking..." $> inData
+    _ -> do
         logWith LogMore "Bitpacking..."
-
         -- remove constant characters from prealigned
         inData' ← removeConstantCharactersPrealigned inData
-
+    
         -- convert prealigned to nonadditive if all 1 tcms
         let inData'' = convertPrealignedToNonAdditive inData'
-
+    
         -- bit packing for non-additivecharacters
         BP.packNonAdditiveData inGS inData''
 
@@ -433,7 +432,7 @@ getSameWeightChars inCharsPairList testWeight =
             let inWeightList = fmap weight (fmap fst inCharsPairList)
                 weightPairPair = V.zip inWeightList inCharsPairList
                 matchList = V.filter ((== testWeight) . weight . fst . snd) weightPairPair
-            in  fmap snd matchList
+            in  snd <$> matchList
 
 
 {- Currently unused--employed to reduce chrater umbers by replicating characters with integer weight
@@ -481,22 +480,21 @@ getSameMatrixChars inCharsPairList testMatrix =
         matchList = filter ((== testMatrix) . costMatrix . fst . snd) matrixPairPair
     in  fmap snd matchList
 
-
 {- | removeConstantCharactersPrealigned takes processed data and removes constant characters
 from prealignedCharacterTypes
 -}
-removeConstantCharactersPrealigned ∷ ProcessedData → PhyG ProcessedData
-removeConstantCharactersPrealigned (nameVect, bvNameVect, blockDataVect) =
-    let -- parallel setup
-        action ∷ BlockData → PhyG BlockData
-        action = removeConstantBlockPrealigned
-    in  do
-            pTraverse ← getParallelChunkTraverse
-            newBlockData <- pTraverse action blockDataVect
-            pure (nameVect, bvNameVect, newBlockData)
+removeConstantCharactersPrealigned :: ProcessedData -> PhyG ProcessedData
+removeConstantCharactersPrealigned inData@(nameVect, bvNameVect, blockDataVect)
+    | V.null blockDataVect = pure inData
+    | otherwise = do
+        newBlockData ← getParallelChunkTraverse >>= \pTraverse ->
+            removeConstantBlockPrealigned `pTraverse` blockDataVect
+        pure (nameVect, bvNameVect, newBlockData)
 
 
--- | removeConstantBlockPrealigned takes block data and removes constant characters
+{- |
+removeConstantBlockPrealigned takes block data and removes constant characters
+-}
 removeConstantBlockPrealigned ∷ BlockData → PhyG BlockData
 removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInfoV)
     -- check for null data--really really shouldn't happen
@@ -522,12 +520,9 @@ could be done if character has max lenght of 0 as well.
 packed types already filtered when created
 -}
 removeConstantCharsPrealigned ∷ V.Vector CharacterData → CharInfo → PhyG (V.Vector CharacterData)
-removeConstantCharsPrealigned singleChar charInfo =
-    let inCharType = charType charInfo
-    in  -- dynamic characters don't do this
-        if inCharType `notElem` prealignedCharacterTypes
-            then pure singleChar
-            else getVariableChars inCharType singleChar
+removeConstantCharsPrealigned singleChar charInfo = case charType charInfo of
+    cType | cType `elem` prealignedCharacterTypes -> getVariableChars cType singleChar
+    _ -> pure singleChar
 
 
 {- | getVariableChars checks identity of states in a vector positin in all taxa
@@ -544,25 +539,14 @@ getVariableChars inCharType singleChar =
         matrixV = matrixStatesPrelim <$> singleChar
 
         -- get identity vect
-        boolVar =
-            if inCharType == NonAdd
-                then getVarVectBits inCharType nonAddV []
-                else
-                    if inCharType == Add
-                        then getVarVectAdd addV []
-                        else
-                            if inCharType == Matrix
-                                then getVarVectMatrix matrixV []
-                                else
-                                    if inCharType == AlignedSlim
-                                        then getVarVectBits inCharType alSlimV []
-                                        else
-                                            if inCharType == AlignedWide
-                                                then getVarVectBits inCharType alWideV []
-                                                else
-                                                    if inCharType == AlignedHuge
-                                                        then getVarVectBits inCharType alHugeV []
-                                                        else error ("Char type unrecognized in getVariableChars: " <> show inCharType)
+        boolVar = case inCharType of
+            NonAdd -> getVarVectBits inCharType nonAddV []
+            Add ->  getVarVectAdd addV []
+            Matrix -> getVarVectMatrix matrixV []
+            AlignedSlim -> getVarVectBits inCharType alSlimV []
+            AlignedWide -> getVarVectBits inCharType alWideV []
+            AlignedHuge -> getVarVectBits inCharType alHugeV []
+            cType ->  error $ "Char type unrecognized in getVariableChars: " <> show cType
 
         boolVar' = V.fromList boolVar
 
@@ -693,14 +677,13 @@ checkIsVariableMatrix inStateList restStatesV =
 state overlap via bit AND (.&.)
 -}
 checkIsVariableBit ∷ (FiniteBits a, GV.Vector v a) ⇒ a → v a → Bool
-checkIsVariableBit firstElement restVect =
-    if GV.null restVect
-        then False
-        else
-            let newState = firstElement .&. (GV.head restVect)
-            in  if popCount newState == 0
-                    then True
-                    else checkIsVariableBit newState (GV.tail restVect)
+checkIsVariableBit firstElement restVect
+    | GV.null restVect = False
+    | otherwise =
+        let newState = firstElement .&. (GV.head restVect)
+        in  if popCount newState == 0
+                then True
+                else checkIsVariableBit newState (GV.tail restVect)
 
 
 -- | these need to be abstracted but had problems with the bool list -> Generic vector, and SV pair
@@ -710,10 +693,12 @@ uses filter to keep O(n)
 filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 -}
 filterConstantsV ∷ V.Vector Bool → V.Vector a → V.Vector a
-filterConstantsV inVarBoolV charVect =
-    let pairVect = V.zip charVect inVarBoolV
-        variableCharV = V.map fst $ V.filter ((== True) . snd) pairVect
-    in  variableCharV
+filterConstantsV inVarBoolV charVect
+    | V.null inVarBoolV = charVect
+    | otherwise =
+        let pairVect = V.zip charVect inVarBoolV
+            variableCharV = V.map fst $ V.filter ((== True) . snd) pairVect
+        in  variableCharV
 
 
 {- | filerConstantsSV takes the charcter data and filters out teh constants
@@ -721,9 +706,11 @@ uses filter to keep O(n)
 filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 -}
 filterConstantsSV ∷ (SV.Storable a) ⇒ V.Vector Bool → SV.Vector a → SV.Vector a
-filterConstantsSV inVarBoolV charVect =
-    let varVect = filterConstantsV inVarBoolV (V.fromList $ SV.toList charVect)
-    in  SV.fromList $ V.toList varVect
+filterConstantsSV inVarBoolV charVect
+    | V.null inVarBoolV = charVect
+    | otherwise =
+        let varVect = filterConstantsV inVarBoolV . V.fromList $ SV.toList charVect
+        in  SV.fromList $ V.toList varVect
 
 
 {- | filerConstantsUV takes the charcter data and filters out teh constants
@@ -731,9 +718,11 @@ uses filter to keep O(n)
 filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 -}
 filterConstantsUV ∷ (UV.Unbox a) ⇒ V.Vector Bool → UV.Vector a → UV.Vector a
-filterConstantsUV inVarBoolV charVect =
-    let varVect = filterConstantsV inVarBoolV (V.fromList $ UV.toList charVect)
-    in  UV.fromList $ V.toList varVect
+filterConstantsUV inVarBoolV charVect
+    | V.null inVarBoolV = charVect
+    | otherwise =     
+        let varVect = filterConstantsV inVarBoolV (V.fromList $ UV.toList charVect)
+        in UV.fromList $ V.toList varVect
 
 
 {- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate

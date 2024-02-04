@@ -5,11 +5,14 @@
 {- |
 Module specifying data types
 -}
-module Types.Types where
+module Types.Types (
+    module Types.Types,
+) where
 
 import Bio.DynamicCharacter (HugeDynamicCharacter, OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter)
 import Bio.DynamicCharacter.Element (SlimState, WideState)
 import Control.DeepSeq
+import Control.Monad.IO.Class (MonadIO)
 import Control.Parallel.Strategies
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
@@ -208,7 +211,7 @@ data GraphFactor = NoNetworkPenalty | Wheeler2015Network | Wheeler2023Network | 
     deriving stock (Show, Eq)
 
 
-data RootCost = NoRootCost | Wheeler2015Root | PMDLRoot | MLRoot | NCMRoot
+data RootCost = NoRootCost | MAPARoot | NCMRoot | PMDLRoot | SIRoot | Wheeler2015Root
     deriving stock (Show, Eq)
 
 
@@ -699,7 +702,6 @@ data SAParams = SAParams
     { method ∷ SimulatedAnnealingMethod
     , numberSteps ∷ Int
     , currentStep ∷ Int
-    , randomIntegerList ∷ [Int]
     , rounds ∷ Int
     , driftAcceptEqual ∷ Double
     , driftAcceptWorse ∷ Double
@@ -907,7 +909,7 @@ dummyEdge =
 
 
 -- emptyCharInfo for convenience
-emptyCharInfo ∷ CharInfo
+emptyCharInfo :: MonadIO m => m CharInfo
 emptyCharInfo =
     let minAlphabet = fromSymbols $ "0" :| ["1"]
         numSymbols = symbolCount minAlphabet
@@ -915,7 +917,7 @@ emptyCharInfo =
             case TM.fromRows [[0, 1], [1, 0]] ∷ Either (DiagnosisFailure Word) (TM.TransitionMeasureDiagnosis Word) of
                 Right v → v
                 Left _ → error "Impossible construction of 'empyCharInfo'"
-    in  CharInfo
+    in  pure CharInfo
             { name = "EmptyCharName"
             , charType = NonAdd
             , activity = True
@@ -931,3 +933,27 @@ emptyCharInfo =
             , prealigned = False
             , origInfo = V.empty
             }
+{-
+    let minimalMatrix :: [[Int]]
+        minimalMatrix = [[0, 1],[1, 0]]
+        (_, tcm) = TCM.fromRows minimalMatrix
+        sTCM = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList minimalMatrix
+    in  do  wTCM <- MR.metricRepresentation tcm
+            hTCM <- MR.metricRepresentation tcm
+            pure CharInfo
+                { name       = "EmptyCharName"
+                , charType   = NonAdd
+                , activity   = True
+                , weight     = 1.0
+                , metricity = foundMetric
+                , costMatrix = S.empty
+                , slimTCM    = sTCM
+                , wideTCM    = wTCM
+                , hugeTCM    = hTCM
+                , changeCost = 1.0
+                , noChangeCost = 0.0
+                , alphabet   = fromSymbols $ "0" :| [ "1" ]
+                , prealigned = False
+                , origInfo   = V.empty
+                }
+-}

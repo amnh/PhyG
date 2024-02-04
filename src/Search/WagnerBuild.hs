@@ -7,8 +7,9 @@ module Search.WagnerBuild (
     rasWagnerBuild,
 ) where
 
-import Control.Monad (when)
+import Control.Monad (replicateM, when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
@@ -34,37 +35,28 @@ import Utilities.Utilities qualified as U
 {- | rasWagnerBuild generates a series of random addition sequences and then calls wagnerTreeBuild to construct them.
 Does not filter by best, unique etc.  That happens with the select() command specified separately.
 -}
-rasWagnerBuild ∷ GlobalSettings → ProcessedData → Int → Int → PhyG [ReducedPhylogeneticGraph]
-rasWagnerBuild inGS inData rSeed numReplicates =
+rasWagnerBuild ∷ GlobalSettings → ProcessedData → Int → PhyG [ReducedPhylogeneticGraph]
+rasWagnerBuild inGS inData numReplicates =
     if numReplicates == 0
         then do
             pure []
         else
             let numLeaves = V.length $ fst3 inData
-                randomizedAdditionSequences = V.fromList <$> shuffleInt rSeed numReplicates [0 .. numLeaves - 1]
 
                 -- "graph" of leaf nodes without any edges
                 leafGraph = GO.makeSimpleLeafGraph inData
                 leafDecGraph = GO.makeLeafGraph inData
+                leafIndexVec = V.generate numLeaves id
 
                 hasNonExactChars = U.getNumberSequenceCharacters (thd3 inData) > 0
 
                 wagnerTreeAction ∷ (V.Vector Int, Int) → PhyG ReducedPhylogeneticGraph
                 wagnerTreeAction = wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars
             in  do
+                    randomizedAdditionSequences ← replicateM numReplicates $ shuffleList leafIndexVec
                     logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
-                    -- seqParMap better for high level parallel stuff
-                    -- PU.seqParMap PU.myStrategy (wagnerTreeBuild inGS inData) randomizedAdditionSequences
-                    -- zipWith (wagnerTreeBuild inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) randomizedAdditionSequences [0..numReplicates - 1] `using` PU.myParListChunkRDS
-
-                    -- TODO
-                    wagnerTreeActionTraverse ← getParallelChunkTraverse
-                    rasResult ← wagnerTreeActionTraverse wagnerTreeAction (zip randomizedAdditionSequences [0 .. numReplicates - 1])
-
-                    -- rasResult <- mapM (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
-                    -- PU.seqParMap (parStrategy $ strictParStrat inGS) (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1])
-                    -- fmap (wagnerTreeBuild' inGS inData leafGraph leafDecGraph numLeaves hasNonExactChars) (zip randomizedAdditionSequences [0..numReplicates - 1]) `using` PU.myParListChunkRDS
-                    pure rasResult
+                    getParallelChunkTraverse >>= \pTraverse ->
+                        pTraverse wagnerTreeAction $ zip randomizedAdditionSequences [0 .. numReplicates - 1]
 
 
 -- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallelization--(zipWith not doing so well?)
@@ -166,14 +158,6 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                 edgesToInvade = LG.labEdges inDecGraph -- L.\\ outgroupEdges
                 leafToAdd = V.head additionSequence
                 leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
-
-                -- since this is apporximate--can get a bit off
-                {-
-                --add unions here
-                -- not clear what the delta to compare is--have an existing tree cost and the leaf to add would be 0.
-                -- use a single tree after first addition?
-                unionEdgeList = S.getUnionRejoinEdgeList inGS inDecGraph charInfoVV [numLeaves] splitDeltaValue (unionThreshold inGS) leafToAddVertData []
-                -}
 
                 addTaxonAction ∷ LG.LEdge EdgeInfo → (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
                 addTaxonAction = addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd
