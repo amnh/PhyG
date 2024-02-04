@@ -25,6 +25,7 @@ import Data.Vector.Unboxed qualified as UV
 import GeneralUtilities
 import GraphFormatUtilities
 import GraphOptimization.Traversals qualified as TRAV
+import GraphOptimization.PreOrderFunctions qualified as PRE
 import Graphs.GraphOperations qualified as GO
 import Input.Reorganize qualified as IR
 import PHANE.Evaluation
@@ -39,7 +40,7 @@ import System.Process
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
-
+import Debug.Trace
 
 {- | processSearchFields takes a [String] and reformats the String associated with the
 "search" commands and especially Thompson sampling data,
@@ -494,11 +495,94 @@ phyloDataToString charIndexStart inDataVect =
     if V.null inDataVect
         then []
         else
-            let (blockName, _, charInfoVect) = V.head inDataVect
+            let (blockName, blockData, charInfoVect) = V.head inDataVect
                 charStrings = zipWith (:) (replicate (V.length charInfoVect) (T.unpack blockName)) (getCharInfoStrings <$> V.toList charInfoVect)
                 charNumberString = fmap show [charIndexStart .. (charIndexStart + length charStrings - 1)]
                 fullMatrix = zipWith (:) charNumberString charStrings
             in  fullMatrix <> phyloDataToString (charIndexStart + length charStrings) (V.tail inDataVect)
+
+-- | getDataElementFrequencies takes a vecor of block data and returns character element frequencies
+getDataElementFrequencies :: V.Vector BlockData -> [[String]]
+getDataElementFrequencies inBlockDataV =
+    if V.null inBlockDataV then []
+    else 
+        let blockCharFreqLLL = V.toList $ V.zipWith getBlockCharElementFrequencies (fmap snd3 inBlockDataV) (fmap thd3 inBlockDataV)
+        in
+        fmap (fmap show) blockCharFreqLLL
+
+-- | getBlockElementFrequencies gets the element grequencies for each character in a block
+-- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
+-- inputs square (so minimum number of gaps)
+getBlockCharElementFrequencies :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(Double, Int)]]
+getBlockCharElementFrequencies charDataV charInfoV =
+    if V.null charDataV then []
+    else
+        V.toList $ V.zipWith getCharElementFrequencies (U.transposeVector $ PRE.setFinalToPreliminaryStates charDataV) charInfoV
+
+-- | getCharElementFrequencies gets element frequencies for a character
+-- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
+-- inputs square (so minimum number of gaps)
+-- returns frequencies and number for each alphabet element
+-- ignores ambiguities/polymorphism
+getCharElementFrequencies :: V.Vector CharacterData -> CharInfo -> [(Double, Int)]
+getCharElementFrequencies charData charInfo =
+    if V.null charData then []
+    else 
+        let usaIA = False  -- this will estimate gaps based on minimum number possible
+
+            -- alphabet element strings
+            alphabetElementStrings =  (alphabetSymbols $ ST.toString <$> alphabet charInfo)
+
+            charInfoV = V.replicate (V.length charData) charInfo
+            charPairV = V.zip charData charInfoV
+            taxonElementList = V.toList $ fmap L.last $ fmap (makeCharLine usaIA) charPairV
+
+            -- get implicit gaps from unaligned seqs (will end up zero if all equal in length)
+            numExtraGaps = if "-" `notElem` alphabetElementStrings then 0
+                           else 
+                                let maxLength = maximum $ fmap length taxonElementList
+                                in getMinGapNumber maxLength 0 taxonElementList
+
+            totalElementList =  concat $ (L.replicate numExtraGaps '-') : taxonElementList
+            elementsGroups = L.group $ L.sort totalElementList
+            elementList = fmap (:[]) $ fmap head elementsGroups
+            doubleList = zip elementList (fmap length elementsGroups)
+            elementNumberList = reorderAsInAlphabet alphabetElementStrings doubleList
+            numElements = fromIntegral $ sum elementNumberList
+            elementfreqList = fmap (/numElements) $ fmap fromIntegral elementNumberList
+            
+        in
+        -- trace ("GCEF: " <> totalElementList ) $ -- <> " -> " <> (concat $ concat $ fmap (makeCharLine usaIA) charPairV))
+        zip elementfreqList elementNumberList
+
+-- | getMinGapNumber gets implicit gap number by summing length differneces among sequences in order
+getMinGapNumber :: Int -> Int -> [String] -> Int
+getMinGapNumber maxLength curNum inElementLL =
+    if null inElementLL then curNum
+    else 
+        let increment =  maxLength - (length $ head inElementLL)
+        in
+        getMinGapNumber maxLength (curNum + increment) (tail inElementLL)
+
+-- | reorderAsInAlphabet
+reorderAsInAlphabet :: [String] -> [(String, Int)] -> [Int]
+reorderAsInAlphabet inAlphList inDoubleList = 
+    -- trace ("RASIA: " <> (show inAlphList) <> " " <> (show inDoubleList)) $
+    if null inDoubleList then []
+    else
+        fmap (findDouble inDoubleList) inAlphList
+
+-- | findDouble takes list of strings then pulls the tipple wthat matches the string
+findDouble :: [(String, Int)] -> String -> Int
+findDouble inDoubleList matchString =
+    if null inDoubleList then 0
+    else 
+        let (alphElement, number) =  head inDoubleList
+        in
+        if alphElement == matchString then number
+        else findDouble (tail inDoubleList) matchString
+
+
 
 
 -- | getCharInfoStrings takes charInfo and returns list of Strings of fields
@@ -627,6 +711,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                 in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
                     [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
+                        <> getDataElementFrequencies (thd3 inData)
                         <> edgeTitle
                         <> edgeHeaderList
                         <> edgeInfoList

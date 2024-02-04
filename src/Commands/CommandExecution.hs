@@ -1132,7 +1132,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                         then
                                             let blocks = thd3 processedData
                                                 numChars = V.sum $ fmap (V.length . thd3) blocks
-                                                dataString = phyloDataToString 0 $ thd3 processedData
+                                                dataString = phyloDataToString 0 blocks -- $ thd3 processedData
                                                 baseData =
                                                     [ ["Input data contained:"]
                                                     , ["", show (length $ fst3 processedData) <> " terminal taxa"]
