@@ -6,6 +6,7 @@
 --    S = "singleton" (single leaf + root) components.
 --
 --    To Do:  read graph from file and do get numbers that way?
+{-# LANGUAGE Safe #-}
 
 {- |
 Module      :  Graphs
@@ -51,6 +52,7 @@ module Complexity.Graphs (
 ) where
 
 import Complexity.CodeStrings
+import Data.Foldable (fold)
 
 
 -- import Debug.Trace
@@ -74,7 +76,7 @@ makeProgramStringGraph numLeaves numSingle numRoots numNetEdges =
                 numRoots
                 numNetEdges
                 numSingle
-    in  outProgram ++ middleString ++ sumString
+    in  outProgram <> middleString <> sumString
 
 
 -- | makeGraphProgramString puts apropriate code and values into string to define a general graph
@@ -98,9 +100,9 @@ makeGraphProgramString numLeavesOrig numRootsOrig numSingleOrig beforeMain after
                             numLeavesOrig
                             numRootsOrig
                             numSingleOrig
-                            (beforeMain ++ getSingletonEdgesString ++ nullString)
-                            (afterMain ++ "  let s=aG 0 " ++ show numSingleOrig ++ "\n")
-                            "  p0 \"\" (s++"
+                            (beforeMain <> getSingletonEdgesString <> nullString)
+                            (afterMain <> "  let s=aG 0 " <> show numSingleOrig <> "\n")
+                            "  p0 \"\" (s<>"
                             (numLeaves - numSingle)
                             (numRoots - numSingle)
                             numNetEdges
@@ -111,15 +113,15 @@ makeGraphProgramString numLeavesOrig numRootsOrig numSingleOrig beforeMain after
                             numLeavesOrig
                             numRootsOrig
                             numSingleOrig
-                            (beforeMain ++ getSingletonEdgesString ++ nullString)
-                            (afterMain ++ "  let s=aG 0 " ++ show numSingleOrig ++ "\n")
+                            (beforeMain <> getSingletonEdgesString <> nullString)
+                            (afterMain <> "  let s=aG 0 " <> show numSingleOrig <> "\n")
                             "  p0 \"\" s"
                             (numLeaves - numSingle)
                             (numRoots - numSingle)
                             numNetEdges
                             0
             else
-                if numRoots > (numSingle + 1) -- have trivial trees.  one root -> two leaves--always do a tree so always a tree follows if this is done. hence "m++""
+                if numRoots > (numSingle + 1) -- have trivial trees.  one root -> two leaves--always do a tree so always a tree follows if this is done. hence "m<>""
                     then
                         if not doSingle
                             then
@@ -127,9 +129,9 @@ makeGraphProgramString numLeavesOrig numRootsOrig numSingleOrig beforeMain after
                                     numLeavesOrig
                                     numRootsOrig
                                     numSingleOrig
-                                    (beforeMain ++ minimalTreesString ++ nullString)
-                                    (afterMain ++ "  let m=bG " ++ show (max 0 $ 2 * numSingleOrig) ++ " " ++ show numLeaves2 ++ " " ++ show numRoots2 ++ "\n")
-                                    (sumString ++ "  p0 \"\" (m++")
+                                    (beforeMain <> minimalTreesString <> nullString)
+                                    (afterMain <> "  let m=bG " <> show (max 0 $ 2 * numSingleOrig) <> " " <> show numLeaves2 <> " " <> show numRoots2 <> "\n")
+                                    (sumString <> "  p0 \"\" (m<>")
                                     (numLeaves - 2 * (numRoots - 1))
                                     1
                                     numNetEdges
@@ -139,9 +141,9 @@ makeGraphProgramString numLeavesOrig numRootsOrig numSingleOrig beforeMain after
                                     numLeavesOrig
                                     numRootsOrig
                                     numSingleOrig
-                                    (beforeMain ++ minimalTreesString ++ nullString)
-                                    (afterMain ++ "  let m=bG " ++ show (max 0 $ 2 * numSingleOrig) ++ " " ++ show numLeaves2 ++ " " ++ show numRoots2 ++ "\n")
-                                    (sumString ++ "m++")
+                                    (beforeMain <> minimalTreesString <> nullString)
+                                    (afterMain <> "  let m=bG " <> show (max 0 $ 2 * numSingleOrig) <> " " <> show numLeaves2 <> " " <> show numRoots2 <> "\n")
+                                    (sumString <> "m<>")
                                     (numLeaves - 2 * (numRoots - 1))
                                     1
                                     numNetEdges
@@ -153,46 +155,46 @@ makeGraphProgramString numLeavesOrig numRootsOrig numSingleOrig beforeMain after
                                     then
                                         if not doSingle && not doMinimal
                                             then
-                                                ( beforeMain ++ fullTreeString ++ nullString
-                                                , afterMain ++ "  let t=cG True " ++ show maxVertex ++ " " ++ show numLeaves3 ++ "\n"
-                                                , sumString ++ "  p0 \"\" t"
+                                                ( beforeMain <> fullTreeString <> nullString
+                                                , afterMain <> "  let t=cG True " <> show maxVertex <> " " <> show numLeaves3 <> "\n"
+                                                , sumString <> "  p0 \"\" t"
                                                 )
                                             else
-                                                ( beforeMain ++ fullTreeString
-                                                , afterMain ++ "  let t=cG True " ++ show maxVertex ++ " " ++ show numLeaves3 ++ "\n"
-                                                , sumString ++ "t)"
+                                                ( beforeMain <> fullTreeString
+                                                , afterMain <> "  let t=cG True " <> show maxVertex <> " " <> show numLeaves3 <> "\n"
+                                                , sumString <> "t)"
                                                 )
                                     else
                                         if not doSingle && not doMinimal
                                             then
-                                                ( beforeMain ++ fullTreeString ++ nullString ++ addEdgeString
+                                                ( beforeMain <> fullTreeString <> nullString <> addEdgeString
                                                 , afterMain
-                                                    ++ "  let t=cG True "
-                                                    ++ show maxVertex
-                                                    ++ " "
-                                                    ++ show numLeaves3
-                                                    ++ "\n"
-                                                    ++ "  let n=dG "
-                                                    ++ show maxVertex2
-                                                    ++ " t "
-                                                    ++ show numNetEdges
-                                                    ++ "\n"
-                                                , sumString ++ "  p0 \"\" n"
+                                                    <> "  let t=cG True "
+                                                    <> show maxVertex
+                                                    <> " "
+                                                    <> show numLeaves3
+                                                    <> "\n"
+                                                    <> "  let n=dG "
+                                                    <> show maxVertex2
+                                                    <> " t "
+                                                    <> show numNetEdges
+                                                    <> "\n"
+                                                , sumString <> "  p0 \"\" n"
                                                 )
                                             else
-                                                ( beforeMain ++ fullTreeString ++ nullString ++ addEdgeString
+                                                ( beforeMain <> fullTreeString <> nullString <> addEdgeString
                                                 , afterMain
-                                                    ++ "  let t=cG True "
-                                                    ++ show maxVertex
-                                                    ++ " "
-                                                    ++ show numLeaves3
-                                                    ++ "\n"
-                                                    ++ "  let n=dG "
-                                                    ++ show maxVertex2
-                                                    ++ " t "
-                                                    ++ show numNetEdges
-                                                    ++ "\n"
-                                                , sumString ++ "n)"
+                                                    <> "  let t=cG True "
+                                                    <> show maxVertex
+                                                    <> " "
+                                                    <> show numLeaves3
+                                                    <> "\n"
+                                                    <> "  let n=dG "
+                                                    <> show maxVertex2
+                                                    <> " t "
+                                                    <> show numNetEdges
+                                                    <> "\n"
+                                                , sumString <> "n)"
                                                 )
                             else (beforeMain, afterMain, sumString)
 
@@ -201,43 +203,47 @@ makeGraphProgramString numLeavesOrig numRootsOrig numSingleOrig beforeMain after
 so conditions already checked--leaves > 0, numSunbgle == 0, numRoots == 1
 -}
 makeBaseStringGraph ∷ Int → String → String → String → Int → Int → (String, String, String)
-makeBaseStringGraph numLeavesOrig beforeMain afterMain sumString numLeaves numNetEdges =
+makeBaseStringGraph numLeavesOrig beforeMain afterMain sumString _numLeaves numNetEdges =
     let maxVertex2 = (2 * numLeavesOrig) - 1
         zero0 = 0 ∷ Int -- quiets warning
         necessaryFunctionStrings =
-            beforeMain
-                ++ fullTreeString
-                ++ addEdgeString
-                ++ fmapString
-                ++ sndString
-                ++ headString
-                ++ tailString
-                ++ elemString
-                ++ notElemString
-                ++ getRepeatedElementsString
-                ++ childrenParentsOfNodeString
-                ++ lastString
-                ++ filterString
-                ++ displayEdgesString
-                ++ nullString
+            fold
+                [ beforeMain
+                , fullTreeString
+                , addEdgeString
+                , fmapString
+                , sndString
+                , headString
+                , tailString
+                , elemString
+                , notElemString
+                , getRepeatedElementsString
+                , childrenParentsOfNodeString
+                , lastString
+                , filterString
+                , displayEdgesString
+                , nullString
+                ]
         bitList = replicate numNetEdges (0 ∷ Int)
     in  ( necessaryFunctionStrings
-        , afterMain
-            ++ "  let t=cG True "
-            ++ show zero0
-            ++ " "
-            ++ show numLeavesOrig
-            ++ "\n"
-            ++ "  let n=dG "
-            ++ show maxVertex2
-            ++ " t "
-            ++ show numNetEdges
-            ++ "\n"
-            ++ "  let b="
-            ++ (show bitList)
-            ++ "\n"
-            ++ "  let d=dE b n\n"
-        , sumString ++ "  p0 \"\" d"
+        , fold
+            [ afterMain
+            , "  let t=cG True "
+            , show zero0
+            , " "
+            , show numLeavesOrig
+            , "\n"
+            , "  let n=dG "
+            , show maxVertex2
+            , " t "
+            , show numNetEdges
+            , "\n"
+            , "  let b="
+            , show bitList
+            , "\n"
+            , "  let d=dE b n\n"
+            ]
+        , sumString <> "  p0 \"\" d"
         )
 
 
@@ -251,7 +257,7 @@ makeDisplayGraphString numLeaves numSingle numRoots numNetEdges =
         then makeProgramStringGraph numLeaves numSingle numRoots numNetEdges
         else
             let (outProgram, middleString, sumString) = makeBaseStringGraph numLeaves programStartStringGraph mainStartString "" numLeaves numNetEdges
-            in  outProgram ++ middleString ++ sumString
+            in  outProgram <> middleString <> sumString
 
 {-
 Resolve general graph to display tree
@@ -343,7 +349,7 @@ childrenParentsOfNode node edgeList childList parentList =
 
 -- filter out nodes to delete and add new ones
 --  displayNodes = filter (`notElem` d) n
-"   w=(gM(`nE` d)h)++a \n"
+"   w=(gM(`nE` d)h)<>a \n"
 
 -- print edge set and terminate
 
@@ -385,6 +391,6 @@ displayEdges n =
       -- get edges to add
       "       a=[(a5 p, a5 c),(gR, sR)]\n"
       -- filter out nodes to delete and add new ones and return
-      "       w=(gM(`nE` d)h)++a \n"
+      "       w=(gM(`nE` d)h)<>a \n"
       "    in displayEdges w\n"
 -}
