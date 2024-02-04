@@ -1,3 +1,5 @@
+{-# LANGUAGE Safe #-}
+
 {- |
 Module      :  Utilities
 Description :  Functions to generate (algorithmic) complexity of objects
@@ -42,7 +44,7 @@ module Complexity.Utilities (
 import Codec.Compression.GZip qualified as GZ
 import Complexity.Huffman
 import Data.ByteString.Lazy qualified as B
-import Data.List
+import Data.List (nub)
 import Data.String.Encode qualified as E
 
 
@@ -55,15 +57,13 @@ occurencesInList elementList element = fromIntegral $ (length . filter (== eleme
 
 
 -- | getTotalBits takes occurence and bit encoding to return total bits of program
-getTotalBits ∷ Double → [Double] → [Double] → Double
-getTotalBits currentSum occurenceList bitList =
-    if null occurenceList || null bitList
-        then currentSum
-        else
-            let occurrences = head occurenceList
-                bitCoding = head bitList
-            in  -- trace ("n=" ++ show occurrences ++ " b=" ++ show bitCoding)
-                getTotalBits (currentSum + (occurrences * bitCoding)) (tail occurenceList) (tail bitList)
+getTotalBits ∷ [Double] → [Double] → Double
+getTotalBits = \case
+    [] → const 0
+    occurrences : rest → \case
+        [] → 0
+        bitCoding : bitList →
+            occurrences * bitCoding + getTotalBits rest bitList
 
 
 -- | getShannon gets Shannon entropy bits by freqency for string (list of symbols)
@@ -77,21 +77,17 @@ getShannon inCharList =
                 symbolOccurences = fmap (occurencesInList inCharList) symbolList
                 symbolFrequency = fmap (/ fromIntegral totalSymbols) symbolOccurences
                 symbolBits = fmap (logBase 2.0) symbolFrequency
-                totalBits = getTotalBits 0.0 symbolOccurences symbolBits -- This and above line could be a single function
+                totalBits = getTotalBits symbolOccurences symbolBits -- This and above line could be a single function
             in  -- trace ("There were " ++ show (length symbolList) ++ " unique symbols in program.")
                 ceiling $ abs totalBits
 
 
 -- | getHuffCode takes the code map list and rturns the binary code
-getHuffCode ∷ Code Char → Char → [Bit]
-getHuffCode huffCode inChar =
-    if null huffCode
-        then error "Code empty or character not found"
-        else
-            let (candChar, bitList) = head huffCode
-            in  if candChar == inChar
-                    then bitList
-                    else getHuffCode (tail huffCode) inChar
+getHuffCode ∷ Char → Code Char → [Bit]
+getHuffCode inChar = \case
+    [] → error "Code empty or character not found"
+    (candChar, bitList) : _ | candChar == inChar → bitList
+    _ : rest → getHuffCode inChar rest
 
 
 bitToChar ∷ Bit → Char
@@ -112,7 +108,7 @@ getHuffman inString =
                 symbolOccurencePairs = zip symbolList symbolOccurences
                 huffTree = huffman symbolOccurencePairs
                 huffCodes = codewords huffTree
-                bitList = concatMap (getHuffCode huffCodes) inString
+                bitList = foldMap (flip getHuffCode huffCodes) inString
                 bitString = fmap bitToChar bitList
             in  -- trace (ppCode huffCodes)
                 (length bitList, bitString)
@@ -130,7 +126,7 @@ getInformationContent programString =
             let (huffBits, huffBinary) = getHuffman programString
                 compressedStream = GZ.compressWith GZ.defaultCompressParams{GZ.compressLevel = GZ.bestCompression} (E.convertString programString)
                 shannonBits = getShannon programString
-                compressedBits = min shannonBits (8 * (length $ B.unpack compressedStream))
+                compressedBits = min shannonBits $ 8 * length (B.unpack compressedStream)
             in  (fromIntegral shannonBits, huffBits, huffBinary, fromIntegral compressedBits)
 
 
