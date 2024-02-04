@@ -234,8 +234,9 @@ getResampleGraph inGS inData resampleType replicates buildOptions swapOptions ja
     in  -- majority ruke consensus if no args
         do
             -- the replicate to performs number replicates
-            resampledGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                const action `pTraverse` replicate replicates ()
+            resampledGraphList ←
+                getParallelChunkTraverse >>= \pTraverse →
+                    const action `pTraverse` replicate replicates ()
             recResult ← REC.makeReconcileGraph VER.reconcileArgList reconcileArgs $ fst5 <$> resampledGraphList
             let (_, reconciledGraph) = recResult
 
@@ -404,10 +405,8 @@ does not check if equal in length
 makeSampledVect ∷ (GV.Vector v a) ⇒ [Bool] → [a] → v a → v a
 makeSampledVect boolList accumList inVect =
     if GV.null inVect
-        then
-            GV.fromList accumList
+        then GV.fromList accumList
         else
-
             if head boolList
                 then makeSampledVect (tail boolList) (GV.head inVect : accumList) (GV.tail inVect)
                 else makeSampledVect (tail boolList) accumList (GV.tail inVect)
@@ -560,8 +559,7 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
                                                         else error ("Incorrect character type in makeSampledPairVect: " <> show firstCharType)
 
 
-{- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
--}
+-- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
 resampleBlockJackknife ∷ Double → BlockData → PhyG BlockData
 resampleBlockJackknife sampleFreq inData@(nameText, charDataVV, charInfoV) =
     let getRandomAcceptances ∷ PhyG [Bool]
@@ -664,22 +662,20 @@ getGBTuples inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph =
     swapTuples ← performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
     case graphType inGS of
         -- swap only for Tree-do nothing
-        Tree -> pure swapTuples
-        _ | LG.isTree (fst5 inGraph) -> pure swapTuples
-
+        Tree → pure swapTuples
+        _ | LG.isTree (fst5 inGraph) → pure swapTuples
         -- network edge support if not Tree
         -- SoftWired => delete edge -- could add net move if needed
-        SoftWired ->
+        SoftWired →
             let deleteAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
                 deleteAction = updateDeleteTuple inGS inData inGraph
-            in  getParallelChunkTraverse >>= \pTraverse ->
+            in  getParallelChunkTraverse >>= \pTraverse →
                     deleteAction `pTraverse` swapTuples
-
         -- HardWired => move edge
-        _ ->
+        _ →
             let moveAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
                 moveAction = updateMoveTuple inGS inData inGraph
-            in  getParallelChunkTraverse >>= \pTraverse ->
+            in  getParallelChunkTraverse >>= \pTraverse →
                     moveAction `pTraverse` swapTuples
 
 
@@ -724,7 +720,6 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                 let steepest = False
                     randomOrder = False
                     keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
-
                     saParams ∷ ∀ {a}. Maybe a
                     saParams = Nothing
                 in  do
@@ -751,37 +746,40 @@ performGBSwap
 performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
     | LG.isEmpty (fst5 inGraph) = error "Null graph in performGBSwap"
     | otherwise =
-            let -- work with simple graph
-                inSimple = fst5 inGraph
-                (firstRootIndex, _) = head $ LG.getRoots inSimple
+        let -- work with simple graph
+            inSimple = fst5 inGraph
+            (firstRootIndex, _) = head $ LG.getRoots inSimple
 
-                -- determine edges to break on--'bridge' edges only for network
-                -- filter out edges from root since no use--would just rejoin
-                breakEdgeList = case graphType inGS of
-                    Tree -> filter ((/= firstRootIndex) . fst3) $ LG.labEdges inSimple
-                    _ ->    filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList inSimple
+            -- determine edges to break on--'bridge' edges only for network
+            -- filter out edges from root since no use--would just rejoin
+            breakEdgeList = case graphType inGS of
+                Tree → filter ((/= firstRootIndex) . fst3) $ LG.labEdges inSimple
+                _ → filter ((/= firstRootIndex) . fst3) $ LG.getEdgeSplitList inSimple
+        in  do
+                -- integerized critical value for prob accept
+                -- based on approx (leaves - netnodes)^2 or (leaves - netnodes)^3
+                let (_, leafList, _, netVertList) = LG.splitVertexList (fst5 inGraph)
+                let intProbAccept = case swapType of
+                        "spr" →
+                            floor
+                                ((1000.0 * fromIntegral (fromJust sampleSize)) / ((2.0 * fromIntegral (length leafList - length netVertList)) ** 2) ∷ Double)
+                        _ →
+                            floor
+                                ((1000.0 * fromIntegral (fromJust sampleSize)) / ((2.0 * fromIntegral (length leafList - length netVertList)) ** 3) ∷ Double)
 
-            in do
-                    -- integerized critical value for prob accept
-                    -- based on approx (leaves - netnodes)^2 or (leaves - netnodes)^3
-                    let (_, leafList, _, netVertList) = LG.splitVertexList (fst5 inGraph)
-                    let intProbAccept = case swapType of
-                            "spr" -> floor
-                                        ((1000.0 * fromIntegral (fromJust sampleSize)) / ((2.0 * fromIntegral (length leafList - length netVertList)) ** 2) ∷ Double)
-                            _ -> floor
-                                        ((1000.0 * fromIntegral (fromJust sampleSize)) / ((2.0 * fromIntegral (length leafList - length netVertList)) ** 3) ∷ Double)
+                -- splitRejoinAction ∷ ([Int], LG.LEdge Double) → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
+                let splitRejoinAction = splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList
 
-                    -- splitRejoinAction ∷ ([Int], LG.LEdge Double) → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
-                    let splitRejoinAction = splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList
-
-                    -- generate tuple lists for each break edge parallelized at this level
-                    tupleListList ← getParallelChunkTraverse >>= \pTraverse ->
+                -- generate tuple lists for each break edge parallelized at this level
+                tupleListList ←
+                    getParallelChunkTraverse >>= \pTraverse →
                         splitRejoinAction `pTraverse` breakEdgeList
 
-                    -- merge tuple lists--should all be in same order
-                    let newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
-                    -- trace ("PGBS:" <> (show $ fmap length tupleListList) <> " -> " <> (show $ length newTupleList))
-                    pure newTupleList
+                -- merge tuple lists--should all be in same order
+                let newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
+                -- trace ("PGBS:" <> (show $ fmap length tupleListList) <> " -> " <> (show $ length newTupleList))
+                pure newTupleList
+
 
 {- | splitRejoinGB take parameters and splits input graph at specified edge and rejoins at all available edge
 (reroots the pruned subgraph if TBR) and creates and gets cost of graph (lazy takes care of post order only)
@@ -819,12 +817,13 @@ splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGr
                 else -- generate "tbr" rerootings in split graph
                     getTBRSplitGraphs inGS splitGraph breakEdge
 
-        action :: LG.LEdge Double → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
+        action ∷ LG.LEdge Double → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
         action = rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList breakEdge
     in  do
             -- parallel at break level above
-            rejoinTupleListList ← getParallelChunkTraverse >>= \pTraverse ->
-                action `pTraverse` edgesToInvade
+            rejoinTupleListList ←
+                getParallelChunkTraverse >>= \pTraverse →
+                    action `pTraverse` edgesToInvade
 
             -- merge tuples
             pure $ mergeTupleLists rejoinTupleListList []

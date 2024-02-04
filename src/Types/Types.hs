@@ -902,26 +902,28 @@ dummyEdge =
 
 
 -- emptyCharInfo for convenience
-emptyCharInfo :: MonadIO m => m CharInfo
+emptyCharInfo ∷ (MonadIO m) ⇒ m CharInfo
 emptyCharInfo =
-    let minimalMatrix :: [[Int]]
-        minimalMatrix = [[0, 1],[1, 0]]
+    let minimalMatrix ∷ [[Int]]
+        minimalMatrix = [[0, 1], [1, 0]]
         (_, tcm) = TCM.fromRows minimalMatrix
         sTCM = TCMD.generateDenseTransitionCostMatrix 2 2 . S.getCost $ V.fromList <$> V.fromList minimalMatrix
-    in  do  wTCM <- MR.metricRepresentation tcm
-            hTCM <- MR.metricRepresentation tcm
-            pure CharInfo
-                { name       = "EmptyCharName"
-                , charType   = NonAdd
-                , activity   = True
-                , weight     = 1.0
-                , costMatrix = S.empty
-                , slimTCM    = sTCM
-                , wideTCM    = wTCM
-                , hugeTCM    = hTCM
-                , changeCost = 1.0
-                , noChangeCost = 0.0
-                , alphabet   = fromSymbols $ "0" :| [ "1" ]
-                , prealigned = False
-                , origInfo   = V.empty
-                }
+    in  do
+            wTCM ← MR.metricRepresentation tcm
+            hTCM ← MR.metricRepresentation tcm
+            pure
+                CharInfo
+                    { name = "EmptyCharName"
+                    , charType = NonAdd
+                    , activity = True
+                    , weight = 1.0
+                    , costMatrix = S.empty
+                    , slimTCM = sTCM
+                    , wideTCM = wTCM
+                    , hugeTCM = hTCM
+                    , changeCost = 1.0
+                    , noChangeCost = 0.0
+                    , alphabet = fromSymbols $ "0" :| ["1"]
+                    , prealigned = False
+                    , origInfo = V.empty
+                    }

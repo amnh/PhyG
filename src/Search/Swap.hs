@@ -34,7 +34,6 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
 
-
 {- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
 runs both SPR and TBR depending on argument since so much duplicated functionality
 'steepest' abandons swap graph and switces to found graph as soon as anyhting 'better'
@@ -138,6 +137,7 @@ options such as joinType to ensure complete swap but with an edge unions pass to
 reduce time of swap
 also manages SA/Drifting versus greedy swap
 -}
+
 {- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
 options such as joinType to ensure complete swap but with an edge unions pass to
 reduce time of swap
@@ -882,8 +882,9 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost nodeT
 
 -- )
 
--- | getUnionDistance gets distance between two the union fields of two characters
--- since its a distance no need for no change cost adjustment
+{- | getUnionDistance gets distance between two the union fields of two characters
+since its a distance no need for no change cost adjustment
+-}
 getUnionDistance ∷ VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → Double
 getUnionDistance union1 union2 charInfoVV =
     let noChangeCostAdjut = False
@@ -979,6 +980,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                         if splitGraphCost >= curBestCost
                             then pure ([], inSimAnnealParams)
                             else -- fmap over all edges in base graph
+
                                 if not (steepest swapParams)
                                     then
                                         let {-
@@ -1004,8 +1006,9 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     edgesInPrunedGraph
                                                     inSimAnnealParams
                                         in  do
-                                                rejoinGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                    fold <$> pTraverse (fmap fst . action) rejoinEdges
+                                                rejoinGraphList ←
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                        fold <$> pTraverse (fmap fst . action) rejoinEdges
                                                 {-
                                                 rejoinOperation = fst . singleJoin
                                                     swapParams
@@ -1033,11 +1036,10 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
 
                                                 -- will only return graph if <= curBest cost
                                                 case rejoinGraphList of
-                                                    [] -> pure ([], inSimAnnealParams)
-                                                    xs -> case getGraphCost newGraphList `compare` curBestCost of
-                                                        LT -> pure (newGraphList, inSimAnnealParams)
-                                                        _ -> pure ([], inSimAnnealParams)
-
+                                                    [] → pure ([], inSimAnnealParams)
+                                                    xs → case getGraphCost newGraphList `compare` curBestCost of
+                                                        LT → pure (newGraphList, inSimAnnealParams)
+                                                        _ → pure ([], inSimAnnealParams)
                                     else -- famp over number of threads edges in base graph
                                     -- then recurse
 
@@ -1069,14 +1071,16 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     edgesInPrunedGraph
                                                     inSimAnnealParams
                                         in  do
-                                                rejoinGraphList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                    fold <$> pTraverse (fmap fst . action) rejoinEdgeList
+                                                rejoinGraphList ←
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                        fold <$> pTraverse (fmap fst . action) rejoinEdgeList
 
                                                 newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 rejoinGraphList
 
                                                 -- found nothing better or equal
                                                 if null rejoinGraphList
                                                     then -- trace ("In steepest worse: " <> (show $ length (drop PU.getNumThreads rejoinEdges)))
+
                                                         rejoinGraph
                                                             swapParams
                                                             inGS
@@ -1094,6 +1098,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                             edgesInPrunedGraph
                                                             inSimAnnealParams
                                                     else -- found better graph
+
                                                         if (snd5 . head) newGraphList' < curBestCost
                                                             then -- trace ("Steepest better")
                                                                 pure (newGraphList', inSimAnnealParams)
@@ -1170,8 +1175,9 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                     curBestCost
                                     edgesInPrunedGraph
                         in  do
-                                rejoinGraphPairList ← getParallelChunkTraverse >>= \pTraverse ->
-                                    pTraverse action $ zip simAnnealParamList rejoinEdgeList
+                                rejoinGraphPairList ←
+                                    getParallelChunkTraverse >>= \pTraverse →
+                                        pTraverse action $ zip simAnnealParamList rejoinEdgeList
 
                                 -- mechanics to see if trhere is a better graph in return set
                                 -- only taking first of each list--so can keep sa params with them--really all should have length == 1 anyway
@@ -1413,38 +1419,38 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                         case toList sprResult of
                             -- spr better than current
                             (_, cost, _, _, _) : _ → do
-                                (_, newSAParams) <- U.simAnnealAccept inSimAnnealParams curBestCost cost
+                                (_, newSAParams) ← U.simAnnealAccept inSimAnnealParams curBestCost cost
                                 pure (sprResult, newSAParams)
                             -- do simAnneal/Drift for SPR and on to tbr if not accept
                             [] → do
-                                    acceptance <- U.simAnnealAccept inSimAnnealParams curBestCost (sprReJoinCost + splitCost)
-                                    case acceptance of
-                                        -- if accepted (better or random) then return with updated annealing/Drift parameters
-                                        (True, newSAParams) → pure ([rediagnosedSPRGraph], newSAParams)
-                                        -- rejected-recurse with updated SA params
-                                        (False, newSAParams) → case swapType swapParams of
-                                            SPR → pure (mempty, newSAParams)
-                                            _ | length edgesInPrunedGraph < 4 → pure (mempty, newSAParams)
-                                            _ →
-                                                tbrJoin
-                                                    swapParams
-                                                    inGS
-                                                    inData
-                                                    splitGraph
-                                                    splitGraphSimple
-                                                    splitCost
-                                                    prunedGraphRootIndex
-                                                    originalConnectionOfPruned
-                                                    curBestCost
-                                                    edgesInPrunedGraph'
-                                                    newSAParams
-                                                    targetEdge
+                                acceptance ← U.simAnnealAccept inSimAnnealParams curBestCost (sprReJoinCost + splitCost)
+                                case acceptance of
+                                    -- if accepted (better or random) then return with updated annealing/Drift parameters
+                                    (True, newSAParams) → pure ([rediagnosedSPRGraph], newSAParams)
+                                    -- rejected-recurse with updated SA params
+                                    (False, newSAParams) → case swapType swapParams of
+                                        SPR → pure (mempty, newSAParams)
+                                        _ | length edgesInPrunedGraph < 4 → pure (mempty, newSAParams)
+                                        _ →
+                                            tbrJoin
+                                                swapParams
+                                                inGS
+                                                inData
+                                                splitGraph
+                                                splitGraphSimple
+                                                splitCost
+                                                prunedGraphRootIndex
+                                                originalConnectionOfPruned
+                                                curBestCost
+                                                edgesInPrunedGraph'
+                                                newSAParams
+                                                targetEdge
 
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
     IA field is faster--but has to be there and not for harwired
 -}
-edgeJoinDelta ∷ GlobalSettings -> Bool → V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → VertexCost
+edgeJoinDelta ∷ GlobalSettings → Bool → V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → VertexCost
 edgeJoinDelta inGS useIA charInfoVV edgeA edgeB =
     if (not useIA)
         then V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks inGS edgeA edgeB charInfoVV []
@@ -1554,8 +1560,9 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                                         -- check for graph wierdness
                                         -- rediagnosedGraphList = filter (not . GO.parentsInChainGraph . thd5) $ filter ((<= curBestCost) . snd5) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
-                                        rediagnosedGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
-                                            reoptimizeAction `pTraverse` candidateJoinedGraphList
+                                        rediagnosedGraphList' ←
+                                            getParallelChunkTraverse >>= \pTraverse →
+                                                reoptimizeAction `pTraverse` candidateJoinedGraphList
                                         let rediagnosedGraphList = filter ((<= curBestCost) . snd5) rediagnosedGraphList'
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
 
@@ -1585,11 +1592,13 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                             in  do
                                     -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    rerootEdgeDataList ← getParallelChunkMap <&> \pMap ->
-                                        makeEdgeAction `pMap` rerootEdgeList
+                                    rerootEdgeDataList ←
+                                        getParallelChunkMap <&> \pMap →
+                                            makeEdgeAction `pMap` rerootEdgeList
 
-                                    rerootEdgeDeltaList' ← getParallelChunkMap <&> \pMap ->
-                                        joinAction `pMap` rerootEdgeDataList
+                                    rerootEdgeDeltaList' ←
+                                        getParallelChunkMap <&> \pMap →
+                                            joinAction `pMap` rerootEdgeDataList
 
                                     let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
@@ -1597,11 +1606,13 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                     let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                                     let candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
 
-                                    candidateJoinedGraphList ← getParallelChunkMap <&> \pMap ->
-                                        rerootAction `pMap` candidateEdgeList
+                                    candidateJoinedGraphList ←
+                                        getParallelChunkMap <&> \pMap →
+                                            rerootAction `pMap` candidateEdgeList
 
-                                    rediagnosedGraphList' ← getParallelChunkTraverse >>= \pTraverse ->
-                                        reoptimizeAction `pTraverse` candidateJoinedGraphList
+                                    rediagnosedGraphList' ←
+                                        getParallelChunkTraverse >>= \pTraverse →
+                                            reoptimizeAction `pTraverse` candidateJoinedGraphList
                                     let rediagnosedGraphList = filter ((<= curBestCost) . snd5) rediagnosedGraphList'
 
                                     -- trace ("TBR steepest: " <> (show $ length rerootEdgeList) <> " edges to go " <> (show $ length $ (drop numEdgesToExamine edgesInPrunedGraph))) (
@@ -1677,9 +1688,10 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                                     -- check for possible better/equal graphs and verify
                                     rediagnosedGraphList ← case minEdgeList of
-                                        [] -> pure []
-                                        xs -> getParallelChunkTraverse >>= \pTraverse ->
-                                            (reoptimizeAction . rerootAction) `pTraverse` xs
+                                        [] → pure []
+                                        xs →
+                                            getParallelChunkTraverse >>= \pTraverse →
+                                                (reoptimizeAction . rerootAction) `pTraverse` xs
 
                                     let newMinCost =
                                             if (not . null) minEdgeList
@@ -1695,7 +1707,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                     -- if better always return it--hope this conditions short circuits so don't fully diagnose graph all the time
                                     if minDelta < curBestCost && newMinCost < curBestCost
                                         then do
-                                            (_, newSAParams) <- U.simAnnealAccept inSimAnnealParams curBestCost newMinCost
+                                            (_, newSAParams) ← U.simAnnealAccept inSimAnnealParams curBestCost newMinCost
                                             pure ([newMinGraph], newSAParams)
                                         else -- check if hit step limit--more for SA than drift
 
@@ -1703,7 +1715,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                                 || ((driftChanges simAnnealParams) >= (driftMaxChanges simAnnealParams))
                                                 then pure ([], inSimAnnealParams)
                                                 else do
-                                                    (acceptGraph, newSAParams) <- U.simAnnealAccept inSimAnnealParams curBestCost minDelta
+                                                    (acceptGraph, newSAParams) ← U.simAnnealAccept inSimAnnealParams curBestCost minDelta
                                                     -- banner = if newMinCost <  curBestCost then "TBR heur better"
                                                     --         else "TBR Accepted not better"
                                                     -- if accepted (better or random) then return with updated annealing/Drift parameters
@@ -1712,7 +1724,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                                             pure ([newMinGraph], newSAParams)
                                                         else -- rejected--recurse wirth updated params
 
-                                                            -- trace ("TBR SA Drift Reject: " <> (show $ driftChanges $ fromJust newSAParams))
+                                                        -- trace ("TBR SA Drift Reject: " <> (show $ driftChanges $ fromJust newSAParams))
 
                                                             tbrJoin
                                                                 swapParams

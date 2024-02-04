@@ -19,6 +19,7 @@ import Data.Maybe
 import Data.Text.Lazy qualified as T
 import Data.Text.Lazy.IO qualified as TIO
 import Data.Text.Short qualified as ST
+import Debug.Trace
 import GeneralUtilities qualified as GU
 import GraphFormatUtilities qualified as GFU
 import Input.FastAC qualified as FAC
@@ -34,7 +35,6 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
-import Debug.Trace
 
 {- | expandReadCommands expands read commands to multiple satisfying wild cards
 read command can have multiple file names
@@ -696,7 +696,6 @@ getCostMatrixAndScaleFactor' fileName inStringListList =
                         return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) newStringListList)
 
 
-
 {- | getCostMatrixAndScaleFactor' takes [[String]] and returns cost matrix as
 [[Int]] but if there are decimal values, a scalerFactor is determined and the
 cost matrix are integerized by multiplication by 1/scaleFactor
@@ -715,14 +714,13 @@ getCostMatrixAndScaleFactor fileName inStringListList =
                 scaleFactor =
                     if maxDecimalPlaces == 0
                         then 1.0
-                    else minDouble
-            in
-            --trace ("GCMSC: " <> (show scaleFactor)) $   
-            if maxDecimalPlaces == 0 then do
-                    pure $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
-            else do
-                    pure $ (scaleFactor, integerizedMatrix)
-
+                        else minDouble
+            in  -- trace ("GCMSC: " <> (show scaleFactor)) $
+                if maxDecimalPlaces == 0
+                    then do
+                        pure $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
+                    else do
+                        pure $ (scaleFactor, integerizedMatrix)
 
 
 -- | getDecimals returns the number of decimal places in a string rep of a number

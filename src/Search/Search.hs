@@ -20,15 +20,15 @@ import Control.Monad.Random.Class qualified as Sample
 import Data.Bifunctor (bimap)
 import Data.Char
 import Data.Foldable
+import Data.Foldable1 qualified as F1
 import Data.Functor (($>), (<&>))
 import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.Split qualified as LS
 import Data.Maybe
 import Data.Vector qualified as V
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
-import Data.List.NonEmpty (NonEmpty (..))
-import Data.Foldable1 qualified as F1
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
@@ -85,6 +85,7 @@ graphBanditList = fmap show [MultiTraverse, SingleTraverse, StaticApproximation]
 -- | A strict, three-way version of 'uncurry'.
 uncurry' ∷ (Functor f, NFData d) ⇒ (a → b → f d) → (a, b) → f d
 uncurry' f (a, b) = force <$> f a b
+
 
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' ∷ (Functor f, NFData d) ⇒ (a → b → c → f d) → (a, b, c) → f d
@@ -151,24 +152,25 @@ search inArgs inGS inData inGraphList' =
             -- if initial graph list is empty make some
 
             inGraphList ← case length inGraphList' `compare` keepNum of
-                LT -> do
-                        dWagGraphList ←
-                            B.buildGraph
-                                [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
-                                inGS
-                                inData
+                LT → do
+                    dWagGraphList ←
+                        B.buildGraph
+                            [("distance", ""), ("replicates", show (1000)), ("rdwag", ""), ("best", show keepNum), ("return", show keepNum)]
+                            inGS
+                            inData
 
-                        fmap (take keepNum) . GO.selectGraphs Unique (maxBound ∷ Int) 0 $ dWagGraphList <> inGraphList'
-                _ -> pure inGraphList'
+                    fmap (take keepNum) . GO.selectGraphs Unique (maxBound ∷ Int) 0 $ dWagGraphList <> inGraphList'
+                _ → pure inGraphList'
 
             let threadCount = instances -- <- (max 1) <$> getNumCapabilities
             let startGraphs = replicate threadCount (inGraphList, mempty)
-            let threadInits :: [(Int, ([ReducedPhylogeneticGraph], [String]))]
-                threadInits = zip [ 1 .. ] startGraphs
+            let threadInits ∷ [(Int, ([ReducedPhylogeneticGraph], [String]))]
+                threadInits = zip [1 ..] startGraphs
             -- If there are no input graphs--make some via distance
-            --resultList ← pooledMapConcurrently searchTimed threadInits
-            resultList ← getParallelChunkTraverse >>= \pTraverse ->
-                searchTimed `pTraverse` threadInits
+            -- resultList ← pooledMapConcurrently searchTimed threadInits
+            resultList ←
+                getParallelChunkTraverse >>= \pTraverse →
+                    searchTimed `pTraverse` threadInits
             let (newGraphList, commentList) = unzip resultList
             let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
 
@@ -183,7 +185,7 @@ search inArgs inGS inData inGraphList' =
                         <> "\n"
                     )
             let completeGraphList = inGraphList <> fold newGraphList
-            filteredGraphList <- GO.selectGraphs Unique (maxBound ∷ Int) 0 completeGraphList
+            filteredGraphList ← GO.selectGraphs Unique (maxBound ∷ Int) 0 completeGraphList
             let selectedGraphList = take keepNum filteredGraphList
 
             logWith LogInfo iterationHitString
@@ -206,6 +208,7 @@ get wall clock-like ellapsed time
 addied time out to terminate when exceeeded time remaining.
 never teminates due to time
 -}
+
 
 searchForDuration
     ∷ ∀ r
@@ -337,6 +340,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                                 refIndex
                                 $ bimap (inGraphList <>) (infoStringList <>) output
 
+
 -- | updateTheta updates the expected success parameters for the bandit search list
 updateTheta
     ∷ ∀ r
@@ -380,8 +384,7 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString :| i
                     in  do
                             when (thisBandit == SearchBandit) $ logWith LogInfo stopString
                             pure (inPairList, newStopCount)
-                else 
-                -- update via results, previous history, memory \factor and type of memory "loss"
+                else -- update via results, previous history, memory \factor and type of memory "loss"
 
                     let -- get timing and benefit accounting for 0's
                         -- average time ratio in time factor for benefit adjustment
@@ -458,9 +461,7 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString :| i
                                         in  do
                                                 logWith LogInfo stopString
                                                 pure (zip (fmap fst inPairList) newThetaList, newStopCount)
-                                    else
-
-                                    -- more complex 'recency' options
+                                    else -- more complex 'recency' options
 
                                         if mFunction `elem` ["linear", "exponential"]
                                             then
@@ -532,10 +533,6 @@ updateTheta thisBandit thompsonSample mFactor mFunction counter (infoString :| i
 
                                                 errorWithoutStackTrace
                                                     ("Thompson search option " <> mFunction <> " not recognized " <> (show ["simple", "linear", "exponential"]))
-
-
-
-
 
 
 -- | This exponentiation functionn from http://www.haskell.org/haskellwiki/Generic_number_type#squareRoot
@@ -668,7 +665,7 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
             -- Can't do both static approx and multitraverse:False
             let transformBy xs = TRANS.transform xs inGS' inData' inData' inGraphList''
             newDataMTF ← transformBy [("multitraverse", "false")]
-            newDataSA ← transformBy[("staticapprox", [])]
+            newDataSA ← transformBy [("staticapprox", [])]
 
             -- set graph valuation bandit
             graphEvaluationBandit ← sampleRandomChoices $ take 3 totalThetaList
@@ -735,14 +732,12 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                 "buildCharacter" →
                     let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
                     in  attach buildArgs <$> builder buildArgs
-
                 "buildDistance" →
                     -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
                     -- this line in here to allow for returning lots of rediagnosed distance trees, then
                     -- reducing to unique best cost trees--but is a memory pig
                     let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
                     in  attach buildArgs <$> builder buildArgs
-
                 "buildSPR" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
@@ -1114,7 +1109,6 @@ getSearchParams inArgs =
                                                                                                         , fromJust maxNetEdges
                                                                                                         , fromJust stopNum
                                                                                                         )
-
 
 
 showRealValue ∷ ∀ r. (Real r) ⇒ r → String

@@ -9,8 +9,8 @@ import Commands.Verify qualified as VER
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
-import Data.Char
 import Data.Bifunctor (first)
+import Data.Char
 import Data.Foldable (fold)
 import Data.Functor ((<&>))
 import Data.Maybe
@@ -182,16 +182,16 @@ swapMaster inArgs inGS inData inGraphListInput =
                     logWith LogInfo progressString
 
                     let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList
-                    graphPairList ← getParallelChunkTraverse >>= \pTraverse ->
-                        action `pTraverse` simAnnealList
+                    graphPairList ←
+                        getParallelChunkTraverse >>= \pTraverse →
+                            action `pTraverse` simAnnealList
 
                     let (graphListList, counterList) = first fold $ unzip graphPairList
-                    (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x -> (x, sum counterList)
-
+                    (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x → (x, sum counterList)
 
                     let finalGraphList = case newGraphList of
-                            [] -> inGraphList
-                            _ -> newGraphList
+                            [] → inGraphList
+                            _ → newGraphList
 
                     let fullBuffWarning =
                             if length newGraphList >= (fromJust keepNum)
@@ -246,37 +246,38 @@ getSimAnnealParams
     → Maybe Int
     → PhyG (Maybe SAParams)
 getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
-   | not doAnnealing && not doDrift = pure Nothing
-   | otherwise =
-            let steps = max 3 (fromJust steps')
+    | not doAnnealing && not doDrift = pure Nothing
+    | otherwise =
+        let steps = max 3 (fromJust steps')
 
-                annealingRounds = case annealingRounds' of
-                    Just v | 1 <= v -> v
-                    _ -> 1
+            annealingRounds = case annealingRounds' of
+                Just v | 1 <= v → v
+                _ → 1
 
-                driftRounds = case driftRounds' of
-                    Just v | 1 <= v -> v
-                    _ -> 1
+            driftRounds = case driftRounds' of
+                Just v | 1 <= v → v
+                _ → 1
 
-                saMethod
-                    | doDrift && doAnnealing = Drift
-                    | doDrift = Drift
-                    | otherwise = SimAnneal
+            saMethod
+                | doDrift && doAnnealing = Drift
+                | doDrift = Drift
+                | otherwise = SimAnneal
 
-                equalProb = case acceptEqualProb of
-                    Nothing -> 0
-                    Just v | v > 1 -> 1
-                    Just v | v < 0 -> 0
-                    Just v -> v
+            equalProb = case acceptEqualProb of
+                Nothing → 0
+                Just v | v > 1 → 1
+                Just v | v < 0 → 0
+                Just v → v
 
-                worseFactor = max (fromJust acceptWorseFactor) 0.0
+            worseFactor = max (fromJust acceptWorseFactor) 0.0
 
-                changes = case maxChanges of
-                    Just num | num >= 0 -> num
-                    _ -> 15
+            changes = case maxChanges of
+                Just num | num >= 0 → num
+                _ → 15
 
-                getResult =
-                    Just $ SAParams
+            getResult =
+                Just $
+                    SAParams
                         { method = saMethod
                         , numberSteps = steps
                         , currentStep = 0
@@ -286,12 +287,12 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
                         , driftMaxChanges = changes
                         , driftChanges = 0
                         }
-            in  do
-                    when (doDrift && doAnnealing) $
-                        logWith
-                            LogWarn
-                            "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
-                    pure $ getResult
+        in  do
+                when (doDrift && doAnnealing) $
+                    logWith
+                        LogWarn
+                        "\tSpecified both Simulated Annealing (with temperature steps) and Drifting (without)--defaulting to drifting.\n"
+                pure $ getResult
 
 
 -- | getSwapParams takes areg list and preocesses returning parameter values

@@ -346,8 +346,8 @@ defaultTNTCharInfo =
 -- | renameTNTChars creates a unique name for each character from fileNamer:Number
 renameTNTChars ∷ String → Int → [CharInfo] → [CharInfo]
 renameTNTChars fileName charIndex = \case
-    [] -> []
-    firstInfo:otherInfo ->
+    [] → []
+    firstInfo : otherInfo →
         let newName = T.pack $ filter (/= ' ') fileName <> "#" <> show charIndex
             localInfo = firstInfo{name = newName}
         in  localInfo : renameTNTChars fileName (charIndex + 1) otherInfo

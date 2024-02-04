@@ -112,30 +112,30 @@ adjust ri and rj to bew based on on values not in termInList
 does by row so can be parallelized call with column = 0 update list []
 makes DMatrix direclty not via M.updateMatrix
 -}
-makeDMatrix' :: M.Matrix Double -> [Int] -> Int -> Int -> [(Int, Int, Double)] -> M.Matrix Double
+makeDMatrix' ∷ M.Matrix Double → [Int] → Int → Int → [(Int, Int, Double)] → M.Matrix Double
 makeDMatrix' inObsMatrix vertInList row column updateList
-  | M.null inObsMatrix = error "Null matrix in makeInitialDMatrix"
-  | row == M.rows inObsMatrix = M.updateMatrix inObsMatrix updateList
-  | column == M.cols inObsMatrix = makeDMatrix' inObsMatrix vertInList (row + 1) 0 updateList
-  | column == row = makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, 0.0) : updateList)
-  | (column `elem` vertInList) || (row `elem` vertInList) =
-      makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, NT.infinity) : updateList)
-  | otherwise =
-    let dij = inObsMatrix M.! (row, column)
-        divisor = (fromIntegral (M.rows inObsMatrix) - 2) - fromIntegral (length vertInList)
-        ri  = (sumAvail vertInList 0 $ M.getFullRow inObsMatrix row)
-        rj  = (sumAvail vertInList 0 $ M.getFullRow inObsMatrix column)
-        bigDij = dij - ((ri + rj) / divisor)
-    in
-    makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, bigDij) : updateList)
+    | M.null inObsMatrix = error "Null matrix in makeInitialDMatrix"
+    | row == M.rows inObsMatrix = M.updateMatrix inObsMatrix updateList
+    | column == M.cols inObsMatrix = makeDMatrix' inObsMatrix vertInList (row + 1) 0 updateList
+    | column == row = makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, 0.0) : updateList)
+    | (column `elem` vertInList) || (row `elem` vertInList) =
+        makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, NT.infinity) : updateList)
+    | otherwise =
+        let dij = inObsMatrix M.! (row, column)
+            divisor = (fromIntegral (M.rows inObsMatrix) - 2) - fromIntegral (length vertInList)
+            ri = (sumAvail vertInList 0 $ M.getFullRow inObsMatrix row)
+            rj = (sumAvail vertInList 0 $ M.getFullRow inObsMatrix column)
+            bigDij = dij - ((ri + rj) / divisor)
+        in  makeDMatrix' inObsMatrix vertInList row (column + 1) ((row, column, bigDij) : updateList)
 
 
--- | makeIDMatrix makes adjusted matrix (D) from observed (d) values
--- assumes matrix is square and symmetrical
--- makes values Infinity if already added
--- adjust ri and rj to bew based on on values not in termInList
--- does by row so can be parallelized call with column = 0 update list []
--- makes DMatrix direclty not via M.updateMatrix
+{- | makeIDMatrix makes adjusted matrix (D) from observed (d) values
+assumes matrix is square and symmetrical
+makes values Infinity if already added
+adjust ri and rj to bew based on on values not in termInList
+does by row so can be parallelized call with column = 0 update list []
+makes DMatrix direclty not via M.updateMatrix
+-}
 makeDMatrix ∷ M.Matrix Double → [Int] → PhyG (M.Matrix Double)
 makeDMatrix inObsMatrix vertInList =
     if M.null inObsMatrix
