@@ -513,7 +513,7 @@ getDataElementFrequencies inBlockDataV =
 -- | getBlockElementFrequencies gets the element grequencies for each character in a block
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
 -- inputs square (so minimum number of gaps)
-getBlockCharElementFrequencies :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(Double, Int)]]
+getBlockCharElementFrequencies :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double, Int)]]
 getBlockCharElementFrequencies charDataV charInfoV =
     if V.null charDataV then []
     else
@@ -524,7 +524,7 @@ getBlockCharElementFrequencies charDataV charInfoV =
 -- inputs square (so minimum number of gaps)
 -- returns frequencies and number for each alphabet element
 -- ignores ambiguities/polymorphism
-getCharElementFrequencies :: V.Vector CharacterData -> CharInfo -> [(Double, Int)]
+getCharElementFrequencies :: V.Vector CharacterData -> CharInfo -> [(String, Double, Int)]
 getCharElementFrequencies charData charInfo =
     if V.null charData then []
     else 
@@ -553,7 +553,7 @@ getCharElementFrequencies charData charInfo =
             
         in
         -- trace ("GCEF: " <> totalElementList ) $ -- <> " -> " <> (concat $ concat $ fmap (makeCharLine usaIA) charPairV))
-        zip elementfreqList elementNumberList
+        zip3 alphabetElementStrings elementfreqList elementNumberList
 
 -- | getMinGapNumber gets implicit gap number by summing length differneces among sequences in order
 getMinGapNumber :: Int -> Int -> [String] -> Int
@@ -711,6 +711,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                 in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
                     [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
+                        <> [["Alphabet (element, frequency, number)"]]
                         <> getDataElementFrequencies (thd3 inData)
                         <> edgeTitle
                         <> edgeHeaderList
