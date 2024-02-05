@@ -505,6 +505,7 @@ phyloDataToString charIndexStart inDataVect =
 -- | getDataElementTransformations takes alphabet, parent and child final states
 -- and calcuates and formats the transition matrix in frequency and raw numbers
 -- this for list of blocks each with list of characters
+-- over all edges
 getDataElementTransformations :: [String] -> [[String]] -> [[String]] -> [[String]]
 getDataElementTransformations alphabetStringList parentStringList childStringList =
     [[]]
