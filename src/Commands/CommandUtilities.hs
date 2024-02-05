@@ -503,12 +503,33 @@ phyloDataToString charIndexStart inDataVect =
             in  fullMatrix <> phyloDataToString (charIndexStart + length charStrings) (V.tail inDataVect)
 
 -- | getDataElementTransformations takes alphabet, parent and child final states
--- and calcuates and formats the transition matrix in frequency and raw numbers
+-- and calculates and formats the transition matrix in frequency and raw numbers
 -- this for list of blocks each with list of characters
 -- over all edges
-getDataElementTransformations :: [String] -> [[String]] -> [[String]] -> [[String]]
-getDataElementTransformations alphabetStringList parentStringList childStringList =
-    [[]]
+-- need to ddeal woith missing data
+getDataElementTransformations :: [[String]] -> [[String]] -> [[String]]
+getDataElementTransformations alphabetStringList diffLL =
+    if null diffLL then []
+    else 
+        trace ("GDET: " <> (concat $ concat alphabetStringList) <> " " <> (concat $ concat diffLL)) $
+        zipWith getBlockElementTransformations alphabetStringList diffLL
+
+-- | getBlockElementTransformations
+-- need to deal with missing data
+getBlockElementTransformations :: [String] -> [String] -> [String]
+getBlockElementTransformations alphabetStringL diffL =
+    if null diffL then []
+    else 
+        trace ("GBET: " <> (concat alphabetStringL) <> " " <> (concat diffL)) $
+        zipWith getCharElementTransformations alphabetStringL diffL
+
+-- | getCharElementTransformations 
+-- need to deal with missing data
+getCharElementTransformations :: String -> String -> String
+getCharElementTransformations alphabetString diffState =
+    trace ("GCET: " <> alphabetString <> " " <> diffState)
+    []
+
 
 -- | getDataElementFrequencies takes a vecor of block data and returns character element frequencies
 getDataElementFrequencies ∷ V.Vector BlockData → [[String]]
@@ -689,7 +710,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     -- Alphabet element numbers
                     alphabetTitle = [["Alphabet (element, frequency, number)"]]
                     alphabetInfo = getDataElementFrequencies (thd3 inData)
-                    aphbetStringLL = [[]]
+                    alphbetStringLL = [[]]
 
                     vertexChangeTitle =
                         [ [" "]
@@ -729,7 +750,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     -- element retansformation numbers
                     elementTransformationTitle = [["Element Transformations (element<->element, frequency, number)"]]
-                    elementTransformationInfo = getDataElementTransformations aphbetStringLL vertexParentStateList vertexStateList
+                    elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexChangeListByPosition
 
                 in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
                     [vertexTitle, topHeaderList, [show graphIndex]]
