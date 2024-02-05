@@ -511,7 +511,7 @@ getDataElementTransformations :: [[String]] -> [[String]] -> [[String]]
 getDataElementTransformations alphabetStringList diffLL =
     if null diffLL then []
     else 
-        trace ("GDET: " <> (concat $ concat alphabetStringList) <> " " <> (concat $ concat diffLL)) $
+        trace ("GDET: " <> (concat $ concat alphabetStringList) <> " " <> (concat $ concat diffLL) <> "\n") $
         zipWith getBlockElementTransformations alphabetStringList diffLL
 
 -- | getBlockElementTransformations
