@@ -150,14 +150,14 @@ after double dash "--"
 -}
 removeComments ∷ [String] → [String]
 removeComments = \case
-    [] -> []
-    firstLine:otherLines -> case firstLine of
-        [] -> removeComments otherLines
-        '-':'-':_ -> removeComments otherLines
-        _ ->
+    [] → []
+    firstLine : otherLines → case firstLine of
+        [] → removeComments otherLines
+        '-' : '-' : _ → removeComments otherLines
+        _ →
             let nonComment = case splitOn "--" firstLine of
-                    [] -> firstLine
-                    prefix:_ -> filter isPrint prefix
+                    [] → firstLine
+                    prefix : _ → filter isPrint prefix
             in  nonComment : removeComments otherLines
 
 
@@ -194,8 +194,8 @@ assumes single command per line
 -}
 parseCommand ∷ String → PhyG [Command]
 parseCommand = \case
-    [] -> pure []
-    inLine ->
+    [] → pure []
+    inLine →
         let (firstString, restString) = getSubCommand inLine False
             instructionString = takeWhile (/= '(') firstString -- inLine
         in  do

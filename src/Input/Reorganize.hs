@@ -47,17 +47,16 @@ packNonAdditive
 -}
 optimizePrealignedData ∷ GlobalSettings → ProcessedData → PhyG ProcessedData
 optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPrealignedCharacters blockDataVect of
-    0 -> pure inData
-    _ -> do
+    0 → pure inData
+    _ → do
         -- remove constant characters from prealigned
         inData' ← removeConstantCharactersPrealigned inData
-    
+
         -- convert prealigned to nonadditive if all 1 tcms
         let inData'' = convertPrealignedToNonAdditive inData'
-    
+
         -- bit packing for non-additivecharacters
         BP.packNonAdditiveData inGS inData''
-
 
 
 {- | convertPrealignedToNonAdditive converts prealigned data to non-additive
@@ -503,18 +502,21 @@ getSameMatrixChars inCharsPairList testMatrix =
         matchList = filter ((== testMatrix) . costMatrix . fst . snd) matrixPairPair
     in  fmap snd matchList
 
--- | removeConstantCharactersPrealigned takes processed data and removes constant characters
--- from prealignedCharacterTypes
-removeConstantCharactersPrealigned :: ProcessedData -> PhyG ProcessedData
+
+{- | removeConstantCharactersPrealigned takes processed data and removes constant characters
+from prealignedCharacterTypes
+-}
+removeConstantCharactersPrealigned ∷ ProcessedData → PhyG ProcessedData
 removeConstantCharactersPrealigned inData@(nameVect, bvNameVect, blockDataVect)
     | V.null blockDataVect = pure inData
     | otherwise =
-        let action ::  BlockData -> BlockData
+        let action ∷ BlockData → BlockData
             action = removeConstantBlockPrealigned
-        in do
-            newBlockData ← getParallelChunkMap <&> \pMap ->
-                removeConstantBlockPrealigned `pMap` V.toList blockDataVect
-            pure (nameVect, bvNameVect, V.fromList newBlockData)
+        in  do
+                newBlockData ←
+                    getParallelChunkMap <&> \pMap →
+                        removeConstantBlockPrealigned `pMap` V.toList blockDataVect
+                pure (nameVect, bvNameVect, V.fromList newBlockData)
 
 
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
@@ -550,8 +552,8 @@ packed types already filtered when created
 -}
 removeConstantCharsPrealigned ∷ V.Vector CharacterData → CharInfo → V.Vector CharacterData
 removeConstantCharsPrealigned singleChar charInfo = case charType charInfo of
-    cType | cType `elem` prealignedCharacterTypes -> getVariableChars cType singleChar
-    _ -> singleChar
+    cType | cType `elem` prealignedCharacterTypes → getVariableChars cType singleChar
+    _ → singleChar
 
 
 {- | getVariableChars checks identity of states in a vector positin in all taxa
@@ -569,13 +571,13 @@ getVariableChars inCharType singleChar =
 
         -- get identity vect
         boolVar = case inCharType of
-            NonAdd -> getVarVectBits inCharType nonAddV []
-            Add ->  getVarVectAdd addV []
-            Matrix -> getVarVectMatrix matrixV []
-            AlignedSlim -> getVarVectBits inCharType alSlimV []
-            AlignedWide -> getVarVectBits inCharType alWideV []
-            AlignedHuge -> getVarVectBits inCharType alHugeV []
-            cType ->  error $ "Char type unrecognized in getVariableChars: " <> show cType
+            NonAdd → getVarVectBits inCharType nonAddV []
+            Add → getVarVectAdd addV []
+            Matrix → getVarVectMatrix matrixV []
+            AlignedSlim → getVarVectBits inCharType alSlimV []
+            AlignedWide → getVarVectBits inCharType alWideV []
+            AlignedHuge → getVarVectBits inCharType alHugeV []
+            cType → error $ "Char type unrecognized in getVariableChars: " <> show cType
 
         -- get Variable characters by type
         nonAddVariable = fmap (filterConstantsV (V.fromList boolVar)) nonAddV
@@ -752,9 +754,9 @@ filterConstantsV :: (GV.Vector v a) => [Bool] -> v a -> v a
 filterConstantsUV ∷ (UV.Unbox a) ⇒ V.Vector Bool → UV.Vector a → UV.Vector a
 filterConstantsUV inVarBoolV charVect
     | V.null inVarBoolV = charVect
-    | otherwise =     
+    | otherwise =
         let varVect = filterConstantsV inVarBoolV (V.fromList $ UV.toList charVect)
-        in UV.fromList $ V.toList varVect
+        in  UV.fromList $ V.toList varVect
 
 
 {- | assignNewField takes character type and a 6-tuple of charcter fields and assigns the appropriate
@@ -773,13 +775,13 @@ assignNewField
       )
     → CharacterData
 assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) = case inCharType of
-    NonAdd      -> charData{stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
-    Add         -> charData{rangePrelim = (addData, addData, addData)}
-    Matrix      -> charData{matrixStatesPrelim = matrixData}
-    AlignedSlim -> charData{alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
-    AlignedWide -> charData{alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
-    AlignedHuge -> charData{alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
-    cType -> error $ "Char type unrecognized in assignNewField: " <> show cType
+    NonAdd → charData{stateBVPrelim = (nonAddData, nonAddData, nonAddData)}
+    Add → charData{rangePrelim = (addData, addData, addData)}
+    Matrix → charData{matrixStatesPrelim = matrixData}
+    AlignedSlim → charData{alignedSlimPrelim = (alignedSlimData, alignedSlimData, alignedSlimData)}
+    AlignedWide → charData{alignedWidePrelim = (alignedWideData, alignedWideData, alignedWideData)}
+    AlignedHuge → charData{alignedHugePrelim = (alignedHugeData, alignedHugeData, alignedHugeData)}
+    cType → error $ "Char type unrecognized in assignNewField: " <> show cType
 
 
 {- | recodeAddToNonAddCharacters takes an max states number and processsed data

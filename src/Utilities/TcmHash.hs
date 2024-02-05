@@ -31,25 +31,21 @@ either expressed or implied, of the FreeBSD Project.
 Maintainer  :  Ward Wheeler <wheeler@amnh.org>
 Stability   :  unstable
 Portability :  portable (I hope)
-
 -}
-
-
 module Utilities.TcmHash where
 
 -- import Data.HashMap
 -- import Types.Types
-import qualified Data.BitVector.LittleEndian as BV
+import Data.BitVector.LittleEndian qualified as BV
 -- import qualified Data.Vector    as V
-import           Data.Bits                   ((.&.))
-import qualified SymMatrix                   as S
+import Data.Bits ((.&.))
+import SymMatrix qualified as S
 
--- | getMedianPair takes a tcm (single states) and two states and
--- retuns the best median as superimposed bitvectors and the cost of that median
-getMedianPair :: S.Matrix Int -> BV.BitVector -> BV.BitVector-> (BV.BitVector, Int)
+
+{- | getMedianPair takes a tcm (single states) and two states and
+retuns the best median as superimposed bitvectors and the cost of that median
+-}
+getMedianPair ∷ S.Matrix Int → BV.BitVector → BV.BitVector → (BV.BitVector, Int)
 getMedianPair tcm stateI stateJ =
-    let cost =  tcm S.! (BV.toSignedNumber stateI, BV.toSignedNumber stateJ)
-    in
-    (stateI .&. stateJ, cost)
-
-
+    let cost = tcm S.! (BV.toSignedNumber stateI, BV.toSignedNumber stateJ)
+    in  (stateI .&. stateJ, cost)

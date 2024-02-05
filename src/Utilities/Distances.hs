@@ -81,11 +81,12 @@ No change adjust is False since this is a distance
 -}
 getBlockDistance ∷ BlockData → (Int, Int) → VertexCost
 getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
-    if V.null localVertData then 0.0
-    else 
-        let noChangeAdjust = False
-            pairCost = V.sum $ V.map snd $ M.median2 noChangeAdjust (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
-        in  pairCost
+    if V.null localVertData
+        then 0.0
+        else
+            let noChangeAdjust = False
+                pairCost = V.sum $ V.map snd $ M.median2 noChangeAdjust (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
+            in  pairCost
 
 
 {- | getPairwiseBlocDistance returns pairwisee distances among vertices for

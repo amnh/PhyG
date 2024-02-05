@@ -29,6 +29,7 @@ import Data.Ord
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Version qualified as DV
+import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
@@ -50,8 +51,6 @@ import Types.Types
 import Utilities.Distances qualified as D
 import Utilities.Utilities qualified as U
 
-import Debug.Trace
-
 
 {- | executeCommands reads input files and returns raw data
 need to close files after read
@@ -70,18 +69,18 @@ executeCommands
     → Bool
     → PhyG ([ReducedPhylogeneticGraph], GlobalSettings, [ReducedPhylogeneticGraph])
 executeCommands globalSettings excludeRename numInputFiles crossReferenceString origProcessedData processedData reportingData curGraphs supportGraphList commandList isFirst = case commandList of
-    [] -> pure (curGraphs, globalSettings, supportGraphList)
-    (firstOption, firstArgs):otherCommands -> case firstOption of
+    [] → pure (curGraphs, globalSettings, supportGraphList)
+    (firstOption, firstArgs) : otherCommands → case firstOption of
         -- skip "Read" and "Rename "commands already processed
-        Read -> error ("Read command should already have been processed: " <> show (firstOption, firstArgs))
-        Rename -> error ("Rename command should already have been processed: " <> show (firstOption, firstArgs))
-        Reblock ->  error ("Reblock command should already have been processed: " <> show (firstOption, firstArgs))
-        Run -> error ("Run command should already have been processed: " <> show (firstOption, firstArgs))
-
+        Read → error ("Read command should already have been processed: " <> show (firstOption, firstArgs))
+        Rename → error ("Rename command should already have been processed: " <> show (firstOption, firstArgs))
+        Reblock → error ("Reblock command should already have been processed: " <> show (firstOption, firstArgs))
+        Run → error ("Run command should already have been processed: " <> show (firstOption, firstArgs))
         -- other commands
-        Build -> do
-            (elapsedSeconds, newGraphList') ← timeOp . pure $
-                B.buildGraph firstArgs globalSettings processedData
+        Build → do
+            (elapsedSeconds, newGraphList') ←
+                timeOp . pure $
+                    B.buildGraph firstArgs globalSettings processedData
             newGraphList ← newGraphList'
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
@@ -98,10 +97,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 isFirst
-
-        Refine -> do
-            (elapsedSeconds, newGraphList') ← timeOp . pure $
-                REF.refineGraph firstArgs globalSettings processedData curGraphs
+        Refine → do
+            (elapsedSeconds, newGraphList') ←
+                timeOp . pure $
+                    REF.refineGraph firstArgs globalSettings processedData curGraphs
 
             newGraphList ← newGraphList'
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
@@ -119,10 +118,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 isFirst
-
-        Fuse -> do
-            (elapsedSeconds, newGraphList) ← timeOp $
-                REF.fuseGraphs firstArgs globalSettings processedData curGraphs
+        Fuse → do
+            (elapsedSeconds, newGraphList) ←
+                timeOp $
+                    REF.fuseGraphs firstArgs globalSettings processedData curGraphs
 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
@@ -139,8 +138,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 isFirst
-
-        Report -> do
+        Report → do
             let doDotPDF = elem "dotpdf" $ fmap (fmap toLower . fst) firstArgs
             let collapse' = elem "collapse" $ fmap (fmap toLower . fst) firstArgs
             let noCollapse' = elem "nocollapse" $ fmap (fmap toLower . fst) firstArgs
@@ -183,20 +181,20 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             unless (null reportString) . logWith LogInfo $ "Report writing to \"" <> outFile <> "\"\n"
 
             case reportString of
-                "" -> executeCommands
-                    globalSettings
-                    excludeRename
-                    numInputFiles
-                    crossReferenceString
-                    origProcessedData
-                    processedData
-                    reportingData
-                    curGraphs
-                    supportGraphList
-                    otherCommands
-                    isFirst
-
-                _ | doDotPDF -> do
+                "" →
+                    executeCommands
+                        globalSettings
+                        excludeRename
+                        numInputFiles
+                        crossReferenceString
+                        origProcessedData
+                        processedData
+                        reportingData
+                        curGraphs
+                        supportGraphList
+                        otherCommands
+                        isFirst
+                _ | doDotPDF → do
                     let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = none];\n" reportString
                     printGraphVizDot reportString' outFile
                     executeCommands
@@ -211,16 +209,16 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         supportGraphList
                         otherCommands
                         isFirst
-
-                _ -> do
+                _ → do
                     case outFile of
-                        "stderr" -> liftIO $ hPutStr stderr reportString
-                        "stdout" -> liftIO $ putStr reportString
-                        _ -> case writeMode of
-                            "overwrite" -> liftIO $ writeFile outFile reportString
-                            "append" -> liftIO $ appendFile outFile reportString
-                            _ -> failWithPhase Parsing $
-                                "Error 'report' command not properly formatted" <> show reportStuff
+                        "stderr" → liftIO $ hPutStr stderr reportString
+                        "stdout" → liftIO $ putStr reportString
+                        _ → case writeMode of
+                            "overwrite" → liftIO $ writeFile outFile reportString
+                            "append" → liftIO $ appendFile outFile reportString
+                            _ →
+                                failWithPhase Parsing $
+                                    "Error 'report' command not properly formatted" <> show reportStuff
 
                     executeCommands
                         globalSettings
@@ -234,10 +232,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         supportGraphList
                         otherCommands
                         isFirst
-
-        Search -> do
-            (elapsedSeconds, output) ← timeOp $
-                S.search firstArgs globalSettings processedData curGraphs
+        Search → do
+            (elapsedSeconds, output) ←
+                timeOp $
+                    S.search firstArgs globalSettings processedData curGraphs
             let searchInfo =
                     makeSearchRecord
                         firstOption
@@ -259,16 +257,16 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 isFirst
-
-        Select -> do
-            (elapsedSeconds, newGraphList) ← timeOp $
-                GO.selectPhylogeneticGraphReduced firstArgs curGraphs
+        Select → do
+            (elapsedSeconds, newGraphList) ←
+                timeOp $
+                    GO.selectPhylogeneticGraphReduced firstArgs curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             let typeSelected = case firstArgs of
-                    [] -> "best"
-                    (a,_):_ -> C.toLower <$> a
-            logWith LogInfo $ unwords [ "Selecting", typeSelected, "graphs", "\n" ]
+                    [] → "best"
+                    (a, _) : _ → C.toLower <$> a
+            logWith LogInfo $ unwords ["Selecting", typeSelected, "graphs", "\n"]
             executeCommands
                 (globalSettings{searchData = newSearchData})
                 excludeRename
@@ -281,16 +279,15 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 isFirst
-
-        Set -> do
+        Set → do
             -- if set changes graph aspects--may need to reoptimize
             (newGlobalSettings, newProcessedData) ← setCommand firstArgs globalSettings reportingData processedData isFirst
-            let needReoptimize = requireReoptimization globalSettings newGlobalSettings 
+            let needReoptimize = requireReoptimization globalSettings newGlobalSettings
             newGraphList ←
                 if not needReoptimize
                     then pure curGraphs
-                    --then logWith LogInfo "No need to reoptimize graphs\n" $> curGraphs
-                    else do
+                    else -- then logWith LogInfo "No need to reoptimize graphs\n" $> curGraphs
+                    do
                         logWith LogInfo "Reoptimizing graphs\n"
                         -- TODO should be parallel
                         mapM (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) $ fst5 <$> curGraphs
@@ -310,10 +307,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 False
-
-        Swap -> do
-            (elapsedSeconds, newGraphList) ← timeOp $
-                REF.swapMaster firstArgs globalSettings processedData curGraphs
+        Swap → do
+            (elapsedSeconds, newGraphList) ←
+                timeOp $
+                    REF.swapMaster firstArgs globalSettings processedData curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             executeCommands
@@ -328,14 +325,14 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 isFirst
-
-        Support -> do
-            (elapsedSeconds, newSupportGraphList') ← timeOp . pure $
-                SUP.supportGraph firstArgs globalSettings processedData curGraphs
-
+        Support → do
+            (elapsedSeconds, newSupportGraphList') ←
+                timeOp . pure $
+                    SUP.supportGraph firstArgs globalSettings processedData curGraphs
 
             newSupportGraphList ← newSupportGraphList'
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let searchInfo =
+                    makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             executeCommands
                 (globalSettings{searchData = newSearchData})
@@ -349,10 +346,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 (supportGraphList <> newSupportGraphList)
                 otherCommands
                 isFirst
-
-        Transform -> do
-            (elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) ← timeOp $
-                TRANS.transform firstArgs globalSettings origProcessedData processedData curGraphs
+        Transform → do
+            (elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) ←
+                timeOp $
+                    TRANS.transform firstArgs globalSettings origProcessedData processedData curGraphs
 
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphs (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
@@ -368,8 +365,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 supportGraphList
                 otherCommands
                 isFirst
-
-        val -> error $ "Command " <> show val <> " not recognized/implemented"
+        val → error $ "Command " <> show val <> " not recognized/implemented"
 
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
@@ -408,17 +404,16 @@ if seed list is empty [] then processes first set--confusing--shold be refactore
 -}
 setCommand ∷ [Argument] → GlobalSettings → ProcessedData → ProcessedData → Bool → PhyG (GlobalSettings, ProcessedData)
 setCommand argList globalSettings origProcessedData processedData isFirst =
-    let material ∷ Argument -> Bool
-        material (k,v) = not $ null k || null v
+    let material ∷ Argument → Bool
+        material (k, v) = not $ null k || null v
         normalize = fmap C.toLower
         niceArgs = bimap normalize normalize <$> filter material argList
         (commandList, optionList) = unzip niceArgs
         checkCommandList = checkCommandArgs "set" commandList VER.setArgList
         leafNameVect = fst3 processedData
     in  case niceArgs of
-            [] -> failWithPhase Computing "Attempting to process a non existant 'set' command"
-            (firstCommand, firstOption) : _otherArgs -> do
-
+            [] → failWithPhase Computing "Attempting to process a non existant 'set' command"
+            (firstCommand, firstOption) : _otherArgs → do
                 when (not checkCommandList) . failWithPhase Parsing $
                     "Unrecognized command in 'set': " <> show argList
 
@@ -426,9 +421,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                     "Set option error: can only have one set argument for each command: " <> show (commandList, optionList)
 
                 case isFirst of
-
-                    True -> case firstCommand of
-
+                    True → case firstCommand of
                         "partitioncharacter" → case firstOption of
                             localPartitionChar@[_] →
                                 do
@@ -438,7 +431,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             val →
                                 failWithPhase Parsing $
                                     "Error in 'set' command. Partitioncharacter '" <> val <> "' must be a single character\n"
-
                         "missingthreshold" → case readMaybe (firstOption) ∷ Maybe Int of
                             Nothing →
                                 failWithPhase Parsing $
@@ -453,7 +445,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                         -- sets root cost as well-- need in both places--one to process data and one to
                         -- keep in current global
-                        --MUST be set aheard of data packing so correct--otherwise alhobaet etc modified
+                        -- MUST be set aheard of data packing so correct--otherwise alhobaet etc modified
                         "criterion" → do
                             localCriterion ← case firstOption of
                                 "parsimony" → pure Parsimony
@@ -467,18 +459,15 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
                             (lGraphComplexityList, lRootComplexity) ← case localCriterion of
-                                --NCM | origProcessedData /= emptyProcessedData →
+                                -- NCM | origProcessedData /= emptyProcessedData →
                                 --    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
 
                                 NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
-
                                 Parsimony → pure $ (IL.repeat (0.0, 0.0), 0.0)
-
-                                MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost origProcessedData) 
-
-                                val | val `elem` [PMDL, SI] →
-                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) origProcessedData
-
+                                MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost origProcessedData)
+                                val
+                                    | val `elem` [PMDL, SI] →
+                                        pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) origProcessedData
                                 val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
 
                             let lGraphFactor
@@ -501,7 +490,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     }
                                 , processedData
                                 )
-
                         "bc2" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -522,7 +510,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc2 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 2 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc2 = val}, processedData)
-
                         "bc4" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -543,7 +530,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc4 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 4 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc4 = val}, processedData)
-
                         "bc5" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -564,7 +550,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc5 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 5 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc5 = val}, processedData)
-
                         "bc8" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -585,7 +570,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc8 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 8 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc8 = val}, processedData)
-
                         "bc64" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -606,7 +590,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc64 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 64 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc64 = val}, processedData)
-
                         "bcgt64" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -630,9 +613,8 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                         -- partition character to reset
                         "bcgt64" → pure (globalSettings, processedData)
-
                         val → do
-                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList ]
+                            logWith LogWarn $ fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList]
                             pure (globalSettings, processedData)
 
                     -- =-=-=-=-=-=-=-=-=-=-=-=-=
@@ -641,8 +623,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                     -- = not initial at start  =
                     -- =                       =
                     -- =-=-=-=-=-=-=-=-=-=-=-=-=
-                    _ -> case firstCommand of
-
+                    _ → case firstCommand of
                         "bc2" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -663,7 +644,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc2 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 2 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc2 = val}, processedData)
-
                         "bc4" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -684,7 +664,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc4 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 4 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc4 = val}, processedData)
-
                         "bc5" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -705,7 +684,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc5 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 5 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc5 = val}, processedData)
-
                         "bc8" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -726,7 +704,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc8 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 8 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc8 = val}, processedData)
-
                         "bc64" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -747,7 +724,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             when (bc64 globalSettings /= val) . logWith LogInfo $
                                                 "bit cost 64 state set to " <> show val <> "\n"
                                             pure (globalSettings{bc64 = val}, processedData)
-
                         "bcgt64" →
                             let (noChangeString, changeString) = changingStrings firstOption
                                 noChangeMaybe = readMaybe noChangeString ∷ Maybe Double
@@ -783,18 +759,15 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             -- create lazy list of graph complexity indexed by number of network nodes--need leaf number for base tree complexity
                             (lGraphComplexityList, lRootComplexity) ← case localCriterion of
-                                --NCM | origProcessedData /= emptyProcessedData →
+                                -- NCM | origProcessedData /= emptyProcessedData →
                                 --    pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
 
                                 NCM → pure (IL.repeat (0.0, 0.0), U.calculateNCMRootCost origProcessedData)
-
                                 Parsimony → pure $ (IL.repeat (0.0, 0.0), 0.0)
-
                                 MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost origProcessedData)
-
-                                val | val `elem` [PMDL, SI] →
-                                    pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) origProcessedData
-
+                                val
+                                    | val `elem` [PMDL, SI] →
+                                        pure $ (U.calculateGraphComplexity &&& U.calculatePMDLRootCost) origProcessedData
                                 val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
 
                             let lGraphFactor
@@ -841,28 +814,28 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             Just localValue → do
                                 logWith LogInfo $ "Dynamic Epsilon factor set to " <> firstOption
                                 pure (globalSettings{dynamicEpsilon = 1.0 + (localValue * fractionDynamic globalSettings)}, processedData)
-
                         "finalassignment" → do
                             localMethod ← case firstOption of
                                 "do" → pure DirectOptimization
                                 "directoptimization" → pure DirectOptimization
                                 "ia" → pure ImpliedAlignment
                                 "impliedalignment" → pure ImpliedAlignment
-                                val → failWithPhase Parsing $ fold
-                                    [ "Error in 'set' command. FinalAssignment  '"
-                                    , val
-                                    , "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'"
-                                    ]
+                                val →
+                                    failWithPhase Parsing $
+                                        fold
+                                            [ "Error in 'set' command. FinalAssignment  '"
+                                            , val
+                                            , "' is not 'DirectOptimization (DO)' or 'ImpliedAlignment (IA)'"
+                                            ]
 
                             case graphType globalSettings of
-                                Tree -> do
+                                Tree → do
                                     logWith LogInfo $ "FinalAssignment set to " <> show localMethod
                                     pure (globalSettings{finalAssignment = localMethod}, processedData)
-                                _ -> do
+                                _ → do
                                     unless (localMethod == DirectOptimization) $
                                         logWith LogInfo "FinalAssignment set to DO (ignoring IA option) for non-Tree graphs"
                                     pure (globalSettings{finalAssignment = DirectOptimization}, processedData)
-
                         "graphfactor" → do
                             localMethod ← case toLower <$> firstOption of
                                 "nopenalty" → pure NoNetworkPenalty
@@ -874,7 +847,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                         "Error in 'set' command. GraphFactor  '" <> val <> "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'"
                             logWith LogInfo $ "GraphFactor set to " <> show localMethod
                             pure (globalSettings{graphFactor = localMethod}, processedData)
-
                         "graphssteepest" → case readMaybe (firstOption) ∷ Maybe Int of
                             Nothing →
                                 failWithPhase Parsing $
@@ -882,7 +854,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             Just localValue → do
                                 logWith LogInfo $ "GraphsStreepest set to " <> show localValue
                                 pure (globalSettings{graphsSteepest = localValue}, processedData)
-
                         "graphtype" → do
                             localGraphType ← case firstOption of
                                 "tree" → pure Tree
@@ -920,7 +891,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             Just localValue → do
                                 logWith LogWarn $ "MissingThreshold set to " <> show localValue
                                 pure (globalSettings{missingThreshold = localValue}, processedData)
-
                         "modelcomplexity" → case readMaybe (firstOption) ∷ Maybe Double of
                             Nothing →
                                 failWithPhase Parsing $
@@ -939,7 +909,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                         "Error in 'set' command. MultiTraverse '" <> firstOption <> "' is not 'true' or 'false'"
                             logWith LogInfo $ "MultiTraverse set to " <> show localCriterion
                             pure (globalSettings{multiTraverseCharacters = localCriterion}, processedData)
-
                         "outgroup" →
                             let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
                             in  case V.elemIndex outTaxonName leafNameVect of
@@ -950,7 +919,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     Just outTaxonIndex → do
                                         logWith LogInfo $ "Outgroup set to " <> T.unpack outTaxonName
                                         pure (globalSettings{outgroupIndex = outTaxonIndex, outGroupName = outTaxonName}, processedData)
-
                         "partitioncharacter" → case firstOption of
                             localPartitionChar@[_] → do
                                 when (localPartitionChar /= partitionCharacter globalSettings) . logWith LogInfo $
@@ -959,7 +927,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             val →
                                 failWithPhase Parsing $
                                     "Error in 'set' command. Partitioncharacter '" <> val <> "' must be a single character"
-
                         "reportnaivedata" → do
                             localMethod ← case toLower <$> firstOption of
                                 "true" → pure True
@@ -967,7 +934,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val → failWithPhase Parsing $ "Error in 'set' command. NeportNaive  '" <> val <> "' is not 'True' or 'False'"
                             logWith LogInfo $ "ReportNaiveData set to " <> show localMethod
                             pure (globalSettings{reportNaiveData = localMethod}, processedData)
-
                         "rootcost" → do
                             localMethod ← case toLower <$> firstOption of
                                 "mapa" → pure MAPARoot
@@ -985,20 +951,20 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             logWith LogInfo $ unwords ["RootCost set to", show localMethod, show lRootComplexity, "bits"]
                             pure (globalSettings{rootCost = localMethod, rootComplexity = lRootComplexity}, processedData)
-
                         "seed" → case readMaybe firstOption ∷ Maybe Int of
                             Nothing → failWithPhase Parsing $ "Set option 'seed' must be set to an integer value (e.g. seed:123): " <> firstOption
                             Just localValue → do
                                 logWith LogInfo $ "Random Seed set to " <> firstOption <> "\n"
                                 setRandomSeed localValue
                                 pure (globalSettings, processedData)
-
                         "softwiredmethod" → do
                             localMethod ← case firstOption of
                                 "naive" → pure Naive
                                 "exhaustive" → pure Naive
                                 "resolutioncache" → pure ResolutionCache
-                                _ → failWithPhase Parsing $ fold [ "Error in 'set' command. SoftwiredMethod '", firstOption, "' is not 'Exhaustive' or 'ResolutionCache'" ]
+                                _ →
+                                    failWithPhase Parsing $
+                                        fold ["Error in 'set' command. SoftwiredMethod '", firstOption, "' is not 'Exhaustive' or 'ResolutionCache'"]
 
                             logWith LogInfo $ "SoftwiredMethod " <> show localMethod <> "\n"
                             pure (globalSettings{softWiredMethod = localMethod}, processedData)
@@ -1039,7 +1005,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                         "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
                             logWith LogInfo $ "DefParStrat set to " <> show localMethod
                             pure (globalSettings{defaultParStrat = localMethod}, processedData)
-
                         "lazyparstrat" → do
                             localMethod ← case firstOption of
                                 "r0" → pure R0
@@ -1051,7 +1016,6 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                         "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
                             logWith LogInfo $ "LazyParStrat set to " <> show localMethod
                             pure (globalSettings{lazyParStrat = localMethod}, processedData)
-
                         "strictparstrat" → do
                             localMethod ← case firstOption of
                                 "r0" → pure R0
@@ -1074,9 +1038,8 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                         "Error in 'set' command. UseIA '" <> val <> "' is not 'true' or 'false'"
                             logWith LogInfo $ "UseIA set to " <> show localCriterion
                             pure (globalSettings{useIA = localCriterion}, processedData)
-
                         val → do
-                            logWith LogWarn $ fold [ "Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList ]
+                            logWith LogWarn $ fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList]
                             pure (globalSettings, processedData)
 
 
@@ -1132,7 +1095,8 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                         then
                                             let blocks = thd3 processedData
                                                 numChars = V.sum $ fmap (V.length . thd3) blocks
-                                                dataString = phyloDataToString 0 blocks -- $ thd3 processedData
+                                                dataString = phyloDataToString 0 blocks
+                                                -- \$ thd3 processedData
                                                 baseData =
                                                     [ ["Input data contained:"]
                                                     , ["", show (length $ fst3 processedData) <> " terminal taxa"]
@@ -1164,14 +1128,14 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                         else
                                             if "diagnosis" `elem` commandList
                                                 then do
-                                                    curGraphs' <-
+                                                    curGraphs' ←
                                                         if not (reportNaiveData globalSettings)
-                                                        then pure curGraphs
-                                                        else
-                                                            let action :: SimpleGraph -> PhyG ReducedPhylogeneticGraph
-                                                                action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
-                                                            in  getParallelChunkTraverse >>= \pTraverse ->
-                                                                    (action . fst5) `pTraverse` curGraphs
+                                                            then pure curGraphs
+                                                            else
+                                                                let action ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
+                                                                    action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
+                                                                in  getParallelChunkTraverse >>= \pTraverse →
+                                                                        (action . fst5) `pTraverse` curGraphs
 
                                                     let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
                                                     if null curGraphs
@@ -1338,12 +1302,12 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                                 if not (reportNaiveData globalSettings)
                                                                                                                                     then pure $ GO.convertReduced2PhylogeneticGraph <$> curGraphs
                                                                                                                                     else
-                                                                                                                                        let action :: SimpleGraph -> PhyG PhylogeneticGraph
+                                                                                                                                        let action ∷ SimpleGraph → PhyG PhylogeneticGraph
                                                                                                                                             action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
-                                                                                                                                        in  getParallelChunkTraverse >>= \pTraverse ->
+                                                                                                                                        in  getParallelChunkTraverse >>= \pTraverse →
                                                                                                                                                 pTraverse (action . fst5) curGraphs
 
-                                                                                                                            tntContentList' ← traverse (getTNTString globalSettings processedData) $ zip curGraphs' [ 0 .. length curGraphs' - 1 ]
+                                                                                                                            tntContentList' ← traverse (getTNTString globalSettings processedData) $ zip curGraphs' [0 .. length curGraphs' - 1]
                                                                                                                             let tntContentList = concat tntContentList'
                                                                                                                             pure (tntContentList, outfileName, writeMode)
                                                                                                                 else do
@@ -1360,14 +1324,12 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                             pure (graphString, outfileName, writeMode)
     where
         bracketToCurly = \case
-            '(' -> '{'
-            ')' -> '}'
-            val -> val
+            '(' → '{'
+            ')' → '}'
+            val → val
 
 
-
-
-changingStrings :: String -> (String, String)
+changingStrings ∷ String → (String, String)
 changingStrings str = case span (/= ',') $ filter (`notElem` ['(', ')']) str of
-    (prefix, ',':suffix) -> (prefix, suffix)
-    (prefix, _) -> (prefix, mempty)
+    (prefix, ',' : suffix) → (prefix, suffix)
+    (prefix, _) → (prefix, mempty)

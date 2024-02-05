@@ -79,8 +79,8 @@ refineGraph inArgs inGS inData inGraphList =
                         in  -- network edge edits
                             if doNetAdd || doNetDel || doNetAddDel || doNetMov
                                 then netEdgeMaster inArgs inGS inData inGraphList
-                                -- genetic algorithm
-                                else geneticAlgorithmMaster inArgs inGS inData inGraphList
+                                else -- genetic algorithm
+                                    geneticAlgorithmMaster inArgs inGS inData inGraphList
 
 
 -- error "No refinement operation specified"
@@ -487,12 +487,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                     | otherwise =
                         let steps = max 3 (fromJust steps')
                             annealingRounds = case annealingRounds' of
-                                Just v | v >= 1 -> v
-                                _ -> 1
- 
+                                Just v | v >= 1 → v
+                                _ → 1
+
                             driftRounds = case driftRounds' of
-                                Just v | v >= 1 -> v
-                                _ -> 1
+                                Just v | v >= 1 → v
+                                _ → 1
 
                             saMethod
                                 | doDrift && doAnnealing = Drift
@@ -500,26 +500,27 @@ netEdgeMaster inArgs inGS inData inGraphList
                                 | otherwise = SimAnneal
 
                             equalProb = case acceptEqualProb of
-                                Nothing -> 0
-                                Just v | v > 1 -> 1
-                                Just v | v < 0 -> 0
-                                Just v -> v
+                                Nothing → 0
+                                Just v | v > 1 → 1
+                                Just v | v < 0 → 0
+                                Just v → v
 
                             worseFactor = max (fromJust acceptWorseFactor) 0.0
 
                             changes = case maxChanges of
-                                Just v | v >= 0 -> v
-                                _ -> 15
-                        in  Just $ SAParams
-                                { method = saMethod
-                                , numberSteps = steps
-                                , currentStep = 0
-                                , rounds = max annealingRounds driftRounds
-                                , driftAcceptEqual = equalProb
-                                , driftAcceptWorse = worseFactor
-                                , driftMaxChanges = changes
-                                , driftChanges = 0
-                                }
+                                Just v | v >= 0 → v
+                                _ → 15
+                        in  Just $
+                                SAParams
+                                    { method = saMethod
+                                    , numberSteps = steps
+                                    , currentStep = 0
+                                    , rounds = max annealingRounds driftRounds
+                                    , driftAcceptEqual = equalProb
+                                    , driftAcceptWorse = worseFactor
+                                    , driftMaxChanges = changes
+                                    , driftChanges = 0
+                                    }
 
                 -- parallel stuff
                 insertAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
@@ -580,7 +581,6 @@ netEdgeMaster inArgs inGS inData inGraphList
                 -- create simulated annealing random lists uniquely for each fmap
                 newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
             in  do
-
                     -- perform add/delete/move operations
                     {-
                                         bannerText
@@ -673,11 +673,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogWarn "Adding edges to hardwired graphs will always increase cost, skipping"
                                         pure (inGraphList, 0)
                                     else do
-                                        graphPairList1 ← getParallelChunkTraverse >>= \pTraverse ->
-                                            pTraverse insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
+                                        graphPairList1 ←
+                                            getParallelChunkTraverse >>= \pTraverse →
+                                                pTraverse insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList1
-                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
+                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else pure (inGraphList, 0)
 
                     (newGraphList', counterDelete) ←
@@ -687,22 +688,24 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogWarn ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
                                         pure (newGraphList, 0)
                                     else do
-                                        graphPairList2 ← getParallelChunkTraverse >>= \pTraverse ->
-                                            pTraverse deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
+                                        graphPairList2 ←
+                                            getParallelChunkTraverse >>= \pTraverse →
+                                                pTraverse deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList2
-                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
+                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else -- )
                                 pure (newGraphList, 0)
 
                     (newGraphList'', counterMove) ←
                         if doMove
                             then do
-                                graphPairList3 ← getParallelChunkTraverse >>= \pTraverse ->
-                                    pTraverse moveAction . zip newSimAnnealParamList $ pure <$> newGraphList'
+                                graphPairList3 ←
+                                    getParallelChunkTraverse >>= \pTraverse →
+                                        pTraverse moveAction . zip newSimAnnealParamList $ pure <$> newGraphList'
 
                                 let (graphListList, counterList) = unzip graphPairList3
-                                GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
+                                GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else pure (newGraphList', 0)
 
                     (newGraphList''', counterAddDelete) ←
@@ -712,16 +715,17 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
                                         pure (newGraphList'', 0)
                                     else do
-                                        graphPairList4 ← getParallelChunkTraverse >>= \pTraverse ->
-                                            pTraverse addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
+                                        graphPairList4 ←
+                                            getParallelChunkTraverse >>= \pTraverse →
+                                                pTraverse addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
 
                                         let (graphListList, counterList) = unzip graphPairList4
-                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x -> (x, sum counterList)
+                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else pure (newGraphList'', 0)
 
-                    resultGraphList <- case newGraphList''' of
-                        [] -> pure inGraphList
-                        _ -> GO.selectGraphs Unique (fromJust keepNum) 0 newGraphList'''
+                    resultGraphList ← case newGraphList''' of
+                        [] → pure inGraphList
+                        _ → GO.selectGraphs Unique (fromJust keepNum) 0 newGraphList'''
 
                     logWith
                         LogInfo

@@ -13,11 +13,11 @@ import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.CSV qualified as CSV
 import Data.Foldable (fold)
+import Data.Foldable1 (head)
 import Data.InfList qualified as IL
 import Data.List qualified as L
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty (NonEmpty (..))
 import Data.String (fromString)
-import Data.Foldable1 (head)
 import Data.Text.Builder.Linear (runBuilder)
 import Data.Text.Lazy qualified as Text
 import Data.Text.Short qualified as ST
@@ -30,7 +30,6 @@ import Input.BitPack qualified as BP
 import Input.DataTransformation qualified as DT
 import Input.ReadInputFiles qualified as RIF
 import Input.Reorganize qualified as R
-import Prelude hiding (head)
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
@@ -41,6 +40,7 @@ import System.IO
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import Prelude hiding (head)
 
 
 {- |
@@ -170,9 +170,9 @@ performSearch initialSeed inputFilePath = do
             , unwords [show $ length dataLeafNames, "terminals remain to be analyzed"]
             ]
 
-    (crossReferenceString, defaultGlobalSettings, naiveData, reconciledData, reconciledGraphs) <- case dataLeafNames of
-        [] -> failWithPhase Unifying "No leaf data to be analyzed--all excluded"
-        x:xs ->
+    (crossReferenceString, defaultGlobalSettings, naiveData, reconciledData, reconciledGraphs) ← case dataLeafNames of
+        [] → failWithPhase Unifying "No leaf data to be analyzed--all excluded"
+        x : xs →
             {-
             Data processing here-- there are multiple steps not composed so that
             large data files can be precessed and intermediate data goes out
@@ -187,11 +187,10 @@ performSearch initialSeed inputFilePath = do
                 -- Add in missing terminals to raw data where required
                 reconciledData' = DT.addMissingTerminalsToInput dNames [] <$> renamedData
                 reconciledGraphs = fmap (GFU.reIndexLeavesEdges dNames . GFU.checkGraphsAndData dNames) renamedGraphs
-
             in  do
                     -- Check for data file with all missing data--as in had no terminals with data in termainals list
                     reconciledData ← fold <$> traverse DT.removeAllMissingCharacters reconciledData'
-                
+
                     -- Create unique bitvector names for leaf taxa.
                     let leafBitVectorNames = DT.createBVNames reconciledData
 
@@ -200,11 +199,11 @@ performSearch initialSeed inputFilePath = do
                     -- but not grouped by types, or packed (bit, sankoff, prealigned etc)
                     -- Need to check data for equal in character number
                     naiveData ← DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
-                
+
                     -- get mix of static/dynamic characters to adjust dynmaicEpsilon
                     -- doing on naive data so no packing etc
                     let fractionDynamicData = U.getFractionDynamic naiveData
-                
+
                     -- Set global values before search--should be integrated with executing commands
                     -- only stuff that is data dependent here (and seed)
                     let defaultGlobalSettings =
@@ -219,7 +218,7 @@ performSearch initialSeed inputFilePath = do
 
                     pure (crossReferenceString, defaultGlobalSettings, naiveData, reconciledData, reconciledGraphs)
 
-                    -- logWith LogInfo ("Fraction characters that are dynamic: " <> (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
+    -- logWith LogInfo ("Fraction characters that are dynamic: " <> (show $ (fromIntegral lengthDynamicCharacters) / (fromIntegral $ lengthDynamicCharacters + numStaticCharacters)))
 
     -- Check to see if there are taxa without any observations. Would become total wildcards
     let taxaDataSizeList =
@@ -229,13 +228,15 @@ performSearch initialSeed inputFilePath = do
                 $ fmap (fmap (snd3 . U.filledDataFields (0, 0)) . fst) reconciledData
 
     case taxaDataSizeList of
-        [] -> logWith LogInfo "All taxa contain data\n"
-        xs -> failWithPhase
-            Unifying $ fold
-                [ "\nError: There are taxa without any data: "
-                , L.intercalate ", " $ Text.unpack . fst <$> xs
-                , "\n"
-                ]
+        [] → logWith LogInfo "All taxa contain data\n"
+        xs →
+            failWithPhase
+                Unifying
+                $ fold
+                    [ "\nError: There are taxa without any data: "
+                    , L.intercalate ", " $ Text.unpack . fst <$> xs
+                    , "\n"
+                    ]
 
     -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
     let reportingData
@@ -320,12 +321,13 @@ performSearch initialSeed inputFilePath = do
     -- Get CPUTime for input graphs
     afterGraphDiagnoseTCPUTime ← liftIO getCPUTime
     let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) = case inputGraphList of
-            [] -> (0, 0, infinity, infinity)
-            _ ->    ( fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime
-                    , length inputGraphList
-                    , minimum $ fmap snd5 inputGraphList
-                    , maximum $ fmap snd5 inputGraphList
-                    )
+            [] → (0, 0, infinity, infinity)
+            _ →
+                ( fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime
+                , length inputGraphList
+                , minimum $ fmap snd5 inputGraphList
+                , maximum $ fmap snd5 inputGraphList
+                )
 
     let inputProcessingData = emptySearchData{commentString = "Input and data processing", duration = fromIntegral dataCPUTime}
     let inputGraphProcessing =
@@ -359,16 +361,17 @@ performSearch initialSeed inputFilePath = do
     -- if (rootComplexity initialGlobalSettings) /= 0.0 then logWith LogInfo ("\tUpdating final graph with any root priors")
     -- else logWith LogInfo ""
 
-    {- 
-    This should not be necessary--moved to traversal with root cost adjustment 
+    {-
+    This should not be necessary--moved to traversal with root cost adjustment
         rediagnose for NCM and PMDL due to packing, in most cases not required, just being sure etc
     -}
     let rediagnoseWithReportingdata = True
-    finalGraphList' ← if rediagnoseWithReportingdata then
-                      -- if optimalityCriterion initialGlobalSettings `elem` [SI, NCM, PMDL] then 
-                        T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
-                      else pure finalGraphList
-    
+    finalGraphList' ←
+        if rediagnoseWithReportingdata
+            then -- if optimalityCriterion initialGlobalSettings `elem` [SI, NCM, PMDL] then
+                T.updateGraphCostsComplexities initialGlobalSettings reportingData optimizedData rediagnoseWithReportingdata finalGraphList
+            else pure finalGraphList
+
     -- let finalGraphList' = finalGraphList
 
     let minCost = if null finalGraphList then 0.0 else minimum $ fmap snd5 finalGraphList'
@@ -376,12 +379,12 @@ performSearch initialSeed inputFilePath = do
 
     -- get network numbers for graph complexities (PMDL, SI)
     let grabber = length . fth4 . LG.splitVertexList . fst5 <$> finalGraphList'
-    let pairFunction :: forall {a}. (a, a) -> a
+    let pairFunction ∷ ∀ {a}. (a, a) → a
         (netWorkVertexList, pairFunction, units)
-            | optimalityCriterion initialGlobalSettings == Parsimony = (replicate (length finalGraphList') 0, fst, "") 
+            | optimalityCriterion initialGlobalSettings == Parsimony = (replicate (length finalGraphList') 0, fst, "")
             -- PMDL and DI in base 2
-            | optimalityCriterion initialGlobalSettings `elem` [PMDL, SI]  = (grabber, fst, " bits") 
-            -- | graphType initialGlobalSettings == SoftWired = (grabber, fst, " bits")
+            | optimalityCriterion initialGlobalSettings `elem` [PMDL, SI] = (grabber, fst, " bits")
+            -- \| graphType initialGlobalSettings == SoftWired = (grabber, fst, " bits")
             -- NCM and MAPA in base 10
             | otherwise = (grabber, snd, " dits")
 
@@ -396,17 +399,21 @@ performSearch initialSeed inputFilePath = do
             ]
 
     -- insures model complexity 0 if not PMDL  correctly accounted for in traversals
-    let adjModelComplexity = if optimalityCriterion initialGlobalSettings == PMDL then modelComplexity initialGlobalSettings
-                             else 0.0
+    let adjModelComplexity =
+            if optimalityCriterion initialGlobalSettings == PMDL
+                then modelComplexity initialGlobalSettings
+                else 0.0
 
-
-    when (optimalityCriterion initialGlobalSettings /= Parsimony) $ logWith LogInfo $
-        unwords
-            [ "\tModel complexity " <> (show adjModelComplexity) <> units <> "\n"
-            , "\tRoot complexity " <> (show $ rootComplexity initialGlobalSettings) <> units <> "\n"
-            , "\tGraph complexities " <> (show $ fmap pairFunction $ fmap ((graphComplexityList initialGlobalSettings) IL.!!! ) netWorkVertexList) <> units
-            , "\n\n"
-            ]
+    when (optimalityCriterion initialGlobalSettings /= Parsimony) $
+        logWith LogInfo $
+            unwords
+                [ "\tModel complexity " <> (show adjModelComplexity) <> units <> "\n"
+                , "\tRoot complexity " <> (show $ rootComplexity initialGlobalSettings) <> units <> "\n"
+                , "\tGraph complexities "
+                    <> (show $ fmap pairFunction $ fmap ((graphComplexityList initialGlobalSettings) IL.!!!) netWorkVertexList)
+                    <> units
+                , "\n\n"
+                ]
 
     -- Final Stderr report
     timeCPUEnd ← liftIO getCPUTime

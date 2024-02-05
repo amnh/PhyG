@@ -250,11 +250,11 @@ getDataTerminalNames inDataList =
 addMissingTerminalsToInput ∷ NonEmpty T.Text → [TermData] → RawData → RawData
 addMissingTerminalsToInput dataLeafNames@(firstLeafName :| xs) curTermData inData@(termDataList, charInfoList) =
     let rData = case find ((== firstLeafName) . fst) termDataList of
-            Just vs -> vs : curTermData
-            Nothing -> (firstLeafName, []) : curTermData
+            Just vs → vs : curTermData
+            Nothing → (firstLeafName, []) : curTermData
     in  case xs of
-          [] -> (reverse rData, charInfoList)
-          y:ys -> addMissingTerminalsToInput (y :| ys) rData inData
+            [] → (reverse rData, charInfoList)
+            y : ys → addMissingTerminalsToInput (y :| ys) rData inData
 
 
 -- | checkDuplicatedTerminals takes list TermData and checks for repeated terminal names

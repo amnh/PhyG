@@ -22,10 +22,11 @@ import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
+import Debug.Trace
 import GeneralUtilities
 import GraphFormatUtilities
-import GraphOptimization.Traversals qualified as TRAV
 import GraphOptimization.PreOrderFunctions qualified as PRE
+import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
 import Input.Reorganize qualified as IR
 import PHANE.Evaluation
@@ -40,7 +41,7 @@ import System.Process
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
-import Debug.Trace
+
 
 {- | processSearchFields takes a [String] and reformats the String associated with the
 "search" commands and especially Thompson sampling data,
@@ -463,7 +464,7 @@ for row is source file names, subsequent rows by taxon with +/- for present abse
 input file
 different from getDataListList in removeal or processed data requiremenrt replaced with taxan name list
 -}
-getDataListList ∷ Foldable f => [RawData] → f T.Text → [[String]]
+getDataListList ∷ (Foldable f) ⇒ [RawData] → f T.Text → [[String]]
 getDataListList inDataList comprehensiveTaxaSet
     | null inDataList = []
     | otherwise =
@@ -501,23 +502,24 @@ phyloDataToString charIndexStart inDataVect =
                 fullMatrix = zipWith (:) charNumberString charStrings
             in  fullMatrix <> phyloDataToString (charIndexStart + length charStrings) (V.tail inDataVect)
 
+
 -- | getDataElementFrequencies takes a vecor of block data and returns character element frequencies
-getDataElementFrequencies :: V.Vector BlockData -> [[String]]
+getDataElementFrequencies ∷ V.Vector BlockData → [[String]]
 getDataElementFrequencies inBlockDataV =
-    if V.null inBlockDataV then []
-    else 
-        let blockCharFreqLLL = V.toList $ V.zipWith getBlockCharElementFrequencies (fmap snd3 inBlockDataV) (fmap thd3 inBlockDataV)
-        in
-        fmap (fmap show) blockCharFreqLLL
+    if V.null inBlockDataV
+        then []
+        else
+            let blockCharFreqLLL = V.toList $ V.zipWith getBlockCharElementFrequencies (fmap snd3 inBlockDataV) (fmap thd3 inBlockDataV)
+            in  fmap (fmap show) blockCharFreqLLL
 
 -- | getBlockElementFrequencies gets the element grequencies for each character in a block
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
 -- inputs square (so minimum number of gaps)
 getBlockCharElementFrequencies :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double, Int)]]
 getBlockCharElementFrequencies charDataV charInfoV =
-    if V.null charDataV then []
-    else
-        V.toList $ V.zipWith getCharElementFrequencies (U.transposeVector $ PRE.setFinalToPreliminaryStates charDataV) charInfoV
+    if V.null charDataV
+        then []
+        else V.toList $ V.zipWith getCharElementFrequencies (U.transposeVector $ PRE.setFinalToPreliminaryStates charDataV) charInfoV
 
 -- | getCharElementFrequencies gets element frequencies for a character
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
@@ -526,63 +528,67 @@ getBlockCharElementFrequencies charDataV charInfoV =
 -- ignores ambiguities/polymorphism
 getCharElementFrequencies :: V.Vector CharacterData -> CharInfo -> [(String, Double, Int)]
 getCharElementFrequencies charData charInfo =
-    if V.null charData then []
-    else 
-        let usaIA = False  -- this will estimate gaps based on minimum number possible
+    if V.null charData
+        then []
+        else
+            let usaIA = False -- this will estimate gaps based on minimum number possible
 
-            -- alphabet element strings
-            alphabetElementStrings =  (alphabetSymbols $ ST.toString <$> alphabet charInfo)
+                -- alphabet element strings
+                alphabetElementStrings = (alphabetSymbols $ ST.toString <$> alphabet charInfo)
 
-            charInfoV = V.replicate (V.length charData) charInfo
-            charPairV = V.zip charData charInfoV
-            taxonElementList = V.toList $ fmap L.last $ fmap (makeCharLine usaIA) charPairV
+                charInfoV = V.replicate (V.length charData) charInfo
+                charPairV = V.zip charData charInfoV
+                taxonElementList = V.toList $ fmap L.last $ fmap (makeCharLine usaIA) charPairV
 
-            -- get implicit gaps from unaligned seqs (will end up zero if all equal in length)
-            numExtraGaps = if "-" `notElem` alphabetElementStrings then 0
-                           else 
-                                let maxLength = maximum $ fmap length taxonElementList
-                                in getMinGapNumber maxLength 0 taxonElementList
+                -- get implicit gaps from unaligned seqs (will end up zero if all equal in length)
+                numExtraGaps =
+                    if "-" `notElem` alphabetElementStrings
+                        then 0
+                        else
+                            let maxLength = maximum $ fmap length taxonElementList
+                            in  getMinGapNumber maxLength 0 taxonElementList
 
-            totalElementList =  concat $ (L.replicate numExtraGaps '-') : taxonElementList
-            elementsGroups = L.group $ L.sort totalElementList
-            elementList = fmap (:[]) $ fmap head elementsGroups
-            doubleList = zip elementList (fmap length elementsGroups)
-            elementNumberList = reorderAsInAlphabet alphabetElementStrings doubleList
-            numElements = fromIntegral $ sum elementNumberList
-            elementfreqList = fmap (/numElements) $ fmap fromIntegral elementNumberList
+                totalElementList =  concat $ (L.replicate numExtraGaps '-') : taxonElementList
+                elementsGroups = L.group $ L.sort totalElementList
+                elementList = fmap (:[]) $ fmap head elementsGroups
+                doubleList = zip elementList (fmap length elementsGroups)
+                elementNumberList = reorderAsInAlphabet alphabetElementStrings doubleList
+                numElements = fromIntegral $ sum elementNumberList
+                elementfreqList = fmap (/numElements) $ fmap fromIntegral elementNumberList
             
         in
         -- trace ("GCEF: " <> totalElementList ) $ -- <> " -> " <> (concat $ concat $ fmap (makeCharLine usaIA) charPairV))
         zip3 alphabetElementStrings elementfreqList elementNumberList
 
 -- | getMinGapNumber gets implicit gap number by summing length differneces among sequences in order
-getMinGapNumber :: Int -> Int -> [String] -> Int
+getMinGapNumber ∷ Int → Int → [String] → Int
 getMinGapNumber maxLength curNum inElementLL =
-    if null inElementLL then curNum
-    else 
-        let increment =  maxLength - (length $ head inElementLL)
-        in
-        getMinGapNumber maxLength (curNum + increment) (tail inElementLL)
+    if null inElementLL
+        then curNum
+        else
+            let increment = maxLength - (length $ head inElementLL)
+            in  getMinGapNumber maxLength (curNum + increment) (tail inElementLL)
+
 
 -- | reorderAsInAlphabet
-reorderAsInAlphabet :: [String] -> [(String, Int)] -> [Int]
-reorderAsInAlphabet inAlphList inDoubleList = 
+reorderAsInAlphabet ∷ [String] → [(String, Int)] → [Int]
+reorderAsInAlphabet inAlphList inDoubleList =
     -- trace ("RASIA: " <> (show inAlphList) <> " " <> (show inDoubleList)) $
-    if null inDoubleList then []
-    else
-        fmap (findDouble inDoubleList) inAlphList
+    if null inDoubleList
+        then []
+        else fmap (findDouble inDoubleList) inAlphList
+
 
 -- | findDouble takes list of strings then pulls the tipple wthat matches the string
-findDouble :: [(String, Int)] -> String -> Int
+findDouble ∷ [(String, Int)] → String → Int
 findDouble inDoubleList matchString =
-    if null inDoubleList then 0
-    else 
-        let (alphElement, number) =  head inDoubleList
-        in
-        if alphElement == matchString then number
-        else findDouble (tail inDoubleList) matchString
-
-
+    if null inDoubleList
+        then 0
+        else
+            let (alphElement, number) = head inDoubleList
+            in  if alphElement == matchString
+                    then number
+                    else findDouble (tail inDoubleList) matchString
 
 
 -- | getCharInfoStrings takes charInfo and returns list of Strings of fields
@@ -1160,15 +1166,17 @@ createDisplayTreeTNT inGS inData inGraph =
             -- blockProcessedDataList = PU.seqParMap PU.myStrategyHighLevel (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
             -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
-            decoratedBlockTreeList ← getParallelChunkTraverse >>= \pTraverse ->
-                traverseAction `pTraverse` zip blockProcessedDataList blockDisplayList
+            decoratedBlockTreeList ←
+                getParallelChunkTraverse >>= \pTraverse →
+                    traverseAction `pTraverse` zip blockProcessedDataList blockDisplayList
 
             -- create leaf data by merging display graph block data (each one a phylogentic graph)
             let (leafDataList, mergedCharInfoVV) = mergeDataBlocks decoratedBlockTreeList [] []
 
             -- get character block strings as interleaved groups
-            blockStringListstList ← getParallelChunkTraverse >>= \pTraverse ->
-                taxonString `pTraverse` zip (V.toList leafDataList) leafNameList
+            blockStringListstList ←
+                getParallelChunkTraverse >>= \pTraverse →
+                    taxonString `pTraverse` zip (V.toList leafDataList) leafNameList
 
             interleavedBlocks ← fold <$> makePairInterleave blockStringListstList charTypeList
 
@@ -1246,7 +1254,7 @@ getTaxonCharString charInfoVV charDataVV =
         -- parallel stuff
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
-    in  getParallelChunkTraverse >>= \pTraverse ->
+    in  getParallelChunkTraverse >>= \pTraverse →
             fmap fold . pTraverse action . zip (V.toList charInfoVV) $ V.toList charDataVV
 
 
@@ -1267,7 +1275,7 @@ getTaxonCharStringList charInfoVV charDataVV leafName =
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
         prefix = (fmap (leafName <>))
-    in  getParallelChunkTraverse >>= \pTraverse ->
+    in  getParallelChunkTraverse >>= \pTraverse →
             fmap prefix . pTraverse action . zip (V.toList charInfoVV) $ V.toList charDataVV
 
 
@@ -1523,8 +1531,9 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
                                     -- create seprate processed data for each block
                                     blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
                                 in  do
-                                        decoratedBlockTreeList' ← getParallelChunkTraverse >>= \pTraverse ->
-                                            pTraverse reoptimize . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
+                                        decoratedBlockTreeList' ←
+                                            getParallelChunkTraverse >>= \pTraverse →
+                                                pTraverse reoptimize . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
                                         -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to create IAs
                                         let decoratedBlockTreeList = V.fromList decoratedBlockTreeList'
 
@@ -1556,14 +1565,16 @@ getImpliedAlignmentString inGS includeMissing concatSeqs inData (inReducedGraph,
 
                                                 let blockProcessedDataList = fmap (makeBlockData (fst3 inData) (snd3 inData)) (thd3 inData)
 
-                                                decoratedBlockTreeList' ← getParallelChunkTraverse >>= \pTraverse ->
-                                                    pTraverse reoptimize . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
+                                                decoratedBlockTreeList' ←
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                        pTraverse reoptimize . zip (V.toList blockProcessedDataList) $ V.toList blockDisplayList
                                                 -- Perform full optimizations on display trees (as trees) with single block data (blockProcessedDataList) to creeate IAs
                                                 let decoratedBlockTreeList = V.fromList decoratedBlockTreeList'
 
                                                 -- extract IA strings as if mutiple graphs
-                                                diplayIAStringList ← getParallelChunkTraverse >>= \pTraverse ->
-                                                    getIAAction `pTraverse` V.toList decoratedBlockTreeList
+                                                diplayIAStringList ←
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                        getIAAction `pTraverse` V.toList decoratedBlockTreeList
 
                                                 logWith
                                                     LogWarn
@@ -1603,8 +1614,8 @@ makeFullIAStrings includeMissing charInfoVV leafNameList leafDataList =
         -- parallel stuff
         action ∷ Int → PhyG [String]
         action = makeBlockIAStrings includeMissing leafNameList leafDataList charInfoVV
-    in  getParallelChunkTraverse >>= \pTraverse ->
-            fold <$> pTraverse action [ 0 .. numBlocks - 1 ]
+    in  getParallelChunkTraverse >>= \pTraverse →
+            fold <$> pTraverse action [0 .. numBlocks - 1]
 
 
 -- | makeBlockIAStrings extracts data for a block (via index) and calls function to make iaStrings for each character
