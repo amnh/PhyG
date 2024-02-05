@@ -724,6 +724,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         <> edgeInfoList
                         <> vertexChangeTitle
                         <> differenceList
+                        <> [["Element Transformations (element<->element, frequency, number)"]]
     where
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
         concat4 a b c d = a <> b <> c <> d
