@@ -502,6 +502,11 @@ phyloDataToString charIndexStart inDataVect =
                 fullMatrix = zipWith (:) charNumberString charStrings
             in  fullMatrix <> phyloDataToString (charIndexStart + length charStrings) (V.tail inDataVect)
 
+-- | getDataElementTransformations takes alphabet, parent and child final states
+-- and calcuates and formats the transition matrix in frequency and raw numbers
+getDataElementTransformations :: [String] -> [[String]] -> [[String]] -> [[String]]
+getDataElementTransformations alphabetStringList parentStringhList childStringList =
+    [[]]
 
 -- | getDataElementFrequencies takes a vecor of block data and returns character element frequencies
 getDataElementFrequencies ∷ V.Vector BlockData → [[String]]
@@ -679,6 +684,10 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
                     edgeInfoList = fmap getEdgeInfo edgeList
 
+                    -- Alphabet element numbers
+                    alphabetTitle = [["Alphabet (element, frequency, number)"]]
+                    alphabetInfo = getDataElementFrequencies (thd3 inData)
+
                     vertexChangeTitle =
                         [ [" "]
                         , ["Vertex Character Changes"]
@@ -714,17 +723,23 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     -- filter out those that are the same states
                     differenceList = removeNoChangeLines vertexChangeList
+
+                    -- element retansformation numbers
+                    elementTransformationTitle = [["Element Transformations (element<->element, frequency, number)"]]
+                    elementTransformationInfo = [[]] --getDataElementTransformations
+
                 in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
                     [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
-                        <> [["Alphabet (element, frequency, number)"]]
-                        <> getDataElementFrequencies (thd3 inData)
+                        <> alphabetTitle
+                        <> alphabetInfo
                         <> edgeTitle
                         <> edgeHeaderList
                         <> edgeInfoList
                         <> vertexChangeTitle
                         <> differenceList
-                        <> [["Element Transformations (element<->element, frequency, number)"]]
+                        <> elementTransformationTitle
+                        <> elementTransformationInfo 
     where
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
         concat4 a b c d = a <> b <> c <> d
