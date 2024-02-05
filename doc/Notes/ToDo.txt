@@ -621,4 +621,7 @@
 	IA errors + length
 	Diagnosis non-dequence states and differences in IA alignment states
 	
+476) Report diagnois--does it work for :
+	Multi character states -- it fastc?
+	MultiCharacter blocks (ie after reblock)?
 

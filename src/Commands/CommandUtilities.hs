@@ -504,8 +504,9 @@ phyloDataToString charIndexStart inDataVect =
 
 -- | getDataElementTransformations takes alphabet, parent and child final states
 -- and calcuates and formats the transition matrix in frequency and raw numbers
+-- this for list of blocks each with list of characters
 getDataElementTransformations :: [String] -> [[String]] -> [[String]] -> [[String]]
-getDataElementTransformations alphabetStringList parentStringhList childStringList =
+getDataElementTransformations alphabetStringList parentStringList childStringList =
     [[]]
 
 -- | getDataElementFrequencies takes a vecor of block data and returns character element frequencies
@@ -687,6 +688,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     -- Alphabet element numbers
                     alphabetTitle = [["Alphabet (element, frequency, number)"]]
                     alphabetInfo = getDataElementFrequencies (thd3 inData)
+                    aphbetStringLL = [[]]
 
                     vertexChangeTitle =
                         [ [" "]
@@ -726,7 +728,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     -- element retansformation numbers
                     elementTransformationTitle = [["Element Transformations (element<->element, frequency, number)"]]
-                    elementTransformationInfo = [[]] --getDataElementTransformations
+                    elementTransformationInfo = getDataElementTransformations aphbetStringLL vertexParentStateList vertexStateList
 
                 in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
                     [vertexTitle, topHeaderList, [show graphIndex]]
