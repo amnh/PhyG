@@ -511,7 +511,7 @@ getDataElementTransformations :: [[String]] -> [[String]] -> [[String]]
 getDataElementTransformations alphabetStringList diffLL =
     if null diffLL then []
     else 
-        trace ("GDET: " <> (concat $ concat alphabetStringList) <> " " <> (concat $ concat diffLL) <> "\n") $
+        trace ("GDET: " <> (concat $ concat $ fmap (<> ["\n"]) alphabetStringList) <> " " <> (concat $ concat $ fmap (<> ["\n"]) diffLL)) $
         zipWith getBlockElementTransformations alphabetStringList diffLL
 
 -- | getBlockElementTransformations
@@ -532,41 +532,39 @@ getCharElementTransformations alphabetString diffState =
 
 
 -- | getDataElementFrequencies takes a vecor of block data and returns character element frequencies
-getDataElementFrequencies ∷ V.Vector BlockData → [[String]]
-getDataElementFrequencies inBlockDataV =
+getDataElementFrequencies ∷ Bool -> V.Vector BlockData → [[String]]
+getDataElementFrequencies useIA inBlockDataV =
     if V.null inBlockDataV
         then []
         else
-            let blockCharFreqLLL = V.toList $ V.zipWith getBlockCharElementFrequencies (fmap snd3 inBlockDataV) (fmap thd3 inBlockDataV)
+            let blockCharFreqLLL = V.toList $ V.zipWith (getBlockCharElementFrequencies useIA) (fmap snd3 inBlockDataV) (fmap thd3 inBlockDataV)
             in  fmap (fmap show) blockCharFreqLLL
 
 -- | getBlockElementFrequencies gets the element grequencies for each character in a block
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
 -- inputs square (so minimum number of gaps)
-getBlockCharElementFrequencies :: V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double, Int)]]
-getBlockCharElementFrequencies charDataV charInfoV =
+getBlockCharElementFrequencies :: Bool -> V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double, Int)]]
+getBlockCharElementFrequencies useIA charDataV charInfoV =
     if V.null charDataV
         then []
-        else V.toList $ V.zipWith getCharElementFrequencies (U.transposeVector $ PRE.setFinalToPreliminaryStates charDataV) charInfoV
+        else V.toList $ V.zipWith (getCharElementFrequencies useIA) (U.transposeVector $ PRE.setFinalToPreliminaryStates charDataV) charInfoV
 
 -- | getCharElementFrequencies gets element frequencies for a character
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
 -- inputs square (so minimum number of gaps)
 -- returns frequencies and number for each alphabet element
 -- ignores ambiguities/polymorphism
-getCharElementFrequencies :: V.Vector CharacterData -> CharInfo -> [(String, Double, Int)]
-getCharElementFrequencies charData charInfo =
+getCharElementFrequencies :: Bool -> V.Vector CharacterData -> CharInfo -> [(String, Double, Int)]
+getCharElementFrequencies useIA charData charInfo =
     if V.null charData
         then []
         else
-            let usaIA = False -- this will estimate gaps based on minimum number possible
-
-                -- alphabet element strings
+            let -- alphabet element strings
                 alphabetElementStrings = (alphabetSymbols $ ST.toString <$> alphabet charInfo)
 
                 charInfoV = V.replicate (V.length charData) charInfo
                 charPairV = V.zip charData charInfoV
-                taxonElementList = V.toList $ fmap L.last $ fmap (makeCharLine usaIA) charPairV
+                taxonElementList = V.toList $ fmap L.last $ fmap (makeCharLine useIA) charPairV
 
                 -- get implicit gaps from unaligned seqs (will end up zero if all equal in length)
                 numExtraGaps =
@@ -709,7 +707,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     -- Alphabet element numbers
                     alphabetTitle = [["Alphabet (element, frequency, number)"]]
-                    alphabetInfo = getDataElementFrequencies (thd3 inData)
+                    -- False for Use IA here
+                    alphabetInfo = getDataElementFrequencies False (thd3 inData)
                     alphbetStringLL = [[]]
 
                     vertexChangeTitle =
