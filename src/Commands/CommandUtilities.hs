@@ -502,32 +502,77 @@ phyloDataToString charIndexStart inDataVect =
                 fullMatrix = zipWith (:) charNumberString charStrings
             in  fullMatrix <> phyloDataToString (charIndexStart + length charStrings) (V.tail inDataVect)
 
+
+-- | extractAlphabetStrings takes vector of block data and returns block x character string list
+extractAlphabetStrings :: V.Vector BlockData → [[[String]]]
+extractAlphabetStrings inBlockDataV = 
+    let result = V.toList $ fmap extractAlphabetStringsBlock inBlockDataV
+    in
+    trace ("EAS: " <> (show result))
+    result
+
+-- | extractAlphabetStringsBlock takes block data and returns character string list
+extractAlphabetStringsBlock :: BlockData → [[String]]
+extractAlphabetStringsBlock inBlockData = V.toList $ fmap extractAlphabetStringsChar (thd3 inBlockData)
+
+-- | extractAlphabetStringsChar takes char data and returns character string list
+extractAlphabetStringsChar :: CharInfo → [String]
+extractAlphabetStringsChar inCharInfo = (alphabetSymbols $ ST.toString <$> alphabet inCharInfo)
+
+
 -- | getDataElementTransformations takes alphabet, parent and child final states
 -- and calculates and formats the transition matrix in frequency and raw numbers
 -- this for list of blocks each with list of characters
 -- over all edges
 -- need to ddeal woith missing data
-getDataElementTransformations :: [[String]] -> [[String]] -> [[String]]
-getDataElementTransformations alphabetStringList diffLL =
-    if null diffLL then []
+getDataElementTransformations :: [[[String]]] -> [[String]] -> [[String]] -> [[String]]
+getDataElementTransformations alphabetStrings parentLL childLL =
+    if null childLL then []
     else 
-        trace ("GDET: " <> (concat $ concat $ fmap (<> ["\n"]) alphabetStringList) <> " " <> (concat $ concat $ fmap (<> ["\n"]) diffLL)) $
-        zipWith getBlockElementTransformations alphabetStringList diffLL
+        -- convert to block x character (Parent String, Child String) for counting exercise
+        let numBlocks = length alphabetStrings
+            numCharsList = fmap length alphabetStrings
+
+            numParent = length parentLL
+            numChild =  length childLL
+
+
+            -- dataByBlock = reorderBySection numBlocks diffLL [] 
+            -- dataByBlockChar = zipeWith reorderBySection numCharsList dataByBlock
+
+        in
+        trace ("GDET: " <> (show (numBlocks, numCharsList, numParent, numChild)) <> " " <> (show alphabetStrings) <>
+            (show parentLL) <> "\n\n" <> (show childLL)) $
+        [[]]
+
+
+-- | reorderBySection takes a list of list of Strings and reorders klists into first diominant (as in blocks here)
+reorderBySection :: Int -> [[String]] -> [[String]] -> [[String]]
+reorderBySection numSections inData reorgData =
+    if null inData then reorgData
+    else if length inData < numSections then error ("Incorrect input list size: " <> (show numSections) <> " sections and " <> (show $ length inData) <> " pieces")
+    else 
+        let firstGroup = filter (not . null) $ take numSections inData
+            newData = if null reorgData then firstGroup
+                      else zipWith (<>) reorgData firstGroup
+        in
+        trace ("RBS: " <> (show firstGroup)) $
+        reorderBySection numSections (drop numSections inData) newData
 
 -- | getBlockElementTransformations
 -- need to deal with missing data
-getBlockElementTransformations :: [String] -> [String] -> [String]
+getBlockElementTransformations :: [[String]] -> [String] -> [String]
 getBlockElementTransformations alphabetStringL diffL =
     if null diffL then []
     else 
-        trace ("GBET: " <> (concat alphabetStringL) <> " " <> (concat diffL)) $
+        trace ("GBET: " <> (show alphabetStringL) <> " " <> (concat diffL)) $
         zipWith getCharElementTransformations alphabetStringL diffL
 
 -- | getCharElementTransformations 
 -- need to deal with missing data
-getCharElementTransformations :: String -> String -> String
+getCharElementTransformations :: [String] -> String -> String
 getCharElementTransformations alphabetString diffState =
-    trace ("GCET: " <> alphabetString <> " " <> diffState)
+    trace ("GCET: " <> (show alphabetString) <> " " <> diffState)
     []
 
 
@@ -547,7 +592,12 @@ getBlockCharElementFrequencies :: Bool -> V.Vector (V.Vector CharacterData) -> V
 getBlockCharElementFrequencies useIA charDataV charInfoV =
     if V.null charDataV
         then []
-        else V.toList $ V.zipWith (getCharElementFrequencies useIA) (U.transposeVector $ PRE.setFinalToPreliminaryStates charDataV) charInfoV
+        else 
+            -- set to preliminary states or IA states
+            let dataV = if not useIA then PRE.setFinalToPreliminaryStates charDataV
+                        else charDataV
+            in 
+            V.toList $ V.zipWith (getCharElementFrequencies useIA) (U.transposeVector dataV) charInfoV
 
 -- | getCharElementFrequencies gets element frequencies for a character
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
@@ -709,7 +759,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     alphabetTitle = [["Alphabet (element, frequency, number)"]]
                     -- False for Use IA here
                     alphabetInfo = getDataElementFrequencies False (thd3 inData)
-                    alphbetStringLL = [[]]
+
+                    alphbetStringLL = extractAlphabetStrings (thd3 inData)
 
                     vertexChangeTitle =
                         [ [" "]
@@ -747,9 +798,10 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     -- filter out those that are the same states
                     differenceList = removeNoChangeLines vertexChangeList
 
-                    -- element retansformation numbers
+                    -- element transformation numbers
                     elementTransformationTitle = [["Element Transformations (element<->element, frequency, number)"]]
-                    elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexChangeListByPosition
+                    -- get element transfomation by re-parsing formated results--uses teh character states strings this way
+                    elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexParentStateList vertexStateList
 
                 in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
                     [vertexTitle, topHeaderList, [show graphIndex]]
@@ -761,8 +813,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         <> edgeInfoList
                         <> vertexChangeTitle
                         <> differenceList
-                        <> elementTransformationTitle
-                        <> elementTransformationInfo 
+                        -- <> elementTransformationTitle
+                        -- <> elementTransformationInfo 
     where
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
         concat4 a b c d = a <> b <> c <> d
