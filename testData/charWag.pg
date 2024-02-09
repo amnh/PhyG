@@ -102,6 +102,7 @@ build(distance, rdwag)
 -- transform(dynamic)
 -- select(best)
 select(best)
+transform (staticApprox)
 
 report("test0-data.csv", data, overwrite)
 

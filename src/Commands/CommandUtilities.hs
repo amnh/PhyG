@@ -1341,7 +1341,8 @@ length and zipping for missing data
 -}
 getTaxonCharString ∷ V.Vector (V.Vector CharInfo) → VertexBlockData → PhyG String
 getTaxonCharString charInfoVV charDataVV =
-    let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
+    -- False for not use IA field
+    let lengthBlock = maximum $ V.zipWith (U.getCharacterLength False) (V.head charDataVV) (V.head charInfoVV)
         -- parallel stuff
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
@@ -1361,7 +1362,8 @@ length and zipping for missing data
 -}
 getTaxonCharStringList ∷ V.Vector (V.Vector CharInfo) → VertexBlockData → String → PhyG [String]
 getTaxonCharStringList charInfoVV charDataVV leafName =
-    let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
+    let -- False for not use IA field
+        lengthBlock = maximum $ V.zipWith (U.getCharacterLength False) (V.head charDataVV) (V.head charInfoVV)
         -- parallel stuff
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
@@ -1505,7 +1507,8 @@ makeCostString namePairList costList =
 getBlockLength ∷ V.Vector CharacterData → V.Vector CharInfo → [Int]
 getBlockLength inCharDataV inCharInfoV =
     -- trace ("GBL:" <> (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
-    V.toList $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV
+    -- False so not use IA field
+    V.toList $ V.zipWith (U.getCharacterLength False) inCharDataV inCharInfoV
 
 
 -- | getBlockNames returns a list of the lengths of all characters in a blocks

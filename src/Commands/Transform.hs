@@ -39,7 +39,7 @@ import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
-
+import Debug.Trace
 
 {- | transform changes aspects of data sande settings during execution
 as opposed to Set with all happens at begginign of program execution
@@ -632,7 +632,7 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
     if LG.isEmpty (fst5 inGraph)
         then error "Empty graph in makeStaticApprox"
         else -- tree type
-
+            trace ("MSA: " ) $
             if graphType inGS == Tree
                 then do
                     let decGraph = thd5 inGraph
@@ -648,7 +648,7 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
 
                     if leavePrealigned
                         then do
-                            pure (nameV, nameBVV, V.fromList newBlockDataV)
+                            pure (nameV, nameBVV, blockDataV)
                         else do
                             -- convert prealigned to non-additive if all 1's tcm
 
@@ -709,8 +709,8 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                             pure inData
 
 
-{- | getBlockLeafDataFromDisplayTree take a dispay tree and the block dat for that tree
-and returns leae data--prealiged IA data
+{- | getBlockLeafDataFromDisplayTree take a display tree and the block data for that tree
+and returns leaf data--prealiged IA data
 like pullGraphBlockDataAndTransform but for a single block and display tree
 -}
 getBlockLeafDataFromDisplayTree ∷ Bool → DecoratedGraph → BlockData → BlockData
@@ -721,7 +721,8 @@ getBlockLeafDataFromDisplayTree leavePrealigned inDecGraph blockCharInfo =
 
         -- new recoded data-- need to filter out constant chars after recoding
         -- need character length for missing values
-        charLengthV = V.zipWith U.getMaxCharacterLength (thd3 blockCharInfo) leafBlockData
+        -- True for IA lengths
+        charLengthV = V.zipWith (U.getMaxCharacterLength True) (thd3 blockCharInfo) leafBlockData
 
         (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData leavePrealigned (thd3 blockCharInfo) charLengthV) (fmap V.fromList $ V.toList leafBlockData)
     in  (fst3 blockCharInfo, V.fromList transformedLeafBlockData, head transformedBlockInfo)
@@ -739,14 +740,15 @@ pullGraphBlockDataAndTransform leavePrealigned inDecGraph blockCharInfoV blockIn
 
         -- new recoded data-- need to filter out constant chars after recoding
         -- need character length for missing values
-        charLengthV = V.zipWith U.getMaxCharacterLength (thd3 $ blockCharInfoV V.! blockIndex) (V.fromList $ fmap V.toList leafBlockData)
+        -- True for IA lengths
+        charLengthV = V.zipWith (U.getMaxCharacterLength True) (thd3 $ blockCharInfoV V.! blockIndex) (V.fromList $ fmap V.toList leafBlockData)
 
         (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData leavePrealigned (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData
-    in  -- trace ("PGDT: " <> show charLengthV)
+    in  trace ("PGDT: " <> show charLengthV)
         (fst3 $ blockCharInfoV V.! blockIndex, V.fromList transformedLeafBlockData, head transformedBlockInfo)
 
 
--- | transformData takes original Character info and character data and transforms to static if dynamic noting chracter type
+-- | transformData takes original Character info and character data and transforms to static if dynamic noting character type
 transformData
     ∷ Bool → V.Vector CharInfo → V.Vector Int → V.Vector CharacterData → (V.Vector CharacterData, V.Vector CharInfo)
 transformData leavePrealigned inCharInfoV inCharLengthV inCharDataV =

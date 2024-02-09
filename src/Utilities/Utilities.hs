@@ -200,7 +200,8 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
 
             let numChars = V.length charInfoV
                 leafCharListV = fmap (charDataVV V.!) [0 .. numChars - 1]
-                maxCharLengthList = zipWith getMaxCharacterLength (V.toList charInfoV) (fmap V.toList leafCharListV)
+                -- False fo not use IA field
+                maxCharLengthList = zipWith (getMaxCharacterLength False) (V.toList charInfoV) (fmap V.toList leafCharListV)
                 weightList = fmap weight (V.toList charInfoV)
                 rootCostList = zipWith (*) weightList (fmap fromIntegral maxCharLengthList)
             in  -- trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
@@ -1171,8 +1172,8 @@ getSequenceCharacterLengths inCharData inCharInfo =
 -}
 
 -- | getCharacterLengths returns a the length of block characters
-getCharacterLength ∷ CharacterData → CharInfo → Int
-getCharacterLength inCharData inCharInfo =
+getCharacterLength ∷ Bool -> CharacterData → CharInfo → Int
+getCharacterLength useIA inCharData inCharInfo =
     let inCharType = charType inCharInfo
     in  -- trace ("GCL:" <> (show inCharType) <> " " <> (show $ snd3 $ stateBVPrelim inCharData)) (
         case inCharType of
@@ -1180,8 +1181,11 @@ getCharacterLength inCharData inCharInfo =
             x | x `elem` packedNonAddTypes → UV.length $ snd3 $ packedNonAddPrelim inCharData
             x | x == Add → V.length $ snd3 $ rangePrelim inCharData
             x | x == Matrix → V.length $ matrixStatesPrelim inCharData
+            x | x `elem` [SlimSeq, NucSeq] && useIA → SV.length $ snd3 $ slimAlignment inCharData -- slimAlignment inCharData
             x | x `elem` [SlimSeq, NucSeq] → SV.length $ snd3 $ slimGapped inCharData -- slimAlignment inCharData
+            x | x `elem` [WideSeq, AminoSeq]  && useIA → UV.length $ snd3 $ wideAlignment inCharData --  wideAlignment inCharData
             x | x `elem` [WideSeq, AminoSeq] → UV.length $ snd3 $ wideGapped inCharData --  wideAlignment inCharData
+            x | x == HugeSeq  && useIA → V.length $ snd3 $ hugeAlignment inCharData --  hugeAlignment inCharData
             x | x == HugeSeq → V.length $ snd3 $ hugeGapped inCharData --  hugeAlignment inCharData
             x | x == AlignedSlim → SV.length $ snd3 $ alignedSlimPrelim inCharData
             x | x == AlignedWide → UV.length $ snd3 $ alignedWidePrelim inCharData
@@ -1192,13 +1196,13 @@ getCharacterLength inCharData inCharInfo =
 -- )
 
 -- | getCharacterLengths' flipped arg version of getCharacterLength
-getCharacterLength' ∷ CharInfo → CharacterData → Int
-getCharacterLength' inCharInfo inCharData = getCharacterLength inCharData inCharInfo
+getCharacterLength' ∷ Bool -> CharInfo → CharacterData → Int
+getCharacterLength' useIA inCharInfo inCharData = getCharacterLength useIA inCharData inCharInfo
 
 
 -- | getMaxCharacterLengths get maximum charcter legnth from a list
-getMaxCharacterLength ∷ CharInfo → [CharacterData] → Int
-getMaxCharacterLength inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' inCharInfo) inCharDataList
+getMaxCharacterLength ∷ Bool -> CharInfo → [CharacterData] → Int
+getMaxCharacterLength useIA inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' useIA inCharInfo) inCharDataList
 
 
 -- | getSingleTaxon takes a taxa x characters block and an index and returns the character vector for that index

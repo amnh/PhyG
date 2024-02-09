@@ -532,7 +532,8 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
     in  if inCharType `notElem` prealignedCharacterTypes
             then (True, [], [])
             else
-                let prealigedDataLengthList = V.toList $ fmap (U.getCharacterLength' charInfo) inCharV
+                -- True for IA field use but doesn't matter in this case since looking at prealigned fields
+                let prealigedDataLengthList = V.toList $ fmap (U.getCharacterLength' True charInfo) inCharV
                     {-
                     if inCharType == AlignedSlim then V.toList $ fmap SV.length $ fmap (snd3 . alignedSlimPrelim) inCharV
                       else if inCharType == AlignedWide then V.toList $ fmap UV.length $ fmap (snd3 . alignedWidePrelim) inCharV
