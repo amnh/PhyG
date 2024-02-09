@@ -365,7 +365,7 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
             let firstLine' = T.strip $ head inLines
                 multipleCommandsInLine = fmap ((T.reverse . T.cons ';') . T.reverse) (filter ((> 0) . T.length) $ T.strip <$> T.splitOn (T.pack ";") firstLine')
                 firstLine = head multipleCommandsInLine
-            in  -- trace (show multipleCommandsInLine) (
+            in  -- trace ("GTCI:" <> (show multipleCommandsInLine)) $
                 if T.null firstLine
                     then getTNTCharInfo fileName charNumber curCharInfo (tail inLines)
                     else -- hit 'proc /;' line at end
@@ -383,11 +383,11 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
                                         -- have a valid line
                                         let wordList = T.words $ T.init firstLine
                                         let command2 = T.toLower $ T.take 2 $ head wordList
-                                        localCharInfoResult ← getCCodes fileName charNumber (tail wordList) curCharInfo
-                                        let localCharInfo =
+                                        -- localCharInfoResult ← getCCodes fileName charNumber (tail wordList) curCharInfo
+                                        localCharInfo <- 
                                                 if command2 == T.pack "cc"
-                                                    then localCharInfoResult
-                                                    else curCharInfo
+                                                    then getCCodes fileName charNumber (tail wordList) curCharInfo
+                                                    else pure curCharInfo
                                         let localCharInfo' =
                                                 if command2 == T.pack "co"
                                                     then getCosts fileName charNumber (tail wordList) localCharInfo
@@ -416,6 +416,7 @@ the singleton stuff for compount things like "+."
 -}
 getCCodes ∷ String → Int → [T.Text] → [CharInfo] → PhyG [CharInfo]
 getCCodes fileName charNumber commandWordList curCharInfo =
+    -- trace ("getCCodes " <> show commandWordList) $
     if null curCharInfo
         then do
             pure []
@@ -449,7 +450,7 @@ assumes X/Y and U>V have no sapces (= one word)
 -}
 getCosts ∷ String → Int → [T.Text] → [CharInfo] → [CharInfo]
 getCosts fileName charNumber commandWordList curCharInfo =
-    -- trace ("Costs " <> show commandWordList) (
+    -- trace ("getCosts " <> show commandWordList) $
     if null curCharInfo
         then []
         else
@@ -457,11 +458,11 @@ getCosts fileName charNumber commandWordList curCharInfo =
                 charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
                 (localAlphabet, localMatrix) = processCostsLine fileName $ tail $ dropWhile (/= T.pack "=") commandWordList
                 updatedCharInfo = newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 []
-            in  -- trace ("Alph " <> (show $ fmap alphabet updatedCharInfo))
+            in  trace ("Alph " <> (show $ fmap alphabet updatedCharInfo))
                 updatedCharInfo
 
 
--- )
+
 
 {- | processCostsLine takes the transformation commands of TNT and creates a TCM matrix from that
 does not check for alphabet size or order so sorts states to get matrix
