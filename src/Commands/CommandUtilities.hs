@@ -525,8 +525,8 @@ extractAlphabetStringsChar inCharInfo = (alphabetSymbols $ ST.toString <$> alpha
 -- this for list of blocks each with list of characters
 -- over all edges
 -- need to ddeal woith missing data
-getDataElementTransformations :: [[[String]]] -> [[String]] -> [[String]] -> [[String]]
-getDataElementTransformations alphabetStrings parentLL childLL =
+getDataElementTransformations :: [[[String]]] -> [[String]] -> [[String]] -> [[String]] -> [[String]]
+getDataElementTransformations alphabetStrings parentLL childLL parentChildLL =
     if null childLL then []
     else 
         -- convert to block x character (Parent String, Child String) for counting exercise
@@ -541,9 +541,9 @@ getDataElementTransformations alphabetStrings parentLL childLL =
             -- dataByBlockChar = zipeWith reorderBySection numCharsList dataByBlock
 
         in
-        trace ("GDET: " <> (show (numBlocks, numCharsList, numParent, numChild)) <> " " <> (show alphabetStrings) <>
-            (show parentLL) <> "\n\n" <> (show childLL)) $
-        [[]]
+        trace ("GDET: " <> (show (numBlocks, numCharsList, numParent, numChild)) <> " " <> (show alphabetStrings)) -- <>
+            -- (show parentLL) <> "\n\n" <> (show childLL)) $
+        parentChildLL
 
 
 -- | reorderBySection takes a list of list of Strings and reorders klists into first diominant (as in blocks here)
@@ -756,7 +756,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     edgeInfoList = fmap getEdgeInfo edgeList
 
                     -- Alphabet element numbers
-                    alphabetTitle = [["Alphabet (element, frequency, number)"]]
+                    alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
                     -- False for Use IA here
                     alphabetInfo = getDataElementFrequencies False (thd3 inData)
 
@@ -788,7 +788,9 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     vertexStateList = fmap (drop 9) vertexInfoListChanges
 
                     -- process to change to lines of individual changes--basically a transpose
-                    vertexChangeListByPosition = fmap (getAlignmentBasedChanges' 0) (zip vertexParentStateList vertexStateList)
+                    -- True to only report diffs 
+                    vertexChangeListByPosition = fmap (getAlignmentBasedChanges' True 0) (zip vertexParentStateList vertexStateList)
+                    parentChildStatesList = fmap (getAlignmentBasedChanges' False 0) (zip vertexParentStateList vertexStateList)
 
                     -- putting parent states before current state
                     vertexStateInfoList = fmap (take 9) vertexInfoListChanges
@@ -799,9 +801,9 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     differenceList = removeNoChangeLines vertexChangeList
 
                     -- element transformation numbers
-                    elementTransformationTitle = [["Element Transformations (element<->element, frequency, number)"]]
+                    elementTransformationTitle = [["Element Transformations (element<->element, frequency, number) based in Implied Alignment for unaligned sequences"]]
                     -- get element transfomation by re-parsing formated results--uses teh character states strings this way
-                    elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexParentStateList vertexStateList
+                    elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexParentStateList vertexStateList parentChildStatesList 
 
                 in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
                     [vertexTitle, topHeaderList, [show graphIndex]]
@@ -823,8 +825,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 {- | getAlignmentBasedChanges' takes two equal length implied Alignments and outputs list of element changes between the two
 assumes single String in each list
 -}
-getAlignmentBasedChanges' ∷ Int → ([String], [String]) → [String]
-getAlignmentBasedChanges' index (a, b)
+getAlignmentBasedChanges' ∷ Bool -> Int → ([String], [String]) → [String]
+getAlignmentBasedChanges' onlyDiffs index (a, b)
     | length a > 1 || length b < 1 = error ("Should only have length 1 lists here: " <> (show (length a, length b)))
     | null a = []
     | otherwise =
@@ -840,15 +842,15 @@ getAlignmentBasedChanges' index (a, b)
                 -- else if length stringList1 /= length stringList2 then
                 --         error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges': "
                 --         <> (show (length stringList1, length stringList2) <> "\n" <> (show stringList1) <> "\n" <> (show stringList2)))
-                    getAlignmentBasedChangesGuts index stringList1 stringList2
+                    getAlignmentBasedChangesGuts onlyDiffs index stringList1 stringList2
 
 
--- | getAlignmentBasedChangesGuts takes processed element lists and cretes string of changes
-getAlignmentBasedChangesGuts ∷ Int → [String] → [String] → [String]
-getAlignmentBasedChangesGuts index a b
+-- | getAlignmentBasedChangesGuts takes processed element lists and creates string of changes
+getAlignmentBasedChangesGuts ∷ Bool -> Int → [String] → [String] → [String]
+getAlignmentBasedChangesGuts onlyDiffs index a b
     | null a || null b = []
-    | (head a) == (head b) = getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
-    | otherwise = ((show index) <> ":" <> (head a) <> "," <> (head b)) : getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
+    | (head a) == (head b) && onlyDiffs = getAlignmentBasedChangesGuts onlyDiffs (index + 1) (tail a) (tail b)
+    | otherwise = ((show index) <> ":" <> (head a) <> "," <> (head b)) : getAlignmentBasedChangesGuts onlyDiffs (index + 1) (tail a) (tail b)
 
 
 {- | getAlignmentBasedChanges takes two equal length implied Alignments and outputs list of element changes between the two
@@ -988,7 +990,7 @@ based on "naive" data for human legible output
 need to add back-converting to observed states using alphabet in charInfo
 nothing here for packed since not "entered"
 useIA for using alignment fields for changes in diagnosis
-is useIA == False then just printing final seqeunce and removes spaces
+is useIA == False then just printing final sequence and removes spaces
 for single character sequences (e.g. DNA/Protein)
 -}
 makeCharLine ∷ Bool → (CharacterData, CharInfo) → [String]
@@ -1006,7 +1008,7 @@ makeCharLine useIA (blockDatum, charInfo) =
 
         -- set where get string from, IA for change lists
         (slimField, wideField, hugeField) =
-            if useIA
+            if useIA 
                 then (slimIAFinal blockDatum, wideIAFinal blockDatum, hugeIAFinal blockDatum)
                 else (slimFinal blockDatum, wideFinal blockDatum, hugeFinal blockDatum)
 
