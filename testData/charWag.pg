@@ -25,7 +25,7 @@ read("chel.ss")
 --transform(weight:0.01, name:"chel.fas#0*")
 
 set(seed:1701287416)
-set(reportNaive:False)
+--set(reportNaive:False)
 --set(missingThreshold:10)
 
 --report("test0-data.csv", data, overwrite)
