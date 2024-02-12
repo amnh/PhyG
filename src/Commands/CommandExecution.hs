@@ -1129,7 +1129,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                             if "diagnosis" `elem` commandList
                                                 then do
                                                     curGraphs' ←
-                                                        if not (reportNaiveData globalSettings)
+                                                        if False -- not (reportNaiveData globalSettings)
                                                             then pure curGraphs
                                                             else
                                                                 let action ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph

@@ -1,5 +1,5 @@
 --read(fasta:"metazoa-aa-1.fas")
---read(fasta:"chel.fas")
+read(fasta:"chel.fas")
 --read(fasta:"chel-16.fas")
 --set(criterion:PMDL)
 --set(graphfactor:nopenalty)
@@ -12,7 +12,7 @@
 -- this line can cause seg fault--not sure why
 --read(prefasta:"chel-prealigned.fas")
 
-read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
+--read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:"bitDNA.tcm")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
 
@@ -101,8 +101,8 @@ build(distance, rdwag)
 
 -- transform(dynamic)
 -- select(best)
-select(best)
-transform (staticApprox)
+select(best:1)
+--transform (staticApprox)
 
 report("test0-data.csv", data, overwrite)
 

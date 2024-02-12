@@ -402,8 +402,8 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
 
         if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5)
             then
-                if stringVal == ""
-                    then ""
+                if stringVal `elem` ["","-"] 
+                    then "-"
                     else
                         if length stringVal == 1
                             then stringVal

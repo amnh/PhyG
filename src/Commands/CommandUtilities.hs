@@ -3,6 +3,11 @@ Module exposing helper functions used for command processing.
 -}
 module Commands.CommandUtilities where
 
+import Bio.DynamicCharacter
+import Bio.DynamicCharacter.Element
+import Data.Alphabet
+import Data.Alphabet.Codec (decodeState)
+import Data.BitVector.LittleEndian qualified as BV
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Parallel.Strategies
@@ -16,6 +21,7 @@ import Data.List.NonEmpty qualified as NE
 import Data.List.Split qualified as LS
 import Data.List.Split qualified as SL
 import Data.Maybe
+import Data.MetricRepresentation qualified  as MR
 import Data.Set qualified as SET
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
@@ -23,8 +29,10 @@ import Data.Vector qualified as V
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
 import Debug.Trace
+import DirectOptimization.Pairwise
 import GeneralUtilities
 import GraphFormatUtilities
+import GraphOptimization.Medians qualified as M
 import GraphOptimization.PreOrderFunctions qualified as PRE
 import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
@@ -41,6 +49,9 @@ import System.Process
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import Data.Vector qualified as V
+import Data.Vector.Generic qualified  as GV
+import Data.Vector.Storable qualified as SV
 
 
 {- | processSearchFields takes a [String] and reformats the String associated with the
@@ -745,10 +756,11 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         , "Character Type"
                         , "Final State"
                         ]
-                    vertexInfoList = concatMap (getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    vertexInfo = fmap (getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    vertexInfoList = concat vertexInfo
 
                     -- this using IA fields to get changes
-                    vertexInfoListChanges = concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    vertexInfoListChanges = vertexInfoList -- concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
 
                     -- Edge length information
                     edgeTitle = [[" "], ["Edge Weight/Length Information"]]
@@ -784,7 +796,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     vertexParentStateList =
                         fmap
                             ((: []) . last)
-                            (concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)) vertexList)
+                            (concatMap (getVertexAndParentCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)) vertexList)
                     vertexStateList = fmap (drop 9) vertexInfoListChanges
 
                     -- process to change to lines of individual changes--basically a transpose
@@ -805,22 +817,166 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     -- get element transfomation by re-parsing formated results--uses teh character states strings this way
                     elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexParentStateList vertexStateList parentChildStatesList 
 
-                in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
+                    -- Get changes based on edges
+                    edgeIndexList = fmap LG.toEdge edgeList
+
+                    -- should be parallel
+                    vertexVect = V.fromList $ vertexList
+                    edgeTransformationList = fmap (getEdgeTransformations vertexVect (fft5 inGraph)) edgeIndexList
+
+                    vertexHeader = fmap (fmap (take 9)) vertexInfo
+                    edgeListLists = knitTitlesChangeInfo vertexHeader edgeTransformationList
+
+                    vertexChangeTitleNew =
+                        [ [" "]
+                        , ["Vertex Character Changes"]
+                        ,
+                            [ ""
+                            , "Vertex Index"
+                            , "Vertex Name"
+                            , "Vertex Type"
+                            , "Child Vertices"
+                            , "Parent Vertices"
+                            , "Data Block"
+                            , "Character Name"
+                            , "Character Type"
+                            , "Parent Final State"
+                            , "Node Final State"
+                            , "Unambiguous Transformation"
+                            ]
+                        ]
+
+                in  trace ("GGD: " <> (show edgeListLists))
                     [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
-                        <> alphabetTitle
-                        <> alphabetInfo
                         <> edgeTitle
                         <> edgeHeaderList
                         <> edgeInfoList
                         <> vertexChangeTitle
                         <> differenceList
+                        <> vertexChangeTitleNew
+                        <> edgeListLists
                         -- <> elementTransformationTitle
                         -- <> elementTransformationInfo 
+                        <> alphabetTitle
+                        <> alphabetInfo
+                        
     where
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
         concat4 a b c d = a <> b <> c <> d
 
+
+{- | knitTitlesChangeInfo tkaes [[[String]]] of title info and knits with [[[String]]] of character change info
+    into [[String]] for CSV output
+    Edges x Blocks x characters (final is transformation info)
+-}
+knitTitlesChangeInfo :: [[[String]]] -> [[[String]]] -> [[String]]
+knitTitlesChangeInfo titlesLLL transLLL =
+    if null titlesLLL || null transLLL then []
+    else
+        concat $ fmap (formatEdge titlesLLL) transLLL
+
+{- | formatEdge formats edges string for CSV
+-}
+formatEdge :: [[[String]]] -> [[String]] -> [[String]]
+formatEdge titleLL transLL =
+    if null titleLL || null transLL then []
+    else
+        let edgeTitle = head $ head titleLL
+        in
+        edgeTitle : (concat $ zipWith formatBlock (tail titleLL) transLL)
+
+{- | formatBlock formats block string for CSV
+-}
+formatBlock :: [[String]] -> [String] -> [[String]]
+formatBlock titleLL transL =
+    if null titleLL || null transL then []
+    else
+        let blockTitle = head titleLL
+        in
+        blockTitle : (zipWith formatCharacter (tail titleLL) transL)
+
+{- | formatCharacter formats charcater string for CSV
+-}
+formatCharacter :: [String] -> String -> [String]
+formatCharacter titleLine transS =
+    if null titleLine || null transS then []
+    else
+        titleLine <> (LS.splitOn "," transS)
+
+
+{- | getEdgeTransformations get tranformations for an edge by block and character
+    changes by block then character
+-}
+getEdgeTransformations :: V.Vector (LG.LNode VertexInfo) -> V.Vector (V.Vector CharInfo)-> (LG.Node, LG.Node) -> [[String]]
+getEdgeTransformations nodeVect charInfoVV (parentIndex, childIndex) =
+    let parentNodeLabel = snd $ nodeVect V.! parentIndex
+        childNodeLabel = snd $ nodeVect V.! childIndex
+        parentBlockData = vertData parentNodeLabel
+        childBlockData = vertData childNodeLabel
+    in
+    V.toList $ V.zipWith3 getEdgeBlockChanges parentBlockData childBlockData charInfoVV
+
+{- | getEdgeBlockChanges takes VertexBlockData from parent and child node and gets transformations by character
+-}
+getEdgeBlockChanges :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> [String]
+getEdgeBlockChanges parentBlockData childBlockData charInfoV =
+    V.toList $ V.zipWith3 getCharacterChanges parentBlockData childBlockData charInfoV
+
+{- | getCharacterChanges takes strings of character pairs and outputs differences as pairs,
+    for unaligned sequences performs a DO and uses aligned states 
+-}
+getCharacterChanges :: CharacterData -> CharacterData -> CharInfo -> String
+getCharacterChanges parentChar nodeChar charInfo =
+    let localType = charType charInfo
+        localAlphabet = (ST.toString <$> alphabet charInfo)
+
+        -- this to avoid recalculations and list access issues
+        lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
+        lAVect = V.fromList $ NE.toList $ lANES
+
+        --getCharState
+        --    ∷ ∀ {b}
+        --     . (Show b, Bits b)
+        --    ⇒ b
+        --    → String
+        getCharState a = U.bitVectToCharState localAlphabet lANES lAVect a  -- concat $ NE.toList $ decodeState localAlphabet a -- 
+
+        (slimParent, slimChild) = if localType `notElem` [NucSeq, SlimSeq] then ([],[])
+                                  else 
+                                    let (_ , r) = slimPairwiseDO (slimTCM charInfo) (M.makeDynamicCharacterFromSingleVector $ slimFinal parentChar) (M.makeDynamicCharacterFromSingleVector $ slimFinal nodeChar) 
+                                    in 
+                                    --trace (show (r, length $ SV.foldMap getCharState $ extractMediansLeftGapped r, length $ SV.foldMap getCharState $ extractMediansRightGapped r)) 
+                                    (SV.foldMap getCharState $ extractMediansLeftGapped r, SV.foldMap getCharState $ extractMediansRightGapped r)
+        (wideParent, wideChild) = if localType `notElem` [WideSeq, AminoSeq] then ([],[])
+                                  else 
+                                    let coefficient = MR.minInDelCost (wideTCM charInfo)
+                                        (_, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) (M.makeDynamicCharacterFromSingleVector $ wideFinal parentChar) (M.makeDynamicCharacterFromSingleVector $ wideFinal nodeChar) 
+                                    in (UV.foldMap getCharState $ extractMediansLeftGapped r, UV.foldMap getCharState $ extractMediansRightGapped r)
+        (hugeParent, hugeChild) = if localType `notElem` [HugeSeq] then ([],[])
+                                  else 
+                                    let coefficient = MR.minInDelCost (hugeTCM charInfo)
+                                        (_, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) (M.makeDynamicCharacterFromSingleVector $ hugeFinal parentChar) (M.makeDynamicCharacterFromSingleVector $ hugeFinal nodeChar) 
+                                    in (foldMap getCharState $ extractMediansLeftGapped r, foldMap getCharState $ extractMediansRightGapped r)
+        
+        
+        (parentState, nodeState)  
+            | localType == Add = (show $ rangeFinal parentChar, show $ rangeFinal nodeChar)
+            | localType == NonAdd = (concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal parentChar, concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal nodeChar)
+            | localType `elem` packedNonAddTypes = (UV.foldMap getCharState $ packedNonAddFinal parentChar, UV.foldMap getCharState $ packedNonAddFinal nodeChar)
+            | localType == Matrix = (show $ fmap (fmap fst3) $ matrixStatesFinal parentChar, UV.foldMap getCharState $ packedNonAddFinal nodeChar)
+            | localType `elem` sequenceCharacterTypes = case localType of
+                x | x `elem` [NucSeq, SlimSeq] → (slimParent, slimChild)
+                x | x `elem` [WideSeq, AminoSeq] → (wideParent, wideChild)
+                x | x `elem` [HugeSeq] → (hugeParent, hugeChild)
+                x | x `elem` [AlignedSlim] → (SV.foldMap getCharState $ alignedSlimFinal parentChar, SV.foldMap getCharState $ alignedSlimFinal nodeChar)
+                x | x `elem` [AlignedWide] → (UV.foldMap getCharState $ alignedWideFinal parentChar, UV.foldMap getCharState $ alignedWideFinal nodeChar)
+                x | x `elem` [AlignedHuge] → (foldMap getCharState $ alignedHugeFinal parentChar, foldMap getCharState $ alignedHugeFinal nodeChar)
+                _ → error ("Un-implemented data type " <> show localType)
+            | otherwise = error ("Un-implemented data type " <> show localType)
+    in
+    -- convert String to pair list
+    parentState <> "," <> nodeState
 
 {- | getAlignmentBasedChanges' takes two equal length implied Alignments and outputs list of element changes between the two
 assumes single String in each list
