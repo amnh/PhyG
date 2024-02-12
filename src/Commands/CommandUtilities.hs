@@ -789,7 +789,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             , "Character Type"
                             , "Parent Final State"
                             , "Node Final State"
-                            , "Sequence Changes (position, parent final state, node final state)"
+                            -- , "Sequence Changes (position, parent final state, node final state)"
                             ]
                         ]
 
@@ -807,7 +807,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     -- putting parent states before current state
                     vertexStateInfoList = fmap (take 9) vertexInfoListChanges
 
-                    vertexChangeList = L.zipWith4 concat4 vertexStateInfoList vertexParentStateList vertexStateList vertexChangeListByPosition
+                    vertexChangeList = L.zipWith3 concat3 vertexStateInfoList vertexParentStateList vertexStateList -- vertexChangeListByPosition
 
                     -- filter out those that are the same states
                     differenceList = removeNoChangeLines vertexChangeList
@@ -846,7 +846,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             ]
                         ]
 
-                in  trace ("GGD: " <> (show edgeListLists))
+                in  -- trace ("GGD: " <> (show edgeListLists))
                     [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
                         <> edgeTitle
@@ -864,6 +864,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
     where
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
         concat4 a b c d = a <> b <> c <> d
+        concat3 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a 
+        concat3 a b c = a <> b <> c 
 
 
 {- | knitTitlesChangeInfo tkaes [[[String]]] of title info and knits with [[[String]]] of character change info
