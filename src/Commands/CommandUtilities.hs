@@ -641,7 +641,7 @@ getCharElementFrequencies useIA charData charInfo =
                 doubleList = zip elementList (fmap length elementsGroups)
                 elementNumberList = reorderAsInAlphabet alphabetElementStrings doubleList
                 numElements = fromIntegral $ sum elementNumberList
-                elementfreqList = fmap (/numElements) $ fmap fromIntegral elementNumberList
+                elementfreqList = fmap ( / numElements) $ fmap fromIntegral elementNumberList
             
         in
         -- trace ("GCEF: " <> totalElementList ) $ -- <> " -> " <> (concat $ concat $ fmap (makeCharLine usaIA) charPairV))
@@ -842,7 +842,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             , "Character Type"
                             , "Parent Final State"
                             , "Node Final State"
-                            , "Unambiguous Transformation"
+                            , "Unambiguous Element Numbers"
+                            , "Unambiguous Transformations"
                             ]
                         ]
 
@@ -976,9 +977,76 @@ getCharacterChanges parentChar nodeChar charInfo =
                 x | x `elem` [AlignedHuge] → (foldMap getCharState $ alignedHugeFinal parentChar, foldMap getCharState $ alignedHugeFinal nodeChar)
                 _ → error ("Un-implemented data type " <> show localType)
             | otherwise = error ("Un-implemented data type " <> show localType)
+
+        -- character states and transformation numbers (only counting unambiguous)
+        elementsParent = getElementNumbers (alphabetSymbols localAlphabet) parentState
+        elementsChild = getElementNumbers (alphabetSymbols localAlphabet) nodeState
+        elementsCombined = zip (alphabetSymbols localAlphabet) (zipWith (+) (fmap snd elementsParent) (fmap snd elementsChild))
+        elementsCombinedString = L.intercalate "," $ fmap makeElementString elementsCombined
+
+        emptyMatrix = replicate (length localAlphabet) (replicate (length localAlphabet) 0)
+        elementTransformations = getTransformations (alphabetSymbols localAlphabet) parentState nodeState emptyMatrix
+
     in
     -- convert String to pair list
-    parentState <> "," <> nodeState
+    parentState <> "," <> nodeState <> "," <> elementsCombinedString <> "," <> (replaceComma $ show elementTransformations)
+
+    where makeElementString (a,b) = a <> ":" <> (show b)
+          replaceComma a = if null a then []
+                           else if head a == ',' then ':' : replaceComma (tail a)
+                           else (head a) : replaceComma (tail a)
+
+
+{- | getTransformations takes alphabet and parent and child SINGE CHARACXTRE STATES
+and returns matrix of numbers of changes
+This an absrdely slow implementation n^2 at least
+-}
+getTransformations :: [String] -> String -> String -> [[Int]] -> [[Int]]
+getTransformations alphabet parentCharList childCharList curMatrix =
+    if null parentCharList then curMatrix
+    else
+        let pChar = head parentCharList
+            cChar = head childCharList
+        in
+        -- trace ("GT: " <> (show curMatrix)) $
+        if (pChar : []) `elem` alphabet && (cChar : []) `elem` alphabet then
+            let pIndex = fromJust $ L.elemIndex (pChar : []) alphabet
+                cIndex = fromJust $ L.elemIndex (cChar : []) alphabet
+                newMatrix = incrementMatrix curMatrix pIndex cIndex
+            in
+            getTransformations alphabet (tail parentCharList) (tail childCharList) newMatrix
+
+        else getTransformations alphabet (tail parentCharList) (tail childCharList) curMatrix
+
+{- | incrementMatrix updates matrix very stupidly
+-}
+incrementMatrix :: [[Int]] -> Int -> Int -> [[Int]]
+incrementMatrix inMatrix p c =
+    if null inMatrix then []
+    else
+        let firstRows = take p inMatrix
+            lastRows = drop (p + 1) inMatrix
+            updateRow = inMatrix !! p
+            firstPart = take c updateRow
+            lastPart = drop (c + 1) updateRow
+            newRow = firstPart <> [1 + (updateRow !! c)] <> lastPart
+        in
+        firstRows <> [newRow] <> lastRows
+
+
+
+{- | getElementNumbers takes a String of SINGLECHARACTRE states and checks versus alphabet for unambiguous states numbers
+-}
+getElementNumbers :: [String] -> String -> [(String, Int)]
+getElementNumbers alphabet charList = 
+    if null charList then []
+    else if null alphabet then []
+    else
+        let stringList = fmap (:[]) charList
+            alphNumber = length $ L.findIndices (== (head alphabet)) stringList
+        in
+        ((head alphabet), alphNumber) : getElementNumbers (tail alphabet) charList
+
 
 {- | getAlignmentBasedChanges' takes two equal length implied Alignments and outputs list of element changes between the two
 assumes single String in each list
