@@ -991,9 +991,9 @@ getCharacterChanges parentChar nodeChar charInfo =
     -- convert String to pair list
     parentState <> "," <> nodeState <> "," <> elementsCombinedString <> "," <> (replaceComma $ show elementTransformations)
 
-    where makeElementString (a,b) = a <> ":" <> (show b)
+    where makeElementString (a,b) = a <> " " <> (show b)
           replaceComma a = if null a then []
-                           else if head a == ',' then ':' : replaceComma (tail a)
+                           else if head a == ',' then ' ' : replaceComma (tail a)
                            else (head a) : replaceComma (tail a)
 
 
