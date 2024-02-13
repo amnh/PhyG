@@ -66,7 +66,7 @@ the traversal begins at the root (for a tree) and proceeds to leaves.
 
 Hardfwired dos not have IA fileds so skipped--so medians for edges etc must be do calculated on final states
 
-INgeneral, no Chnage adjustmnent (for PMDL and SI) are not perfomred (False option) since graph costs are not calculated in the preorder passes
+In, general, no Change adjustment (for PMDL and SI) are not perfomred (False option) since graph costs are not calculated in the preorder passes
 -}
 preOrderTreeTraversal
     ∷ GlobalSettings → AssignmentMethod → Bool → Bool → Bool → Int → Bool → PhylogeneticGraph → PhyG PhylogeneticGraph
@@ -153,7 +153,7 @@ updateLeafIABlock' ∷ Int → (V.Vector DecoratedGraph, V.Vector DecoratedGraph
 updateLeafIABlock' maxLeafIndex (origCharV, newCharV, charInfoV) = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
 
 
-{- | updateLeafIABlock takes a graph, existing charcter info and updates IA fileds in leaves
+{- | updateLeafIABlock takes a graph, existing character info and updates IA fields in leaves
 for IA post and preorder passes on softwored graphs that may have indegree=outdegree=1 vertices
 these nodes screw up the implied alignment algorithm
 -}
@@ -174,7 +174,7 @@ updateLeafIAChar maxLeafIndex origCharGraph newCharGraph charInfo =
     in  LG.mkGraph (updatedVertexList <> originalNonLeafVertexList) origEdgeList
 
 
-{- | updateIAFields updates the IA filed in teh first node with that of second if its non-exact sequence character
+{- | updateIAFields updates the IA field in the first node with that of second if its non-exact sequence character
 assumes single character trees
 -}
 updateIAFields ∷ CharInfo → LG.LNode VertexInfo → LG.LNode VertexInfo → LG.LNode VertexInfo

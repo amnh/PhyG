@@ -599,7 +599,7 @@ getDataElementFrequencies useIA inBlockDataV =
 -- | getBlockElementFrequencies gets the element grequencies for each character in a block
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
 -- inputs square (so minimum number of gaps)
-getBlockCharElementFrequencies :: Bool -> V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double, Int)]]
+getBlockCharElementFrequencies :: Bool -> V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double)]]
 getBlockCharElementFrequencies useIA charDataV charInfoV =
     if V.null charDataV
         then []
@@ -615,7 +615,7 @@ getBlockCharElementFrequencies useIA charDataV charInfoV =
 -- inputs square (so minimum number of gaps)
 -- returns frequencies and number for each alphabet element
 -- ignores ambiguities/polymorphism
-getCharElementFrequencies :: Bool -> V.Vector CharacterData -> CharInfo -> [(String, Double, Int)]
+getCharElementFrequencies :: Bool -> V.Vector CharacterData -> CharInfo -> [(String, Double)]
 getCharElementFrequencies useIA charData charInfo =
     if V.null charData
         then []
@@ -645,7 +645,7 @@ getCharElementFrequencies useIA charData charInfo =
             
         in
         -- trace ("GCEF: " <> totalElementList ) $ -- <> " -> " <> (concat $ concat $ fmap (makeCharLine usaIA) charPairV))
-        zip3 alphabetElementStrings elementfreqList elementNumberList
+        zip alphabetElementStrings elementfreqList
 
 -- | getMinGapNumber gets implicit gap number by summing length differneces among sequences in order
 getMinGapNumber ∷ Int → Int → [String] → Int
@@ -740,6 +740,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     useDO = False
                     vertexList = LG.labNodes decGraph
                     edgeList = LG.labEdges decGraph
+                    numLeaves = V.length $ fst3 inData
 
                     -- Vertex final character states for currect node
                     vertexTitle = ["Vertex Character State Information"]
@@ -826,15 +827,20 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     
                     -- extract relevent info
                     edgeTransformationList = fmap (fmap (fmap fst3)) edgeTransformationTotalList
-                    elementNumbersLLL = fmap (fmap (fmap snd3)) edgeTransformationTotalList
+                    -- elementNumbersLLL = fmap (fmap (fmap snd3)) edgeTransformationTotalList
                     transformationNumbersLLL = fmap (fmap (fmap thd3)) edgeTransformationTotalList
 
-                    -- overallElementNumbers = L.foldl1' (U.combineMatrices (+)) elementNumbersLLL
-                    overallElementTransformations = fmap (fmap (L.foldl1' (U.combineMatrices (+)))) transformationNumbersLLL
+                    -- overallElementNumbers = sumEdgeElementLists [] $ take numLeaves elementNumbersLLL
+                    overallElementTransformations = sumEdgeTransformationLists [] transformationNumbersLLL 
+                    overallElementTransformationsFreq = fmap (fmap U.normalizeMatrix) overallElementTransformations
 
                     vertexHeader = fmap (fmap (take 9)) vertexInfo 
                     
                     edgeListLists = knitTitlesChangeInfo vertexHeader edgeTransformationList
+
+                    transformationHeader = fmap (drop 5) $ tail $ head vertexHeader
+
+                    statsListList = addBlockCharStrings transformationHeader alphabetInfo (fmap (fmap show) overallElementTransformationsFreq)
 
                     vertexChangeTitleNew =
                         [ [" "]
@@ -856,7 +862,20 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             ]
                         ]
 
-                in  -- trace ("GGD: " <> (show edgeListLists))
+                    edgeTransformationTitle = 
+                        [ [" "]
+                        , ["Edge Transformation Statistics"]
+                        ,
+                            [ ""
+                            , "Data Block"
+                            , "Character Name"
+                            , "Character Type"
+                            , "Element Numbers"
+                            , "Transformation Numbers"
+                            ]
+                        ]
+
+                in  -- trace ("GGD: " <> (show overallElementNumbers))
                     [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
                         <> edgeTitle
@@ -870,7 +889,9 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         -- <> elementTransformationInfo 
                         <> alphabetTitle
                         <> alphabetInfo
-                        <> fmap (fmap show) overallElementTransformations
+                        <> edgeTransformationTitle
+                        <> statsListList
+                        -- <> fmap show overallElementTransformations
                         
     where
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
@@ -878,6 +899,100 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
         concat3 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a 
         concat3 a b c = a <> b <> c 
 
+
+{- | sumEdgeElementLists takes list of edges of block of characters transomftion matricwes and 
+sums over edge (outermost) list for eventual csv output
+-}
+sumEdgeElementLists :: [[[(String,Int)]]] -> [[[[(String,Int)]]]] -> [[[(String,Int)]]]
+sumEdgeElementLists curSum inEdgeList =
+    if null inEdgeList then curSum
+    else
+        let firstEdge = head inEdgeList
+            newSum = if null curSum then firstEdge
+                     else addBlockCharacterElements curSum firstEdge
+        in
+        sumEdgeElementLists newSum (tail inEdgeList)
+
+{- | addBlockCharacterElements adds two block lists of element lists
+-}
+addBlockCharacterElements :: [[[(String,Int)]]] -> [[[(String,Int)]]] -> [[[(String,Int)]]]
+addBlockCharacterElements inBlockEdgeL1 inBlockEdgeL2 =
+    if null inBlockEdgeL1 then inBlockEdgeL2
+    else if null inBlockEdgeL2 then inBlockEdgeL1
+    else
+        zipWith addCharacterElementLists inBlockEdgeL1 inBlockEdgeL2
+
+{- | addCharacterElementLists adds two lists of charcter element lists
+-}
+addCharacterElementLists :: [[(String,Int)]] -> [[(String,Int)]] -> [[(String,Int)]] 
+addCharacterElementLists inCharList1 inCharList2 =
+    if null inCharList1 then inCharList2
+    else if null inCharList2 then inCharList1
+    else
+        zipWith addElementLists inCharList1 inCharList2 
+
+{- | addElementLists adds two lists of elements and numbers
+    Assumes lists are in same element order
+-}
+addElementLists :: [(String,Int)] -> [(String,Int)] -> [(String,Int)]
+addElementLists elementL1 elementL2 =
+    if null elementL1 then elementL2
+    else if null elementL2 then elementL1
+    else if (fmap fst elementL1) /= (fmap fst elementL2) then error ("Element lists do not match: " <> (show $ fmap fst elementL1) <> " versus " <> (show $ fmap fst elementL2))
+    else 
+        let numberL1 = fmap snd elementL1
+            numberL2 = fmap snd elementL2
+            newNUmberL = zipWith (+) numberL1 numberL2
+        in
+        zip (fmap fst elementL1) newNUmberL
+
+{- | sumEdgeTransformationLists takes list of edges of block of characters transomftion matricwes and 
+sums over edge (outermost) list for eventual csv output
+-}
+sumEdgeTransformationLists :: [[[[Int]]]] -> [[[[[Int]]]]] -> [[[[Int]]]]
+sumEdgeTransformationLists curSum inEdgeList =
+    if null inEdgeList then curSum
+    else
+        let firstEdge = head inEdgeList
+            newSum = if null curSum then firstEdge
+                     else addBlockCharacterMatrix curSum firstEdge
+        in
+        sumEdgeTransformationLists newSum (tail inEdgeList)
+
+{- | addBlockCharacterMatrix adds two block lists of character lists of transrmation matrices
+-}
+addBlockCharacterMatrix :: [[[[Int]]]] -> [[[[Int]]]] -> [[[[Int]]]] 
+addBlockCharacterMatrix inBlockEdgeL1 inBlockEdgeL2 =
+    if null inBlockEdgeL1 then inBlockEdgeL2
+    else if null inBlockEdgeL2 then inBlockEdgeL1
+    else
+        zipWith addCharacterLists inBlockEdgeL1 inBlockEdgeL2
+
+{- | addCharacterLists adds two lists of charcter transfomratin matrices
+-}
+addCharacterLists :: [[[Int]]] -> [[[Int]]] -> [[[Int]]]
+addCharacterLists inCharList1 inCharList2 =
+    if null inCharList1 then inCharList2
+    else if null inCharList2 then inCharList1
+    else
+        zipWith (U.combineMatrices (+)) inCharList1 inCharList2 
+
+
+{- | addBlockCharStrings adds block and charcter strings to transformation info
+    for CSV output
+-}
+addBlockCharStrings :: [[String]] -> [[String]] -> [[String]] -> [[String]]
+addBlockCharStrings labelStringList elementStringList matrixStringList =
+    if null labelStringList || null matrixStringList then []
+    else 
+        let blockTitle = head labelStringList
+            charMatrixList = head matrixStringList
+            elementList = head elementStringList
+            charNameList = take (length charMatrixList) (tail labelStringList)
+        in
+        (blockTitle : (zipWith3 (concat3) charNameList (fmap (:[]) elementList) (fmap (:[]) charMatrixList))) <> addBlockCharStrings (drop (1 + length charMatrixList) labelStringList) (tail elementStringList) (tail matrixStringList)
+
+        where concat3 a b c = a <> b <> c
 
 {- | knitTitlesChangeInfo tkaes [[[String]]] of title info and knits with [[[String]]] of character change info
     into [[String]] for CSV output
@@ -887,35 +1002,35 @@ knitTitlesChangeInfo :: [[[String]]] -> [[[String]]] -> [[String]]
 knitTitlesChangeInfo titlesLLL transLLL =
     if null titlesLLL || null transLLL then []
     else
-        concat $ fmap (formatEdge titlesLLL) transLLL
+        concat $ zipWith formatEdge titlesLLL transLLL
 
 {- | formatEdge formats edges string for CSV
 -}
-formatEdge :: [[[String]]] -> [[String]] -> [[String]]
+formatEdge :: [[String]] -> [[String]] -> [[String]]
 formatEdge titleLL transLL =
     if null titleLL || null transLL then []
     else
-        let edgeTitle = head $ head titleLL
+        let edgeTitle = head titleLL
         in
         edgeTitle : (concat $ zipWith formatBlock (tail titleLL) transLL)
 
 {- | formatBlock formats block string for CSV
 -}
-formatBlock :: [[String]] -> [String] -> [[String]]
+formatBlock :: [String] -> [String] -> [[String]]
 formatBlock titleLL transL =
     if null titleLL || null transL then []
     else
         let blockTitle = head titleLL
         in
-        blockTitle : (zipWith formatCharacter (tail titleLL) transL)
+        [blockTitle] : (zipWith formatCharacter (tail titleLL) transL)
 
 {- | formatCharacter formats charcater string for CSV
 -}
-formatCharacter :: [String] -> String -> [String]
+formatCharacter :: String -> String -> [String]
 formatCharacter titleLine transS =
     if null titleLine || null transS then []
     else
-        titleLine <> (LS.splitOn "," transS)
+        titleLine : (LS.splitOn "," transS)
 
 
 {- | getEdgeTransformations get tranformations for an edge by block and character
@@ -991,7 +1106,7 @@ getCharacterChanges parentChar nodeChar charInfo =
         -- character states and transformation numbers (only counting unambiguous)
         elementsParent = getElementNumbers (alphabetSymbols localAlphabet) parentState
         elementsChild = getElementNumbers (alphabetSymbols localAlphabet) nodeState
-        elementsCombined = zip (alphabetSymbols localAlphabet) (zipWith (+) (fmap snd elementsParent) (fmap snd elementsChild))
+        elementsCombined = elementsChild -- zip (alphabetSymbols localAlphabet)  (zipWith (+) (fmap snd elementsParent) (fmap snd elementsChild))
         elementsCombinedString = L.intercalate "," $ fmap makeElementString elementsCombined
 
         emptyMatrix = replicate (length localAlphabet) (replicate (length localAlphabet) 0)
@@ -1009,7 +1124,7 @@ getCharacterChanges parentChar nodeChar charInfo =
 
 {- | getTransformations takes alphabet and parent and child SINGE CHARACXTRE STATES
 and returns matrix of numbers of changes
-This an absrdely slow implementation n^2 at least
+This an absurdely slow implementation n^2 at least
 -}
 getTransformations :: [String] -> String -> String -> [[Int]] -> [[Int]]
 getTransformations alphabet parentCharList childCharList curMatrix =
@@ -1019,7 +1134,8 @@ getTransformations alphabet parentCharList childCharList curMatrix =
             cChar = head childCharList
         in
         -- trace ("GT: " <> (show curMatrix)) $
-        if (pChar : []) `elem` alphabet && (cChar : []) `elem` alphabet then
+        if pChar == cChar then getTransformations alphabet (tail parentCharList) (tail childCharList) curMatrix
+        else if (pChar : []) `elem` alphabet && (cChar : []) `elem` alphabet then
             let pIndex = fromJust $ L.elemIndex (pChar : []) alphabet
                 cIndex = fromJust $ L.elemIndex (cChar : []) alphabet
                 newMatrix = incrementMatrix curMatrix pIndex cIndex

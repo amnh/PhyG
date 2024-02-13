@@ -1366,3 +1366,16 @@ combineMatrices f m1 m2
     | null m2 = error "Null matrix 2 in combineMatrices"
     | (fmap length m1) /= (fmap length m2) = error ("Cannot combine matrices with unequal dimensions " <> (show (fmap length m1) <> " " <> show (fmap length m2)))
     | otherwise = zipWith (zipWith f) m1 m2
+
+-- | normalizeMatrix takes a [[Int]] and returns normalized, symmetrical frequencies
+normalizeMatrix :: [[Int]] -> [[Double]]
+normalizeMatrix inMatrix =
+    if null inMatrix then []
+    else 
+        let totalNumber = (2 * (sum $ (fmap sum) inMatrix)) :: Int
+            transposeMatrix = L.transpose inMatrix
+            symMatrix = zipWith (zipWith (+)) inMatrix transposeMatrix
+            newMatrix = fmap (fmap (/ (fromIntegral totalNumber))) $ fmap (fmap fromIntegral) symMatrix
+        in newMatrix
+
+        
