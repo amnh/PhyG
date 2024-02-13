@@ -822,9 +822,18 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     -- should be parallel
                     vertexVect = V.fromList $ vertexList
-                    edgeTransformationList = fmap (getEdgeTransformations vertexVect (fft5 inGraph)) edgeIndexList
+                    edgeTransformationTotalList = fmap (getEdgeTransformations vertexVect (fft5 inGraph)) edgeIndexList
+                    
+                    -- extract relevent info
+                    edgeTransformationList = fmap (fmap (fmap fst3)) edgeTransformationTotalList
+                    elementNumbersLLL = fmap (fmap (fmap snd3)) edgeTransformationTotalList
+                    transformationNumbersLLL = fmap (fmap (fmap thd3)) edgeTransformationTotalList
 
-                    vertexHeader = fmap (fmap (take 9)) vertexInfo
+                    -- overallElementNumbers = L.foldl1' (U.combineMatrices (+)) elementNumbersLLL
+                    overallElementTransformations = fmap (fmap (L.foldl1' (U.combineMatrices (+)))) transformationNumbersLLL
+
+                    vertexHeader = fmap (fmap (take 9)) vertexInfo 
+                    
                     edgeListLists = knitTitlesChangeInfo vertexHeader edgeTransformationList
 
                     vertexChangeTitleNew =
@@ -861,6 +870,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         -- <> elementTransformationInfo 
                         <> alphabetTitle
                         <> alphabetInfo
+                        <> fmap (fmap show) overallElementTransformations
                         
     where
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
@@ -911,7 +921,7 @@ formatCharacter titleLine transS =
 {- | getEdgeTransformations get tranformations for an edge by block and character
     changes by block then character
 -}
-getEdgeTransformations :: V.Vector (LG.LNode VertexInfo) -> V.Vector (V.Vector CharInfo)-> (LG.Node, LG.Node) -> [[String]]
+getEdgeTransformations :: V.Vector (LG.LNode VertexInfo) -> V.Vector (V.Vector CharInfo)-> (LG.Node, LG.Node) -> [[(String, [(String,Int)], [[Int]])]]
 getEdgeTransformations nodeVect charInfoVV (parentIndex, childIndex) =
     let parentNodeLabel = snd $ nodeVect V.! parentIndex
         childNodeLabel = snd $ nodeVect V.! childIndex
@@ -922,14 +932,14 @@ getEdgeTransformations nodeVect charInfoVV (parentIndex, childIndex) =
 
 {- | getEdgeBlockChanges takes VertexBlockData from parent and child node and gets transformations by character
 -}
-getEdgeBlockChanges :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> [String]
+getEdgeBlockChanges :: V.Vector CharacterData -> V.Vector CharacterData -> V.Vector CharInfo -> [(String, [(String,Int)], [[Int]])]
 getEdgeBlockChanges parentBlockData childBlockData charInfoV =
     V.toList $ V.zipWith3 getCharacterChanges parentBlockData childBlockData charInfoV
 
 {- | getCharacterChanges takes strings of character pairs and outputs differences as pairs,
     for unaligned sequences performs a DO and uses aligned states 
 -}
-getCharacterChanges :: CharacterData -> CharacterData -> CharInfo -> String
+getCharacterChanges :: CharacterData -> CharacterData -> CharInfo -> (String, [(String,Int)], [[Int]])
 getCharacterChanges parentChar nodeChar charInfo =
     let localType = charType charInfo
         localAlphabet = (ST.toString <$> alphabet charInfo)
@@ -989,7 +999,7 @@ getCharacterChanges parentChar nodeChar charInfo =
 
     in
     -- convert String to pair list
-    parentState <> "," <> nodeState <> "," <> elementsCombinedString <> "," <> (replaceComma $ show elementTransformations)
+    (parentState <> "," <> nodeState <> "," <> elementsCombinedString <> "," <> (replaceComma $ show elementTransformations), elementsCombined, elementTransformations)
 
     where makeElementString (a,b) = a <> " " <> (show b)
           replaceComma a = if null a then []

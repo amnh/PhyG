@@ -1357,3 +1357,12 @@ transposeVector inVect =
         else
             let newListList = L.transpose $ V.toList $ fmap V.toList inVect
             in  V.fromList $ fmap V.fromList newListList
+
+-- | combineMatrices takes two matrices [[a]] and applied function to be ziped and cretes new matrix 
+-- better be small becasue of list access would be n^3
+combineMatrices :: (a → a → a) → [[a]] → [[a]] → [[a]]
+combineMatrices f m1 m2 
+    | null m1 = error "Null matrix 1 in combineMatrices"
+    | null m2 = error "Null matrix 2 in combineMatrices"
+    | (fmap length m1) /= (fmap length m2) = error ("Cannot combine matrices with unequal dimensions " <> (show (fmap length m1) <> " " <> show (fmap length m2)))
+    | otherwise = zipWith (zipWith f) m1 m2
