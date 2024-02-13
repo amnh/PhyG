@@ -887,8 +887,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         <> edgeListLists
                         -- <> elementTransformationTitle
                         -- <> elementTransformationInfo 
-                        <> alphabetTitle
-                        <> alphabetInfo
+                        -- <> alphabetTitle
+                        -- <> alphabetInfo
                         <> edgeTransformationTitle
                         <> statsListList
                         -- <> fmap show overallElementTransformations
