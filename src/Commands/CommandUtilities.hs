@@ -19,7 +19,6 @@ import Data.Foldable
 import Data.List qualified as L
 import Data.List.NonEmpty qualified as NE
 import Data.List.Split qualified as LS
-import Data.List.Split qualified as SL
 import Data.Maybe
 import Data.MetricRepresentation qualified  as MR
 import Data.Set qualified as SET
@@ -802,14 +801,13 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     -- process to change to lines of individual changes--basically a transpose
                     -- True to only report diffs 
-                    vertexChangeListByPosition = fmap (getAlignmentBasedChanges' True 0) (zip vertexParentStateList vertexStateList)
+                    -- vertexChangeListByPosition = fmap (getAlignmentBasedChanges' True 0) (zip vertexParentStateList vertexStateList)
                     parentChildStatesList = fmap (getAlignmentBasedChanges' False 0) (zip vertexParentStateList vertexStateList)
 
                     -- putting parent states before current state
                     vertexStateInfoList = fmap (take 9) vertexInfoListChanges
 
-                    vertexChangeList = L.zipWith3 concat3 vertexStateInfoList vertexParentStateList vertexStateList -- vertexChangeListByPosition
-
+                    
                     -- filter out those that are the same states
                     differenceList = removeNoChangeLines vertexChangeList
 
@@ -842,6 +840,9 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     statsListList = addBlockCharStrings transformationHeader alphabetInfo (fmap (fmap show) overallElementTransformationsFreq)
 
+                    vertexChangeList = L.zipWith3 concat3 vertexStateInfoList vertexParentStateList vertexStateList -- vertexChangeListByPosition
+
+
                     vertexChangeTitleNew =
                         [ [" "]
                         , ["Vertex Character Changes"]
@@ -857,7 +858,6 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             , "Character Type"
                             , "Parent Final State"
                             , "Node Final State"
-                            , "Unambiguous Element Numbers"
                             , "Unambiguous Transformations"
                             ]
                         ]
@@ -870,8 +870,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             , "Data Block"
                             , "Character Name"
                             , "Character Type"
-                            , "Element Numbers"
-                            , "Transformation Numbers"
+                            , "Element Frequencies"
+                            , "Transformation Frequencies"
                             ]
                         ]
 
@@ -881,8 +881,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         <> edgeTitle
                         <> edgeHeaderList
                         <> edgeInfoList
-                        <> vertexChangeTitle
-                        <> differenceList
+                        -- <> vertexChangeTitle
+                        -- <> differenceList
                         <> vertexChangeTitleNew
                         <> edgeListLists
                         -- <> elementTransformationTitle
@@ -1002,35 +1002,45 @@ knitTitlesChangeInfo :: [[[String]]] -> [[[String]]] -> [[String]]
 knitTitlesChangeInfo titlesLLL transLLL =
     if null titlesLLL || null transLLL then []
     else
+        --trace ("KTCI: " <> (show titlesLLL)) $
+        --trace ("KTIC2: " <> (show transLLL))
         concat $ zipWith formatEdge titlesLLL transLLL
 
 {- | formatEdge formats edges string for CSV
+    divides list into blocks by lengfth olf charcters and block titles haveing an extra line
 -}
 formatEdge :: [[String]] -> [[String]] -> [[String]]
 formatEdge titleLL transLL =
     if null titleLL || null transLL then []
     else
         let edgeTitle = head titleLL
+            numCharsL = fmap length transLL
+            blockTitlesLLL = U.divideList (fmap (+ 1) numCharsL) (tail titleLL)
+            blockTransLLL  = transLL -- U.divideList numCharsL transLL
         in
-        edgeTitle : (concat $ zipWith formatBlock (tail titleLL) transLL)
+        --trace ("FE: " <> (show edgeTitle)) $
+        edgeTitle : (concat $ zipWith (formatBlock numCharsL) blockTitlesLLL blockTransLLL)
 
-{- | formatBlock formats block string for CSV
+{- | formatBlocks formats block string for CSV
 -}
-formatBlock :: [String] -> [String] -> [[String]]
-formatBlock titleLL transL =
+formatBlock :: [Int] -> [[String]] -> [String] -> [[String]]
+formatBlock charLengthL titleLL transL =
     if null titleLL || null transL then []
     else
         let blockTitle = head titleLL
+            charTitleLL = tail titleLL
         in
-        [blockTitle] : (zipWith formatCharacter (tail titleLL) transL)
+        --trace ("FB: " <> (show blockTitle)) $
+        blockTitle : (zipWith formatCharacter charTitleLL transL)
 
 {- | formatCharacter formats charcater string for CSV
 -}
-formatCharacter :: String -> String -> [String]
+formatCharacter :: [String] -> String -> [String]
 formatCharacter titleLine transS =
     if null titleLine || null transS then []
     else
-        titleLine : (LS.splitOn "," transS)
+        --trace ("FC: " <> (show titleLine)) $
+        titleLine <> (LS.splitOn "," transS)
 
 
 {- | getEdgeTransformations get tranformations for an edge by block and character
@@ -1114,7 +1124,9 @@ getCharacterChanges parentChar nodeChar charInfo =
 
     in
     -- convert String to pair list
-    (parentState <> "," <> nodeState <> "," <> elementsCombinedString <> "," <> (replaceComma $ show elementTransformations), elementsCombined, elementTransformations)
+    --(parentState <> "," <> nodeState <> "," <> elementsCombinedString <> "," <> (replaceComma $ show elementTransformations), elementsCombined, elementTransformations)
+    (parentState <> "," <> nodeState <> "," <> (replaceComma $ show elementTransformations), elementsCombined, elementTransformations)
+    --((replaceComma $ show elementTransformations), elementsCombined, elementTransformations)
 
     where makeElementString (a,b) = a <> " " <> (show b)
           replaceComma a = if null a then []
@@ -2179,7 +2191,7 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
                         else sequenceString
 
                 -- Make lines 50 chars long
-                sequenceChunks = ((<> "\n") <$> SL.chunksOf 50 sequenceString')
+                sequenceChunks = ((<> "\n") <$> LS.chunksOf 50 sequenceString')
             in  if ((not includeMissing) && (isAllGaps sequenceString)) || (blockDatum == emptyCharacter)
                     then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)
                     else

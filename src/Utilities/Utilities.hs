@@ -1372,10 +1372,21 @@ normalizeMatrix :: [[Int]] -> [[Double]]
 normalizeMatrix inMatrix =
     if null inMatrix then []
     else 
-        let totalNumber = (2 * (sum $ (fmap sum) inMatrix)) :: Int
+        let totalNumber = (sum $ (fmap sum) inMatrix) :: Int
             transposeMatrix = L.transpose inMatrix
             symMatrix = zipWith (zipWith (+)) inMatrix transposeMatrix
             newMatrix = fmap (fmap (/ (fromIntegral totalNumber))) $ fmap (fmap fromIntegral) symMatrix
         in newMatrix
 
-        
+{- | divideList takes a [a] and returns [[a]]
+    by dividing according to lengths in input list to lengths
+-}
+divideList :: [Int] -> [a] -> [[a]]
+divideList lengthList inList =
+    if null lengthList then []
+    else if null inList then []
+    else if sum lengthList /= length inList then error ("List division and list length do not match: " <> (show (sum lengthList)) <> " versus " <> (show $ length inList))
+    else
+        let firstLength = head lengthList
+        in
+        (take firstLength inList) : divideList (tail lengthList) (drop firstLength inList)
