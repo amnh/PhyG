@@ -598,7 +598,7 @@ getDataElementFrequencies useIA inBlockDataV =
 -- | getBlockElementFrequencies gets the element grequencies for each character in a block
 -- if an unaligned sequence type infers based on length differences of inputs using number of gaps to make 
 -- inputs square (so minimum number of gaps)
-getBlockCharElementFrequencies :: Bool -> V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double)]]
+getBlockCharElementFrequencies :: Bool -> V.Vector (V.Vector CharacterData) -> V.Vector CharInfo -> [[(String, Double, Int)]]
 getBlockCharElementFrequencies useIA charDataV charInfoV =
     if V.null charDataV
         then []
@@ -614,7 +614,7 @@ getBlockCharElementFrequencies useIA charDataV charInfoV =
 -- inputs square (so minimum number of gaps)
 -- returns frequencies and number for each alphabet element
 -- ignores ambiguities/polymorphism
-getCharElementFrequencies :: Bool -> V.Vector CharacterData -> CharInfo -> [(String, Double)]
+getCharElementFrequencies :: Bool -> V.Vector CharacterData -> CharInfo -> [(String, Double, Int)]
 getCharElementFrequencies useIA charData charInfo =
     if V.null charData
         then []
@@ -644,7 +644,7 @@ getCharElementFrequencies useIA charData charInfo =
             
         in
         -- trace ("GCEF: " <> totalElementList ) $ -- <> " -> " <> (concat $ concat $ fmap (makeCharLine usaIA) charPairV))
-        zip alphabetElementStrings elementfreqList
+        zip3 alphabetElementStrings elementfreqList elementNumberList
 
 -- | getMinGapNumber gets implicit gap number by summing length differneces among sequences in order
 getMinGapNumber ∷ Int → Int → [String] → Int
@@ -838,7 +838,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     transformationHeader = fmap (drop 5) $ tail $ head vertexHeader
 
-                    statsListList = addBlockCharStrings transformationHeader alphabetInfo (fmap (fmap show) overallElementTransformationsFreq)
+                    statsListList = addBlockCharStrings transformationHeader alphabetInfo (fmap (fmap show) overallElementTransformationsFreq) (fmap (fmap show) overallElementTransformations)
 
                     vertexChangeList = L.zipWith3 concat3 vertexStateInfoList vertexParentStateList vertexStateList -- vertexChangeListByPosition
 
@@ -978,21 +978,26 @@ addCharacterLists inCharList1 inCharList2 =
         zipWith (U.combineMatrices (+)) inCharList1 inCharList2 
 
 
-{- | addBlockCharStrings adds block and charcter strings to transformation info
+{- | addBlockCharStrings adds block and character strings to transformation info
     for CSV output
 -}
-addBlockCharStrings :: [[String]] -> [[String]] -> [[String]] -> [[String]]
-addBlockCharStrings labelStringList elementStringList matrixStringList =
+addBlockCharStrings :: [[String]] -> [[String]] -> [[String]] -> [[String]] -> [[String]]
+addBlockCharStrings labelStringList elementStringList matrixStringList matrixStringList2 =
     if null labelStringList || null matrixStringList then []
     else 
         let blockTitle = head labelStringList
             charMatrixList = head matrixStringList
+            charMatrixList2 = head matrixStringList2
             elementList = head elementStringList
             charNameList = take (length charMatrixList) (tail labelStringList)
         in
-        (blockTitle : (zipWith3 (concat3) charNameList (fmap (:[]) elementList) (fmap (:[]) charMatrixList))) <> addBlockCharStrings (drop (1 + length charMatrixList) labelStringList) (tail elementStringList) (tail matrixStringList)
+        -- first doesn't ahve numbers of transforms
+        -- (blockTitle : (zipWith3 (concat3) charNameList (fmap (:[]) elementList) (fmap (:[]) charMatrixList))) <> addBlockCharStrings (drop (1 + length charMatrixList) labelStringList) (tail elementStringList) (tail matrixStringList)
+        (blockTitle : (L.zipWith4 (concat4) charNameList (fmap (:[]) elementList) (fmap (:[]) charMatrixList) (fmap (:[]) charMatrixList2))) <> addBlockCharStrings (drop (1 + length charMatrixList) labelStringList) (tail elementStringList) (tail matrixStringList) (tail matrixStringList2)
 
-        where concat3 a b c = a <> b <> c
+
+        where -- concat3 a b c = a <> b <> c
+              concat4 a b c d = a <> b <> c <> d
 
 {- | knitTitlesChangeInfo tkaes [[[String]]] of title info and knits with [[[String]]] of character change info
     into [[String]] for CSV output
