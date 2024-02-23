@@ -440,7 +440,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     failWithPhase Parsing $
                                         "Set option 'missingThreshold' must be set to an integer value between 0 and 100: " <> firstOption
                             Just val → do
-                                logWith LogInfo $ "MissingThreshold set to " <> firstOption
+                                logWith LogInfo $ "MissingThreshold set to " <> firstOption <> "\n"
                                 pure (globalSettings{missingThreshold = val}, processedData)
 
                         -- sets root cost as well-- need in both places--one to process data and one to
@@ -475,11 +475,11 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     | otherwise = graphFactor globalSettings
 
                             logWith LogInfo $ case localCriterion of
-                                NCM → unwords ["Optimality criterion set to", show NCM, "in -log (base 10) likelihood units"]
+                                NCM → unwords ["Optimality criterion set to", show NCM, "in -log (base 10) likelihood units\n"]
                                 val
                                     | val `elem` [PMDL, SI] →
-                                        unwords ["Optimality criterion set to", show val, "Tree Complexity =", show . fst $ IL.head lGraphComplexityList, "bits"]
-                                val → "Optimality criterion set to " <> show val
+                                        unwords ["Optimality criterion set to", show val, "Tree Complexity =", show . fst $ IL.head lGraphComplexityList, "bits\n"]
+                                val → "Optimality criterion set to " <> show val <> "\n"
 
                             pure $
                                 ( globalSettings
@@ -614,7 +614,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                         -- partition character to reset
                         "bcgt64" → pure (globalSettings, processedData)
                         val → do
-                            logWith LogWarn $ fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList]
+                            logWith LogWarn $ fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList, "\n"]
                             pure (globalSettings, processedData)
 
                     -- =-=-=-=-=-=-=-=-=-=-=-=-=
@@ -775,11 +775,11 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     | otherwise = graphFactor globalSettings
 
                             logWith LogInfo $ case localCriterion of
-                                NCM → unwords ["Optimality criterion set to", show NCM, "in -log (base 10) likelihood units"]
+                                NCM → unwords ["Optimality criterion set to", show NCM, "in -log (base 10) likelihood units\n"]
                                 val
                                     | val `elem` [PMDL, SI] →
-                                        unwords ["Optimality criterion set to", show val, "Tree Complexity =", show . fst $ IL.head lGraphComplexityList, "bits"]
-                                val → "Optimality criterion set to " <> show val
+                                        unwords ["Optimality criterion set to", show val, "Tree Complexity =", show . fst $ IL.head lGraphComplexityList, "bits\n"]
+                                val → "Optimality criterion set to " <> show val <> "\n"
 
                             pure $
                                 ( globalSettings
@@ -799,7 +799,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. CompressResolutions '" <> val <> "' is not 'true' or 'false'"
-                            logWith LogInfo $ "CompressResolutions set to " <> show localCriterion
+                            logWith LogInfo $ "CompressResolutions set to " <> show localCriterion <> "\n"
                             pure (globalSettings{compressResolutions = localCriterion}, processedData)
 
                         -- this not intended to be for users
@@ -812,7 +812,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     failWithPhase Parsing $
                                         "Set option 'dynamicEpsilon' must be set to a double value >= 0.0 (e.g. dynamicepsilon:0.02): " <> show val
                             Just localValue → do
-                                logWith LogInfo $ "Dynamic Epsilon factor set to " <> firstOption
+                                logWith LogInfo $ "Dynamic Epsilon factor set to " <> firstOption <> "\n"
                                 pure (globalSettings{dynamicEpsilon = 1.0 + (localValue * fractionDynamic globalSettings)}, processedData)
                         "finalassignment" → do
                             localMethod ← case firstOption of
@@ -830,11 +830,11 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             case graphType globalSettings of
                                 Tree → do
-                                    logWith LogInfo $ "FinalAssignment set to " <> show localMethod
+                                    logWith LogInfo $ "FinalAssignment set to " <> show localMethod <> "\n"
                                     pure (globalSettings{finalAssignment = localMethod}, processedData)
                                 _ → do
                                     unless (localMethod == DirectOptimization) $
-                                        logWith LogInfo "FinalAssignment set to DO (ignoring IA option) for non-Tree graphs"
+                                        logWith LogInfo "FinalAssignment set to DO (ignoring IA option) for non-Tree graphs\n"
                                     pure (globalSettings{finalAssignment = DirectOptimization}, processedData)
                         "graphfactor" → do
                             localMethod ← case toLower <$> firstOption of
@@ -845,14 +845,14 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. GraphFactor  '" <> val <> "' is not 'NoPenalty', 'W15', 'W23', or 'PMDL'"
-                            logWith LogInfo $ "GraphFactor set to " <> show localMethod
+                            logWith LogInfo $ "GraphFactor set to " <> show localMethod <> "\n"
                             pure (globalSettings{graphFactor = localMethod}, processedData)
                         "graphssteepest" → case readMaybe (firstOption) ∷ Maybe Int of
                             Nothing →
                                 failWithPhase Parsing $
                                     "Set option 'graphsSteepest' must be set to an integer value (e.g. graphsSteepest:5): " <> firstOption
                             Just localValue → do
-                                logWith LogInfo $ "GraphsStreepest set to " <> show localValue
+                                logWith LogInfo $ "GraphsStreepest set to " <> show localValue <> "\n"
                                 pure (globalSettings{graphsSteepest = localValue}, processedData)
                         "graphtype" → do
                             localGraphType ← case firstOption of
@@ -878,7 +878,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             when (localGraphType /= Tree) $
                                 logWith LogInfo $
                                     unwords
-                                        ["Graphtype set to", show localGraphType, "with graph factor NoPenalty and final assignment to DO"]
+                                        ["Graphtype set to", show localGraphType, "with graph factor NoPenalty and final assignment to DO\n"]
 
                             pure (settingResult, processedData)
 
@@ -889,14 +889,14 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     "Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> firstOption
                             Just localValue | localValue == missingThreshold globalSettings → pure (globalSettings, processedData)
                             Just localValue → do
-                                logWith LogWarn $ "MissingThreshold set to " <> show localValue
+                                logWith LogWarn $ "MissingThreshold set to " <> show localValue <> "\n"
                                 pure (globalSettings{missingThreshold = localValue}, processedData)
                         "modelcomplexity" → case readMaybe (firstOption) ∷ Maybe Double of
                             Nothing →
                                 failWithPhase Parsing $
                                     "Set option 'modelComplexity' must be set to a double value (e.g. modelComplexity:123.456): " <> firstOption
                             Just localValue → do
-                                logWith LogInfo $ "Model Complexity set to " <> firstOption
+                                logWith LogInfo $ "Model Complexity set to " <> firstOption <> "\n"
                                 pure (globalSettings{modelComplexity = localValue}, processedData)
 
                         -- modify the behavior of rerooting character trees for all graph types
@@ -907,7 +907,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 _ →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. MultiTraverse '" <> firstOption <> "' is not 'true' or 'false'"
-                            logWith LogInfo $ "MultiTraverse set to " <> show localCriterion
+                            logWith LogInfo $ "MultiTraverse set to " <> show localCriterion <> "\n"
                             pure (globalSettings{multiTraverseCharacters = localCriterion}, processedData)
                         "outgroup" →
                             let outTaxonName = T.pack $ filter (/= '"') $ head $ filter (/= "") $ fmap snd argList
@@ -917,7 +917,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                             unwords
                                                 ["Error in 'set' command. Out-taxon", T.unpack outTaxonName, "not found in input leaf list", show $ T.unpack <$> leafNameVect]
                                     Just outTaxonIndex → do
-                                        logWith LogInfo $ "Outgroup set to " <> T.unpack outTaxonName
+                                        logWith LogInfo $ "Outgroup set to " <> T.unpack outTaxonName <> "\n"
                                         pure (globalSettings{outgroupIndex = outTaxonIndex, outGroupName = outTaxonName}, processedData)
                         "partitioncharacter" → case firstOption of
                             localPartitionChar@[_] → do
@@ -932,7 +932,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 "true" → pure True
                                 "false" → pure False
                                 val → failWithPhase Parsing $ "Error in 'set' command. NeportNaive  '" <> val <> "' is not 'True' or 'False'"
-                            logWith LogInfo $ "ReportNaiveData set to " <> show localMethod
+                            logWith LogInfo $ "ReportNaiveData set to " <> show localMethod <> "\n"
                             pure (globalSettings{reportNaiveData = localMethod}, processedData)
                         "rootcost" → do
                             localMethod ← case toLower <$> firstOption of
@@ -949,7 +949,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val | val `elem` [Wheeler2015Root, PMDLRoot] → pure $ U.calculatePMDLRootCost origProcessedData
                                 val → failWithPhase Parsing $ "Error in 'set' command. No determined root complexity of '" <> show val <> "'"
 
-                            logWith LogInfo $ unwords ["RootCost set to", show localMethod, show lRootComplexity, "bits"]
+                            logWith LogInfo $ unwords ["RootCost set to", show localMethod, show lRootComplexity, "bits\n"]
                             pure (globalSettings{rootCost = localMethod, rootComplexity = lRootComplexity}, processedData)
                         "seed" → case readMaybe firstOption ∷ Maybe Int of
                             Nothing → failWithPhase Parsing $ "Set option 'seed' must be set to an integer value (e.g. seed:123): " <> firstOption
@@ -977,7 +977,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. UseNetAddHeuristic '" <> val <> "' is not 'true' or 'false'"
-                            logWith LogInfo $ "UseNetAddHeuristic set to " <> show localCriterion
+                            logWith LogInfo $ "UseNetAddHeuristic set to " <> show localCriterion <> "\n"
                             pure (globalSettings{useNetAddHeuristic = localCriterion}, processedData)
 
                         -- these not intended for users
@@ -990,7 +990,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     failWithPhase Parsing $
                                         "Set option 'joinThreshold' must be set to a double value >= 1.0 (e.g. joinThreshold:1.17): " <> show localValue
                             Just localValue → do
-                                logWith LogInfo $ "JoinThreshold set to " <> show localValue
+                                logWith LogInfo $ "JoinThreshold set to " <> show localValue <> "\n"
                                 pure (globalSettings{unionThreshold = localValue}, processedData)
 
                         -- parallel strategy settings options
@@ -1003,7 +1003,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
-                            logWith LogInfo $ "DefParStrat set to " <> show localMethod
+                            logWith LogInfo $ "DefParStrat set to " <> show localMethod <> "\n"
                             pure (globalSettings{defaultParStrat = localMethod}, processedData)
                         "lazyparstrat" → do
                             localMethod ← case firstOption of
@@ -1014,7 +1014,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
-                            logWith LogInfo $ "LazyParStrat set to " <> show localMethod
+                            logWith LogInfo $ "LazyParStrat set to " <> show localMethod <> "\n"
                             pure (globalSettings{lazyParStrat = localMethod}, processedData)
                         "strictparstrat" → do
                             localMethod ← case firstOption of
@@ -1025,7 +1025,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. DefParStrat  '" <> val <> "' is not 'r0', 'WrPar', 'rSeq', or 'rDeepSeq'"
-                            logWith LogInfo $ "StrictParStrat set to " <> show localMethod
+                            logWith LogInfo $ "StrictParStrat set to " <> show localMethod <> "\n"
                             pure (globalSettings{strictParStrat = localMethod}, processedData)
 
                         -- modify the use of implied alkignemnt in heuristics
@@ -1036,10 +1036,10 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 val →
                                     failWithPhase Parsing $
                                         "Error in 'set' command. UseIA '" <> val <> "' is not 'true' or 'false'"
-                            logWith LogInfo $ "UseIA set to " <> show localCriterion
+                            logWith LogInfo $ "UseIA set to " <> show localCriterion <> "\n"
                             pure (globalSettings{useIA = localCriterion}, processedData)
                         val → do
-                            logWith LogWarn $ fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList]
+                            logWith LogWarn $ fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList, "\n"]
                             pure (globalSettings, processedData)
 
 
