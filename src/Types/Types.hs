@@ -416,7 +416,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- during branch addintion/readdition (e.g swapping)
 data CharacterData = CharacterData
     { -- for Non-additive
-      stateBVPrelim ∷ HugeDynamicCharacter -- preliminary for Non-additive chars, Sankoff Approx
+      stateBVPrelim ∷ (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -- HugeDynamicCharacter -- preliminary for Non-additive chars, Sankoff Approx
     , stateBVFinal ∷ V.Vector BV.BitVector
     , stateBVUnion ∷ V.Vector BV.BitVector
     , -- for Additive

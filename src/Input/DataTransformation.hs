@@ -16,7 +16,7 @@ module Input.DataTransformation (
 ) where
 
 import Bio.DynamicCharacter
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
@@ -292,7 +292,7 @@ unique, label invariant (but data related so arbitrary but consistent)
 Assumes the rawData come in sorted by the data reconciliation process
 These used for vertex labels, caching, left/right DO issues
 -}
-createBVNames ∷ [RawData] → [(T.Text, HugeState)]
+createBVNames ∷ [RawData] → [(T.Text, BV.BitVector)]
 createBVNames inDataList =
     let rawDataList = fmap fst inDataList
         textNameList = fst <$> head rawDataList
@@ -331,7 +331,7 @@ for data output as they haven't been reordered or transformed in any way.
 the RawData is a list since it is organized by input file
 the list accumulator is to avoid Vector snoc/cons O(n)
 -}
-createNaiveData ∷ GlobalSettings → [RawData] → [(T.Text, HugeState)] → [BlockData] → PhyG ProcessedData
+createNaiveData ∷ GlobalSettings → [RawData] → [(T.Text, BV.BitVector)] → [BlockData] → PhyG ProcessedData
 createNaiveData inGS inDataList leafBitVectorNames curBlockData =
     -- trace ("CND: " <> (show $ (optimalityCriterion inGS))) $
     if null inDataList
@@ -649,7 +649,7 @@ missingAligned inChar charLength =
             UV.replicate charLength $ setMissingBits (0 ∷ WideState) 0 alphSize
         missingElementHuge =
             -- bit vector type
-            V.replicate charLength $ (BV.fromBits $ replicate alphSize True)
+            V.replicate charLength $ setMissingBits (0 ∷ HugeState) 0 alphSize -- (BV.fromBits $ replicate alphSize True)
     in  -- trace ("MA: " <> (show charLength) <> (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
         if inCharType == AlignedSlim
             then emptyCharacter{alignedSlimPrelim = (missingElementSlim, missingElementSlim, missingElementSlim)}
@@ -677,7 +677,7 @@ setMissingBits inVal curIndex alphSize =
 {- | getStateBitVectorList takes the alphabet of a character ([ShorText])
 and returns bitvectors (with of size alphabet) for each state in order of states in alphabet
 -}
-getStateBitVectorList ∷ Alphabet ST.ShortText → V.Vector (ST.ShortText, HugeState)
+getStateBitVectorList ∷ Alphabet ST.ShortText → V.Vector (ST.ShortText, BV.BitVector)
 getStateBitVectorList localStates =
     if null localStates
         then error "Character with empty alphabet in getStateBitVectorList"
@@ -693,7 +693,7 @@ iupacToBVPairs
     ∷ (IsString s, Ord s)
     ⇒ Alphabet s
     → Bimap (NonEmpty s) (NonEmpty s)
-    → V.Vector (s, HugeState)
+    → V.Vector (s, BV.BitVector)
 iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.toAscList iupac
     where
         constructor = flip BV.fromNumber (0 ∷ Int)
@@ -703,7 +703,7 @@ iupacToBVPairs inputAlphabet iupac = V.fromList $ bimap NE.head encoder <$> BM.t
 {- | nucleotideBVPairs for recoding DNA sequences
 this done to insure not recalculating everything for each base
 -}
-nucleotideBVPairs ∷ V.Vector (ST.ShortText, HugeState)
+nucleotideBVPairs ∷ V.Vector (ST.ShortText, BV.BitVector)
 nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
     where
         baseAlphabet = fromSymbols $ ST.fromString <$> "-" :| ["A", "C", "G", "T"]
@@ -713,7 +713,7 @@ nucleotideBVPairs = iupacToBVPairs baseAlphabet iupacToDna
 this done to insure not recalculating everything for each residue
 B, Z, X, ? for ambiguities
 -}
-aminoAcidBVPairs ∷ V.Vector (ST.ShortText, HugeState)
+aminoAcidBVPairs ∷ V.Vector (ST.ShortText, BV.BitVector)
 aminoAcidBVPairs = iupacToBVPairs acidAlphabet iupacToAminoAcid
     where
         acidAlphabet =
@@ -725,7 +725,7 @@ aminoAcidBVPairs = iupacToBVPairs acidAlphabet iupacToAminoAcid
 {- | getBVCode take a Vector of (ShortText, BV) and returns bitvector code for
 ShortText state
 -}
-getBVCode ∷ V.Vector (ST.ShortText, HugeState) → ST.ShortText → HugeState
+getBVCode ∷ V.Vector (ST.ShortText, BV.BitVector) → ST.ShortText → BV.BitVector
 getBVCode bvCodeVect inState =
     let newCode = V.find ((== inState) . fst) bvCodeVect
     in  maybe (error ("State " <> ST.toString inState <> " not found in bitvect code " <> show bvCodeVect)) snd newCode
@@ -778,7 +778,7 @@ ShortText state.  These states can be ambiguous as in general sequences
 so states need to be parsed first
 the AND to all states makes ambiguityoes only observed states
 -}
-getGeneralBVCode ∷ V.Vector (ST.ShortText, HugeState) → ST.ShortText → (SlimState, WideState, HugeState)
+getGeneralBVCode ∷ V.Vector (ST.ShortText, BV.BitVector) → ST.ShortText → (SlimState, WideState, HugeState)
 getGeneralBVCode bvCodeVect inState =
     let inStateString = ST.toString inState
     in  -- if '[' `notElem` inStateString then --single state
@@ -793,23 +793,23 @@ getGeneralBVCode bvCodeVect inState =
                             if inState == ST.fromString "B"
                                 then
                                     let x = BV.fromBits $ (replicate 3 False) <> [True] <> (replicate 8 False) <> [True] <> (replicate (bvDimension - 13) False)
-                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
                                 else -- any amino acid but not '-'
 
                                     if inState == ST.fromString "X"
                                         then
                                             let x = allBVStates .&. (BV.fromBits (False : (replicate (bvDimension - 1) True)))
-                                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+                                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
                                         else -- any state including '-'
 
                                             if inState == ST.fromString "?"
                                                 then
                                                     let x = allBVStates .&. (BV.fromBits (replicate bvDimension True))
-                                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+                                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
                                                 else error ("State " <> ST.toString inState <> " not found in bitvect code " <> show bvCodeVect)
                         else
                             let x = snd $ fromJust newCode
-                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
+                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
             else
                 let statesStringList = words $ tail $ init inStateString
                     stateList = fmap ST.fromString statesStringList
@@ -818,7 +818,7 @@ getGeneralBVCode bvCodeVect inState =
                     ambiguousBVState = foldr1 (.|.) stateBVList
                 in  if Nothing `elem` maybeBVList
                         then error ("Ambiguity group " <> inStateString <> " contained states not found in bitvect code " <> show bvCodeVect)
-                        else (BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState, ambiguousBVState)
+                        else (BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState)
     where
         getBV s = V.find ((== s) . fst) bvCodeVect
 
