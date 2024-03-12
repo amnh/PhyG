@@ -39,7 +39,9 @@ import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
---import Debug.Trace
+
+
+-- import Debug.Trace
 
 {- | transform changes aspects of data sande settings during execution
 as opposed to Set with all happens at begginign of program execution
@@ -632,7 +634,8 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
     if LG.isEmpty (fst5 inGraph)
         then error "Empty graph in makeStaticApprox"
         else -- tree type
-            --trace ("MSA: " ) $
+        -- trace ("MSA: " ) $
+
             if graphType inGS == Tree
                 then do
                     let decGraph = thd5 inGraph
@@ -744,7 +747,7 @@ pullGraphBlockDataAndTransform leavePrealigned inDecGraph blockCharInfoV blockIn
         charLengthV = V.zipWith (U.getMaxCharacterLength True) (thd3 $ blockCharInfoV V.! blockIndex) (V.fromList $ fmap V.toList leafBlockData)
 
         (transformedLeafBlockData, transformedBlockInfo) = unzip $ fmap (transformData leavePrealigned (thd3 $ blockCharInfoV V.! blockIndex) charLengthV) leafBlockData
-    in  --trace ("PGDT: " <> show charLengthV)
+    in  -- trace ("PGDT: " <> show charLengthV)
         (fst3 $ blockCharInfoV V.! blockIndex, V.fromList transformedLeafBlockData, head transformedBlockInfo)
 
 

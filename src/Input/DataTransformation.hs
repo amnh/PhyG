@@ -16,7 +16,7 @@ module Input.DataTransformation (
 ) where
 
 import Bio.DynamicCharacter
-import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
+import Bio.DynamicCharacter.Element
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Alphabet
@@ -531,8 +531,8 @@ verifyPrealignedCharacterLength nameTextList taxByCharacterDataVV charInfo charI
         inCharV = fmap (V.! charIndex) taxByCharacterDataVV
     in  if inCharType `notElem` prealignedCharacterTypes
             then (True, [], [])
-            else
-                -- True for IA field use but doesn't matter in this case since looking at prealigned fields
+            else -- True for IA field use but doesn't matter in this case since looking at prealigned fields
+
                 let prealigedDataLengthList = V.toList $ fmap (U.getCharacterLength' True charInfo) inCharV
                     {-
                     if inCharType == AlignedSlim then V.toList $ fmap SV.length $ fmap (snd3 . alignedSlimPrelim) inCharV
@@ -649,7 +649,7 @@ missingAligned inChar charLength =
             UV.replicate charLength $ setMissingBits (0 ∷ WideState) 0 alphSize
         missingElementHuge =
             -- bit vector type
-            V.replicate charLength $ setMissingBits (0 ∷ HugeState) 0 alphSize -- (BV.fromBits $ replicate alphSize True)
+            V.replicate charLength $ (BV.fromBits $ replicate alphSize True) -- setMissingBits (0 ∷ HugeState) 0 alphSize
     in  -- trace ("MA: " <> (show charLength) <> (show (SV.head missingElementSlim, UV.head missingElementWide, V.head missingElementHuge))) (
         if inCharType == AlignedSlim
             then emptyCharacter{alignedSlimPrelim = (missingElementSlim, missingElementSlim, missingElementSlim)}
@@ -793,23 +793,23 @@ getGeneralBVCode bvCodeVect inState =
                             if inState == ST.fromString "B"
                                 then
                                     let x = BV.fromBits $ (replicate 3 False) <> [True] <> (replicate 8 False) <> [True] <> (replicate (bvDimension - 13) False)
-                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
+                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
                                 else -- any amino acid but not '-'
 
                                     if inState == ST.fromString "X"
                                         then
                                             let x = allBVStates .&. (BV.fromBits (False : (replicate (bvDimension - 1) True)))
-                                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
+                                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
                                         else -- any state including '-'
 
                                             if inState == ST.fromString "?"
                                                 then
                                                     let x = allBVStates .&. (BV.fromBits (replicate bvDimension True))
-                                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
+                                                    in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
                                                 else error ("State " <> ST.toString inState <> " not found in bitvect code " <> show bvCodeVect)
                         else
                             let x = snd $ fromJust newCode
-                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, BV.toUnsignedNumber x)
+                            in  (BV.toUnsignedNumber x, BV.toUnsignedNumber x, x)
             else
                 let statesStringList = words $ tail $ init inStateString
                     stateList = fmap ST.fromString statesStringList
@@ -818,7 +818,7 @@ getGeneralBVCode bvCodeVect inState =
                     ambiguousBVState = foldr1 (.|.) stateBVList
                 in  if Nothing `elem` maybeBVList
                         then error ("Ambiguity group " <> inStateString <> " contained states not found in bitvect code " <> show bvCodeVect)
-                        else (BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState)
+                        else (BV.toUnsignedNumber ambiguousBVState, BV.toUnsignedNumber ambiguousBVState, ambiguousBVState)
     where
         getBV s = V.find ((== s) . fst) bvCodeVect
 

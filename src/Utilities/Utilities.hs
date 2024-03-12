@@ -402,7 +402,7 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
 
         if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5)
             then
-                if stringVal `elem` ["","-"] 
+                if stringVal `elem` ["", "-"]
                     then "-"
                     else
                         if length stringVal == 1
@@ -1172,7 +1172,7 @@ getSequenceCharacterLengths inCharData inCharInfo =
 -}
 
 -- | getCharacterLengths returns a the length of block characters
-getCharacterLength ∷ Bool -> CharacterData → CharInfo → Int
+getCharacterLength ∷ Bool → CharacterData → CharInfo → Int
 getCharacterLength useIA inCharData inCharInfo =
     let inCharType = charType inCharInfo
     in  -- trace ("GCL:" <> (show inCharType) <> " " <> (show $ snd3 $ stateBVPrelim inCharData)) (
@@ -1183,9 +1183,9 @@ getCharacterLength useIA inCharData inCharInfo =
             x | x == Matrix → V.length $ matrixStatesPrelim inCharData
             x | x `elem` [SlimSeq, NucSeq] && useIA → SV.length $ snd3 $ slimAlignment inCharData -- slimAlignment inCharData
             x | x `elem` [SlimSeq, NucSeq] → SV.length $ snd3 $ slimGapped inCharData -- slimAlignment inCharData
-            x | x `elem` [WideSeq, AminoSeq]  && useIA → UV.length $ snd3 $ wideAlignment inCharData --  wideAlignment inCharData
+            x | x `elem` [WideSeq, AminoSeq] && useIA → UV.length $ snd3 $ wideAlignment inCharData --  wideAlignment inCharData
             x | x `elem` [WideSeq, AminoSeq] → UV.length $ snd3 $ wideGapped inCharData --  wideAlignment inCharData
-            x | x == HugeSeq  && useIA → V.length $ snd3 $ hugeAlignment inCharData --  hugeAlignment inCharData
+            x | x == HugeSeq && useIA → V.length $ snd3 $ hugeAlignment inCharData --  hugeAlignment inCharData
             x | x == HugeSeq → V.length $ snd3 $ hugeGapped inCharData --  hugeAlignment inCharData
             x | x == AlignedSlim → SV.length $ snd3 $ alignedSlimPrelim inCharData
             x | x == AlignedWide → UV.length $ snd3 $ alignedWidePrelim inCharData
@@ -1196,12 +1196,12 @@ getCharacterLength useIA inCharData inCharInfo =
 -- )
 
 -- | getCharacterLengths' flipped arg version of getCharacterLength
-getCharacterLength' ∷ Bool -> CharInfo → CharacterData → Int
+getCharacterLength' ∷ Bool → CharInfo → CharacterData → Int
 getCharacterLength' useIA inCharInfo inCharData = getCharacterLength useIA inCharData inCharInfo
 
 
 -- | getMaxCharacterLengths get maximum charcter legnth from a list
-getMaxCharacterLength ∷ Bool -> CharInfo → [CharacterData] → Int
+getMaxCharacterLength ∷ Bool → CharInfo → [CharacterData] → Int
 getMaxCharacterLength useIA inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' useIA inCharInfo) inCharDataList
 
 
@@ -1358,35 +1358,45 @@ transposeVector inVect =
             let newListList = L.transpose $ V.toList $ fmap V.toList inVect
             in  V.fromList $ fmap V.fromList newListList
 
--- | combineMatrices takes two matrices [[a]] and applied function to be ziped and cretes new matrix 
--- better be small becasue of list access would be n^3
-combineMatrices :: (a → a → a) → [[a]] → [[a]] → [[a]]
-combineMatrices f m1 m2 
+
+{- | combineMatrices takes two matrices [[a]] and applied function to be ziped and cretes new matrix
+better be small becasue of list access would be n^3
+-}
+combineMatrices ∷ (a → a → a) → [[a]] → [[a]] → [[a]]
+combineMatrices f m1 m2
     | null m1 = error "Null matrix 1 in combineMatrices"
     | null m2 = error "Null matrix 2 in combineMatrices"
-    | (fmap length m1) /= (fmap length m2) = error ("Cannot combine matrices with unequal dimensions " <> (show (fmap length m1) <> " " <> show (fmap length m2)))
+    | (fmap length m1) /= (fmap length m2) =
+        error ("Cannot combine matrices with unequal dimensions " <> (show (fmap length m1) <> " " <> show (fmap length m2)))
     | otherwise = zipWith (zipWith f) m1 m2
 
+
 -- | normalizeMatrix takes a [[Int]] and returns normalized, symmetrical frequencies
-normalizeMatrix :: [[Int]] -> [[Double]]
+normalizeMatrix ∷ [[Int]] → [[Double]]
 normalizeMatrix inMatrix =
-    if null inMatrix then []
-    else 
-        let totalNumber = (sum $ (fmap sum) inMatrix) :: Int
-            transposeMatrix = L.transpose inMatrix
-            symMatrix = zipWith (zipWith (+)) inMatrix transposeMatrix
-            newMatrix = fmap (fmap (/ (fromIntegral totalNumber))) $ fmap (fmap fromIntegral) symMatrix
-        in newMatrix
+    if null inMatrix
+        then []
+        else
+            let totalNumber = (sum $ (fmap sum) inMatrix) ∷ Int
+                transposeMatrix = L.transpose inMatrix
+                symMatrix = zipWith (zipWith (+)) inMatrix transposeMatrix
+                newMatrix = fmap (fmap (/ (fromIntegral totalNumber))) $ fmap (fmap fromIntegral) symMatrix
+            in  newMatrix
+
 
 {- | divideList takes a [a] and returns [[a]]
     by dividing according to lengths in input list to lengths
 -}
-divideList :: [Int] -> [a] -> [[a]]
+divideList ∷ [Int] → [a] → [[a]]
 divideList lengthList inList =
-    if null lengthList then []
-    else if null inList then []
-    else if sum lengthList /= length inList then error ("List division and list length do not match: " <> (show (sum lengthList)) <> " versus " <> (show $ length inList))
-    else
-        let firstLength = head lengthList
-        in
-        (take firstLength inList) : divideList (tail lengthList) (drop firstLength inList)
+    if null lengthList
+        then []
+        else
+            if null inList
+                then []
+                else
+                    if sum lengthList /= length inList
+                        then error ("List division and list length do not match: " <> (show (sum lengthList)) <> " versus " <> (show $ length inList))
+                        else
+                            let firstLength = head lengthList
+                            in  (take firstLength inList) : divideList (tail lengthList) (drop firstLength inList)

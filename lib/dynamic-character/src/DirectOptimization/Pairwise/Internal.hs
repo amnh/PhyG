@@ -25,7 +25,7 @@ module DirectOptimization.Pairwise.Internal (
 ) where
 
 import Bio.DynamicCharacter
-import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
+import Bio.DynamicCharacter.Element
 import Bio.DynamicCharacter.HandleGaps
 import Bio.DynamicCharacter.Measure
 import Control.Applicative

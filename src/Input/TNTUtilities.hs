@@ -384,10 +384,10 @@ getTNTCharInfo fileName charNumber curCharInfo inLines =
                                         let wordList = T.words $ T.init firstLine
                                         let command2 = T.toLower $ T.take 2 $ head wordList
                                         -- localCharInfoResult ← getCCodes fileName charNumber (tail wordList) curCharInfo
-                                        localCharInfo <- 
-                                                if command2 == T.pack "cc"
-                                                    then getCCodes fileName charNumber (tail wordList) curCharInfo
-                                                    else pure curCharInfo
+                                        localCharInfo ←
+                                            if command2 == T.pack "cc"
+                                                then getCCodes fileName charNumber (tail wordList) curCharInfo
+                                                else pure curCharInfo
                                         let localCharInfo' =
                                                 if command2 == T.pack "co"
                                                     then getCosts fileName charNumber (tail wordList) localCharInfo
@@ -458,10 +458,9 @@ getCosts fileName charNumber commandWordList curCharInfo =
                 charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
                 (localAlphabet, localMatrix) = processCostsLine fileName $ tail $ dropWhile (/= T.pack "=") commandWordList
                 updatedCharInfo = newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 []
-            in  trace ("Alph " <> (show $ fmap alphabet updatedCharInfo))
-                updatedCharInfo
-
-
+            in  trace
+                    ("Alph " <> (show $ fmap alphabet updatedCharInfo))
+                    updatedCharInfo
 
 
 {- | processCostsLine takes the transformation commands of TNT and creates a TCM matrix from that
