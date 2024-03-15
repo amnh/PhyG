@@ -76,6 +76,7 @@ import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.Foldable
+import Data.Kind (Type)
 import Data.List qualified as L
 import Data.Maybe
 import Data.MetricRepresentation qualified  as MR
@@ -170,8 +171,9 @@ median2Single adjustNoCost staticIA firstVertChar secondVertChar inCharInfo =
       (newCharVect, localCost  newCharVect)
 
     else if thisType `elem` nonExactCharacterTypes then
-      let newCharVect = if staticIA then makeIAPrelimCharacter adjustNoCost inCharInfo emptyCharacter firstVertChar secondVertChar
-                        else getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
+      let newCharVect
+              | staticIA = makeIAPrelimCharacter adjustNoCost inCharInfo emptyCharacter firstVertChar secondVertChar
+              | otherwise = getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
       in
       -- trace ("M2S: " <> (show $ localCost  newCharVect))
       (newCharVect, localCost  newCharVect)
@@ -540,44 +542,42 @@ pairwiseDO :: Bool
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter, Double)
-pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
-    let thisType = charType charInfo
-    in
-    if thisType `elem` [SlimSeq,   NucSeq]      then
+pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) = case charType charInfo of
+    thisType | thisType `elem` [SlimSeq, NucSeq] ->
         let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
             -- adjustment based on aligned left and right
-            noChangeAdjust = if not adjustNoCost then 0
-                             else 
-                                let (_, lCost) = get2WaySlim (slimTCM charInfo)  (extractMediansLeftGapped r) (extractMediansLeftGapped r)
-                                    (_, rCost) = get2WaySlim (slimTCM charInfo)  (extractMediansRightGapped r) (extractMediansRightGapped r)
-                                in min lCost rCost
-        in
-        -- trace ("pDO:" <> (show (GV.length $ fst3 slim1, GV.length $ snd3 slim1)) <> " " <> (show (GV.length $ fst3 slim2, GV.length $ snd3 slim2)))
-        (r, mempty, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
+            noChangeAdjust
+                | not adjustNoCost = 0
+                | otherwise =
+                    let (_, lCost) = get2WaySlim (slimTCM charInfo)  (extractMediansLeftGapped r) (extractMediansLeftGapped r)
+                        (_, rCost) = get2WaySlim (slimTCM charInfo)  (extractMediansRightGapped r) (extractMediansRightGapped r)
+                    in min lCost rCost
+        in  (r, mempty, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
 
-    else if thisType `elem` [WideSeq, AminoSeq] then
+    thisType | thisType `elem` [WideSeq, AminoSeq] ->
         let coefficient = MR.minInDelCost (wideTCM charInfo)
             (cost, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
-            noChangeAdjust = if not adjustNoCost then 0
-                             else 
-                                let (_, lCost) = get2WayWideHuge (wideTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r) 
-                                    (_, rCost) = get2WayWideHuge (wideTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
-                                in min lCost rCost
-        in
-        (mempty, r, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
+            noChangeAdjust
+                | not adjustNoCost = 0
+                | otherwise =
+                    let (_, lCost) = get2WayWideHuge (wideTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r) 
+                        (_, rCost) = get2WayWideHuge (wideTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
+                    in min lCost rCost
+        in  (mempty, r, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
 
-    else if thisType == HugeSeq           then
+    HugeSeq ->
         let coefficient = MR.minInDelCost (hugeTCM charInfo)
             (cost, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
-            noChangeAdjust = if not adjustNoCost then 0
-                             else 
+            noChangeAdjust
+                | not adjustNoCost = 0
+                | otherwise =
                                 let (_, lCost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r) 
                                     (_, rCost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
                                 in min lCost rCost
-        in
-        (mempty, mempty, r, weight charInfo * fromIntegral (cost + noChangeAdjust))
+        in  (mempty, mempty, r, weight charInfo * fromIntegral (cost + noChangeAdjust))
 
-    else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+    thisType -> error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
+
 
 -- | getDOMedianCharInfoUnion  is a wrapper around getDOMedian with CharInfo-based interface
 -- for union fields.
@@ -594,7 +594,7 @@ getDOMedianUnion
   -> S.Matrix Int
   -> TCMD.DenseTransitionCostMatrix
   -> MR.MetricRepresentation WideState
-  -> MR.MetricRepresentation BV.BitVector
+  -> MR.MetricRepresentation HugeState
   -> CharType
   -> CharacterData
   -> CharacterData
@@ -692,7 +692,7 @@ getDOMedian
   -> S.Matrix Int
   -> TCMD.DenseTransitionCostMatrix
   -> MR.MetricRepresentation WideState
-  -> MR.MetricRepresentation BV.BitVector
+  -> MR.MetricRepresentation HugeState
   -> CharType
   -> CharacterData
   -> CharacterData
@@ -818,7 +818,7 @@ getDynamicUnion :: Bool
                 -> CharacterData
                 -> TCMD.DenseTransitionCostMatrix
                 -> MR.MetricRepresentation WideState
-                -> MR.MetricRepresentation BV.BitVector
+                -> MR.MetricRepresentation HugeState
                 -> CharacterData
 getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWideTCM thisHugeTCM
   | thisType `elem` [SlimSeq,   NucSeq] = newSlimCharacterData
@@ -980,11 +980,11 @@ getPreAligned2Median adjustNoCost charInfo nodeChar leftChar rightChar =
         setWidePrelim v r = r { alignedWidePrelim = v }
         setHugePrelim v r = r { alignedHugePrelim = v }
 
-        getCharL :: forall {k} {v :: k -> *} {e :: k}.
+        getCharL :: forall {k} {v :: k -> Type} {e :: k}.
                     (CharacterData -> OpenDynamicCharacter v e) -> v e
         getCharL f = extractMediansGapped $ f leftChar
         
-        getCharR :: forall {k} {v :: k -> *} {e :: k}.
+        getCharR :: forall {k} {v :: k -> Type} {e :: k}.
                     (CharacterData -> OpenDynamicCharacter v e) -> v e
         getCharR f = extractMediansGapped $ f rightChar
 
@@ -1371,13 +1371,13 @@ makeIAFinalCharacter finalMethod charInfo nodeChar parentChar  =
      else nodeChar -- error ("Unrecognized character type " <> show characterType)
 
 -- | get2WaySlim takes two slim vectors an produces a preliminary median
-get2WayGeneric :: forall e (v :: * -> *).(FiniteBits e, GV.Vector v e) => (e -> e -> (e, Word)) -> v e -> v e -> (v e, Word)
+get2WayGeneric :: forall e (v :: Type -> Type).(FiniteBits e, GV.Vector v e) => (e -> e -> (e, Word)) -> v e -> v e -> (v e, Word)
 get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
    let -- this should not be needed some problems at times with IA
        -- len   = GV.length descendantLeftPrelim
        len   = min (GV.length descendantLeftPrelim) (GV.length descendantRightPrelim)
        vt    = V.generate len $ \i -> tcm (descendantLeftPrelim GV.! i) (descendantRightPrelim GV.! i) -- :: V.Vector (SlimState, Word)
-       gen :: forall {v :: * -> *} {a} {b}. GV.Vector v a => V.Vector (a, b) -> v a
+       gen :: forall {v :: Type -> Type} {a} {b}. GV.Vector v a => V.Vector (a, b) -> v a
        gen v = let med i = fst $ v V.! i in GV.generate len med
        
        add   = V.foldl' (\x e -> x + snd e) 0

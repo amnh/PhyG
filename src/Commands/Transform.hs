@@ -8,7 +8,8 @@ module Commands.Transform (
     makeStaticApprox,
 ) where
 
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Bio.DynamicCharacter (HugeDynamicCharacter)
+import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState, fromBits, toUnsignedNumber)
 import Commands.CommandUtilities qualified as CU
 import Commands.Verify qualified as VER
 import Control.Monad (when)
@@ -35,6 +36,7 @@ import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
+import Numeric.Natural (Natural)
 import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
@@ -850,16 +852,22 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
                                     else
                                         if inCharType == HugeSeq
                                             then
-                                                let gapChar = (BV.fromBits $ replicate alphSize False) `setBit` fromEnum gapIndex
-                                                    missingState = BV.fromBits $ replicate alphSize True
-                                                    impliedAlignChar =
-                                                        if (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData)
-                                                            then hugeAlignment inCharData
-                                                            else
+                                                let gapChar = (fromBits $ replicate alphSize False) `setBit` fromEnum gapIndex
+                                                    missingState = fromBits $ replicate alphSize True
+                                                    impliedAlignChar :: HugeDynamicCharacter
+                                                    impliedAlignChar
+                                                        | (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData) = hugeAlignment inCharData
+                                                        | otherwise =
                                                                 let missingElement = V.replicate alphSize missingState
                                                                 in  (missingElement, missingElement, missingElement)
 
-                                                    newPrelimBV = impliedAlignChar
+                                                    conversion :: HugeState -> Natural
+                                                    conversion = toUnsignedNumber
+                                                    naturalize
+                                                      :: (V.Vector HugeState, V.Vector HugeState, V.Vector HugeState)
+                                                      -> (V.Vector Natural, V.Vector Natural, V.Vector Natural)
+                                                    naturalize (x,y,z) = (conversion <$> x, conversion <$> y, conversion <$> z)
+                                                    newPrelimBV = R.convert2BV (toEnum alphSize) $ naturalize impliedAlignChar
                                                     newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
                                                 in  if leavePrealigned
                                                         then (inCharData{alignedHugePrelim = impliedAlignChar}, inCharInfo{charType = AlignedHuge})

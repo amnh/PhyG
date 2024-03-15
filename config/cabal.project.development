@@ -85,49 +85,41 @@ Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-alphabet
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-dynamic-character
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-dynamic-character-element
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-evaluation
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-measure-class
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-measure-transition
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-measure-units
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-PhyloLib
-  Tag:      2305e9debc28de2d9c435694a3c7bdc548e9a0d7
 
 
 ---------------------------------------------------------------------------------

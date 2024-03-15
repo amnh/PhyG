@@ -13,7 +13,7 @@ module Input.Reorganize (
     getRecodingType,
 ) where
 
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Bio.DynamicCharacter.Element
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -771,7 +771,7 @@ assignNewField
       , V.Vector (V.Vector MatrixTriple)
       , SV.Vector SlimState
       , UV.Vector WideState
-      , V.Vector BV.BitVector
+      , V.Vector HugeState
       )
     → CharacterData
 assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) = case inCharType of

@@ -10,7 +10,7 @@ module Types.Types (
 ) where
 
 import Bio.DynamicCharacter (HugeDynamicCharacter, OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter)
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
 import Control.DeepSeq
 import Control.Monad.IO.Class (MonadIO)
 import Control.Parallel.Strategies
@@ -344,7 +344,7 @@ data CharInfo = CharInfo
     , costMatrix ∷ S.Matrix Int
     , slimTCM ∷ TCMD.DenseTransitionCostMatrix
     , wideTCM ∷ MR.MetricRepresentation WideState
-    , hugeTCM ∷ MR.MetricRepresentation BV.BitVector
+    , hugeTCM ∷ MR.MetricRepresentation HugeState
     , changeCost ∷ Double
     , noChangeCost ∷ Double
     , alphabet ∷ Alphabet ST.ShortText
@@ -446,14 +446,14 @@ data CharacterData = CharacterData
     , wideIAFinal ∷ UV.Vector WideState
     , wideIAUnion ∷ UV.Vector WideState
     , -- vector of individual character costs (Can be used in reweighting-ratchet)
-      hugePrelim ∷ V.Vector BV.BitVector
+      hugePrelim ∷ V.Vector HugeState
     , -- gapped medians of left, right, and preliminary used in preorder pass
       hugeGapped ∷ HugeDynamicCharacter
     , hugeAlignment ∷ HugeDynamicCharacter
-    , hugeFinal ∷ V.Vector BV.BitVector
+    , hugeFinal ∷ V.Vector HugeState
     , hugeIAPrelim ∷ HugeDynamicCharacter
-    , hugeIAFinal ∷ V.Vector BV.BitVector
-    , hugeIAUnion ∷ V.Vector BV.BitVector
+    , hugeIAFinal ∷ V.Vector HugeState
+    , hugeIAUnion ∷ V.Vector HugeState
     , -- vectors for pre-aligned sequences also used in static approx
       alignedSlimPrelim ∷ SlimDynamicCharacter
     , alignedSlimFinal ∷ SV.Vector SlimState
@@ -462,8 +462,8 @@ data CharacterData = CharacterData
     , alignedWideFinal ∷ UV.Vector WideState
     , alignedWideUnion ∷ UV.Vector WideState
     , alignedHugePrelim ∷ HugeDynamicCharacter
-    , alignedHugeFinal ∷ V.Vector BV.BitVector
-    , alignedHugeUnion ∷ V.Vector BV.BitVector
+    , alignedHugeFinal ∷ V.Vector HugeState
+    , alignedHugeUnion ∷ V.Vector HugeState
     , -- coiuld be made Storable later is using C or GPU/Accelerate
       packedNonAddPrelim ∷ OpenDynamicCharacter UV.Vector Word64
     , packedNonAddFinal ∷ UV.Vector Word64

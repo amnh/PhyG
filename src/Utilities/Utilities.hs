@@ -317,7 +317,7 @@ splitSequence partitionST stList =
 bitVectToCharStateQual ∷ (Show b, FiniteBits b, Bits b) ⇒ Alphabet String → b → String
 bitVectToCharStateQual localAlphabet bitValue =
     let charString = L.intercalate "," $ foldr pollSymbol mempty indices
-    in  if popCount bitValue == bitSize bitValue
+    in  if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
@@ -337,13 +337,13 @@ bitVectToCharStateQual localAlphabet bitValue =
 -- this for TNT output of qualitative characters
 bitVectToCharStateNonAdd ∷ (Show b, FiniteBits b, Bits b) ⇒ Alphabet String → b → String
 bitVectToCharStateNonAdd localAlphabet bitValue =
-    let stateList = [0 .. (bitSize bitValue) - 1]
+    let stateList = [0 .. (finiteBitSize bitValue) - 1]
         stateCharList = fmap (: []) $ ['0' .. '9'] <> ['A' .. 'Z'] <> ['a' .. 'z']
         bitOnList = fmap (testBit bitValue) stateList
         statesON = fmap fst $ filter ((== True) . snd) $ zip stateCharList bitOnList
         charString = concat statesON
     in  -- trace ("BVNA: " <> (show (bitValue, bitOnList, charString))) $
-        if popCount bitValue == bitSize bitValue
+        if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
@@ -359,7 +359,7 @@ bitVectToCharState' localAlphabet bitValue =
         charString = foldr pollSymbol mempty indices
         charString' = L.intercalate "," $ filter (/= "\8220") charString
     in  -- trace ("BV2CSA:" <> (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
-        if popCount bitValue == bitSize bitValue
+        if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
