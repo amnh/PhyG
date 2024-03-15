@@ -663,22 +663,7 @@ pairwiseDO
 pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     let thisType = charType charInfo
         thisMatrix = costMatrix charInfo
-<<<<<<< HEAD
-    in
-    if thisType `elem` [SlimSeq,   NucSeq]      then
-        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
-            (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
-            -- adjustment based on aligned left and right
-            noChangeAdjust = if not adjustNoCost then 0
-                             else 
-                                let (_, lCost) = get2WaySlim (slimTCM charInfo)  (extractMediansLeftGapped r) (extractMediansLeftGapped r)
-                                    (_, rCost) = get2WaySlim (slimTCM charInfo)  (extractMediansRightGapped r) (extractMediansRightGapped r)
-                                in min lCost rCost
-        in
-        -- trace ("PDOS: " <> (show (cost', noChangeAdjust', weight charInfo))) $
-        -- trace ("pDO:" <> (show (GV.length $ fst3 slim1, GV.length $ snd3 slim1)) <> " " <> (show (GV.length $ fst3 slim2, GV.length $ snd3 slim2)))
-        (r, mempty, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
-=======
+
     in  if thisType `elem` [SlimSeq, NucSeq]
             then
                 let (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
@@ -691,7 +676,7 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
                                 let (_, lCost) = get2WaySlim (slimTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r)
                                     (_, rCost) = get2WaySlim (slimTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
                                 in  min lCost rCost
-                in  trace ("PDOS: " <> (show (cost', noChangeAdjust', weight charInfo))) $
+                in  --trace ("PDOS: " <> (show (cost', noChangeAdjust', weight charInfo))) $
                         -- trace ("pDO:" <> (show (GV.length $ fst3 slim1, GV.length $ snd3 slim1)) <> " " <> (show (GV.length $ fst3 slim2, GV.length $ snd3 slim2)))
                         (r, mempty, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
             else
@@ -707,7 +692,7 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
                                         let (_, lCost) = get2WayWideHuge (wideTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r)
                                             (_, rCost) = get2WayWideHuge (wideTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
                                         in  min lCost rCost
-                        in  trace ("PDOW: " <> (show (cost', noChangeAdjust', weight charInfo))) $
+                        in  --trace ("PDOW: " <> (show (cost', noChangeAdjust', weight charInfo))) $
                                 (mempty, r, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
                     else
                         if thisType == HugeSeq
@@ -722,10 +707,10 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
                                                 let (_, lCost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r)
                                                     (_, rCost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
                                                 in  min lCost rCost
-                                in  trace ("PDOH: " <> (show (cost', noChangeAdjust', weight charInfo))) $
+                                in  --trace ("PDOH: " <> (show (cost', noChangeAdjust', weight charInfo))) $
                                         (mempty, mempty, r, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
                             else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch"]
->>>>>>> 2ccfd6a5a671dbde8ef71b7b988ed5503d4a3035
+
 
 
 {- | getDOMedianCharInfoUnion  is a wrapper around getDOMedian with CharInfo-based interface
@@ -904,30 +889,6 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
     where
         blankCharacterData = emptyCharacter
 
-<<<<<<< HEAD
-    newSlimCharacterData =
-        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
-            newCost     = thisWeight * fromIntegral  (cost' + noChangeAdjust')
-            subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
-            (cost, r)   = slimPairwiseDO
-                thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
-            noChangeAdjust = if not adjustNoCost then 0
-                             else 
-                                let (_, lCost) = get2WaySlim thisSlimTCM (extractMediansLeftGapped r) (extractMediansLeftGapped r)
-                                    (_, rCost) = get2WaySlim thisSlimTCM (extractMediansRightGapped r) (extractMediansRightGapped r)
-                                in 
-                                min lCost rCost
-                                
-        in  
-        trace ("GDOM: " <> (show (cost', noChangeAdjust', thisWeight, adjustNoCost))) $
-        blankCharacterData
-              { slimPrelim    = extractMedians r
-              , slimGapped    = r
-              , localCostVect = V.singleton $ fromIntegral  (cost + noChangeAdjust)
-              , localCost     = newCost
-              , globalCost    = subtreeCost
-              }
-=======
         newSlimCharacterData =
             let (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
                 newCost = thisWeight * fromIntegral (cost' + noChangeAdjust')
@@ -952,7 +913,6 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
                     , localCost = newCost
                     , globalCost = subtreeCost
                     }
->>>>>>> 2ccfd6a5a671dbde8ef71b7b988ed5503d4a3035
 
         newWideCharacterData =
             let (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
