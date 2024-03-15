@@ -720,7 +720,7 @@ getCostMatrixAndScaleFactor fileName inStringListList =
                         -- else if not nonZeroDiagonals then minDouble
                         -- else minDouble / 2.0
             in  
-            trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
+            --trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
                 if maxDecimalPlaces == 0
                     then do
                         pure $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)

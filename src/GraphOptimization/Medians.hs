@@ -557,7 +557,7 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
                                     (_, rCost) = get2WaySlim (slimTCM charInfo)  (extractMediansRightGapped r) (extractMediansRightGapped r)
                                 in min lCost rCost
         in
-        trace ("PDOS: " <> (show (cost', noChangeAdjust', weight charInfo))) $
+        -- trace ("PDOS: " <> (show (cost', noChangeAdjust', weight charInfo))) $
         -- trace ("pDO:" <> (show (GV.length $ fst3 slim1, GV.length $ snd3 slim1)) <> " " <> (show (GV.length $ fst3 slim2, GV.length $ snd3 slim2)))
         (r, mempty, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
 
@@ -746,7 +746,7 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
                                 min lCost rCost
                                 
         in  
-        --trace ("GDOM: " <> (show (cost', noChangeAdjust', thisWeight, GV.length $ snd3 r, diagonalNonZero thisMatrix 0 ))) $
+        trace ("GDOM: " <> (show (cost', noChangeAdjust', thisWeight, adjustNoCost))) $
         blankCharacterData
               { slimPrelim    = extractMedians r
               , slimGapped    = r
@@ -1030,7 +1030,10 @@ getPreAligned2Median adjustNoCost charInfo nodeChar leftChar rightChar =
                                             let (_, lCost) = get2WaySlim (slimTCM charInfo) cL cL
                                                 (_, rCost) = get2WaySlim (slimTCM charInfo) cR cR
                                             in min lCost rCost
-                in  (setSlimPrelim (cL, cM, cR), score + noChangeAdjustment)
+                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                in  
+                -- trace ("GPA2MS: " <> (show (score', noChangeAdjustment', weight charInfo, adjustNoCost, diagonalNonZero (costMatrix charInfo) 0))) $
+                (setSlimPrelim (cL, cM, cR), score' + noChangeAdjustment')
 
             AlignedWide ->
                 let cL = getCharL alignedWidePrelim
@@ -1041,7 +1044,8 @@ getPreAligned2Median adjustNoCost charInfo nodeChar leftChar rightChar =
                                             let (_, lCost) = get2WayWideHuge (wideTCM charInfo) cL cL
                                                 (_, rCost) = get2WayWideHuge (wideTCM charInfo) cR cR
                                             in min lCost rCost
-                in  (setWidePrelim (cL, cM, cR), score + noChangeAdjustment)
+                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                in  (setWidePrelim (cL, cM, cR), score' + noChangeAdjustment')
 
             AlignedHuge ->
                 let cL = getCharL alignedHugePrelim
@@ -1052,7 +1056,8 @@ getPreAligned2Median adjustNoCost charInfo nodeChar leftChar rightChar =
                                             let (_, lCost) = get2WayWideHuge (hugeTCM charInfo) cL cL
                                                 (_, rCost) = get2WayWideHuge (hugeTCM charInfo) cR cR
                                             in min lCost rCost
-                in  (setHugePrelim (cL, cM, cR), score + noChangeAdjustment)
+                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                in  (setHugePrelim (cL, cM, cR), score' + noChangeAdjustment')
 
             other -> error $ "Unrecognized character type: " <> show other
 

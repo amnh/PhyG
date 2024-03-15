@@ -657,7 +657,9 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
 
                             -- remove constants from new prealigned  this may be redundant since bit packing also removes constants
                             -- error here in case where there is missing seqeunce data for all but one input block for a character
-                            newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+                            -- if SI/PMDL need no change cost so cant remove contant characters
+                            newProcessedData ← if not (optimalityCriterion inGS `notElem` [SI, PMDL]) then R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+                                               else pure (nameV, nameBVV, blockDataV)
 
                             -- bit pack any new non-additive characters
                             newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, V.fromList newBlockDataV) -- newProcessedData
@@ -702,7 +704,9 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                                         else do
                                             -- remove constants from new prealigned-- this may be redundant since bit packing also removes constants
                                             -- error here in case where there is missing seqeunce data for all but one input block for a character
-                                            newProcessedData ← R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+                                            -- need to leave in constant charcters for SI/PMDL
+                                            newProcessedData ← if not (optimalityCriterion inGS `notElem` [SI, PMDL]) then R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+                                                               else pure (nameV, nameBVV, blockDataV)
 
                                             -- bit pack any new non-additive characters
                                             newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, newBlockDataV) -- newProcessedData
