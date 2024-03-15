@@ -79,7 +79,6 @@ import Data.Kind (Type)
 import Data.List qualified as L
 import Data.Maybe
 import Data.MetricRepresentation qualified as MR
---import Data.TCM qualified as DT
 import Data.TCM.Dense qualified as TCMD
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
@@ -103,6 +102,7 @@ and returns a dynamic character that canbe used with other functions
 -}
 makeDynamicCharacterFromSingleVector ∷ (GV.Vector v a) ⇒ v a → (v a, v a, v a)
 makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' → GV.imapM_ (\k v → setAlign dc' k v v v) dc
+
 
 {- | median2 takes the vectors of characters and applies median2Single to each
 character
@@ -330,10 +330,11 @@ interUnion ∷ Bool → Double → (Double, Double) → CharacterData → Charac
 interUnion adjustNoCost thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
         newCost
-            | adjustNoCost = thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+            | adjustNoCost =
+                thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
             | otherwise =
-                    let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
-                    in  thisWeight * ((lNoChangeCost * fromIntegral noChangeCostNum) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+                let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
+                in  thisWeight * ((lNoChangeCost * fromIntegral noChangeCostNum) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
 
         newCharacter =
             emptyCharacter
@@ -358,10 +359,11 @@ interUnionUnionField ∷ Bool → Double → (Double, Double) → CharacterData 
 interUnionUnionField adjustNoCost thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (stateBVUnion leftChar) (stateBVUnion rightChar)
         newCost
-            | adjustNoCost = thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+            | adjustNoCost =
+                thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
             | otherwise =
-                    let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
-                    in  thisWeight * ((lNoChangeCost * fromIntegral noChangeCostNum) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
+                let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
+                in  thisWeight * ((lNoChangeCost * fromIntegral noChangeCostNum) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
 
         newCharacter =
             emptyCharacter
@@ -1222,42 +1224,42 @@ getPreAligned2Median adjustNoCost charInfo nodeChar leftChar rightChar =
                 let cL = getCharL alignedSlimPrelim
                     cR = getCharR alignedSlimPrelim
                     (cM, score) = get2WaySlim (slimTCM charInfo) cL cR
-                    noChangeAdjustment = if not adjustNoCost then 0
-                                         else 
-                                            let (_, lCost) = get2WaySlim (slimTCM charInfo) cL cL
-                                                (_, rCost) = get2WaySlim (slimTCM charInfo) cR cR
-                                            in min lCost rCost
-                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
-                in  
-                -- trace ("GPA2MS: " <> (show (score', noChangeAdjustment', weight charInfo, adjustNoCost, diagonalNonZero (costMatrix charInfo) 0))) $
-                (setSlimPrelim (cL, cM, cR), score' + noChangeAdjustment')
-
-            AlignedWide ->
+                    noChangeAdjustment =
+                        if not adjustNoCost
+                            then 0
+                            else
+                                let (_, lCost) = get2WaySlim (slimTCM charInfo) cL cL
+                                    (_, rCost) = get2WaySlim (slimTCM charInfo) cR cR
+                                in  min lCost rCost
+                    (score', noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                in  -- trace ("GPA2MS: " <> (show (score', noChangeAdjustment', weight charInfo, adjustNoCost, diagonalNonZero (costMatrix charInfo) 0))) $
+                    (setSlimPrelim (cL, cM, cR), score' + noChangeAdjustment')
+            AlignedWide →
                 let cL = getCharL alignedWidePrelim
                     cR = getCharR alignedWidePrelim
                     (cM, score) = get2WayWideHuge (wideTCM charInfo) cL cR
-                    noChangeAdjustment = if not adjustNoCost then 0
-                                         else 
-                                            let (_, lCost) = get2WayWideHuge (wideTCM charInfo) cL cL
-                                                (_, rCost) = get2WayWideHuge (wideTCM charInfo) cR cR
-                                            in min lCost rCost
-                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                    noChangeAdjustment =
+                        if not adjustNoCost
+                            then 0
+                            else
+                                let (_, lCost) = get2WayWideHuge (wideTCM charInfo) cL cL
+                                    (_, rCost) = get2WayWideHuge (wideTCM charInfo) cR cR
+                                in  min lCost rCost
+                    (score', noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
                 in  (setWidePrelim (cL, cM, cR), score' + noChangeAdjustment')
-
-            AlignedHuge ->
+            AlignedHuge →
                 let cL = getCharL alignedHugePrelim
                     cR = getCharR alignedHugePrelim
                     (cM, score) = get2WayWideHuge (hugeTCM charInfo) cL cR
-                    noChangeAdjustment = if not adjustNoCost then 0
-                                         else 
-                                            let (_, lCost) = get2WayWideHuge (hugeTCM charInfo) cL cL
-                                                (_, rCost) = get2WayWideHuge (hugeTCM charInfo) cR cR
-                                            in min lCost rCost
-                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                    noChangeAdjustment
+                        | not adjustNoCost = 0
+                        | otherwise =
+                            let (_, lCost) = get2WayWideHuge (hugeTCM charInfo) cL cL
+                                (_, rCost) = get2WayWideHuge (hugeTCM charInfo) cR cR
+                            in  min lCost rCost
+                    (score', noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
                 in  (setHugePrelim (cL, cM, cR), score' + noChangeAdjustment')
-
-            other -> error $ "Unrecognized character type: " <> show other
-
+            other → error $ "Unrecognized character type: " <> show other
     in  setter $ setCost cost nodeChar
 
 
@@ -1690,7 +1692,7 @@ get2WayGeneric tcm descendantLeftPrelim descendantRightPrelim =
         gen ∷ (GV.Vector v a) ⇒ V.Vector (a, b) → v a
         gen v = let med i = fst $ v V.! i in GV.generate len med
 
-        add :: Num b => V.Vector (a, b) -> b
+        add ∷ (Num b) ⇒ V.Vector (a, b) → b
         add = V.foldl' (\x e → x + snd e) 0
     in  (,) <$> gen <*> add $ vt
 
