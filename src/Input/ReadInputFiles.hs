@@ -710,18 +710,33 @@ getCostMatrixAndScaleFactor fileName inStringListList =
                 doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
                 minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
                 rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
-                integerizedMatrix = fmap (fmap ceiling) rescaledDoubleMatrix
+                integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
+                -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
                 scaleFactor =
                     if maxDecimalPlaces == 0
                         then 1.0
                         else minDouble
-            in  -- trace ("GCMSC: " <> (show scaleFactor)) $
+
+                        -- else if not nonZeroDiagonals then minDouble
+                        -- else minDouble / 2.0
+            in  
+            trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
                 if maxDecimalPlaces == 0
                     then do
                         pure $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
                     else do
                         pure $ (scaleFactor, integerizedMatrix)
 
+{-
+- | diagonalsEqualZero takes an integer matrix [[Int]] 
+-- and checks if any diagonal values are == 0
+diagonalsEqualZero :: [[Int]] -> Int -> Bool
+diagonalsEqualZero inMatrix index =
+    if null inMatrix then False
+    else 
+        if (head inMatrix) !! index /= 0 then True
+        else diagonalsEqualZero (tail inMatrix) (index + 1)
+-}
 
 -- | getDecimals returns the number of decimal places in a string rep of a number
 getDecimals ∷ String → Int

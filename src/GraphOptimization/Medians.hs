@@ -79,6 +79,7 @@ import Data.Foldable
 import Data.List qualified as L
 import Data.Maybe
 import Data.MetricRepresentation qualified  as MR
+import Data.TCM qualified as DT
 import Data.TCM.Dense qualified as TCMD
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified  as GV
@@ -91,6 +92,8 @@ import Input.BitPack qualified as BP
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities (diagonalNonZero)
+
 
 import           Debug.Trace
 
@@ -302,7 +305,7 @@ interUnionBV leftBV rightBV =
 interUnion :: Bool -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
 interUnion adjustNoCost thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (snd3 $ stateBVPrelim leftChar) (snd3 $ stateBVPrelim rightChar)
-        newCost = if not adjustNoCost then
+        newCost = if adjustNoCost then
                          thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
                   else 
                         let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
@@ -327,7 +330,7 @@ interUnion adjustNoCost thisWeight (lNoChangeCost, lChangeCost) leftChar rightCh
 interUnionUnionField :: Bool -> Double -> (Double, Double) -> CharacterData -> CharacterData -> CharacterData
 interUnionUnionField adjustNoCost thisWeight (lNoChangeCost, lChangeCost) leftChar rightChar =
     let (newStateVect, noChangeCostVect, changeCostVect) = V.unzip3 $ V.zipWith interUnionBV (stateBVUnion leftChar) (stateBVUnion rightChar)
-        newCost = if not adjustNoCost then
+        newCost = if adjustNoCost then
                          thisWeight * ((lNoChangeCost * fromIntegral (V.sum noChangeCostVect)) + (lChangeCost * fromIntegral (V.sum changeCostVect)))
                   else 
                         let noChangeCostNum = (2 * (V.sum noChangeCostVect)) + (V.sum changeCostVect)
@@ -542,9 +545,11 @@ pairwiseDO :: Bool
            -> (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter, Double)
 pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
     let thisType = charType charInfo
+        thisMatrix = costMatrix charInfo
     in
     if thisType `elem` [SlimSeq,   NucSeq]      then
-        let (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
+        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
             -- adjustment based on aligned left and right
             noChangeAdjust = if not adjustNoCost then 0
                              else 
@@ -552,11 +557,13 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
                                     (_, rCost) = get2WaySlim (slimTCM charInfo)  (extractMediansRightGapped r) (extractMediansRightGapped r)
                                 in min lCost rCost
         in
+        trace ("PDOS: " <> (show (cost', noChangeAdjust', weight charInfo))) $
         -- trace ("pDO:" <> (show (GV.length $ fst3 slim1, GV.length $ snd3 slim1)) <> " " <> (show (GV.length $ fst3 slim2, GV.length $ snd3 slim2)))
-        (r, mempty, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
+        (r, mempty, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
 
     else if thisType `elem` [WideSeq, AminoSeq] then
         let coefficient = MR.minInDelCost (wideTCM charInfo)
+            (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
             (cost, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
             noChangeAdjust = if not adjustNoCost then 0
                              else 
@@ -564,10 +571,12 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
                                     (_, rCost) = get2WayWideHuge (wideTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
                                 in min lCost rCost
         in
-        (mempty, r, mempty, weight charInfo * fromIntegral (cost + noChangeAdjust))
+        trace ("PDOW: " <> (show (cost', noChangeAdjust', weight charInfo))) $
+        (mempty, r, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
 
     else if thisType == HugeSeq           then
         let coefficient = MR.minInDelCost (hugeTCM charInfo)
+            (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
             (cost, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
             noChangeAdjust = if not adjustNoCost then 0
                              else 
@@ -575,7 +584,8 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) =
                                     (_, rCost) = get2WayWideHuge (hugeTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
                                 in min lCost rCost
         in
-        (mempty, mempty, r, weight charInfo * fromIntegral (cost + noChangeAdjust))
+        trace ("PDOH: " <> (show (cost', noChangeAdjust', weight charInfo))) $
+        (mempty, mempty, r, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
 
     else error $ fold ["Unrecognised character type '", show thisType, "'in a DYNAMIC character branch" ]
 
@@ -609,7 +619,9 @@ getDOMedianUnion adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM this
     blankCharacterData = emptyCharacter
 
     newSlimCharacterData =
-        let newCost     = thisWeight * fromIntegral (cost + noChangeAdjust)
+        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            newCost     = thisWeight * fromIntegral  (cost' + noChangeAdjust')
+            -- newCost     = thisWeight * fromIntegral (cost + noChangeAdjust)
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             slimIAUnionNoGapsLeft = extractMediansSingle $ slimIAUnion leftChar
             slimIAUnionNoGapsRight = extractMediansSingle $ slimIAUnion rightChar
@@ -631,7 +643,9 @@ getDOMedianUnion adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM this
               }
 
     newWideCharacterData =
-        let newCost     = thisWeight * fromIntegral (cost + noChangeAdjust)
+        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            newCost     = thisWeight * fromIntegral  (cost' + noChangeAdjust')
+            -- newCost     = thisWeight * fromIntegral (cost + noChangeAdjust)
             coefficient = MR.minInDelCost thisWideTCM
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             wideIAUnionNoGapsLeft = extractMediansSingle $ wideIAUnion leftChar
@@ -656,7 +670,9 @@ getDOMedianUnion adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM this
               }
 
     newHugeCharacterData =
-        let newCost     = thisWeight * fromIntegral (cost + noChangeAdjust)
+        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            newCost     = thisWeight * fromIntegral  (cost' + noChangeAdjust')
+            -- newCost     = thisWeight * fromIntegral (cost + noChangeAdjust)
             coefficient = MR.minInDelCost thisHugeTCM
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             hugeIAUnionNoGapsLeft = extractMediansSingle $ hugeIAUnion leftChar
@@ -684,8 +700,18 @@ getDOMedianUnion adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM this
 getDOMedianCharInfo :: Bool -> CharInfo -> CharacterData -> CharacterData -> CharacterData
 getDOMedianCharInfo adjustNoCost charInfo = getDOMedian adjustNoCost (weight charInfo) (costMatrix charInfo) (slimTCM charInfo) (wideTCM charInfo) (hugeTCM charInfo) (charType charInfo)
 
+-- | adjustNoCostNonZeroDiag makes adjustment to DO cost based on no cost asjustment for non-zero diags and
+-- over counting issue in DO (which may go away at some point)
+adjustNoCostNonZeroDiag :: Bool -> S.Matrix Int -> Word -> (Word , Word) -> (Word , Word)
+adjustNoCostNonZeroDiag adjustNoCost thisMatrix lengthGappedMedian (inCost, inNoChangeAdjust) =
+    if not (diagonalNonZero thisMatrix 0) then (inCost, inNoChangeAdjust) 
+    else if not adjustNoCost then (inCost - lengthGappedMedian, 0)
+    else (inCost - lengthGappedMedian, inNoChangeAdjust - lengthGappedMedian)
+
+
 -- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
 -- works on preliminary states
+-- *** Has adjustment (perhaps only for a while) for non-zero diag matrices adding 1 to each cost perlength of sequence
 getDOMedian
   :: Bool
   -> Double
@@ -707,7 +733,8 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
     blankCharacterData = emptyCharacter
 
     newSlimCharacterData =
-        let newCost     = thisWeight * fromIntegral  (cost + noChangeAdjust)
+        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            newCost     = thisWeight * fromIntegral  (cost' + noChangeAdjust')
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = slimPairwiseDO
                 thisSlimTCM (slimGapped leftChar) (slimGapped rightChar)
@@ -715,9 +742,12 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
                              else 
                                 let (_, lCost) = get2WaySlim thisSlimTCM (extractMediansLeftGapped r) (extractMediansLeftGapped r)
                                     (_, rCost) = get2WaySlim thisSlimTCM (extractMediansRightGapped r) (extractMediansRightGapped r)
-                                in min lCost rCost
-
-        in  blankCharacterData
+                                in 
+                                min lCost rCost
+                                
+        in  
+        --trace ("GDOM: " <> (show (cost', noChangeAdjust', thisWeight, GV.length $ snd3 r, diagonalNonZero thisMatrix 0 ))) $
+        blankCharacterData
               { slimPrelim    = extractMedians r
               , slimGapped    = r
               , localCostVect = V.singleton $ fromIntegral  (cost + noChangeAdjust)
@@ -726,7 +756,8 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
               }
 
     newWideCharacterData =
-        let newCost     = thisWeight * fromIntegral  (cost + noChangeAdjust)
+        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            newCost     = thisWeight * fromIntegral  (cost' + noChangeAdjust')
             coefficient = MR.minInDelCost thisWideTCM
             subtreeCost = sum [ newCost, globalCost leftChar, globalCost rightChar]
             (cost, r)   = widePairwiseDO
@@ -749,7 +780,8 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
               }
 
     newHugeCharacterData =
-        let newCost     = thisWeight * fromIntegral cost
+        let (cost',  noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost thisMatrix (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            newCost     = thisWeight * fromIntegral  (cost' + noChangeAdjust')
             coefficient = MR.minInDelCost thisHugeTCM
             subtreeCost = newCost + globalCost leftChar + globalCost rightChar
             (cost, r)   = hugePairwiseDO
