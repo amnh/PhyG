@@ -39,15 +39,20 @@ import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 
--- | diagonalNonZero checks if any diagonal values are == 0
--- assumes square
--- call with index = 0
-diagonalNonZero :: V.Vector (V.Vector Int) -> Int -> Bool
+
+{- | diagonalNonZero checks if any diagonal values are == 0
+assumes square
+call with index = 0
+-}
+diagonalNonZero ∷ V.Vector (V.Vector Int) → Int → Bool
 diagonalNonZero inMatrix index =
-    if index == V.length inMatrix then False
-    else 
-        if (inMatrix V.! index) V.! index /= 0 then True
-        else diagonalNonZero inMatrix (index + 1)
+    if index == V.length inMatrix
+        then False
+        else
+            if (inMatrix V.! index) V.! index /= 0
+                then True
+                else diagonalNonZero inMatrix (index + 1)
+
 
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
 and whether the required median is a distance (ie single edge)
@@ -326,7 +331,7 @@ splitSequence partitionST stList =
 bitVectToCharStateQual ∷ (Show b, FiniteBits b, Bits b) ⇒ Alphabet String → b → String
 bitVectToCharStateQual localAlphabet bitValue =
     let charString = L.intercalate "," $ foldr pollSymbol mempty indices
-    in  if popCount bitValue == bitSize bitValue
+    in  if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
@@ -346,13 +351,13 @@ bitVectToCharStateQual localAlphabet bitValue =
 -- this for TNT output of qualitative characters
 bitVectToCharStateNonAdd ∷ (Show b, FiniteBits b, Bits b) ⇒ Alphabet String → b → String
 bitVectToCharStateNonAdd localAlphabet bitValue =
-    let stateList = [0 .. (bitSize bitValue) - 1]
+    let stateList = [0 .. (finiteBitSize bitValue) - 1]
         stateCharList = fmap (: []) $ ['0' .. '9'] <> ['A' .. 'Z'] <> ['a' .. 'z']
         bitOnList = fmap (testBit bitValue) stateList
         statesON = fmap fst $ filter ((== True) . snd) $ zip stateCharList bitOnList
         charString = concat statesON
     in  -- trace ("BVNA: " <> (show (bitValue, bitOnList, charString))) $
-        if popCount bitValue == bitSize bitValue
+        if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
@@ -368,7 +373,7 @@ bitVectToCharState' localAlphabet bitValue =
         charString = foldr pollSymbol mempty indices
         charString' = L.intercalate "," $ filter (/= "\8220") charString
     in  -- trace ("BV2CSA:" <> (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
-        if popCount bitValue == bitSize bitValue
+        if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
