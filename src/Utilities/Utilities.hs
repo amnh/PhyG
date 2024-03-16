@@ -40,6 +40,20 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 
 
+{- | diagonalNonZero checks if any diagonal values are == 0
+assumes square
+call with index = 0
+-}
+diagonalNonZero ∷ V.Vector (V.Vector Int) → Int → Bool
+diagonalNonZero inMatrix index =
+    if index == V.length inMatrix
+        then False
+        else
+            if (inMatrix V.! index) V.! index /= 0
+                then True
+                else diagonalNonZero inMatrix (index + 1)
+
+
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
 and whether the required median is a distance (ie single edge)
 or two edge median (as in creating a vertex for post order traversal)
