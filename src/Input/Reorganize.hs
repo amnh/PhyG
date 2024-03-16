@@ -49,14 +49,17 @@ optimizePrealignedData ∷ GlobalSettings → ProcessedData → PhyG ProcessedDa
 optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPrealignedCharacters blockDataVect of
     0 → pure inData
     _ → do
-        -- remove constant characters from prealigned
-        inData' ← removeConstantCharactersPrealigned inData
+        -- don't recode if SI/PMDL since need no change cost
+        if (optimalityCriterion inGS) `elem` [SI, PMDL] then pure inData
+        else do
+            -- remove constant characters from prealigned
+            inData' <- removeConstantCharactersPrealigned inData
 
-        -- convert prealigned to nonadditive if all 1 tcms
-        let inData'' = convertPrealignedToNonAdditive inData'
+            -- convert prealigned to nonadditive if all 1 tcms
+            let inData'' = convertPrealignedToNonAdditive inData'
 
-        -- bit packing for non-additivecharacters
-        BP.packNonAdditiveData inGS inData''
+            -- bit packing for non-additivecharacters
+            BP.packNonAdditiveData inGS inData''
 
 
 {- | convertPrealignedToNonAdditive converts prealigned data to non-additive

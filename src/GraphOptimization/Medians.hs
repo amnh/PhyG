@@ -1222,39 +1222,42 @@ getPreAligned2Median adjustNoCost charInfo nodeChar leftChar rightChar =
                 let cL = getCharL alignedSlimPrelim
                     cR = getCharR alignedSlimPrelim
                     (cM, score) = get2WaySlim (slimTCM charInfo) cL cR
-                    noChangeAdjustment =
-                        if not adjustNoCost
-                            then 0
-                            else
-                                let (_, lCost) = get2WaySlim (slimTCM charInfo) cL cL
-                                    (_, rCost) = get2WaySlim (slimTCM charInfo) cR cR
-                                in  min lCost rCost
-                in  (setSlimPrelim (cL, cM, cR), score + noChangeAdjustment)
-            AlignedWide →
+                    noChangeAdjustment = if not adjustNoCost then 0
+                                         else 
+                                            let (_, lCost) = get2WaySlim (slimTCM charInfo) cL cL
+                                                (_, rCost) = get2WaySlim (slimTCM charInfo) cR cR
+                                            in min lCost rCost
+                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                in  
+                -- trace ("GPA2MS: " <> (show (score', noChangeAdjustment', weight charInfo, adjustNoCost, diagonalNonZero (costMatrix charInfo) 0))) $
+                (setSlimPrelim (cL, cM, cR), score' + noChangeAdjustment')
+
+            AlignedWide ->
                 let cL = getCharL alignedWidePrelim
                     cR = getCharR alignedWidePrelim
                     (cM, score) = get2WayWideHuge (wideTCM charInfo) cL cR
-                    noChangeAdjustment =
-                        if not adjustNoCost
-                            then 0
-                            else
-                                let (_, lCost) = get2WayWideHuge (wideTCM charInfo) cL cL
-                                    (_, rCost) = get2WayWideHuge (wideTCM charInfo) cR cR
-                                in  min lCost rCost
-                in  (setWidePrelim (cL, cM, cR), score + noChangeAdjustment)
-            AlignedHuge →
+                    noChangeAdjustment = if not adjustNoCost then 0
+                                         else 
+                                            let (_, lCost) = get2WayWideHuge (wideTCM charInfo) cL cL
+                                                (_, rCost) = get2WayWideHuge (wideTCM charInfo) cR cR
+                                            in min lCost rCost
+                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                in  (setWidePrelim (cL, cM, cR), score' + noChangeAdjustment')
+
+            AlignedHuge ->
                 let cL = getCharL alignedHugePrelim
                     cR = getCharR alignedHugePrelim
                     (cM, score) = get2WayWideHuge (hugeTCM charInfo) cL cR
-                    noChangeAdjustment =
-                        if not adjustNoCost
-                            then 0
-                            else
-                                let (_, lCost) = get2WayWideHuge (hugeTCM charInfo) cL cL
-                                    (_, rCost) = get2WayWideHuge (hugeTCM charInfo) cR cR
-                                in  min lCost rCost
-                in  (setHugePrelim (cL, cM, cR), score + noChangeAdjustment)
-            other → error $ "Unrecognized character type: " <> show other
+                    noChangeAdjustment = if not adjustNoCost then 0
+                                         else 
+                                            let (_, lCost) = get2WayWideHuge (hugeTCM charInfo) cL cL
+                                                (_, rCost) = get2WayWideHuge (hugeTCM charInfo) cR cR
+                                            in min lCost rCost
+                    (score',  noChangeAdjustment') = adjustNoCostNonZeroDiag adjustNoCost (costMatrix charInfo) (toEnum $ GV.length cM) (score, noChangeAdjustment)
+                in  (setHugePrelim (cL, cM, cR), score' + noChangeAdjustment')
+
+            other -> error $ "Unrecognized character type: " <> show other
+
     in  setter $ setCost cost nodeChar
 
 
