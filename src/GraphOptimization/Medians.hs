@@ -887,7 +887,8 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
                             let (_, lCost) = get2WaySlim thisSlimTCM (extractMediansLeftGapped r) (extractMediansLeftGapped r)
                                 (_, rCost) = get2WaySlim thisSlimTCM (extractMediansRightGapped r) (extractMediansRightGapped r)
                             in  min lCost rCost
-            in  blankCharacterData
+            in  --trace ("GDM: " <> (show (newCost, thisWeight))) $ 
+                blankCharacterData
                     { slimPrelim = extractMedians r
                     , slimGapped = r
                     , localCostVect = V.singleton $ fromIntegral (cost + noChangeAdjust)
