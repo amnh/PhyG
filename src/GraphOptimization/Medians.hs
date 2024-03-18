@@ -652,6 +652,7 @@ unionMatrix thisMatrix firstVertChar secondVertChar =
 
 {- | pairwiseDO is a wrapper around slim/wise/hugeParwiseDO to allow direct call and return of
 DO medians and cost.  This is used in final state assignment
+The adjustments are False since only uses the prealigned distance--hence no plus-one iussue
 -}
 pairwiseDO
     ∷ Bool
@@ -662,7 +663,7 @@ pairwiseDO
 pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) = case charType charInfo of
     thisType
         | thisType `elem` [SlimSeq, NucSeq] →
-            let (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost True (costMatrix charInfo) (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            let (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost False (costMatrix charInfo) (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
                 (cost, r) = slimPairwiseDO (slimTCM charInfo) slim1 slim2
                 -- adjustment based on aligned left and right
                 noChangeAdjust
@@ -675,7 +676,7 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) = c
     thisType
         | thisType `elem` [WideSeq, AminoSeq] →
             let coefficient = MR.minInDelCost (wideTCM charInfo)
-                (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost True (costMatrix charInfo) (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+                (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost False (costMatrix charInfo) (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
                 (cost, r) = widePairwiseDO coefficient (MR.retreivePairwiseTCM $ wideTCM charInfo) wide1 wide2
                 noChangeAdjust
                     | not adjustNoCost = 0
@@ -686,7 +687,7 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) = c
             in  (mempty, r, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
     HugeSeq →
         let coefficient = MR.minInDelCost (hugeTCM charInfo)
-            (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost True (costMatrix charInfo) (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
+            (cost', noChangeAdjust') = adjustNoCostNonZeroDiag adjustNoCost False (costMatrix charInfo) (toEnum $ GV.length $ snd3 r) (cost, noChangeAdjust)
             (cost, r) = hugePairwiseDO coefficient (MR.retreivePairwiseTCM $ hugeTCM charInfo) huge1 huge2
             noChangeAdjust
                 | not adjustNoCost = 0
