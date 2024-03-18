@@ -841,8 +841,8 @@ getDOMedianCharInfo adjustNoCost charInfo =
 over counting issue in DO (which may go away at some point)
 -}
 adjustNoCostNonZeroDiag ∷ Bool → Bool → S.Matrix Int → Word → (Word, Word) → (Word, Word)
-adjustNoCostNonZeroDiag adjustNoCost isDynamic thisMatrix lengthGappedMedian (inCost, inNoChangeAdjust) =
-    if not (diagonalNonZero thisMatrix 0) || (inCost == 0 && isDynamic)
+adjustNoCostNonZeroDiag adjustNoCost plusOneFix thisMatrix lengthGappedMedian (inCost, inNoChangeAdjust) =
+    if not (diagonalNonZero thisMatrix 0) || (inCost == 0 && plusOneFix)
         then (inCost, inNoChangeAdjust)
         else
             if not adjustNoCost
