@@ -69,10 +69,10 @@ import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
--- import           Debug.Trace
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import           Debug.Trace
 
 
 {- | naivePostOrderSoftWiredTraversal produces the post-order result for a softwired graph using
@@ -1019,7 +1019,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                                                     in  -- updatedDisplayVect = V.zipWith NEW.backPortBlockTreeNodesToCanonicalGraph (fmap head newDisplayVect) newCharTreeVV
                                                         -- updatedCanonicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph newGraph updatedDisplayVect
 
-                                                        -- trace ("PDT End: " <> (show (subGraphCost newVertex, localCostSum)))
+                                                        -- trace ("PDT End: " <> (show (newCost, subGraphCost newVertex, localCostSum)))
                                                         -- (LG.removeDuplicateEdges simpleGraph, localCostSum, LG.removeDuplicateEdges newGraph, fmap (fmap LG.removeDuplicateEdges) newDisplayVect, fmap (fmap LG.removeDuplicateEdges) newCharTreeVV, blockCharInfo)
                                                         -- (simpleGraph, localCostSum, updatedCanonicalGraph, fmap (:[]) updatedDisplayVect, newCharTreeVV, blockCharInfo)
                                                         (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
