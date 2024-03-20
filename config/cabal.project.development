@@ -203,11 +203,6 @@ Repository head.hackage.ghc.haskell.org
         7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d
 
 
-Source-Repository-Package
-  Type:     git
-  Location: https://github.com/recursion-ninja/concurrent-hashtable-opt
-
-
 --Source-Repository-Package
 --  Type:     git
 --  Location: https://github.com/recursion-ninja/linear-builder
