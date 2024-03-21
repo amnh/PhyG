@@ -148,7 +148,7 @@ fuseArgList =
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList ∷ [String]
 geneticAlgorithmArgList = 
-    ["elitist"
+    [ "elitist"
     , "ga"
     , "generations"
     , "geneticalgorithm"
@@ -217,7 +217,7 @@ readArgList =
 -- | reconcileCommandList list of allowable commands
 reconcileArgList ∷ [String]
 reconcileArgList = 
-    ["compare"
+    [ "compare"
     , "connect"
     , "edgelabel"
     , "method"
@@ -229,7 +229,7 @@ reconcileArgList =
 -- | reconcileOptionsList list of allowable command options of method, compare, threshhold, and outformat
 reconcileOptionsList ∷ [String]
 reconcileOptionsList = 
-    ["adams"
+    [ "adams"
     , "combinable"
     , "cun"
     , "eun"
@@ -299,7 +299,7 @@ searchArgList =
 -- | selectArgList is the list of valid select arguments
 selectArgList ∷ [String]
 selectArgList = 
-    ["all"
+    [ "all"
     , "atrandom"
     , "best"
     , "threshold"
@@ -346,7 +346,7 @@ setArgList =
 -- | refinement arguments
 supportArgList ∷ [String]
 supportArgList = 
-    ["atrandom"
+    [ "atrandom"
     , "bootstrap"
     , "buildonly"
     , "gb"
