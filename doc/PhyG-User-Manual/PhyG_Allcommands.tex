@@ -180,9 +180,8 @@
 		choosing a new graph. 
 		
 %		\item [alternate[:n]] Causes the exchanged subgraphs to be tried at multiple positions 
-%		including rerooting of 
-%		exchanged groups--alternating between SPR and TBR-type edits (up to optional 
-%		$n$ edges aware from their initial positions).
+%		including rerooting of exchanged groups--alternating between SPR and TBR-type edits 
+%		(up to optional $n$ edges aware from their initial positions).
 		
 		\item [best] Specifies the method for tree selection, which in this case returns the best graphs 
 		found during fuse operations.		
@@ -782,7 +781,6 @@
 		lengths follow the terminal labels. This is the default. Compare with 
 		\texttt{nobranchlengths}. 
 		
-
 		\item[collapse] Specifies that zero length branches are collapsed. If a dotpdf 
 		graph is specified, the branches are collapsed by default. If ASCII, Newick, 
 		eNewick and dot are specified, the zero length branches are not collapsed by 
@@ -1307,7 +1305,6 @@
 
 			\end{description}
 			
-			
 		\item[graphsSteepest:[INT]] Sets the maximum number of graphs to be evaluated 
 		simultaneously during `steepest' descent in swapping and network addition and 
 		deletion operation. The number is the lower of the number of parallel threads 
@@ -1332,6 +1329,7 @@
 			\end{description}
 		
 		%\item[modelcomplexity] \hl{details}
+		
 		\item[missingThreshold:[Int]] Sets the maximum percentage of missing data in a terminal.
 		The default setting is 100, leaving all terminals in the data set.  Terminal taxa
 		with more than the missing fraction are deleted.  The \texttt{missingThreshold} value is determined 
@@ -1358,8 +1356,7 @@
 		(`\textbf{\#}') was the only option to partition datasets). Each fragment is treated as an individual 
 		character. When partitioning the data in this way, the number of partitions must be the 
 		same across homologous sequences. The default is `\textbf{\#}'.
-			
-%			\item[rootCost:noRootCost|W15|PMDL] 
+
 		\item[rootCost:] Sets the root cost for a graph. 			
 			\begin{description}
 			\item[noRootCost]  No cost is ascribed to the root.  This is the default for parsimony searches.
@@ -1367,10 +1364,8 @@
 			\item[w15]  Sets a cost at $\frac{1}{2}$ the cost of `inserting' the root character 
 			assignments. The W15 root cost is based on the same rationale as the parsimony 
 			network penalty of  \cite{Wheeler2015}. 
-			%This is the default if parsimony is the 
-			%optimality criterion.
+			%This is the default if parsimony is the optimality criterion.
 
-			
 			\end{description}
 			 
 		 \item[seed:INT] Sets the seed for the random number generator using the integer
@@ -1443,15 +1438,15 @@
 		
 	\subsubsection{Arguments}
 		\begin{description}
-		\item[buildonly] Performs very rapid, but not extensive graph searches for each 
-		resampling replicate.
-		
 		\item[bootstrap] Calculates Bootstrap support. The user can specify the number of 
 		iterations, using \texttt{replicates}. The edges are labeled with the bootstrap 
-		frequencies when output via the command \texttt{report(support)}. Default replicate search is 100 random addition 
-		sequence distance-based Wagner builds and TBR branch swapping on the best distance tree.
-		If the graph type is softwired or hardwired, \texttt{netadd}, \texttt{maxnetedges:5}, \texttt{atrandom} are 
-		added. 
+		frequencies when output via the command \texttt{report(support)}. Default replicate 
+		search is 100 random addition sequence distance-based Wagner builds and TBR 
+		branch swapping on the best distance tree. If the graph type is softwired or hardwired, 
+		\texttt{netadd}, \texttt{maxnetedges:5}, \texttt{atrandom} are added. 
+		
+		\item[buildonly] Performs very rapid, but not extensive graph searches for each 
+		resampling replicate.
 		
 		\item[gb] Synonym of GoodmanBremer.
 			
@@ -1669,7 +1664,8 @@
 
 			\item[w15] Employs the parsimony network penalty of \cite{Wheeler2015}.	
 		
-			\item[w23] Sets the parsimony network penalty of \cite{WheelerandWashburn2023}, which is more severe
+			\item[w23] Sets the parsimony network penalty of \cite{WheelerandWashburn2023}, 
+			which is more severe
 			but has a lower time complexity than W15.
 			
 			\end{description}
