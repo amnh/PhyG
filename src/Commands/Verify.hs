@@ -117,8 +117,6 @@ fuseArgList =
     [ "all"
     , "atrandom"
     , "best"
-    , "joinall"
-    , "joinsome"
     , "keep"
     , "once"
     , "pairs"
