@@ -82,7 +82,22 @@ allowedCommandList =
 
 -- list of valid instructions
 validInstructionList ∷ [Instruction]
-validInstructionList = [Build, Fuse, Read, Reblock, Refine, Rename, Report, Run, Search, Select, Set, Support, Swap, Transform]
+validInstructionList = 
+    [ Build
+    , Fuse
+    , Read
+    , Reblock
+    , Refine
+    , Rename
+    , Report
+    , Run
+    , Search
+    , Select
+    , Set
+    , Support
+    , Swap
+    , Transform
+    ]
 
 
 -- | buildArgList is the list of valid build arguments
@@ -117,8 +132,6 @@ fuseArgList =
     [ "all"
     , "atrandom"
     , "best"
-    , "joinall"
-    , "joinsome"
     , "keep"
     , "once"
     , "pairs"
@@ -134,7 +147,17 @@ fuseArgList =
 
 -- | geneticAlgorithm arguments
 geneticAlgorithmArgList ∷ [String]
-geneticAlgorithmArgList = ["elitist", "ga", "generations", "geneticalgorithm", "maxnetedges", "popsize", "recombinations", "severity", "stop"]
+geneticAlgorithmArgList = 
+    [ "elitist"
+    , "ga"
+    , "generations"
+    , "geneticalgorithm"
+    , "maxnetedges"
+    , "popsize"
+    , "recombinations"
+    , "severity"
+    , "stop"
+    ]
 
 
 -- | netEdgeArgList arguments for network edge add/delete operations
@@ -148,7 +171,6 @@ netEdgeArgList =
     , "drift"
     , "inorder"
     , "keep"
-    , "maxchanges"
     , "maxnetedges"
     , "netadd"
     , "netadddel"
@@ -194,12 +216,29 @@ readArgList =
 
 -- | reconcileCommandList list of allowable commands
 reconcileArgList ∷ [String]
-reconcileArgList = ["compare", "connect", "edgelabel", "method", "threshold", "vertexlabel"] -- "outfile"
+reconcileArgList = 
+    [ "compare"
+    , "connect"
+    , "edgelabel"
+    , "method"
+    , "threshold"
+    , "vertexlabel"
+    ] -- "outfile"
 
 
 -- | reconcileOptionsList list of allowable command options of method, compare, threshhold, and outformat
 reconcileOptionsList ∷ [String]
-reconcileOptionsList = ["adams", "combinable", "cun", "eun", "false", "fen", "identity", "majority", "strict", "true"]
+reconcileOptionsList = 
+    [ "adams"
+    , "combinable"
+    , "cun"
+    , "eun"
+    , "false"
+    , "fen"
+    , "identity"
+    , "majority"
+    , "strict"
+    , "true"]
 
 
 -- | refinement arguments
@@ -259,7 +298,13 @@ searchArgList =
 
 -- | selectArgList is the list of valid select arguments
 selectArgList ∷ [String]
-selectArgList = ["all", "atrandom", "best", "threshold", "unique"]
+selectArgList = 
+    [ "all"
+    , "atrandom"
+    , "best"
+    , "threshold"
+    , "unique"
+    ]
 
 
 {- | setArgList contains valid 'set' arguments
@@ -300,7 +345,18 @@ setArgList =
 
 -- | refinement arguments
 supportArgList ∷ [String]
-supportArgList = ["atrandom", "bootstrap", "buildonly", "gb", "gbsample", "goodmanbremer", "jackknife", "replicates", "spr", "tbr"]
+supportArgList = 
+    [ "atrandom"
+    , "bootstrap"
+    , "buildonly"
+    , "gb"
+    , "gbsample"
+    , "goodmanbremer"
+    , "jackknife"
+    , "replicates"
+    , "spr"
+    , "tbr"
+    ]
 
 
 -- | swapArgList is the list of valid swap arguments
