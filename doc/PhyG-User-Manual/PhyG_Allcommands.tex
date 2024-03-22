@@ -1,6 +1,6 @@
-%---------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------------
 %build
-%---------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------------
 \subsection{Build}
 	\subsubsection{Syntax}
 		\texttt{build([argument list])}
@@ -155,9 +155,9 @@
 		performed on each block of data.}
 	\end{example}
 
-%---------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------------
 %fuse
-%---------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------------
 \subsection{Fuse}
 	\subsubsection{Syntax}
 		\texttt{fuse([argument list])}
@@ -238,9 +238,10 @@
 		manner (the default)}.
 	\end{example}
 
-%---------------------------------------------
+%--------------------------------------------------------------------------------------------------------------------------------
 %read
-%---------------------------------------------	
+%--------------------------------------------------------------------------------------------------------------------------------
+	
 \subsection{Read}
 \label{subsec:read}
 	\subsubsection{Syntax}
@@ -249,7 +250,7 @@
 	\begin{phygdescription}
 		{Imports file-based information, including data files and graph files. \texttt{read} 
 		commands must contain an input file (\texttt{STRING}). Supported data formats 
-		include FASTA, FASTC and TNT files, and graph formats include Dot, eNewick, %Fenewick, 
+		include FASTA, FASTC and TNT files, and graph formats include Dot, eNewick, %Fenewick (not yet implemented) 
 		and Newick. Filenames must be included in quotes. Filenames must include the 
 		appropriate suffix (e.g. .fas, .ss, .mat). The exclusion of these suffixes will result 
 		in an error. The filename must match exactly, including capitalization. \phyg will 
@@ -319,10 +320,14 @@
 		format. This is used for multi-character sequences such as gene synteny, developmental, 
 		or linguistic data.   Sequence gaps are removed.
 			
-%		\item [fenewick:] Will eventually be added. Specifies that the file contains Forest Enhanced 
-%		Newick format graph(s) specified \href{https://www.github.com/wardwheeler/euncon}{here} 
-%		\citep{Wheeler2022}.
-			
+%		\item [fenewick:STRING] Specifies that the file contains Forest Enhanced Newick format graph(s) 
+%		specified \href{https://www.github.com/wardwheeler/euncon}{here} \citep{Wheeler2022}.
+%		Not yet implemented.
+		
+%		\item [gapopening:] Not yet implemented.
+
+%		\item [hugeseq:] Only used for testing purposes.
+	
 		\item [include:STRING] Specifies the names of terminal taxa to be included in the analysis. 
 		Taxa appear in the form of a list, with a single taxon per line. It is possible to specify 
 		terminals that have no data. This may be done in order to diagnose a large graph on 
@@ -361,7 +366,10 @@
 		\item [prefastc:STRING] Specifies that the sequences are prealigned in a FASTC format, leaving gap 
 		characters (``-'') in the sequences and alignment correspondences are not re-examined. 
 		This option exists to ensure proper parsing (and in case auto-format detection is incorrect).
-		Prealigned FASTC files \textit{must} be of the same length.			
+		Prealigned FASTC files \textit{must} be of the same length.
+		
+		
+%		\item [prehugeseq:] Only used for testing purposes.			
 		
 		\item [prenucleotide:STRING] Ensures that file contents are parsed as IUPAC coded nucleotide data 
 		in FASTA \citep{PearsonandLipman1988} format, leaving gap characters (``-'') in the sequences 
@@ -443,9 +451,8 @@
 		  
 		 Dashes in multi-character states (e.g. \texttt{Blue-ish}) are treated as part of the character 
 		 state specification.
-		 %If the user wishes that dashes 
-		 %be treated as missing data, the file must be edited to reflect this by replacing the 
-		 %dashes that are to be treated as missing data with question 
+		 %If the user wishes that dashes be treated as missing data, the file must be edited to 
+		 %reflect this by replacing the dashes that are to be treated as missing data with question 
 		 %marks (`?').
 		 \\
 		  
@@ -1428,7 +1435,7 @@
 		\texttt{support([argument list])}
 		
 	\begin{phygdescription}
-		{Generates graph supports via resampling \citep{Farrisetal1996} and Goodman-Bremer 
+		{Generates graph supports via resampling \citep{Farrisetal1996} and Goodman-Bremer  
 		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing, Bootstrapping and 
 		Goodman-Bremer supports are the resampling methods that are implemented. If
 		the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
