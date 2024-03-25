@@ -672,7 +672,9 @@ pairwiseDO adjustNoCost charInfo (slim1, wide1, huge1) (slim2, wide2, huge2) = c
                         let (_, lCost) = get2WaySlim (slimTCM charInfo) (extractMediansLeftGapped r) (extractMediansLeftGapped r)
                             (_, rCost) = get2WaySlim (slimTCM charInfo) (extractMediansRightGapped r) (extractMediansRightGapped r)
                         in  min lCost rCost
-            in  (r, mempty, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
+            in  
+            --trace ("PDO: " <> (show (cost', noChangeAdjust',weight charInfo * fromIntegral (cost' + noChangeAdjust')))) $
+            (r, mempty, mempty, weight charInfo * fromIntegral (cost' + noChangeAdjust'))
     thisType
         | thisType `elem` [WideSeq, AminoSeq] →
             let coefficient = MR.minInDelCost (wideTCM charInfo)
@@ -843,12 +845,14 @@ over counting issue in DO (which may go away at some point)
 -}
 adjustNoCostNonZeroDiag ∷ Bool → Bool → S.Matrix Int → Word → (Word, Word) → (Word, Word)
 adjustNoCostNonZeroDiag adjustNoCost plusOneFix thisMatrix lengthGappedMedian (inCost, inNoChangeAdjust) =
-    if not (diagonalNonZero thisMatrix 0) || (inCost == 0 && plusOneFix)
+    if not (diagonalNonZero thisMatrix 0) || (inCost == 0 && (not plusOneFix))
         then (inCost, inNoChangeAdjust)
         else
-            if not adjustNoCost
-                then (inCost - lengthGappedMedian, 0)
-                else (inCost - lengthGappedMedian, inNoChangeAdjust - lengthGappedMedian)
+            if not adjustNoCost then (inCost - lengthGappedMedian, 0)
+            -- else (inCost - lengthGappedMedian, inNoChangeAdjust - lengthGappedMedian)
+            else 
+                let inNoChangeCost' = round ((fromIntegral inNoChangeAdjust) / 2.0)
+                in (inCost - lengthGappedMedian, toEnum inNoChangeCost' )
 
 
 {- | getDOMedian calls appropriate pairwise DO to create sequence median after some type wrangling
@@ -891,7 +895,8 @@ getDOMedian adjustNoCost thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeT
                             let (_, lCost) = get2WaySlim thisSlimTCM (extractMediansLeftGapped r) (extractMediansLeftGapped r)
                                 (_, rCost) = get2WaySlim thisSlimTCM (extractMediansRightGapped r) (extractMediansRightGapped r)
                             in  min lCost rCost
-            in  -- trace ("GDM: " <> (show (newCost,subtreeCost))) $ 
+            in  
+                --trace ("GDM: " <> (show (cost, noChangeAdjust, cost', noChangeAdjust',(GV.length $ snd3 r),newCost,subtreeCost, noChangeAdjust' > 1000000000))) $ 
                 blankCharacterData
                     { slimPrelim = extractMedians r
                     , slimGapped = r
