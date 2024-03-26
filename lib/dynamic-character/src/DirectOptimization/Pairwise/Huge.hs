@@ -6,6 +6,7 @@ module DirectOptimization.Pairwise.Huge (
 
 import Bio.DynamicCharacter
 import DirectOptimization.Pairwise.Ukkonen
+import Bio.DynamicCharacter.Element
 
 
 hugePairwiseDO

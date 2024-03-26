@@ -40,6 +40,20 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 
 
+{- | diagonalNonZero checks if any diagonal values are == 0
+assumes square
+call with index = 0
+-}
+diagonalNonZero ∷ V.Vector (V.Vector Int) → Int → Bool
+diagonalNonZero inMatrix index =
+    if index == V.length inMatrix
+        then False
+        else
+            if (inMatrix V.! index) V.! index /= 0
+                then True
+                else diagonalNonZero inMatrix (index + 1)
+
+
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
 and whether the required median is a distance (ie single edge)
 or two edge median (as in creating a vertex for post order traversal)
@@ -200,7 +214,8 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
 
             let numChars = V.length charInfoV
                 leafCharListV = fmap (charDataVV V.!) [0 .. numChars - 1]
-                maxCharLengthList = zipWith getMaxCharacterLength (V.toList charInfoV) (fmap V.toList leafCharListV)
+                -- False fo not use IA field
+                maxCharLengthList = zipWith (getMaxCharacterLength False) (V.toList charInfoV) (fmap V.toList leafCharListV)
                 weightList = fmap weight (V.toList charInfoV)
                 rootCostList = zipWith (*) weightList (fmap fromIntegral maxCharLengthList)
             in  -- trace ("GNCMR: " <> (show (numChars, maxCharLengthList, weightList, rootCostList))) $
@@ -316,7 +331,7 @@ splitSequence partitionST stList =
 bitVectToCharStateQual ∷ (Show b, FiniteBits b, Bits b) ⇒ Alphabet String → b → String
 bitVectToCharStateQual localAlphabet bitValue =
     let charString = L.intercalate "," $ foldr pollSymbol mempty indices
-    in  if popCount bitValue == bitSize bitValue
+    in  if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
@@ -336,13 +351,13 @@ bitVectToCharStateQual localAlphabet bitValue =
 -- this for TNT output of qualitative characters
 bitVectToCharStateNonAdd ∷ (Show b, FiniteBits b, Bits b) ⇒ Alphabet String → b → String
 bitVectToCharStateNonAdd localAlphabet bitValue =
-    let stateList = [0 .. (bitSize bitValue) - 1]
+    let stateList = [0 .. (finiteBitSize bitValue) - 1]
         stateCharList = fmap (: []) $ ['0' .. '9'] <> ['A' .. 'Z'] <> ['a' .. 'z']
         bitOnList = fmap (testBit bitValue) stateList
         statesON = fmap fst $ filter ((== True) . snd) $ zip stateCharList bitOnList
         charString = concat statesON
     in  -- trace ("BVNA: " <> (show (bitValue, bitOnList, charString))) $
-        if popCount bitValue == bitSize bitValue
+        if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
@@ -358,7 +373,7 @@ bitVectToCharState' localAlphabet bitValue =
         charString = foldr pollSymbol mempty indices
         charString' = L.intercalate "," $ filter (/= "\8220") charString
     in  -- trace ("BV2CSA:" <> (show (maxSymbolLength, SET.toList (alphabetSymbols localAlphabet) ))) (
-        if popCount bitValue == bitSize bitValue
+        if popCount bitValue == finiteBitSize bitValue
             then "?"
             else
                 if popCount bitValue > 1
@@ -401,8 +416,8 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
 
         if (isAlphabetDna localAlphabet || isAlphabetRna localAlphabet) && (SET.size (alphabetSymbols localAlphabet) == 5)
             then
-                if stringVal == ""
-                    then ""
+                if stringVal `elem` ["", "-"]
+                    then "-"
                     else
                         if length stringVal == 1
                             then stringVal
@@ -1171,8 +1186,8 @@ getSequenceCharacterLengths inCharData inCharInfo =
 -}
 
 -- | getCharacterLengths returns a the length of block characters
-getCharacterLength ∷ CharacterData → CharInfo → Int
-getCharacterLength inCharData inCharInfo =
+getCharacterLength ∷ Bool → CharacterData → CharInfo → Int
+getCharacterLength useIA inCharData inCharInfo =
     let inCharType = charType inCharInfo
     in  -- trace ("GCL:" <> (show inCharType) <> " " <> (show $ snd3 $ stateBVPrelim inCharData)) (
         case inCharType of
@@ -1180,8 +1195,11 @@ getCharacterLength inCharData inCharInfo =
             x | x `elem` packedNonAddTypes → UV.length $ snd3 $ packedNonAddPrelim inCharData
             x | x == Add → V.length $ snd3 $ rangePrelim inCharData
             x | x == Matrix → V.length $ matrixStatesPrelim inCharData
+            x | x `elem` [SlimSeq, NucSeq] && useIA → SV.length $ snd3 $ slimAlignment inCharData -- slimAlignment inCharData
             x | x `elem` [SlimSeq, NucSeq] → SV.length $ snd3 $ slimGapped inCharData -- slimAlignment inCharData
+            x | x `elem` [WideSeq, AminoSeq] && useIA → UV.length $ snd3 $ wideAlignment inCharData --  wideAlignment inCharData
             x | x `elem` [WideSeq, AminoSeq] → UV.length $ snd3 $ wideGapped inCharData --  wideAlignment inCharData
+            x | x == HugeSeq && useIA → V.length $ snd3 $ hugeAlignment inCharData --  hugeAlignment inCharData
             x | x == HugeSeq → V.length $ snd3 $ hugeGapped inCharData --  hugeAlignment inCharData
             x | x == AlignedSlim → SV.length $ snd3 $ alignedSlimPrelim inCharData
             x | x == AlignedWide → UV.length $ snd3 $ alignedWidePrelim inCharData
@@ -1192,13 +1210,13 @@ getCharacterLength inCharData inCharInfo =
 -- )
 
 -- | getCharacterLengths' flipped arg version of getCharacterLength
-getCharacterLength' ∷ CharInfo → CharacterData → Int
-getCharacterLength' inCharInfo inCharData = getCharacterLength inCharData inCharInfo
+getCharacterLength' ∷ Bool → CharInfo → CharacterData → Int
+getCharacterLength' useIA inCharInfo inCharData = getCharacterLength useIA inCharData inCharInfo
 
 
 -- | getMaxCharacterLengths get maximum charcter legnth from a list
-getMaxCharacterLength ∷ CharInfo → [CharacterData] → Int
-getMaxCharacterLength inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' inCharInfo) inCharDataList
+getMaxCharacterLength ∷ Bool → CharInfo → [CharacterData] → Int
+getMaxCharacterLength useIA inCharInfo inCharDataList = maximum $ fmap (getCharacterLength' useIA inCharInfo) inCharDataList
 
 
 -- | getSingleTaxon takes a taxa x characters block and an index and returns the character vector for that index
@@ -1353,3 +1371,46 @@ transposeVector inVect =
         else
             let newListList = L.transpose $ V.toList $ fmap V.toList inVect
             in  V.fromList $ fmap V.fromList newListList
+
+
+{- | combineMatrices takes two matrices [[a]] and applied function to be ziped and cretes new matrix
+better be small becasue of list access would be n^3
+-}
+combineMatrices ∷ (a → a → a) → [[a]] → [[a]] → [[a]]
+combineMatrices f m1 m2
+    | null m1 = error "Null matrix 1 in combineMatrices"
+    | null m2 = error "Null matrix 2 in combineMatrices"
+    | (fmap length m1) /= (fmap length m2) =
+        error ("Cannot combine matrices with unequal dimensions " <> (show (fmap length m1) <> " " <> show (fmap length m2)))
+    | otherwise = zipWith (zipWith f) m1 m2
+
+
+-- | normalizeMatrix takes a [[Int]] and returns normalized, symmetrical frequencies
+normalizeMatrix ∷ [[Int]] → [[Double]]
+normalizeMatrix inMatrix =
+    if null inMatrix
+        then []
+        else
+            let totalNumber = (sum $ (fmap sum) inMatrix) ∷ Int
+                transposeMatrix = L.transpose inMatrix
+                symMatrix = zipWith (zipWith (+)) inMatrix transposeMatrix
+                newMatrix = fmap (fmap (/ (fromIntegral totalNumber))) $ fmap (fmap fromIntegral) symMatrix
+            in  newMatrix
+
+
+{- | divideList takes a [a] and returns [[a]]
+    by dividing according to lengths in input list to lengths
+-}
+divideList ∷ [Int] → [a] → [[a]]
+divideList lengthList inList =
+    if null lengthList
+        then []
+        else
+            if null inList
+                then []
+                else
+                    if sum lengthList /= length inList
+                        then error ("List division and list length do not match: " <> (show (sum lengthList)) <> " versus " <> (show $ length inList))
+                        else
+                            let firstLength = head lengthList
+                            in  (take firstLength inList) : divideList (tail lengthList) (drop firstLength inList)

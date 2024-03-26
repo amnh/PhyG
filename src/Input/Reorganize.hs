@@ -13,7 +13,7 @@ module Input.Reorganize (
     getRecodingType,
 ) where
 
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Bio.DynamicCharacter.Element
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
@@ -49,18 +49,21 @@ bitPack new non-additive
 packNonAdditive
 -}
 optimizePrealignedData ∷ GlobalSettings → ProcessedData → PhyG ProcessedData
-optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPrealignedCharacters blockDataVect of
-    0 → logWith LogMore "Not bitpacking..." $> inData
-    _ → do
-        logWith LogMore "Bitpacking..."
-        -- remove constant characters from prealigned
-        inData' ← removeConstantCharactersPrealigned inData
-
-        -- convert prealigned to nonadditive if all 1 tcms
-        let inData'' = convertPrealignedToNonAdditive inData'
-
-        -- bit packing for non-additivecharacters
-        BP.packNonAdditiveData inGS inData''
+optimizePrealignedData inGS inData@(_, _, blockDataVect) =
+    let noPacking = logWith LogMore "Not bitpacking..." $> inData
+    in  case U.getNumberPrealignedCharacters blockDataVect of
+            0 → noPacking
+            _ | optimalityCriterion inGS `elem` [SI, PMDL] → noPacking
+            _ → do
+                    logWith LogMore "Bitpacking..."
+                    -- remove constant characters from prealigned
+                    inData' ← removeConstantCharactersPrealigned inData
+            
+                    -- convert prealigned to nonadditive if all 1 tcms
+                    let inData'' = convertPrealignedToNonAdditive inData'
+            
+                    -- bit packing for non-additivecharacters
+                    BP.packNonAdditiveData inGS inData''
 
 
 {- | convertPrealignedToNonAdditive converts prealigned data to non-additive
@@ -740,7 +743,7 @@ assignNewField
       , V.Vector (V.Vector MatrixTriple)
       , SV.Vector SlimState
       , UV.Vector WideState
-      , V.Vector BV.BitVector
+      , V.Vector HugeState
       )
     → PhyG CharacterData
 assignNewField inCharType charData (nonAddData, addData, matrixData, alignedSlimData, alignedWideData, alignedHugeData) = case inCharType of

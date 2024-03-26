@@ -13,8 +13,8 @@ module Utilities.ThreeWayFunctions (
     threeWayGeneric,
 ) where
 
-import Bio.DynamicCharacter (HugeState, extractMedians)
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Bio.DynamicCharacter (extractMedians)
+import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
 import Data.Alphabet
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits

@@ -26,7 +26,7 @@ module DirectOptimization.Pairwise.Ukkonen (
 ) where
 
 import Bio.DynamicCharacter
-import Bio.DynamicCharacter.Element (WideState)
+import Bio.DynamicCharacter.Element
 import Bio.DynamicCharacter.Measure
 import Control.Monad (unless, when)
 import Control.Monad.Loops (iterateUntilM, whileM_)

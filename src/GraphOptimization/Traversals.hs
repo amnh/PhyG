@@ -275,6 +275,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                                 if (graphType inGS == Tree)
                                     then do
                                         displayResult ← POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted
+                                        -- logWith LogInfo ("RRL: " <> (show (snd6 displayResult, snd6 outgroupRooted)) <> "\n")
                                         pure [displayResult]
                                     else error ("Graph type not implemented: " <> (show $ graphType inGS))
 
@@ -329,7 +330,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
                     -}
 
                     let graphWithBestAssignments' = updatePhylogeneticGraphCost graphWithBestAssignments (rootAndModelCost + penaltyFactor + (snd6 graphWithBestAssignments))
-
+                    -- logWith LogInfo ("GGPOT: " <> (show (snd6 graphWithBestAssignments', snd6 graphWithBestAssignments)) <> "\n")
                     pure (graphWithBestAssignments', head startVertexList)
     where
         sum3 ∷ VertexCost → VertexCost → VertexCost → VertexCost

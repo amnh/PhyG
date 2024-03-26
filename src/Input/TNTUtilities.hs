@@ -367,7 +367,7 @@ getTNTCharInfo fileName charNumber curCharInfo inLines
         let firstLine' = T.strip $ head inLines
             multipleCommandsInLine = fmap ((T.reverse . T.cons ';') . T.reverse) (filter ((> 0) . T.length) $ T.strip <$> T.splitOn (T.pack ";") firstLine')
             firstLine = head multipleCommandsInLine
-        in  -- trace (show multipleCommandsInLine) (
+        in
             if T.null firstLine
                 then getTNTCharInfo fileName charNumber curCharInfo (tail inLines)
                 else -- hit 'proc /;' line at end
@@ -377,30 +377,30 @@ getTNTCharInfo fileName charNumber curCharInfo inLines
                         else
                             if T.last firstLine /= ';'
                                 then
-                                    errorWithoutStackTrace
-                                        ( "\n\nTNT input file " <> fileName <> " processing error--ccode/costs lines must end with semicolon ';': " <> T.unpack firstLine
-                                        )
+                                    failWithPhase Parsing $ unwords
+                                        [ "\n\nTNT input file"
+                                        , fileName
+                                        , "processing error--ccode/costs lines must end with semicolon ';':"
+                                        , T.unpack firstLine
+                                        ]
                                 else do
                                     -- have a valid line
                                     let wordList = T.words $ T.init firstLine
                                     let command2 = T.toLower $ T.take 2 $ head wordList
-                                    localCharInfoResult ← getCCodes fileName charNumber (tail wordList) curCharInfo
-                                    let localCharInfo =
-                                            if command2 == T.pack "cc"
-                                                then localCharInfoResult
-                                                else curCharInfo
-                                    let localCharInfo' =
-                                            if command2 == T.pack "co"
-                                                then getCosts fileName charNumber (tail wordList) localCharInfo
-                                                else localCharInfo
+                                    --localCharInfoResult ← getCCodes fileName charNumber (tail wordList) curCharInfo
+                                    localCharInfo <- case command2 of
+                                        "cc" -> getCCodes fileName charNumber (tail wordList) curCharInfo
+                                        "co" -> pure $ getCosts fileName charNumber (tail wordList) curCharInfo
+                                        _ -> do logWith LogInfo $ unwords
+                                                    [ "\n\nWarning: TNT input file"
+                                                    , fileName
+                                                    , "unrecognized/not implemented command ignored :"
+                                                    , T.unpack firstLine
+                                                    , "\n"
+                                                    ]
+                                                pure curCharInfo
 
-                                    if (command2 /= T.pack "cc") && (command2 /= T.pack "co")
-                                        then do
-                                            logWith
-                                                LogInfo
-                                                ("\n\nWarning: TNT input file " <> fileName <> " unrecognized/not implemented command ignored : " <> T.unpack firstLine <> "\n")
-                                            getTNTCharInfo fileName charNumber curCharInfo (tail multipleCommandsInLine <> tail inLines)
-                                        else getTNTCharInfo fileName charNumber localCharInfo' (tail multipleCommandsInLine <> tail inLines)
+                                    getTNTCharInfo fileName charNumber curCharInfo (tail multipleCommandsInLine <> tail inLines)
 
 
 -- | ccodeChars are the TNT ccode control characters
@@ -443,7 +443,10 @@ getCosts fileName charNumber commandWordList = \case
         let scopeList = takeWhile (/= T.pack "=") commandWordList
             charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
             (localAlphabet, localMatrix) = processCostsLine fileName $ tail $ dropWhile (/= T.pack "=") commandWordList
-        in  newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 []
+            updatedCharInfo = newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 []
+            in  trace
+                    ("Alph " <> (show $ fmap alphabet updatedCharInfo))
+                    updatedCharInfo
 
 
 {- | processCostsLine takes the transformation commands of TNT and creates a TCM matrix from that

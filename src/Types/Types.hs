@@ -10,7 +10,7 @@ module Types.Types (
 ) where
 
 import Bio.DynamicCharacter (HugeDynamicCharacter, OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter)
-import Bio.DynamicCharacter.Element (SlimState, WideState)
+import Bio.DynamicCharacter.Element (HugeState, SlimState, WideState)
 import Control.DeepSeq
 import Control.Monad.IO.Class (MonadIO)
 import Control.Parallel.Strategies
@@ -295,7 +295,7 @@ data GlobalSettings = GlobalSettings
     , bcgt64 ∷ (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
     , compressResolutions ∷ Bool -- "nub" resolutions in softwired graph
     , defaultParStrat ∷ ParallelStrategy -- default parallel strategy
-    , dynamicEpsilon ∷ Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
+    , dynamicEpsilon ∷ Double -- factor of dynamic heuristics overestimating graph deltas determind by fraction of data is dynamic and user value
     , finalAssignment ∷ AssignmentMethod
     , fractionDynamic ∷ Double -- estimated fraction of character length that are dynamic (actually seqeunce) for setting dynamicEpsilon
     , graphComplexityList ∷ IL.InfList (VertexCost, VertexCost) -- complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence
@@ -351,7 +351,7 @@ data CharInfo = CharInfo
     , costMatrix ∷ S.Matrix Int
     , slimTCM ∷ TM.TransitionMatrix SlimState
     , wideTCM ∷ TM.TransitionMatrix WideState
-    , hugeTCM ∷ TM.TransitionMatrix BV.BitVector
+    , hugeTCM ∷ TM.TransitionMatrix HugeState
     , changeCost ∷ Double
     , noChangeCost ∷ Double
     , alphabet ∷ Alphabet ST.ShortText
@@ -423,7 +423,7 @@ type MatrixTriple = (StateCost, [ChildStateIndex], [ChildStateIndex])
 -- during branch addintion/readdition (e.g swapping)
 data CharacterData = CharacterData
     { -- for Non-additive
-      stateBVPrelim ∷ HugeDynamicCharacter -- preliminary for Non-additive chars, Sankoff Approx
+      stateBVPrelim ∷ (V.Vector BV.BitVector, V.Vector BV.BitVector, V.Vector BV.BitVector) -- HugeDynamicCharacter -- preliminary for Non-additive chars, Sankoff Approx
     , stateBVFinal ∷ V.Vector BV.BitVector
     , stateBVUnion ∷ V.Vector BV.BitVector
     , -- for Additive
@@ -453,14 +453,14 @@ data CharacterData = CharacterData
     , wideIAFinal ∷ UV.Vector WideState
     , wideIAUnion ∷ UV.Vector WideState
     , -- vector of individual character costs (Can be used in reweighting-ratchet)
-      hugePrelim ∷ V.Vector BV.BitVector
+      hugePrelim ∷ V.Vector HugeState
     , -- gapped medians of left, right, and preliminary used in preorder pass
       hugeGapped ∷ HugeDynamicCharacter
     , hugeAlignment ∷ HugeDynamicCharacter
-    , hugeFinal ∷ V.Vector BV.BitVector
+    , hugeFinal ∷ V.Vector HugeState
     , hugeIAPrelim ∷ HugeDynamicCharacter
-    , hugeIAFinal ∷ V.Vector BV.BitVector
-    , hugeIAUnion ∷ V.Vector BV.BitVector
+    , hugeIAFinal ∷ V.Vector HugeState
+    , hugeIAUnion ∷ V.Vector HugeState
     , -- vectors for pre-aligned sequences also used in static approx
       alignedSlimPrelim ∷ SlimDynamicCharacter
     , alignedSlimFinal ∷ SV.Vector SlimState
@@ -469,8 +469,8 @@ data CharacterData = CharacterData
     , alignedWideFinal ∷ UV.Vector WideState
     , alignedWideUnion ∷ UV.Vector WideState
     , alignedHugePrelim ∷ HugeDynamicCharacter
-    , alignedHugeFinal ∷ V.Vector BV.BitVector
-    , alignedHugeUnion ∷ V.Vector BV.BitVector
+    , alignedHugeFinal ∷ V.Vector HugeState
+    , alignedHugeUnion ∷ V.Vector HugeState
     , -- coiuld be made Storable later is using C or GPU/Accelerate
       packedNonAddPrelim ∷ OpenDynamicCharacter UV.Vector Word64
     , packedNonAddFinal ∷ UV.Vector Word64

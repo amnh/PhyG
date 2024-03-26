@@ -3,28 +3,38 @@ Module exposing helper functions used for command processing.
 -}
 module Commands.CommandUtilities where
 
+import Bio.DynamicCharacter
+import Bio.DynamicCharacter.Element
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Parallel.Strategies
 import Data.Alphabet
+import Data.Alphabet.Codec (decodeState)
 import Data.Alphabet.Special
+import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.Char qualified as C
 import Data.Foldable
 import Data.List qualified as L
 import Data.List.NonEmpty qualified as NE
 import Data.List.Split qualified as LS
-import Data.List.Split qualified as SL
 import Data.Maybe
+-- import Data.MetricRepresentation qualified as MR
+import TransitionMatrix qualified as TM
+import Layout.Compact.Class qualified as Measure
+import Measure.Transition qualified as Measure
 import Data.Set qualified as SET
 import Data.Text.Lazy qualified as T
 import Data.Text.Short qualified as ST
 import Data.Vector qualified as V
+import Data.Vector.Generic qualified as GV
 import Data.Vector.Storable qualified as SV
 import Data.Vector.Unboxed qualified as UV
 import Debug.Trace
+import DirectOptimization.Pairwise
 import GeneralUtilities
 import GraphFormatUtilities
+import GraphOptimization.Medians qualified as M
 import GraphOptimization.PreOrderFunctions qualified as PRE
 import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
@@ -503,13 +513,98 @@ phyloDataToString charIndexStart inDataVect =
             in  fullMatrix <> phyloDataToString (charIndexStart + length charStrings) (V.tail inDataVect)
 
 
+-- | extractAlphabetStrings takes vector of block data and returns block x character string list
+extractAlphabetStrings ∷ V.Vector BlockData → [[[String]]]
+extractAlphabetStrings inBlockDataV =
+    let result = V.toList $ fmap extractAlphabetStringsBlock inBlockDataV
+    in  trace
+            ("EAS: " <> (show result))
+            result
+
+
+-- | extractAlphabetStringsBlock takes block data and returns character string list
+extractAlphabetStringsBlock ∷ BlockData → [[String]]
+extractAlphabetStringsBlock inBlockData = V.toList $ fmap extractAlphabetStringsChar (thd3 inBlockData)
+
+
+-- | extractAlphabetStringsChar takes char data and returns character string list
+extractAlphabetStringsChar ∷ CharInfo → [String]
+extractAlphabetStringsChar inCharInfo = (alphabetSymbols $ ST.toString <$> alphabet inCharInfo)
+
+
+{- | getDataElementTransformations takes alphabet, parent and child final states
+and calculates and formats the transition matrix in frequency and raw numbers
+this for list of blocks each with list of characters
+over all edges
+need to ddeal woith missing data
+-}
+getDataElementTransformations ∷ [[[String]]] → [[String]] → [[String]] → [[String]] → [[String]]
+getDataElementTransformations alphabetStrings parentLL childLL parentChildLL =
+    if null childLL
+        then []
+        else -- convert to block x character (Parent String, Child String) for counting exercise
+
+            let numBlocks = length alphabetStrings
+                numCharsList = fmap length alphabetStrings
+
+                numParent = length parentLL
+                numChild = length childLL
+            in  -- dataByBlock = reorderBySection numBlocks diffLL []
+                -- dataByBlockChar = zipeWith reorderBySection numCharsList dataByBlock
+
+                trace
+                    ("GDET: " <> (show (numBlocks, numCharsList, numParent, numChild)) <> " " <> (show alphabetStrings)) -- <>
+                    -- (show parentLL) <> "\n\n" <> (show childLL)) $
+                    parentChildLL
+
+
+-- | reorderBySection takes a list of list of Strings and reorders klists into first diominant (as in blocks here)
+reorderBySection ∷ Int → [[String]] → [[String]] → [[String]]
+reorderBySection numSections inData reorgData =
+    if null inData
+        then reorgData
+        else
+            if length inData < numSections
+                then error ("Incorrect input list size: " <> (show numSections) <> " sections and " <> (show $ length inData) <> " pieces")
+                else
+                    let firstGroup = filter (not . null) $ take numSections inData
+                        newData =
+                            if null reorgData
+                                then firstGroup
+                                else zipWith (<>) reorgData firstGroup
+                    in  trace ("RBS: " <> (show firstGroup)) $
+                            reorderBySection numSections (drop numSections inData) newData
+
+
+{- | getBlockElementTransformations
+need to deal with missing data
+-}
+getBlockElementTransformations ∷ [[String]] → [String] → [String]
+getBlockElementTransformations alphabetStringL diffL =
+    if null diffL
+        then []
+        else
+            trace ("GBET: " <> (show alphabetStringL) <> " " <> (concat diffL)) $
+                zipWith getCharElementTransformations alphabetStringL diffL
+
+
+{- | getCharElementTransformations
+need to deal with missing data
+-}
+getCharElementTransformations ∷ [String] → String → String
+getCharElementTransformations alphabetString diffState =
+    trace
+        ("GCET: " <> (show alphabetString) <> " " <> diffState)
+        []
+
+
 -- | getDataElementFrequencies takes a vecor of block data and returns character element frequencies
-getDataElementFrequencies ∷ V.Vector BlockData → [[String]]
-getDataElementFrequencies inBlockDataV =
+getDataElementFrequencies ∷ Bool → V.Vector BlockData → [[String]]
+getDataElementFrequencies useIA inBlockDataV =
     if V.null inBlockDataV
         then []
         else
-            let blockCharFreqLLL = V.toList $ V.zipWith getBlockCharElementFrequencies (fmap snd3 inBlockDataV) (fmap thd3 inBlockDataV)
+            let blockCharFreqLLL = V.toList $ V.zipWith (getBlockCharElementFrequencies useIA) (fmap snd3 inBlockDataV) (fmap thd3 inBlockDataV)
             in  fmap (fmap show) blockCharFreqLLL
 
 
@@ -517,11 +612,17 @@ getDataElementFrequencies inBlockDataV =
 if an unaligned sequence type infers based on length differences of inputs using number of gaps to make
 inputs square (so minimum number of gaps)
 -}
-getBlockCharElementFrequencies ∷ V.Vector (V.Vector CharacterData) → V.Vector CharInfo → [[(Double, Int)]]
-getBlockCharElementFrequencies charDataV charInfoV =
+getBlockCharElementFrequencies ∷ Bool → V.Vector (V.Vector CharacterData) → V.Vector CharInfo → [[(String, Double, Int)]]
+getBlockCharElementFrequencies useIA charDataV charInfoV =
     if V.null charDataV
         then []
-        else V.toList $ V.zipWith getCharElementFrequencies (U.transposeVector $ PRE.setFinalToPreliminaryStates charDataV) charInfoV
+        else -- set to preliminary states or IA states
+
+            let dataV =
+                    if not useIA
+                        then PRE.setFinalToPreliminaryStates charDataV
+                        else charDataV
+            in  V.toList $ V.zipWith (getCharElementFrequencies useIA) (U.transposeVector dataV) charInfoV
 
 
 {- | getCharElementFrequencies gets element frequencies for a character
@@ -530,19 +631,17 @@ inputs square (so minimum number of gaps)
 returns frequencies and number for each alphabet element
 ignores ambiguities/polymorphism
 -}
-getCharElementFrequencies ∷ V.Vector CharacterData → CharInfo → [(Double, Int)]
-getCharElementFrequencies charData charInfo =
+getCharElementFrequencies ∷ Bool → V.Vector CharacterData → CharInfo → [(String, Double, Int)]
+getCharElementFrequencies useIA charData charInfo =
     if V.null charData
         then []
         else
-            let usaIA = False -- this will estimate gaps based on minimum number possible
-
-                -- alphabet element strings
+            let -- alphabet element strings
                 alphabetElementStrings = (alphabetSymbols $ ST.toString <$> alphabet charInfo)
 
                 charInfoV = V.replicate (V.length charData) charInfo
                 charPairV = V.zip charData charInfoV
-                taxonElementList = V.toList $ fmap L.last $ fmap (makeCharLine usaIA) charPairV
+                taxonElementList = V.toList $ fmap L.last $ fmap (makeCharLine useIA) charPairV
 
                 -- get implicit gaps from unaligned seqs (will end up zero if all equal in length)
                 numExtraGaps =
@@ -560,7 +659,7 @@ getCharElementFrequencies charData charInfo =
                 numElements = fromIntegral $ sum elementNumberList
                 elementfreqList = fmap (/ numElements) $ fmap fromIntegral elementNumberList
             in  -- trace ("GCEF: " <> totalElementList ) $ -- <> " -> " <> (concat $ concat $ fmap (makeCharLine usaIA) charPairV))
-                zip elementfreqList elementNumberList
+                zip3 alphabetElementStrings elementfreqList elementNumberList
 
 
 -- | getMinGapNumber gets implicit gap number by summing length differneces among sequences in order
@@ -656,6 +755,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     useDO = False
                     vertexList = LG.labNodes decGraph
                     edgeList = LG.labEdges decGraph
+                    numLeaves = V.length $ fst3 inData
 
                     -- Vertex final character states for currect node
                     vertexTitle = ["Vertex Character State Information"]
@@ -672,15 +772,23 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         , "Character Type"
                         , "Final State"
                         ]
-                    vertexInfoList = concatMap (getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    vertexInfo = fmap (getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    vertexInfoList = concat vertexInfo
 
                     -- this using IA fields to get changes
-                    vertexInfoListChanges = concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    vertexInfoListChanges = vertexInfoList -- concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
 
                     -- Edge length information
                     edgeTitle = [[" "], ["Edge Weight/Length Information"]]
                     edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
                     edgeInfoList = fmap getEdgeInfo edgeList
+
+                    -- Alphabet element numbers
+                    alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
+                    -- False for Use IA here
+                    alphabetInfo = getDataElementFrequencies False (thd3 inData)
+
+                    alphbetStringLL = extractAlphabetStrings (thd3 inData)
 
                     vertexChangeTitle =
                         [ [" "]
@@ -697,45 +805,480 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             , "Character Type"
                             , "Parent Final State"
                             , "Node Final State"
-                            , "Sequence Changes (position, parent final state, node final state)"
+                            -- , "Sequence Changes (position, parent final state, node final state)"
                             ]
                         ]
 
                     vertexParentStateList =
                         fmap
                             ((: []) . last)
-                            (concatMap (getVertexAndParentCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)) vertexList)
+                            (concatMap (getVertexAndParentCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)) vertexList)
                     vertexStateList = fmap (drop 9) vertexInfoListChanges
 
                     -- process to change to lines of individual changes--basically a transpose
-                    vertexChangeListByPosition = fmap (getAlignmentBasedChanges' 0) (zip vertexParentStateList vertexStateList)
+                    -- True to only report diffs
+                    -- vertexChangeListByPosition = fmap (getAlignmentBasedChanges' True 0) (zip vertexParentStateList vertexStateList)
+                    parentChildStatesList = fmap (getAlignmentBasedChanges' False 0) (zip vertexParentStateList vertexStateList)
 
                     -- putting parent states before current state
                     vertexStateInfoList = fmap (take 9) vertexInfoListChanges
 
-                    vertexChangeList = L.zipWith4 concat4 vertexStateInfoList vertexParentStateList vertexStateList vertexChangeListByPosition
-
                     -- filter out those that are the same states
                     differenceList = removeNoChangeLines vertexChangeList
-                in  -- trace ("GGD: " <> (show $ snd6 staticGraph))
+
+                    -- element transformation numbers
+                    elementTransformationTitle = [["Element Transformations (element<->element, frequency, number) based in Implied Alignment for unaligned sequences"]]
+                    -- get element transfomation by re-parsing formated results--uses teh character states strings this way
+                    elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexParentStateList vertexStateList parentChildStatesList
+
+                    -- Get changes based on edges
+                    edgeIndexList = fmap LG.toEdge edgeList
+
+                    -- should be parallel
+                    vertexVect = V.fromList $ vertexList
+                    edgeTransformationTotalList = fmap (getEdgeTransformations vertexVect (fft5 inGraph)) edgeIndexList
+
+                    -- extract relevent info
+                    edgeTransformationList = fmap (fmap (fmap fst3)) edgeTransformationTotalList
+                    -- elementNumbersLLL = fmap (fmap (fmap snd3)) edgeTransformationTotalList
+                    transformationNumbersLLL = fmap (fmap (fmap thd3)) edgeTransformationTotalList
+
+                    -- overallElementNumbers = sumEdgeElementLists [] $ take numLeaves elementNumbersLLL
+                    overallElementTransformations = sumEdgeTransformationLists [] transformationNumbersLLL
+                    overallElementTransformationsFreq = fmap (fmap U.normalizeMatrix) overallElementTransformations
+
+                    vertexHeader = fmap (fmap (take 9)) vertexInfo
+
+                    edgeListLists = knitTitlesChangeInfo vertexHeader edgeTransformationList
+
+                    transformationHeader = fmap (drop 5) $ tail $ head vertexHeader
+
+                    statsListList =
+                        addBlockCharStrings
+                            transformationHeader
+                            alphabetInfo
+                            (fmap (fmap show) overallElementTransformationsFreq)
+                            (fmap (fmap show) overallElementTransformations)
+
+                    vertexChangeList = L.zipWith3 concat3 vertexStateInfoList vertexParentStateList vertexStateList -- vertexChangeListByPosition
+                    vertexChangeTitleNew =
+                        [ [" "]
+                        , ["Vertex Character Changes"]
+                        ,
+                            [ ""
+                            , "Vertex Index"
+                            , "Vertex Name"
+                            , "Vertex Type"
+                            , "Child Vertices"
+                            , "Parent Vertices"
+                            , "Data Block"
+                            , "Character Name"
+                            , "Character Type"
+                            , "Parent Final State"
+                            , "Node Final State"
+                            , "Unambiguous Transformations"
+                            ]
+                        ]
+
+                    edgeTransformationTitle =
+                        [ [" "]
+                        , ["Edge Transformation Statistics"]
+                        ,
+                            [ ""
+                            , "Data Block"
+                            , "Character Name"
+                            , "Character Type"
+                            , "Element Frequencies"
+                            , "Transformation Frequencies"
+                            ]
+                        ]
+                in  -- trace ("GGD: " <> (show overallElementNumbers))
                     [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
-                        <> getDataElementFrequencies (thd3 inData)
                         <> edgeTitle
                         <> edgeHeaderList
                         <> edgeInfoList
-                        <> vertexChangeTitle
-                        <> differenceList
+                        -- <> vertexChangeTitle
+                        -- <> differenceList
+                        <> vertexChangeTitleNew
+                        <> edgeListLists
+                        -- <> elementTransformationTitle
+                        -- <> elementTransformationInfo
+                        -- <> alphabetTitle
+                        -- <> alphabetInfo
+                        <> edgeTransformationTitle
+                        <> statsListList
     where
+        -- <> fmap show overallElementTransformations
+
         concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
         concat4 a b c d = a <> b <> c <> d
+        concat3 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a
+        concat3 a b c = a <> b <> c
+
+
+{- | sumEdgeElementLists takes list of edges of block of characters transomftion matricwes and
+sums over edge (outermost) list for eventual csv output
+-}
+sumEdgeElementLists ∷ [[[(String, Int)]]] → [[[[(String, Int)]]]] → [[[(String, Int)]]]
+sumEdgeElementLists curSum inEdgeList =
+    if null inEdgeList
+        then curSum
+        else
+            let firstEdge = head inEdgeList
+                newSum =
+                    if null curSum
+                        then firstEdge
+                        else addBlockCharacterElements curSum firstEdge
+            in  sumEdgeElementLists newSum (tail inEdgeList)
+
+
+-- | addBlockCharacterElements adds two block lists of element lists
+addBlockCharacterElements ∷ [[[(String, Int)]]] → [[[(String, Int)]]] → [[[(String, Int)]]]
+addBlockCharacterElements inBlockEdgeL1 inBlockEdgeL2 =
+    if null inBlockEdgeL1
+        then inBlockEdgeL2
+        else
+            if null inBlockEdgeL2
+                then inBlockEdgeL1
+                else zipWith addCharacterElementLists inBlockEdgeL1 inBlockEdgeL2
+
+
+-- | addCharacterElementLists adds two lists of charcter element lists
+addCharacterElementLists ∷ [[(String, Int)]] → [[(String, Int)]] → [[(String, Int)]]
+addCharacterElementLists inCharList1 inCharList2 =
+    if null inCharList1
+        then inCharList2
+        else
+            if null inCharList2
+                then inCharList1
+                else zipWith addElementLists inCharList1 inCharList2
+
+
+{- | addElementLists adds two lists of elements and numbers
+    Assumes lists are in same element order
+-}
+addElementLists ∷ [(String, Int)] → [(String, Int)] → [(String, Int)]
+addElementLists elementL1 elementL2 =
+    if null elementL1
+        then elementL2
+        else
+            if null elementL2
+                then elementL1
+                else
+                    if (fmap fst elementL1) /= (fmap fst elementL2)
+                        then error ("Element lists do not match: " <> (show $ fmap fst elementL1) <> " versus " <> (show $ fmap fst elementL2))
+                        else
+                            let numberL1 = fmap snd elementL1
+                                numberL2 = fmap snd elementL2
+                                newNUmberL = zipWith (+) numberL1 numberL2
+                            in  zip (fmap fst elementL1) newNUmberL
+
+
+{- | sumEdgeTransformationLists takes list of edges of block of characters transomftion matricwes and
+sums over edge (outermost) list for eventual csv output
+-}
+sumEdgeTransformationLists ∷ [[[[Int]]]] → [[[[[Int]]]]] → [[[[Int]]]]
+sumEdgeTransformationLists curSum inEdgeList =
+    if null inEdgeList
+        then curSum
+        else
+            let firstEdge = head inEdgeList
+                newSum =
+                    if null curSum
+                        then firstEdge
+                        else addBlockCharacterMatrix curSum firstEdge
+            in  sumEdgeTransformationLists newSum (tail inEdgeList)
+
+
+-- | addBlockCharacterMatrix adds two block lists of character lists of transrmation matrices
+addBlockCharacterMatrix ∷ [[[[Int]]]] → [[[[Int]]]] → [[[[Int]]]]
+addBlockCharacterMatrix inBlockEdgeL1 inBlockEdgeL2 =
+    if null inBlockEdgeL1
+        then inBlockEdgeL2
+        else
+            if null inBlockEdgeL2
+                then inBlockEdgeL1
+                else zipWith addCharacterLists inBlockEdgeL1 inBlockEdgeL2
+
+
+-- | addCharacterLists adds two lists of charcter transfomratin matrices
+addCharacterLists ∷ [[[Int]]] → [[[Int]]] → [[[Int]]]
+addCharacterLists inCharList1 inCharList2 =
+    if null inCharList1
+        then inCharList2
+        else
+            if null inCharList2
+                then inCharList1
+                else zipWith (U.combineMatrices (+)) inCharList1 inCharList2
+
+
+{- | addBlockCharStrings adds block and character strings to transformation info
+    for CSV output
+-}
+addBlockCharStrings ∷ [[String]] → [[String]] → [[String]] → [[String]] → [[String]]
+addBlockCharStrings labelStringList elementStringList matrixStringList matrixStringList2 =
+    if null labelStringList || null matrixStringList
+        then []
+        else
+            let blockTitle = head labelStringList
+                charMatrixList = head matrixStringList
+                charMatrixList2 = head matrixStringList2
+                elementList = head elementStringList
+                charNameList = take (length charMatrixList) (tail labelStringList)
+            in  -- first doesn't ahve numbers of transforms
+                -- (blockTitle : (zipWith3 (concat3) charNameList (fmap (:[]) elementList) (fmap (:[]) charMatrixList))) <> addBlockCharStrings (drop (1 + length charMatrixList) labelStringList) (tail elementStringList) (tail matrixStringList)
+                ( blockTitle
+                    : (L.zipWith4 (concat4) charNameList (fmap (: []) elementList) (fmap (: []) charMatrixList) (fmap (: []) charMatrixList2))
+                )
+                    <> addBlockCharStrings
+                        (drop (1 + length charMatrixList) labelStringList)
+                        (tail elementStringList)
+                        (tail matrixStringList)
+                        (tail matrixStringList2)
+    where
+        -- concat3 a b c = a <> b <> c
+        concat4 a b c d = a <> b <> c <> d
+
+
+{- | knitTitlesChangeInfo tkaes [[[String]]] of title info and knits with [[[String]]] of character change info
+    into [[String]] for CSV output
+    Edges x Blocks x characters (final is transformation info)
+-}
+knitTitlesChangeInfo ∷ [[[String]]] → [[[String]]] → [[String]]
+knitTitlesChangeInfo titlesLLL transLLL =
+    if null titlesLLL || null transLLL
+        then []
+        else -- trace ("KTCI: " <> (show titlesLLL)) $
+        -- trace ("KTIC2: " <> (show transLLL))
+            concat $ zipWith formatEdge titlesLLL transLLL
+
+
+{- | formatEdge formats edges string for CSV
+    divides list into blocks by lengfth olf charcters and block titles haveing an extra line
+-}
+formatEdge ∷ [[String]] → [[String]] → [[String]]
+formatEdge titleLL transLL =
+    if null titleLL || null transLL
+        then []
+        else
+            let edgeTitle = head titleLL
+                numCharsL = fmap length transLL
+                blockTitlesLLL = U.divideList (fmap (+ 1) numCharsL) (tail titleLL)
+                blockTransLLL = transLL -- U.divideList numCharsL transLL
+            in  -- trace ("FE: " <> (show edgeTitle)) $
+                edgeTitle : (concat $ zipWith (formatBlock numCharsL) blockTitlesLLL blockTransLLL)
+
+
+-- | formatBlocks formats block string for CSV
+formatBlock ∷ [Int] → [[String]] → [String] → [[String]]
+formatBlock charLengthL titleLL transL =
+    if null titleLL || null transL
+        then []
+        else
+            let blockTitle = head titleLL
+                charTitleLL = tail titleLL
+            in  -- trace ("FB: " <> (show blockTitle)) $
+                blockTitle : (zipWith formatCharacter charTitleLL transL)
+
+
+-- | formatCharacter formats charcater string for CSV
+formatCharacter ∷ [String] → String → [String]
+formatCharacter titleLine transS =
+    if null titleLine || null transS
+        then []
+        else -- trace ("FC: " <> (show titleLine)) $
+            titleLine <> (LS.splitOn "," transS)
+
+
+{- | getEdgeTransformations get tranformations for an edge by block and character
+    changes by block then character
+-}
+getEdgeTransformations
+    ∷ V.Vector (LG.LNode VertexInfo) → V.Vector (V.Vector CharInfo) → (LG.Node, LG.Node) → [[(String, [(String, Int)], [[Int]])]]
+getEdgeTransformations nodeVect charInfoVV (parentIndex, childIndex) =
+    let parentNodeLabel = snd $ nodeVect V.! parentIndex
+        childNodeLabel = snd $ nodeVect V.! childIndex
+        parentBlockData = vertData parentNodeLabel
+        childBlockData = vertData childNodeLabel
+    in  V.toList $ V.zipWith3 getEdgeBlockChanges parentBlockData childBlockData charInfoVV
+
+
+-- | getEdgeBlockChanges takes VertexBlockData from parent and child node and gets transformations by character
+getEdgeBlockChanges
+    ∷ V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → [(String, [(String, Int)], [[Int]])]
+getEdgeBlockChanges parentBlockData childBlockData charInfoV =
+    V.toList $ V.zipWith3 getCharacterChanges parentBlockData childBlockData charInfoV
+
+
+{- | getCharacterChanges takes strings of character pairs and outputs differences as pairs,
+    for unaligned sequences performs a DO and uses aligned states
+-}
+getCharacterChanges ∷ CharacterData → CharacterData → CharInfo → (String, [(String, Int)], [[Int]])
+getCharacterChanges parentChar nodeChar charInfo =
+    let localType = charType charInfo
+        localAlphabet = (ST.toString <$> alphabet charInfo)
+
+        -- this to avoid recalculations and list access issues
+        lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
+        lAVect = V.fromList $ NE.toList $ lANES
+
+        -- getCharState
+        --    ∷ ∀ {b}
+        --     . (Show b, Bits b)
+        --    ⇒ b
+        --    → String
+        getCharState a = U.bitVectToCharState localAlphabet lANES lAVect a -- concat $ NE.toList $ decodeState localAlphabet a --
+        (slimParent, slimChild) =
+            if localType `notElem` [NucSeq, SlimSeq]
+                then ([], [])
+                else
+                    let (_, r) = case Measure.stateTransitionCompact $ slimTCM charInfo of
+                            Nothing → error $ fold
+                                ["Could not locate 'Dense TCM' for a character of type '", show localType, "'"]
+                            Just dm →
+                                slimPairwiseDO
+                                    dm
+                                    (M.makeDynamicCharacterFromSingleVector $ slimFinal parentChar)
+                                    (M.makeDynamicCharacterFromSingleVector $ slimFinal nodeChar)
+                    in  -- trace (show (r, length $ SV.foldMap getCharState $ extractMediansLeftGapped r, length $ SV.foldMap getCharState $ extractMediansRightGapped r))
+                        (SV.foldMap getCharState $ extractMediansLeftGapped r, SV.foldMap getCharState $ extractMediansRightGapped r)
+        (wideParent, wideChild) =
+            if localType `notElem` [WideSeq, AminoSeq]
+                then ([], [])
+                else
+                    let coefficient = Measure.minEdit (wideTCM charInfo)
+                        (_, r) =
+                            widePairwiseDO
+                                coefficient
+                                (Measure.stateTransitionPairwiseDispersion $ wideTCM charInfo)
+                                (M.makeDynamicCharacterFromSingleVector $ wideFinal parentChar)
+                                (M.makeDynamicCharacterFromSingleVector $ wideFinal nodeChar)
+                    in  (UV.foldMap getCharState $ extractMediansLeftGapped r, UV.foldMap getCharState $ extractMediansRightGapped r)
+        (hugeParent, hugeChild) =
+            if localType `notElem` [HugeSeq]
+                then ([], [])
+                else
+                    let coefficient = Measure.minEdit (hugeTCM charInfo)
+                        (_, r) =
+                            hugePairwiseDO
+                                coefficient
+                                (Measure.stateTransitionPairwiseDispersion $ hugeTCM charInfo)
+                                (M.makeDynamicCharacterFromSingleVector $ hugeFinal parentChar)
+                                (M.makeDynamicCharacterFromSingleVector $ hugeFinal nodeChar)
+                    in  (foldMap getCharState $ extractMediansLeftGapped r, foldMap getCharState $ extractMediansRightGapped r)
+
+        (parentState, nodeState)
+            | localType == Add = (show $ rangeFinal parentChar, show $ rangeFinal nodeChar)
+            | localType == NonAdd =
+                ( concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal parentChar
+                , concat $ V.map (U.bitVectToCharStateQual localAlphabet) $ stateBVFinal nodeChar
+                )
+            | localType `elem` packedNonAddTypes =
+                (UV.foldMap getCharState $ packedNonAddFinal parentChar, UV.foldMap getCharState $ packedNonAddFinal nodeChar)
+            | localType == Matrix =
+                (show $ fmap (fmap fst3) $ matrixStatesFinal parentChar, UV.foldMap getCharState $ packedNonAddFinal nodeChar)
+            | localType `elem` sequenceCharacterTypes = case localType of
+                x | x `elem` [NucSeq, SlimSeq] → (slimParent, slimChild)
+                x | x `elem` [WideSeq, AminoSeq] → (wideParent, wideChild)
+                x | x `elem` [HugeSeq] → (hugeParent, hugeChild)
+                x
+                    | x `elem` [AlignedSlim] →
+                        (SV.foldMap getCharState $ alignedSlimFinal parentChar, SV.foldMap getCharState $ alignedSlimFinal nodeChar)
+                x
+                    | x `elem` [AlignedWide] →
+                        (UV.foldMap getCharState $ alignedWideFinal parentChar, UV.foldMap getCharState $ alignedWideFinal nodeChar)
+                x
+                    | x `elem` [AlignedHuge] →
+                        (foldMap getCharState $ alignedHugeFinal parentChar, foldMap getCharState $ alignedHugeFinal nodeChar)
+                _ → error ("Un-implemented data type " <> show localType)
+            | otherwise = error ("Un-implemented data type " <> show localType)
+
+        -- character states and transformation numbers (only counting unambiguous)
+        elementsParent = getElementNumbers (alphabetSymbols localAlphabet) parentState
+        elementsChild = getElementNumbers (alphabetSymbols localAlphabet) nodeState
+        elementsCombined = elementsChild -- zip (alphabetSymbols localAlphabet)  (zipWith (+) (fmap snd elementsParent) (fmap snd elementsChild))
+        elementsCombinedString = L.intercalate "," $ fmap makeElementString elementsCombined
+
+        emptyMatrix = replicate (length localAlphabet) (replicate (length localAlphabet) 0)
+        elementTransformations = getTransformations (alphabetSymbols localAlphabet) parentState nodeState emptyMatrix
+    in  -- convert String to pair list
+        -- (parentState <> "," <> nodeState <> "," <> elementsCombinedString <> "," <> (replaceComma $ show elementTransformations), elementsCombined, elementTransformations)
+        ( parentState <> "," <> nodeState <> "," <> (replaceComma $ show elementTransformations)
+        , elementsCombined
+        , elementTransformations
+        )
+    where
+        -- ((replaceComma $ show elementTransformations), elementsCombined, elementTransformations)
+
+        makeElementString (a, b) = a <> " " <> (show b)
+        replaceComma a =
+            if null a
+                then []
+                else
+                    if head a == ','
+                        then ' ' : replaceComma (tail a)
+                        else (head a) : replaceComma (tail a)
+
+
+{- | getTransformations takes alphabet and parent and child SINGE CHARACXTRE STATES
+and returns matrix of numbers of changes
+This an absurdely slow implementation n^2 at least
+-}
+getTransformations ∷ [String] → String → String → [[Int]] → [[Int]]
+getTransformations alphabet parentCharList childCharList curMatrix =
+    if null parentCharList
+        then curMatrix
+        else
+            let pChar = head parentCharList
+                cChar = head childCharList
+            in  -- trace ("GT: " <> (show curMatrix)) $
+                if pChar == cChar
+                    then getTransformations alphabet (tail parentCharList) (tail childCharList) curMatrix
+                    else
+                        if (pChar : []) `elem` alphabet && (cChar : []) `elem` alphabet
+                            then
+                                let pIndex = fromJust $ L.elemIndex (pChar : []) alphabet
+                                    cIndex = fromJust $ L.elemIndex (cChar : []) alphabet
+                                    newMatrix = incrementMatrix curMatrix pIndex cIndex
+                                in  getTransformations alphabet (tail parentCharList) (tail childCharList) newMatrix
+                            else getTransformations alphabet (tail parentCharList) (tail childCharList) curMatrix
+
+
+-- | incrementMatrix updates matrix very stupidly
+incrementMatrix ∷ [[Int]] → Int → Int → [[Int]]
+incrementMatrix inMatrix p c =
+    if null inMatrix
+        then []
+        else
+            let firstRows = take p inMatrix
+                lastRows = drop (p + 1) inMatrix
+                updateRow = inMatrix !! p
+                firstPart = take c updateRow
+                lastPart = drop (c + 1) updateRow
+                newRow = firstPart <> [1 + (updateRow !! c)] <> lastPart
+            in  firstRows <> [newRow] <> lastRows
+
+
+-- | getElementNumbers takes a String of SINGLECHARACTRE states and checks versus alphabet for unambiguous states numbers
+getElementNumbers ∷ [String] → String → [(String, Int)]
+getElementNumbers alphabet charList =
+    if null charList
+        then []
+        else
+            if null alphabet
+                then []
+                else
+                    let stringList = fmap (: []) charList
+                        alphNumber = length $ L.findIndices (== (head alphabet)) stringList
+                    in  ((head alphabet), alphNumber) : getElementNumbers (tail alphabet) charList
 
 
 {- | getAlignmentBasedChanges' takes two equal length implied Alignments and outputs list of element changes between the two
 assumes single String in each list
 -}
-getAlignmentBasedChanges' ∷ Int → ([String], [String]) → [String]
-getAlignmentBasedChanges' index (a, b)
+getAlignmentBasedChanges' ∷ Bool → Int → ([String], [String]) → [String]
+getAlignmentBasedChanges' onlyDiffs index (a, b)
     | length a > 1 || length b < 1 = error ("Should only have length 1 lists here: " <> (show (length a, length b)))
     | null a = []
     | otherwise =
@@ -751,15 +1294,16 @@ getAlignmentBasedChanges' index (a, b)
                 -- else if length stringList1 /= length stringList2 then
                 --         error ("Unequal characters in parent and node state lists in getAlignmentBasedChanges': "
                 --         <> (show (length stringList1, length stringList2) <> "\n" <> (show stringList1) <> "\n" <> (show stringList2)))
-                    getAlignmentBasedChangesGuts index stringList1 stringList2
+                    getAlignmentBasedChangesGuts onlyDiffs index stringList1 stringList2
 
 
--- | getAlignmentBasedChangesGuts takes processed element lists and cretes string of changes
-getAlignmentBasedChangesGuts ∷ Int → [String] → [String] → [String]
-getAlignmentBasedChangesGuts index a b
+-- | getAlignmentBasedChangesGuts takes processed element lists and creates string of changes
+getAlignmentBasedChangesGuts ∷ Bool → Int → [String] → [String] → [String]
+getAlignmentBasedChangesGuts onlyDiffs index a b
     | null a || null b = []
-    | (head a) == (head b) = getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
-    | otherwise = ((show index) <> ":" <> (head a) <> "," <> (head b)) : getAlignmentBasedChangesGuts (index + 1) (tail a) (tail b)
+    | (head a) == (head b) && onlyDiffs = getAlignmentBasedChangesGuts onlyDiffs (index + 1) (tail a) (tail b)
+    | otherwise =
+        ((show index) <> ":" <> (head a) <> "," <> (head b)) : getAlignmentBasedChangesGuts onlyDiffs (index + 1) (tail a) (tail b)
 
 
 {- | getAlignmentBasedChanges takes two equal length implied Alignments and outputs list of element changes between the two
@@ -899,7 +1443,7 @@ based on "naive" data for human legible output
 need to add back-converting to observed states using alphabet in charInfo
 nothing here for packed since not "entered"
 useIA for using alignment fields for changes in diagnosis
-is useIA == False then just printing final seqeunce and removes spaces
+is useIA == False then just printing final sequence and removes spaces
 for single character sequences (e.g. DNA/Protein)
 -}
 makeCharLine ∷ Bool → (CharacterData, CharInfo) → [String]
@@ -1252,7 +1796,8 @@ length and zipping for missing data
 -}
 getTaxonCharString ∷ V.Vector (V.Vector CharInfo) → VertexBlockData → PhyG String
 getTaxonCharString charInfoVV charDataVV =
-    let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
+    -- False for not use IA field
+    let lengthBlock = maximum $ V.zipWith (U.getCharacterLength False) (V.head charDataVV) (V.head charInfoVV)
         -- parallel stuff
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
@@ -1272,7 +1817,8 @@ length and zipping for missing data
 -}
 getTaxonCharStringList ∷ V.Vector (V.Vector CharInfo) → VertexBlockData → String → PhyG [String]
 getTaxonCharStringList charInfoVV charDataVV leafName =
-    let lengthBlock = maximum $ V.zipWith U.getCharacterLength (V.head charDataVV) (V.head charInfoVV)
+    let -- False for not use IA field
+        lengthBlock = maximum $ V.zipWith (U.getCharacterLength False) (V.head charDataVV) (V.head charInfoVV)
         -- parallel stuff
         action ∷ (V.Vector CharInfo, V.Vector CharacterData) → PhyG String
         action = getBlockStringPair lengthBlock
@@ -1416,7 +1962,8 @@ makeCostString namePairList costList =
 getBlockLength ∷ V.Vector CharacterData → V.Vector CharInfo → [Int]
 getBlockLength inCharDataV inCharInfoV =
     -- trace ("GBL:" <> (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
-    V.toList $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV
+    -- False so not use IA field
+    V.toList $ V.zipWith (U.getCharacterLength False) inCharDataV inCharInfoV
 
 
 -- | getBlockNames returns a list of the lengths of all characters in a blocks
@@ -1733,7 +2280,7 @@ pairList2Fasta includeMissing inCharInfo nameDataPairList =
                         else sequenceString
 
                 -- Make lines 50 chars long
-                sequenceChunks = ((<> "\n") <$> SL.chunksOf 50 sequenceString')
+                sequenceChunks = ((<> "\n") <$> LS.chunksOf 50 sequenceString')
             in  if ((not includeMissing) && (isAllGaps sequenceString)) || (blockDatum == emptyCharacter)
                     then pairList2Fasta includeMissing inCharInfo (tail nameDataPairList)
                     else

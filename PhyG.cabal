@@ -491,46 +491,46 @@ Executable phyg
 -- Provides various metrics for scoring static characters and
 -- performing string alignment on dynamic characters.
 
-Library dynamic-character
-
-  Import:
-    build-defaults,
-    ffi-build-info
-
-  HS-Source-Dirs:
-    lib/dynamic-character/src
-
-  Build-Depends:
---    PHANE-alphabet,
-    PHANE-dynamic-character,
-    PHANE-dynamic-character-element,
-    PhyG:tcm,
-    PhyG:utility,
-    base                     >= 4.11      && < 5.0,
---    bv-little,
-    containers               >= 0.6.2     && < 1.0,
-    matrices                 >= 0.5       && < 1.0,
-    monad-loops              >= 0.4       && < 1.0,
-    primitive                >= 0.7.1     && < 1.0,
-    vector                   >= 0.12.0.3  && < 1.0,
-
-  Exposed-Modules:
---    Bio.DynamicCharacter
---    Bio.DynamicCharacter.Measure
---    Bio.DynamicCharacter.HandleGaps
-    DirectOptimization.Pairwise
-    DirectOptimization.Pairwise.Visualization
-    DirectOptimization.Pairwise.Swapping
-    DirectOptimization.Pairwise.Ukkonen
-    DirectOptimization.PreOrder
-
-  Other-Modules:
-    DirectOptimization.Pairwise.Direction
-    DirectOptimization.Pairwise.Huge
-    DirectOptimization.Pairwise.Internal
-    DirectOptimization.Pairwise.Slim
-    DirectOptimization.Pairwise.Slim.FFI
-    DirectOptimization.Pairwise.Wide
+-- -- Library dynamic-character
+-- -- 
+-- --   Import:
+-- --     build-defaults,
+-- --     ffi-build-info
+-- -- 
+-- --   HS-Source-Dirs:
+-- --     lib/dynamic-character/src
+-- -- 
+-- --   Build-Depends:
+-- -- --    PHANE-alphabet,
+-- --     PHANE-dynamic-character,
+-- --     PHANE-dynamic-character-element,
+-- --     PhyG:tcm,
+-- --     PhyG:utility,
+-- --     base                     >= 4.11      && < 5.0,
+-- -- --    bv-little,
+-- --     containers               >= 0.6.2     && < 1.0,
+-- --     matrices                 >= 0.5       && < 1.0,
+-- --     monad-loops              >= 0.4       && < 1.0,
+-- --     primitive                >= 0.7.1     && < 1.0,
+-- --     vector                   >= 0.12.0.3  && < 1.0,
+-- -- 
+-- --   Exposed-Modules:
+-- -- --    Bio.DynamicCharacter
+-- -- --    Bio.DynamicCharacter.Measure
+-- -- --    Bio.DynamicCharacter.HandleGaps
+-- --     DirectOptimization.Pairwise
+-- --     DirectOptimization.Pairwise.Visualization
+-- --     DirectOptimization.Pairwise.Swapping
+-- --     DirectOptimization.Pairwise.Ukkonen
+-- --     DirectOptimization.PreOrder
+-- -- 
+-- --   Other-Modules:
+-- --     DirectOptimization.Pairwise.Direction
+-- --     DirectOptimization.Pairwise.Huge
+-- --     DirectOptimization.Pairwise.Internal
+-- --     DirectOptimization.Pairwise.Slim
+-- --     DirectOptimization.Pairwise.Slim.FFI
+-- --     DirectOptimization.Pairwise.Wide
 
 
 -- Library for working with TCMs and SCMs in various representations.
@@ -558,7 +558,6 @@ Library tcm
     containers               >= 0.6.2     && < 1.0,
     concurrent-extra         >= 0.7.0     && < 1.0,
     concurrent-hashtable     >= 0.1.8     && < 1.0,     
-    concurrent-hashtable-opt,
     deepseq                  >= 1.4       && < 2.0,
     hashable                 >= 1.3       && < 2.0,
     hashtables               >= 1.2       && < 2.0,
@@ -572,7 +571,7 @@ Library tcm
   Exposed-Modules:
     Data.Hashable.Memoize
     Data.Hashable.Memoize.ViaConcurrentHashtable
-    Data.Hashable.Memoize.ViaConcurrentHashtableOpt
+--    Data.Hashable.Memoize.ViaConcurrentHashtableOpt
     Data.Hashable.Memoize.ViaIORef
     Data.Hashable.Memoize.ViaManualLock
     Data.Hashable.Memoize.ViaReadWriteLock
@@ -648,7 +647,7 @@ Test-Suite test-dynamic-character
     PHANE-alphabet,
     PHANE-dynamic-character,
     PHANE-dynamic-character-element:quickcheck,
-    PhyG:dynamic-character,
+--    PhyG:dynamic-character,
     PhyG:tcm,
     base                     >= 4.11      && < 5.0,
     bimap                    >= 0.3       && < 1.0,
