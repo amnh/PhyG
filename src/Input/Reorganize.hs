@@ -512,10 +512,7 @@ from prealignedCharacterTypes
 removeConstantCharactersPrealigned ∷ ProcessedData → PhyG ProcessedData
 removeConstantCharactersPrealigned inData@(nameVect, bvNameVect, blockDataVect)
     | V.null blockDataVect = pure inData
-    | otherwise =
-        let action ∷ BlockData → BlockData
-            action = removeConstantBlockPrealigned
-        in  do
+    | otherwise = do
                 newBlockData ←
                     getParallelChunkMap <&> \pMap →
                         removeConstantBlockPrealigned `pMap` V.toList blockDataVect
