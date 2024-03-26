@@ -50,16 +50,17 @@ optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPreal
     0 → pure inData
     _ → do
         -- don't recode if SI/PMDL since need no change cost
-        if (optimalityCriterion inGS) `elem` [SI, PMDL] then pure inData
-        else do
-            -- remove constant characters from prealigned
-            inData' <- removeConstantCharactersPrealigned inData
+        if (optimalityCriterion inGS) `elem` [SI, PMDL]
+            then pure inData
+            else do
+                -- remove constant characters from prealigned
+                inData' ← removeConstantCharactersPrealigned inData
 
-            -- convert prealigned to nonadditive if all 1 tcms
-            let inData'' = convertPrealignedToNonAdditive inData'
+                -- convert prealigned to nonadditive if all 1 tcms
+                let inData'' = convertPrealignedToNonAdditive inData'
 
-            -- bit packing for non-additivecharacters
-            BP.packNonAdditiveData inGS inData''
+                -- bit packing for non-additivecharacters
+                BP.packNonAdditiveData inGS inData''
 
 
 {- | convertPrealignedToNonAdditive converts prealigned data to non-additive
@@ -513,10 +514,10 @@ removeConstantCharactersPrealigned ∷ ProcessedData → PhyG ProcessedData
 removeConstantCharactersPrealigned inData@(nameVect, bvNameVect, blockDataVect)
     | V.null blockDataVect = pure inData
     | otherwise = do
-                newBlockData ←
-                    getParallelChunkMap <&> \pMap →
-                        removeConstantBlockPrealigned `pMap` V.toList blockDataVect
-                pure (nameVect, bvNameVect, V.fromList newBlockData)
+        newBlockData ←
+            getParallelChunkMap <&> \pMap →
+                removeConstantBlockPrealigned `pMap` V.toList blockDataVect
+        pure (nameVect, bvNameVect, V.fromList newBlockData)
 
 
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
