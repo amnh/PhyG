@@ -32,6 +32,13 @@ Maintainer  :  Ward Wheeler <wheeler@amnh.org>
 Stability   :  unstable
 Portability :  portable (I hope)
 -}
+
+{-
+ToDo 
+    1) actually check all sub options to make sure valid
+    2) Check for "bad" combinations or irrelevent options and warn
+
+-}
 module Commands.Verify (
     verifyCommands,
     allowedCommandList,
