@@ -536,7 +536,7 @@ removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInf
 
                         -- create vector of single characters with vector of taxon data of sngle character each
                         -- like a standard matrix with a single character
-                        singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) (V.fromList [0 .. numChars - 1])
+                        singleCharVect = fmap (BP.getSingleCharacter taxVectByCharVect) (V.fromList [0 .. numChars - 1])
 
                         -- actually remove constants form chaarcter list
                         singleCharVect' = V.zipWith removeConstantCharsPrealigned singleCharVect charInfoV

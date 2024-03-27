@@ -3,6 +3,7 @@ Module specifying utility functions for use with PhyGraph
 -}
 module Utilities.Utilities where
 
+import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
 import Complexity.Graphs qualified as GC
 import Complexity.Utilities qualified as GCU
 import Control.Monad (replicateM)
@@ -38,20 +39,7 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
-
-
-{- | diagonalNonZero checks if any diagonal values are == 0
-assumes square
-call with index = 0
--}
-diagonalNonZero ∷ V.Vector (V.Vector Int) → Int → Bool
-diagonalNonZero inMatrix index =
-    if index == V.length inMatrix
-        then False
-        else
-            if (inMatrix V.! index) V.! index /= 0
-                then True
-                else diagonalNonZero inMatrix (index + 1)
+import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
 
 
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
@@ -253,16 +241,15 @@ getLeafInsertCost charInfoV charDataV =
 
 {- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
 for PMDL of add, non add matrix log2 of alphabet size
+This uses actual inserts of different elements as oposedd to average, although averaged over leaves so not 
+root dependant
 -}
 getCharacterInsertCost ∷ CharacterData → CharInfo → Double
 getCharacterInsertCost inChar charInfo =
     -- trace ("In GCIC: " <> (show $ charType charInfo) <> " " <> (show $ weight charInfo) <> " " <> (show $ logBase 2.0 $ (fromIntegral $ length (alphabet charInfo) :: Double)) <> " " <> (show $  (alphabet charInfo)) <> " " <> (show $ BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar))) $
     let localCharType = charType charInfo
         thisWeight = weight charInfo
-        -- init since don't wan't gap-gap match cost in there
-        rowIndelSum = fromIntegral $ V.sum $ V.init $ S.getFullRowVect (costMatrix charInfo) (length (alphabet charInfo) - 1)
-        -- inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
-        inDelCost = rowIndelSum / (fromIntegral $ length (alphabet charInfo) - 1)
+        
         numStates =
             if localCharType == NonAdd
                 then BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar)
@@ -276,7 +263,36 @@ getCharacterInsertCost inChar charInfo =
                                 then toEnum $ V.length $ V.head $ matrixStatesPrelim inChar
                                 else 0 ∷ Word
         alphabetWeight = logBase 2.0 $ (fromIntegral $ numStates ∷ Double)
-    in  if localCharType == Add
+
+        allGapSlim = SV.replicate (SV.length $ slimPrelim inChar) $ (0 ∷ SlimState) `setBit` fromEnum gapIndex
+        allGapWide = UV.replicate (UV.length $ widePrelim inChar) $ (0 ∷ WideState) `setBit` fromEnum gapIndex
+
+        hugeGapChar = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex 
+        allGapHuge = V.replicate (V.length $ hugePrelim inChar) hugeGapChar
+
+        hugeGapCharAligned = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex 
+        allGapHugeAligned = V.replicate (V.length $ (snd3 $ alignedHugePrelim inChar)) hugeGapCharAligned
+     
+        insertCost  
+            | localCharType == Add                      = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+            | localCharType == NonAdd                   = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+            | localCharType `elem` packedNonAddTypes    = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
+            | localCharType == Matrix                   = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+            | localCharType == SlimSeq                  = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar)
+            | localCharType == NucSeq                   = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar) 
+            | localCharType == WideSeq                  = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar) 
+            | localCharType == AminoSeq                 = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar)
+            | localCharType == HugeSeq                  = fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHuge (hugePrelim inChar)
+            | localCharType == AlignedSlim              = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (snd3 $ alignedSlimPrelim inChar)
+            | localCharType == AlignedWide              = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (snd3 $ alignedWidePrelim inChar)
+            | localCharType == AlignedHuge              = fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHugeAligned (snd3 $ alignedHugePrelim inChar)
+            | otherwise = error ("Character type unimplemented : " <> show localCharType)
+
+    in 
+        --trace ("GCIC: " <> (show (insertCost, inDelCost * fromIntegral (SV.length $ slimPrelim inChar)))) $
+        thisWeight * insertCost
+
+    {-    if localCharType == Add
             then thisWeight * alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
             else
                 if localCharType == NonAdd
@@ -307,6 +323,7 @@ getCharacterInsertCost inChar charInfo =
                                                                                 if localCharType == AlignedHuge
                                                                                     then thisWeight * inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
                                                                                     else error ("Character type unimplemented : " <> show localCharType)
+    -}
 
 
 {- | splitSequence takes a ShortText divider and splits a list of ShortText on
@@ -1232,14 +1249,6 @@ glueBackTaxChar singleCharVect =
     let numTaxa = V.length $ V.head singleCharVect
         multiCharVect = fmap (getSingleTaxon singleCharVect) (V.fromList [0 .. numTaxa - 1])
     in  multiCharVect
-
-
-{- | getSingleCharacter takes a taxa x characters block and an index and returns the character vector for that index
-resulting in a taxon by single charcater vector
--}
-getSingleCharacter ∷ V.Vector (V.Vector CharacterData) → Int → V.Vector CharacterData
-getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
-
 
 {- | concatFastas is used by "report(ia)" to create a single concatenated fasta
 for use by programs such as RAxML andf TNT

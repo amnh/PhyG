@@ -34,6 +34,7 @@ Stability   :  unstable
 Portability :  portable (I hope)
 -}
 module Input.BitPack (
+    getSingleCharacter,
     packNonAdditiveData,
     median2Packed,
     median2PackedUnionField,
@@ -61,8 +62,6 @@ import Data.Word
 import GeneralUtilities
 import PHANE.Evaluation
 import Types.Types
-import Utilities.Utilities qualified as U
-
 
 -- import ParallelUtilities qualified as PU
 -- import Debug.Trace
@@ -1947,6 +1946,12 @@ Functions to encode ("pack") non-additive characters into new Word64 characters
 based on their number of states
 -}
 
+{- | getSingleCharacter takes a taxa x characters block and an index and returns the character vector for that index
+resulting in a taxon by single charcater vector
+-}
+getSingleCharacter ∷ V.Vector (V.Vector CharacterData) → Int → V.Vector CharacterData
+getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
+
 {- | packData takes input data and creates a variety of bit-packed data types
 to increase efficiency and reduce footprint of non-additive characters
 that are encoded as bitvectors
@@ -1976,7 +1981,7 @@ recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
     let numChars = V.length charInfoV
 
         -- create vector of single characters with vector of taxon data of sngle character each
-        singleCharVectList = V.toList $ fmap (U.getSingleCharacter charDataVV) (V.fromList [0 .. numChars - 1])
+        singleCharVectList = V.toList $ fmap (getSingleCharacter charDataVV) (V.fromList [0 .. numChars - 1])
 
         packAction ∷ (V.Vector CharacterData, CharInfo) → PhyG ([[CharacterData]], [CharInfo])
         packAction = packNonAddPair inGS

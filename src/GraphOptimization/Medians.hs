@@ -67,6 +67,7 @@ module GraphOptimization.Medians (
     generalSequenceDiff,
     union2Single,
     distance2Unions,
+    diagonalNonZero
 ) where
 
 import Bio.DynamicCharacter
@@ -83,18 +84,26 @@ import Data.TCM.Dense qualified as TCMD
 import Data.Vector qualified as V
 import Data.Vector.Generic qualified as GV
 import Data.Vector.Storable qualified as SV
--- import Data.Word
-
--- import Foreign.C.Types (CUInt)
-
-import Debug.Trace
 import DirectOptimization.Pairwise
 import GeneralUtilities
 import Input.BitPack qualified as BP
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
-import Utilities.Utilities (diagonalNonZero)
+import Debug.Trace
+
+{- | diagonalNonZero checks if any diagonal values are == 0
+assumes square
+call with index = 0
+-}
+diagonalNonZero ∷ V.Vector (V.Vector Int) → Int → Bool
+diagonalNonZero inMatrix index =
+    if index == V.length inMatrix
+        then False
+        else
+            if (inMatrix V.! index) V.! index /= 0
+                then True
+                else diagonalNonZero inMatrix (index + 1)
 
 
 {- | makeDynamicCharacterFromSingleVector takes a single vector (usually a 'final' state)
