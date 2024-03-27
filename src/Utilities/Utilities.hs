@@ -270,8 +270,8 @@ getCharacterInsertCost inChar charInfo =
         hugeGapChar = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex 
         allGapHuge = V.replicate (V.length $ hugePrelim inChar) hugeGapChar
 
-        hugeGapCharAligned = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex 
-        allGapHugeAligned = V.replicate (V.length $ (snd3 $ alignedHugePrelim inChar)) hugeGapCharAligned
+        hugeGapCharAligned = ((V.head $ snd3 $ alignedHugePrelim inChar) `xor` (V.head $ snd3 $ alignedHugePrelim inChar)) `setBit` fromEnum gapIndex 
+        allGapHugeAligned = V.replicate (V.length $ snd3 $ alignedHugePrelim inChar) hugeGapCharAligned
      
         insertCost  
             | localCharType == Add                      = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
