@@ -246,7 +246,7 @@ root dependant
 -}
 getCharacterInsertCost ∷ CharacterData → CharInfo → Double
 getCharacterInsertCost inChar charInfo =
-    -- trace ("In GCIC: " <> (show $ charType charInfo) <> " " <> (show $ weight charInfo) <> " " <> (show $ logBase 2.0 $ (fromIntegral $ length (alphabet charInfo) :: Double)) <> " " <> (show $  (alphabet charInfo)) <> " " <> (show $ BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar))) $
+    trace ("In GCIC: " <> (show $ charType charInfo)) $
     let localCharType = charType charInfo
         thisWeight = weight charInfo
         
@@ -264,8 +264,11 @@ getCharacterInsertCost inChar charInfo =
                                 else 0 ∷ Word
         alphabetWeight = logBase 2.0 $ (fromIntegral $ numStates ∷ Double)
 
-        allGapSlim = SV.replicate (SV.length $ slimPrelim inChar) $ (0 ∷ SlimState) `setBit` fromEnum gapIndex
-        allGapWide = UV.replicate (UV.length $ widePrelim inChar) $ (0 ∷ WideState) `setBit` fromEnum gapIndex
+        slimLength = max (SV.length $ slimPrelim inChar) (SV.length $ snd3 $ alignedSlimPrelim inChar)
+        wideLength = max (UV.length $ widePrelim inChar) (UV.length $ snd3 $ alignedWidePrelim inChar)
+
+        allGapSlim = SV.replicate slimLength $ (0 ∷ SlimState) `setBit` fromEnum gapIndex
+        allGapWide = UV.replicate wideLength $ (0 ∷ WideState) `setBit` fromEnum gapIndex
 
         hugeGapChar = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex 
         allGapHuge = V.replicate (V.length $ hugePrelim inChar) hugeGapChar
@@ -289,7 +292,7 @@ getCharacterInsertCost inChar charInfo =
             | otherwise = error ("Character type unimplemented : " <> show localCharType)
 
     in 
-        --trace ("GCIC: " <> (show (insertCost, inDelCost * fromIntegral (SV.length $ slimPrelim inChar)))) $
+        --trace ("GCIC: " <> (show (insertCost, thisWeight * insertCost, allGapSlim, snd3 $ alignedSlimPrelim inChar))) $
         thisWeight * insertCost
 
     {-    if localCharType == Add
