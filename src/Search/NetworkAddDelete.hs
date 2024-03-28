@@ -1939,7 +1939,7 @@ getCharacterDelta
 getCharacterDelta (_, v, _, v', a, b) inCharTree charInfo =
     -- getCharacterDelta (u,v,u',v',a,b) inCharTree charInfo =
     let doIA = False
-        noChangeCostAdjust = False
+        noChangeCostAdjust = False --this since want a distance not a median
         -- filterGaps = True
         -- uData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree u
         vData = V.head $ V.head $ vertData $ fromJust $ LG.lab inCharTree v

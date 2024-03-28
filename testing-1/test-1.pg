@@ -4,13 +4,13 @@ set(criterion:SI)
 
 -- this has no changes (all A)
 -- uses DO
-read("test-1.fas", tcm:"test-1-Ney2.bit.tcm")
+--read("test-1.fas", tcm:"test-1-Ney2.bit.tcm")
 -- prealigned
 --read(prefasta:"test-1.fas", tcm:"test-1-Ney2.bit.tcm")
 
 -- this has one single change (A->C)
 --read("test-2.fas", tcm:"test-1-Ney2.bit.tcm")
---read(prefasta:"test-2.fas", tcm:"test-1-Ney2.bit.tcm")
+read(prefasta:"test-2.fas", tcm:"test-1-Ney2.bit.tcm")
 
 --wide
 --read("test-2-wide.fas", tcm:"test-1-Ney9.bit.tcm")

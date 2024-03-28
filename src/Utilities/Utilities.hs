@@ -246,7 +246,7 @@ root dependant
 -}
 getCharacterInsertCost ∷ CharacterData → CharInfo → Double
 getCharacterInsertCost inChar charInfo =
-    trace ("In GCIC: " <> (show $ charType charInfo)) $
+    --trace ("In GCIC: " <> (show $ charType charInfo)) $
     let localCharType = charType charInfo
         thisWeight = weight charInfo
         
@@ -276,6 +276,8 @@ getCharacterInsertCost inChar charInfo =
         hugeGapCharAligned = ((V.head $ snd3 $ alignedHugePrelim inChar) `xor` (V.head $ snd3 $ alignedHugePrelim inChar)) `setBit` fromEnum gapIndex 
         allGapHugeAligned = V.replicate (V.length $ snd3 $ alignedHugePrelim inChar) hugeGapCharAligned
      
+        -- don't need to worry about noCost Adjustment and medioan issue since "-" -> "-" is zero
+        -- otherwise would hahve to subtract off extra no-change cost (gap to gap)
         insertCost  
             | localCharType == Add                      = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
             | localCharType == NonAdd                   = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
@@ -291,8 +293,7 @@ getCharacterInsertCost inChar charInfo =
             | localCharType == AlignedHuge              = fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHugeAligned (snd3 $ alignedHugePrelim inChar)
             | otherwise = error ("Character type unimplemented : " <> show localCharType)
 
-    in 
-        --trace ("GCIC: " <> (show (insertCost, thisWeight * insertCost, allGapSlim, snd3 $ alignedSlimPrelim inChar))) $
+    in  --trace ("GCIC: " <> (show (insertCost, thisWeight * insertCost, allGapSlim, snd3 $ alignedSlimPrelim inChar))) $
         thisWeight * insertCost
 
     {-    if localCharType == Add

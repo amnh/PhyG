@@ -302,9 +302,9 @@ postOrderIAUnion inGraph charInfo inNodeList =
                                                                         leftChar = V.head $ V.head $ head childCharacters
                                                                         rightChar = V.head $ V.head $ last childCharacters
 
-                                                                        -- Since costs are not used here, No Change Adjust is set to False
-                                                                        noChangeCostAdjust = False
-                                                                        newCharacter = M.makeIAPrelimCharacter noChangeCostAdjust charInfo inCharacter leftChar rightChar
+                                                                        -- Since this is a median
+                                                                        isMedian = True
+                                                                        newCharacter = M.makeIAPrelimCharacter isMedian charInfo inCharacter leftChar rightChar
 
                                                                         newLabel = nodeLabel{vertData = V.singleton (V.singleton newCharacter), nodeType = nodeType'}
                                                                         newGraph = LG.insEdges (inNodeEdges <> outNodeEdges) $ LG.insNode (nodeIndex, newLabel) $ LG.delNode nodeIndex childTree
@@ -981,6 +981,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
         thisCharType = charType charInfo
         lChangeCost = changeCost charInfo
         lNoChangeCost = noChangeCost charInfo
+        isMedian = False --since want distances so adjust for extra noChnage costs
+                                                                    
     in  -- no nded to do nochange/change--all recoded in that case
         if thisCharType == Add
             then
@@ -1010,11 +1012,10 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                         if thisCharType `elem` packedNonAddTypes
                             then
                                 let -- minCost = localCost (BP.median2Packed thisCharType uCharacter vCharacter)
-                                    noChnageCostAdjust = False
                                     (minDiffV, maxDiffV) =
                                         UV.unzip $
                                             UV.zipWith
-                                                (BP.minMaxCharDiff noChnageCostAdjust thisCharType (lNoChangeCost, lChangeCost))
+                                                (BP.minMaxCharDiff isMedian thisCharType (lNoChangeCost, lChangeCost))
                                                 (packedNonAddFinal uCharacter)
                                                 (packedNonAddFinal vCharacter)
                                     maxCost = thisWeight * UV.sum maxDiffV
@@ -1054,9 +1055,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                                                         let uFinal = M.makeDynamicCharacterFromSingleVector (slimFinal uCharacter)
                                                                             vFinal = M.makeDynamicCharacterFromSingleVector (slimFinal vCharacter)
 
-                                                                            -- Since these are charcater distances--no need for no change cost adjustment
-                                                                            noChangeCostAdjust = False
-                                                                            newEdgeCharacter = M.getDOMedianCharInfo noChangeCostAdjust charInfo (uCharacter{slimGapped = uFinal}) (vCharacter{slimGapped = vFinal})
+                                                                            -- Since these are character distances--not a median
+                                                                            newEdgeCharacter = M.getDOMedianCharInfo isMedian charInfo (uCharacter{slimGapped = uFinal}) (vCharacter{slimGapped = vFinal})
                                                                             (newU, _, newV) = slimGapped newEdgeCharacter
                                                                         in  -- trace ("GCD:\n" <> (show (slimFinal uCharacter, newU)) <> "\n" <> (show (slimFinal vCharacter, newV)) <> "\nDO Cost:" <> (show doCOST))
                                                                             zipWith (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
@@ -1080,9 +1080,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                                                                 let uFinal = M.makeDynamicCharacterFromSingleVector (wideFinal uCharacter)
                                                                                     vFinal = M.makeDynamicCharacterFromSingleVector (wideFinal vCharacter)
 
-                                                                                    -- Since these are charcater distances--no need for no change cost adjustment
-                                                                                    noChangeCostAdjust = False
-                                                                                    newEdgeCharacter = M.getDOMedianCharInfo noChangeCostAdjust charInfo (uCharacter{wideGapped = uFinal}) (vCharacter{wideGapped = vFinal})
+                                                                                    -- Since these are character distances--no need for no change cost adjustment
+                                                                                    newEdgeCharacter = M.getDOMedianCharInfo isMedian charInfo (uCharacter{wideGapped = uFinal}) (vCharacter{wideGapped = vFinal})
                                                                                     (newU, _, newV) = wideGapped newEdgeCharacter
                                                                                 in  -- trace ("GCD:\n" <> (show m) <> "\n" <> (show (uFinal, newU)) <> "\n" <> (show (vFinal, newV)))
                                                                                     zipWith (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
@@ -1100,9 +1099,8 @@ getCharacterDistFinal finalMethod uCharacter vCharacter charInfo =
                                                                                         let uFinal = M.makeDynamicCharacterFromSingleVector (hugeFinal uCharacter)
                                                                                             vFinal = M.makeDynamicCharacterFromSingleVector (hugeFinal vCharacter)
 
-                                                                                            -- Since these are charcater distances--no need for no change cost adjustment
-                                                                                            noChangeCostAdjust = False
-                                                                                            newEdgeCharacter = M.getDOMedianCharInfo noChangeCostAdjust charInfo (uCharacter{hugeGapped = uFinal}) (vCharacter{hugeGapped = vFinal})
+                                                                                            -- Since these are character distances--no need for no change cost adjustment
+                                                                                            newEdgeCharacter = M.getDOMedianCharInfo isMedian charInfo (uCharacter{hugeGapped = uFinal}) (vCharacter{hugeGapped = vFinal})
                                                                                             (newU, _, newV) = hugeGapped newEdgeCharacter
                                                                                         in  -- trace ("GCD:\n" <> (show (uFinal, newU)) <> "\n" <> (show (vFinal, newV)))
                                                                                             zipWith (M.generalSequenceDiff thisMatrix (length thisMatrix)) (GV.toList newU) (GV.toList newV)
@@ -1698,8 +1696,8 @@ getDOFinal
     → (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
     → (SlimDynamicCharacter, WideDynamicCharacter, HugeDynamicCharacter)
 getDOFinal charInfo parentFinal nodeGapped =
-    let noChangeCostAdjust = False
-        (a, b, c, _) = M.pairwiseDO noChangeCostAdjust charInfo parentFinal nodeGapped
+    let isMedian = True
+        (a, b, c, _) = M.pairwiseDO isMedian charInfo parentFinal nodeGapped
         parentNodeChar = (a, b, c)
 
         -- put "new" gaps into 2nd and thd gapped fields of appropriate seqeunce type
