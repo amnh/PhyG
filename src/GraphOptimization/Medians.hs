@@ -892,7 +892,7 @@ getDOMedian isMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM t
                     if isMedian
                         then 0
                         else snd $ get2WaySlim thisSlimTCM (extractMedians r) (extractMedians r)
-            in  trace ("GDM: " <> (show (cost, noChangeAdjust, cost'))) $
+            in  -- trace ("GDM: " <> (show (cost, noChangeAdjust, cost'))) $
                 blankCharacterData
                     { slimPrelim = extractMedians r
                     , slimGapped = r
