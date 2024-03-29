@@ -216,10 +216,19 @@ this for a single root
 -}
 calculatePMDLRootCost ∷ ProcessedData → VertexCost
 calculatePMDLRootCost (nameVect, _, blockDataV) =
-    let numLeaves = V.length nameVect
-        insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
-    in  -- trace ("InCPMDLRC") $
-        insertDataCost / fromIntegral numLeaves
+    let useLogPiValues = True
+    in
+    
+    if useLogPiValues then 
+        -- root complexity base on log2 Pis
+        getLogPiRootCost blockDataV
+
+    else 
+        -- use insert based (but pi of '-' prob way underestimated)
+        let numLeaves = V.length nameVect
+            insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
+        in  -- trace ("InCPMDLRC") $
+            insertDataCost / fromIntegral numLeaves
 
 
 {- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block
