@@ -218,17 +218,18 @@ calculatePMDLRootCost ∷ ProcessedData → VertexCost
 calculatePMDLRootCost (nameVect, _, blockDataV) =
     let useLogPiValues = True
     in
-    
+    --trace ("In CPMDLRC") $
     if useLogPiValues then 
         -- root complexity base on log2 Pis
+        --trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
         getLogPiRootCost blockDataV
 
     else 
         -- use insert based (but pi of '-' prob way underestimated)
         let numLeaves = V.length nameVect
             insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
-        in  -- trace ("InCPMDLRC") $
-            insertDataCost / fromIntegral numLeaves
+        in  
+        insertDataCost / fromIntegral numLeaves
 
 
 {- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block
@@ -250,7 +251,9 @@ getLeafInsertCost charInfoV charDataV =
 {- | getLogPiRootCost gets log 2 ofelement dreqnecies over all data blocks
 -}
 getLogPiRootCost :: V.Vector BlockData -> Double 
-getLogPiRootCost inBlockDataV = V.sum $ fmap getBlockLogPiCost inBlockDataV
+getLogPiRootCost inBlockDataV = 
+    --trace ("In GLPRC: " <> (show (V.sum $ fmap getBlockLogPiCost inBlockDataV))) $
+    V.sum $ fmap getBlockLogPiCost inBlockDataV
 
 {- | getBlockLogPiCost sums up the character root complexity of a block
 relies on pulling charcters out of block
@@ -263,6 +266,7 @@ getBlockLogPiCost (_, leafCharVV, charInfoV) =
         let charNumList = [0.. (V.length $ V.head leafCharVV) - 1]
             charVect = fmap (leafCharVV V.!) (V.fromList charNumList)
         in
+        --trace ("In GBLPC: " <> (show ((V.length $ V.head leafCharVV),  V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV))) $
         V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV
 
 {- | getCharacterLogPiCost takes a characterdata (vector of terminals for single character) 
@@ -276,7 +280,8 @@ getCharacterLogPiCost charDataV charInfo =
         let nonSequenceCharRootCost = getNonSequenceCharacterLogPiCost (V.head charDataV) charInfo
             sequenceCharRootCost = getSequenceCharacterLogPiCost charDataV charInfo
         in
-        nonSequenceCharRootCost 
+        --trace ("In GCLPC: " <> (show (nonSequenceCharRootCost, sequenceCharRootCost))) $
+        nonSequenceCharRootCost + sequenceCharRootCost
 
 {- | getNonSequenceCharacterLogPiCost creates root cost for all add/nonAdd/Matrix characters
 based number of character states and the log2 of that same for each leaf (since static)
@@ -284,7 +289,7 @@ so no need to average--can use a single leaf
 -}
 getNonSequenceCharacterLogPiCost ∷ CharacterData → CharInfo → Double
 getNonSequenceCharacterLogPiCost inChar charInfo =
-    --trace ("In GCIC: " <> (show $ charType charInfo)) $
+    -- trace ("In GCIC: " <> (show $ charType charInfo)) $
     let localCharType = charType charInfo
         
         numStates =
@@ -319,20 +324,49 @@ average cost over leaves so root placement independent
 -}
 getSequenceCharacterLogPiCost :: V.Vector CharacterData -> CharInfo -> Double
 getSequenceCharacterLogPiCost charDataV charInfo =
+    --trace ("In GSCLPC") $
     if V.null charDataV then error "No data to calculate root cost"
     else if charType charInfo `notElem` sequenceCharacterTypes then 0.0
     else 
-        let numLeaves = V.length charDataV
+        let isNeyman = checkNeyman (costMatrix charInfo)
+            numLeaves = V.length charDataV
             leafList = V.toList $ fmap (getSequenceLeafCharStateNumbers charInfo) charDataV
             elementList = fmap fst $ head leafList
             numberList = fmap (getElementNumberList (concat leafList)) elementList
             elementNumList = zip elementList numberList
             totalElements = fromIntegral $ sum $ fmap snd elementNumList
             elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
-            bitList = fmap (logBase 2.0) elemFreqList
+            bitList = if isNeyman then
+                        replicate (length $ alphabet charInfo) $ logBase 2.0 $ (fromIntegral $ (length $ alphabet charInfo) ∷ Double)
+                      else fmap (logBase 2.0) elemFreqList
         in
-        (-1.0) * (sum $ zipWith (*) (fmap fromIntegral numberList) bitList) / (fromIntegral numLeaves)
+        trace ("GSCLPC: " <> (show (isNeyman,bitList))) $
+        abs $ (sum $ zipWith (*) (fmap fromIntegral numberList) bitList) / (fromIntegral numLeaves)
 
+
+{- | checkNeyman take a matrix (type from PHANE) and returns True if
+    the matrix has all non-diagonal values the same
+    otherwise False
+-}
+checkNeyman :: S.Matrix Int -> Bool
+checkNeyman inMatrix =
+    if S.null inMatrix then False
+    else if S.rows inMatrix < 2 then False
+    else 
+        let nonDiagVal = inMatrix S.! (0,1)
+        in
+        checkMatrixVals inMatrix nonDiagVal 0 0 
+
+{- | checkMatrixVals checks of all non-adiagnonal values equal input value
+-} 
+checkMatrixVals :: S.Matrix Int -> Int -> Int -> Int -> Bool
+checkMatrixVals inMatrix nonDiagVal rowIndex columnIndex =
+    --trace ("Check Matrix: " <> (show (rowIndex, columnIndex, S.rows inMatrix, S.cols inMatrix))) $
+    if rowIndex >= S.rows inMatrix then True
+    else if columnIndex >= S.cols inMatrix then checkMatrixVals inMatrix nonDiagVal (rowIndex + 1) 0 
+    else if rowIndex == columnIndex then checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
+    else if inMatrix S.! (rowIndex, columnIndex) /= nonDiagVal then False
+    else checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
 
 {- | getCharacterElementFreq gets the alphabet elements of sequence characters in a 
 specific character over all leaves
