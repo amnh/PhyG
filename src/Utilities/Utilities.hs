@@ -210,9 +210,10 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
                 sum rootCostList
 
 
-{- | calculatePMDLRootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
-leaf taxa
-this for a single root
+{- | calculatePMDLRootCost creates a root cost as either the 'insertion' of character data
+or as probbaility of seqeunce in bit based on element frequencies.  
+For sequence data averaged over leaf taxa
+so root independent
 -}
 calculatePMDLRootCost ∷ ProcessedData → VertexCost
 calculatePMDLRootCost (nameVect, _, blockDataV) =
