@@ -339,11 +339,13 @@ getSequenceCharacterLogPiCost charDataV charInfo =
             elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
             bitList = if isNeyman then
                         replicate (length $ alphabet charInfo) $ logBase 2.0 $ (fromIntegral $ (length $ alphabet charInfo) ∷ Double)
-                      else fmap (logBase 2.0) elemFreqList
+                      else fmap (hereLogBase2) elemFreqList
         in
-        --trace ("GSCLPC: " <> (show (isNeyman,bitList))) $
+        -- trace ("GSCLPC: " <> (show (isNeyman,elemFreqList, numberList, bitList))) $
         abs $ (sum $ zipWith (*) (fmap fromIntegral numberList) bitList) / (fromIntegral numLeaves)
 
+        where hereLogBase2 a = if a < epsilon then 0.0
+                               else logBase 2.0 a
 
 {- | checkNeyman take a matrix (type from PHANE) and returns True if
     the matrix has all non-diagonal values the same
