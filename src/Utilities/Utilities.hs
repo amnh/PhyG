@@ -341,7 +341,7 @@ getSequenceCharacterLogPiCost charDataV charInfo =
                         replicate (length $ alphabet charInfo) $ logBase 2.0 $ (fromIntegral $ (length $ alphabet charInfo) ∷ Double)
                       else fmap (logBase 2.0) elemFreqList
         in
-        trace ("GSCLPC: " <> (show (isNeyman,bitList))) $
+        --trace ("GSCLPC: " <> (show (isNeyman,bitList))) $
         abs $ (sum $ zipWith (*) (fmap fromIntegral numberList) bitList) / (fromIntegral numLeaves)
 
 
