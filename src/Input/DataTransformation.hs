@@ -58,8 +58,7 @@ import Text.Read
 import Types.Types
 import Utilities.Utilities qualified as U
 
-
--- import Debug.Trace
+import Debug.Trace
 
 {- | checkLeafMissingData checks missing data in inputs
 missing data is defined as not in an input file
@@ -811,9 +810,9 @@ getGeneralBVCode bvCodeVect inState =
 
 
 {- | getGeneralSequenceChar encode general (ie not nucleotide or amino acid) sequences
-as bitvectors.  Main difference with getSequenceChar is in dealing wioth ambiguities
+as bitvectors.  Main difference with getSequenceChar is in dealing with ambiguities
 they need to be parsed and "or-ed" differently
-need to have all three preliminary fields populatied for some reason--prob shouldn't need that
+need to have all three preliminary fields populated for some reason--prob shouldn't need that
 -}
 getGeneralSequenceChar ∷ CharInfo → [ST.ShortText] → [CharacterData]
 getGeneralSequenceChar inCharInfo stateList =
@@ -1059,7 +1058,7 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
             localAlphabet = alphabet $ head inCharInfoList
             isNucleotideData = isAlphabetDna localAlphabet
             isAminoAcidData = isAlphabetAminoAcid localAlphabet
-        in  -- trace ("CLC: " <> (show localCharType)) (
+        in  --trace ("CLC: " <> (show localCharType) <> " " <> (show rawDataList)) $
             if localCharType `elem` sequenceCharacterTypes
                 then -- in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes
                 case localCharType of
