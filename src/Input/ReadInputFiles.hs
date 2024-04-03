@@ -656,6 +656,8 @@ processTCMContents indelGap inContents fileName =
                                             <> show numElements
                                             <> " elements are implied and there are "
                                             <> show numLines
+                                            <> "\n" <> (concat $ L.intersperse " " $ words $ head tcmLines)
+                                            <> "\n " <> (show $ length $ words $ head tcmLines)
                                         )
                                 else
                                     if not rowsCorrectLength
