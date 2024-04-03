@@ -20,6 +20,8 @@ import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.Char
 import Data.Char qualified as C
+import Data.Foldable (fold)
+import Data.Functor ((<&>))
 import Data.List qualified as L
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
@@ -552,55 +554,24 @@ reWeightData weightValue charTypeStringList charNameList (inName, inNameBV, inBl
 
 -- |  stringToType takes  String and returns typelist
 stringToType ∷ String → [CharType]
-stringToType inString =
-    if null inString
-        then []
-        else
-            let inVal = fmap C.toLower inString
-                typeList =
-                    if inVal == "all"
-                        then exactCharacterTypes <> sequenceCharacterTypes
-                        else
-                            if inVal == "prealigned"
-                                then prealignedCharacterTypes
-                                else
-                                    if inVal `elem` ["nonexact", "dynamic"]
-                                        then nonExactCharacterTypes
-                                        else
-                                            if inVal == "nonadditive"
-                                                then [NonAdd, Packed2, Packed4, Packed5, Packed8, Packed64]
-                                                else
-                                                    if inVal == "additive"
-                                                        then [Add]
-                                                        else
-                                                            if inVal == "matrix"
-                                                                then [Matrix]
-                                                                else
-                                                                    if inVal == "sequence"
-                                                                        then sequenceCharacterTypes
-                                                                        else
-                                                                            if inVal == "packed"
-                                                                                then packedNonAddTypes
-                                                                                else
-                                                                                    if inVal == "packed2"
-                                                                                        then [Packed2]
-                                                                                        else
-                                                                                            if inVal == "packed4"
-                                                                                                then [Packed4]
-                                                                                                else
-                                                                                                    if inVal == "packed5"
-                                                                                                        then [Packed5]
-                                                                                                        else
-                                                                                                            if inVal == "packed8"
-                                                                                                                then [Packed8]
-                                                                                                                else
-                                                                                                                    if inVal == "packed64"
-                                                                                                                        then [Packed64]
-                                                                                                                        else
-                                                                                                                            if inVal `elem` ["static", "exact", "qualitative"]
-                                                                                                                                then exactCharacterTypes
-                                                                                                                                else errorWithoutStackTrace ("Error in transform : Unrecognized character type '" <> inString <> "'")
-            in  typeList
+stringToType = fmap C.toLower <&> \case
+            "" -> []
+            "all" -> exactCharacterTypes <> sequenceCharacterTypes
+            "prealigned" -> prealignedCharacterTypes
+            "nonadditive" -> [NonAdd, Packed2, Packed4, Packed5, Packed8, Packed64]
+            "additive" -> [Add]
+            "matrix" -> [Matrix]
+            "sequence" -> sequenceCharacterTypes
+            "packed" -> packedNonAddTypes
+            "packed2" -> [Packed2]
+            "packed4" -> [Packed4]
+            "packed5" -> [Packed5]
+            "packed8" -> [Packed8]
+            "packed64" -> [Packed64]
+            val | val `elem` ["nonexact", "dynamic"] -> nonExactCharacterTypes
+            val | val `elem` ["static", "exact", "qualitative"] -> exactCharacterTypes
+            -- TODO: replace error with failWithPhase
+            val -> errorWithoutStackTrace $ fold [ "Error in transform : Unrecognized character type '", val, "'" ]
 
 
 -- | reweightBlockData applies new weight to catagories of data
