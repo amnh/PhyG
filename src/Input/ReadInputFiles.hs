@@ -9,6 +9,7 @@ module Input.ReadInputFiles (
 ) where
 
 import Commands.Verify qualified as V
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Char
 import Data.Char qualified as C
@@ -45,28 +46,23 @@ expandReadCommands _newReadList inCommand@(commandType, argList') =
         tcmArgList = filter ((`elem` ["tcm"]) . fst) argList'
         fileNames = fmap snd $ filter ((/= "tcm") . fst) $ filter ((/= "") . snd) argList'
         modifierList = fmap fst argList
-    in  -- trace ("ERC: " <> (show fileNames)) (
-        if commandType /= Read
-            then error ("Incorrect command type in expandReadCommands: " <> show inCommand)
-            else do
-                globbedFileNames ← liftIO $ mapM SPG.glob fileNames
-                if all null globbedFileNames
-                    then do
-                        failWithPhase
-                            Inputting
-                            ( "File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''): "
-                                <> show fileNames
-                            )
-                    else do
-                        newArgPairs ← mapM makeNewArgs (zip modifierList globbedFileNames)
+    in  case commandType of
+          Read -> do
+              globbedFileNames ← liftIO $ mapM SPG.glob fileNames
+              when (all null globbedFileNames) . failWithPhase Inputting $ unwords
+                  [ "File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''):"
+                  , show fileNames
+                  ]
 
-                        let commandList = replicate (length newArgPairs) commandType
-                        let tcmArgListL = replicate (length newArgPairs) tcmArgList
+              newArgPairs ← mapM makeNewArgs (zip modifierList globbedFileNames)
 
-                        return $ zip commandList (zipWith (<>) newArgPairs tcmArgListL)
+              let commandList = replicate (length newArgPairs) commandType
+              let tcmArgListL = replicate (length newArgPairs) tcmArgList
 
+              pure $ zip commandList (zipWith (<>) newArgPairs tcmArgListL)
 
--- )
+          _ -> failWithPhase Inputting $ unwords [ "Incorrect command type in expandReadCommands:", show inCommand ]
+
 
 {- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
 globbed file name list to create a list of arguments
