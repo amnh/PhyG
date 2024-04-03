@@ -700,30 +700,28 @@ cost matrix are integerized by multiplication by 1/scaleFactor
 Unlike version above is more flexible with Double format
 -}
 getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
-getCostMatrixAndScaleFactor fileName inStringListList =
-    if null inStringListList
-        then failWithPhase Parsing "Empty list in inStringListList"
-        else
-            let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
-                doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
-                minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
-                rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
-                integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
-                -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
-                scaleFactor =
-                    if maxDecimalPlaces == 0
-                        then 1.0
-                        else minDouble
+getCostMatrixAndScaleFactor fileName = \case
+    [] -> failWithPhase Parsing "Empty list in inStringListList"
+    inStringListList ->
+        let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
+            doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
+            minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
+            rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
+            integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
+            -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
+            scaleFactor
+                | maxDecimalPlaces == 0 = 1.0
+                | otherwise = minDouble
+                    -- else if not nonZeroDiagonals then minDouble
+                    -- else minDouble / 2.0
 
-                        -- else if not nonZeroDiagonals then minDouble
-                        -- else minDouble / 2.0
-            in  
-            --trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
-                if maxDecimalPlaces == 0
-                    then do
-                        pure $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
-                    else do
-                        pure $ (scaleFactor, integerizedMatrix)
+            outputMatrix = case maxDecimalPlaces of
+                0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
+                _ -> integerizedMatrix
+
+        in  -- trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
+            pure $ (scaleFactor, outputMatrix)
+
 
 {-
 - | diagonalsEqualZero takes an integer matrix [[Int]] 
