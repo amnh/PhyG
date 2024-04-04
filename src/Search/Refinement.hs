@@ -673,6 +673,15 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogWarn "Adding edges to hardwired graphs will always increase cost, skipping"
                                         pure (inGraphList, 0)
                                     else do
+                                        logWith LogInfo ( "Network edge add on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> " and maximum "
+                                                    <> show (fromJust maxRounds)
+                                                    <> " rounds"
+                                                    <> "\n"
+                                                )
                                         graphPairList1 ←
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
@@ -688,6 +697,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogWarn ("Deleting edges from hardwired graphs will trivially remove all network edges to a tree, skipping")
                                         pure (newGraphList, 0)
                                     else do
+                                        logWith LogInfo ( "Network edge delete on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> "\n"
+                                                )
                                         graphPairList2 ←
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
@@ -700,6 +715,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                     (newGraphList'', counterMove) ←
                         if doMove
                             then do
+                                logWith LogInfo ( "Network edge move on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> "\n"
+                                                )
                                 graphPairList3 ←
                                     getParallelChunkTraverse >>= \pTraverse →
                                         pTraverse moveAction . zip newSimAnnealParamList $ pure <$> newGraphList'
@@ -715,6 +736,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
                                         pure (newGraphList'', 0)
                                     else do
+                                        logWith LogInfo ( "Network edge delete on "
+                                                    <> show (length inGraphList)
+                                                    <> " input graph(s) with minimum cost "
+                                                    <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> "\n"
+                                                )
                                         graphPairList4 ←
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
