@@ -681,6 +681,8 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
             -- check for max net edges
             (_, _, _, netNodes) = LG.splitVertexList $ thd5 firstPhyloGraph
         in  do
+                logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes) <> "\n")
+
                 (newGraphList, _, newSAParams) ←
                     insertEachNetEdge
                         inGS
@@ -698,7 +700,7 @@ insertAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                         [] → infinity
                         (_, c, _, _, _) : _ → c
 
-                logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes) <> "\n")
+                -- logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes) <> "\n")
 
                 case length netNodes `compare` maxNetEdges of
                     LT → case newGraphList of

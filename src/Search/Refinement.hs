@@ -677,6 +677,8 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                     <> show (length inGraphList)
                                                     <> " input graph(s) with minimum cost "
                                                     <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> " limiting maximum number of network edge additoins to "
+                                                    <> show (fromJust maxNetEdges)
                                                     <> " and maximum "
                                                     <> show (fromJust maxRounds)
                                                     <> " rounds"
@@ -740,6 +742,8 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                     <> show (length inGraphList)
                                                     <> " input graph(s) with minimum cost "
                                                     <> show (minimum $ fmap snd5 inGraphList)
+                                                    <> " limiting maximum number of network edge additoins to "
+                                                    <> show (fromJust maxNetEdges)
                                                     <> "\n"
                                                 )
                                         graphPairList4 ←
@@ -878,7 +882,7 @@ getNetEdgeParams inArgs =
                                                             if isNothing maxNetEdges
                                                                 then
                                                                     errorWithoutStackTrace
-                                                                        ("Drift 'maxChanges' specification not an integer (e.g. maxChanges:10): " <> show (snd $ head maxNetEdgesList))
+                                                                        ("Network edit 'maxNetEdges' specification not an integer (e.g. maxNetEdges:10): " <> show (snd $ head maxNetEdgesList))
                                                                 else
                                                                     if isNothing maxRounds
                                                                         then
