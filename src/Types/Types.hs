@@ -10,7 +10,7 @@ module Types.Types (
 ) where
 
 import Bio.DynamicCharacter (HugeDynamicCharacter, OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter)
-import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
+import Bio.DynamicCharacter.Element (HugeState, SlimState, WideState)
 import Control.DeepSeq
 import Control.Monad.IO.Class (MonadIO)
 import Control.Parallel.Strategies
@@ -289,7 +289,7 @@ data GlobalSettings = GlobalSettings
     , bcgt64 ∷ (Double, Double) -- PMDL bitCost for > 64 states of no-change and change as pair
     , compressResolutions ∷ Bool -- "nub" resolutions in softwired graph
     , defaultParStrat ∷ ParallelStrategy -- default parallel strategy
-    , dynamicEpsilon ∷ Double -- factor of dynamic heuristics overestimating graph deltas detemiend by fraction of data is dynamic and user value
+    , dynamicEpsilon ∷ Double -- factor of dynamic heuristics overestimating graph deltas determind by fraction of data is dynamic and user value
     , finalAssignment ∷ AssignmentMethod
     , fractionDynamic ∷ Double -- estimated fraction of character length that are dynamic (actually seqeunce) for setting dynamicEpsilon
     , graphComplexityList ∷ IL.InfList (VertexCost, VertexCost) -- complexity of graphs in bits, index for number of network nodes (0= tree etc0 lazy so only evaluate each once when needed O(n) but needlazyness and permanence

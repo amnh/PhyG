@@ -9,6 +9,7 @@ module Input.ReadInputFiles (
 ) where
 
 import Commands.Verify qualified as V
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Char
 import Data.Char qualified as C
@@ -45,28 +46,23 @@ expandReadCommands _newReadList inCommand@(commandType, argList') =
         tcmArgList = filter ((`elem` ["tcm"]) . fst) argList'
         fileNames = fmap snd $ filter ((/= "tcm") . fst) $ filter ((/= "") . snd) argList'
         modifierList = fmap fst argList
-    in  -- trace ("ERC: " <> (show fileNames)) (
-        if commandType /= Read
-            then error ("Incorrect command type in expandReadCommands: " <> show inCommand)
-            else do
-                globbedFileNames ← liftIO $ mapM SPG.glob fileNames
-                if all null globbedFileNames
-                    then do
-                        failWithPhase
-                            Inputting
-                            ( "File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''): "
-                                <> show fileNames
-                            )
-                    else do
-                        newArgPairs ← mapM makeNewArgs (zip modifierList globbedFileNames)
+    in  case commandType of
+          Read -> do
+              globbedFileNames ← liftIO $ mapM SPG.glob fileNames
+              when (all null globbedFileNames) . failWithPhase Inputting $ unwords
+                  [ "File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''):"
+                  , show fileNames
+                  ]
 
-                        let commandList = replicate (length newArgPairs) commandType
-                        let tcmArgListL = replicate (length newArgPairs) tcmArgList
+              newArgPairs ← mapM makeNewArgs (zip modifierList globbedFileNames)
 
-                        return $ zip commandList (zipWith (<>) newArgPairs tcmArgListL)
+              let commandList = replicate (length newArgPairs) commandType
+              let tcmArgListL = replicate (length newArgPairs) tcmArgList
 
+              pure $ zip commandList (zipWith (<>) newArgPairs tcmArgListL)
 
--- )
+          _ -> failWithPhase Inputting $ unwords [ "Incorrect command type in expandReadCommands:", show inCommand ]
+
 
 {- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
 globbed file name list to create a list of arguments
@@ -656,6 +652,8 @@ processTCMContents indelGap inContents fileName =
                                             <> show numElements
                                             <> " elements are implied and there are "
                                             <> show numLines
+                                            <> "\n" <> (concat $ L.intersperse " " $ words $ head tcmLines)
+                                            <> "\n " <> (show $ length $ words $ head tcmLines)
                                         )
                                 else
                                     if not rowsCorrectLength
@@ -702,30 +700,28 @@ cost matrix are integerized by multiplication by 1/scaleFactor
 Unlike version above is more flexible with Double format
 -}
 getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
-getCostMatrixAndScaleFactor fileName inStringListList =
-    if null inStringListList
-        then failWithPhase Parsing "Empty list in inStringListList"
-        else
-            let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
-                doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
-                minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
-                rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
-                integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
-                -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
-                scaleFactor =
-                    if maxDecimalPlaces == 0
-                        then 1.0
-                        else minDouble
+getCostMatrixAndScaleFactor fileName = \case
+    [] -> failWithPhase Parsing "Empty list in inStringListList"
+    inStringListList ->
+        let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
+            doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
+            minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
+            rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
+            integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
+            -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
+            scaleFactor
+                | maxDecimalPlaces == 0 = 1.0
+                | otherwise = minDouble
+                    -- else if not nonZeroDiagonals then minDouble
+                    -- else minDouble / 2.0
 
-                        -- else if not nonZeroDiagonals then minDouble
-                        -- else minDouble / 2.0
-            in  
-            --trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
-                if maxDecimalPlaces == 0
-                    then do
-                        pure $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
-                    else do
-                        pure $ (scaleFactor, integerizedMatrix)
+            outputMatrix = case maxDecimalPlaces of
+                0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
+                _ -> integerizedMatrix
+
+        in  -- trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
+            pure $ (scaleFactor, outputMatrix)
+
 
 {-
 - | diagonalsEqualZero takes an integer matrix [[Int]] 

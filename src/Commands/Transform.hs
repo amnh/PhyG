@@ -9,7 +9,7 @@ module Commands.Transform (
 ) where
 
 import Bio.DynamicCharacter (HugeDynamicCharacter)
-import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState, fromBits, toUnsignedNumber)
+import Bio.DynamicCharacter.Element (HugeState, SlimState, WideState, fromBits, toUnsignedNumber)
 import Commands.CommandUtilities qualified as CU
 import Commands.Verify qualified as VER
 import Control.Monad (when)
@@ -20,6 +20,8 @@ import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.Char
 import Data.Char qualified as C
+import Data.Foldable (fold)
+import Data.Functor ((<&>))
 import Data.List qualified as L
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
@@ -32,11 +34,11 @@ import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import Input.BitPack qualified as BP
 import Input.Reorganize qualified as R
+import Numeric.Natural (Natural)
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
-import Numeric.Natural (Natural)
 import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
@@ -552,55 +554,25 @@ reWeightData weightValue charTypeStringList charNameList (inName, inNameBV, inBl
 
 -- |  stringToType takes  String and returns typelist
 stringToType ∷ String → [CharType]
-stringToType inString =
-    if null inString
-        then []
-        else
-            let inVal = fmap C.toLower inString
-                typeList =
-                    if inVal == "all"
-                        then exactCharacterTypes <> sequenceCharacterTypes
-                        else
-                            if inVal == "prealigned"
-                                then prealignedCharacterTypes
-                                else
-                                    if inVal `elem` ["nonexact", "dynamic"]
-                                        then nonExactCharacterTypes
-                                        else
-                                            if inVal == "nonadditive"
-                                                then [NonAdd, Packed2, Packed4, Packed5, Packed8, Packed64]
-                                                else
-                                                    if inVal == "additive"
-                                                        then [Add]
-                                                        else
-                                                            if inVal == "matrix"
-                                                                then [Matrix]
-                                                                else
-                                                                    if inVal == "sequence"
-                                                                        then sequenceCharacterTypes
-                                                                        else
-                                                                            if inVal == "packed"
-                                                                                then packedNonAddTypes
-                                                                                else
-                                                                                    if inVal == "packed2"
-                                                                                        then [Packed2]
-                                                                                        else
-                                                                                            if inVal == "packed4"
-                                                                                                then [Packed4]
-                                                                                                else
-                                                                                                    if inVal == "packed5"
-                                                                                                        then [Packed5]
-                                                                                                        else
-                                                                                                            if inVal == "packed8"
-                                                                                                                then [Packed8]
-                                                                                                                else
-                                                                                                                    if inVal == "packed64"
-                                                                                                                        then [Packed64]
-                                                                                                                        else
-                                                                                                                            if inVal `elem` ["static", "exact", "qualitative"]
-                                                                                                                                then exactCharacterTypes
-                                                                                                                                else errorWithoutStackTrace ("Error in transform : Unrecognized character type '" <> inString <> "'")
-            in  typeList
+stringToType =
+    fmap C.toLower <&> \case
+        "" → []
+        "all" → exactCharacterTypes <> sequenceCharacterTypes
+        "prealigned" → prealignedCharacterTypes
+        "nonadditive" → [NonAdd, Packed2, Packed4, Packed5, Packed8, Packed64]
+        "additive" → [Add]
+        "matrix" → [Matrix]
+        "sequence" → sequenceCharacterTypes
+        "packed" → packedNonAddTypes
+        "packed2" → [Packed2]
+        "packed4" → [Packed4]
+        "packed5" → [Packed5]
+        "packed8" → [Packed8]
+        "packed64" → [Packed64]
+        val | val `elem` ["nonexact", "dynamic"] → nonExactCharacterTypes
+        val | val `elem` ["static", "exact", "qualitative"] → exactCharacterTypes
+        -- TODO: replace error with failWithPhase
+        val → errorWithoutStackTrace $ fold ["Error in transform : Unrecognized character type '", val, "'"]
 
 
 -- | reweightBlockData applies new weight to catagories of data
@@ -660,8 +632,10 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                             -- remove constants from new prealigned  this may be redundant since bit packing also removes constants
                             -- error here in case where there is missing seqeunce data for all but one input block for a character
                             -- if SI/PMDL need no change cost so cant remove contant characters
-                            newProcessedData ← if not (optimalityCriterion inGS `notElem` [SI, PMDL]) then R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
-                                               else pure (nameV, nameBVV, blockDataV)
+                            newProcessedData ←
+                                if not (optimalityCriterion inGS `notElem` [SI, PMDL])
+                                    then R.removeConstantCharactersPrealigned (nameV, nameBVV, V.fromList newBlockDataV)
+                                    else pure (nameV, nameBVV, blockDataV)
 
                             -- bit pack any new non-additive characters
                             newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, V.fromList newBlockDataV) -- newProcessedData
@@ -707,8 +681,10 @@ makeStaticApprox inGS leavePrealigned inData@(nameV, nameBVV, blockDataV) inGrap
                                             -- remove constants from new prealigned-- this may be redundant since bit packing also removes constants
                                             -- error here in case where there is missing seqeunce data for all but one input block for a character
                                             -- need to leave in constant charcters for SI/PMDL
-                                            newProcessedData ← if not (optimalityCriterion inGS `notElem` [SI, PMDL]) then R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
-                                                               else pure (nameV, nameBVV, blockDataV)
+                                            newProcessedData ←
+                                                if not (optimalityCriterion inGS `notElem` [SI, PMDL])
+                                                    then R.removeConstantCharactersPrealigned (nameV, nameBVV, newBlockDataV)
+                                                    else pure (nameV, nameBVV, blockDataV)
 
                                             -- bit pack any new non-additive characters
                                             newProcessedData' ← BP.packNonAdditiveData inGS newProcessedData -- (nameV, nameBVV, newBlockDataV) -- newProcessedData
@@ -858,19 +834,19 @@ transformCharacter leavePrealigned inCharData inCharInfo charLength =
                                             then
                                                 let gapChar = (fromBits $ replicate alphSize False) `setBit` fromEnum gapIndex
                                                     missingState = fromBits $ replicate alphSize True
-                                                    impliedAlignChar :: HugeDynamicCharacter
+                                                    impliedAlignChar ∷ HugeDynamicCharacter
                                                     impliedAlignChar
                                                         | (not . GV.null $ GV.filter (/= gapChar) $ snd3 $ hugeAlignment inCharData) = hugeAlignment inCharData
                                                         | otherwise =
-                                                                let missingElement = V.replicate alphSize missingState
-                                                                in  (missingElement, missingElement, missingElement)
+                                                            let missingElement = V.replicate alphSize missingState
+                                                            in  (missingElement, missingElement, missingElement)
 
-                                                    conversion :: HugeState -> Natural
+                                                    conversion ∷ HugeState → Natural
                                                     conversion = toUnsignedNumber
                                                     naturalize
-                                                      :: (V.Vector HugeState, V.Vector HugeState, V.Vector HugeState)
-                                                      -> (V.Vector Natural, V.Vector Natural, V.Vector Natural)
-                                                    naturalize (x,y,z) = (conversion <$> x, conversion <$> y, conversion <$> z)
+                                                        ∷ (V.Vector HugeState, V.Vector HugeState, V.Vector HugeState)
+                                                        → (V.Vector Natural, V.Vector Natural, V.Vector Natural)
+                                                    naturalize (x, y, z) = (conversion <$> x, conversion <$> y, conversion <$> z)
                                                     newPrelimBV = R.convert2BV (toEnum alphSize) $ naturalize impliedAlignChar
                                                     newPrelimBVGaps = addGaps2BV gapCost newPrelimBV
                                                 in  if leavePrealigned

@@ -50,16 +50,17 @@ optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPreal
     0 → pure inData
     _ → do
         -- don't recode if SI/PMDL since need no change cost
-        if (optimalityCriterion inGS) `elem` [SI, PMDL] then pure inData
-        else do
-            -- remove constant characters from prealigned
-            inData' <- removeConstantCharactersPrealigned inData
+        if (optimalityCriterion inGS) `elem` [SI, PMDL]
+            then pure inData
+            else do
+                -- remove constant characters from prealigned
+                inData' ← removeConstantCharactersPrealigned inData
 
-            -- convert prealigned to nonadditive if all 1 tcms
-            let inData'' = convertPrealignedToNonAdditive inData'
+                -- convert prealigned to nonadditive if all 1 tcms
+                let inData'' = convertPrealignedToNonAdditive inData'
 
-            -- bit packing for non-additivecharacters
-            BP.packNonAdditiveData inGS inData''
+                -- bit packing for non-additivecharacters
+                BP.packNonAdditiveData inGS inData''
 
 
 {- | convertPrealignedToNonAdditive converts prealigned data to non-additive
@@ -512,14 +513,11 @@ from prealignedCharacterTypes
 removeConstantCharactersPrealigned ∷ ProcessedData → PhyG ProcessedData
 removeConstantCharactersPrealigned inData@(nameVect, bvNameVect, blockDataVect)
     | V.null blockDataVect = pure inData
-    | otherwise =
-        let action ∷ BlockData → BlockData
-            action = removeConstantBlockPrealigned
-        in  do
-                newBlockData ←
-                    getParallelChunkMap <&> \pMap →
-                        removeConstantBlockPrealigned `pMap` V.toList blockDataVect
-                pure (nameVect, bvNameVect, V.fromList newBlockData)
+    | otherwise = do
+        newBlockData ←
+            getParallelChunkMap <&> \pMap →
+                removeConstantBlockPrealigned `pMap` V.toList blockDataVect
+        pure (nameVect, bvNameVect, V.fromList newBlockData)
 
 
 -- | removeConstantBlockPrealigned takes block data and removes constant characters
@@ -538,7 +536,7 @@ removeConstantBlockPrealigned inBlockData@(blockName, taxVectByCharVect, charInf
 
                         -- create vector of single characters with vector of taxon data of sngle character each
                         -- like a standard matrix with a single character
-                        singleCharVect = fmap (U.getSingleCharacter taxVectByCharVect) (V.fromList [0 .. numChars - 1])
+                        singleCharVect = fmap (BP.getSingleCharacter taxVectByCharVect) (V.fromList [0 .. numChars - 1])
 
                         -- actually remove constants form chaarcter list
                         singleCharVect' = V.zipWith removeConstantCharsPrealigned singleCharVect charInfoV
