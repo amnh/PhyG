@@ -83,7 +83,7 @@ Constraints:
     hashtables -bounds-checking -debug -portable +unsafe-tricks,
     optparse-applicative +process,
     tasty +unix,
-    text -pure-has +simdutf,
+    text -pure-haskell +simdutf,
     vector -BoundsChecks -InternalChecks -UnsafeChecks -Wall,
 
 Preferences:

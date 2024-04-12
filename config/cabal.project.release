@@ -140,15 +140,24 @@ Package PhyG
     Flags: +Forgo-Sanity +Super-Optimization
 
 
--- These constraints reduce the project's dependency footprint
+-- Reduce the project's dependency footprint via build flags
 Constraints:
      bifunctors -tagged,
      comonad -indexed-traversable,
+     lens +inlining -test-hunit -test-properties -test-templates +trustworthy, 
      pointed -comonad -kan-extensions -semigroupoids -semigroups -stm -tagged,
+     semialign -semigroupoids,
      semigroups -binary -bytestring -deepseq -hashable -tagged -template-haskell -text -transformers -unordered-containers,
-     semigroupoids -comonad -tagged,
+     semigroupoids -comonad,
 
-
--- Performance improvement
+     
+-- Apply performance flags to specific packages
 Constraints:
-    vector -boundschecks,
+    bitvec +simd,
+    directory +os-string,
+    hashable -random-initial-seed,
+    hashtables -bounds-checking -debug -portable +unsafe-tricks,
+    optparse-applicative +process,
+    tasty +unix,
+    text -pure-haskell +simdutf,
+    vector -BoundsChecks -InternalChecks -UnsafeChecks -Wall,
