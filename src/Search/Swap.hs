@@ -110,7 +110,9 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs = \case
     (_, inGraph) : otherDoubles
         | snd5 inGraph > getGraphCost curBestGraphs →
             swapSPRTBRList swapParams inGS inData inCounter curBestGraphs otherDoubles
+
     firstPair@(inSimAnnealParams, inGraph) : otherDoubles → do
+        --logWith LogInfo "In SwapSPRTBRList" 
         (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter firstPair
         bestNewGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 graphList
 
@@ -153,6 +155,7 @@ swapSPRTBR'
 swapSPRTBR' swapParams inGS inData@(leafNames, _, _) inCounter (inSimAnnealParams, inGraph@(simpleG, costG, _, _, _))
     | LG.isEmpty simpleG = pure ([], 0)
     | otherwise = do
+        --logWith LogInfo "In SwapSPRTBR'" 
         -- inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
         inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph inGraph
         let inGraphNetPenaltyFactor = inGraphNetPenalty / costG
@@ -219,7 +222,7 @@ swapSPRTBR' swapParams inGS inData@(leafNames, _, _) inCounter (inSimAnnealParam
 {- | swapAll is a high level function that basically deals with portioning out swap-type swaps
 and performs the high level options for Alternate where SPR is perfomred first, then TBR,
 but whenever a better (or additional) graph is found during TBR, an SPR swap of that graph
-is performed before returning to TBR again.  THis contibues untill no new graphs are found in the
+is performed before returning to TBR again.  THis contibues until no new graphs are found in the
 SPR + TBR swap.
 each call to swapAll' sets break edge number to 0
 this swaps untill none found better
@@ -242,6 +245,7 @@ swapAll swapParams inGS inData counter curBestCost curSameBetterList inGraphList
     -- nni, spr, tbr
     case swapType swapParams of
         Alternate → do
+            --logWith LogInfo "In swapAll-Alt" 
             (sprGraphs, sprCounter, sprSAPArams) ←
                 swapAll'
                     (swapParams{swapType = SPR})
@@ -404,6 +408,7 @@ swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphLis
                                 | otherwise = id
                         in  sorting . filtration $ extractor firstDecoratedGraph
                 in  do
+                        --logWith LogInfo "In swapAll'" 
                         -- randomize edges list order for anneal and drift
                         breakEdgeList'' ←
                             if atRandom swapParams
@@ -1006,6 +1011,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     edgesInPrunedGraph
                                                     inSimAnnealParams
                                         in  do
+                                                --logWith LogInfo "In rejoinGraph-not-steepest" 
                                                 rejoinGraphList ←
                                                     getParallelChunkTraverse >>= \pTraverse →
                                                         fold <$> pTraverse (fmap fst . action) rejoinEdges
@@ -1071,6 +1077,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     edgesInPrunedGraph
                                                     inSimAnnealParams
                                         in  do
+                                                --logWith LogInfo $ "In rejoinGraph-steepest " <> (show $ length rejoinEdgeList) 
                                                 rejoinGraphList ←
                                                     getParallelChunkTraverse >>= \pTraverse →
                                                         fold <$> pTraverse (fmap fst . action) rejoinEdgeList
@@ -1544,6 +1551,9 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
                                         let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
+                                        let joinBestCost = minimum $ curBestCost: rerootEdgeDeltaList
+                                        --logWith LogInfo $ "TBRJoin JBC CBC->" <> show (curBestCost, joinBestCost)
+
                                         -- check for possible better/equal graphs and verify
                                         let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                                         let candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
@@ -1561,7 +1571,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                         -- check for graph wierdness
                                         -- rediagnosedGraphList = filter (not . GO.parentsInChainGraph . thd5) $ filter ((<= curBestCost) . snd5) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
                                         rediagnosedGraphList' ←
-                                            getParallelChunkTraverse >>= \pTraverse →
+                                            getParallelChunkTraverseBy snd5 >>= \pTraverse →
                                                 reoptimizeAction `pTraverse` candidateJoinedGraphList
                                         let rediagnosedGraphList = filter ((<= curBestCost) . snd5) rediagnosedGraphList'
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
