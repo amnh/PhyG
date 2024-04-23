@@ -9,7 +9,9 @@
 # Temporaty files
 *.*~
 *#*#
+*.pdf
 
+*.tree
 # Testing artifacts
 log.err
 log.out
