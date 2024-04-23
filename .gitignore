@@ -9,10 +9,13 @@
 # Temporaty files
 *.*~
 *#*#
+*.pdf
 
+*.tree
 # Testing artifacts
 log.err
 log.out
+*.DS_Store
 
 # Outputs from testing
 *.csv
