@@ -78,7 +78,7 @@ Source-Repository-Package
   Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-PhyloLib
 
-  
+
 ---------------------------------------------------------------------------------
 -- Output paths
 --
@@ -138,3 +138,26 @@ Package PhyG
     Library-Profiling:    False
     Library-Stripping:    True
     Flags: +Forgo-Sanity +Super-Optimization
+
+
+-- Reduce the project's dependency footprint via build flags
+Constraints:
+     bifunctors -tagged,
+     comonad -indexed-traversable,
+     lens +inlining -test-hunit -test-properties -test-templates +trustworthy, 
+     pointed -comonad -kan-extensions -semigroupoids -semigroups -stm -tagged,
+     semialign -semigroupoids,
+     semigroups -binary -bytestring -deepseq -hashable -tagged -template-haskell -text -transformers -unordered-containers,
+     semigroupoids -comonad,
+
+     
+-- Apply performance flags to specific packages
+Constraints:
+    bitvec +simd,
+    directory +os-string,
+    hashable -random-initial-seed,
+    hashtables -bounds-checking -debug -portable +unsafe-tricks,
+    optparse-applicative +process,
+    tasty +unix,
+    text -pure-haskell +simdutf,
+    vector -BoundsChecks -InternalChecks -UnsafeChecks -Wall,

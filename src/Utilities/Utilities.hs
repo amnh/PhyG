@@ -1481,7 +1481,8 @@ splitFastaLines curFasta curFastaList inLineList =
         then reverse (reverse curFasta : curFastaList)
         else
             let firstLine = head inLineList
-                firstWord = head $ words firstLine
+                firstWord = if (not $ null $ words firstLine) then head $ words firstLine
+                            else ""
             in  if null firstLine
                     then splitFastaLines curFasta curFastaList (tail inLineList)
                     else
