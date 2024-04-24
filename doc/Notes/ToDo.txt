@@ -631,11 +631,4 @@
 
 479) Clean up doubnle processing of set etc commands--remove warnings at least
 
-480) to ensure parallelism but for only a single member of tuple
-	strict5 b@(_,_,_,_,!x) =
-		force x `seq` b
-
-	parallelBy (strict5. other function)
-
-	could require 
-		strict5 b@(!(_,_,_,_,!x)) =
+481)

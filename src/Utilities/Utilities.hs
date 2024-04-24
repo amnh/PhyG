@@ -6,6 +6,7 @@ module Utilities.Utilities where
 import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
 import Complexity.Graphs qualified as GC
 import Complexity.Utilities qualified as GCU
+import Control.DeepSeq (force)
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
@@ -41,6 +42,13 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
 
+
+{- | strict2of5 esures parallelism and demands strict return of 2nd of 5 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict2of5 :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
+strict2of5 b@(_,!x,_,_,_) =
+        force x `seq` b
 
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
 and whether the required median is a distance (ie single edge)
