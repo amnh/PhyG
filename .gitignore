@@ -6,12 +6,11 @@
 
 .gitignore
 
-# Temporaty files
+# Temporary files
 *.*~
 *#*#
 *.pdf
 
-*.tree
 # Testing artifacts
 log.err
 log.out
@@ -19,7 +18,6 @@ log.out
 
 # Outputs from testing
 *.csv
-*.tre
 *.tree
 *.eps
 *.ps
