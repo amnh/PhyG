@@ -1639,10 +1639,11 @@
 	\subsubsection{Arguments}
 	\begin{description}
 	
-		\item[all] Turns off all preference strategies to break and join graphs, simply trying all possible 
-		rearrangements. 
-		The refinement examines the entire rearrangement neighborhood of the current graph 
-		before retaining the best (lowest cost) solutions. This can be very memory intensive.
+		\item[all] Turns off all preference strategies to break and join graphs, simply trying all 
+		possible rearrangements. The refinement examines the entire rearrangement neighborhood 
+		of the current graph before retaining the best (lowest cost) solutions. The user is advised to
+		only use this option on small datasets as it can be computationally intensive (and 
+		time consuming).
 
 		\item[alternate] Specifies that alternating rounds of \texttt{spr} \citep{Dayhoff1969} 
 		and \texttt{tbr} \citep{Farris1988, swofford1990a} refinement are performed.
