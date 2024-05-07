@@ -9,6 +9,7 @@
 # Temporaty files
 *.*~
 *#*#
+*.DS_Store
 
 # Testing artifacts
 log.err
