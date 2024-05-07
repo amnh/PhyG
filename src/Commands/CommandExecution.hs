@@ -611,10 +611,10 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                                 "bit cost > 64 state set to " <> show val <> "\n"
                                             pure (globalSettings{bcgt64 = val}, processedData)
 
-                        -- partition character to reset
-                        "bcgt64" → pure (globalSettings, processedData)
+        
                         val → do
-                            logWith LogWarn $ fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList, "\n"]
+                            when (val `notElem` VER.setArgList) . logWith LogWarn $
+                                fold ["Warning: Unrecognized/missing 'set' option '", val, "' in ", show argList, "\n"]
                             pure (globalSettings, processedData)
 
                     -- =-=-=-=-=-=-=-=-=-=-=-=-=
