@@ -80,8 +80,8 @@ set(seed:1701287416)
 
 --read("chel-335.tre")
 
-build(dwag, distance)
---build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
+--build(dwag, distance)
+build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 --build(distance, rdwag)
 --build(distance, rdwag, replicates:20, best:5)
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)

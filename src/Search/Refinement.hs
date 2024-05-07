@@ -345,7 +345,7 @@ fuseGraphs inArgs inGS inData inGraphList
         (newGraphList, counterFuse) ←
             F.fuseAllGraphs
                 (swapParams withIA)
-                (inGS{graphsSteepest = 1})
+                inGS -- (inGS{graphsSteepest = 1})
                 inData
                 0
                 returnBest
@@ -387,7 +387,7 @@ getFuseGraphParams inArgs =
                         | null keepList = Just 10
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
-                    -- this is awkward syntax but works to chejkc fpor multiple swapping limit commands
+                    -- this is awkward syntax but works to check fpor multiple swapping limit commands
                     moveLimitList = filter (not . null) (snd <$> filter ((`notElem` ["keep", "pairs"]) . fst) lcArgList)
                     maxMoveEdgeDist
                         | null moveLimitList = Just ((maxBound ∷ Int) `div` 3)
