@@ -7,7 +7,7 @@ module Main (main) where
 import Benchmark.Internal
 import Criterion.Main
 import Data.Hashable.Memoize.ViaConcurrentHashtable qualified as Conc
-import Data.Hashable.Memoize.ViaConcurrentHashtableOpt qualified as OptQ
+--import Data.Hashable.Memoize.ViaConcurrentHashtableOpt qualified as OptQ
 import Data.Hashable.Memoize.ViaIORef qualified as IORf
 import Data.Hashable.Memoize.ViaManualLock qualified as Lock
 import Data.Hashable.Memoize.ViaReadWriteLock qualified as RWLk
@@ -40,7 +40,7 @@ benchAsSequential =
 --            , basicMeasure TVar.memoize "Manual access through - TVar"
 --            , basicMeasure Semp.memoize "Manual access through - Semaphore"
             , basicMeasureIO Conc.memoize "Package `concurrent-hashtables` Hash-table"
-            , basicMeasure OptQ.memoize "Package `concurrent-hashtables-opt` Hash-table"
+--            , basicMeasure OptQ.memoize "Package `concurrent-hashtables-opt` Hash-table"
 --            , basicMeasure RWLk.memoize "Package `concurrent-extra`      Read/Write Lock"
             ]
 

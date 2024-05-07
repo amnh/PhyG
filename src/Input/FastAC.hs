@@ -87,11 +87,17 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
     if null inData
         then error "Empty inData in getFastaCharInfo"
         else
-            let nucleotideAlphabet = fmap ST.fromString ["A", "C", "G", "T", "U", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N", "?", "-"]
+            let nucleotideAlphabet = 
+                    fmap 
+                        ST.fromString $ 
+                        ["A", "C", "G", "T", "U", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N", "?", "-"] 
+                        <> (map (fmap C.toLower) ["A", "C", "G", "T", "U", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N", "?", "-"])
                 lAminoAcidAlphabet =
                     fmap
-                        ST.fromString
+                        ST.fromString $ 
                         ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-", "?"]
+                        <> (map (fmap C.toLower) ["A", "B", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z", "-", "?"])
+
                 -- onlyInNucleotides = [ST.fromString "U"]
                 -- onlyInAminoAcids = fmap ST.fromString ["E","F","I","L","P","Q","X","Z"]
                 sequenceData = getAlphabet [] $ foldMap snd inData
@@ -132,7 +138,8 @@ getFastaCharInfo inData dataName dataType isPrealigned localTCM =
                     if seqType `notElem` [NucSeq, AminoSeq]
                         then inData
                         else fmap makeUpperCaseTermData inData
-            in  do
+            in  --trace ("GFCI: " <> (show (dataType, sequenceData, seqType))) $ --  <> " " <> (show sequenceData)) $
+                do
                     case seqType of
                         NucSeq → logWith LogInfo ("File " <> dataName <> " is nucleotide data." <> "\n")
                         AminoSeq → logWith LogInfo ("File " <> dataName <> " is aminoacid data." <> "\n")

@@ -177,7 +177,7 @@ getTNTDataText inString fileName =
         printOrSpace a = (C.isPrint a || C.isSpace a) && (a /= '\r')
 
 
--- | filterInvariant filters out charcters that are identical in all terminals
+-- | filterInvariant filters out characters that are identical in all terminals
 filterInvariant
     ∷ [[ST.ShortText]] → [charInfoData] → ([[ST.ShortText]], [charInfoData]) → ([[ST.ShortText]], [charInfoData])
 filterInvariant inDataLL inCharInfoL newData@(newDataLL, newCharInfoL) =
@@ -187,7 +187,8 @@ filterInvariant inDataLL inCharInfoL newData@(newDataLL, newCharInfoL) =
             let firstCharData = fmap head inDataLL
                 firstCharData' = filter (`notElem` [ST.pack "-", ST.pack "?"]) firstCharData
                 allSameL = fmap ((== (head firstCharData'))) (tail firstCharData')
-                allSame = foldl' (&&) True allSameL
+                allSame = if null firstCharData' then True
+                          else foldl' (&&) True allSameL
             in  -- trace ("FI:" <> (show (allSameL, allSame))) $
                 if allSame
                     then filterInvariant (fmap tail inDataLL) (tail inCharInfoL) (newDataLL, newCharInfoL)

@@ -10,7 +10,7 @@ module Types.Types (
 ) where
 
 import Bio.DynamicCharacter (HugeDynamicCharacter, OpenDynamicCharacter, SlimDynamicCharacter, WideDynamicCharacter)
-import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
+import Bio.DynamicCharacter.Element (HugeState, SlimState, WideState)
 import Control.DeepSeq
 import Control.Monad.IO.Class (MonadIO)
 import Control.Parallel.Strategies

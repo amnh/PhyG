@@ -3,8 +3,10 @@ Module specifying utility functions for use with PhyGraph
 -}
 module Utilities.Utilities where
 
+import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
 import Complexity.Graphs qualified as GC
 import Complexity.Utilities qualified as GCU
+import Control.DeepSeq (force)
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
@@ -38,21 +40,15 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
+import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
 
 
-{- | diagonalNonZero checks if any diagonal values are == 0
-assumes square
-call with index = 0
+{- | strict2of5 esures parallelism and demands strict return of 2nd of 5 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-diagonalNonZero ∷ V.Vector (V.Vector Int) → Int → Bool
-diagonalNonZero inMatrix index =
-    if index == V.length inMatrix
-        then False
-        else
-            if (inMatrix V.! index) V.! index /= 0
-                then True
-                else diagonalNonZero inMatrix (index + 1)
-
+strict2of5 :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
+strict2of5 b@(_,!x,_,_,_) =
+        force x `seq` b
 
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
 and whether the required median is a distance (ie single edge)
@@ -222,15 +218,26 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
                 sum rootCostList
 
 
-{- | calculatePMDLRootCost creates a root cost as the 'insertion' of character data.  For sequence data averaged over
-leaf taxa
-this for a single root
+{- | calculatePMDLRootCost creates a root cost as either the 'insertion' of character data
+or as probbaility of seqeunce in bit based on element frequencies.  
+For sequence data averaged over leaf taxa
+so root independent
 -}
 calculatePMDLRootCost ∷ ProcessedData → VertexCost
 calculatePMDLRootCost (nameVect, _, blockDataV) =
-    let numLeaves = V.length nameVect
-        insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
-    in  -- trace ("InCPMDLRC") $
+    let useLogPiValues = True
+    in
+    --trace ("In CPMDLRC") $
+    if useLogPiValues then 
+        -- root complexity base on log2 Pis
+        --trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
+        getLogPiRootCost blockDataV
+
+    else 
+        -- use insert based (but pi of '-' prob way underestimated)
+        let numLeaves = V.length nameVect
+            insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
+        in  
         insertDataCost / fromIntegral numLeaves
 
 
@@ -250,19 +257,50 @@ getLeafInsertCost ∷ V.Vector CharInfo → V.Vector CharacterData → Double
 getLeafInsertCost charInfoV charDataV =
     V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
 
-
-{- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
-for PMDL of add, non add matrix log2 of alphabet size
+{- | getLogPiRootCost gets log 2 ofelement dreqnecies over all data blocks
 -}
-getCharacterInsertCost ∷ CharacterData → CharInfo → Double
-getCharacterInsertCost inChar charInfo =
-    -- trace ("In GCIC: " <> (show $ charType charInfo) <> " " <> (show $ weight charInfo) <> " " <> (show $ logBase 2.0 $ (fromIntegral $ length (alphabet charInfo) :: Double)) <> " " <> (show $  (alphabet charInfo)) <> " " <> (show $ BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar))) $
+getLogPiRootCost :: V.Vector BlockData -> Double 
+getLogPiRootCost inBlockDataV = 
+    --trace ("In GLPRC: " <> (show (V.sum $ fmap getBlockLogPiCost inBlockDataV))) $
+    V.sum $ fmap getBlockLogPiCost inBlockDataV
+
+{- | getBlockLogPiCost sums up the character root complexity of a block
+relies on pulling charcters out of block
+-}
+getBlockLogPiCost :: BlockData -> Double
+getBlockLogPiCost (_, leafCharVV, charInfoV) = 
+    if V.null charInfoV then 0.0
+    else
+        -- create leaf by single character structure to be mapped over 
+        let charNumList = [0.. (V.length $ V.head leafCharVV) - 1]
+            charVect = fmap (leafCharVV V.!) (V.fromList charNumList)
+        in
+        --trace ("In GBLPC: " <> (show ((V.length $ V.head leafCharVV),  V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV))) $
+        V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV
+
+{- | getCharacterLogPiCost takes a characterdata (vector of terminals for single character) 
+and returns root complexity cost based on frequency of 
+sequence character elements and state number for no-sequence 
+-}
+getCharacterLogPiCost :: V.Vector CharacterData -> CharInfo -> Double
+getCharacterLogPiCost charDataV charInfo =
+    if V.null charDataV then 0.0
+    else 
+        let nonSequenceCharRootCost = getNonSequenceCharacterLogPiCost (V.head charDataV) charInfo
+            sequenceCharRootCost = getSequenceCharacterLogPiCost charDataV charInfo
+        in
+        --trace ("In GCLPC: " <> (show (nonSequenceCharRootCost, sequenceCharRootCost))) $
+        nonSequenceCharRootCost + sequenceCharRootCost
+
+{- | getNonSequenceCharacterLogPiCost creates root cost for all add/nonAdd/Matrix characters
+based number of character states and the log2 of that same for each leaf (since static)
+so no need to average--can use a single leaf
+-}
+getNonSequenceCharacterLogPiCost ∷ CharacterData → CharInfo → Double
+getNonSequenceCharacterLogPiCost inChar charInfo =
+    -- trace ("In GCIC: " <> (show $ charType charInfo)) $
     let localCharType = charType charInfo
-        thisWeight = weight charInfo
-        -- init since don't wan't gap-gap match cost in there
-        rowIndelSum = fromIntegral $ V.sum $ V.init $ S.getFullRowVect (costMatrix charInfo) (length (alphabet charInfo) - 1)
-        -- inDelCost = costMatrix charInfo S.! (0, length (alphabet charInfo) - 1)
-        inDelCost = rowIndelSum / (fromIntegral $ length (alphabet charInfo) - 1)
+        
         numStates =
             if localCharType == NonAdd
                 then BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar)
@@ -276,39 +314,208 @@ getCharacterInsertCost inChar charInfo =
                                 then toEnum $ V.length $ V.head $ matrixStatesPrelim inChar
                                 else 0 ∷ Word
         alphabetWeight = logBase 2.0 $ (fromIntegral $ numStates ∷ Double)
-    in  if localCharType == Add
-            then thisWeight * alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
-            else
-                if localCharType == NonAdd
-                    then thisWeight * alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
-                    else -- this wrong--need to count actual characters packed2/32, packed4/32
 
-                        if localCharType `elem` packedNonAddTypes
-                            then thisWeight * fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
-                            else
-                                if localCharType == Matrix
-                                    then thisWeight * alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
-                                    else
-                                        if localCharType == SlimSeq || localCharType == NucSeq
-                                            then thisWeight * inDelCost * fromIntegral (SV.length $ slimPrelim inChar)
-                                            else
-                                                if localCharType == WideSeq || localCharType == AminoSeq
-                                                    then thisWeight * inDelCost * fromIntegral (UV.length $ widePrelim inChar)
-                                                    else
-                                                        if localCharType == HugeSeq
-                                                            then thisWeight * inDelCost * fromIntegral (V.length $ hugePrelim inChar)
-                                                            else
-                                                                if localCharType == AlignedSlim
-                                                                    then thisWeight * inDelCost * fromIntegral (SV.length $ snd3 $ alignedSlimPrelim inChar)
-                                                                    else
-                                                                        if localCharType == AlignedWide
-                                                                            then thisWeight * inDelCost * fromIntegral (UV.length $ snd3 $ alignedWidePrelim inChar)
-                                                                            else
-                                                                                if localCharType == AlignedHuge
-                                                                                    then thisWeight * inDelCost * fromIntegral (V.length $ snd3 $ alignedHugePrelim inChar)
-                                                                                    else error ("Character type unimplemented : " <> show localCharType)
+        
+        insertCost  
+            | localCharType == Add                      = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+            | localCharType == NonAdd                   = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+            | localCharType `elem` packedNonAddTypes    = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
+            | localCharType == Matrix                   = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+            | otherwise = error ("Non static charcter type: " <> (show localCharType))
+
+    in  --trace ("GCIC: " <> (show (insertCost))) $
+    if localCharType `notElem` ([Add, NonAdd, Matrix] <> packedNonAddTypes) then 0.0
+    else insertCost
+
+{- | getSequenceCharacterLogPiCost creates root cost for all characters as with add/nonAdd
+based on the frequencies of character states and the log2 of that frequency for each state or sequence element
+average cost over leaves so root placement independent
+-}
+getSequenceCharacterLogPiCost :: V.Vector CharacterData -> CharInfo -> Double
+getSequenceCharacterLogPiCost charDataV charInfo =
+    --trace ("In GSCLPC") $
+    if V.null charDataV then error "No data to calculate root cost"
+    else if charType charInfo `notElem` sequenceCharacterTypes then 0.0
+    else 
+        let isNeyman = checkNeyman (costMatrix charInfo)
+            numLeaves = V.length charDataV
+            leafList = V.toList $ fmap (getSequenceLeafCharStateNumbers charInfo) charDataV
+            elementList = fmap fst $ head leafList
+            numberList = fmap (getElementNumberList (concat leafList)) elementList
+            elementNumList = zip elementList numberList
+            totalElements = fromIntegral $ sum $ fmap snd elementNumList
+            elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
+            bitList = if isNeyman then
+                        replicate (length $ alphabet charInfo) $ logBase 2.0 $ (fromIntegral $ (length $ alphabet charInfo) ∷ Double)
+                      else fmap (hereLogBase2) elemFreqList
+        in
+        -- trace ("GSCLPC: " <> (show (isNeyman,elemFreqList, numberList, bitList))) $
+        abs $ (sum $ zipWith (*) (fmap fromIntegral numberList) bitList) / (fromIntegral numLeaves)
+
+        where hereLogBase2 a = if a < epsilon then 0.0
+                               else logBase 2.0 a
+
+{- | checkNeyman take a matrix (type from PHANE) and returns True if
+    the matrix has all non-diagonal values the same
+    otherwise False
+-}
+checkNeyman :: S.Matrix Int -> Bool
+checkNeyman inMatrix =
+    if S.null inMatrix then False
+    else if S.rows inMatrix < 2 then False
+    else 
+        let nonDiagVal = inMatrix S.! (0,1)
+        in
+        checkMatrixVals inMatrix nonDiagVal 0 0 
+
+{- | checkMatrixVals checks of all non-adiagnonal values equal input value
+-} 
+checkMatrixVals :: S.Matrix Int -> Int -> Int -> Int -> Bool
+checkMatrixVals inMatrix nonDiagVal rowIndex columnIndex =
+    --trace ("Check Matrix: " <> (show (rowIndex, columnIndex, S.rows inMatrix, S.cols inMatrix))) $
+    if rowIndex >= S.rows inMatrix then True
+    else if columnIndex >= S.cols inMatrix then checkMatrixVals inMatrix nonDiagVal (rowIndex + 1) 0 
+    else if rowIndex == columnIndex then checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
+    else if inMatrix S.! (rowIndex, columnIndex) /= nonDiagVal then False
+    else checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
+
+{- | getCharacterElementFreq gets the alphabet elements of sequence characters in a 
+specific character over all leaves
+-}
+getCharacterElementFreq :: V.Vector CharacterData -> CharInfo -> [(String, Double)]
+getCharacterElementFreq charDataV charInfo =
+    if V.null charDataV then []
+    else 
+        let leafList = V.toList $ fmap (getSequenceLeafCharStateNumbers charInfo) charDataV
+            elementList = fmap fst $ head leafList
+            elementNumList = zip elementList (fmap (getElementNumberList (concat leafList)) elementList)
+            totalElements = fromIntegral $ sum $ fmap snd elementNumList
+            elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
+        in
+        zip elementList elemFreqList
+
+{- |  getElementNumberList takes a list of (String, Int) and returns 
+the summed Ints based on lisyt of String
+-}
+getElementNumberList :: [(String, Int)] -> String -> Int 
+getElementNumberList pairList matchSymbol =
+    if null pairList then 0
+    else 
+        if (fst $ head pairList) == matchSymbol then
+            (snd $ head pairList) + getElementNumberList (tail pairList) matchSymbol
+        else getElementNumberList (tail pairList) matchSymbol
+
+{- | getSequenceLeafCharStateNumbers gets the numebr of each charcter state as in alphabet
+-}
+getSequenceLeafCharStateNumbers :: CharInfo -> CharacterData → [(String, Int)]
+getSequenceLeafCharStateNumbers charInfo blockDatum =
+    let localType = charType charInfo
+        localAlphabet = (ST.toString <$> alphabet charInfo)
+
+        -- this to avoid recalculations and list access issues
+        lANES = (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet)
+        lAList = NE.toList $ lANES
+        lAVect = V.fromList $ NE.toList $ lANES
+
+        getCharState
+            ∷ ∀ {b}
+             . (Show b, Bits b)
+            ⇒ b
+            → String
+        getCharState a = (bitVectToCharState localAlphabet lANES lAVect a) <> ","
+
+        -- get strings (with ",") of elements
+        stringStates
+            | localType `elem` sequenceCharacterTypes = case localType of
+                x | x `elem` [NucSeq] → (SV.foldMap getCharState (slimPrelim blockDatum))
+                x | x `elem` [SlimSeq] → (SV.foldMap getCharState (slimPrelim blockDatum))
+                x | x `elem` [WideSeq] → (UV.foldMap getCharState (widePrelim blockDatum))
+                x | x `elem` [AminoSeq] → (UV.foldMap getCharState (widePrelim blockDatum))
+                x | x `elem` [HugeSeq] → (foldMap getCharState (hugePrelim blockDatum))
+                x | x `elem` [AlignedSlim] → (SV.foldMap getCharState $ snd3 $ alignedSlimPrelim blockDatum)
+                x | x `elem` [AlignedWide] → (UV.foldMap getCharState $ snd3 $ alignedWidePrelim blockDatum)
+                x | x `elem` [AlignedHuge] → (foldMap getCharState $ snd3 $ alignedHugePrelim blockDatum)
+                _ → error ("Un-implemented sequence data type " <> show localType)
+            | otherwise = error ("Non-sequence data type " <> show localType)
+
+        -- filter out ambiguities (ie not in element list)
+        elementListList = filter (`elem` lAList) $  SL.splitOn "," stringStates
+        elementList = L.group $ L.sort elementListList
+        elementNumberList = fmap (getElementNumber elementList) lAList
+
+    in
+    zip lAList elementNumberList
 
 
+{- | getElementNumber takes a list of list of elements that has been grouped and checkes
+if matches String and if such returns length else goes on to next input String
+-}
+getElementNumber :: [[String]] -> String -> Int
+getElementNumber symbolLL matchSymbol =
+    if null symbolLL then 0
+    else 
+        if (head $ head symbolLL) == matchSymbol then length $ head symbolLL
+        else getElementNumber (tail symbolLL) matchSymbol 
+
+
+{- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
+for PMDL of add, non add matrix log2 of alphabet size
+This uses actual inserts of different elements as oposedd to average, although averaged over leaves so not 
+root dependant
+-}
+getCharacterInsertCost ∷ CharacterData → CharInfo → Double
+getCharacterInsertCost inChar charInfo =
+    --trace ("In GCIC: " <> (show $ charType charInfo)) $
+    let localCharType = charType charInfo
+        thisWeight = weight charInfo
+        
+        numStates =
+            if localCharType == NonAdd
+                then BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar)
+                else
+                    if localCharType == Add
+                        then
+                            let (a, b) = V.head $ GU.snd3 $ rangePrelim inChar
+                            in  toEnum (b - a)
+                        else
+                            if localCharType == Matrix
+                                then toEnum $ V.length $ V.head $ matrixStatesPrelim inChar
+                                else 0 ∷ Word
+        alphabetWeight = logBase 2.0 $ (fromIntegral $ numStates ∷ Double)
+
+        slimLength = max (SV.length $ slimPrelim inChar) (SV.length $ snd3 $ alignedSlimPrelim inChar)
+        wideLength = max (UV.length $ widePrelim inChar) (UV.length $ snd3 $ alignedWidePrelim inChar)
+
+        allGapSlim = SV.replicate slimLength $ (0 ∷ SlimState) `setBit` fromEnum gapIndex
+        allGapWide = UV.replicate wideLength $ (0 ∷ WideState) `setBit` fromEnum gapIndex
+
+        hugeGapChar = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex 
+        allGapHuge = V.replicate (V.length $ hugePrelim inChar) hugeGapChar
+
+        hugeGapCharAligned = ((V.head $ snd3 $ alignedHugePrelim inChar) `xor` (V.head $ snd3 $ alignedHugePrelim inChar)) `setBit` fromEnum gapIndex 
+        allGapHugeAligned = V.replicate (V.length $ snd3 $ alignedHugePrelim inChar) hugeGapCharAligned
+     
+        -- don't need to worry about noCost Adjustment and medioan issue since "-" -> "-" is zero
+        -- otherwise would hahve to subtract off extra no-change cost (gap to gap)
+        insertCost  
+            | localCharType == Add                      = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+            | localCharType == NonAdd                   = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+            | localCharType `elem` packedNonAddTypes    = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
+            | localCharType == Matrix                   = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+            | localCharType == SlimSeq                  = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar)
+            | localCharType == NucSeq                   = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar) 
+            | localCharType == WideSeq                  = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar) 
+            | localCharType == AminoSeq                 = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar)
+            | localCharType == HugeSeq                  = fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHuge (hugePrelim inChar)
+            | localCharType == AlignedSlim              = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (snd3 $ alignedSlimPrelim inChar)
+            | localCharType == AlignedWide              = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (snd3 $ alignedWidePrelim inChar)
+            | localCharType == AlignedHuge              = fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHugeAligned (snd3 $ alignedHugePrelim inChar)
+            | otherwise = error ("Character type unimplemented : " <> show localCharType)
+
+    in  --trace ("GCIC: " <> (show (insertCost, thisWeight * insertCost, allGapSlim, snd3 $ alignedSlimPrelim inChar))) $
+        thisWeight * insertCost
+
+  
 {- | splitSequence takes a ShortText divider and splits a list of ShortText on
 that ShortText divider consuming it akin to Text.splitOn
 -}
@@ -1233,14 +1440,6 @@ glueBackTaxChar singleCharVect =
         multiCharVect = fmap (getSingleTaxon singleCharVect) (V.fromList [0 .. numTaxa - 1])
     in  multiCharVect
 
-
-{- | getSingleCharacter takes a taxa x characters block and an index and returns the character vector for that index
-resulting in a taxon by single charcater vector
--}
-getSingleCharacter ∷ V.Vector (V.Vector CharacterData) → Int → V.Vector CharacterData
-getSingleCharacter taxVectByCharVect charIndex = fmap (V.! charIndex) taxVectByCharVect
-
-
 {- | concatFastas is used by "report(ia)" to create a single concatenated fasta
 for use by programs such as RAxML andf TNT
 takes a single string of multiple fasta output, each entity to be concated (by taxon name)
@@ -1290,7 +1489,8 @@ splitFastaLines curFasta curFastaList inLineList =
         then reverse (reverse curFasta : curFastaList)
         else
             let firstLine = head inLineList
-                firstWord = head $ words firstLine
+                firstWord = if (not $ null $ words firstLine) then head $ words firstLine
+                            else ""
             in  if null firstLine
                     then splitFastaLines curFasta curFastaList (tail inLineList)
                     else

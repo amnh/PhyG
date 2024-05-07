@@ -58,8 +58,7 @@ import Text.Read
 import Types.Types
 import Utilities.Utilities qualified as U
 
-
--- import Debug.Trace
+import Debug.Trace
 
 {- | checkLeafMissingData checks missing data in inputs
 missing data is defined as not in an input file
@@ -674,7 +673,10 @@ getStateBitVectorList localStates
                 genNum = (2 ^) ∷ Word → Natural
                 bvList ∷ V.Vector BitVector
                 bvList = (BV.fromNumber stateCount . genNum) <$> stateIndexList
-            in  V.zip (alphabetStateNames localStates) bvList
+            in  
+            --trace ("GSBVL: " <> (show bvList)) $
+            V.zip (alphabetSymbols localStates) bvList
+            -- V.zip (alphabetStateNames localStates) bvList
 
 
 iupacToBVPairs
@@ -772,6 +774,7 @@ getGeneralBVCode bvCodeVect inState =
         alphabetLen = toEnum $ length bvCodeVect
         construct x = (BV.toUnsignedNumber x, BV.toUnsignedNumber x, Elem.fromNumber alphabetLen $ BV.toUnsignedNumber x) 
     in  -- if '[' `notElem` inStateString then --single state
+        --trace ("GGBVC: " <> (show (alphabetLen, bvCodeVect, inState))) $
         if (head inStateString /= '[') && (last inStateString /= ']') -- single state
             then
                 let newCode = V.find ((== inState) . fst) bvCodeVect
@@ -781,6 +784,7 @@ getGeneralBVCode bvCodeVect inState =
                         Just (_,x) -> construct x
                         Nothing -> case inState of
 
+                            {-
                             -- B is Aspartic Acid or Asparagine if '-' =0 then states 3 and 12.
                             "B" ->
                                 let x = BV.fromBits $ (replicate 3 False) <> [True] <> (replicate 8 False) <> [True] <> (replicate (bvDimension - 13) False)
@@ -789,7 +793,7 @@ getGeneralBVCode bvCodeVect inState =
                             "X" -> 
                                 let x = allBVStates .&. BV.fromBits (False : (replicate (bvDimension - 1) True))
                                 in  construct x
-
+                            -}
                             -- any state including '-'
                             "?" -> 
                                 let x = allBVStates .&. (BV.fromBits (replicate bvDimension True))
@@ -811,12 +815,13 @@ getGeneralBVCode bvCodeVect inState =
 
 
 {- | getGeneralSequenceChar encode general (ie not nucleotide or amino acid) sequences
-as bitvectors.  Main difference with getSequenceChar is in dealing wioth ambiguities
+as bitvectors.  Main difference with getSequenceChar is in dealing with ambiguities
 they need to be parsed and "or-ed" differently
-need to have all three preliminary fields populatied for some reason--prob shouldn't need that
+need to have all three preliminary fields populated for some reason--prob shouldn't need that
 -}
 getGeneralSequenceChar ∷ CharInfo → [ST.ShortText] → [CharacterData]
 getGeneralSequenceChar inCharInfo stateList =
+    --trace ("GGSC-1" <> (show (charType inCharInfo, alphabet inCharInfo, stateList, getStateBitVectorList $ alphabet inCharInfo))) $
     let cType = charType inCharInfo
         -- isAligned = prealigned inCharInfo
         stateBVPairVect :: V.Vector (ST.ShortText, BitVector)
@@ -844,11 +849,11 @@ getGeneralSequenceChar inCharInfo stateList =
                 , alignedHugePrelim = if cType `elem` [AlignedHuge] then (hugeVec, hugeVec, hugeVec) else (mempty, mempty, mempty)
                 , alignedHugeFinal = if cType `elem` [AlignedHuge] then hugeVec else mempty
                 }
-    in  -- trace ("GGSC" <> (show stateList) <> "\n" <> (show newSequenceChar ))
+    in  --trace ("GGSC-2" <> (show stateBVPairVect)) $
         [newSequenceChar]
 
 
-{- | getStateBitVector takes teh alphabet of a character ([ShorText])
+{- | getStateBitVector takes the alphabet of a character ([ShortText])
 and returns then bitvectorfor that state in order of states in alphabet
 -}
 getStateBitVector ∷ Alphabet ST.ShortText → ST.ShortText → BitVector
@@ -857,7 +862,8 @@ getStateBitVector localAlphabet = encodeState localAlphabet (const constructor) 
         constructor :: BitVector
         constructor =
             let x = bit $ length localAlphabet - 1
-            in  x `xor` x
+            in  
+            x `xor` x
 
 
 -- getMinMaxStates takes  list of strings and determines the minimum and maximum integer values
@@ -1059,7 +1065,7 @@ createLeafCharacter inCharInfoList rawDataList maxCharLength
             localAlphabet = alphabet $ head inCharInfoList
             isNucleotideData = isAlphabetDna localAlphabet
             isAminoAcidData = isAlphabetAminoAcid localAlphabet
-        in  -- trace ("CLC: " <> (show localCharType)) (
+        in  --trace ("CLC: " <> (show localCharType) <> " " <> (show rawDataList)) $
             if localCharType `elem` sequenceCharacterTypes
                 then -- in if length inCharInfoList == 1 then  -- should this be `elem` sequenceCharacterTypes
                 case localCharType of
