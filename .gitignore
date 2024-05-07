@@ -9,6 +9,7 @@
 # Temporary files
 *.*~
 *#*#
+*.DS_Store
 *.pdf
 
 # Testing artifacts
