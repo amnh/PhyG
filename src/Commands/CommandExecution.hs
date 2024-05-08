@@ -1137,7 +1137,16 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                 in  getParallelChunkTraverse >>= \pTraverse →
                                                                         (action . fst5) `pTraverse` curGraphs
 
-                                                    let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
+                                                    -- dataStringList <- mapM (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
+                                                    dataStringList <- 
+                                                        let action :: (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
+                                                            action = getGraphDiagnosis globalSettings processedData 
+                                                        in do
+                                                            diagPar ← getParallelChunkTraverse
+                                                            diagPar action (zip curGraphs' [0 .. (length curGraphs' - 1)])
+
+                                                    let dataString = CSV.genCsvFile $ concat dataStringList
+                                                    -- let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
                                                     if null curGraphs
                                                         then do
                                                             logWith LogInfo "No graphs to diagnose\n"

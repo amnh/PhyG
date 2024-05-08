@@ -739,14 +739,14 @@ executeRenameReblockCommands thisInStruction curPairs commandList =
                 else False
 
 
-{- | getGraphDiagnosis creates basic for CSV of graph vertex and node information
+{- | getGraphDiagnosis creates basic strings for CSV of graph vertex and node information
 nodes first then vertices
 -}
-getGraphDiagnosis ∷ GlobalSettings → ProcessedData → (ReducedPhylogeneticGraph, Int) → [[String]]
+getGraphDiagnosis ∷ GlobalSettings → ProcessedData → (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
 getGraphDiagnosis _ inData (inGraph, graphIndex) =
     let decGraph = thd5 inGraph
     in  if LG.isEmpty decGraph
-            then []
+            then pure []
             else
                 let useIA = True
                     useDO = False
@@ -889,8 +889,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             , "Transformation Frequencies"
                             ]
                         ]
-                in  -- trace ("GGD: " <> (show overallElementNumbers))
-                    [vertexTitle, topHeaderList, [show graphIndex]]
+                in  do -- trace ("GGD: " <> (show overallElementNumbers))
+                    pure $  [vertexTitle, topHeaderList, [show graphIndex]]
                         <> vertexInfoList
                         <> edgeTitle
                         <> edgeHeaderList
