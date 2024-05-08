@@ -745,173 +745,209 @@ nodes first then vertices
 getGraphDiagnosis ∷ GlobalSettings → ProcessedData → (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
 getGraphDiagnosis _ inData (inGraph, graphIndex) =
     let decGraph = thd5 inGraph
-    in  if LG.isEmpty decGraph
-            then pure []
-            else
-                let useIA = True
-                    useDO = False
-                    vertexList = LG.labNodes decGraph
-                    edgeList = LG.labEdges decGraph
-                    numLeaves = V.length $ fst3 inData
+    in  
+    if LG.isEmpty decGraph then pure []
+    else do
+                    let useIA = True
+                    let useDO = False
+                    let vertexList = LG.labNodes decGraph
+                    let edgeList = LG.labEdges decGraph
+                    let numLeaves = V.length $ fst3 inData
 
-                    -- Vertex final character states for currect node
-                    vertexTitle = ["Vertex Character State Information"]
-                    -- topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
-                    topHeaderList =
-                        [ "Graph Index"
-                        , "Vertex Index"
-                        , "Vertex Name"
-                        , "Vertex Type"
-                        , "Child Vertices"
-                        , "Parent Vertices"
-                        , "Data Block"
-                        , "Character Name"
-                        , "Character Type"
-                        , "Final State"
-                        ]
-                    vertexInfo = fmap (getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
-                    vertexInfoList = concat vertexInfo
+                        -- Vertex final character states for currect node
+                    let vertexTitle = ["Vertex Character State Information"]
+                        -- topHeaderList  = ["Graph Index", "Vertex Index", "Vertex Name", "Vertex Type", "Child Vertices", "Parent Vertices", "Data Block", "Character Name", "Character Type", "Preliminary State", "Final State", "Local Cost"]
+                    let topHeaderList =
+                                [ "Graph Index"
+                                , "Vertex Index"
+                                , "Vertex Name"
+                                , "Vertex Type"
+                                , "Child Vertices"
+                                , "Parent Vertices"
+                                , "Data Block"
+                                , "Character Name"
+                                , "Character Type"
+                                , "Final State"
+                                ]
+
+                    -- let vertexInfo = fmap (getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    vertexInfo <-
+                            let action :: LG.LNode VertexInfo → [[String]]
+                                action = getVertexCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph) 
+                            in do
+                                diagPar ← getParallelChunkMap
+                                let result = diagPar action vertexList
+                                pure result 
+                    let vertexInfoList = concat vertexInfo
 
                     -- this using IA fields to get changes
-                    vertexInfoListChanges = vertexInfoList -- concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
+                    let vertexInfoListChanges = vertexInfoList -- concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
 
                     -- Edge length information
-                    edgeTitle = [[" "], ["Edge Weight/Length Information"]]
-                    edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
-                    edgeInfoList = fmap getEdgeInfo edgeList
+                    let edgeTitle = [[" "], ["Edge Weight/Length Information"]]
+                    let edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
+                    
+                    -- this is basically a Show
+                    let edgeInfoList = fmap getEdgeInfo edgeList
 
                     -- Alphabet element numbers
-                    alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
+                    let alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
                     -- False for Use IA here
-                    alphabetInfo = getDataElementFrequencies False (thd3 inData)
+                    let alphabetInfo = getDataElementFrequencies False (thd3 inData)
 
-                    alphbetStringLL = extractAlphabetStrings (thd3 inData)
+                    let alphbetStringLL = extractAlphabetStrings (thd3 inData)
 
-                    vertexChangeTitle =
-                        [ [" "]
-                        , ["Vertex Character Changes"]
-                        ,
-                            [ "Graph Index"
-                            , "Vertex Index"
-                            , "Vertex Name"
-                            , "Vertex Type"
-                            , "Child Vertices"
-                            , "Parent Vertices"
-                            , "Data Block"
-                            , "Character Name"
-                            , "Character Type"
-                            , "Parent Final State"
-                            , "Node Final State"
-                            -- , "Sequence Changes (position, parent final state, node final state)"
+                    let vertexChangeTitle =
+                            [ [" "]
+                            , ["Vertex Character Changes"]
+                            ,
+                                [ "Graph Index"
+                                , "Vertex Index"
+                                , "Vertex Name"
+                                , "Vertex Type"
+                                , "Child Vertices"
+                                , "Parent Vertices"
+                                , "Data Block"
+                                , "Character Name"
+                                , "Character Type"
+                                , "Parent Final State"
+                                , "Node Final State"
+                                -- , "Sequence Changes (position, parent final state, node final state)"
+                                ]
                             ]
-                        ]
 
-                    vertexParentStateList =
-                        fmap
-                            ((: []) . last)
-                            (concatMap (getVertexAndParentCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)) vertexList)
-                    vertexStateList = fmap (drop 9) vertexInfoListChanges
+                    -- let vertexParentStateList = fmap ((: []) . last) (concatMap (getVertexAndParentCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)) vertexList)
+                    vertParCharInfoList <-
+                            let action :: LG.LNode VertexInfo → [[String]]
+                                action = getVertexAndParentCharInfo useDO (thd3 inData) (fst5 inGraph) (fft5 inGraph) (V.fromList vertexList)
+                            in do
+                                actionPar <- getParallelChunkMap
+                                let result = actionPar action vertexList
+                                pure result
+
+                    let vertexParentStateList = fmap ((: []) . last) $ concat vertParCharInfoList
+                    let vertexStateList = fmap (drop 9) vertexInfoListChanges
 
                     -- process to change to lines of individual changes--basically a transpose
                     -- True to only report diffs
                     -- vertexChangeListByPosition = fmap (getAlignmentBasedChanges' True 0) (zip vertexParentStateList vertexStateList)
-                    parentChildStatesList = fmap (getAlignmentBasedChanges' False 0) (zip vertexParentStateList vertexStateList)
+                    -- let parentChildStatesList = fmap (getAlignmentBasedChanges' False 0) (zip vertexParentStateList vertexStateList)
+                    parentChildStatesList <- 
+                            let action :: ([String], [String]) → [String]
+                                action = getAlignmentBasedChanges' False 0
+                            in do
+                                actionPar <- getParallelChunkMap
+                                let result = actionPar action (zip vertexParentStateList vertexStateList)
+                                pure result
 
                     -- putting parent states before current state
-                    vertexStateInfoList = fmap (take 9) vertexInfoListChanges
+                    let vertexStateInfoList = fmap (take 9) vertexInfoListChanges
 
+                    let vertexChangeList = L.zipWith3 concat3 vertexStateInfoList vertexParentStateList vertexStateList -- 
                     -- filter out those that are the same states
-                    differenceList = removeNoChangeLines vertexChangeList
+                    let differenceList = removeNoChangeLines vertexChangeList
 
                     -- element transformation numbers
-                    elementTransformationTitle = [["Element Transformations (element<->element, frequency, number) based in Implied Alignment for unaligned sequences"]]
+                    let elementTransformationTitle = [["Element Transformations (element<->element, frequency, number) based in Implied Alignment for unaligned sequences"]]
                     -- get element transfomation by re-parsing formated results--uses teh character states strings this way
-                    elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexParentStateList vertexStateList parentChildStatesList
+                    let elementTransformationInfo = getDataElementTransformations alphbetStringLL vertexParentStateList vertexStateList parentChildStatesList
 
                     -- Get changes based on edges
-                    edgeIndexList = fmap LG.toEdge edgeList
+                    let edgeIndexList = fmap LG.toEdge edgeList
 
                     -- should be parallel
-                    vertexVect = V.fromList $ vertexList
-                    edgeTransformationTotalList = fmap (getEdgeTransformations vertexVect (fft5 inGraph)) edgeIndexList
+                    let vertexVect = V.fromList $ vertexList
+                    -- let edgeTransformationTotalList = fmap (getEdgeTransformations vertexVect (fft5 inGraph)) edgeIndexList
+                    edgeTransformationTotalList <- 
+                            let action :: (LG.Node, LG.Node) → [[(String, [(String, Int)], [[Int]])]]
+                                action = getEdgeTransformations vertexVect (fft5 inGraph)
+                            in do
+                                actionPar <- getParallelChunkMap
+                                let result = actionPar action edgeIndexList
+                                pure result
 
                     -- extract relevent info
-                    edgeTransformationList = fmap (fmap (fmap fst3)) edgeTransformationTotalList
+                    let edgeTransformationList = fmap (fmap (fmap fst3)) edgeTransformationTotalList
                     -- elementNumbersLLL = fmap (fmap (fmap snd3)) edgeTransformationTotalList
-                    transformationNumbersLLL = fmap (fmap (fmap thd3)) edgeTransformationTotalList
+                    let transformationNumbersLLL = fmap (fmap (fmap thd3)) edgeTransformationTotalList
 
                     -- overallElementNumbers = sumEdgeElementLists [] $ take numLeaves elementNumbersLLL
-                    overallElementTransformations = sumEdgeTransformationLists [] transformationNumbersLLL
-                    overallElementTransformationsFreq = fmap (fmap U.normalizeMatrix) overallElementTransformations
+                    let overallElementTransformations = sumEdgeTransformationLists [] transformationNumbersLLL
+                    -- let overallElementTransformationsFreq = fmap (fmap U.normalizeMatrix) overallElementTransformations
+                    overallElementTransformationsFreq <-
+                            let action :: [[[Int]]] → [[[Double]]]
+                                action = fmap U.normalizeMatrix
+                            in do
+                                actionPar <- getParallelChunkMap
+                                let result = actionPar action overallElementTransformations
+                                pure result
 
-                    vertexHeader = fmap (fmap (take 9)) vertexInfo
+                    let vertexHeader = fmap (fmap (take 9)) vertexInfo
 
-                    edgeListLists = knitTitlesChangeInfo vertexHeader edgeTransformationList
+                    let edgeListLists = knitTitlesChangeInfo vertexHeader edgeTransformationList
 
-                    transformationHeader = fmap (drop 5) $ tail $ head vertexHeader
+                    let transformationHeader = fmap (drop 5) $ tail $ head vertexHeader
 
-                    statsListList =
-                        addBlockCharStrings
-                            transformationHeader
-                            alphabetInfo
-                            (fmap (fmap show) overallElementTransformationsFreq)
-                            (fmap (fmap show) overallElementTransformations)
+                    let statsListList =
+                            addBlockCharStrings
+                                transformationHeader
+                                alphabetInfo
+                                (fmap (fmap show) overallElementTransformationsFreq)
+                                (fmap (fmap show) overallElementTransformations)
 
-                    vertexChangeList = L.zipWith3 concat3 vertexStateInfoList vertexParentStateList vertexStateList -- vertexChangeListByPosition
-                    vertexChangeTitleNew =
-                        [ [" "]
-                        , ["Vertex Character Changes"]
-                        ,
-                            [ ""
-                            , "Vertex Index"
-                            , "Vertex Name"
-                            , "Vertex Type"
-                            , "Child Vertices"
-                            , "Parent Vertices"
-                            , "Data Block"
-                            , "Character Name"
-                            , "Character Type"
-                            , "Parent Final State"
-                            , "Node Final State"
-                            , "Unambiguous Transformations"
+                    let vertexChangeTitleNew =
+                            [ [" "]
+                            , ["Vertex Character Changes"]
+                            ,
+                                [ ""
+                                , "Vertex Index"
+                                , "Vertex Name"
+                                , "Vertex Type"
+                                , "Child Vertices"
+                                , "Parent Vertices"
+                                , "Data Block"
+                                , "Character Name"
+                                , "Character Type"
+                                , "Parent Final State"
+                                , "Node Final State"
+                                , "Unambiguous Transformations"
+                                ]
                             ]
-                        ]
 
-                    edgeTransformationTitle =
-                        [ [" "]
-                        , ["Edge Transformation Statistics"]
-                        ,
-                            [ ""
-                            , "Data Block"
-                            , "Character Name"
-                            , "Character Type"
-                            , "Element Frequencies"
-                            , "Transformation Frequencies"
+                    let edgeTransformationTitle =
+                            [ [" "]
+                            , ["Edge Transformation Statistics"]
+                            ,
+                                [ ""
+                                , "Data Block"
+                                , "Character Name"
+                                , "Character Type"
+                                , "Element Frequencies"
+                                , "Transformation Frequencies"
+                                ]
                             ]
-                        ]
-                in  do -- trace ("GGD: " <> (show overallElementNumbers))
                     pure $  [vertexTitle, topHeaderList, [show graphIndex]]
-                        <> vertexInfoList
-                        <> edgeTitle
-                        <> edgeHeaderList
-                        <> edgeInfoList
-                        -- <> vertexChangeTitle
-                        -- <> differenceList
-                        <> vertexChangeTitleNew
-                        <> edgeListLists
-                        -- <> elementTransformationTitle
-                        -- <> elementTransformationInfo
-                        -- <> alphabetTitle
-                        -- <> alphabetInfo
-                        <> edgeTransformationTitle
-                        <> statsListList
-    where
-        -- <> fmap show overallElementTransformations
+                            <> vertexInfoList
+                            <> edgeTitle
+                            <> edgeHeaderList
+                            <> edgeInfoList
+                            -- <> vertexChangeTitle
+                            -- <> differenceList
+                            <> vertexChangeTitleNew
+                            <> edgeListLists
+                            -- <> elementTransformationTitle
+                            -- <> elementTransformationInfo
+                            -- <> alphabetTitle
+                            -- <> alphabetInfo
+                            <> edgeTransformationTitle
+                            <> statsListList
+                    where
+                        -- <> fmap show overallElementTransformations
 
-        concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
-        concat4 a b c d = a <> b <> c <> d
-        concat3 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a
-        concat3 a b c = a <> b <> c
+                        concat4 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a → a
+                        concat4 a b c d = a <> b <> c <> d
+                        concat3 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a
+                        concat3 a b c = a <> b <> c
 
 
 {- | sumEdgeElementLists takes list of edges of block of characters transomftion matricwes and
