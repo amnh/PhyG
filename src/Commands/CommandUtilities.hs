@@ -1257,7 +1257,7 @@ This an absurdely slow implementation n^2 at least
 -}
 getTransformations ∷ [String] → String → String → [[Int]] → [[Int]]
 getTransformations alphabet parentCharList childCharList curMatrix =
-    if null parentCharList
+    if null parentCharList || null childCharList
         then curMatrix
         else
             let pChar = head parentCharList

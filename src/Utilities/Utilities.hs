@@ -730,7 +730,10 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
                                                                 "[" <> stringVal <> "]" <> " "
                     else -- else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet)
                     --    <> " RNA: " <> (show $ isAlphabetRna localAlphabet) <> " Size: " <> (show $ SET.size (alphabetSymbols localAlphabet)) )
-                        bitVectToCharState'' localAlphabetNEString localAlphabetVect bitValue
+                        -- below in cases where all 0 bitvector--no idea why that might be happening
+                        if popCount bitValue == 0 then ("-" <> " ")
+                        else -- trace ("BV2S: " <> (show bitValue) <> " " <> (show $ (popCount bitValue) == 0)) $
+                             (bitVectToCharState'' localAlphabetNEString localAlphabetVect bitValue) <> " "
     where
         indices = [0 .. len - 1]
         len = length vec
@@ -745,7 +748,12 @@ bitVectToCharState'' ∷ (Bits b) ⇒ NonEmpty String → V.Vector String → b 
 bitVectToCharState'' localAlphabet localAlphabetVect bitValue
     | isAlphabetDna hereAlphabet = fold $ iupacToDna BM.!> observedSymbols
     | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
-    | otherwise = L.intercalate "," $ toList observedSymbols
+    | otherwise = -- L.intercalate "," $ toList observedSymbols
+        let symbolList = toList observedSymbols 
+            symbolComma = L.intercalate "," $ toList observedSymbols
+        in
+        if length observedSymbols == 1 then symbolComma
+        else ('[' : symbolComma) <> "]"
     where
         hereAlphabet = fromSymbols localAlphabet
         symbolCountH = length localAlphabet
