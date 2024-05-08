@@ -728,12 +728,8 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
                                                             then "?"
                                                             else -- amino acid polymorphisms without ambiguity codes
                                                                 "[" <> stringVal <> "]" <> " "
-                    else -- else error ("Alphabet type not recognized as nucleic acid or amino acid : " <> (show localAlphabet) ++ " DNA: " <> (show $ isAlphabetDna localAlphabet)
-                    --    <> " RNA: " <> (show $ isAlphabetRna localAlphabet) <> " Size: " <> (show $ SET.size (alphabetSymbols localAlphabet)) )
-                        -- below in cases where all 0 bitvector--no idea why that might be happening
-                        if popCount bitValue == 0 then ("-" <> " ")
-                        else -- trace ("BV2S: " <> (show bitValue) <> " " <> (show $ (popCount bitValue) == 0)) $
-                             (bitVectToCharState'' localAlphabetNEString localAlphabetVect bitValue) <> " "
+                                                                
+                    else (bitVectToCharState'' localAlphabetNEString localAlphabetVect bitValue) <> " "
     where
         indices = [0 .. len - 1]
         len = length vec
@@ -746,19 +742,20 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
 -- bitVectToCharState''  takes a bit vector representation and returns a list states as integers
 bitVectToCharState'' ∷ (Bits b) ⇒ NonEmpty String → V.Vector String → b → String
 bitVectToCharState'' localAlphabet localAlphabetVect bitValue
-    | isAlphabetDna hereAlphabet = fold $ iupacToDna BM.!> observedSymbols
-    | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> observedSymbols
+    | isAlphabetDna hereAlphabet = fold $ iupacToDna BM.!> (NE.fromList observedSymbols)
+    | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> (NE.fromList observedSymbols)
     | otherwise = -- L.intercalate "," $ toList observedSymbols
         let symbolList = toList observedSymbols 
-            symbolComma = L.intercalate "," $ toList observedSymbols
+            symbolComma = L.intercalate "," observedSymbols
         in
         if length observedSymbols == 1 then symbolComma
+        else if length observedSymbols == 0 then "-"
         else ('[' : symbolComma) <> "]"
     where
         hereAlphabet = fromSymbols localAlphabet
         symbolCountH = length localAlphabet
         observedSymbols =
-            NE.fromList $
+            -- NE.fromList $
                 foldMap
                     -- (\ i -> [localAlphabet NE.!! i | bitValue `testBit` i])
                     (\i → [localAlphabetVect V.! i | bitValue `testBit` i])
