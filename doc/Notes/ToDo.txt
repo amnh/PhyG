@@ -629,6 +629,6 @@
 
 478) Check strictness in heuasritics for swap and network edits
 
-479) Clean up doubnle processing of set etc commands--remove warnings at least
+479) 
 
 481)
