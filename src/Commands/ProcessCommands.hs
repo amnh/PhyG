@@ -15,6 +15,7 @@ module Commands.ProcessCommands (
     expandRunCommands,
     getCommandList,
     movePrealignedTCM,
+    moveSetOutgroupFirst,
     preprocessOptimalityCriteriaScripts,
 ) where
 
@@ -31,6 +32,7 @@ import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import Types.Types
+--import Debug.Trace
 
 
 {- | preprocessOptimalityCriteriaScripts takes a processed command list and
@@ -361,3 +363,17 @@ movePrealignedTCM inArgList =
             in  if length secondPart > 1
                     then failWithPhase Parsing ("\n\n'Read' command error '" <> show inArgList <> "': can only specify a single tcm file")
                     else return $ firstPart <> secondPart <> restPart
+
+
+{- | moveSetOutgroupFirst reofers set command order such that set outgroup if first of set commands
+    This seems to be requirted due some stricness issues with processing data
+-}
+moveSetOutgroupFirst :: [Command]  → [Command]
+moveSetOutgroupFirst inCommandList = 
+    if null inCommandList then inCommandList
+    else 
+        let setList = filter ((== Set) . fst) inCommandList
+            outGroupCommandList = filter ((== "outgroup") . fst) $ concat $ fmap snd setList
+            newComandList = (Set,  outGroupCommandList) : (filter (/= (Set,  outGroupCommandList)) inCommandList)
+        in
+        newComandList

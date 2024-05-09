@@ -93,7 +93,7 @@ performSearch initialSeed inputFilePath = do
     expandedReadCommands ← mapM (RIF.expandReadCommands []) $ filter ((== Read) . fst) thingsToDo'
 
     -- sort added to sort input read commands for left right consistency
-    let thingsToDo = L.sort (fold expandedReadCommands) <> filter ((/= Read) . fst) thingsToDo'
+    let thingsToDo = PC.moveSetOutgroupFirst $ L.sort (fold expandedReadCommands) <> filter ((/= Read) . fst) thingsToDo'
     -- logWith LogDump . show $ fold expandedReadCommands
 
     -- check commands and options for basic correctness
@@ -285,7 +285,9 @@ performSearch initialSeed inputFilePath = do
                 then optDataNBPL
                 else optimizedPrealignedData
 
+    -- set outgroup needs to be the firt set command (I think due to stricness)
     let initialSetCommands = filter ((== Set) . fst) thingsToDoAfterReblock
+
     let commandsAfterInitialDiagnose = filter ((/= Set) . fst) thingsToDoAfterReblock
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
