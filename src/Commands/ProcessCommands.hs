@@ -186,7 +186,7 @@ getInstruction inString possibleCommands
         in  do
                 failWithPhase Parsing $
                     fold
-                        ["\nError: Unrecognized command. By \'", inString, "\' did you mean \'", errorMatch, "\'?\n"]
+                        ["Error: Unrecognized command. By \'", inString, "\' did you mean \'", errorMatch, "\'?\n"]
 
 
 {- | parseCommand takes a command file line and processes the String into a command and its arguemnts
