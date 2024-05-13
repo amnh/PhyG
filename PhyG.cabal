@@ -163,7 +163,7 @@ Common ffi-build-info
 
 -- This is required as compile option to make static binaries on Linux at least
 -- need to haev llvm-(verions) tools installed to link properly
---enable-executable-static -fPIC
+--enable-executable-static -fpic (no idea why but lower case seems to mattwer on caommandline)
 
 -- Global build directives
 Common build-defaults
