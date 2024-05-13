@@ -376,4 +376,6 @@ moveSetOutgroupFirst inCommandList =
             outGroupCommandList = filter ((== "outgroup") . fst) $ concat $ fmap snd setList
             newComandList = (Set,  outGroupCommandList) : (filter (/= (Set,  outGroupCommandList)) inCommandList)
         in
-        newComandList
+        if null setList then inCommandList
+        else if null outGroupCommandList then inCommandList
+        else newComandList
