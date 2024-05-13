@@ -677,7 +677,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                     <> show (length inGraphList)
                                                     <> " input graph(s) with minimum cost "
                                                     <> show (minimum $ fmap snd5 inGraphList)
-                                                    <> " limiting maximum number of network edge additoins to "
+                                                    <> " limiting maximum number of network edge additions to "
                                                     <> show (fromJust maxNetEdges)
                                                     <> " and maximum "
                                                     <> show (fromJust maxRounds)
@@ -742,7 +742,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                     <> show (length inGraphList)
                                                     <> " input graph(s) with minimum cost "
                                                     <> show (minimum $ fmap snd5 inGraphList)
-                                                    <> " limiting maximum number of network edge additoins to "
+                                                    <> " limiting maximum number of network edge additions to "
                                                     <> show (fromJust maxNetEdges)
                                                     <> "\n"
                                                 )
