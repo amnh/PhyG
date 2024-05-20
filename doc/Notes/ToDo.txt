@@ -629,6 +629,6 @@
 
 478) Check strictness in heuasritics for swap and network edits
 
-479) 
+479) IMporve tree identity testing--check 1k example in phastSimulations
 
-481)
+481) Check parallelize over blocks and characters
