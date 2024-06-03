@@ -14,6 +14,7 @@ import Data.Alphabet.Special
 import Data.BitVector.LittleEndian qualified as BV
 import Data.Bits
 import Data.Char qualified as C
+import Complexity.Utilities qualified as CU
 import Data.Foldable
 import Data.List qualified as L
 import Data.List.NonEmpty qualified as NE
@@ -1172,6 +1173,11 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
 
                     let edgeListLists = knitTitlesChangeInfo vertexHeader edgeTransformationList
 
+                    -- test code to get conditional info of child given parent K(c|p) = K(c<>p) - K(p), K(c)/K(c|p) randomnes index 
+                    let characterParentFields = fmap (getIndex 9) edgeListLists
+                    let characterChildFields = fmap (getIndex 10) edgeListLists
+                    let characterEdgeInformationContent = zipWith getEdgeInformationContent characterChildFields characterParentFields
+
                     let transformationHeader = fmap (drop 5) $ tail $ head vertexHeader
 
                     
@@ -1203,6 +1209,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                             -- <> differenceList
                             <> vertexChangeTitleNew
                             <> edgeListLists
+                            --compression lists 
+                            -- <> zipWith (<>) edgeListLists (fmap (:[]) $ fmap showInfo characterEdgeInformationContent)
                             -- <> elementTransformationTitle
                             -- <> elementTransformationInfo
                             -- <> alphabetTitle
@@ -1215,6 +1223,37 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         concat3 ∷ ∀ {a}. (Semigroup a) ⇒ a → a → a → a
                         concat3 a b c = a <> b <> c
 
+                        getIndex a s = if (length s > a) then s !! a
+                                       else "" 
+
+                        showInfo a = if snd5 a == -1.0 then ""
+                                     else show a
+
+{- getEdgeInfo--Experimental
+    returns conditional complexity of child state given parent--K(c|p) and
+    ration of child complexity to child conditinal complexity-- K(c) / K(c|p)
+-}
+getEdgeInformationContent :: String -> String -> (Double, Double,Double, Double, Double)
+getEdgeInformationContent childString' parentString' =
+    -- filter out solitary gaps--put in by IA for transformation counting
+    let childString = filter (/= '-') childString'
+        parentString = filter (/= '-') parentString'
+    in
+    -- empty line
+    if null childString && null parentString then (0,-1.0, 0,0,0)
+    -- child empty or missing
+    else if null childString then (0,-1.0, 0,0,0)
+    -- parent empty or missing
+    else if null parentString then 
+        -- only K(c)
+        let (_, _, _, kc)  = CU.getInformationContent childString
+        in (kc, 1.0, 0,0,0)
+    else 
+        let (_, _, _, kc)  = CU.getInformationContent childString
+            (_, _, _, kcGp)  = CU.getInformationContent  (childString <> parentString)
+            (_, _, _, kp)  = CU.getInformationContent parentString
+        in
+        (kcGp - kp,  kcGp / kc, kc, kp, kcGp)
 
 
 {- | sumEdgeElementLists takes list of edges of block of characters transomftion matricwes and
@@ -1341,7 +1380,7 @@ addBlockCharStrings labelStringList elementStringList matrixStringList matrixStr
         concat4 a b c d = a <> b <> c <> d
 
 
-{- | knitTitlesChangeInfo tkaes [[[String]]] of title info and knits with [[[String]]] of character change info
+{- | knitTitlesChangeInfo takes [[[String]]] of title info and knits with [[[String]]] of character change info
     into [[String]] for CSV output
     Edges x Blocks x characters (final is transformation info)
 -}
