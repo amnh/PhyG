@@ -1137,7 +1137,6 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                 in  getParallelChunkTraverse >>= \pTraverse →
                                                                         (action . fst5) `pTraverse` curGraphs
 
-                                                    -- dataStringList <- mapM (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
                                                     dataStringList <- 
                                                         let action :: (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
                                                             action = getGraphDiagnosis globalSettings processedData 
@@ -1146,7 +1145,6 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                             diagPar action (zip curGraphs' [0 .. (length curGraphs' - 1)])
 
                                                     let dataString = CSV.genCsvFile $ concat dataStringList
-                                                    -- let dataString = CSV.genCsvFile $ concatMap (getGraphDiagnosis globalSettings processedData) (zip curGraphs' [0 .. (length curGraphs' - 1)])
                                                     if null curGraphs
                                                         then do
                                                             logWith LogInfo "No graphs to diagnose\n"
@@ -1222,7 +1220,35 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                 "\tWarning: Prealigned sequence data with non-additive type costs (all change values equal) have been recoded to non-additive characters and will not appear in implied alignment output.\n"
                                                                                             pure (concat iaContentList, outfileName, writeMode)
                                                                         else
-                                                                            if "pairdist" `elem` commandList
+                                                                            if "metadata" `elem` commandList
+                                                                                then do
+                                                                                    curGraphs' ←
+                                                                                        if False -- not (reportNaiveData globalSettings)
+                                                                                            then pure curGraphs
+                                                                                            else
+                                                                                                let action ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
+                                                                                                    action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
+                                                                                                in  getParallelChunkTraverse >>= \pTraverse →
+                                                                                                        (action . fst5) `pTraverse` curGraphs
+
+                                                                                    dataStringList <- 
+                                                                                        let action :: (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
+                                                                                            action = getGraphMetaData globalSettings processedData 
+                                                                                        in do
+                                                                                            diagPar ← getParallelChunkTraverse
+                                                                                            diagPar action (zip curGraphs' [0 .. (length curGraphs' - 1)])
+
+                                                                                    let dataString = CSV.genCsvFile $ concat dataStringList
+                                                                                    if null curGraphs
+                                                                                        then do
+                                                                                            logWith LogInfo "No graphs to get metaData\n"
+                                                                                            pure ("No graphs to get metaData", outfileName, writeMode)
+                                                                                        else do
+                                                                                            logWith
+                                                                                                LogInfo
+                                                                                                ("Getting metaData from " <> show (length curGraphs) <> " graphs at minimum cost " <> show (minimum $ fmap snd5 curGraphs) <> "\n")
+                                                                                            pure (dataString, outfileName, writeMode)
+                                                                            else if "pairdist" `elem` commandList
                                                                                 then
                                                                                     let nameData = L.intercalate "," (V.toList (T.unpack <$> fst3 processedData)) <> "\n"
                                                                                     in  do
@@ -1230,7 +1256,37 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                             let dataString = CSV.genCsvFile $ fmap (fmap show) pairwiseDistanceMatrix'
                                                                                             pure (nameData <> dataString, outfileName, writeMode)
                                                                                 else
-                                                                                    if "reconcile" `elem` commandList
+                                                                                    if "parameterestimation"  `elem` commandList
+                                                                                        then do
+                                                                                            curGraphs' ←
+                                                                                                if False -- not (reportNaiveData globalSettings)
+                                                                                                    then pure curGraphs
+                                                                                                    else
+                                                                                                        let action ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
+                                                                                                            action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
+                                                                                                        in  getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                (action . fst5) `pTraverse` curGraphs
+
+                                                                                            dataStringList <- 
+                                                                                                let action :: (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
+                                                                                                    action = getGraphParameters globalSettings processedData 
+                                                                                                in do
+                                                                                                    diagPar ← getParallelChunkTraverse
+                                                                                                    diagPar action (zip curGraphs' [0 .. (length curGraphs' - 1)])
+
+                                                                                            let dataString = CSV.genCsvFile $ concat dataStringList
+                                                                                            
+                                                                                            if null curGraphs
+                                                                                                then do
+                                                                                                    logWith LogInfo "No graphs for metaData\n"
+                                                                                                    pure ("No graphs for metaData", outfileName, writeMode)
+                                                                                                else do
+                                                                                                    logWith
+                                                                                                        LogInfo
+                                                                                                        ("Getting metaData for " <> show (length curGraphs) <> " graphs at minimum cost " <> show (minimum $ fmap snd5 curGraphs) <> "\n")
+                                                                                                    pure (dataString, outfileName, writeMode)
+
+                                                                                    else if "reconcile" `elem` commandList
                                                                                         then do
                                                                                             recResult ← R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
                                                                                             -- let (reconcileString, ) = recResult
