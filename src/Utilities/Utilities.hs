@@ -223,20 +223,21 @@ or as probbaility of seqeunce in bit based on element frequencies.
 For sequence data averaged over leaf taxa
 so root independent
 -}
-calculatePMDLRootCost ∷ Bool -> Maybe Int -> ProcessedData → VertexCost
-calculatePMDLRootCost useLogPiValues index (nameVect, _, blockDataV) =
+calculatePMDLRootCost ∷ Bool -> Maybe Int -> Maybe DecoratedGraph -> ProcessedData → VertexCost
+calculatePMDLRootCost useLogPiValues index decGraph (nameVect, _, blockDataV) =
     --trace ("In CPMDLRC") $
     if useLogPiValues then 
         -- root complexity base on log2 Pis
         --trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
         getLogPiRootCost blockDataV
 
-    else --False so insert
+    else if isNothing index then --False so insert--if index /= Nothing then single vertex not average of leaves
         -- use insert based (but pi of '-' prob way underestimated)
         let numLeaves = V.length nameVect
             insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
         in  
         insertDataCost / fromIntegral numLeaves
+    else error "Optimized data complexity noy yet implemented"
 
 
 {- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block

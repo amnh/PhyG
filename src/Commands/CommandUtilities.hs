@@ -1076,6 +1076,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     
                     -- this is basically a Show
                     let edgeInfoList = fmap getEdgeInfo edgeList
+                    let endVertexList = fmap snd3 edgeList
 
                     -- Alphabet element numbers
                     let alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
@@ -1229,7 +1230,7 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                         showInfo a = if snd5 a == -1.0 then ""
                                      else show a
 
-{- getEdgeInfo--Experimental
+{- getEdgeInformationContent--Experimental
     returns conditional complexity of child state given parent--K(c|p) and
     ration of child complexity to child conditinal complexity-- K(c) / K(c|p)
 -}
