@@ -467,7 +467,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost origProcessedData)
                                 val
                                     | val `elem` [PMDL, SI] →
-                                        pure $ (U.calculateGraphComplexity &&& (U.calculatePMDLRootCost True Nothing Nothing)) origProcessedData
+                                        pure $ (U.calculateGraphComplexity &&& (U.calculatePMDLRootCost True)) origProcessedData
                                 val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
 
                             let lGraphFactor
@@ -767,7 +767,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                 MAPA → pure $ (IL.repeat (0.0, 0.0), U.calculateMAPARootCost origProcessedData)
                                 val
                                     | val `elem` [PMDL, SI] →
-                                        pure $ (U.calculateGraphComplexity &&& (U.calculatePMDLRootCost True Nothing Nothing)) origProcessedData
+                                        pure $ (U.calculateGraphComplexity &&& (U.calculatePMDLRootCost True)) origProcessedData
                                 val → failWithPhase Parsing $ "Optimality criterion not recognized: " <> show val
 
                             let lGraphFactor
@@ -946,7 +946,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             lRootComplexity ← case localMethod of
                                 NoRootCost → pure 0.0
-                                val | val `elem` [Wheeler2015Root, PMDLRoot] → pure $ U.calculatePMDLRootCost True Nothing Nothing origProcessedData
+                                val | val `elem` [Wheeler2015Root, PMDLRoot] → pure $ U.calculatePMDLRootCost True origProcessedData
                                 val → failWithPhase Parsing $ "Error in 'set' command. No determined root complexity of '" <> show val <> "'"
 
                             logWith LogInfo $ unwords ["RootCost set to", show localMethod, show lRootComplexity, "bits\n"]

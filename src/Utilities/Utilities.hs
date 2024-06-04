@@ -218,26 +218,38 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
                 sum rootCostList
 
 
-{- | calculatePMDLRootCost creates a root cost as either the 'insertion' of character data
+{- | calculatePMDLVertexComplexity creates a vertex cost as either the 'insertion' of character data
 or as probbaility of seqeunce in bit based on element frequencies.  
-For sequence data averaged over leaf taxa
-so root independent
 -}
-calculatePMDLRootCost ∷ Bool -> Maybe Int -> Maybe DecoratedGraph -> ProcessedData → VertexCost
-calculatePMDLRootCost useLogPiValues index decGraph (nameVect, _, blockDataV) =
+calculatePMDLVertexComplexity ∷ Bool -> Maybe DecoratedGraph -> ProcessedData -> Maybe Int -> VertexCost
+calculatePMDLVertexComplexity useLogPiValues decGraph (nameVect, _, blockDataV) index =
     --trace ("In CPMDLRC") $
     if useLogPiValues then 
         -- root complexity base on log2 Pis
         --trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
         getLogPiRootCost blockDataV
 
-    else if isNothing index then --False so insert--if index /= Nothing then single vertex not average of leaves
+    else if isNothing index then --False so insert--if index /= Nothing 
+        -- average of leaves
         -- use insert based (but pi of '-' prob way underestimated)
         let numLeaves = V.length nameVect
             insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
         in  
         insertDataCost / fromIntegral numLeaves
-    else error "Optimized data complexity noy yet implemented"
+    else -- optimized graph specific vertex cost-- not averager
+        error "Optimized data complexity noy yet implemented"
+
+{- | calculatePMDLRootCost creates a root cost as either the 'insertion' of character data
+or as probbaility of seqeunce in bit based on element frequencies.  
+For sequence data averaged over leaf taxa
+so root independent
+
+Wrapper around more flexible calculatePMDLVertexComplexity
+-}
+calculatePMDLRootCost ∷ Bool -> ProcessedData -> VertexCost
+calculatePMDLRootCost useLogPiValues inData =
+    calculatePMDLVertexComplexity useLogPiValues Nothing inData Nothing
+   
 
 
 {- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block

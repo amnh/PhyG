@@ -1076,7 +1076,8 @@ getGraphDiagnosis _ inData (inGraph, graphIndex) =
                     
                     -- this is basically a Show
                     let edgeInfoList = fmap getEdgeInfo edgeList
-                    let endVertexList = fmap snd3 edgeList
+                    let endVertexList = fmap (Just . snd3) edgeList
+                    let vertexComplexityList = fmap (U.calculatePMDLVertexComplexity False (Just $ thd5 inGraph) inData) endVertexList
 
                     -- Alphabet element numbers
                     let alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
