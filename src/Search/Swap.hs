@@ -1359,11 +1359,14 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                         else decide <$> T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
             in  case inSimAnnealParams of
                     -- SPR or no TBR rearrangements
+                    -- wierdness here with first case should have been taking longer--but is quicker for prealigned
                     Nothing → case swapType swapParams of
-                        _ | length edgesInPrunedGraph < 4 → action
+                        -- _ | length edgesInPrunedGraph < 4 → action
                         SPR | sprReJoinCost + splitCost <= curBestCost → action
                         SPR → pure defaultResult
                         -- do TBR stuff returning SPR results if heuristic better
+                        TBR | (length edgesInPrunedGraph < 4) && (sprReJoinCost + splitCost <= curBestCost) → action
+                        TBR | (length edgesInPrunedGraph < 4) → pure defaultResult
                         TBR → do
                             -- check if spr better always return if so
                             sprResult ←
