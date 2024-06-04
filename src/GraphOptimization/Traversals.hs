@@ -46,9 +46,9 @@ import Utilities.Utilities as U
 -}
 multiTraverseFullyLabelGraphReduced
     ∷ GlobalSettings → ProcessedData → Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
-multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex inGraph = do
-    result ← multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
-    pure $ GO.convertPhylogeneticGraph2Reduced result
+multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex inGraph =
+    GO.convertPhylogeneticGraph2Reduced <$> multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
+
 
 
 -- \$ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex inGraph
