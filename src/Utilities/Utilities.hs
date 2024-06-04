@@ -225,6 +225,7 @@ calculatePMDLVertexComplexity ∷ Bool -> Maybe DecoratedGraph -> ProcessedData 
 calculatePMDLVertexComplexity useLogPiValues decGraph (nameVect, _, blockDataV) index =
     --trace ("In CPMDLRC") $
     if useLogPiValues then 
+        -- this is based on average of leaves
         -- root complexity base on log2 Pis
         --trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
         getLogPiRootCost blockDataV
@@ -236,8 +237,14 @@ calculatePMDLVertexComplexity useLogPiValues decGraph (nameVect, _, blockDataV) 
             insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
         in  
         insertDataCost / fromIntegral numLeaves
-    else -- optimized graph specific vertex cost-- not averager
-        error "Optimized data complexity noy yet implemented"
+    else -- optimized graph specific vertex cost-- not average
+        -- pull data from specific vertgex but make a singleton vector
+        let charInfoV = fmap thd3 blockDataV
+            graphBlockDataV = fmap snd3 blockDataV -- just to get types going
+            -- HERE
+        in
+        V.sum $ fmap getblockInsertDataCost blockDataV -- just to get types going
+        --error "Optimized data complexity noy yet implemented"
 
 {- | calculatePMDLRootCost creates a root cost as either the 'insertion' of character data
 or as probbaility of seqeunce in bit based on element frequencies.  
@@ -258,14 +265,15 @@ then store value in Global Settings
 -}
 getblockInsertDataCost ∷ BlockData → Double
 getblockInsertDataCost (_, characterDataVV, charInfoV) =
-    V.sum $ fmap (getLeafInsertCost charInfoV) characterDataVV
+    V.sum $ fmap (getVerticesInsertCost charInfoV) characterDataVV
 
 
-{- | getLeafInsertCost is the cost or originating or 'inserting' leaf data
-for all characters in a block
+{- | getVerticesInsertCost is the cost or originating or 'inserting' all 
+    vertex data in vector (usually leaf data, but could be singleton of vertex)
+    for all characters in a block
 -}
-getLeafInsertCost ∷ V.Vector CharInfo → V.Vector CharacterData → Double
-getLeafInsertCost charInfoV charDataV =
+getVerticesInsertCost ∷ V.Vector CharInfo → V.Vector CharacterData → Double
+getVerticesInsertCost charInfoV charDataV =
     V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
 
 {- | getLogPiRootCost gets log 2 ofelement dreqnecies over all data blocks
