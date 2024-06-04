@@ -1599,6 +1599,7 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                             in  do
                                     -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
+                                    
                                     rerootEdgeDataList ←
                                         getParallelChunkMap <&> \pMap →
                                             makeEdgeAction `pMap` rerootEdgeList

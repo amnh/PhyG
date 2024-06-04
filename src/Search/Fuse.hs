@@ -31,6 +31,7 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Swap qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities as U
 
 
 -- In general, needs simplification and refactoring
@@ -85,7 +86,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                     Just index → pure (takeNth index graphPairList', "")
 
                 newGraphList ←
-                    getParallelChunkTraverse >>= \pTraverse →
+                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
                         fold <$> pTraverse action graphPairList
 
                 let fuseBest =
@@ -190,7 +191,7 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
             in  do
                     -- paralleized high level
                     fusePairResult' ←
-                        getParallelChunkTraverse >>= \pTraverse →
+                        getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
                             action `pTraverse` take numPairsToExamine leftRightList
                     let fusePairResult = concat fusePairResult'
 
@@ -497,7 +498,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                 in  -- alternate -- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
                     do
                         -- do "all additions" -
-                        recombinedGraphList' ← getParallelChunkTraverse >>= \pTraverse → pTraverse action graphDataList
+                        recombinedGraphList' ← getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse → pTraverse action graphDataList
                         let recombinedGraphList = concat recombinedGraphList'
 
                         -- this based on heuristic deltas
