@@ -223,8 +223,8 @@ or as probbaility of seqeunce in bit based on element frequencies.
 For sequence data averaged over leaf taxa
 so root independent
 -}
-calculatePMDLRootCost ∷ Bool -> ProcessedData → VertexCost
-calculatePMDLRootCost useLogPiValues (nameVect, _, blockDataV) =
+calculatePMDLRootCost ∷ Bool -> Maybe Int -> ProcessedData → VertexCost
+calculatePMDLRootCost useLogPiValues index (nameVect, _, blockDataV) =
     --trace ("In CPMDLRC") $
     if useLogPiValues then 
         -- root complexity base on log2 Pis
