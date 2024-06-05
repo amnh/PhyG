@@ -53,19 +53,11 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     if null curBestGraphList then pure ([], inCounter)
     else do
         let inBestCost = minimum $ fmap snd5 curBestGraphList
-        --liftIO $ putStr ("SD: " <> (show $ swapType swapParams) <> " " <> (show $ fmap snd5 curBestGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5 curBestGraphList))
-        (newGraphList', newCounter) <-
-            if swapType swapParams `elem` [NNI, SPR, TBR] then 
-                swapMaster swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
-
-            else if swapType swapParams `elem` [Alternate] then do
-                (sprGraphList', sprCounter) <- swapMaster (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList inSimAnnealParams
-                sprGraphList <- GO.selectGraphs Best (keepNum swapParams) 0.0 sprGraphList'
-                --liftIO $ putStr ("SD-SPR: " <> (show $ fmap snd5 sprGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5  sprGraphList))
-                swapMaster (swapParams {swapType = TBR}) inGS inData sprCounter sprGraphList inSimAnnealParams
-
-            else error ("Unrecognize swap param: " <> (show $ swapType swapParams))
-
+        --liftIO $ putStr ("SD: " <> (show $ swapType swapParams)) --  <> " " <> (show $ fmap snd5 curBestGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5 curBestGraphList))
+        
+        (newGraphList', newCounter, newSAParams) <-
+            swapMaster swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
+        
         newGraphList <- GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList'
         --liftIO $ putStr ("SD-After: " <> (show $ fmap snd5 newGraphList))
         -- found no better
@@ -83,7 +75,9 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 pure (newGraphList, newCounter)
 
             -- found better-- go around again
-            else swapDriver swapParams inGS inData newCounter newGraphList inSimAnnealParams 
+            else do
+                let newSimAnnealParamList = zip (U.generateUniqueRandList (length newGraphList) newSAParams) newGraphList
+                swapDriver swapParams inGS inData newCounter newGraphList newSimAnnealParamList 
             
 {- swapMAster
     Working through the complex logic of swapSPRTBR
@@ -95,18 +89,79 @@ swapMaster
     → Int
     → [ReducedPhylogeneticGraph]
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
-    → PhyG ([ReducedPhylogeneticGraph], Int)
+    → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
 swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList inSimAnnealParams =
         --swapSPRTBR swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
         let curBestCost = minimum $ fmap snd5 curBestGraphList
             numLeaves = V.length leafNames
         in do
         inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph (head curBestGraphList)
-        let netPenaltyFactor = inGraphNetPenalty / curBestCost
-        --(a,b,c) <- swapAll swapParams inGS inData inCounter curBestCost curBestGraphList curBestGraphList numLeaves netPenaltyFactor 0 (fst $ head inSimAnnealParams)
-        (a,b,c) <- swapAll' swapParams inGS inData inCounter curBestCost curBestGraphList curBestGraphList numLeaves netPenaltyFactor 0 (fst $ head inSimAnnealParams)
-        a' <- GO.selectGraphs Best (keepNum swapParams) 0.0 a
-        pure (a,b)
+        let inGraphNetPenaltyFactor = inGraphNetPenalty / curBestCost
+        
+        --(a,b,c) <- swapAll swapParams inGS inData inCounter curBestCost curBestGraphList curBestGraphList numLeaves netPenaltyFactor (fst $ head inSimAnnealParams)
+        --a' <- GO.selectGraphs Best (keepNum swapParams) 0.0 a
+        --pure (a,b,c)
+
+        -- THis seems to screw up 
+        case (fst $ head inSimAnnealParams) of
+            Nothing → do
+                -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
+                (swappedGraphs, counter, swapSAPArams) ←
+                    swapAll
+                        swapParams
+                        inGS
+                        inData
+                        inCounter
+                        curBestCost
+                        curBestGraphList
+                        curBestGraphList
+                        numLeaves
+                        inGraphNetPenaltyFactor
+                        Nothing
+                pure $ case swappedGraphs of
+                    [] → (curBestGraphList, counter, Nothing)
+                    gs → (gs, counter, swapSAPArams)
+            -- simulated annealing/drifting acceptance does a steepest with SA acceptance
+            Just simAnneal →
+                -- then a swap steepest and all on annealed graph
+                -- same at this level method (SA, Drift) choice occurs at lower level
+                -- annealed should only yield a single graph
+                let -- create list of params with unique list of random values for rounds of annealing
+                    annealDriftRounds = rounds simAnneal
+                    newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds (fst $ head inSimAnnealParams)
+                    -- parallel setup
+                    action ∷ Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
+                    action = swapAll swapParams inGS inData 0 curBestCost curBestGraphList curBestGraphList numLeaves inGraphNetPenaltyFactor
+                in  -- this to ensure current step set to 0
+                    do
+                        swapPar ← getParallelChunkTraverse
+                        (annealDriftGraphs', anealDriftCounterList, _) ← unzip3 <$> swapPar action newSimAnnealParamList
+
+                        -- annealed/Drifted 'mutated' graphs
+                        annealDriftGraphs ← GO.selectGraphs Unique (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
+
+                        -- swap back "normally" if desired for full drifting/annealing
+                        (swappedGraphs, counter, swapSAPArams) ←
+                            swapAll
+                                swapParams
+                                inGS
+                                inData
+                                (sum anealDriftCounterList)
+                                (min curBestCost (minimum $ snd5 <$> annealDriftGraphs))
+                                curBestGraphList
+                                annealDriftGraphs
+                                numLeaves
+                                inGraphNetPenaltyFactor
+                                Nothing
+
+                        bestGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ curBestGraphList <> swappedGraphs
+                        -- this Bool for Genetic Algorithm mutation step
+                        pure $
+                            if not $ returnMutated swapParams
+                                then (bestGraphs, counter, swapSAPArams)
+                                else (annealDriftGraphs, sum anealDriftCounterList, swapSAPArams)
+
+
 
 {- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
 runs both SPR and TBR depending on argument since so much duplicated functionality

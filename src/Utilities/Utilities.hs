@@ -1338,7 +1338,7 @@ generateRandIntLists ∷ Int → PhyG [[Int]]
 generateRandIntLists count = replicateM count getRandoms
 
 
-{- | generateUniqueRandList take a int and simulated anealing parameter slist and creates
+{- | generateUniqueRandList take a int and simulated anealing parameters list and creates
 a list of SA paramter values with unique rnandomInt lists
 sets current step to 0
 -}
