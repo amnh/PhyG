@@ -53,7 +53,7 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     if null curBestGraphList then pure ([], inCounter)
     else do
         let inBestCost = minimum $ fmap snd5 curBestGraphList
-        liftIO $ putStr ("SD: " <> (show $ swapType swapParams) <> " " <> (show $ fmap snd5 curBestGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5 curBestGraphList))
+        --liftIO $ putStr ("SD: " <> (show $ swapType swapParams) <> " " <> (show $ fmap snd5 curBestGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5 curBestGraphList))
         (newGraphList', newCounter) <-
             if swapType swapParams `elem` [NNI, SPR, TBR] then 
                 swapMaster swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
@@ -61,13 +61,13 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
             else if swapType swapParams `elem` [Alternate] then do
                 (sprGraphList', sprCounter) <- swapMaster (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList inSimAnnealParams
                 sprGraphList <- GO.selectGraphs Best (keepNum swapParams) 0.0 sprGraphList'
-                liftIO $ putStr ("SD-SPR: " <> (show $ fmap snd5 sprGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5  sprGraphList))
+                --liftIO $ putStr ("SD-SPR: " <> (show $ fmap snd5 sprGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5  sprGraphList))
                 swapMaster (swapParams {swapType = TBR}) inGS inData sprCounter sprGraphList inSimAnnealParams
 
             else error ("Unrecognize swap param: " <> (show $ swapType swapParams))
 
         newGraphList <- GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList'
-        liftIO $ putStr ("SD-After: " <> (show $ fmap snd5 newGraphList))
+        --liftIO $ putStr ("SD-After: " <> (show $ fmap snd5 newGraphList))
         -- found no better
         if null newGraphList then pure (curBestGraphList, newCounter)
         else 
@@ -163,7 +163,7 @@ swapSPRTBR swapParams inGS inData inCounter currBestGraphs = \case
         let nextBestGraphs = case comparing getGraphCost bestSecondList currBestGraphs of
                 LT → bestSecondList
                 _ → currBestGraphs
-        liftIO $ putStr ("SSPR: " <> (show $ fmap snd5 nextBestGraphs) ) -- <> " " <> (show $ fmap (snd5 .snd) morePairs)) 
+        --liftIO $ putStr ("SSPR: " <> (show $ fmap snd5 nextBestGraphs) ) -- <> " " <> (show $ fmap (snd5 .snd) morePairs)) 
         swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) nextBestGraphs morePairs
 
 
@@ -190,7 +190,7 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs = \case
 
         (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter firstPair
         bestNewGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 graphList
-        liftIO $ putStr (" SSPRTBRList: " <> (show $ fmap snd5 (inGraph : bestNewGraphList)))
+        --liftIO $ putStr (" SSPRTBRList: " <> (show $ fmap snd5 (inGraph : bestNewGraphList)))
         let recurse = swapSPRTBRList swapParams inGS inData swapCounter
         let recurse' = flip recurse otherDoubles
         case comparing getGraphCost bestNewGraphList curBestGraphs of
@@ -227,7 +227,7 @@ swapSPRTBR'
 swapSPRTBR' swapParams inGS inData@(leafNames, _, _) inCounter (inSimAnnealParams, inGraph@(simpleG, costG, _, _, _))
     | LG.isEmpty simpleG = pure ([], 0)
     | otherwise = do
-        liftIO $ putStr (" SSPR': " <> (show costG))
+        --liftIO $ putStr (" SSPR': " <> (show costG))
         --logWith LogInfo "In SwapSPRTBR'" 
         -- inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
         inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph inGraph
@@ -529,7 +529,7 @@ swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphLis
                             Nothing → case newMinCost `compare` curBestCost of
                                 -- found better cost graph
                                 LT → do
-                                    logWith LogInfo $ "\t->" <> show (newMinCost, curBestCost)
+                                    logWith LogInfo $ "\t->" <> (show newMinCost)
                                     -- for alternate do SPR first then TBR
                                     -- for alternate in TBR or prune union alternate if found better return immediately
                                     if swapType swapParams == TBRAlternate || joinType swapParams == JoinAlternate || steepest swapParams
