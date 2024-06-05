@@ -101,7 +101,9 @@ build(dwag, distance)
 --search(hours:0, minutes:3, instances:4, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
-swap(tbr)
+swap(replicates:5)
+swap()
+
 
 --fuse()
 

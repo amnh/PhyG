@@ -2,14 +2,17 @@
 Module specifying graph swapping rearrangement functions
 -}
 module Search.Swap (
-    swapSPRTBR,
-    reoptimizeSplitGraphFromVertexTuple,
-    rejoinGraphTuple,
     getUnionRejoinEdgeList,
+    rejoinGraphTuple,
+    reoptimizeSplitGraphFromVertexTuple,
+    swapDriver,
+    swapSPRTBR,
+    
 ) where
 
 import Control.Monad (filterM)
 import Control.Monad.Random.Class
+import Control.Monad.IO.Class
 import Data.Foldable (fold, toList)
 import Data.Foldable1 (Foldable1)
 import Data.Foldable1 qualified as F1
@@ -33,6 +36,77 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
+
+{- | SwapDriver
+    Uses compnent functions but with alternate high-level logic
+    Generates new simmanneal params for recursive rounds
+-}
+swapDriver
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
+    if null curBestGraphList then pure ([], inCounter)
+    else do
+        let inBestCost = minimum $ fmap snd5 curBestGraphList
+        liftIO $ putStr ("SD: " <> (show $ swapType swapParams) <> " " <> (show $ fmap snd5 curBestGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5 curBestGraphList))
+        (newGraphList', newCounter) <-
+            if swapType swapParams `elem` [NNI, SPR, TBR] then 
+                swapMaster swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
+
+            else if swapType swapParams `elem` [Alternate] then do
+                (sprGraphList', sprCounter) <- swapMaster (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList inSimAnnealParams
+                sprGraphList <- GO.selectGraphs Best (keepNum swapParams) 0.0 sprGraphList'
+                liftIO $ putStr ("SD-SPR: " <> (show $ fmap snd5 sprGraphList)) -- <> "\n" <> (LG.prettyIndices $ head $ fmap fst5  sprGraphList))
+                swapMaster (swapParams {swapType = TBR}) inGS inData sprCounter sprGraphList inSimAnnealParams
+
+            else error ("Unrecognize swap param: " <> (show $ swapType swapParams))
+
+        newGraphList <- GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList'
+        liftIO $ putStr ("SD-After: " <> (show $ fmap snd5 newGraphList))
+        -- found no better
+        if null newGraphList then pure (curBestGraphList, newCounter)
+        else 
+            let newCost = minimum $ fmap snd5 newGraphList
+            in
+
+            -- found worse for some reason
+            if newCost > inBestCost then 
+                pure (curBestGraphList, newCounter)
+
+            -- found same (ie additional)
+            else if newCost == inBestCost then
+                pure (newGraphList, newCounter)
+
+            -- found better-- go around again
+            else swapDriver swapParams inGS inData newCounter newGraphList inSimAnnealParams 
+            
+{- swapMAster
+    Working through the complex logic of swapSPRTBR
+-}         
+swapMaster
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList inSimAnnealParams =
+        --swapSPRTBR swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
+        let curBestCost = minimum $ fmap snd5 curBestGraphList
+            numLeaves = V.length leafNames
+        in do
+        inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph (head curBestGraphList)
+        let netPenaltyFactor = inGraphNetPenalty / curBestCost
+        (a,b,c) <- swapAll' swapParams inGS inData inCounter curBestCost curBestGraphList curBestGraphList numLeaves netPenaltyFactor 0 (fst $ head inSimAnnealParams)
+        a' <- GO.selectGraphs Best (keepNum swapParams) 0.0 a
+        pure (a,b)
+
 {- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
 runs both SPR and TBR depending on argument since so much duplicated functionality
 'steepest' abandons swap graph and switches to found graph as soon as anyhting 'better'
@@ -55,6 +129,7 @@ swapSPRTBR swapParams inGS inData inCounter currBestGraphs = \case
     firstPair@(inSimAnnealParams, _) : _
         | joinType swapParams == JoinAll || isJust inSimAnnealParams →
             swapSPRTBR' (swapParams{joinType = JoinAll}) inGS inData inCounter firstPair
+
     firstPair@(inSimAnnealParams, inGraph) : morePairs → do
         -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
         (firstList, firstCounter) ←
@@ -88,7 +163,7 @@ swapSPRTBR swapParams inGS inData inCounter currBestGraphs = \case
         let nextBestGraphs = case comparing getGraphCost bestSecondList currBestGraphs of
                 LT → bestSecondList
                 _ → currBestGraphs
-
+        liftIO $ putStr ("SSPR: " <> (show $ fmap snd5 nextBestGraphs) ) -- <> " " <> (show $ fmap (snd5 .snd) morePairs)) 
         swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) nextBestGraphs morePairs
 
 
@@ -112,9 +187,10 @@ swapSPRTBRList swapParams inGS inData inCounter curBestGraphs = \case
 
     firstPair@(inSimAnnealParams, inGraph) : otherDoubles → do
         --logWith LogInfo "In SwapSPRTBRList" 
+
         (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter firstPair
         bestNewGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 graphList
-
+        liftIO $ putStr (" SSPRTBRList: " <> (show $ fmap snd5 (inGraph : bestNewGraphList)))
         let recurse = swapSPRTBRList swapParams inGS inData swapCounter
         let recurse' = flip recurse otherDoubles
         case comparing getGraphCost bestNewGraphList curBestGraphs of
@@ -151,6 +227,7 @@ swapSPRTBR'
 swapSPRTBR' swapParams inGS inData@(leafNames, _, _) inCounter (inSimAnnealParams, inGraph@(simpleG, costG, _, _, _))
     | LG.isEmpty simpleG = pure ([], 0)
     | otherwise = do
+        liftIO $ putStr (" SSPR': " <> (show costG))
         --logWith LogInfo "In SwapSPRTBR'" 
         -- inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
         inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph inGraph
@@ -452,7 +529,7 @@ swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphLis
                             Nothing → case newMinCost `compare` curBestCost of
                                 -- found better cost graph
                                 LT → do
-                                    logWith LogInfo $ "\t->" <> show newMinCost
+                                    logWith LogInfo $ "\t->" <> show (newMinCost, curBestCost)
                                     -- for alternate do SPR first then TBR
                                     -- for alternate in TBR or prune union alternate if found better return immediately
                                     if swapType swapParams == TBRAlternate || joinType swapParams == JoinAlternate || steepest swapParams
