@@ -103,7 +103,8 @@ swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList i
         in do
         inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph (head curBestGraphList)
         let netPenaltyFactor = inGraphNetPenalty / curBestCost
-        (a,b,c) <- swapAll' swapParams inGS inData inCounter curBestCost curBestGraphList curBestGraphList numLeaves netPenaltyFactor 0 (fst $ head inSimAnnealParams)
+        (a,b,c) <- swapAll swapParams inGS inData inCounter curBestCost curBestGraphList curBestGraphList numLeaves netPenaltyFactor 0 (fst $ head inSimAnnealParams)
+        --(a,b,c) <- swapAll' swapParams inGS inData inCounter curBestCost curBestGraphList curBestGraphList numLeaves netPenaltyFactor 0 (fst $ head inSimAnnealParams)
         a' <- GO.selectGraphs Best (keepNum swapParams) 0.0 a
         pure (a,b)
 
