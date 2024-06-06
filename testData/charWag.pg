@@ -101,8 +101,8 @@ select(unique:10)
 --search(hours:0, minutes:3, instances:4, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
---swap()
-swap(drift, maxChanges:5)
+--swap(replicates:3)
+swap(replicates:5, drift, maxChanges:5, acceptworse:5)
 
 --fuse()
 

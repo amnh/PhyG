@@ -135,13 +135,13 @@ swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList i
                 in  -- this to ensure current step set to 0
                     do
                         swapPar ← getParallelChunkTraverse
-                        (annealDriftGraphs', anealDriftCounterList, _) ← unzip3 <$> swapPar action newSimAnnealParamList
+                        (annealDriftGraphs', anealDriftCounterList, annealDriftParams) ← unzip3 <$> swapPar action newSimAnnealParamList
 
                         -- annealed/Drifted 'mutated' graphs
                         annealDriftGraphs ← GO.selectGraphs Unique (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
 
                         -- swap back "normally" if desired for full drifting/annealing
-                        (swappedGraphs, counter, swapSAPArams) ←
+                        (swappedGraphs, counter, _) ←
                             swapAll
                                 swapParams
                                 inGS
@@ -158,8 +158,8 @@ swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList i
                         -- this Bool for Genetic Algorithm mutation step
                         pure $
                             if not $ returnMutated swapParams
-                                then (bestGraphs, counter, swapSAPArams)
-                                else (annealDriftGraphs, sum anealDriftCounterList, swapSAPArams)
+                                then (bestGraphs, counter, head annealDriftParams)
+                                else (annealDriftGraphs, sum anealDriftCounterList, head annealDriftParams)
 
 
 
