@@ -6,7 +6,6 @@ module Search.Swap (
     rejoinGraphTuple,
     reoptimizeSplitGraphFromVertexTuple,
     swapDriver,
-    swapSPRTBR,
     
 ) where
 
@@ -160,192 +159,6 @@ swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList i
                             if not $ returnMutated swapParams
                                 then (bestGraphs, counter, head annealDriftParams)
                                 else (annealDriftGraphs, sum anealDriftCounterList, head annealDriftParams)
-
-
-
-{- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
-runs both SPR and TBR depending on argument since so much duplicated functionality
-'steepest' abandons swap graph and switches to found graph as soon as anyhting 'better'
-is found. The alternative (all) examines the entire neighborhood and retuns the best result
-the return is a list of better graphs and the number of swapping rounds were required to ge there
-if joinType ==  JoinAll is specified a single round is performed--otherwise a union rounds
-alternate between joinPruned and joinAll.  This to be rapid but complete.
-joinType = JoinAll for annealing/drifting
--}
-swapSPRTBR
-    ∷ SwapParams
-    → GlobalSettings
-    → ProcessedData
-    → Int
-    → [ReducedPhylogeneticGraph]
-    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
-    → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBR swapParams inGS inData inCounter currBestGraphs = \case
-    [] → pure (currBestGraphs, inCounter)
-    firstPair@(inSimAnnealParams, _) : _
-        | joinType swapParams == JoinAll || isJust inSimAnnealParams →
-            swapSPRTBR' (swapParams{joinType = JoinAll}) inGS inData inCounter firstPair
-
-    firstPair@(inSimAnnealParams, inGraph) : morePairs → do
-        -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
-        (firstList, firstCounter) ←
-            swapSPRTBR' (swapParams{joinType = JoinPruned}) inGS inData inCounter firstPair
-        -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
-        bestFirstList ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ inGraph : firstList
-        (alternateList, alternateCounter') ←
-            swapSPRTBRList (swapParams{joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $
-                zip
-                    (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
-                    bestFirstList
-        (bestAlternateList, alternateCounter) ← case joinType swapParams of
-            JoinAlternate →
-                let graphs = inGraph : (alternateList <> bestFirstList)
-                    tag x = (x, alternateCounter')
-                in  tag <$> GO.selectGraphs Best (keepNum swapParams) 0.0 graphs
-            -- JoinPruned-don't alternate during search
-            _ → pure (bestFirstList, firstCounter)
-
-        -- recursive list version as opposed ot parMap version
-        -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
-        (afterSecondList, afterSecondCounter) ←
-            swapSPRTBRList (swapParams{joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $
-                zip
-                    (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams)
-                    bestAlternateList
-
-        bestSecondList ← GO.selectGraphs Best (keepNum swapParams) 0.0 afterSecondList
-
-        -- add final joinall if buffer full?
-        let nextBestGraphs = case comparing getGraphCost bestSecondList currBestGraphs of
-                LT → bestSecondList
-                _ → currBestGraphs
-        --liftIO $ putStr ("SSPR: " <> (show $ fmap snd5 nextBestGraphs) ) -- <> " " <> (show $ fmap (snd5 .snd) morePairs)) 
-        swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) nextBestGraphs morePairs
-
-
-{- | swapSPRTBRList is a wrapper around swapSPRTBR' allowing for a list of graphs and a current best cost
-reduce time of swap
--}
-swapSPRTBRList
-    ∷ SwapParams
-    → GlobalSettings
-    → ProcessedData
-    → Int
-    → [ReducedPhylogeneticGraph]
-    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
-    → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBRList swapParams inGS inData inCounter curBestGraphs = \case
-    [] → pure (curBestGraphs, inCounter)
-    -- currrent graph worse than best saved
-    (_, inGraph) : otherDoubles
-        | snd5 inGraph > getGraphCost curBestGraphs →
-            swapSPRTBRList swapParams inGS inData inCounter curBestGraphs otherDoubles
-
-    firstPair@(inSimAnnealParams, inGraph) : otherDoubles → do
-        --logWith LogInfo "In SwapSPRTBRList" 
-
-        (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter firstPair
-        bestNewGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 graphList
-        --liftIO $ putStr (" SSPRTBRList: " <> (show $ fmap snd5 (inGraph : bestNewGraphList)))
-        let recurse = swapSPRTBRList swapParams inGS inData swapCounter
-        let recurse' = flip recurse otherDoubles
-        case comparing getGraphCost bestNewGraphList curBestGraphs of
-            -- found equal
-            EQ → recurse' =<< GO.selectGraphs Unique (keepNum swapParams) 0.0 (curBestGraphs <> bestNewGraphList)
-            -- found worse
-            GT → recurse' curBestGraphs
-            -- found better
-            LT →
-                pure (bestNewGraphList, swapCounter)
-                {-
-                let betterResult =
-                        let doubleToSwap = zip (U.generateUniqueRandList (length bestNewGraphList) inSimAnnealParams) bestNewGraphList
-                        in  recurse bestNewGraphList $ doubleToSwap <> otherDoubles
-                in  case joinType swapParams of
-                        JoinAlternate → betterResult
-                        JoinPruned → betterResult
-                        _ → recurse' bestNewGraphList
-                -}
-
-
-{- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
-options such as joinType to ensure complete swap but with an edge unions pass to
-reduce time of swap
-also manages SA/Drifting versus greedy swap
--}
-swapSPRTBR'
-    ∷ SwapParams
-    → GlobalSettings
-    → ProcessedData
-    → Int
-    → (Maybe SAParams, ReducedPhylogeneticGraph)
-    → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSPRTBR' swapParams inGS inData@(leafNames, _, _) inCounter (inSimAnnealParams, inGraph@(simpleG, costG, _, _, _))
-    | LG.isEmpty simpleG = pure ([], 0)
-    | otherwise = do
-        --liftIO $ putStr (" SSPR': " <> (show costG))
-        --logWith LogInfo "In SwapSPRTBR'" 
-        -- inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
-        inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph inGraph
-        let inGraphNetPenaltyFactor = inGraphNetPenalty / costG
-        let numLeaves = V.length leafNames
-        case inSimAnnealParams of
-            Nothing → do
-                -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
-                (swappedGraphs, counter, _) ←
-                    swapAll
-                        swapParams
-                        inGS
-                        inData
-                        inCounter
-                        costG
-                        []
-                        [inGraph]
-                        numLeaves
-                        inGraphNetPenaltyFactor
-                        Nothing
-                pure $ case swappedGraphs of
-                    [] → ([inGraph], counter)
-                    gs → (gs, counter)
-            -- simulated annealing/drifting acceptance does a steepest with SA acceptance
-            Just simAnneal →
-                -- then a swap steepest and all on annealed graph
-                -- same at this level method (SA, Drift) choice occurs at lower level
-                -- annealed should only yield a single graph
-                let -- create list of params with unique list of random values for rounds of annealing
-                    annealDriftRounds = rounds simAnneal
-                    newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
-                    -- parallel setup
-                    action ∷ Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
-                    action = swapAll swapParams inGS inData 0 costG [] [inGraph] numLeaves inGraphNetPenaltyFactor
-                in  -- this to ensure current step set to 0
-                    do
-                        swapPar ← getParallelChunkTraverse
-                        (annealDriftGraphs', anealDriftCounterList, _) ← unzip3 <$> swapPar action newSimAnnealParamList
-
-                        -- annealed/Drifted 'mutated' graphs
-                        annealDriftGraphs ← GO.selectGraphs Unique (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
-
-                        -- swap back "normally" if desired for full drifting/annealing
-                        (swappedGraphs, counter, _) ←
-                            swapAll
-                                swapParams
-                                inGS
-                                inData
-                                (sum anealDriftCounterList)
-                                (min costG (minimum $ snd5 <$> annealDriftGraphs))
-                                []
-                                annealDriftGraphs
-                                numLeaves
-                                inGraphNetPenaltyFactor
-                                Nothing
-
-                        bestGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ inGraph : swappedGraphs
-                        -- this Bool for Genetic Algorithm mutation step
-                        pure $
-                            if not $ returnMutated swapParams
-                                then (bestGraphs, counter)
-                                else (annealDriftGraphs, sum anealDriftCounterList)
 
 
 {- | swapAll is a high level function that basically deals with portioning out swap-type swaps
@@ -2028,7 +1841,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                             True
                             postOrderBaseGraph
 
-                    -- create fully optimized pruned graph.  Post order tehn preorder
+                    -- create fully optimized pruned graph.  Post order then preorder
 
                     -- get root node of pruned graph--parent since that is the full pruned piece (keeping that node for addition to base graph and edge creation)
                     let startPrunedNode = (prunedSubGraphRootVertex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
@@ -2251,3 +2064,194 @@ orInfinity ∷ ∀ a r t. (Foldable t, Fractional r) ⇒ (t a → r) → t a →
 orInfinity f xs
     | null xs = fromRational Real.infinity
     | otherwise = f xs
+
+
+{- Old swap driving code that got overly complex and
+    was not working properly--very slow
+-}
+
+{-
+{- | swapSPRTBR performs SPR or TBR branch (edge) swapping on graphs
+runs both SPR and TBR depending on argument since so much duplicated functionality
+'steepest' abandons swap graph and switches to found graph as soon as anyhting 'better'
+is found. The alternative (all) examines the entire neighborhood and retuns the best result
+the return is a list of better graphs and the number of swapping rounds were required to ge there
+if joinType ==  JoinAll is specified a single round is performed--otherwise a union rounds
+alternate between joinPruned and joinAll.  This to be rapid but complete.
+joinType = JoinAll for annealing/drifting
+-}
+swapSPRTBR
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapSPRTBR swapParams inGS inData inCounter currBestGraphs = \case
+    [] → pure (currBestGraphs, inCounter)
+    firstPair@(inSimAnnealParams, _) : _
+        | joinType swapParams == JoinAll || isJust inSimAnnealParams →
+            swapSPRTBR' (swapParams{joinType = JoinAll}) inGS inData inCounter firstPair
+
+    firstPair@(inSimAnnealParams, inGraph) : morePairs → do
+        -- join with union pruing first then followed by joinAll, but joinAlternate will return on better gaphs to return to join prune
+        (firstList, firstCounter) ←
+            swapSPRTBR' (swapParams{joinType = JoinPruned}) inGS inData inCounter firstPair
+        -- the + 5 is to allow for extra buffer room with input graph and multiple equally costly solutions, can help
+        bestFirstList ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ inGraph : firstList
+        (alternateList, alternateCounter') ←
+            swapSPRTBRList (swapParams{joinType = JoinAlternate}) inGS inData firstCounter bestFirstList $
+                zip
+                    (U.generateUniqueRandList (length bestFirstList) inSimAnnealParams)
+                    bestFirstList
+        (bestAlternateList, alternateCounter) ← case joinType swapParams of
+            JoinAlternate →
+                let graphs = inGraph : (alternateList <> bestFirstList)
+                    tag x = (x, alternateCounter')
+                in  tag <$> GO.selectGraphs Best (keepNum swapParams) 0.0 graphs
+            -- JoinPruned-don't alternate during search
+            _ → pure (bestFirstList, firstCounter)
+
+        -- recursive list version as opposed ot parMap version
+        -- should reduce memory footprint at cost of less parallelism--but random replicates etc should take care of that
+        (afterSecondList, afterSecondCounter) ←
+            swapSPRTBRList (swapParams{joinType = JoinAll}) inGS inData alternateCounter bestAlternateList $
+                zip
+                    (U.generateUniqueRandList (length bestAlternateList) inSimAnnealParams)
+                    bestAlternateList
+
+        bestSecondList ← GO.selectGraphs Best (keepNum swapParams) 0.0 afterSecondList
+
+        -- add final joinall if buffer full?
+        let nextBestGraphs = case comparing getGraphCost bestSecondList currBestGraphs of
+                LT → bestSecondList
+                _ → currBestGraphs
+        --liftIO $ putStr ("SSPR: " <> (show $ fmap snd5 nextBestGraphs) ) -- <> " " <> (show $ fmap (snd5 .snd) morePairs)) 
+        swapSPRTBR swapParams inGS inData (afterSecondCounter + inCounter) nextBestGraphs morePairs
+
+
+{- | swapSPRTBRList is a wrapper around swapSPRTBR' allowing for a list of graphs and a current best cost
+reduce time of swap
+-}
+swapSPRTBRList
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapSPRTBRList swapParams inGS inData inCounter curBestGraphs = \case
+    [] → pure (curBestGraphs, inCounter)
+    -- currrent graph worse than best saved
+    (_, inGraph) : otherDoubles
+        | snd5 inGraph > getGraphCost curBestGraphs →
+            swapSPRTBRList swapParams inGS inData inCounter curBestGraphs otherDoubles
+
+    firstPair@(inSimAnnealParams, inGraph) : otherDoubles → do
+        --logWith LogInfo "In SwapSPRTBRList" 
+
+        (graphList, swapCounter) ← swapSPRTBR' swapParams inGS inData inCounter firstPair
+        bestNewGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 graphList
+        --liftIO $ putStr (" SSPRTBRList: " <> (show $ fmap snd5 (inGraph : bestNewGraphList)))
+        let recurse = swapSPRTBRList swapParams inGS inData swapCounter
+        let recurse' = flip recurse otherDoubles
+        case comparing getGraphCost bestNewGraphList curBestGraphs of
+            -- found equal
+            EQ → recurse' =<< GO.selectGraphs Unique (keepNum swapParams) 0.0 (curBestGraphs <> bestNewGraphList)
+            -- found worse
+            GT → recurse' curBestGraphs
+            -- found better
+            LT →
+                pure (bestNewGraphList, swapCounter)
+                {-
+                let betterResult =
+                        let doubleToSwap = zip (U.generateUniqueRandList (length bestNewGraphList) inSimAnnealParams) bestNewGraphList
+                        in  recurse bestNewGraphList $ doubleToSwap <> otherDoubles
+                in  case joinType swapParams of
+                        JoinAlternate → betterResult
+                        JoinPruned → betterResult
+                        _ → recurse' bestNewGraphList
+                -}
+
+
+{- | swapSPRTBR' is the central functionality of swapping allowing for repeated calls with alternate
+options such as joinType to ensure complete swap but with an edge unions pass to
+reduce time of swap
+also manages SA/Drifting versus greedy swap
+-}
+swapSPRTBR'
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → (Maybe SAParams, ReducedPhylogeneticGraph)
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapSPRTBR' swapParams inGS inData@(leafNames, _, _) inCounter (inSimAnnealParams, inGraph@(simpleG, costG, _, _, _))
+    | LG.isEmpty simpleG = pure ([], 0)
+    | otherwise = do
+        --liftIO $ putStr (" SSPR': " <> (show costG))
+        --logWith LogInfo "In SwapSPRTBR'" 
+        -- inGraphNetPenalty <- POSW.getNetPenaltyReduced inGS inData inGraph
+        inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing $ GO.convertReduced2PhylogeneticGraph inGraph
+        let inGraphNetPenaltyFactor = inGraphNetPenalty / costG
+        let numLeaves = V.length leafNames
+        case inSimAnnealParams of
+            Nothing → do
+                -- steepest takes immediate best--does not keep equall cost-- for now--disabled not working correctly so goes to "all"
+                (swappedGraphs, counter, _) ←
+                    swapAll
+                        swapParams
+                        inGS
+                        inData
+                        inCounter
+                        costG
+                        []
+                        [inGraph]
+                        numLeaves
+                        inGraphNetPenaltyFactor
+                        Nothing
+                pure $ case swappedGraphs of
+                    [] → ([inGraph], counter)
+                    gs → (gs, counter)
+            -- simulated annealing/drifting acceptance does a steepest with SA acceptance
+            Just simAnneal →
+                -- then a swap steepest and all on annealed graph
+                -- same at this level method (SA, Drift) choice occurs at lower level
+                -- annealed should only yield a single graph
+                let -- create list of params with unique list of random values for rounds of annealing
+                    annealDriftRounds = rounds simAnneal
+                    newSimAnnealParamList = U.generateUniqueRandList annealDriftRounds inSimAnnealParams
+                    -- parallel setup
+                    action ∷ Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
+                    action = swapAll swapParams inGS inData 0 costG [] [inGraph] numLeaves inGraphNetPenaltyFactor
+                in  -- this to ensure current step set to 0
+                    do
+                        swapPar ← getParallelChunkTraverse
+                        (annealDriftGraphs', anealDriftCounterList, _) ← unzip3 <$> swapPar action newSimAnnealParamList
+
+                        -- annealed/Drifted 'mutated' graphs
+                        annealDriftGraphs ← GO.selectGraphs Unique (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
+
+                        -- swap back "normally" if desired for full drifting/annealing
+                        (swappedGraphs, counter, _) ←
+                            swapAll
+                                swapParams
+                                inGS
+                                inData
+                                (sum anealDriftCounterList)
+                                (min costG (minimum $ snd5 <$> annealDriftGraphs))
+                                []
+                                annealDriftGraphs
+                                numLeaves
+                                inGraphNetPenaltyFactor
+                                Nothing
+
+                        bestGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ inGraph : swappedGraphs
+                        -- this Bool for Genetic Algorithm mutation step
+                        pure $
+                            if not $ returnMutated swapParams
+                                then (bestGraphs, counter)
+                                else (annealDriftGraphs, sum anealDriftCounterList)
+-}

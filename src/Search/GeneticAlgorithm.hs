@@ -234,12 +234,12 @@ mutateGraph inGS inData maxNetEdges inGraph
             mutateOption1 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
-                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
+                firstOrOldIfNoneExists =<< S.swapDriver rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
 
             mutateOption2 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
-                firstOrOldIfNoneExists =<< S.swapSPRTBR rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
+                firstOrOldIfNoneExists =<< S.swapDriver rSwapParams inGS inData 0 [inGraph] [(rSAParams, inGraph)]
 
             mutateOption3 = do
                 rSAParams ← getRandomSAParams

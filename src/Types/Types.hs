@@ -317,7 +317,7 @@ data GlobalSettings = GlobalSettings
     , seed ∷ Int -- random seed
     , softWiredMethod ∷ SoftWiredAlgorithm -- algorithm to optimize softwired graphs
     , strictParStrat ∷ ParallelStrategy -- default parallel strategy to Fully evaluate
-    , unionThreshold ∷ Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhps) character Wagner build
+    , unionThreshold ∷ Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhas) character Wagner build
     -- as described by Varon and Wheeler (2013) and set to 1.17 experimentally
     , useIA ∷ Bool -- turn on/off IA everywhere can (mainly for internal testing)
     , useNetAddHeuristic ∷ Bool -- Netowrk addition heuristic--very coarse currently
