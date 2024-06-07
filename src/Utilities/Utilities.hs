@@ -221,8 +221,8 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
 {- | calculatePMDLVertexComplexity creates a vertex cost as either the 'insertion' of character data
 or as probbaility of seqeunce in bit based on element frequencies.  
 -}
-calculatePMDLVertexComplexity ∷ Bool -> Maybe DecoratedGraph -> ProcessedData -> Maybe Int -> VertexCost
-calculatePMDLVertexComplexity useLogPiValues decGraph (nameVect, _, blockDataV) index =
+calculatePMDLVertexComplexity ∷ Bool -> Maybe (V.Vector (LG.LNode VertexInfo)) -> ProcessedData -> Maybe Int -> VertexCost
+calculatePMDLVertexComplexity useLogPiValues nodeV (nameVect, _, blockDataV) index =
     --trace ("In CPMDLRC") $
     if useLogPiValues then 
         -- this is based on average of leaves
@@ -230,21 +230,27 @@ calculatePMDLVertexComplexity useLogPiValues decGraph (nameVect, _, blockDataV) 
         --trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
         getLogPiRootCost blockDataV
 
-    else if isNothing index then --False so insert--if index /= Nothing 
+    else if isNothing nodeV then --False so insert--if index /= Nothing 
         -- average of leaves
         -- use insert based (but pi of '-' prob way underestimated)
         let numLeaves = V.length nameVect
             insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
         in  
         insertDataCost / fromIntegral numLeaves
-    else -- optimized graph specific vertex cost-- not average
+    else
+        -- optimized graph specific vertex cost-- not average
         -- pull data from specific vertgex but make a singleton vector
-        let charInfoV = fmap thd3 blockDataV
-            graphBlockDataV = fmap snd3 blockDataV -- just to get types going
-            -- HERE
+        let nodeInfoVV = vertData $ snd $ (fromJust nodeV) V.! (fromJust index)
+            charInfoVV = fmap thd3 blockDataV
         in
-        V.sum $ fmap getblockInsertDataCost blockDataV -- just to get types going
-        --error "Optimized data complexity noy yet implemented"
+        --trace ("U-PMDL-V: vertex " <> (show $ fromJust index)) $ 
+        V.sum $ V.zipWith getVertexInsertBlock nodeInfoVV charInfoVV
+
+{- getVertexInsertBlock returns block insert cost for a single vertex
+-}
+getVertexInsertBlock :: (V.Vector CharacterData) -> V.Vector CharInfo -> VertexCost
+getVertexInsertBlock charDataV charInfoV =
+        V.sum $ V.zipWith getCharacterInsertCost charDataV  charInfoV
 
 {- | calculatePMDLRootCost creates a root cost as either the 'insertion' of character data
 or as probbaility of seqeunce in bit based on element frequencies.  
