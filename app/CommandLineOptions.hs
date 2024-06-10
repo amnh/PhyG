@@ -18,6 +18,7 @@ import CommandLineOptions.Display
 import CommandLineOptions.Types
 import Data.Foldable
 import Data.Functor ((<&>))
+import Data.List.NonEmpty (NonEmpty)
 import Data.String
 import Options.Applicative
 import Options.Applicative.NonEmpty (some1)
@@ -57,13 +58,18 @@ parserInformation =
         let displayFlag ∷ DisplayInfoBlock → String → String → Parser DisplayInfoBlock
             displayFlag val name desc = flag' val $ fold [long name, help desc]
 
+            pCommandLineOptions2 ∷ Parser CommandLineOptions
             pCommandLineOptions2 =
-                let caseInput = Right <$> pInputFile
+                let caseInput ∷ Parser (Either (NonEmpty DisplayInfoBlock) FilePath)
+                    caseInput = Right <$> pInputFile
+                    casePrint ∷ Parser (Either (NonEmpty DisplayInfoBlock) FilePath)
                     casePrint = Left <$> pDisplayInfos
                 in  fmap OptionsCLI $ caseInput <|> casePrint
 
+            pDisplayInfos ∷ Parser (NonEmpty DisplayInfoBlock)
             pDisplayInfos = some1 pDisplayFlag
 
+            pDisplayFlag ∷ Parser DisplayInfoBlock
             pDisplayFlag =
                 asum
                     [ displayFlag DisplayCredits "credits" "Roll project contributions credits"
@@ -72,6 +78,7 @@ parserInformation =
                     , displayFlag DisplayVersion "version" "Show version information"
                     ]
 
+            pInputFile ∷ Parser FilePath
             pInputFile =
                 strArgument $
                     fold

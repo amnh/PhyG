@@ -90,7 +90,7 @@ import Input.BitPack qualified as BP
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
-import Debug.Trace
+
 
 {- | diagonalNonZero checks if any diagonal values are == 0
 assumes square
