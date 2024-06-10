@@ -77,7 +77,8 @@ getTNTDataText inString fileName =
                                 | singleQuotes > 2 =
                                     errorWithoutStackTrace ("\n\nTNT input file " <> fileName <> " processing error--too many single quotes in title")
                                 | otherwise = T.split (== '\'') inText !! 1
-                            (firstNum, secondNum, remainderText) = removeNCharNTax $ T.split (== '\'') inText !! 2
+                            (firstNum, secondNum, remainderText) = if singleQuotes /= 0 then removeNCharNTax $ T.split (== '\'') inText !! 2
+                                                                   else removeNCharNTax $ inText
                             numCharM = readMaybe (T.unpack firstNum) ∷ Maybe Int
                             numTaxM = readMaybe (T.unpack secondNum) ∷ Maybe Int
                             restFile = filter ((> 0) . T.length) $ T.lines remainderText
