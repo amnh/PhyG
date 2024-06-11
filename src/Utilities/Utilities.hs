@@ -51,19 +51,18 @@ import Debug.Trace
     returns all 0.0 valiuues if not PMDL/SI
         4th field is GraphViz Color scheme Spectral11 1=Red, 11=violet
 -}
-getEdgeComplexityFactors :: GlobalSettings -> ProcessedData -> [LG.LNode VertexInfo] -> [LG.LEdge EdgeInfo] -> PhyG [(VertexCost, VertexCost, Double)]
+getEdgeComplexityFactors :: GlobalSettings -> ProcessedData -> [LG.LNode VertexInfo] -> [LG.LEdge EdgeInfo] -> [(VertexCost, VertexCost, Double)]
 getEdgeComplexityFactors inGS inData vertexList edgeList =
     if optimalityCriterion inGS `notElem` [PMDL, SI] then 
-        do
-            --logWith LogWarn "Optimality criterion neither PMDL not SI--returning 0.0 edge complexity\n"
-            pure (replicate (length edgeList) (0.0,0.0,0.0))     
-    else do
-            let edgeInfoList = fmap getEdgeInfo edgeList
-            let endVertexList = fmap (Just . snd3) edgeList
-            let edgeVertexComplexity = fmap (calculatePMDLVertexComplexity False (Just $ V.fromList vertexList) inData) endVertexList
-            let edgeMaxLength = fmap (maxLength . thd3) edgeList
-            let edgeComplexityFactor = zipWith (/) edgeMaxLength edgeVertexComplexity   
-            pure $ zip3 edgeVertexComplexity edgeMaxLength edgeComplexityFactor
+        (replicate (length edgeList) (0.0,0.0,0.0))     
+    else 
+        let edgeInfoList = fmap getEdgeInfo edgeList
+            endVertexList = fmap (Just . snd3) edgeList
+            edgeVertexComplexity = fmap (calculatePMDLVertexComplexity False (Just $ V.fromList vertexList) inData) endVertexList
+            edgeMaxLength = fmap (maxLength . thd3) edgeList
+            edgeComplexityFactor = zipWith (/) edgeMaxLength edgeVertexComplexity   
+        in
+        zip3 edgeVertexComplexity edgeMaxLength edgeComplexityFactor
 
 {- getEdgeColor creates an integer list for GraphViz color schemes
     takes max (all seem to start at 1) and if red=1 (or whatever) 

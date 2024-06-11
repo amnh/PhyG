@@ -50,6 +50,27 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
+{- relabelEdgeComplexity relabels decorated graphs with edge complexity indices
+-}
+relabelEdgeComplexity :: GlobalSettings -> ProcessedData -> DecoratedGraph -> DecoratedGraph
+relabelEdgeComplexity inGS inData inGraph =
+    if LG.isEmpty inGraph then inGraph
+    else 
+        -- get complexity edge values and relable graph edges
+        let vertexList = LG.labNodes inGraph
+            edgeList = LG.labEdges inGraph
+            edgeComplexityList = fmap thd3 $ U.getEdgeComplexityFactors inGS inData vertexList edgeList
+            newEdgeList = zipWith relabel edgeList edgeComplexityList
+        in
+        LG.mkGraph vertexList newEdgeList
+
+    where  relabel (a,b,c) d = 
+                let newEdgeInfo = EdgeInfo {  minLength = d
+                                              , maxLength = d
+                                              , midRangeLength = d
+                                              , edgeType = TreeEdge
+                                          }
+                in (a, b, newEdgeInfo)
 
 {- | processSearchFields takes a [String] and reformats the String associated with the
 "search" commands and especially Thompson sampling data,
@@ -1120,7 +1141,7 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
                     let edgeInfoList = fmap U.getEdgeInfo edgeList
 
                     -- Get complexity information--empty of not complexity
-                    edgeTripleList <- U.getEdgeComplexityFactors inGS inData vertexList edgeList 
+                    let edgeTripleList = U.getEdgeComplexityFactors inGS inData vertexList edgeList 
                     let edgeComplexityFactor = fmap thd3 edgeTripleList
 
                     let (vertexComplexityLabel, vertexComplexityList) = if (optimalityCriterion inGS `elem` [PMDL, SI]) then

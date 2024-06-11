@@ -1,13 +1,13 @@
 
---set(criterion:PMDL)
+set(criterion:PMDL)
 --set(graphfactor:nopenalty)
---set(modelComplexity:3512)
+set(modelComplexity:3512)
 --set(graphtype:softwired)
 set(outgroup:"Artemia")
 
 
 --read(fasta:"metazoa-aa-1.fas")
-read(fasta:"chel.fas")
+--read(fasta:"chel.fas")
 --read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
 --read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
 --read(fasta:"chel-16.fas")
@@ -21,7 +21,7 @@ read(fasta:"chel.fas")
 --read(prefasta:"chel-prealigned.fas")
 
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
---read(fasta:"chel.fas", tcm:"bitDNA.tcm")
+read(fasta:"chel.fas", tcm:"bitDNA.tcm")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
 
 --read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)
@@ -124,6 +124,7 @@ select(best)
 --report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)
 report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse, color)
+report("test0-wag-complexity.dot", overwrite, complexity, dotpdf, nocollapse, color)
 --report("test0-wag.tre", overwrite, graphs, newick, nobraNCHLENGTHS, noHTULabels, collapse)
 --report("test0-wag.tre", overwrite, graphs, newick)
 --report("test0-dist-mat.csv", pairdist, overwrite)

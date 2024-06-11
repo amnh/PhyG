@@ -260,6 +260,7 @@ reportArgList =
     , "ascii"
     , "branchlengths"
     , "collapse"
+    , "complexity"
     , "concatenate"
     , "color"
     , "crossrefs"

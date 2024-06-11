@@ -1084,9 +1084,23 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                     -- else
                     if not checkCommandList
                         then errorWithoutStackTrace ("Unrecognized command in report: " <> show argList)
-                        else -- This for reconciled data
-
-                            if "crossrefs" `elem` commandList
+                        else -- This for edge complexities 
+                            if ("complexity" `elem` commandList) && (optimalityCriterion globalSettings `notElem` [PMDL, SI])  
+                                then do
+                                    logWith LogInfo "Cannot report edge complexities unless optimality criterion is either PMDL or SI\n"
+                                    pure ("Cannot report edge complexities unless optimality criterion is either PMDL or SI", outfileName, writeMode)
+                            else if ("complexity" `elem` commandList) && (optimalityCriterion globalSettings `elem` [PMDL, SI])
+                                then -- else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
+                                    let relabelledDecoratedGraph = fmap (relabelEdgeComplexity globalSettings processedData ) (fmap thd5 curGraphs)
+                                        graphString = outputGraphString commandList (outgroupIndex globalSettings) relabelledDecoratedGraph (fmap snd5 curGraphs)
+                                    in  if null curGraphs
+                                        then do
+                                            logWith LogInfo "No graphs to report edge compleities \n"
+                                            pure ("No graphs to edge complexities report", outfileName, writeMode)
+                                        else do
+                                            logWith LogInfo ("Reporting " <> show (length curGraphs) <> " edge complexities of graphs at minimum cost " <> show (minimum $ fmap snd5 curGraphs) <> "\n")
+                                            pure (graphString, outfileName, writeMode)
+                            else if "crossrefs" `elem` commandList
                                 then
                                     let dataString = crossReferenceString
                                     in  pure (dataString, outfileName, writeMode)
