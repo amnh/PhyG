@@ -36,12 +36,45 @@ import GeneralUtilities
 import GeneralUtilities qualified as GU
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
 
+
+{- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to 
+    length of that edge (in  bits) to detemrine complexity factor K(Child)/K(child-max)
+    [(edgeVertexComplexity, edgeMaxLength, edgeComplexityFactor)]
+-}
+getEdgeComplexityFactors :: GlobalSettings -> ProcessedData -> [LG.LNode VertexInfo] -> [LG.LEdge EdgeInfo] -> PhyG [(VertexCost, VertexCost, Double)]
+getEdgeComplexityFactors inGS inData vertexList edgeList =
+    if optimalityCriterion inGS `notElem` [PMDL, SI] then 
+        do
+            logWith LogWarn "Optimality criterion neither PMDL not SI--returning 0.0 edge complexity"
+            pure (replicate (length edgeList) (0.0,0.0,0.0))     
+    else do
+            let edgeInfoList = fmap getEdgeInfo edgeList
+            let endVertexList = fmap (Just . snd3) edgeList
+            let edgeVertexComplexity = fmap (calculatePMDLVertexComplexity False (Just $ V.fromList vertexList) inData) endVertexList
+            let edgeMaxLength = fmap (maxLength . thd3) edgeList
+            let edgeComplexityFactor = zipWith (/) edgeMaxLength edgeVertexComplexity   
+            pure $ zip3 edgeVertexComplexity edgeMaxLength edgeComplexityFactor
+
+
+
+-- | getEdgeInfo returns a list of Strings of edge infomation
+getEdgeInfo ∷ LG.LEdge EdgeInfo → [String]
+getEdgeInfo inEdge =
+    [ " "
+    , show $ fst3 inEdge
+    , show $ snd3 inEdge
+    , show $ edgeType (thd3 inEdge)
+    , show $ minLength (thd3 inEdge)
+    , show $ maxLength (thd3 inEdge)
+    , show $ midRangeLength (thd3 inEdge)
+    ]
 
 {- | strict2of5 esures parallelism and demands strict return of 2nd of 5 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation

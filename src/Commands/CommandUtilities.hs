@@ -885,7 +885,7 @@ getGraphMetaData _ inData (inGraph, graphIndex) =
                     let edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
                     
                     -- this is basically a Show
-                    let edgeInfoList = fmap getEdgeInfo edgeList
+                    let edgeInfoList = fmap U.getEdgeInfo edgeList
 
                     -- Alphabet element numbers
                     let alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
@@ -1070,15 +1070,16 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
                     -- this using IA fields to get changes
                     let vertexInfoListChanges = vertexInfoList -- concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
 
-                    -- this is basically a Show for complexity information--empty of not complexity
-                    let edgeInfoList = fmap getEdgeInfo edgeList
-                    let endVertexList = fmap (Just . snd3) edgeList
-                    let edgeVertexComplexity = fmap (U.calculatePMDLVertexComplexity False (Just $ V.fromList vertexList) inData) endVertexList
-                    let edgeMaxLength = fmap (maxLength . thd3) edgeList
-                    let edgeComplexityFactor = zipWith (/) edgeMaxLength edgeVertexComplexity
+                    
+                    let edgeInfoList = fmap U.getEdgeInfo edgeList
+
+                    -- Get complexity information--empty of not complexity
+                    edgeTripleList <- U.getEdgeComplexityFactors inGS inData vertexList edgeList 
+                    let edgeComplexityFactor = fmap thd3 edgeTripleList
+
                     let (vertexComplexityLabel, vertexComplexityList) = if (optimalityCriterion inGS `elem` [PMDL, SI]) then
                                                                 ("Complexity Factor", fmap (:[]) $ fmap show edgeComplexityFactor)
-                                               else ("", fmap (:[]) $ replicate (length endVertexList) "")
+                                               else ("", fmap (:[]) $ replicate (length edgeList) "")
 
                     -- Edge length information
                     let edgeTitle = [[" "], ["Edge Weight/Length Information"]]
@@ -1237,7 +1238,7 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
                         showInfo a = if snd5 a == -1.0 then ""
                                      else show a
 
-{- getEdgeInformationContent--Experimental
+{- U.getEdgeInformationContent--Experimental
     returns conditional complexity of child state given parent--K(c|p) and
     ration of child complexity to child conditinal complexity-- K(c) / K(c|p)
     compression based (zip)
@@ -1868,19 +1869,6 @@ removeRecurrrentSpaces inString
             then removeRecurrrentSpaces (tail inString)
             else (head inString) : removeRecurrrentSpaces (tail inString)
     | otherwise = (head inString) : removeRecurrrentSpaces (tail inString)
-
-
--- | getEdgeInfo returns a list of Strings of edge infomation
-getEdgeInfo ∷ LG.LEdge EdgeInfo → [String]
-getEdgeInfo inEdge =
-    [ " "
-    , show $ fst3 inEdge
-    , show $ snd3 inEdge
-    , show $ edgeType (thd3 inEdge)
-    , show $ minLength (thd3 inEdge)
-    , show $ maxLength (thd3 inEdge)
-    , show $ midRangeLength (thd3 inEdge)
-    ]
 
 
 -- | TNT report functions
