@@ -195,7 +195,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         otherCommands
                         isFirst
                 _ | doDotPDF → do
-                    let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tnode [ shape = none];\n" reportString
+                    let reportString' = changeDotPreamble "digraph {" "digraph G {\n\trankdir = LR;\tedge [colorscheme=spectral11];\tnode [shape = none];\n" reportString
                     printGraphVizDot reportString' outFile
                     executeCommands
                         globalSettings

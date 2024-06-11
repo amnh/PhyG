@@ -261,6 +261,7 @@ reportArgList =
     , "branchlengths"
     , "collapse"
     , "concatenate"
+    , "color"
     , "crossrefs"
     , "data"
     , "diagnosis"

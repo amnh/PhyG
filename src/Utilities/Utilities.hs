@@ -42,6 +42,7 @@ import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
+import Debug.Trace
 
 
 {- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to 
@@ -54,7 +55,7 @@ getEdgeComplexityFactors :: GlobalSettings -> ProcessedData -> [LG.LNode VertexI
 getEdgeComplexityFactors inGS inData vertexList edgeList =
     if optimalityCriterion inGS `notElem` [PMDL, SI] then 
         do
-            logWith LogWarn "Optimality criterion neither PMDL not SI--returning 0.0 edge complexity"
+            --logWith LogWarn "Optimality criterion neither PMDL not SI--returning 0.0 edge complexity\n"
             pure (replicate (length edgeList) (0.0,0.0,0.0))     
     else do
             let edgeInfoList = fmap getEdgeInfo edgeList
@@ -76,9 +77,11 @@ getEdgeColor maxColorInt valueList =
         let maxListVal = maximum valueList
             maxVal = if maxListVal < 1.0 then 1.0 -- this for bootstraps, info index etc
                      else maxListVal
-            categories = [(maxColorInt - 1) .. 0]
+            categories = reverse [1..maxColorInt]
             thresholds = fmap (maxVal / (fromIntegral maxColorInt) *) (fmap fromIntegral categories)
         in
+        -- trace ("GEC: " <> (show maxColorInt) <> " " <> (show maxVal) <> "\n" <> (show valueList) <> "\n" <> (show categories) <> "\n" <> 
+        --    (show thresholds)  <> "\n" <> (show $ fmap (getThresholdNumber thresholds 0) valueList)) $
         fmap (getThresholdNumber thresholds 0) valueList
     where getThresholdNumber l i a = if null l then i
                                      else if a > head l then i

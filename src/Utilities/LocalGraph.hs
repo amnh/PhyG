@@ -118,7 +118,7 @@ prettyDot inGraph =
     if G.isEmpty inGraph
         then error ("Empty Graph")
         else
-            let topPart = "digraph G {\n\trankdir = LR; node [ shape = rect];\n"
+            let topPart = "digraph G {\n\trankdir = LR; edge [colorscheme=spectral11]; node [shape = rect];\n"
                 nodeList = concatMap ("\t" <>) $ fmap (<> ";\n") $ fmap show $ nodes inGraph
                 edgeList = concatMap ("\t" <>) $ fmap makeEdgeString $ edges inGraph
                 endPart = "}\n"

@@ -308,6 +308,7 @@ outputDisplayString commandList costList lOutgroupIndex graphList
         makeDotList
             (not (elem "nobranchlengths" commandList))
             (not (elem "nohtulabels" commandList))
+            (elem "color" commandList)
             costList
             lOutgroupIndex
             (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -325,6 +326,7 @@ outputDisplayString commandList costList lOutgroupIndex graphList
         makeDotList
             (not (elem "nobranchlengths" commandList))
             (not (elem "nohtulabels" commandList))
+            (elem "color" commandList)
             costList
             lOutgroupIndex
             (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -337,6 +339,7 @@ outputGraphString commandList lOutgroupIndex graphList costList
         makeDotList
             (not (elem "nobranchlengths" commandList))
             (not (elem "nohtulabels" commandList))
+            (elem "color" commandList)
             costList
             lOutgroupIndex
             (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -354,6 +357,7 @@ outputGraphString commandList lOutgroupIndex graphList costList
         makeDotList
             (not (elem "nobranchlengths" commandList))
             (not (elem "nohtulabels" commandList))
+            (elem "color" commandList)
             costList
             lOutgroupIndex
             (fmap GO.convertDecoratedToSimpleGraph graphList)
@@ -363,23 +367,65 @@ outputGraphString commandList lOutgroupIndex graphList costList
 outputGraphStringSimple ∷ [String] → Int → [SimpleGraph] → [VertexCost] → String
 outputGraphStringSimple commandList lOutgroupIndex graphList costList
     | "dot" `elem` commandList =
-        makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex graphList
+        makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) (elem "color" commandList) costList lOutgroupIndex graphList
     | "newick" `elem` commandList = GO.makeNewickList False True True lOutgroupIndex graphList costList
     | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex graphList
     | otherwise -- "dot" as default
         =
-        makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) costList lOutgroupIndex graphList
+        makeDotList (not (elem "nobranchlengths" commandList)) (not (elem "nohtulabels" commandList)) (elem "color" commandList) costList lOutgroupIndex graphList
 
 
 {- | makeDotList takes a list of fgl trees and outputs a single String cointaining the graphs in Dot format
 need to specify -O option for multiple graph(outgroupIndex globalSettings)s
 -}
-makeDotList ∷ Bool → Bool → [VertexCost] → Int → [SimpleGraph] → String
-makeDotList writeEdgeWeight writeNodeLabel costList rootIndex graphList =
-    let graphStringList' = fmap (fgl2DotString . LG.rerootTree rootIndex) graphList
-        graphStringList = fmap (stripDotLabels writeEdgeWeight writeNodeLabel) graphStringList'
+makeDotList ∷ Bool → Bool → Bool-> [VertexCost] → Int → [SimpleGraph] → String
+makeDotList writeEdgeWeight writeNodeLabel colorEdges costList rootIndex graphList =
+    let graphStringList'' = fmap (fgl2DotString . LG.rerootTree rootIndex) graphList
+        graphStringList' = fmap (stripDotLabels writeEdgeWeight writeNodeLabel) graphStringList''
+        graphStringList = if colorEdges then zipWith addEdgeColor graphList graphStringList'
+                          else graphStringList'
         costStringList = fmap (("\n//" <>) . show) costList
     in  L.intercalate "\n" (zipWith (<>) graphStringList costStringList)
+
+{- addEdgeColor adds field of edge color based on a pallete and edge weight
+    here using GraphViz colorscheme spectral11
+-}
+addEdgeColor :: SimpleGraph -> String -> String
+addEdgeColor inGraph inString =
+    if LG.isEmpty inGraph || null inString then []
+    else 
+        let edgeWeightList = fmap thd3 $ LG.labEdges inGraph
+            maxColorNumber = 11
+            edgeColorList = fmap show $ U.getEdgeColor maxColorNumber edgeWeightList
+            newEdgeInfo = zip3 (fmap (show .fst3) $ LG.labEdges inGraph) (fmap (show . snd3) $ LG.labEdges inGraph) edgeColorList
+        in
+        addColor newEdgeInfo inString
+
+-- | addColor removes edge labels from HTUs in graphviz format string
+addColor ∷ [(String, String, String)] -> String → String
+addColor colorEdgeList inString =
+    if null inString
+        then inString
+        else
+            let lineStringList = lines inString
+                newLines = fmap (makeNewLine colorEdgeList) lineStringList
+            in  unlines newLines
+    where
+        makeNewLine cl a =
+            if (null $ L.intersect "->" a)
+                then a
+                else
+                    let b = words a
+                        newB3 = getEdgeColor cl b
+                    in  "    " <> (concat [b !! 0, " ", b !! 1, " ", b !! 2, " ", newB3])
+
+        getEdgeColor cl b = 
+            if null cl then error ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cl)) 
+            else if (b !! 0) == (fst3 $ head cl) && (b !! 2) == (snd3 $ head cl) then
+                if (length b > 3) then 
+                    "[" <> "color=" <> (thd3 $ head cl) <> "," <> (tail $ b !! 3) 
+                else  "[" <> "color=" <> (thd3 $ head cl) <> "]"
+                else getEdgeColor (tail cl) b
 
 
 -- | stripDotLabels strips away edge and HTU labels from dot files
