@@ -47,6 +47,8 @@ import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
 {- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to 
     length of that edge (in  bits) to detemrine complexity factor K(Child)/K(child-max)
     [(edgeVertexComplexity, edgeMaxLength, edgeComplexityFactor)]
+    returns all 0.0 valiuues if not PMDL/SI
+        4th field is GraphViz Color scheme Spectral11 1=Red, 11=violet
 -}
 getEdgeComplexityFactors :: GlobalSettings -> ProcessedData -> [LG.LNode VertexInfo] -> [LG.LEdge EdgeInfo] -> PhyG [(VertexCost, VertexCost, Double)]
 getEdgeComplexityFactors inGS inData vertexList edgeList =
@@ -61,6 +63,26 @@ getEdgeComplexityFactors inGS inData vertexList edgeList =
             let edgeMaxLength = fmap (maxLength . thd3) edgeList
             let edgeComplexityFactor = zipWith (/) edgeMaxLength edgeVertexComplexity   
             pure $ zip3 edgeVertexComplexity edgeMaxLength edgeComplexityFactor
+
+{- getEdgeColor creates an integer list for GraphViz color schemes
+    takes max (all seem to start at 1) and if red=1 (or whatever) 
+    and violet(blue) = max then assignes blue to lowest of 
+        Double input and 1 highest (if all <1.0 then 1.0 is highest).
+-}
+getEdgeColor :: Int -> [Double] -> [Int]
+getEdgeColor maxColorInt valueList =
+    if null valueList then []
+    else 
+        let maxListVal = maximum valueList
+            maxVal = if maxListVal < 1.0 then 1.0 -- this for bootstraps, info index etc
+                     else maxListVal
+            categories = [(maxColorInt - 1) .. 0]
+            thresholds = fmap (maxVal / (fromIntegral maxColorInt) *) (fmap fromIntegral categories)
+        in
+        fmap (getThresholdNumber thresholds 0) valueList
+    where getThresholdNumber l i a = if null l then i
+                                     else if a > head l then i
+                                     else getThresholdNumber (tail l) (i + 1) a
 
 
 
