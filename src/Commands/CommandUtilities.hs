@@ -435,10 +435,12 @@ addColor colorEdgeList inString =
         makeNewLine cl a =
             if (null $ L.intersect "->" a)
                 then a
-                else
+                else 
                     let b = words a
                         newB3 = getEdgeColor cl b
-                    in  "    " <> (concat [b !! 0, " ", b !! 1, " ", b !! 2, " ", newB3])
+                    in  
+                    if (length b > 2) then "    " <> (concat [b !! 0, " ", b !! 1, " ", b !! 2, " ", newB3])
+                    else a
 
         getEdgeColor cl b = 
             if null cl then error ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cl)) 

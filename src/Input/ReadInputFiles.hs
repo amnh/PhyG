@@ -321,7 +321,8 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                                                                         (tail argList)
                                                                                             else do failWithPhase Parsing ("Cannot determine file type for " <> firstFile <> " need to prepend type")
                                             else -- fasta
-
+                                                let firstChar = T.head $ T.dropWhile (== ' ') fileContents
+                                                in
                                                 if firstOption `elem` ["fasta", "nucleotide", "aminoacid", "hugeseq"]
                                                     then
                                                         let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
@@ -433,8 +434,12 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                                                                         (tail argList)
                                                                                             else -- reading terminals list to include--must be "new" names if taxa are renamed
 
-                                                                                                if firstOption == "include"
-                                                                                                    then
+                                                                                                if firstOption == "include" then
+                                                                                                    
+                                                                                                    if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
+                                                                                                            then do 
+                                                                                                                failWithPhase Parsing ("Input 'include' file " <> firstFile <> " does not look like one.")
+                                                                                                    else
                                                                                                         let terminalsList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments (T.unpack <$> T.lines fileContents))
                                                                                                         in  executeReadCommands'
                                                                                                                 curData
@@ -447,8 +452,11 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                                                                 tcmPair
                                                                                                                 (tail argList)
                                                                                                     else
-                                                                                                        if firstOption == "exclude"
-                                                                                                            then
+                                                                                                        if firstOption == "exclude" then
+                                                                                                                if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
+                                                                                                                    then do 
+                                                                                                                        failWithPhase Parsing ("Input 'exclude' file " <> firstFile <> " does not look like one.")
+                                                                                                        else
                                                                                                                 let excludeList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments (T.unpack <$> T.lines fileContents))
                                                                                                                 in  executeReadCommands'
                                                                                                                         curData
@@ -461,8 +469,11 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                                                                         tcmPair
                                                                                                                         (tail argList)
                                                                                                             else
-                                                                                                                if firstOption == "rename"
-                                                                                                                    then do
+                                                                                                                if firstOption == "rename" then 
+                                                                                                                    if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
+                                                                                                                    then do 
+                                                                                                                        failWithPhase Parsing ("Input 'rename' file " <> firstFile <> " does not look like one.")
+                                                                                                                    else do
                                                                                                                         let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
                                                                                                                         namePairsLL ← mapM (makeNamePairs firstFile) renameLines
                                                                                                                         let namePairs = concat namePairsLL
@@ -485,8 +496,11 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                                                                                     tcmPair
                                                                                                                                     (tail argList)
                                                                                                                     else
-                                                                                                                        if firstOption == "block"
-                                                                                                                            then do
+                                                                                                                        if firstOption == "block" then
+                                                                                                                            if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
+                                                                                                                            then do 
+                                                                                                                                failWithPhase Parsing ("Input 'block' file " <> firstFile <> " does not look like one.")
+                                                                                                                            else do
                                                                                                                                 let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
                                                                                                                                 blockPairsLL ← mapM (makeNamePairs firstFile) renameLines
                                                                                                                                 let blockPairs = concat blockPairsLL
