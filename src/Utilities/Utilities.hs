@@ -100,6 +100,13 @@ getEdgeInfo inEdge =
     , show $ midRangeLength (thd3 inEdge)
     ]
 
+{- | strict2of2 esures parallelism and demands strict return of 2nd of 2 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict2of2 :: (CharacterData, VertexCost) ->  (CharacterData, VertexCost) 
+strict2of2 b@(_,!x) =
+        force x `seq` b
+
 {- | strict2of5 esures parallelism and demands strict return of 2nd of 5 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}

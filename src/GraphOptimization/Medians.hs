@@ -40,10 +40,13 @@ Portability :  portable (I hope)
 -}
 module GraphOptimization.Medians (
     median2,
+    median2P,
     median2Single,
     median2NonExact,
+    median2NonExactP,
     -- , median2SingleNonExact
     median2StaticIA,
+    median2StaticIAP,
     makeIAUnionPrelimLeaf,
     makeIAPrelimCharacter,
     makeIAFinalCharacter,
@@ -87,10 +90,154 @@ import Data.Vector.Storable qualified as SV
 import DirectOptimization.Pairwise
 import GeneralUtilities
 import Input.BitPack qualified as BP
+import PHANE.Evaluation
+import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
+import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Debug.Trace
+
+
+{- These top level function need to be parallel to evaluate a given graph in parallel
+    and also for heurstic costs in searches
+-}
+
+{- | median2 takes the vectors of characters and applies median2Single to each
+character
+for parallel fmap over all then parallelized by type and sequences
+used for distances and post-order assignments
+-}
+median2
+    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
+median2 isMedian = V.zipWith3 (median2Single isMedian False)
+
+{- | median2P takes the vectors of characters and applies median2Single to each character in parallel 
+    used for distances and post-order assignments
+-}
+median2P ∷ Bool -> V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
+median2P isMedian firstDataV secondDataV charInfoV = 
+    let medianAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+        medianAction = median2SingleTuple isMedian False 
+    in 
+    do
+        makeMedianPar ← getParallelChunkMap
+        let medianList = makeMedianPar medianAction (V.toList $ V.zip3 firstDataV secondDataV charInfoV)
+        pure $ V.fromList medianList
+
+
+{- | median2NonExact takes the vectors of characters and applies median2NonExact to each
+character for parallel fmap over all then parallelized by type and sequences
+this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
+-}
+median2NonExact
+    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
+median2NonExact isMedian = V.zipWith3 (median2SingleNonExact isMedian)
+
+
+{- | median2NonExactP  takes the vectors of characters and applies median2NonExact to each
+character in parallel 
+this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
+-}
+median2NonExactP ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
+median2NonExactP isMedian firstDataV secondDataV charInfoV = 
+    let medianAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+        medianAction = median2SingleNonExactTuple isMedian  
+    in 
+    do
+        makeMedianPar ← getParallelChunkMap
+        let medianList = makeMedianPar medianAction (V.toList $ V.zip3 firstDataV secondDataV charInfoV)
+        pure $ V.fromList medianList
+
+{- | median2StaticIA takes the vectors of characters and applies median2SingleStaticIA to each
+character for parallel fmap over all then parallelized by type and sequences
+this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
+and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
+-}
+median2StaticIA
+    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
+median2StaticIA isMedian = V.zipWith3 (median2Single isMedian True)
+
+{- | median2StaticIAP takes the vectors of characters and applies median2SingleStaticIA to each
+character in parallel 
+this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
+and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
+-}
+median2StaticIAP
+    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → Phyg (V.Vector (CharacterData, VertexCost))
+median2StaticIAP isMedian = V.zipWith3 (median2Single isMedian True)
+    let medianAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+        medianAction = median2SingleTuple isMedian True 
+    in 
+    do
+        makeMedianPar ← getParallelChunkMap
+        let medianList = makeMedianPar medianAction (V.toList $ V.zip3 firstDataV secondDataV charInfoV)
+        pure $ V.fromList medianList
+
+{- | distance2Unions is a block wrapper around  distance2UnionsBlock
+really only to get union distance--keeping union states in there in csae needed later
+-}
+distance2Unions ∷ Bool → VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → (VertexBlockData, VertexCost)
+distance2Unions isMedian firstBlock secondBlock charInfoVV =
+    let (newBlockV, newCostV) = V.unzip $ V.zipWith3 (distance2UnionsBlock isMedian) firstBlock secondBlock charInfoVV
+    in  (newBlockV, V.sum newCostV)
+
+
+-- | distance2UnionsBlock is a block wrapper around  distance2UnionsCharacter
+distance2UnionsBlock
+    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → (V.Vector CharacterData, VertexCost)
+distance2UnionsBlock isMedian firstBlock secondBlock charInfoV =
+    let (newBlockV, newCostV) = V.unzip $ V.zipWith3 (distance2UnionsCharacter isMedian) firstBlock secondBlock charInfoV
+    in  (newBlockV, V.sum newCostV)
+
+{- | union2 takes the vectors of characters and applies union2Single to each character
+used for edge states in buikd and rearrangement
+-}
+union2 ∷ Bool → Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector CharacterData
+union2 useIA filterGaps = V.zipWith3 (union2Single useIA filterGaps)
+
+{- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
+The function takes data in blocks and block vector of char info and
+extracts the triple for each block and creates new block data
+this is used for delta's in edge invastion in Wagner and SPR/TBR
+filter gaps for using with DO (flterGaps = True) or IA (filterGaps = False)
+-}
+createEdgeUnionOverBlocks
+    ∷ Bool
+    → Bool
+    → VertexBlockData
+    → VertexBlockData
+    → V.Vector (V.Vector CharInfo)
+    → [V.Vector CharacterData]
+    → V.Vector (V.Vector CharacterData)
+createEdgeUnionOverBlocks useIA filterGaps leftBlockData rightBlockData blockCharInfoVect curBlockData =
+    if V.null leftBlockData
+        then -- trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
+            V.fromList $ reverse curBlockData
+        else
+            let leftBlockLength = length $ V.head leftBlockData
+                rightBlockLength = length $ V.head rightBlockData
+                -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+
+                -- missing data cases first or zip defaults to zero length
+                firstBlockMedian
+                    | (leftBlockLength == 0) = V.head rightBlockData
+                    | (rightBlockLength == 0) = V.head leftBlockData
+                    | otherwise = union2 useIA filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+            in  createEdgeUnionOverBlocks
+                    useIA
+                    filterGaps
+                    (V.tail leftBlockData)
+                    (V.tail rightBlockData)
+                    (V.tail blockCharInfoVect)
+                    (firstBlockMedian : curBlockData)
+
+{- 
+    Most of these functions operate on single characters
+-}
 
 {- | diagonalNonZero checks if any diagonal values are == 0
 assumes square
@@ -112,36 +259,10 @@ and returns a dynamic character that canbe used with other functions
 makeDynamicCharacterFromSingleVector ∷ (GV.Vector v a) ⇒ v a → (v a, v a, v a)
 makeDynamicCharacterFromSingleVector dc = unsafeCharacterBuiltByST (toEnum $ GV.length dc) $ \dc' → GV.imapM_ (\k v → setAlign dc' k v v v) dc
 
-
-{- | median2 takes the vectors of characters and applies median2Single to each
-character
-for parallel fmap over all then parallelized by type and sequences
-used for distances and post-order assignments
+{- median2SingleTuple is a wrapper around median2Single to allow paralle execution
 -}
-median2
-    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
-median2 isMedian = V.zipWith3 (median2Single isMedian False)
-
-
-{- | median2NonExact takes the vectors of characters and applies median2NonExact to each
-character for parallel fmap over all then parallelized by type and sequences
-this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
-and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
--}
-median2NonExact
-    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
-median2NonExact isMedian = V.zipWith3 (median2SingleNonExact isMedian)
-
-
-{- | median2StaticIA takes the vectors of characters and applies median2SingleStaticIA to each
-character for parallel fmap over all then parallelized by type and sequences
-this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
-and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
--}
-median2StaticIA
-    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
-median2StaticIA isMedian = V.zipWith3 (median2Single isMedian True)
-
+median2SingleTuple :: Bool → Bool → (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+median2SingleTuple a b (c,d,e) = median2Single a b c d e
 
 {- | median2Single takes character data and returns median character and cost
 median2single assumes that the character vectors in the various states are the same length
@@ -202,6 +323,11 @@ median2Single isMedian staticIA firstVertChar secondVertChar inCharInfo =
                                                                     (newCharVect, localCost newCharVect)
                                                             else error ("Character type " <> show thisType <> " unrecognized/not implemented")
 
+{- median2SingleNonExactTuple is wrapper around median2SingleNonExact
+    for parallelism
+-}
+median2SingleNonExactTuple :: Bool → (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+median2SingleNonExactTuple a (b,c,d) = median2SingleNonExact a b c d
 
 {- | median2SingleNonExact takes character data and returns median character and cost
 median2single assumes that the character vectors in the various states are the same length
@@ -235,23 +361,6 @@ median2SingleNonExact isMedian firstVertChar secondVertChar inCharInfo =
                                 in  -- trace ("M2SNE: " <> (show thisType) <> (show $ localCost  newCharVect))
                                     (newCharVect, localCost newCharVect)
                             else error ("Character type " <> show thisType <> " unrecognized/not implemented")
-
-
-{- | distance2Unions is a block wrapper around  distance2UnionsBlock
-really only to get union distance--keeping union states in there in csae needed later
--}
-distance2Unions ∷ Bool → VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → (VertexBlockData, VertexCost)
-distance2Unions isMedian firstBlock secondBlock charInfoVV =
-    let (newBlockV, newCostV) = V.unzip $ V.zipWith3 (distance2UnionsBlock isMedian) firstBlock secondBlock charInfoVV
-    in  (newBlockV, V.sum newCostV)
-
-
--- | distance2UnionsBlock is a block wrapper around  distance2UnionsCharacter
-distance2UnionsBlock
-    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → (V.Vector CharacterData, VertexCost)
-distance2UnionsBlock isMedian firstBlock secondBlock charInfoV =
-    let (newBlockV, newCostV) = V.unzip $ V.zipWith3 (distance2UnionsCharacter isMedian) firstBlock secondBlock charInfoV
-    in  (newBlockV, V.sum newCostV)
 
 
 {- | distance2UnionsCharacter takes character data and returns median of union characters and cost
@@ -1093,13 +1202,6 @@ getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWid
                     }
 
 
-{- | union2 takes the vectors of characters and applies union2Single to each character
-used for edge states in buikd and rearrangement
--}
-union2 ∷ Bool → Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector CharacterData
-union2 useIA filterGaps = V.zipWith3 (union2Single useIA filterGaps)
-
-
 {- | union2Single takes character data and returns union character data
 union2Single assumes that the character vectors in the various states are the same length
 that is--all leaves (hence other vertices later) have the same number of each type of character
@@ -1145,43 +1247,6 @@ makeEdgeData useIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
     let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
         vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
     in  createEdgeUnionOverBlocks useIA filterGaps eNodeVertData vNodeVertData charInfoVV []
-
-
-{- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
-The function takes data in blocks and block vector of char info and
-extracts the triple for each block and creates new block data
-this is used for delta's in edge invastion in Wagner and SPR/TBR
-filter gaps for using with DO (flterGaps = True) or IA (filterGaps = False)
--}
-createEdgeUnionOverBlocks
-    ∷ Bool
-    → Bool
-    → VertexBlockData
-    → VertexBlockData
-    → V.Vector (V.Vector CharInfo)
-    → [V.Vector CharacterData]
-    → V.Vector (V.Vector CharacterData)
-createEdgeUnionOverBlocks useIA filterGaps leftBlockData rightBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData
-        then -- trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
-            V.fromList $ reverse curBlockData
-        else
-            let leftBlockLength = length $ V.head leftBlockData
-                rightBlockLength = length $ V.head rightBlockData
-                -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-
-                -- missing data cases first or zip defaults to zero length
-                firstBlockMedian
-                    | (leftBlockLength == 0) = V.head rightBlockData
-                    | (rightBlockLength == 0) = V.head leftBlockData
-                    | otherwise = union2 useIA filterGaps (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            in  createEdgeUnionOverBlocks
-                    useIA
-                    filterGaps
-                    (V.tail leftBlockData)
-                    (V.tail rightBlockData)
-                    (V.tail blockCharInfoVect)
-                    (firstBlockMedian : curBlockData)
 
 
 {- | getPreAligned2Median takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
@@ -1684,12 +1749,13 @@ local3WaySlim lSlimTCM b c d =
 
 -- )
 
--- \| generalSequenceDiff  takes two sequence elemental bit types and retuns min and max integer
+-- | generalSequenceDiff  takes two sequence elemental bit types and returns min and max integer
 -- cost differences using matrix values
--- if value has no bits on--it is set to 0th bit on for GAP
+-- if value has no bits on--it is set to 0th bit on for GAP or 0 for minimum
+-- the Nil Stuff can be an issue for counting 
 generalSequenceDiff ∷ (FiniteBits a, Show a) ⇒ S.Matrix Int → Int → a → a → (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
-    trace ("GSD: " <> (show (numStates, uState, vState))) $
+    --trace ("GSD: " <> (show (numStates, uState, vState))) $
     let minState =  if uState == vState then 0
                     else if (uState .&. vState) /= (uState `xor` uState) then 0
                     else if uState == (uState `xor` uState) then 0

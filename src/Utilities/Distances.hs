@@ -79,15 +79,16 @@ this can be done for leaves only or all via the input processed
 data leaves are first--then HTUs follow
 No change adjust is False since this is a distance
 -}
-getBlockDistance ∷ BlockData → (Int, Int) → VertexCost
+getBlockDistance ∷ BlockData → (Int, Int) → PhyG VertexCost
 getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
     if V.null localVertData
-        then 0.0
+        then pure 0.0
         else
             let isMedian = False
-                pairCost = V.sum $ V.map snd $ M.median2 isMedian (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
-            in  pairCost
-
+            in do
+                 pairCostPairList <- M.median2P isMedian (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
+                 let pairCost = sum $ fmap snd pairCostPairList
+                 pure pairCost
 
 {- | getPairwiseBlocDistance returns pairwisee distances among vertices for
 a block of data
@@ -102,11 +103,11 @@ getPairwiseBlockDistance numVerts inData =
         -- pairListCosts = P.seqParMap rdeepseq  (getBlockDistance inData) pairList
         -- TODO
         -- pairListCosts = fmap  (getBlockDistance inData) pairList
-        action ∷ (Int, Int) → VertexCost
+        action ∷ (Int, Int) → PhyG VertexCost
         action = getBlockDistance inData
     in  do
-            pTraverse ← getParallelChunkMap
-            let pairListCosts = pTraverse action pairList
+            pTraverse ← getParallelChunkTraverse
+            pairListCosts <- pTraverse action pairList
 
             let (iLst, jList) = unzip pairList
             let threeList = zip3 iLst jList pairListCosts
