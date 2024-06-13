@@ -90,7 +90,7 @@ import Input.BitPack qualified as BP
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
-
+import Debug.Trace
 
 {- | diagonalNonZero checks if any diagonal values are == 0
 assumes square
@@ -1687,21 +1687,31 @@ local3WaySlim lSlimTCM b c d =
 -- \| generalSequenceDiff  takes two sequence elemental bit types and retuns min and max integer
 -- cost differences using matrix values
 -- if value has no bits on--it is set to 0th bit on for GAP
-generalSequenceDiff ∷ (FiniteBits a) ⇒ S.Matrix Int → Int → a → a → (Int, Int)
+generalSequenceDiff ∷ (FiniteBits a, Show a) ⇒ S.Matrix Int → Int → a → a → (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
-    -- trace ("GSD: " <> (show (numStates, uState, vState))) (
-    let gapIfNil ∷ ∀ {a}. (Bits a) ⇒ a → a
-        gapIfNil x
-            | popCount x == 0 = (x `xor` x) `setBit` fromEnum gapIndex
-            | otherwise = x
-        uState' = gapIfNil uState
-        vState' = gapIfNil vState
-        uStateList = fmap snd $ filter fst $ zip (fmap (testBit uState') [0 .. numStates - 1]) [0 .. numStates - 1]
-        vStateList = fmap snd $ filter fst $ zip (fmap (testBit vState') [0 .. numStates - 1]) [0 .. numStates - 1]
-        uvCombinations = cartProd uStateList vStateList
-        costOfPairs = fmap (thisMatrix S.!) uvCombinations
-    in  -- trace ("GSD: " <> (show uStateList) <> " " <> (show vStateList) <> " min " <> (show $ minimum costOfPairs) <> " max " <> (show $  maximum costOfPairs))
-        (minimum costOfPairs, maximum costOfPairs)
+    trace ("GSD: " <> (show (numStates, uState, vState))) $
+    let minState =  if uState == vState then 0
+                    else if (uState .&. vState) /= (uState `xor` uState) then 0
+                    else if uState == (uState `xor` uState) then 0
+                    else if vState == (uState `xor` uState) then 0
+                    else maxBound :: Int
+    in
+    let (minBits, maxBits) =
+            let gapIfNil ∷ ∀ {a}. (Bits a) ⇒ a → a
+                gapIfNil x
+                    | popCount x == 0 = (x `xor` x) `setBit` fromEnum gapIndex
+                    | otherwise = x
+                uState' = gapIfNil uState
+                vState' = gapIfNil vState
+                uStateList = fmap snd $ filter fst $ zip (fmap (testBit uState') [0 .. numStates - 1]) [0 .. numStates - 1]
+                vStateList = fmap snd $ filter fst $ zip (fmap (testBit vState') [0 .. numStates - 1]) [0 .. numStates - 1]
+                uvCombinations = cartProd uStateList vStateList
+                costOfPairs = fmap (thisMatrix S.!) uvCombinations
+            in  -- trace ("GSD: " <> (show uStateList) <> " " <> (show vStateList) <> " min " <> (show $ minimum costOfPairs) <> " max " <> (show $  maximum costOfPairs))
+                (minimum costOfPairs, maximum costOfPairs)
+    in
+    (min minState minBits, maxBits)
+
 
 
 -- )

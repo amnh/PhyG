@@ -750,7 +750,7 @@ convertDecoratedToSimpleGraph inDec =
                 newNodeLabels = fmap (vertName . snd) decNodeList
                 simpleNodes = zip (fmap fst decNodeList) newNodeLabels
                 labEdgeList = LG.labEdges inDec
-                edgeWeightList = filter (> 0.0) $ fmap (maxLength . thd3) labEdgeList
+                edgeWeightList = filter (> 0.0) $ fmap (minLength . thd3) labEdgeList
                 defaultWeight =
                     if null edgeWeightList
                         then Just 1.0
