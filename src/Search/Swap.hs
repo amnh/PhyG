@@ -637,7 +637,7 @@ splitJoinGraph swapParams inGS inData curBestCost curSameBetterList numLeaves ne
                         let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab reoptimizedSplitGraph prunedGraphRootIndex
                         -- prunedToRejoinUnionData = vertData $ fromJust $ LG.lab (thd5 firstGraph) prunedGraphRootIndex
                         let charInfoVV = fft5 firstGraph
-                        let unionEdgeList =
+                        unionEdgeList <-
                                 getUnionRejoinEdgeList
                                     inGS
                                     reoptimizedSplitGraph
@@ -751,7 +751,6 @@ splitJoinGraph swapParams inGS inData curBestCost curSameBetterList numLeaves ne
                                                 otherEdges
                                 in  result
 
-
 {- | getUnionRejoinEdgeList takes a graph (split and reoptimized usually), the overall root index (of split),
 split cost, and union threshold value and returns list of edges that have union distance <= threshold factor
 assumes that root edges are not network edges (an invariant)
@@ -765,12 +764,12 @@ getUnionRejoinEdgeList
     → Double
     → VertexBlockData
     → [LG.LEdge EdgeInfo]
-    → [LG.LEdge EdgeInfo]
+    → PhyG [LG.LEdge EdgeInfo]
 getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost nodeToJoinUnionData curEdgeList =
     -- returns edges in post order since prepending--could reverse if want pre-order edges
     -- might be better post order, unclear
     if null nodeIndexList
-        then curEdgeList
+        then pure curEdgeList
         else
             let nodeIndex = head nodeIndexList
                 childEdges = LG.out inGraph nodeIndex
@@ -778,8 +777,7 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost nodeT
 
                 -- node data and union distance
                 nodeData = vertData $ fromJust $ LG.lab inGraph nodeIndex
-                unionDistance = getUnionDistance nodeToJoinUnionData nodeData charInfoVV
-                metThreshold = unionDistance < splitDiffCost * (unionThreshold inGS)
+                
             in  -- nodeDataString = U.getUnionFieldsNode nodeData
                 -- toJoinString = U.getUnionFieldsNode nodeToJoinUnionData
 
@@ -787,59 +785,60 @@ getUnionRejoinEdgeList inGS inGraph charInfoVV nodeIndexList splitDiffCost nodeT
                 -- trace ("GUREL: " <> (show (unionDistance, splitDiffCost, unionThreshold * splitDiffCost))) (
                 if (length childEdges) `notElem` [0, 1, 2]
                     then error ("Node has improper number of children : " <> (show $ length childEdges))
-                    else -- add non-outgroup root edge to list for rejoin after checking for acceptable union distance
-                    -- if edge is not within union distance factor then stop--no recursion
-                    -- this since distance cannot get lower further upt the graph given union creation
+                    else do
+                        -- add non-outgroup root edge to list for rejoin after checking for acceptable union distance
+                        -- if edge is not within union distance factor then stop--no recursion
+                        -- this since distance cannot get lower further upt the graph given union creation
 
-                        if LG.isRoot inGraph nodeIndex
-                            then
-                                if metThreshold
-                                    then
-                                        if (null $ LG.out inGraph (head childNodeIndexList))
-                                            then
-                                                getUnionRejoinEdgeList
-                                                    inGS
-                                                    inGraph
-                                                    charInfoVV
-                                                    [(snd3 $ last childEdges)]
-                                                    splitDiffCost
-                                                    nodeToJoinUnionData
-                                                    ((last childEdges) : curEdgeList)
-                                            else
-                                                getUnionRejoinEdgeList
-                                                    inGS
-                                                    inGraph
-                                                    charInfoVV
-                                                    [(snd3 $ head childEdges)]
-                                                    splitDiffCost
-                                                    nodeToJoinUnionData
-                                                    ((head childEdges) : curEdgeList)
-                                    else curEdgeList
-                            else -- non-root node--process childre 1/2
-                            -- recurses to their children if union condition met--but doesn't add network edges
-                            -- check current node--then recurse to children
+                            unionDistance <- getUnionDistanceM nodeToJoinUnionData nodeData charInfoVV
+                            let metThreshold = unionDistance < splitDiffCost * (unionThreshold inGS)
 
-                                let -- first and second child data child
-                                    newCurEdgeListChild =
-                                        if metThreshold
-                                            then getUnionRejoinEdgeList inGS inGraph charInfoVV childNodeIndexList splitDiffCost nodeToJoinUnionData (childEdges <> curEdgeList)
-                                            else curEdgeList
-                                in  -- recurse remaining nodes
-                                    getUnionRejoinEdgeList inGS inGraph charInfoVV (tail nodeIndexList) splitDiffCost nodeToJoinUnionData newCurEdgeListChild
+                            
+                            if LG.isRoot inGraph nodeIndex
+                                then
+                                    if metThreshold
+                                        then
+                                            if (null $ LG.out inGraph (head childNodeIndexList))
+                                                then
+                                                    getUnionRejoinEdgeList
+                                                        inGS
+                                                        inGraph
+                                                        charInfoVV
+                                                        [(snd3 $ last childEdges)]
+                                                        splitDiffCost
+                                                        nodeToJoinUnionData
+                                                        ((last childEdges) : curEdgeList)
+                                                else
+                                                    getUnionRejoinEdgeList
+                                                        inGS
+                                                        inGraph
+                                                        charInfoVV
+                                                        [(snd3 $ head childEdges)]
+                                                        splitDiffCost
+                                                        nodeToJoinUnionData
+                                                        ((head childEdges) : curEdgeList)
+                                        else pure curEdgeList
+                                else do -- non-root node--process childre 1/2
+                                -- recurses to their children if union condition met--but doesn't add network edges
+                                -- check current node--then recurse to children
 
+                                        -- let -- first and second child data child
+                                        newCurEdgeListChild <-
+                                                if metThreshold
+                                                    then getUnionRejoinEdgeList inGS inGraph charInfoVV childNodeIndexList splitDiffCost nodeToJoinUnionData (childEdges <> curEdgeList)
+                                                    else pure curEdgeList
+                                        --in  -- recurse remaining nodes
+                                        getUnionRejoinEdgeList inGS inGraph charInfoVV (tail nodeIndexList) splitDiffCost nodeToJoinUnionData newCurEdgeListChild
 
--- )
-
-{- | getUnionDistance gets distance between two the union fields of two characters
+{- | getUnionDistanceM gets distance between two the union fields of two characters
 since its a distance no need for no change cost adjustment
 -}
-getUnionDistance ∷ VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → Double
-getUnionDistance union1 union2 charInfoVV =
+getUnionDistanceM ∷ VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → PhyG Double
+getUnionDistanceM union1 union2 charInfoVV =
     let noChangeCostAdjut = False
-        (_, newUnionCost) = M.distance2Unions noChangeCostAdjut union1 union2 charInfoVV
-    in  newUnionCost
-
-
+    in
+    M.distance2UnionsM noChangeCostAdjut union1 union2 charInfoVV
+    
 -- | rejoinGraphTuple is a wrapper around rejoinGraph for fmapping--only returns graph list not simulated annealing params
 rejoinGraphTuple
     ∷ SwapParams

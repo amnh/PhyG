@@ -189,16 +189,15 @@ distance2Unions isMedian firstBlock secondBlock charInfoVV =
     really only to get union distance--keeping union states in there in case needed later
     operates in parallel
 -}
-distance2UnionsM ∷ Bool → VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → PhyG (VertexBlockData, VertexCost)
+distance2UnionsM ∷ Bool → VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → PhyG VertexCost
 distance2UnionsM isMedian firstBlock secondBlock charInfoVV =
-    let distanceAction :: (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG (V.Vector CharacterData, VertexCost)
+    let distanceAction :: (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG VertexCost
         distanceAction = distance2UnionsBlockM isMedian 
     in
     do
         distPar <- getParallelChunkTraverse
-        result <- distPar distanceAction (V.toList $ V.zip3 firstBlock secondBlock charInfoVV)
-        let (newBlockL, newCostL) = unzip result
-        pure (V.fromList newBlockL, sum newCostL)
+        newCostL <- distPar distanceAction (V.toList $ V.zip3 firstBlock secondBlock charInfoVV)
+        pure $ sum newCostL
 
 -- | distance2UnionsBlock is a block wrapper around  distance2UnionsCharacter
 distance2UnionsBlock ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → (V.Vector CharacterData, VertexCost)
@@ -208,16 +207,15 @@ distance2UnionsBlock isMedian firstBlock secondBlock charInfoV =
 
 -- | distance2UnionsBlockM is a block wrapper around  distance2UnionsCharacterM
 -- operates in parallel
-distance2UnionsBlockM ∷ Bool → (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG (V.Vector CharacterData, VertexCost)
+distance2UnionsBlockM ∷ Bool → (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG VertexCost
 distance2UnionsBlockM isMedian (firstBlock, secondBlock, charInfoV) =
-    let distanceAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+    let distanceAction :: (CharacterData, CharacterData, CharInfo) → VertexCost
         distanceAction = distance2UnionsCharacterTuple isMedian 
     in
     do
         distPar <- getParallelChunkMap
-        let result = distPar distanceAction (V.toList $ V.zip3 firstBlock secondBlock charInfoV)
-        let (newBlockL, newCostL) = unzip result
-        pure (V.fromList newBlockL, sum newCostL)
+        let newCostL = distPar distanceAction (V.toList $ V.zip3 firstBlock secondBlock charInfoV)
+        pure $ sum newCostL
 
 {- | union2 takes the vectors of characters and applies union2Single to each character
 used for edge states in build and rearrangement
@@ -459,9 +457,10 @@ median2SingleNonExact isMedian firstVertChar secondVertChar inCharInfo =
 
 
 
-{- | distance2UnionsCharacterTuple wrapper around distance2UnionsCharacter for parallel use -}
-distance2UnionsCharacterTuple :: Bool → (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
-distance2UnionsCharacterTuple a (b,c,d) = distance2UnionsCharacter a b c d
+{- | distance2UnionsCharacterTuple wrapper around distance2UnionsCharacter for parallel use 
+        only returns cost-}
+distance2UnionsCharacterTuple :: Bool → (CharacterData, CharacterData, CharInfo) → VertexCost
+distance2UnionsCharacterTuple a (b,c,d) = snd $ distance2UnionsCharacter a b c d
 
 
 {- | distance2UnionsCharacter takes character data and returns median of union characters and cost
