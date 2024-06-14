@@ -86,7 +86,7 @@ getBlockDistance (_, localVertData, blockCharInfo) (firstIndex, secondIndex) =
         else
             let isMedian = False
             in do
-                 pairCostPairList <- M.median2P isMedian (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
+                 pairCostPairList <- M.median2M isMedian (localVertData V.! firstIndex) (localVertData V.! secondIndex) blockCharInfo
                  let pairCost = sum $ fmap snd pairCostPairList
                  pure pairCost
 

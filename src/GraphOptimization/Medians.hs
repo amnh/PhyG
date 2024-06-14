@@ -39,38 +39,39 @@ Stability   :  unstable
 Portability :  portable (I hope)
 -}
 module GraphOptimization.Medians (
-    median2,
-    median2P,
-    median2Single,
-    median2NonExact,
-    median2NonExactP,
-    -- , median2SingleNonExact
-    median2StaticIA,
-    median2StaticIAP,
-    makeIAUnionPrelimLeaf,
-    makeIAPrelimCharacter,
-    makeIAFinalCharacter,
-    -- , createUngappedMedianSequence
-    intervalAdd,
-    interUnion,
-    getNewRange,
     addMatrix,
-    getDOMedian,
-    getPreAligned2Median,
-    getDOMedianCharInfo,
-    getNoGapPrelimContext,
-    pairwiseDO,
-    makeDynamicCharacterFromSingleVector,
-    makeEdgeData,
     createEdgeUnionOverBlocks,
+    createEdgeUnionOverBlocksM,
+    diagonalNonZero,
+    distance2Unions,
+    distance2UnionsM,
     get2WaySlim,
     get2WayWideHuge,
+    getDOMedian,
+    getDOMedianCharInfo,
     getFinal3WaySlim,
     getFinal3WayWideHuge,
+    getNewRange,
+    getNoGapPrelimContext,
+    getPreAligned2Median,
     generalSequenceDiff,
-    union2Single,
-    distance2Unions,
-    diagonalNonZero
+    interUnion,
+    intervalAdd,
+    makeDynamicCharacterFromSingleVector,
+    makeEdgeData,
+    makeEdgeDataM,
+    makeIAFinalCharacter,
+    makeIAPrelimCharacter,
+    makeIAUnionPrelimLeaf,
+    median2,
+    median2M,
+    median2NonExact,
+    median2NonExactM,
+    median2Single,
+    median2StaticIA,
+    median2StaticIAM,
+    pairwiseDO,
+    union2Single
 ) where
 
 import Bio.DynamicCharacter
@@ -113,11 +114,11 @@ median2
     ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
 median2 isMedian = V.zipWith3 (median2Single isMedian False)
 
-{- | median2P takes the vectors of characters and applies median2Single to each character in parallel 
+{- | median2M takes the vectors of characters and applies median2Single to each character in parallel 
     used for distances and post-order assignments
 -}
-median2P ∷ Bool -> V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
-median2P isMedian firstDataV secondDataV charInfoV = 
+median2M ∷ Bool -> V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
+median2M isMedian firstDataV secondDataV charInfoV = 
     let medianAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
         medianAction = median2SingleTuple isMedian False 
     in 
@@ -137,13 +138,13 @@ median2NonExact
 median2NonExact isMedian = V.zipWith3 (median2SingleNonExact isMedian)
 
 
-{- | median2NonExactP  takes the vectors of characters and applies median2NonExact to each
+{- | median2NonExactM  takes the vectors of characters and applies median2NonExact to each
 character in parallel 
 this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
 and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 -}
-median2NonExactP ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
-median2NonExactP isMedian firstDataV secondDataV charInfoV = 
+median2NonExactM ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
+median2NonExactM isMedian firstDataV secondDataV charInfoV = 
     let medianAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
         medianAction = median2SingleNonExactTuple isMedian  
     in 
@@ -161,14 +162,13 @@ median2StaticIA
     ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost)
 median2StaticIA isMedian = V.zipWith3 (median2Single isMedian True)
 
-{- | median2StaticIAP takes the vectors of characters and applies median2SingleStaticIA to each
+{- | median2StaticIAM takes the vectors of characters and applies median2SingleStaticIA to each
 character in parallel 
 this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
 and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 -}
-median2StaticIAP
-    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → Phyg (V.Vector (CharacterData, VertexCost))
-median2StaticIAP isMedian = V.zipWith3 (median2Single isMedian True)
+median2StaticIAM ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
+median2StaticIAM isMedian firstDataV secondDataV charInfoV =
     let medianAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
         medianAction = median2SingleTuple isMedian True 
     in 
@@ -185,19 +185,59 @@ distance2Unions isMedian firstBlock secondBlock charInfoVV =
     let (newBlockV, newCostV) = V.unzip $ V.zipWith3 (distance2UnionsBlock isMedian) firstBlock secondBlock charInfoVV
     in  (newBlockV, V.sum newCostV)
 
+{- | distance2UnionsM is a block wrapper around  distance2UnionsBlock
+    really only to get union distance--keeping union states in there in case needed later
+    operates in parallel
+-}
+distance2UnionsM ∷ Bool → VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → PhyG (VertexBlockData, VertexCost)
+distance2UnionsM isMedian firstBlock secondBlock charInfoVV =
+    let distanceAction :: (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG (V.Vector CharacterData, VertexCost)
+        distanceAction = distance2UnionsBlockM isMedian 
+    in
+    do
+        distPar <- getParallelChunkTraverse
+        result <- distPar distanceAction (V.toList $ V.zip3 firstBlock secondBlock charInfoVV)
+        let (newBlockL, newCostL) = unzip result
+        pure (V.fromList newBlockL, sum newCostL)
 
 -- | distance2UnionsBlock is a block wrapper around  distance2UnionsCharacter
-distance2UnionsBlock
-    ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → (V.Vector CharacterData, VertexCost)
+distance2UnionsBlock ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → (V.Vector CharacterData, VertexCost)
 distance2UnionsBlock isMedian firstBlock secondBlock charInfoV =
     let (newBlockV, newCostV) = V.unzip $ V.zipWith3 (distance2UnionsCharacter isMedian) firstBlock secondBlock charInfoV
     in  (newBlockV, V.sum newCostV)
 
+-- | distance2UnionsBlockM is a block wrapper around  distance2UnionsCharacterM
+-- operates in parallel
+distance2UnionsBlockM ∷ Bool → (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG (V.Vector CharacterData, VertexCost)
+distance2UnionsBlockM isMedian (firstBlock, secondBlock, charInfoV) =
+    let distanceAction :: (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+        distanceAction = distance2UnionsCharacterTuple isMedian 
+    in
+    do
+        distPar <- getParallelChunkMap
+        let result = distPar distanceAction (V.toList $ V.zip3 firstBlock secondBlock charInfoV)
+        let (newBlockL, newCostL) = unzip result
+        pure (V.fromList newBlockL, sum newCostL)
+
 {- | union2 takes the vectors of characters and applies union2Single to each character
-used for edge states in buikd and rearrangement
+used for edge states in build and rearrangement
 -}
 union2 ∷ Bool → Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector CharacterData
 union2 useIA filterGaps = V.zipWith3 (union2Single useIA filterGaps)
+
+{- | union2M takes the vectors of characters and applies union2Single to each character
+used for edge states in build and rearrangement
+-}
+union2M ∷ Bool → Bool → (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG (V.Vector CharacterData)
+union2M useIA filterGaps (firstBlock, secondBlock, charInfoV) = 
+    let unionAction :: (CharacterData, CharacterData, CharInfo) → CharacterData
+        unionAction = union2SingleTuple useIA filterGaps
+    in
+    do
+        unionPar <- getParallelChunkMap
+        let result = unionPar unionAction (V.toList $ V.zip3 firstBlock secondBlock charInfoV)
+        pure $ V.fromList result
+
 
 {- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
 The function takes data in blocks and block vector of char info and
@@ -234,6 +274,60 @@ createEdgeUnionOverBlocks useIA filterGaps leftBlockData rightBlockData blockCha
                     (V.tail rightBlockData)
                     (V.tail blockCharInfoVect)
                     (firstBlockMedian : curBlockData)
+
+{- | createEdgeUnionOverBlocks creates the union of the final states characters on an edge
+The function takes data in blocks and block vector of char info and
+extracts the triple for each block and creates new block data
+this is used for delta's in edge invastion in Wagner and SPR/TBR
+filter gaps for using with DO (flterGaps = True) or IA (filterGaps = False)
+Operates in parallel
+-}
+createEdgeUnionOverBlocksM
+    ∷ Bool
+    → Bool
+    → VertexBlockData
+    → VertexBlockData
+    → V.Vector (V.Vector CharInfo)
+    → PhyG (V.Vector (V.Vector CharacterData))
+createEdgeUnionOverBlocksM useIA filterGaps leftBlockData rightBlockData blockCharInfoVect =
+    let action :: (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) → PhyG (V.Vector CharacterData)
+        action = makeBlockMedianM useIA filterGaps
+    in
+    do
+        actionPar <- getParallelChunkTraverse
+        result <- actionPar action (V.toList $ V.zip3 leftBlockData rightBlockData blockCharInfoVect)
+        pure $ V.fromList result
+
+{- makeBlockMedianM calls union2M to make a block median for use in 
+    createEdgeUnionOverBlocksM
+-}
+makeBlockMedianM :: Bool -> Bool -> (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) -> PhyG (V.Vector CharacterData)
+makeBlockMedianM useIA filterGaps (leftDataV, rightDataV, charInfoV) =
+    if length leftDataV == 0 then pure rightDataV
+    else if length rightDataV == 0 then pure leftDataV
+    else do
+            union2M useIA filterGaps (leftDataV, rightDataV, charInfoV)
+
+
+{- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
+using IA assignments not so great for search deltas
+-}
+makeEdgeData ∷ Bool → Bool → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.LEdge b → VertexBlockData
+makeEdgeData useIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
+    let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
+        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
+    in  createEdgeUnionOverBlocks useIA filterGaps eNodeVertData vNodeVertData charInfoVV []
+
+{- | makeEdgeDataM takes and edge and makes the VertData for the edge from the union of the two vertices
+    using IA assignments not so great for search deltas
+    calls parallel version of createEdgeUnionOverBlocksM
+-}
+makeEdgeDataM ∷ Bool → Bool → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.LEdge b → PhyG VertexBlockData
+makeEdgeDataM useIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
+    let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
+        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
+    in  do
+        createEdgeUnionOverBlocksM useIA filterGaps eNodeVertData vNodeVertData charInfoVV
 
 {- 
     Most of these functions operate on single characters
@@ -363,6 +457,13 @@ median2SingleNonExact isMedian firstVertChar secondVertChar inCharInfo =
                             else error ("Character type " <> show thisType <> " unrecognized/not implemented")
 
 
+
+
+{- | distance2UnionsCharacterTuple wrapper around distance2UnionsCharacter for parallel use -}
+distance2UnionsCharacterTuple :: Bool → (CharacterData, CharacterData, CharInfo) → (CharacterData, VertexCost)
+distance2UnionsCharacterTuple a (b,c,d) = distance2UnionsCharacter a b c d
+
+
 {- | distance2UnionsCharacter takes character data and returns median of union characters and cost
 median2Unions assumes that the character vectors in the various states are the same length
 this is from union states
@@ -370,7 +471,6 @@ assumes all same length
 PMDL costs are calculated by type--additive by conversion to non-additive --but if states> 129 won't do it so warning in docs
 bp2,4,5,8,64, nonadd are by weights vis set command, matrix, sequence are set by tcm with non-zero diagnonal
 -}
-
 -- wrong for prealigned--needs to DO
 -- 1) Check length/composition union fields
 -- 2) check cost for each type
@@ -1202,6 +1302,10 @@ getDynamicUnion useIA filterGaps thisType leftChar rightChar thisSlimTCM thisWid
                     }
 
 
+{- union2SingleTuple is a wrapper around union2Single for parallelism -}
+union2SingleTuple ∷ Bool → Bool → (CharacterData, CharacterData, CharInfo) → CharacterData
+union2SingleTuple a b (c,d,e) = union2Single a b c d e 
+
 {- | union2Single takes character data and returns union character data
 union2Single assumes that the character vectors in the various states are the same length
 that is--all leaves (hence other vertices later) have the same number of each type of character
@@ -1238,15 +1342,6 @@ union2Single useIA filterGaps firstVertChar secondVertChar inCharInfo =
                                                             then getDynamicUnion useIA filterGaps thisType firstVertChar secondVertChar thisSlimTCM thisWideTCM thisHugeTCM
                                                             else error ("Character type " <> show thisType <> " unrecognized/not implemented")
 
-
-{- | makeEdgeData takes and edge and makes the VertData for the edge from the union of the two vertices
-using IA assignments not so great for search deltas
--}
-makeEdgeData ∷ Bool → Bool → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.LEdge b → VertexBlockData
-makeEdgeData useIA filterGaps inGraph charInfoVV (eNode, vNode, _) =
-    let eNodeVertData = vertData $ fromJust $ LG.lab inGraph eNode
-        vNodeVertData = vertData $ fromJust $ LG.lab inGraph vNode
-    in  createEdgeUnionOverBlocks useIA filterGaps eNodeVertData vNodeVertData charInfoVV []
 
 
 {- | getPreAligned2Median takes prealigned character types (AlignedSlim, AlignedWide, AlignedHuge) and returns 2-median and cost
