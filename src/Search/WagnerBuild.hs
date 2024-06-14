@@ -7,9 +7,7 @@ module Search.WagnerBuild (
     rasWagnerBuild,
 ) where
 
-import Control.Monad (replicateM, when)
-import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Random.Class
+import Control.Monad (replicateM)
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
@@ -20,9 +18,7 @@ import GraphOptimization.PreOrderFunctions qualified as PRE
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
-import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
@@ -159,12 +155,12 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                 leafToAdd = V.head additionSequence
                 leafToAddVertData = vertData $ fromJust $ LG.lab inDecGraph leafToAdd
 
-                addTaxonAction ∷ LG.LEdge EdgeInfo → (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
+                addTaxonAction ∷ LG.LEdge EdgeInfo → PhyG (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
                 addTaxonAction = addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd
             in  do
                     --- TODO
-                    addTaxonWagnerPar ← getParallelChunkMap
-                    let candidateEditList = addTaxonWagnerPar addTaxonAction edgesToInvade
+                    addTaxonWagnerPar ← getParallelChunkTraverseBy U.strict1of4 
+                    candidateEditList <- addTaxonWagnerPar addTaxonAction edgesToInvade
                     -- let candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
 
                     let minDelta = minimum $ fmap fst4 candidateEditList
@@ -216,7 +212,7 @@ addTaxonWagner
     → VertexBlockData
     → Int
     → LG.LEdge EdgeInfo
-    → (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
+    → PhyG (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
 addTaxonWagner maxDistance useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) leafToAddVertData leafToAdd targetEdge =
     let edge0 = (numVerts, leafToAdd, 0.0)
         edge1 = (fst3 targetEdge, numVerts, 0.0)
@@ -226,16 +222,16 @@ addTaxonWagner maxDistance useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) l
         -- full post order
         -- newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge (LG.toEdge targetEdge) inSimple
         -- newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
-
+    in do
         -- heuristic delta
-        (delta, edgeUnionVertData) = getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
+        (delta, edgeUnionVertData) <- getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
 
         -- modification for missing data
-        nonMissingDistance = U.getPairwiseObservationsGraph leafToAddVertData edgeUnionVertData
+        let nonMissingDistance = U.getPairwiseObservationsGraph leafToAddVertData edgeUnionVertData
 
-        deltaNormalized = delta * maxDistance / (max 1.0 nonMissingDistance)
-    in  -- trace ("ATW :" <> (show $ maxDistance / (max 1.0 nonMissingDistance))) $
-        (deltaNormalized, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
+        let deltaNormalized = delta * maxDistance / (max 1.0 nonMissingDistance)
+    
+        pure (deltaNormalized, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
 
 
 -- (newCost, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
@@ -244,7 +240,7 @@ addTaxonWagner maxDistance useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) l
 must be DO for this--isolated leaves won't have IA
 -}
 getDelta
-    ∷ Bool → VertexBlockData → LG.LEdge EdgeInfo → DecoratedGraph → V.Vector (V.Vector CharInfo) → (VertexCost, VertexBlockData)
+    ∷ Bool → VertexBlockData → LG.LEdge EdgeInfo → DecoratedGraph → V.Vector (V.Vector CharInfo) → PhyG (VertexCost, VertexBlockData)
 getDelta useIA leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
     let eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
         vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
@@ -252,22 +248,15 @@ getDelta useIA leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
         -- create edge union 'character' blockData
         -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
         -- edge union based on final IA assignments filtering gaps (True True)
-        edgeUnionVertData = M.createEdgeUnionOverBlocks useIA True eNodeVertData vNodeVertData charInfoVV []
-    in  -- trace ("GD: " <> (show edgeUnionVertData)) (
+
+    in  
         if isNothing (LG.lab inDecGraph eNode) || isNothing (LG.lab inDecGraph vNode)
             then error "Missing label data for vertices"
-            else
-                let -- Use edge union data for delta to edge data
-                    dLeafEdgeUnionCost = sum (fst <$> V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV)
-                in  -- should be able to use existing information--but for now using this
-                    -- existingEdgeCost' = sum $ fmap fst $ V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) eNodeVertData vNodeVertData charInfoVV
+            else do
+                edgeUnionVertData <- M.createEdgeUnionOverBlocksM useIA True eNodeVertData vNodeVertData charInfoVV
+                -- Use edge union data for delta to edge data
 
-                    -- trace ("Delta: " <> (show (dLeafENode, dLeafVNode, existingEdgeCost)))
-                    -- dLeafENode + dLeafVNode - existingEdgeCost
-                    -- trace ("Delta: " <> (show dLeafEdgeUnionCost) <> " vs " <> (show dLeafEVAddCost))
+                let dLeafEdgeUnionCost = sum (fst <$> V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV)
+                
+                pure (dLeafEdgeUnionCost, edgeUnionVertData)
 
-                    -- min dLeafEdgeUnionCost dLeafEVAddCost
-                    -- dLeafEVAddCost
-                    (dLeafEdgeUnionCost, edgeUnionVertData)
-
--- )

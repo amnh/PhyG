@@ -45,6 +45,27 @@ import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
 import Debug.Trace
 
 
+{- | strict1of4 ensures parallelism and demands strict return of 1st of 4 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict1of4 :: (VertexCost, LG.LNode T.Text, [LG.LEdge Double], LG.Edge) -> (VertexCost, LG.LNode T.Text, [LG.LEdge Double], LG.Edge)
+strict1of4 b@(!x,_,_,_) =
+        force x `seq` b
+
+{- | strict2of2 ensures parallelism and demands strict return of 2nd of 2 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict2of2 :: (CharacterData, VertexCost) ->  (CharacterData, VertexCost) 
+strict2of2 b@(_,!x) =
+        force x `seq` b
+
+{- | strict2of5 ensures parallelism and demands strict return of 2nd of 5 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict2of5 :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
+strict2of5 b@(_,!x,_,_,_) =
+        force x `seq` b
+
 {- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to 
     length of that edge (in  bits) to detemrine complexity factor K(Child)/K(child-max)
     [(edgeVertexComplexity, edgeMaxLength, edgeComplexityFactor)]
@@ -99,20 +120,6 @@ getEdgeInfo inEdge =
     , show $ maxLength (thd3 inEdge)
     , show $ midRangeLength (thd3 inEdge)
     ]
-
-{- | strict2of2 esures parallelism and demands strict return of 2nd of 2 tuple elements
-    this is used in lazy-ish parallel evalution functions in PHANE evaluation
--}
-strict2of2 :: (CharacterData, VertexCost) ->  (CharacterData, VertexCost) 
-strict2of2 b@(_,!x) =
-        force x `seq` b
-
-{- | strict2of5 esures parallelism and demands strict return of 2nd of 5 tuple elements
-    this is used in lazy-ish parallel evalution functions in PHANE evaluation
--}
-strict2of5 :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
-strict2of5 b@(_,!x,_,_,_) =
-        force x `seq` b
 
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
 and whether the required median is a distance (ie single edge)
