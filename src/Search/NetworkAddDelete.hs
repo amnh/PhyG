@@ -1990,11 +1990,11 @@ heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
         then error "Empty graph in heuristicAddDelta"
         else
             if graphType inGS == HardWired
-                then
-                    let uvVertData = M.makeEdgeData False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u, v, dummyEdge)
-                        uvPrimeData = M.makeEdgeData False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u', v', dummyEdge)
-                        hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks inGS uvVertData uvPrimeData (fft5 inPhyloGraph) []
-                    in  pure (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
+                then do
+                    uvVertData <- M.makeEdgeDataM False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u, v, dummyEdge)
+                    uvPrimeData <- M.makeEdgeDataM False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u', v', dummyEdge)
+                    let hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks inGS uvVertData uvPrimeData (fft5 inPhyloGraph) []
+                    pure (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
                 else -- softwired
 
                     let uLab = fromJust $ LG.lab (thd5 inPhyloGraph) u

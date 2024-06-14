@@ -541,7 +541,7 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
                  charInfoVV = fmap thd3 $ thd3 inData
                  (splitGraphDec, splitGraphSimple, splitCost, baseGraphRootIndex, prunedGraphRootIndex, prunedParent~RootIndex, _, edgesInPrunedList, netPenaltyFactor) = firstGraphData
                  prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphDec prunedGraphRootIndex
-                 unionEdgeList = S.getUnionRejoinEdgeList inGS splitGraphDec charInfoVV [baseGraphRootIndex] (curBestCost - splitCost) prunedToRejoinUnionData []
+                 unionEdgeList <- S.getUnionRejoinEdgeList inGS splitGraphDec charInfoVV [baseGraphRootIndex] (curBestCost - splitCost) prunedToRejoinUnionData []
                 -}
 
                 firstGraphData' = firstGraphData
