@@ -1256,28 +1256,6 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                     | (graphType inGS == Tree) || LG.isTree splitGraphSimple = edgesInPrunedGraph
                     | otherwise = fmap fst . filter snd . zip edgesInPrunedGraph $ LG.isBridge splitGraphSimple . LG.toEdge <$> edgesInPrunedGraph
 
-                -- graphType with IA field
-                -- only uswe wqhere they exist
-                (makeEdgeDataFunction, edgeJoinFunction) =
-                    if graphType inGS == HardWired
-                        then (M.makeEdgeData False True, edgeJoinDelta inGS False)
-                        else
-                            if not (useIA inGS)
-                                then (M.makeEdgeData False True, edgeJoinDelta inGS False)
-                                else (M.makeEdgeData True True, edgeJoinDelta inGS True)
-
-                -- set edge union creation type to IA-based, filtering gaps (should be linear)
-                -- hence True True
-                targetEdgeData = makeEdgeDataFunction splitGraph charInfoVV targetEdge
-                -- this for using DO for edge O(n^2)
-                -- targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
-
-                -- this for SPR/NNI only
-                prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
-
-                -- rejoin should always be DO based on edge and pruned root but can be different lengths (unless Static Approx)
-                sprReJoinCost = edgeJoinFunction charInfoVV prunedRootVertexData targetEdgeData
-
                 sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u, v), (originalConnectionOfPruned, prunedGraphRootIndex)] splitGraphSimple
 
                 -- here when needed--correct graph is issue in network
@@ -1302,7 +1280,31 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
                     if LG.isEmpty sprNewGraphChecked
                         then pure defaultResult
                         else decide <$> T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing sprNewGraphChecked
-            in  case inSimAnnealParams of
+                -- graphType with IA field
+                -- only uswe wqhere they exist
+
+                (makeEdgeDataFunction, edgeJoinFunction) =
+                    if graphType inGS == HardWired
+                        then (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                        else
+                            if not (useIA inGS)
+                                then (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                                else (M.makeEdgeDataM True True, edgeJoinDelta inGS True)
+            in do
+                -- set edge union creation type to IA-based, filtering gaps (should be linear)
+                -- hence True True
+                targetEdgeData <- makeEdgeDataFunction splitGraph charInfoVV targetEdge
+                -- this for using DO for edge O(n^2)
+                -- targetEdgeData = M.makeEdgeData doIA (not doIA) splitGraph charInfoVV targetEdge
+
+                -- this for SPR/NNI only
+                let prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
+
+                -- rejoin should always be DO based on edge and pruned root but can be different lengths (unless Static Approx)
+                sprReJoinCost <- edgeJoinFunction charInfoVV prunedRootVertexData targetEdgeData
+
+                
+                case inSimAnnealParams of
                     -- SPR or no TBR rearrangements
                     -- wierdness here with first case should have been taking longer--but is quicker for prealigned
                     Nothing → case swapType swapParams of
@@ -1402,11 +1404,15 @@ singleJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGr
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
     IA field is faster--but has to be there and not for harwired
 -}
-edgeJoinDelta ∷ GlobalSettings → Bool → V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → VertexCost
+edgeJoinDelta ∷ GlobalSettings → Bool → V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → PhyG VertexCost
 edgeJoinDelta inGS useIA charInfoVV edgeA edgeB =
     if (not useIA)
-        then V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks inGS edgeA edgeB charInfoVV []
-        else V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocksStaticIA inGS edgeA edgeB charInfoVV []
+        then do 
+            vertexStuff <- POSW.createVertexDataOverBlocks inGS edgeA edgeB charInfoVV []
+            pure $ V.sum $ fmap V.sum $ fmap (fmap snd) vertexStuff
+        else do 
+            vertexStuff <- POSW.createVertexDataOverBlocksStaticIA inGS edgeA edgeB charInfoVV []
+            pure $ V.sum $ fmap V.sum $ fmap (fmap snd) vertexStuff
 
 
 {- | tbrJoin performs TBR rearrangements on pruned graph component
@@ -1451,34 +1457,34 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                     -- graphType with IA field
                     -- only uswe wqhere they exist\
                     (makeEdgeDataFunction, edgeJoinFunction)
-                        | graphType inGS == HardWired = (M.makeEdgeData False True, edgeJoinDelta inGS False)
-                        | not (useIA inGS) = (M.makeEdgeData False True, edgeJoinDelta inGS False)
-                        | otherwise = (M.makeEdgeData True True, edgeJoinDelta inGS True)
-
-                    targetEdgeData = makeEdgeDataFunction splitGraph charInfoVV targetEdge
+                        | graphType inGS == HardWired = (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                        | not (useIA inGS) = (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                        | otherwise = (M.makeEdgeDataM True True, edgeJoinDelta inGS True)
+                in do
+                    targetEdgeData <- makeEdgeDataFunction splitGraph charInfoVV targetEdge
 
                     -- parallell stuff
-                    makeEdgeAction ∷ LG.LEdge b → VertexBlockData
-                    makeEdgeAction = makeEdgeDataFunction splitGraph charInfoVV
+                    -- makeEdgeAction ∷ LG.LEdge b → VertexBlockData
+                    let makeEdgeAction = makeEdgeDataFunction splitGraph charInfoVV
 
-                    joinAction ∷ VertexBlockData → VertexCost
-                    joinAction = edgeJoinFunction charInfoVV targetEdgeData
+                    -- joinAction ∷ VertexBlockData → PhyG VertexCost
+                    let joinAction = edgeJoinFunction charInfoVV targetEdgeData
 
-                    rerootAction ∷ LG.LEdge EdgeInfo → SimpleGraph
-                    rerootAction = rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge
+                    -- rerootAction ∷ LG.LEdge EdgeInfo → SimpleGraph
+                    let rerootAction = rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge
 
                     -- Debugging info
                     -- debugger ∷ (Logger m, Show a, Show b, Show c) ⇒ String -> a → LG.Gr b c → m ()
                     -- debugger str n g = logWith LogTech $ fold
                     --    [ "In: 'tbrJoin' with '", str, "'\n  Graph [ G_", show n, " ]:\n", LG.prettify g ]
 
-                    reoptimizeAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
-                    reoptimizeAction g0 = do
+                    -- reoptimizeAction ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
+                    let reoptimizeAction g0 = do
                         -- debugger "reoptimizeAction" 0 g0
-                        result@(g1, _, _, _, _) ← T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g0
-                        -- debugger "reoptimizeAction" 1 g1
-                        pure result
-                in  -- logic for annealing/Drift  regular swap first
+                            result@(g1, _, _, _, _) ← T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing g0
+                            -- debugger "reoptimizeAction" 1 g1
+                            pure result
+                  -- logic for annealing/Drift  regular swap first
                     case inSimAnnealParams of
                         -- get heuristic delta joins for edges in pruned graph
                         Nothing
@@ -1487,12 +1493,12 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                 in  do
                                         -- debugger "CASE OF -> Nothing( 1 )" 0 splitGraphSimple
                                         -- True True to use IA fields and filter gaps
-                                        makeEdgePar ← getParallelChunkMap
-                                        let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
+                                        makeEdgePar ← getParallelChunkTraverse
+                                        rerootEdgeDataList <- makeEdgePar makeEdgeAction rerootEdgeList
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
 
-                                        joinPar ← getParallelChunkMap
-                                        let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
+                                        joinPar ← getParallelChunkTraverse
+                                        rerootEdgeDeltaList' <- joinPar joinAction rerootEdgeDataList
                                         -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
                                         let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
@@ -1548,13 +1554,20 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                     -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
                                     
-                                    rerootEdgeDataList ←
+                                    rerootPar <- getParallelChunkTraverse
+                                    rerootEdgeDataList <- rerootPar makeEdgeAction rerootEdgeList
+                                    
+                                    deltaPar <- getParallelChunkTraverse
+                                    rerootEdgeDeltaList' <- deltaPar joinAction rerootEdgeDataList
+
+                                    {-rerootEdgeDataList ←
                                         getParallelChunkMap <&> \pMap →
                                             makeEdgeAction `pMap` rerootEdgeList
 
                                     rerootEdgeDeltaList' ←
                                         getParallelChunkMap <&> \pMap →
                                             joinAction `pMap` rerootEdgeDataList
+                                    -}
 
                                     let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
@@ -1624,12 +1637,12 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                             in  do
                                     -- debugger "CASE OF -> Just" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    makeEdgePar ← getParallelChunkMap
-                                    let rerootEdgeDataList = makeEdgePar makeEdgeAction rerootEdgeList
+                                    makeEdgePar ← getParallelChunkTraverse
+                                    rerootEdgeDataList <- makeEdgePar makeEdgeAction rerootEdgeList
                                     -- rerootEdgeDataList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
 
-                                    joinPar ← getParallelChunkMap
-                                    let rerootEdgeDeltaList' = joinPar joinAction rerootEdgeDataList
+                                    joinPar ← getParallelChunkTraverse
+                                    rerootEdgeDeltaList' <- joinPar joinAction rerootEdgeDataList
                                     let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
 
@@ -1954,21 +1967,21 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
 
         -- create simple graph version of split for post order pass
         splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
-
-        -- Create base graph
-        -- create postorder assignment--but only from single traversal
-        -- True flag fior staticIA
-        postOrderBaseGraph =
-            POSW.postOrderTreeTraversal
-                (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
-                inData
-                leafGraph
-                True
-                (Just startVertex)
-                splitGraphSimple
-        baseGraphCost = snd6 postOrderBaseGraph
-    in  do
+    in do
+            -- Create base graph
+            -- create postorder assignment--but only from single traversal
             -- True flag fior staticIA
+            postOrderBaseGraph <-
+                POSW.postOrderTreeTraversal
+                    (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                    inData
+                    leafGraph
+                    True
+                    (Just startVertex)
+                    splitGraphSimple
+            let baseGraphCost = snd6 postOrderBaseGraph
+        
+                -- True flag fior staticIA
             fullBaseGraph ←
                 PRE.preOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
@@ -1995,7 +2008,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
             let startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
             -- True flag fior staticIA
-            let postOrderPrunedGraph =
+            postOrderPrunedGraph <-
                     POSW.postOrderTreeTraversal
                         (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                         inData

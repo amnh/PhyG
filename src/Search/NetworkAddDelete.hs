@@ -1251,7 +1251,7 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u, v, _), (u', v', _)) =
 
                     -- calculates heursitic graph delta
                     -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
-                    let heuristicDelta' = heuristicAddDelta' inGS inPhyloGraph edgePair
+                    heuristicDelta' <- heuristicAddDelta' inGS inPhyloGraph edgePair
 
                     let edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
@@ -1874,9 +1874,6 @@ isAncDescEdge inGraph (a, _, _) (b, _, _) =
                             then True
                             else False
 
-
---- )
-
 {- These heuristics do not seem tom work well at all-}
 
 {- | heuristic add delta' based on new display tree and delta from existing costs by block--assumming < 0
@@ -1893,7 +1890,7 @@ subtree 1 to subtree 2 via
    Compare to real delta to check behavior
 original subtrees u -> (a,v) and u' -> (v',b)
 -}
-heuristicAddDelta' ∷ GlobalSettings → ReducedPhylogeneticGraph → (LG.LEdge b, LG.LEdge b) → VertexCost
+heuristicAddDelta' ∷ GlobalSettings → ReducedPhylogeneticGraph → (LG.LEdge b, LG.LEdge b) → PhyG VertexCost
 heuristicAddDelta' _ inPhyloGraph ((u, v, _), (u', v', _)) =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicAddDelta"
@@ -1905,29 +1902,35 @@ heuristicAddDelta' _ inPhyloGraph ((u, v, _), (u', v', _)) =
                         fmap (GO.getDecoratedDisplayTreeList (thd5 inPhyloGraph)) $
                             V.zip (fth5 inPhyloGraph) $
                                 V.fromList [0 .. (V.length (fft5 inPhyloGraph) - 1)]
-                blockDeltaV = V.zipWith (getBlockDelta (u, v, u', v', a, b)) blockTrees (fft5 inPhyloGraph)
-            in  V.sum blockDeltaV
+                action :: (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG VertexCost
+                action = getBlockDelta (u, v, u', v', a, b)
+            in do
+                actionPar <- getParallelChunkTraverse 
+                -- blockDeltaV <- V.zipWith (getBlockDelta (u, v, u', v', a, b)) (zip blockTrees (fft5 inPhyloGraph))
+                blockDeltaL <- actionPar action (V.toList $ V.zip blockTrees (fft5 inPhyloGraph))
+                pure $ sum blockDeltaL
 
 
 {- | getBlockDelta determines the network add delta for each block (vector of characters)
 if existing is lower then zero, else (existing - new)
 -}
 getBlockDelta
-    ∷ (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) → V.Vector DecoratedGraph → V.Vector CharInfo → VertexCost
-getBlockDelta (u, v, u', v', a, b) inCharV charInfoV =
+    ∷ (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) → (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG VertexCost
+getBlockDelta (u, v, u', v', a, b) (inCharV, charInfoV) =
     if V.null inCharV
         then error "Empty charcter tree vector in getBlockDelta"
         else
-            let (charNewV, charExistingV) = V.unzip $ V.zipWith (getCharacterDelta (u, v, u', v', a, b)) inCharV charInfoV
-                newCost = V.sum charNewV
-                existingCost = V.sum charExistingV
-            in  -- trace ("GBD: " <> (show (newCost, existingCost))) (
-                if (newCost < existingCost)
-                    then newCost - existingCost
-                    else 0.0
-
-
--- )
+            let action :: (DecoratedGraph, CharInfo) → (VertexCost, VertexCost)
+                action = getCharacterDelta (u, v, u', v', a, b)
+            in do
+                 actionPar ← getParallelChunkMap
+                 let result = actionPar action (V.toList $ V.zip inCharV charInfoV)
+                 let (charNewV, charExistingV) = unzip result
+                 let newCost = sum charNewV
+                 let existingCost = sum charExistingV
+                 if (newCost < existingCost)
+                    then pure $ newCost - existingCost
+                    else pure $ 0.0
 
 {- | getCharacterDelta determines the network add delta for each block (vector of characters)
 if existing is lower then zero, else (existing - new)
@@ -1937,8 +1940,8 @@ need to use final assignemnts--so set prelim to final first
 Since a distance--no need for No chanage cost adjustment
 -}
 getCharacterDelta
-    ∷ (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) → DecoratedGraph → CharInfo → (VertexCost, VertexCost)
-getCharacterDelta (_, v, _, v', a, b) inCharTree charInfo =
+    ∷ (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) → (DecoratedGraph, CharInfo) → (VertexCost, VertexCost)
+getCharacterDelta (_, v, _, v', a, b) (inCharTree, charInfo) =
     -- getCharacterDelta (u,v,u',v',a,b) inCharTree charInfo =
     let doIA = False
         noChangeCostAdjust = False --this since want a distance not a median
@@ -1993,7 +1996,9 @@ heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
                 then do
                     uvVertData <- M.makeEdgeDataM False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u, v, dummyEdge)
                     uvPrimeData <- M.makeEdgeDataM False True (thd5 inPhyloGraph) (fft5 inPhyloGraph) (u', v', dummyEdge)
-                    let hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) $ POSW.createVertexDataOverBlocks inGS uvVertData uvPrimeData (fft5 inPhyloGraph) []
+                    postOrderVertex <- POSW.createVertexDataOverBlocks inGS uvVertData uvPrimeData (fft5 inPhyloGraph) []
+                    let hardDelta = V.sum $ fmap V.sum $ fmap (fmap snd) postOrderVertex
+                        
                     pure (hardDelta, dummyNode, dummyNode, dummyNode, dummyNode)
                 else -- softwired
 

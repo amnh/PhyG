@@ -529,11 +529,11 @@ createBlockResolutions
                         else -- trace ("ANER-Nothing")
                             mempty
 
-                resolutionAction ∷ ((ResolutionData, ResolutionData), (Int, Int)) → ResolutionData
+                resolutionAction ∷ ((ResolutionData, ResolutionData), (Int, Int)) → PhyG ResolutionData
                 resolutionAction = createNewResolution inGS curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV
             in  do
-                    resolutionPar ← getParallelChunkMap
-                    let newResolutionList = resolutionPar resolutionAction validPairs
+                    resolutionPar ← getParallelChunkTraverse
+                    newResolutionList <- resolutionPar resolutionAction validPairs
                     -- newResolutionList = PU.seqParMap PU.myStrategy (createNewResolution curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV) validPairs
 
                     -- trace ("CNR: " <> (show (length leftChild, length rightChild))) ( --  <> "\n" <> (show childResolutionIndices) <> "\n" <> (show $ fmap snd validPairs)) (
@@ -582,7 +582,7 @@ createNewResolution
     → NodeType
     → V.Vector CharInfo
     → ((ResolutionData, ResolutionData), (Int, Int))
-    → ResolutionData
+    → PhyG ResolutionData
 createNewResolution inGS curNode leftIndex rightIndex leftChildNodeType rightChildNodeType charInfoV ((leftRes, rightRes), (leftResIndex, rightResIndex)) =
     let -- make  bvLabel for resolution
         resBV = displayBVLabel leftRes .|. displayBVLabel rightRes
@@ -643,15 +643,16 @@ createNewResolution inGS curNode leftIndex rightIndex leftChildNodeType rightChi
         -- No chnage cost adjustment is True here if PMDL/SI
         leftBlockLength = V.length $ displayData leftRes
         rightBlockLength = V.length $ displayData rightRes
-        resolutionMedianCostV
-            | (leftBlockLength == 0) = V.zip (displayData rightRes) (V.replicate rightBlockLength 0)
-            | (rightBlockLength == 0) = V.zip (displayData leftRes) (V.replicate leftBlockLength 0)
-            | otherwise = M.median2 (U.needTwoEdgeNoCostAdjust inGS True) (displayData leftRes) (displayData rightRes) charInfoV
-        (resolutionMedianV, resolutionCostV) = V.unzip resolutionMedianCostV
-        thisResolutionCost = V.sum resolutionCostV
-        displaySubTreeCost = displayCost leftRes + displayCost rightRes + thisResolutionCost
-    in  -- trace ("CNR: " <> (show (leftResIndex, rightResIndex)))
-        ResolutionData
+    in do
+        resolutionMedianCostV <-
+            if (leftBlockLength == 0) then pure $ V.zip (displayData rightRes) (V.replicate rightBlockLength 0)
+            else if (rightBlockLength == 0) then pure $ V.zip (displayData leftRes) (V.replicate leftBlockLength 0)
+            else M.median2M (U.needTwoEdgeNoCostAdjust inGS True) (displayData leftRes) (displayData rightRes) charInfoV
+        let (resolutionMedianV, resolutionCostV) = V.unzip resolutionMedianCostV
+        let thisResolutionCost = V.sum resolutionCostV
+        let displaySubTreeCost = displayCost leftRes + displayCost rightRes + thisResolutionCost
+   
+        pure ResolutionData
             { displaySubGraph = (resolutionNodeList, resolutionEdgeList)
             , displayBVLabel = resBV
             , displayData = resolutionMedianV

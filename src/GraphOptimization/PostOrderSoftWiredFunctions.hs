@@ -147,7 +147,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
 
                 staticIA = False
 
-                postOrderAction ∷ SimpleGraph → PhylogeneticGraph
+                postOrderAction ∷ SimpleGraph → PhyG PhylogeneticGraph
                 postOrderAction = postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)
 
                 displayAction ∷ PhylogeneticGraph → PhyG PhylogeneticGraph
@@ -157,8 +157,8 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
                 tripleAction = getTreeTriple rootIndex
             in  do
                     -- diagnose post order as Tree
-                    postOrderPar ← getParallelChunkMap
-                    let outgroupDiagnosedTreeList = postOrderPar postOrderAction firstGraphList
+                    postOrderPar ← getParallelChunkTraverse
+                    outgroupDiagnosedTreeList <- postOrderPar postOrderAction firstGraphList
                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
 
                     -- do rerooting of character trees
@@ -841,10 +841,10 @@ for a binary tree only
 depending on optimality criterion--will calculate root cost
 -}
 postOrderTreeTraversal
-    ∷ GlobalSettings → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhylogeneticGraph
+    ∷ GlobalSettings → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
 postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex inGraph =
     if LG.isEmpty inGraph
-        then emptyPhylogeneticGraph
+        then pure emptyPhylogeneticGraph
         else -- Assumes root is Number of Leaves
 
             let rootIndex =
@@ -877,7 +877,8 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex
                                     <> "\n"
                                     <> GFU.showGraph inGraph
                                 )
-                    else newTree
+                else do
+                        postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
 
 
 -- )
@@ -894,7 +895,7 @@ postDecorateTree
     → V.Vector (V.Vector CharInfo)
     → LG.Node
     → LG.Node
-    → PhylogeneticGraph
+    → PhyG PhylogeneticGraph
 postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there (leaf) or Hardwired network nothing to do and return
     if LG.gelem curNode curDecGraph
@@ -904,7 +905,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                     then error ("Null label for node " <> show curNode)
                     else -- checks for node already in graph--either leaf or pre-optimized node in Hardwired
                     -- trace ("In graph :" <> (show curNode) <> " " <> (show nodeLabel))
-                        (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
+                        pure $ (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
         else -- Need to make node
 
         -- check if children in graph
@@ -912,14 +913,15 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
             let nodeChildren = LG.descendants simpleGraph curNode -- should be 1 or 2, not zero since all leaves already in graph
                 leftChild = head nodeChildren
                 rightChild = last nodeChildren
-                leftChildTree = postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
-                rightLeftChildTree =
+            in do
+                leftChildTree <- postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+                rightLeftChildTree <-
                     if length nodeChildren == 2
                         then postDecorateTree inGS staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
-                        else leftChildTree
-                newSubTree = thd6 rightLeftChildTree
-                ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode newSubTree leftChild, LG.labelNode newSubTree rightChild)
-            in  if length nodeChildren > 2
+                        else pure leftChildTree
+                let newSubTree = thd6 rightLeftChildTree
+                let ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode newSubTree leftChild, LG.labelNode newSubTree rightChild)
+                if length nodeChildren > 2
                     then error ("Graph not dichotomous in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify simpleGraph)
                     else
                         if null nodeChildren
@@ -964,50 +966,49 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
 
                                             -- if nodeType newVertex == RootNode then (simpleGraph, subGraphCost newVertex, newGraph, mempty, PO.divideDecoratedGraphByBlockAndCharacterTree newGraph, blockCharInfo)
                                             if nodeType newVertex == RootNode || curNode == rootIndex
-                                                then (simpleGraph, subGraphCost newVertex, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
-                                                else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
-                                    else -- make node from 2 children
+                                                then pure (simpleGraph, subGraphCost newVertex, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
+                                                else pure (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
+                                    else do -- make node from 2 children
 
-                                    -- make node from children and new edges to children
-                                    -- takes characters in blocks--but for tree really all same block
+                                            -- make node from children and new edges to children
+                                            -- takes characters in blocks--but for tree really all same block
 
-                                        let -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+                                            -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                                             -- larger bitvector is Right, smaller or equal Left
 
-                                            newCharData =
+                                            newCharData <-
                                                 if staticIA
                                                     then createVertexDataOverBlocksStaticIA inGS (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
                                                     else createVertexDataOverBlocks inGS (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
 
-                                            newCost = V.sum $ V.map V.sum $ V.map (V.map snd) newCharData
+                                            let newCost = V.sum $ V.map V.sum $ V.map (V.map snd) newCharData
 
-                                            newVertex =
-                                                VertexInfo
-                                                    { index = curNode
-                                                    , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
-                                                    , parents = V.fromList $ LG.parents simpleGraph curNode
-                                                    , children = V.fromList nodeChildren
-                                                    , nodeType = GO.getNodeType simpleGraph curNode
-                                                    , vertName = T.pack $ "HTU" <> show curNode
-                                                    , vertData = V.map (V.map fst) newCharData
-                                                    , vertexResolutionData = mempty
-                                                    , vertexCost = newCost
-                                                    , -- this cost is incorrrect for Harwired netwqork fix at root
-                                                      subGraphCost = subGraphCost leftChildLabel + subGraphCost rightChildLabel + newCost
-                                                    }
-                                            newEdgesLabel =
-                                                EdgeInfo
-                                                    { minLength = newCost / 2.0
-                                                    , maxLength = newCost / 2.0
-                                                    , midRangeLength = newCost / 2.0
-                                                    , edgeType = TreeEdge
-                                                    }
-                                            newEdges = LG.toEdge <$> LG.out simpleGraph curNode
-                                            newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
-                                            newGraph = LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
+                                            let newVertex = VertexInfo
+                                                        { index = curNode
+                                                        , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
+                                                        , parents = V.fromList $ LG.parents simpleGraph curNode
+                                                        , children = V.fromList nodeChildren
+                                                        , nodeType = GO.getNodeType simpleGraph curNode
+                                                        , vertName = T.pack $ "HTU" <> show curNode
+                                                        , vertData = V.map (V.map fst) newCharData
+                                                        , vertexResolutionData = mempty
+                                                        , vertexCost = newCost
+                                                        , -- this cost is incorrrect for Harwired netwqork fix at root
+                                                          subGraphCost = subGraphCost leftChildLabel + subGraphCost rightChildLabel + newCost
+                                                        }
+                                            let newEdgesLabel = EdgeInfo
+                                                        { minLength = newCost / 2.0
+                                                        , maxLength = newCost / 2.0
+                                                        , midRangeLength = newCost / 2.0
+                                                        , edgeType = TreeEdge
+                                                        }
+                                            let newEdges = LG.toEdge <$> LG.out simpleGraph curNode
+                                            let newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
+                                            let newGraph = LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
 
-                                            (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
-                                        in  -- Graph cost is calculated differently for Tree and Hardwired.  Sub trees can be counted multiple times
+                                            let (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
+                                          
+                                            -- Graph cost is calculated differently for Tree and Hardwired.  Sub trees can be counted multiple times
                                             -- in hardwired for outdegree two nodes with one or more network nodes as descendents
                                             -- this cannot be dealt with at the local node since there can be network all over the graph
                                             -- so simple add up the local costs of all nodes
@@ -1022,8 +1023,8 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                                                         -- trace ("PDT End: " <> (show (newCost, subGraphCost newVertex, localCostSum)))
                                                         -- (LG.removeDuplicateEdges simpleGraph, localCostSum, LG.removeDuplicateEdges newGraph, fmap (fmap LG.removeDuplicateEdges) newDisplayVect, fmap (fmap LG.removeDuplicateEdges) newCharTreeVV, blockCharInfo)
                                                         -- (simpleGraph, localCostSum, updatedCanonicalGraph, fmap (:[]) updatedDisplayVect, newCharTreeVV, blockCharInfo)
-                                                        (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
-                                                else (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
+                                                        pure (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
+                                                else pure(simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 
 
 -- | createVertexDataOverBlocks is a partial application of generalCreateVertexDataOverBlocks with full (all charcater) median calculation
@@ -1033,8 +1034,8 @@ createVertexDataOverBlocks
     → VertexBlockData
     → V.Vector (V.Vector CharInfo)
     → [V.Vector (CharacterData, VertexCost)]
-    → V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocks inGS = generalCreateVertexDataOverBlocks (M.median2 (U.needTwoEdgeNoCostAdjust inGS True))
+    → PhyG (V.Vector (V.Vector (CharacterData, VertexCost)))
+createVertexDataOverBlocks inGS = generalCreateVertexDataOverBlocks (M.median2M (U.needTwoEdgeNoCostAdjust inGS True))
 
 
 -- | createVertexDataOverBlocksNonExact is a partial application of generalCreateVertexDataOverBlocks with partial (non-exact charcater) median calculation
@@ -1044,8 +1045,8 @@ createVertexDataOverBlocksNonExact
     → VertexBlockData
     → V.Vector (V.Vector CharInfo)
     → [V.Vector (CharacterData, VertexCost)]
-    → V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksNonExact inGS = generalCreateVertexDataOverBlocks (M.median2NonExact (U.needTwoEdgeNoCostAdjust inGS True))
+    → PhyG (V.Vector (V.Vector (CharacterData, VertexCost)))
+createVertexDataOverBlocksNonExact inGS = generalCreateVertexDataOverBlocks (M.median2NonExactM (U.needTwoEdgeNoCostAdjust inGS True))
 
 
 {- | createVertexDataOverBlocksStaticIA is an  application of generalCreateVertexDataOverBlocks with exact charcater median calculation
@@ -1057,8 +1058,8 @@ createVertexDataOverBlocksStaticIA
     → VertexBlockData
     → V.Vector (V.Vector CharInfo)
     → [V.Vector (CharacterData, VertexCost)]
-    → V.Vector (V.Vector (CharacterData, VertexCost))
-createVertexDataOverBlocksStaticIA inGS = generalCreateVertexDataOverBlocks (M.median2StaticIA (U.needTwoEdgeNoCostAdjust inGS True))
+    → PhyG (V.Vector (V.Vector (CharacterData, VertexCost)))
+createVertexDataOverBlocksStaticIA inGS = generalCreateVertexDataOverBlocks (M.median2StaticIAM (U.needTwoEdgeNoCostAdjust inGS True))
 
 
 {- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)
@@ -1068,27 +1069,27 @@ extracts the triple for each block and creates new block data for parent node (u
 not checking if vectors are equal in length
 -}
 generalCreateVertexDataOverBlocks
-    ∷ (V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → V.Vector (CharacterData, VertexCost))
+    ∷ (V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost)))
     → VertexBlockData
     → VertexBlockData
     → V.Vector (V.Vector CharInfo)
     → [V.Vector (CharacterData, VertexCost)]
-    → V.Vector (V.Vector (CharacterData, VertexCost))
+    → PhyG (V.Vector (V.Vector (CharacterData, VertexCost)))
 generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
     if V.null leftBlockData
         then -- trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
-            V.fromList $ reverse curBlockData
+            pure $ V.fromList $ reverse curBlockData
         else
             let leftBlockLength = length $ V.head leftBlockData
                 rightBlockLength = length $ V.head rightBlockData
                 -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-
+            in do
                 -- missing data cases first or zip defaults to zero length
-                firstBlockMedian
-                    | (leftBlockLength == 0) = V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
-                    | (rightBlockLength == 0) = V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
-                    | otherwise = medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
-            in  generalCreateVertexDataOverBlocks
+                firstBlockMedian <-
+                    if (leftBlockLength == 0) then pure $ V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
+                    else if (rightBlockLength == 0) then pure $ V.zip (V.head leftBlockData) (V.replicate leftBlockLength 0)
+                    else medianFunction (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
+                generalCreateVertexDataOverBlocks
                     medianFunction
                     (V.tail leftBlockData)
                     (V.tail rightBlockData)
@@ -1158,15 +1159,16 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                                 -- get lowest cost display tree
                                 staticIA = False
 
-                                postOrderAction ∷ SimpleGraph → PhylogeneticGraph
+                                postOrderAction ∷ SimpleGraph → PhyG PhylogeneticGraph
                                 postOrderAction = postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)
 
                                 displayAction ∷ PhylogeneticGraph → PhyG PhylogeneticGraph
                                 displayAction = getDisplayBasedRerootSoftWired' inGS Tree rootIndex
                             in  do
-                                    outgroupRootedList ←
-                                        getParallelChunkMap <&> \pMap →
-                                            postOrderAction `pMap` blockTreeList
+                                    actionPar <- getParallelChunkTraverse
+                                    outgroupRootedList ← actionPar postOrderAction  blockTreeList
+                                        -- getParallelChunk <&> \pMap →
+                                        --    postOrderAction `pMap` blockTreeList
 
                                     multiTraverseTreeList ←
                                         getParallelChunkTraverse >>= \pTraverse →

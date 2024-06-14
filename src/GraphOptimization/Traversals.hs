@@ -213,7 +213,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
     -- first traversal on outgroup root
     outgroupRooted ←
         if (graphType inGS) `elem` [Tree, HardWired]
-            then pure $ POSW.postOrderTreeTraversal inGS inData leafGraph staticIA startVertex inSimpleGraph
+            then POSW.postOrderTreeTraversal inGS inData leafGraph staticIA startVertex inSimpleGraph
             else
                 if (graphType inGS) == SoftWired
                     then POSW.postOrderSoftWiredTraversal inGS inData leafGraph staticIA startVertex inSimpleGraph
