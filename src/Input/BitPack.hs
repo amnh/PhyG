@@ -1647,6 +1647,8 @@ among others.
 and parent final assignment and creates final assignment for current node
 a bit clumsy since uses Goloboff modifications and have to do some of the preOrder pass
 in Goloboff but not done here
+
+Doubt this could be speeded up much by parallel -- but could be done
 -}
 packedPreorder ∷ CharType → (UV.Vector Word64, UV.Vector Word64, UV.Vector Word64) → UV.Vector Word64 → UV.Vector Word64
 packedPreorder inCharType (leftPrelim, childPrelim, rightPrelim) parentFinal =
