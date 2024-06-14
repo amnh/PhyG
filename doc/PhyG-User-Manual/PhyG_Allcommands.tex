@@ -839,6 +839,12 @@
 		branch lengths appear above the branches. In ASCII and dot files, branch 
 		lengths follow the terminal labels. This is the default. Compare with 
 		\texttt{nobranchlengths}. 
+		
+		\item[color] For GraphViz or \texttt{dot} output, \phyg will write the edges of 
+		the graph in color. These colors are based on the value of the edge and are
+		attributed to RBG colors. There are 11 colors in total, ranging from violet (the 
+		lowest number) to red (the highest number). These colors are discrete and not 
+		continuous.
 
 		\item[collapse] Specifies that zero length branches are collapsed. If a dotpdf 
 		graph is specified, the branches are collapsed by default. If ASCII, Newick, 
@@ -943,7 +949,8 @@
 		
 		\item[newick] Outputs graphs in the eNewick or Newick format, with the terminals
 		separated with commas, and graphs separated with semicolons. Branch
-		lengths follow terminals, separated by a colon.
+		lengths follow terminals, separated by a colon. If newick is not specified, 
+		a \texttt{dot} file will be reported by default.
 		
 		\item[nobranchlengths] When reporting graphs, \phyg will by default 
 		report the branch lengths of these graphs. In Newick and eNewick files, 
