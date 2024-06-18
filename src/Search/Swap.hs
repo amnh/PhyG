@@ -1502,11 +1502,10 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                         -- True True to use IA fields and filter gaps
                                         makeEdgePar ← getParallelChunkTraverse
                                         rerootEdgeDataList <- makeEdgePar makeEdgeAction rerootEdgeList
-                                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
 
                                         joinPar ← getParallelChunkTraverse
                                         rerootEdgeDeltaList' <- joinPar joinAction rerootEdgeDataList
-                                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
+                                        
                                         let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
                                         let joinBestCost = minimum $ curBestCost: rerootEdgeDeltaList
@@ -1518,7 +1517,6 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
 
                                         rerootPar ← getParallelChunkMap
                                         let candidateJoinedGraphList' = rerootPar rerootAction candidateEdgeList
-                                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (rerootPrunedAndMakeGraph  splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge) candidateEdgeList
 
                                         -- check for graph wierdness if network
                                         candidateJoinedGraphList ←
@@ -1527,15 +1525,10 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                                 else filterM LG.isPhylogeneticGraph candidateJoinedGraphList'
 
                                         -- check for graph wierdness
-                                        -- rediagnosedGraphList = filter (not . GO.parentsInChainGraph . thd5) $ filter ((<= curBestCost) . snd5) $ PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
                                         rediagnosedGraphList' ←
                                             getParallelChunkTraverseBy strict2of5 >>= \pTraverse →
                                                 reoptimizeAction `pTraverse` candidateJoinedGraphList
                                         let rediagnosedGraphList = filter ((<= curBestCost) . snd5) rediagnosedGraphList'
-                                        -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) candidateJoinedGraphList
-
-                                        -- for debugging
-                                        -- allRediagnosedList = PU.seqParMap PU.myStrategy (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (PU.seqParMap PU.myStrategy (rerootPrunedAndMakeGraph  splitGraphSimple  prunedGraphRootIndex originalConnectionOfPruned targetEdge) rerootEdgeList)
 
                                         let result
                                                 | null candidateEdgeList = []
