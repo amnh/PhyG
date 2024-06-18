@@ -14,6 +14,7 @@ Haddock-Hyperlink-Source: True
 Jobs:                     $ncpus
 --keep-going:               True
 Minimize-Conflict-Set:    True
+Semaphore:                True
 
 
 ---------------------------------------------------------------------------------
@@ -68,13 +69,13 @@ Constraints:
 Constraints:
      bifunctors -tagged,
      comonad -indexed-traversable,
-     lens +inlining -test-hunit -test-properties -test-templates +trustworthy, 
+     lens +inlining -test-hunit -test-properties -test-templates +trustworthy,
      pointed -comonad -kan-extensions -semigroupoids -semigroups -stm -tagged,
      semialign -semigroupoids,
      semigroups -binary -bytestring -deepseq -hashable -tagged -template-haskell -text -transformers -unordered-containers,
      semigroupoids -comonad,
 
-     
+
 -- Apply performance flags to specific packages
 Constraints:
     bitvec +simd,
