@@ -1471,14 +1471,14 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                     targetEdgeData <- makeEdgeDataFunction splitGraph charInfoVV targetEdge
 
                     -- parallell stuff
-                    -- makeEdgeAction ∷ LG.LEdge b → VertexBlockData
-                    let makeEdgeAction = makeEdgeDataFunction splitGraph charInfoVV
+                    let makeEdgeAction ∷ LG.LEdge b → PhyG VertexBlockData
+                        makeEdgeAction = makeEdgeDataFunction splitGraph charInfoVV
 
-                    -- joinAction ∷ VertexBlockData → PhyG VertexCost
-                    let joinAction = edgeJoinFunction charInfoVV targetEdgeData
+                    let joinAction ∷ VertexBlockData → PhyG VertexCost
+                        joinAction = edgeJoinFunction charInfoVV targetEdgeData
 
-                    -- rerootAction ∷ LG.LEdge EdgeInfo → SimpleGraph
-                    let rerootAction = rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge
+                    let rerootAction ∷ LG.LEdge EdgeInfo → SimpleGraph
+                        rerootAction = rerootPrunedAndMakeGraph splitGraphSimple prunedGraphRootIndex originalConnectionOfPruned targetEdge
 
                     -- Debugging info
                     -- debugger ∷ (Logger m, Show a, Show b, Show c) ⇒ String -> a → LG.Gr b c → m ()
