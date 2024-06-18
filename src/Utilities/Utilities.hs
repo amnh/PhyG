@@ -3,10 +3,10 @@ Module specifying utility functions for use with PhyGraph
 -}
 module Utilities.Utilities where
 
-import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
+import Bio.DynamicCharacter.Element (HugeState, SlimState, WideState)
 import Complexity.Graphs qualified as GC
 import Complexity.Utilities qualified as GCU
-import Control.DeepSeq (force, NFData (..)) 
+import Control.DeepSeq (NFData (..), force)
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
@@ -34,6 +34,7 @@ import Data.Vector.Unboxed qualified as UV
 import Debug.Trace
 import GeneralUtilities
 import GeneralUtilities qualified as GU
+import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge)
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
@@ -41,106 +42,116 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
-import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
-import Debug.Trace
 
 
-listApplying :: forall a b. (a -> a) -> [a] -> [a]
-listApplying strictnessSpec ~val = 
-    let go :: [a] -> [a]
+listApplying ∷ ∀ a b. (a → a) → [a] → [a]
+listApplying strictnessSpec ~val =
+    let go ∷ [a] → [a]
         go [] = []
-        go (x:xs) = 
+        go (x : xs) =
             let moreVals = go xs
             in  (strictnessSpec x `seq` moreVals `seq` x) : moreVals
-    in go val `seq` val
+    in  go val `seq` val
 
 
-applyOver1of2 :: (a -> a) -> (a, b) ->  (a, b)
-applyOver1of2 strictnessSpec ~val@(x, _) = 
+applyOver1of2 ∷ (a → a) → (a, b) → (a, b)
+applyOver1of2 strictnessSpec ~val@(x, _) =
     strictnessSpec x `seq` val
 
 
-applyOver1of3 :: (a -> a) -> (a, b, c) ->  (a, b, c)
-applyOver1of3 strictnessSpec ~val@(x, _, _) = 
+applyOver1of3 ∷ (a → a) → (a, b, c) → (a, b, c)
+applyOver1of3 strictnessSpec ~val@(x, _, _) =
     strictnessSpec x `seq` val
 
 
 {- | strict1of4 ensures parallelism and demands strict return of 1st of 4 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict1of4 :: (NFData a) => (a, b, c, d) -> (a, b, c, d)
-strict1of4 ~val@(!x,_,_,_) =
-        force x `seq` val
+strict1of4 ∷ (NFData a) ⇒ (a, b, c, d) → (a, b, c, d)
+strict1of4 ~val@(!x, _, _, _) =
+    force x `seq` val
+
 
 {- | strict2of2 ensures parallelism and demands strict return of 2nd of 2 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict2of2 :: (NFData b) => (a, b) ->  (a, b) 
-strict2of2 ~val@(_,!x) =
-        force x `seq` val
+strict2of2 ∷ (NFData b) ⇒ (a, b) → (a, b)
+strict2of2 ~val@(_, !x) =
+    force x `seq` val
+
 
 {- | strict3of4 ensures parallelism and demands strict return of 3rd of 4 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict3of4 :: (NFData c) => (a, b, c, d) -> (a, b, c, d)
-strict3of4 ~val@(_,_,!x,_) =
-        force x `seq` val
+strict3of4 ∷ (NFData c) ⇒ (a, b, c, d) → (a, b, c, d)
+strict3of4 ~val@(_, _, !x, _) =
+    force x `seq` val
+
 
 {- | strict2of5 ensures parallelism and demands strict return of 2nd of 5 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict2of5 :: (NFData b) => (a, b, c, d, e) -> (a, b, c, d, e)
-strict2of5 ~val@(_,!x,_,_,_) =
-        force x `seq` val
+strict2of5 ∷ (NFData b) ⇒ (a, b, c, d, e) → (a, b, c, d, e)
+strict2of5 ~val@(_, !x, _, _, _) =
+    force x `seq` val
+
 
 {- | strict1and2of5 ensures parallelism and demands strict return of 2nd of 5 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict1and2of5 :: (NFData a, NFData b) => (a, b, c, d, e) -> (a, b, c, d, e)
-strict1and2of5 ~val@(!x,!y,_,_,_) =
-        force x `seq` force y `seq` val
+strict1and2of5 ∷ (NFData a, NFData b) ⇒ (a, b, c, d, e) → (a, b, c, d, e)
+strict1and2of5 ~val@(!x, !y, _, _, _) =
+    force x `seq` force y `seq` val
 
-{- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to 
+
+{- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to
     length of that edge (in  bits) to detemrine complexity factor K(Child)/K(child-max)
     [(edgeVertexComplexity, edgeMaxLength, edgeComplexityFactor)]
     returns all 0.0 valiuues if not PMDL/SI
         4th field is GraphViz Color scheme Spectral11 1=Red, 11=violet
 -}
-getEdgeComplexityFactors :: GlobalSettings -> ProcessedData -> [LG.LNode VertexInfo] -> [LG.LEdge EdgeInfo] -> [(VertexCost, VertexCost, Double)]
+getEdgeComplexityFactors
+    ∷ GlobalSettings → ProcessedData → [LG.LNode VertexInfo] → [LG.LEdge EdgeInfo] → [(VertexCost, VertexCost, Double)]
 getEdgeComplexityFactors inGS inData vertexList edgeList =
-    if optimalityCriterion inGS `notElem` [PMDL, SI] then 
-        (replicate (length edgeList) (0.0,0.0,0.0))     
-    else 
-        let edgeInfoList = fmap getEdgeInfo edgeList
-            endVertexList = fmap (Just . snd3) edgeList
-            edgeVertexComplexity = fmap (calculatePMDLVertexComplexity False (Just $ V.fromList vertexList) inData) endVertexList
-            edgeMaxLength = fmap (maxLength . thd3) edgeList
-            edgeComplexityFactor = zipWith (/) edgeMaxLength edgeVertexComplexity   
-        in
-        zip3 edgeVertexComplexity edgeMaxLength edgeComplexityFactor
+    if optimalityCriterion inGS `notElem` [PMDL, SI]
+        then (replicate (length edgeList) (0.0, 0.0, 0.0))
+        else
+            let edgeInfoList = fmap getEdgeInfo edgeList
+                endVertexList = fmap (Just . snd3) edgeList
+                edgeVertexComplexity = fmap (calculatePMDLVertexComplexity False (Just $ V.fromList vertexList) inData) endVertexList
+                edgeMaxLength = fmap (maxLength . thd3) edgeList
+                edgeComplexityFactor = zipWith (/) edgeMaxLength edgeVertexComplexity
+            in  zip3 edgeVertexComplexity edgeMaxLength edgeComplexityFactor
+
 
 {- getEdgeColor creates an integer list for GraphViz color schemes
-    takes max (all seem to start at 1) and if red=1 (or whatever) 
-    and violet(blue) = max then assignes blue to lowest of 
+    takes max (all seem to start at 1) and if red=1 (or whatever)
+    and violet(blue) = max then assignes blue to lowest of
         Double input and 1 highest (if all <1.0 then 1.0 is highest).
 -}
-getEdgeColor :: Int -> [Double] -> [Int]
+getEdgeColor ∷ Int → [Double] → [Int]
 getEdgeColor maxColorInt valueList =
-    if null valueList then []
-    else 
-        let maxListVal = maximum valueList
-            maxVal = if maxListVal < 1.0 then 1.0 -- this for bootstraps, info index etc
-                     else maxListVal
-            categories = reverse [1..maxColorInt]
-            thresholds = fmap (maxVal / (fromIntegral maxColorInt) *) (fmap fromIntegral categories)
-        in
-        -- trace ("GEC: " <> (show maxColorInt) <> " " <> (show maxVal) <> "\n" <> (show valueList) <> "\n" <> (show categories) <> "\n" <> 
-        --    (show thresholds)  <> "\n" <> (show $ fmap (getThresholdNumber thresholds 0) valueList)) $
-        fmap (getThresholdNumber thresholds 0) valueList
-    where getThresholdNumber l i a = if null l then i
-                                     else if a > head l then i
-                                     else getThresholdNumber (tail l) (i + 1) a
-
+    if null valueList
+        then []
+        else
+            let maxListVal = maximum valueList
+                maxVal =
+                    if maxListVal < 1.0
+                        then 1.0 -- this for bootstraps, info index etc
+                        else maxListVal
+                categories = reverse [1 .. maxColorInt]
+                thresholds = fmap (maxVal / (fromIntegral maxColorInt) *) (fmap fromIntegral categories)
+            in  -- trace ("GEC: " <> (show maxColorInt) <> " " <> (show maxVal) <> "\n" <> (show valueList) <> "\n" <> (show categories) <> "\n" <>
+                --    (show thresholds)  <> "\n" <> (show $ fmap (getThresholdNumber thresholds 0) valueList)) $
+                fmap (getThresholdNumber thresholds 0) valueList
+    where
+        getThresholdNumber l i a =
+            if null l
+                then i
+                else
+                    if a > head l
+                        then i
+                        else getThresholdNumber (tail l) (i + 1) a
 
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
@@ -154,6 +165,7 @@ getEdgeInfo inEdge =
     , show $ maxLength (thd3 inEdge)
     , show $ midRangeLength (thd3 inEdge)
     ]
+
 
 {- | needTwoEdgeNoCostAdjust checks global data for PMDL or SI
 and whether the required median is a distance (ie single edge)
@@ -324,50 +336,50 @@ getBlockNCMRootCost (_, charDataVV, charInfoV) =
 
 
 {- | calculatePMDLVertexComplexity creates a vertex cost as either the 'insertion' of character data
-or as probbaility of seqeunce in bit based on element frequencies.  
+or as probbaility of seqeunce in bit based on element frequencies.
 -}
-calculatePMDLVertexComplexity ∷ Bool -> Maybe (V.Vector (LG.LNode VertexInfo)) -> ProcessedData -> Maybe Int -> VertexCost
+calculatePMDLVertexComplexity ∷ Bool → Maybe (V.Vector (LG.LNode VertexInfo)) → ProcessedData → Maybe Int → VertexCost
 calculatePMDLVertexComplexity useLogPiValues nodeV (nameVect, _, blockDataV) index =
-    --trace ("In CPMDLRC") $
-    if useLogPiValues then 
-        -- this is based on average of leaves
+    -- trace ("In CPMDLRC") $
+    if useLogPiValues
+        then -- this is based on average of leaves
         -- root complexity base on log2 Pis
-        --trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
-        getLogPiRootCost blockDataV
+        -- trace ("New way: " <> (show (getLogPiRootCost blockDataV))) $
+            getLogPiRootCost blockDataV
+        else
+            if isNothing nodeV -- False so insert--if index /= Nothing
+            -- average of leaves
+            -- use insert based (but pi of '-' prob way underestimated)
+                then
+                    let numLeaves = V.length nameVect
+                        insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
+                    in  insertDataCost / fromIntegral numLeaves
+                else -- optimized graph specific vertex cost-- not average
+                -- pull data from specific vertgex but make a singleton vector
 
-    else if isNothing nodeV then --False so insert--if index /= Nothing 
-        -- average of leaves
-        -- use insert based (but pi of '-' prob way underestimated)
-        let numLeaves = V.length nameVect
-            insertDataCost = V.sum $ fmap getblockInsertDataCost blockDataV
-        in  
-        insertDataCost / fromIntegral numLeaves
-    else
-        -- optimized graph specific vertex cost-- not average
-        -- pull data from specific vertgex but make a singleton vector
-        let nodeInfoVV = vertData $ snd $ (fromJust nodeV) V.! (fromJust index)
-            charInfoVV = fmap thd3 blockDataV
-        in
-        --trace ("U-PMDL-V: vertex " <> (show $ fromJust index)) $ 
-        V.sum $ V.zipWith getVertexInsertBlock nodeInfoVV charInfoVV
+                    let nodeInfoVV = vertData $ snd $ (fromJust nodeV) V.! (fromJust index)
+                        charInfoVV = fmap thd3 blockDataV
+                    in  -- trace ("U-PMDL-V: vertex " <> (show $ fromJust index)) $
+                        V.sum $ V.zipWith getVertexInsertBlock nodeInfoVV charInfoVV
+
 
 {- getVertexInsertBlock returns block insert cost for a single vertex
 -}
-getVertexInsertBlock :: (V.Vector CharacterData) -> V.Vector CharInfo -> VertexCost
+getVertexInsertBlock ∷ (V.Vector CharacterData) → V.Vector CharInfo → VertexCost
 getVertexInsertBlock charDataV charInfoV =
-        V.sum $ V.zipWith getCharacterInsertCost charDataV  charInfoV
+    V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
+
 
 {- | calculatePMDLRootCost creates a root cost as either the 'insertion' of character data
-or as probbaility of seqeunce in bit based on element frequencies.  
+or as probbaility of seqeunce in bit based on element frequencies.
 For sequence data averaged over leaf taxa
 so root independent
 
 Wrapper around more flexible calculatePMDLVertexComplexity
 -}
-calculatePMDLRootCost ∷ Bool -> ProcessedData -> VertexCost
+calculatePMDLRootCost ∷ Bool → ProcessedData → VertexCost
 calculatePMDLRootCost useLogPiValues inData =
     calculatePMDLVertexComplexity useLogPiValues Nothing inData Nothing
-   
 
 
 {- | getblockInsertDataCost gets the total cost of 'inserting' the data in a block
@@ -379,7 +391,7 @@ getblockInsertDataCost (_, characterDataVV, charInfoV) =
     V.sum $ fmap (getVerticesInsertCost charInfoV) characterDataVV
 
 
-{- | getVerticesInsertCost is the cost or originating or 'inserting' all 
+{- | getVerticesInsertCost is the cost or originating or 'inserting' all
     vertex data in vector (usually leaf data, but could be singleton of vertex)
     for all characters in a block
 -}
@@ -387,40 +399,43 @@ getVerticesInsertCost ∷ V.Vector CharInfo → V.Vector CharacterData → Doubl
 getVerticesInsertCost charInfoV charDataV =
     V.sum $ V.zipWith getCharacterInsertCost charDataV charInfoV
 
-{- | getLogPiRootCost gets log 2 ofelement dreqnecies over all data blocks
--}
-getLogPiRootCost :: V.Vector BlockData -> Double 
-getLogPiRootCost inBlockDataV = 
-    --trace ("In GLPRC: " <> (show (V.sum $ fmap getBlockLogPiCost inBlockDataV))) $
+
+-- | getLogPiRootCost gets log 2 ofelement dreqnecies over all data blocks
+getLogPiRootCost ∷ V.Vector BlockData → Double
+getLogPiRootCost inBlockDataV =
+    -- trace ("In GLPRC: " <> (show (V.sum $ fmap getBlockLogPiCost inBlockDataV))) $
     V.sum $ fmap getBlockLogPiCost inBlockDataV
+
 
 {- | getBlockLogPiCost sums up the character root complexity of a block
 relies on pulling charcters out of block
 -}
-getBlockLogPiCost :: BlockData -> Double
-getBlockLogPiCost (_, leafCharVV, charInfoV) = 
-    if V.null charInfoV then 0.0
-    else
-        -- create leaf by single character structure to be mapped over 
-        let charNumList = [0.. (V.length $ V.head leafCharVV) - 1]
-            charVect = fmap (leafCharVV V.!) (V.fromList charNumList)
-        in
-        --trace ("In GBLPC: " <> (show ((V.length $ V.head leafCharVV),  V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV))) $
-        V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV
+getBlockLogPiCost ∷ BlockData → Double
+getBlockLogPiCost (_, leafCharVV, charInfoV) =
+    if V.null charInfoV
+        then 0.0
+        else -- create leaf by single character structure to be mapped over
 
-{- | getCharacterLogPiCost takes a characterdata (vector of terminals for single character) 
-and returns root complexity cost based on frequency of 
-sequence character elements and state number for no-sequence 
+            let charNumList = [0 .. (V.length $ V.head leafCharVV) - 1]
+                charVect = fmap (leafCharVV V.!) (V.fromList charNumList)
+            in  -- trace ("In GBLPC: " <> (show ((V.length $ V.head leafCharVV),  V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV))) $
+                V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV
+
+
+{- | getCharacterLogPiCost takes a characterdata (vector of terminals for single character)
+and returns root complexity cost based on frequency of
+sequence character elements and state number for no-sequence
 -}
-getCharacterLogPiCost :: V.Vector CharacterData -> CharInfo -> Double
+getCharacterLogPiCost ∷ V.Vector CharacterData → CharInfo → Double
 getCharacterLogPiCost charDataV charInfo =
-    if V.null charDataV then 0.0
-    else 
-        let nonSequenceCharRootCost = getNonSequenceCharacterLogPiCost (V.head charDataV) charInfo
-            sequenceCharRootCost = getSequenceCharacterLogPiCost charDataV charInfo
-        in
-        --trace ("In GCLPC: " <> (show (nonSequenceCharRootCost, sequenceCharRootCost))) $
-        nonSequenceCharRootCost + sequenceCharRootCost
+    if V.null charDataV
+        then 0.0
+        else
+            let nonSequenceCharRootCost = getNonSequenceCharacterLogPiCost (V.head charDataV) charInfo
+                sequenceCharRootCost = getSequenceCharacterLogPiCost charDataV charInfo
+            in  -- trace ("In GCLPC: " <> (show (nonSequenceCharRootCost, sequenceCharRootCost))) $
+                nonSequenceCharRootCost + sequenceCharRootCost
+
 
 {- | getNonSequenceCharacterLogPiCost creates root cost for all add/nonAdd/Matrix characters
 based number of character states and the log2 of that same for each leaf (since static)
@@ -430,7 +445,7 @@ getNonSequenceCharacterLogPiCost ∷ CharacterData → CharInfo → Double
 getNonSequenceCharacterLogPiCost inChar charInfo =
     -- trace ("In GCIC: " <> (show $ charType charInfo)) $
     let localCharType = charType charInfo
-        
+
         numStates =
             if localCharType == NonAdd
                 then BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar)
@@ -445,99 +460,117 @@ getNonSequenceCharacterLogPiCost inChar charInfo =
                                 else 0 ∷ Word
         alphabetWeight = logBase 2.0 $ (fromIntegral $ numStates ∷ Double)
 
-        
-        insertCost  
-            | localCharType == Add                      = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
-            | localCharType == NonAdd                   = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
-            | localCharType `elem` packedNonAddTypes    = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
-            | localCharType == Matrix                   = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+        insertCost
+            | localCharType == Add = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+            | localCharType == NonAdd = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+            | localCharType `elem` packedNonAddTypes = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
+            | localCharType == Matrix = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
             | otherwise = error ("Non static charcter type: " <> (show localCharType))
+    in  -- trace ("GCIC: " <> (show (insertCost))) $
+        if localCharType `notElem` ([Add, NonAdd, Matrix] <> packedNonAddTypes)
+            then 0.0
+            else insertCost
 
-    in  --trace ("GCIC: " <> (show (insertCost))) $
-    if localCharType `notElem` ([Add, NonAdd, Matrix] <> packedNonAddTypes) then 0.0
-    else insertCost
 
 {- | getSequenceCharacterLogPiCost creates root cost for all characters as with add/nonAdd
 based on the frequencies of character states and the log2 of that frequency for each state or sequence element
 average cost over leaves so root placement independent
 -}
-getSequenceCharacterLogPiCost :: V.Vector CharacterData -> CharInfo -> Double
+getSequenceCharacterLogPiCost ∷ V.Vector CharacterData → CharInfo → Double
 getSequenceCharacterLogPiCost charDataV charInfo =
-    --trace ("In GSCLPC") $
-    if V.null charDataV then error "No data to calculate root cost"
-    else if charType charInfo `notElem` sequenceCharacterTypes then 0.0
-    else 
-        let isNeyman = checkNeyman (costMatrix charInfo)
-            numLeaves = V.length charDataV
-            leafList = V.toList $ fmap (getSequenceLeafCharStateNumbers charInfo) charDataV
-            elementList = fmap fst $ head leafList
-            numberList = fmap (getElementNumberList (concat leafList)) elementList
-            elementNumList = zip elementList numberList
-            totalElements = fromIntegral $ sum $ fmap snd elementNumList
-            elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
-            bitList = if isNeyman then
-                        replicate (length $ alphabet charInfo) $ logBase 2.0 $ (fromIntegral $ (length $ alphabet charInfo) ∷ Double)
-                      else fmap (hereLogBase2) elemFreqList
-        in
-        -- trace ("GSCLPC: " <> (show (isNeyman,elemFreqList, numberList, bitList))) $
-        abs $ (sum $ zipWith (*) (fmap fromIntegral numberList) bitList) / (fromIntegral numLeaves)
+    -- trace ("In GSCLPC") $
+    if V.null charDataV
+        then error "No data to calculate root cost"
+        else
+            if charType charInfo `notElem` sequenceCharacterTypes
+                then 0.0
+                else
+                    let isNeyman = checkNeyman (costMatrix charInfo)
+                        numLeaves = V.length charDataV
+                        leafList = V.toList $ fmap (getSequenceLeafCharStateNumbers charInfo) charDataV
+                        elementList = fmap fst $ head leafList
+                        numberList = fmap (getElementNumberList (concat leafList)) elementList
+                        elementNumList = zip elementList numberList
+                        totalElements = fromIntegral $ sum $ fmap snd elementNumList
+                        elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
+                        bitList =
+                            if isNeyman
+                                then replicate (length $ alphabet charInfo) $ logBase 2.0 $ (fromIntegral $ (length $ alphabet charInfo) ∷ Double)
+                                else fmap (hereLogBase2) elemFreqList
+                    in  -- trace ("GSCLPC: " <> (show (isNeyman,elemFreqList, numberList, bitList))) $
+                        abs $ (sum $ zipWith (*) (fmap fromIntegral numberList) bitList) / (fromIntegral numLeaves)
+    where
+        hereLogBase2 a =
+            if a < epsilon
+                then 0.0
+                else logBase 2.0 a
 
-        where hereLogBase2 a = if a < epsilon then 0.0
-                               else logBase 2.0 a
 
 {- | checkNeyman take a matrix (type from PHANE) and returns True if
     the matrix has all non-diagonal values the same
     otherwise False
 -}
-checkNeyman :: S.Matrix Int -> Bool
+checkNeyman ∷ S.Matrix Int → Bool
 checkNeyman inMatrix =
-    if S.null inMatrix then False
-    else if S.rows inMatrix < 2 then False
-    else 
-        let nonDiagVal = inMatrix S.! (0,1)
-        in
-        checkMatrixVals inMatrix nonDiagVal 0 0 
+    if S.null inMatrix
+        then False
+        else
+            if S.rows inMatrix < 2
+                then False
+                else
+                    let nonDiagVal = inMatrix S.! (0, 1)
+                    in  checkMatrixVals inMatrix nonDiagVal 0 0
 
-{- | checkMatrixVals checks of all non-adiagnonal values equal input value
--} 
-checkMatrixVals :: S.Matrix Int -> Int -> Int -> Int -> Bool
+
+-- | checkMatrixVals checks of all non-adiagnonal values equal input value
+checkMatrixVals ∷ S.Matrix Int → Int → Int → Int → Bool
 checkMatrixVals inMatrix nonDiagVal rowIndex columnIndex =
-    --trace ("Check Matrix: " <> (show (rowIndex, columnIndex, S.rows inMatrix, S.cols inMatrix))) $
-    if rowIndex >= S.rows inMatrix then True
-    else if columnIndex >= S.cols inMatrix then checkMatrixVals inMatrix nonDiagVal (rowIndex + 1) 0 
-    else if rowIndex == columnIndex then checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
-    else if inMatrix S.! (rowIndex, columnIndex) /= nonDiagVal then False
-    else checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
+    -- trace ("Check Matrix: " <> (show (rowIndex, columnIndex, S.rows inMatrix, S.cols inMatrix))) $
+    if rowIndex >= S.rows inMatrix
+        then True
+        else
+            if columnIndex >= S.cols inMatrix
+                then checkMatrixVals inMatrix nonDiagVal (rowIndex + 1) 0
+                else
+                    if rowIndex == columnIndex
+                        then checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
+                        else
+                            if inMatrix S.! (rowIndex, columnIndex) /= nonDiagVal
+                                then False
+                                else checkMatrixVals inMatrix nonDiagVal rowIndex (columnIndex + 1)
 
-{- | getCharacterElementFreq gets the alphabet elements of sequence characters in a 
+
+{- | getCharacterElementFreq gets the alphabet elements of sequence characters in a
 specific character over all leaves
 -}
-getCharacterElementFreq :: V.Vector CharacterData -> CharInfo -> [(String, Double)]
+getCharacterElementFreq ∷ V.Vector CharacterData → CharInfo → [(String, Double)]
 getCharacterElementFreq charDataV charInfo =
-    if V.null charDataV then []
-    else 
-        let leafList = V.toList $ fmap (getSequenceLeafCharStateNumbers charInfo) charDataV
-            elementList = fmap fst $ head leafList
-            elementNumList = zip elementList (fmap (getElementNumberList (concat leafList)) elementList)
-            totalElements = fromIntegral $ sum $ fmap snd elementNumList
-            elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
-        in
-        zip elementList elemFreqList
+    if V.null charDataV
+        then []
+        else
+            let leafList = V.toList $ fmap (getSequenceLeafCharStateNumbers charInfo) charDataV
+                elementList = fmap fst $ head leafList
+                elementNumList = zip elementList (fmap (getElementNumberList (concat leafList)) elementList)
+                totalElements = fromIntegral $ sum $ fmap snd elementNumList
+                elemFreqList = fmap (/ totalElements) $ fmap fromIntegral $ fmap snd elementNumList
+            in  zip elementList elemFreqList
 
-{- |  getElementNumberList takes a list of (String, Int) and returns 
+
+{- |  getElementNumberList takes a list of (String, Int) and returns
 the summed Ints based on lisyt of String
 -}
-getElementNumberList :: [(String, Int)] -> String -> Int 
+getElementNumberList ∷ [(String, Int)] → String → Int
 getElementNumberList pairList matchSymbol =
-    if null pairList then 0
-    else 
-        if (fst $ head pairList) == matchSymbol then
-            (snd $ head pairList) + getElementNumberList (tail pairList) matchSymbol
-        else getElementNumberList (tail pairList) matchSymbol
+    if null pairList
+        then 0
+        else
+            if (fst $ head pairList) == matchSymbol
+                then (snd $ head pairList) + getElementNumberList (tail pairList) matchSymbol
+                else getElementNumberList (tail pairList) matchSymbol
 
-{- | getSequenceLeafCharStateNumbers gets the numebr of each charcter state as in alphabet
--}
-getSequenceLeafCharStateNumbers :: CharInfo -> CharacterData → [(String, Int)]
+
+-- | getSequenceLeafCharStateNumbers gets the numebr of each charcter state as in alphabet
+getSequenceLeafCharStateNumbers ∷ CharInfo → CharacterData → [(String, Int)]
 getSequenceLeafCharStateNumbers charInfo blockDatum =
     let localType = charType charInfo
         localAlphabet = (ST.toString <$> alphabet charInfo)
@@ -569,36 +602,36 @@ getSequenceLeafCharStateNumbers charInfo blockDatum =
             | otherwise = error ("Non-sequence data type " <> show localType)
 
         -- filter out ambiguities (ie not in element list)
-        elementListList = filter (`elem` lAList) $  SL.splitOn "," stringStates
+        elementListList = filter (`elem` lAList) $ SL.splitOn "," stringStates
         elementList = L.group $ L.sort elementListList
         elementNumberList = fmap (getElementNumber elementList) lAList
-
-    in
-    zip lAList elementNumberList
+    in  zip lAList elementNumberList
 
 
 {- | getElementNumber takes a list of list of elements that has been grouped and checkes
 if matches String and if such returns length else goes on to next input String
 -}
-getElementNumber :: [[String]] -> String -> Int
+getElementNumber ∷ [[String]] → String → Int
 getElementNumber symbolLL matchSymbol =
-    if null symbolLL then 0
-    else 
-        if (head $ head symbolLL) == matchSymbol then length $ head symbolLL
-        else getElementNumber (tail symbolLL) matchSymbol 
+    if null symbolLL
+        then 0
+        else
+            if (head $ head symbolLL) == matchSymbol
+                then length $ head symbolLL
+                else getElementNumber (tail symbolLL) matchSymbol
 
 
 {- | getCharacterInsertCost takes a character and characterInfo and returns origination/insert cost for the character
 for PMDL of add, non add matrix log2 of alphabet size
-This uses actual inserts of different elements as oposedd to average, although averaged over leaves so not 
+This uses actual inserts of different elements as oposedd to average, although averaged over leaves so not
 root dependant
 -}
 getCharacterInsertCost ∷ CharacterData → CharInfo → Double
 getCharacterInsertCost inChar charInfo =
-    --trace ("In GCIC: " <> (show $ charType charInfo)) $
+    -- trace ("In GCIC: " <> (show $ charType charInfo)) $
     let localCharType = charType charInfo
         thisWeight = weight charInfo
-        
+
         numStates =
             if localCharType == NonAdd
                 then BV.dimension $ (V.head $ GU.snd3 $ stateBVPrelim inChar)
@@ -619,33 +652,38 @@ getCharacterInsertCost inChar charInfo =
         allGapSlim = SV.replicate slimLength $ (0 ∷ SlimState) `setBit` fromEnum gapIndex
         allGapWide = UV.replicate wideLength $ (0 ∷ WideState) `setBit` fromEnum gapIndex
 
-        hugeGapChar = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex 
+        hugeGapChar = ((V.head $ hugePrelim inChar) `xor` (V.head $ hugePrelim inChar)) `setBit` fromEnum gapIndex
         allGapHuge = V.replicate (V.length $ hugePrelim inChar) hugeGapChar
 
-        hugeGapCharAligned = ((V.head $ snd3 $ alignedHugePrelim inChar) `xor` (V.head $ snd3 $ alignedHugePrelim inChar)) `setBit` fromEnum gapIndex 
+        hugeGapCharAligned = ((V.head $ snd3 $ alignedHugePrelim inChar) `xor` (V.head $ snd3 $ alignedHugePrelim inChar)) `setBit` fromEnum gapIndex
         allGapHugeAligned = V.replicate (V.length $ snd3 $ alignedHugePrelim inChar) hugeGapCharAligned
-     
+
         -- don't need to worry about noCost Adjustment and medioan issue since "-" -> "-" is zero
         -- otherwise would hahve to subtract off extra no-change cost (gap to gap)
-        insertCost  
-            | localCharType == Add                      = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
-            | localCharType == NonAdd                   = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
-            | localCharType `elem` packedNonAddTypes    = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
-            | localCharType == Matrix                   = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
-            | localCharType == SlimSeq                  = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar)
-            | localCharType == NucSeq                   = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar) 
-            | localCharType == WideSeq                  = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar) 
-            | localCharType == AminoSeq                 = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar)
-            | localCharType == HugeSeq                  = fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHuge (hugePrelim inChar)
-            | localCharType == AlignedSlim              = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (snd3 $ alignedSlimPrelim inChar)
-            | localCharType == AlignedWide              = fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (snd3 $ alignedWidePrelim inChar)
-            | localCharType == AlignedHuge              = fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHugeAligned (snd3 $ alignedHugePrelim inChar)
+        insertCost
+            | localCharType == Add = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ rangePrelim inChar)
+            | localCharType == NonAdd = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
+            | localCharType `elem` packedNonAddTypes = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
+            | localCharType == Matrix = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
+            | localCharType == SlimSeq = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar)
+            | localCharType == NucSeq = fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (slimPrelim inChar)
+            | localCharType == WideSeq =
+                fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar)
+            | localCharType == AminoSeq =
+                fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (widePrelim inChar)
+            | localCharType == HugeSeq =
+                fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHuge (hugePrelim inChar)
+            | localCharType == AlignedSlim =
+                fromIntegral $ snd $ get2WaySlim (slimTCM charInfo) allGapSlim (snd3 $ alignedSlimPrelim inChar)
+            | localCharType == AlignedWide =
+                fromIntegral $ snd $ get2WayWideHuge (wideTCM charInfo) allGapWide (snd3 $ alignedWidePrelim inChar)
+            | localCharType == AlignedHuge =
+                fromIntegral $ snd $ get2WayWideHuge (hugeTCM charInfo) allGapHugeAligned (snd3 $ alignedHugePrelim inChar)
             | otherwise = error ("Character type unimplemented : " <> show localCharType)
-
-    in  --trace ("GCIC: " <> (show (insertCost, thisWeight * insertCost, allGapSlim, snd3 $ alignedSlimPrelim inChar))) $
+    in  -- trace ("GCIC: " <> (show (insertCost, thisWeight * insertCost, allGapSlim, snd3 $ alignedSlimPrelim inChar))) $
         thisWeight * insertCost
 
-  
+
 {- | splitSequence takes a ShortText divider and splits a list of ShortText on
 that ShortText divider consuming it akin to Text.splitOn
 -}
@@ -858,7 +896,6 @@ bitVectToCharState localAlphabet localAlphabetNEString localAlphabetVect bitValu
                                                             then "?"
                                                             else -- amino acid polymorphisms without ambiguity codes
                                                                 "[" <> stringVal <> "]" <> " "
-                                                                
                     else (bitVectToCharState'' localAlphabetNEString localAlphabetVect bitValue) <> " "
     where
         indices = [0 .. len - 1]
@@ -874,22 +911,25 @@ bitVectToCharState'' ∷ (Bits b) ⇒ NonEmpty String → V.Vector String → b 
 bitVectToCharState'' localAlphabet localAlphabetVect bitValue
     | isAlphabetDna hereAlphabet = fold $ iupacToDna BM.!> (NE.fromList observedSymbols)
     | isAlphabetAminoAcid hereAlphabet = fold $ iupacToAminoAcid BM.!> (NE.fromList observedSymbols)
-    | otherwise = -- L.intercalate "," $ toList observedSymbols
-        let symbolList = toList observedSymbols 
+    | otherwise -- L.intercalate "," $ toList observedSymbols
+        =
+        let symbolList = toList observedSymbols
             symbolComma = L.intercalate "," observedSymbols
-        in
-        if length observedSymbols == 1 then symbolComma
-        else if length observedSymbols == 0 then "-"
-        else ('[' : symbolComma) <> "]"
+        in  if length observedSymbols == 1
+                then symbolComma
+                else
+                    if length observedSymbols == 0
+                        then "-"
+                        else ('[' : symbolComma) <> "]"
     where
         hereAlphabet = fromSymbols localAlphabet
         symbolCountH = length localAlphabet
         observedSymbols =
             -- NE.fromList $
-                foldMap
-                    -- (\ i -> [localAlphabet NE.!! i | bitValue `testBit` i])
-                    (\i → [localAlphabetVect V.! i | bitValue `testBit` i])
-                    [0 .. symbolCountH - 1]
+            foldMap
+                -- (\ i -> [localAlphabet NE.!! i | bitValue `testBit` i])
+                (\i → [localAlphabetVect V.! i | bitValue `testBit` i])
+                [0 .. symbolCountH - 1]
 
 
 -- | matrixStateToStringtakes a matrix state and returns a string representation
@@ -1575,6 +1615,7 @@ glueBackTaxChar singleCharVect =
         multiCharVect = fmap (getSingleTaxon singleCharVect) (V.fromList [0 .. numTaxa - 1])
     in  multiCharVect
 
+
 {- | concatFastas is used by "report(ia)" to create a single concatenated fasta
 for use by programs such as RAxML andf TNT
 takes a single string of multiple fasta output, each entity to be concated (by taxon name)
@@ -1624,8 +1665,10 @@ splitFastaLines curFasta curFastaList inLineList =
         then reverse (reverse curFasta : curFastaList)
         else
             let firstLine = head inLineList
-                firstWord = if (not $ null $ words firstLine) then head $ words firstLine
-                            else ""
+                firstWord =
+                    if (not $ null $ words firstLine)
+                        then head $ words firstLine
+                        else ""
             in  if null firstLine
                     then splitFastaLines curFasta curFastaList (tail inLineList)
                     else

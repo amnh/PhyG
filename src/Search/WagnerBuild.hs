@@ -95,9 +95,8 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph numLeaves hasNonExactCh
         -- initialFullyDecoratedTree = T.multiTraverseFullyLabelTree inGS inData initialTree
         -- False flag for staticIA--can't be done in build
         calculateBranchLengths = False -- must be True for delata using existing edge
-        
     in  do
-            initialPostOrderTree <- POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
+            initialPostOrderTree ← POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
             initialFullyDecoratedTree ←
                 PRE.preOrderTreeTraversal
                     inGS
@@ -160,8 +159,8 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                 addTaxonAction = addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd
             in  do
                     --- TODO
-                    addTaxonWagnerPar ← getParallelChunkTraverseBy U.strict1of4 
-                    candidateEditList <- addTaxonWagnerPar addTaxonAction edgesToInvade
+                    addTaxonWagnerPar ← getParallelChunkTraverseBy U.strict1of4
+                    candidateEditList ← addTaxonWagnerPar addTaxonAction edgesToInvade
                     -- let candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
 
                     let minDelta = minimum $ fmap fst4 candidateEditList
@@ -176,11 +175,19 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                     -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
                     -- False flag for static IA--can't do when adding in new leaves
                     let calculateBranchLengths = False -- must be True for delata using existing edge
-                    postOrderStuff <- POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+                    postOrderStuff ← POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                     newPhyloGraph ← -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
                         if V.length additionSequence > 1
                             then
-                                PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False calculateBranchLengths hasNonExactChars numLeaves False postOrderStuff
+                                PRE.preOrderTreeTraversal
+                                    inGS
+                                    (finalAssignment inGS)
+                                    False
+                                    calculateBranchLengths
+                                    hasNonExactChars
+                                    numLeaves
+                                    False
+                                    postOrderStuff
                             else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
 
                     if isNothing (LG.lab inDecGraph leafToAdd)
@@ -219,20 +226,19 @@ addTaxonWagner maxDistance useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) l
         edge1 = (fst3 targetEdge, numVerts, 0.0)
         edge2 = (numVerts, snd3 targetEdge, 0.0)
         newNode = (numVerts, TL.pack ("HTU" <> show numVerts))
-
-        -- full post order
+    in  -- full post order
         -- newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge (LG.toEdge targetEdge) inSimple
         -- newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
-    in do
-        -- heuristic delta
-        (delta, edgeUnionVertData) <- getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
+        do
+            -- heuristic delta
+            (delta, edgeUnionVertData) ← getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
 
-        -- modification for missing data
-        let nonMissingDistance = U.getPairwiseObservationsGraph leafToAddVertData edgeUnionVertData
+            -- modification for missing data
+            let nonMissingDistance = U.getPairwiseObservationsGraph leafToAddVertData edgeUnionVertData
 
-        let deltaNormalized = delta * maxDistance / (max 1.0 nonMissingDistance)
-    
-        pure (deltaNormalized, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
+            let deltaNormalized = delta * maxDistance / (max 1.0 nonMissingDistance)
+
+            pure (deltaNormalized, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
 
 
 -- (newCost, newNode, [edge0, edge1, edge2], LG.toEdge targetEdge)
@@ -245,19 +251,16 @@ getDelta
 getDelta useIA leafToAddVertData (eNode, vNode, _) inDecGraph charInfoVV =
     let eNodeVertData = vertData $ fromJust $ LG.lab inDecGraph eNode
         vNodeVertData = vertData $ fromJust $ LG.lab inDecGraph vNode
-
-        -- create edge union 'character' blockData
+    in  -- create edge union 'character' blockData
         -- filters gaps (True argument) because using DOm (as must) to add taxa not in IA framework
         -- edge union based on final IA assignments filtering gaps (True True)
 
-    in  
         if isNothing (LG.lab inDecGraph eNode) || isNothing (LG.lab inDecGraph vNode)
             then error "Missing label data for vertices"
             else do
-                edgeUnionVertData <- M.createEdgeUnionOverBlocksM useIA True eNodeVertData vNodeVertData charInfoVV
+                edgeUnionVertData ← M.createEdgeUnionOverBlocksM useIA True eNodeVertData vNodeVertData charInfoVV
                 -- Use edge union data for delta to edge data
 
                 let dLeafEdgeUnionCost = sum (fst <$> V.zipWith3 (PRE.getBlockCostPairsFinal DirectOptimization) leafToAddVertData edgeUnionVertData charInfoVV)
-                
-                pure (dLeafEdgeUnionCost, edgeUnionVertData)
 
+                pure (dLeafEdgeUnionCost, edgeUnionVertData)

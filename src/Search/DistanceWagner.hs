@@ -12,8 +12,8 @@ module Search.DistanceWagner (doWagnerS, performRefinement) where
 import Control.DeepSeq (force)
 import Control.Monad (when)
 import Control.Parallel.Strategies
-import Data.List qualified as L
 import Data.Functor ((<&>))
+import Data.List qualified as L
 import Data.Maybe
 import Data.Number.Transfinite qualified as NT
 import Data.Vector qualified as V
@@ -255,8 +255,9 @@ doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKe
                                             else -- else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
                                             -- else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences)
                                             do
-                                                rasResult ← getParallelChunkMapBy strict3of4 <&> \pMap ->
-                                                    rasAction `pMap` replicateSequences
+                                                rasResult ←
+                                                    getParallelChunkMapBy strict3of4 <&> \pMap →
+                                                        rasAction `pMap` replicateSequences
                                                 pure $ take numToKeep $ L.sortOn thd4 rasResult -- (PU.seqParMap rdeepseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences)
                             else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
 
@@ -279,8 +280,9 @@ doWagnerRASProgressive inGS leafNames distMatrix outgroup numToKeep curBestTreeL
                 rasAction ∷ V.Vector Int → TreeWithData
                 rasAction = getRandomAdditionSequence leafNames distMatrix outgroup
             in  do
-                    rasTrees ← getParallelChunkMapBy strict3of4 <&> \pMap ->
-                        rasAction `pMap` replist
+                    rasTrees ←
+                        getParallelChunkMapBy strict3of4 <&> \pMap →
+                            rasAction `pMap` replist
 
                     -- rasTrees = fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replist `using` PU.myParListChunkRDS
                     -- rasTrees = PU.seqParMap rpar (getRandomAdditionSequence leafNames distMatrix outgroup) replist
@@ -986,7 +988,8 @@ getGeneralSwapSteepestOne refineType swapFunction leafNames outGroup inTreeList 
         let splitAction ∷ TreeWithData → TreeWithData
             splitAction = splitJoinWrapper swapFunction refineType leafNames outGroup
         in  do
-                steepTreeList <- getParallelChunkMapBy strict3of4 <&> \pMap ->
+                steepTreeList ←
+                    getParallelChunkMapBy strict3of4 <&> \pMap →
                         splitAction `pMap` inTreeList
 
                 let steepCost = minimum $ fmap thd4 steepTreeList
@@ -1016,20 +1019,22 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
             splitAction ∷ Edge → SplitTreeData
             splitAction = splitTree curTreeMatrix curTree curTreeCost
 
-            splitExtract :: SplitTreeData → SplitTreeData
-            splitExtract ~val@(a,b,c,_,_) = force a `seq` force b `seq` force c `seq` val
+            splitExtract ∷ SplitTreeData → SplitTreeData
+            splitExtract ~val@(a, b, c, _, _) = force a `seq` force b `seq` force c `seq` val
 
             swapAction ∷ SplitTreeData → [TreeWithData]
             swapAction = swapFunction refineType curTreeCost leafNames outGroup
 
             overallBestCost = minimum $ fmap thd4 savedTrees
-            (_, curTree, curTreeCost, curTreeMatrix) = curFullTree 
+            (_, curTree, curTreeCost, curTreeMatrix) = curFullTree
         in  do
                 -- parallelize here
-                splitTreeList ← getParallelChunkMapBy splitExtract <&> \pMap -> 
-                    splitAction `pMap` (V.toList $ snd curTree)
-                firstTreeList ← getParallelChunkMapBy (listApplying strict3of4) <&> \pMap ->
-                    swapAction `pMap` splitTreeList
+                splitTreeList ←
+                    getParallelChunkMapBy splitExtract <&> \pMap →
+                        splitAction `pMap` (V.toList $ snd curTree)
+                firstTreeList ←
+                    getParallelChunkMapBy (listApplying strict3of4) <&> \pMap →
+                        swapAction `pMap` splitTreeList
                 let firstTreeList' = filterNewTreesOnCost overallBestCost (curFullTree : concat firstTreeList) savedTrees
 
                 -- Work around for negative NT.infinity tree costs (could be dst matrix issue)
