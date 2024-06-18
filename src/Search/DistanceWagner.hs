@@ -26,7 +26,7 @@ import SymMatrix qualified as M
 import Types.DistanceTypes
 import Types.Types
 import Utilities.DistanceUtilities
-import Utilities.Utilities (strict3of4)
+import Utilities.Utilities (listApplying, strict3of4)
 
 
 {- | getStartingPair returns starying pair for Wagner build
@@ -255,8 +255,8 @@ doWagnerS inGS leafNames distMatrix firstPairMethod outgroup addSequence numToKe
                                             else -- else take numToKeep $ L.sortOn thd4 (fmap (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences `using` PU.myParListChunkRDS)
                                             -- else take numToKeep $ L.sortOn thd4 (PU.seqParMap rseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences)
                                             do
-                                                rasPar ← getParallelChunkMapBy strict3of4
-                                                let rasResult = rasPar rasAction replicateSequences
+                                                rasResult ← getParallelChunkMapBy strict3of4 <&> \pMap ->
+                                                    rasAction `pMap` replicateSequences
                                                 pure $ take numToKeep $ L.sortOn thd4 rasResult -- (PU.seqParMap rdeepseq  (getRandomAdditionSequence leafNames distMatrix outgroup) replicateSequences)
                             else errorWithoutStackTrace ("Addition sequence " <> addSequence <> " not implemented")
 
@@ -1022,21 +1022,14 @@ getGeneralSwap refineType swapFunction saveMethod keepMethod leafNames outGroup 
             swapAction ∷ SplitTreeData → [TreeWithData]
             swapAction = swapFunction refineType curTreeCost leafNames outGroup
 
-            swapExtract :: [TreeWithData] -> [TreeWithData]
-            swapExtract = \case 
-                [] -> []
-                ~x@(_,_,c,_):xs -> 
-                    let moreVals = swapExtract xs
-                    in  (force c `seq` moreVals `seq` x) : moreVals
-
             overallBestCost = minimum $ fmap thd4 savedTrees
-            (_, curTree, curTreeCost, curTreeMatrix) = curFullTree
+            (_, curTree, curTreeCost, curTreeMatrix) = curFullTree 
         in  do
                 -- parallelize here
-                splitPar ← getParallelChunkMapBy splitExtract
-                swapPar ← getParallelChunkMapBy swapExtract
-                let splitTreeList = splitPar splitAction (V.toList $ snd curTree)
-                let firstTreeList = swapPar swapAction splitTreeList
+                splitTreeList ← getParallelChunkMapBy splitExtract <&> \pMap -> 
+                    splitAction `pMap` (V.toList $ snd curTree)
+                firstTreeList ← getParallelChunkMapBy (listApplying strict3of4) <&> \pMap ->
+                    swapAction `pMap` splitTreeList
                 let firstTreeList' = filterNewTreesOnCost overallBestCost (curFullTree : concat firstTreeList) savedTrees
 
                 -- Work around for negative NT.infinity tree costs (could be dst matrix issue)

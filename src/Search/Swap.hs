@@ -131,9 +131,15 @@ swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList i
                     -- parallel setup
                     action ∷ Maybe SAParams → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
                     action = swapAll swapParams inGS inData 0 curBestCost curBestGraphList curBestGraphList numLeaves inGraphNetPenaltyFactor
+
+                    extractGraphTopoCost 
+                        :: ([ReducedPhylogeneticGraph], Int, Maybe SAParams) 
+                        -> ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
+                    extractGraphTopoCost = applyOver1of3 (listApplying strict1and2of5)
+
                 in  -- this to ensure current step set to 0
                     do
-                        swapPar ← getParallelChunkTraverse
+                        swapPar ← getParallelChunkTraverseBy extractGraphTopoCost
                         (annealDriftGraphs', anealDriftCounterList, annealDriftParams) ← unzip3 <$> swapPar action newSimAnnealParamList
 
                         -- annealed/Drifted 'mutated' graphs
@@ -937,10 +943,10 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                  * New implementation (safe sequential):
                                              -}
                                             -- parallel stuff
-                                            action ∷ LG.LEdge EdgeInfo → PhyG ([ReducedPhylogeneticGraph], Maybe SAParams)
+                                            action ∷ LG.LEdge EdgeInfo → PhyG [ReducedPhylogeneticGraph]
                                             action =
                                                 {-# SCC rejoinGraph_action_of_singleJoin_1 #-}
-                                                singleJoin
+                                                fmap fst . singleJoin
                                                     swapParams
                                                     inGS
                                                     inData
@@ -952,11 +958,12 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     curBestCost
                                                     edgesInPrunedGraph
                                                     inSimAnnealParams
+
                                         in  do
                                                 --logWith LogInfo "In rejoinGraph-not-steepest" 
                                                 rejoinGraphList ←
-                                                    getParallelChunkTraverse >>= \pTraverse →
-                                                        fold <$> pTraverse (fmap fst . action) rejoinEdges
+                                                    getParallelChunkTraverseBy (listApplying strict2of5) >>= \pTraverse →
+                                                        fold <$> pTraverse action rejoinEdges
                                                 {-
                                                 rejoinOperation = fst . singleJoin
                                                     swapParams
@@ -1003,10 +1010,10 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                             rejoinEdgeList = take numGraphsToExamine rejoinEdges
 
                                             -- parallel stuff
-                                            action ∷ LG.LEdge EdgeInfo → PhyG ([ReducedPhylogeneticGraph], Maybe SAParams)
+                                            action ∷ LG.LEdge EdgeInfo → PhyG [ReducedPhylogeneticGraph]
                                             action =
                                                 {-# SCC rejoinGraph_action_of_singleJoin_2 #-}
-                                                singleJoin
+                                                fmap fst . singleJoin
                                                     swapParams
                                                     inGS
                                                     inData
@@ -1021,8 +1028,8 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                         in  do
                                                 --logWith LogInfo $ "In rejoinGraph-steepest " <> (show $ length rejoinEdgeList) 
                                                 rejoinGraphList ←
-                                                    getParallelChunkTraverse >>= \pTraverse →
-                                                        fold <$> pTraverse (fmap fst . action) rejoinEdgeList
+                                                    getParallelChunkTraverseBy (listApplying strict1and2of5) >>= \pTraverse →
+                                                        fold <$> pTraverse action rejoinEdgeList
 
                                                 newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 rejoinGraphList
 
@@ -1125,7 +1132,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                     edgesInPrunedGraph
                         in  do
                                 rejoinGraphPairList ←
-                                    getParallelChunkTraverse >>= \pTraverse →
+                                    getParallelChunkTraverseBy (applyOver1of2 (listApplying strict2of5)) >>= \pTraverse →
                                         pTraverse action $ zip simAnnealParamList rejoinEdgeList
 
                                 -- mechanics to see if trhere is a better graph in return set

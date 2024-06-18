@@ -45,6 +45,26 @@ import GraphOptimization.Medians (get2WaySlim, get2WayWideHuge,)
 import Debug.Trace
 
 
+listApplying :: forall a b. (a -> a) -> [a] -> [a]
+listApplying strictnessSpec ~val = 
+    let go :: [a] -> [a]
+        go [] = []
+        go (x:xs) = 
+            let moreVals = go xs
+            in  (strictnessSpec x `seq` moreVals `seq` x) : moreVals
+    in go val `seq` val
+
+
+applyOver1of2 :: (a -> a) -> (a, b) ->  (a, b)
+applyOver1of2 strictnessSpec ~val@(x, _) = 
+    strictnessSpec x `seq` val
+
+
+applyOver1of3 :: (a -> a) -> (a, b, c) ->  (a, b, c)
+applyOver1of3 strictnessSpec ~val@(x, _, _) = 
+    strictnessSpec x `seq` val
+
+
 {- | strict1of4 ensures parallelism and demands strict return of 1st of 4 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
@@ -72,6 +92,13 @@ strict3of4 ~val@(_,_,!x,_) =
 strict2of5 :: (NFData b) => (a, b, c, d, e) -> (a, b, c, d, e)
 strict2of5 ~val@(_,!x,_,_,_) =
         force x `seq` val
+
+{- | strict1and2of5 ensures parallelism and demands strict return of 2nd of 5 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict1and2of5 :: (NFData a, NFData b) => (a, b, c, d, e) -> (a, b, c, d, e)
+strict1and2of5 ~val@(!x,!y,_,_,_) =
+        force x `seq` force y `seq` val
 
 {- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to 
     length of that edge (in  bits) to detemrine complexity factor K(Child)/K(child-max)
