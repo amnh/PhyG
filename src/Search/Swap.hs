@@ -1500,11 +1500,11 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                 in  do
                                         -- debugger "CASE OF -> Nothing( 1 )" 0 splitGraphSimple
                                         -- True True to use IA fields and filter gaps
-                                        makeEdgePar ← getParallelChunkTraverse
-                                        rerootEdgeDataList <- makeEdgePar makeEdgeAction rerootEdgeList
+                                        rerootEdgeDataList <- getParallelChunkTraverse >>= \pTraverse ->
+                                            makeEdgeAction `pTraverse` rerootEdgeList
 
-                                        joinPar ← getParallelChunkTraverse
-                                        rerootEdgeDeltaList' <- joinPar joinAction rerootEdgeDataList
+                                        rerootEdgeDeltaList' <- getParallelChunkTraverse >>= \pTraverse ->
+                                            joinAction `pTraverse`rerootEdgeDataList
                                         
                                         let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
@@ -1515,8 +1515,9 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                         let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                                         let candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
 
-                                        rerootPar ← getParallelChunkMap
-                                        let candidateJoinedGraphList' = rerootPar rerootAction candidateEdgeList
+                                        -- /NOTE:/ All returned fields are required by 'reoptimizeAction', so evaluate strictly
+                                        candidateJoinedGraphList' ← getParallelChunkMap <&> \pMap ->
+                                            rerootAction `pMap` candidateEdgeList
 
                                         -- check for graph wierdness if network
                                         candidateJoinedGraphList ←
@@ -1554,27 +1555,19 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                                     -- debugger "CASE OF -> Nothing( 2 )" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
                                     
-                                    rerootPar <- getParallelChunkTraverse
-                                    rerootEdgeDataList <- rerootPar makeEdgeAction rerootEdgeList
-                                    
-                                    deltaPar <- getParallelChunkTraverse
-                                    rerootEdgeDeltaList' <- deltaPar joinAction rerootEdgeDataList
+                                    rerootEdgeDataList <- getParallelChunkTraverse >>= \pTraverse ->
+                                            makeEdgeAction  `pTraverse` rerootEdgeList
 
-                                    {-rerootEdgeDataList ←
-                                        getParallelChunkMap <&> \pMap →
-                                            makeEdgeAction `pMap` rerootEdgeList
-
-                                    rerootEdgeDeltaList' ←
-                                        getParallelChunkMap <&> \pMap →
-                                            joinAction `pMap` rerootEdgeDataList
-                                    -}
-
+                                    rerootEdgeDeltaList' <- getParallelChunkTraverse >>= \pTraverse ->
+                                        joinAction `pTraverse`rerootEdgeDataList
+                                        
                                     let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
 
                                     -- check for possible better/equal graphs and verify
                                     let deltaAdjustmentJoinCost = (curBestCost - splitCost) * (dynamicEpsilon inGS)
                                     let candidateEdgeList = fmap fst $ filter ((<= (curBestCost + deltaAdjustmentJoinCost)) . snd) (zip rerootEdgeList rerootEdgeDeltaList)
 
+                                    -- /NOTE:/ All returned fields are required by 'reoptimizeAction', so evaluate strictly
                                     candidateJoinedGraphList ←
                                         getParallelChunkMap <&> \pMap →
                                             rerootAction `pMap` candidateEdgeList
@@ -1637,12 +1630,12 @@ tbrJoin swapParams inGS inData splitGraph splitGraphSimple splitCost prunedGraph
                             in  do
                                     -- debugger "CASE OF -> Just" 0 splitGraphSimple
                                     -- True True to use IA fields and filter gaps
-                                    makeEdgePar ← getParallelChunkTraverse
-                                    rerootEdgeDataList <- makeEdgePar makeEdgeAction rerootEdgeList
-                                    -- rerootEdgeDataList = PU.seqParMap (parStrategy $ lazyParStrat inGS) (makeEdgeDataFunction splitGraph charInfoVV) rerootEdgeList
+                                    rerootEdgeDataList <- getParallelChunkTraverse >>= \pTraverse ->
+                                            makeEdgeAction  `pTraverse` rerootEdgeList
 
-                                    joinPar ← getParallelChunkTraverse
-                                    rerootEdgeDeltaList' <- joinPar joinAction rerootEdgeDataList
+                                    rerootEdgeDeltaList' <- getParallelChunkTraverse >>= \pTraverse ->
+                                        joinAction `pTraverse`rerootEdgeDataList
+                                        
                                     let rerootEdgeDeltaList = fmap (+ splitCost) rerootEdgeDeltaList'
                                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (edgeJoinFunction charInfoVV targetEdgeData) rerootEdgeDataList
 
