@@ -51,7 +51,7 @@ rasWagnerBuild inGS inData numReplicates =
             in  do
                     randomizedAdditionSequences ← replicateM numReplicates $ shuffleList leafIndexVec
                     logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
-                    getParallelChunkTraverse >>= \pTraverse →
+                    getParallelChunkTraverseBy U.strict2of5 >>= \pTraverse →
                         pTraverse wagnerTreeAction $ zip randomizedAdditionSequences [0 .. numReplicates - 1]
 
 

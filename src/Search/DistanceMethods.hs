@@ -132,7 +132,7 @@ makeDMatrix' inObsMatrix vertInList row column updateList
 {- | makeIDMatrix makes adjusted matrix (D) from observed (d) values
 assumes matrix is square and symmetrical
 makes values Infinity if already added
-adjust ri and rj to bew based on on values not in termInList
+adjust ri and rj to be based on on values not in termInList
 does by row so can be parallelized call with column = 0 update list []
 makes DMatrix direclty not via M.updateMatrix
 -}
@@ -152,7 +152,7 @@ makeDMatrix inObsMatrix vertInList =
 
 {- | pickNearestUpdateMatrix takes d and D matrices, pickes nearest based on D
 then updates d and D to reflect new node and distances created
-updates teh column/row for vertices that are joined to be infinity so
+updates the column/row for vertices that are joined to be infinity so
 won't be chosen to join again
 -}
 pickNearestUpdateMatrixNJ ∷ M.Matrix Double → [Int] → PhyG (M.Matrix Double, Vertex, Edge, Edge, [Int])
@@ -191,6 +191,7 @@ pickNearestUpdateMatrixNJ littleDMatrix vertInList =
                         getNewDistAction ∷ Int → Double
                         getNewDistAction = getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert
                     in  do
+                            -- NOTE: This may be a problem for parallel calls but looks OK
                             newDistPar ← getParallelChunkMap
                             let newLittleDRow = newDistPar getNewDistAction otherVertList
                             -- newLittleDRow = PU.seqParMap PU.myStrategyR0 (getNewDist littleDMatrix dij iMin jMin diMinNewVert djMinNewVert) otherVertList -- `using` myParListChunkRDS
