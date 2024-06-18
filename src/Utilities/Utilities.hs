@@ -6,7 +6,7 @@ module Utilities.Utilities where
 import Bio.DynamicCharacter.Element (SlimState, WideState, HugeState)
 import Complexity.Graphs qualified as GC
 import Complexity.Utilities qualified as GCU
-import Control.DeepSeq (force)
+import Control.DeepSeq (force, NFData (..)) 
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
@@ -48,23 +48,30 @@ import Debug.Trace
 {- | strict1of4 ensures parallelism and demands strict return of 1st of 4 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict1of4 :: (VertexCost, LG.LNode T.Text, [LG.LEdge Double], LG.Edge) -> (VertexCost, LG.LNode T.Text, [LG.LEdge Double], LG.Edge)
-strict1of4 b@(!x,_,_,_) =
-        force x `seq` b
+strict1of4 :: (NFData a) => (a, b, c, d) -> (a, b, c, d)
+strict1of4 ~val@(!x,_,_,_) =
+        force x `seq` val
 
 {- | strict2of2 ensures parallelism and demands strict return of 2nd of 2 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict2of2 :: (CharacterData, VertexCost) ->  (CharacterData, VertexCost) 
-strict2of2 b@(_,!x) =
-        force x `seq` b
+strict2of2 :: (NFData b) => (a, b) ->  (a, b) 
+strict2of2 ~val@(_,!x) =
+        force x `seq` val
+
+{- | strict3of4 ensures parallelism and demands strict return of 3rd of 4 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict3of4 :: (NFData c) => (a, b, c, d) -> (a, b, c, d)
+strict3of4 ~val@(_,_,!x,_) =
+        force x `seq` val
 
 {- | strict2of5 ensures parallelism and demands strict return of 2nd of 5 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation
 -}
-strict2of5 :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
-strict2of5 b@(_,!x,_,_,_) =
-        force x `seq` b
+strict2of5 :: (NFData b) => (a, b, c, d, e) -> (a, b, c, d, e)
+strict2of5 ~val@(_,!x,_,_,_) =
+        force x `seq` val
 
 {- getEdgeComplexityFactors determines complexity of terminal vertex of edge and compares to 
     length of that edge (in  bits) to detemrine complexity factor K(Child)/K(child-max)

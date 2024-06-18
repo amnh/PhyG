@@ -61,14 +61,6 @@ set(seed:1701287416)
 --set(rootcost:ml)
 --set(criterion:ml)
 
--- set(seed:1)
---build(replicates:1)
---build(distance, dwag)
---build(distance, rdwag, replicates:20, best:20)
-
---build(distance, rdwag, replicates:10, best:1, block, displayTrees:10)
---build(replicates:10, block, displayTrees:10, cun)
-
 --set(multitraverse:false)
 
 --fuse(tbr)
@@ -86,9 +78,9 @@ set(seed:1701287416)
 
 --read("chel-335.tre")
 
-build(dwag, distance)
+--build(dwag, distance)
 --build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
---build(distance,rdwag, replicates:100, best:100)
+build(distance,rdwag, replicates:100, best:100)
 --build(distance, rdwag)
 --build(distance, rdwag, replicates:20, best:5)
 --search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
@@ -123,8 +115,8 @@ select(best)
 
 --report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)
-report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse, color)
-report("test0-wag-complexity.dot", overwrite, complexity, dotpdf, nocollapse, color)
+--report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse, color)
+--report("test0-wag-complexity.dot", overwrite, complexity, dotpdf, nocollapse, color)
 report("test0.dot", graphs, dotpdf, overwrite,color)
 
 --report("test0-wag.tre", overwrite, graphs, newick, nobraNCHLENGTHS, noHTULabels, collapse)
