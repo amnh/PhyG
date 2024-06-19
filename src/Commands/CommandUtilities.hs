@@ -49,6 +49,7 @@ import System.Process
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import Debug.Trace
 
 {- relabelEdgeComplexity relabels decorated graphs with edge complexity indices
 -}
@@ -414,18 +415,19 @@ makeDotList writeEdgeWeight writeNodeLabel colorEdges costList rootIndex graphLi
 addEdgeColor :: SimpleGraph -> String -> String
 addEdgeColor inGraph inString =
     if LG.isEmpty inGraph || null inString then []
-    else 
+    else
         let edgeWeightList = fmap thd3 $ LG.labEdges inGraph
             maxColorNumber = 11
             edgeColorList = fmap show $ U.getEdgeColor maxColorNumber edgeWeightList
             newEdgeInfo = zip3 (fmap (show .fst3) $ LG.labEdges inGraph) (fmap (show . snd3) $ LG.labEdges inGraph) edgeColorList
         in
+        -- trace ("AEC: " <> (show edgeWeightList)) $ 
         addColor newEdgeInfo inString
 
 -- | addColor removes edge labels from HTUs in graphviz format string
 addColor ∷ [(String, String, String)] -> String → String
 addColor colorEdgeList inString =
-    if null inString
+    if null inString 
         then inString
         else
             let lineStringList = lines inString
@@ -443,7 +445,7 @@ addColor colorEdgeList inString =
                     else a
 
         getEdgeColor cl b = 
-            if null cl then error ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cl)) 
+            if null cl then unwords b -- error ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cl)) 
             else if (b !! 0) == (fst3 $ head cl) && (b !! 2) == (snd3 $ head cl) then
                 if (length b > 3) then 
                     "[" <> "color=" <> (thd3 $ head cl) <> "," <> (tail $ b !! 3) 
@@ -1144,15 +1146,15 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
 
                     -- Get complexity information--empty of not complexity
                     let edgeTripleList = U.getEdgeComplexityFactors inGS inData vertexList edgeList 
-                    let edgeComplexityFactor = fmap thd3 edgeTripleList
+                    let edgeComplexityFactor = zipWith (:)(fmap show $ fmap fst3 edgeTripleList) (fmap (:[]) $fmap show $ fmap thd3 edgeTripleList)
 
                     let (vertexComplexityLabel, vertexComplexityList) = if (optimalityCriterion inGS `elem` [PMDL, SI]) then
-                                                                ("Complexity Factor", fmap (:[]) $ fmap show edgeComplexityFactor)
-                                               else ("", fmap (:[]) $ replicate (length edgeList) "")
+                                                                (["Tail Vertex Complexity", "Complexity Factor"], edgeComplexityFactor) -- fmap (:[]) $ fmap show edgeComplexityFactor)
+                                               else (["",""], fmap (:[]) $ replicate (length edgeList) "")
 
                     -- Edge length information
                     let edgeTitle = [[" "], ["Edge Weight/Length Information"]]
-                    let edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length", vertexComplexityLabel]]
+                    let edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length", vertexComplexityLabel !! 0, vertexComplexityLabel !! 1]]
 
                     -- Alphabet element numbers
                     let alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]

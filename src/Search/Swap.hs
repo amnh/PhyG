@@ -60,6 +60,7 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
             newGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList'
             -- liftIO $ putStr ("SD-After: " <> (show $ fmap snd5 newGraphList))
             -- found no better
+
             if null newGraphList
                 then pure (curBestGraphList, newCounter)
                 else
@@ -70,7 +71,9 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                             else -- found same (ie additional)
 
                                 if newCost == inBestCost
-                                    then pure (newGraphList, newCounter)
+                                    then do
+                                        allGraphs <- GO.selectGraphs Best (keepNum swapParams) 0.0 (newGraphList <> curBestGraphList)
+                                        pure (allGraphs, newCounter)
                                     else -- found better-- go around again
                                     do
                                         let newSimAnnealParamList = zip (U.generateUniqueRandList (length newGraphList) newSAParams) newGraphList
