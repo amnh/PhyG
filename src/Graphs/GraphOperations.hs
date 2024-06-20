@@ -7,6 +7,7 @@ graph functions that a re general are in LocalGraph.hs
 module Graphs.GraphOperations (
     contractIn1Out1EdgesRename,
     convertDecoratedToSimpleGraph,
+    convertDecoratedToSimpleGraphBranchLength,
     convertGeneralGraphToPhylogeneticGraph,
     convertPhylogeneticGraph2Reduced,
     convertReduced2PhylogeneticGraph,
@@ -739,32 +740,34 @@ simpleNodeToDecorated (indexNode, nameNode) =
 simpleEdgeToDecorated ∷ LG.LEdge Double → LG.LEdge EdgeInfo
 simpleEdgeToDecorated (a, b, weightDouble) = (a, b, dummyEdge{minLength = weightDouble, maxLength = weightDouble, midRangeLength = weightDouble})
 
+{-convertDecoratedToSimpleGraphBranchLength convertgs decorated to simple graph but allows
+    specification of edge/branch weight/length ("min", "max", "mid") -}
+convertDecoratedToSimpleGraphBranchLength :: String -> DecoratedGraph → SimpleGraph
+convertDecoratedToSimpleGraphBranchLength branchWeight inDec =
+    if LG.isEmpty inDec then LG.empty
+    else if branchWeight `notElem` ["min", "max", "mid"] then 
+        errorWithoutStackTrace ("Edge/Branch weight/length not recognized ('min', 'max', 'mid') : " <> branchWeight)
+    else 
+        let edgeWeight = if branchWeight == "min" then minLength
+                         else if branchWeight == "max" then maxLength
+                         else midRangeLength
 
--- | convertDecoratedToSimpleGraph takes a decorated graph and returns the simple graph equivalent
-convertDecoratedToSimpleGraph ∷ DecoratedGraph → SimpleGraph
-convertDecoratedToSimpleGraph inDec =
-    if LG.isEmpty inDec
-        then LG.empty
-        else
-            let decNodeList = LG.labNodes inDec
-                newNodeLabels = fmap (vertName . snd) decNodeList
-                simpleNodes = zip (fmap fst decNodeList) newNodeLabels
-                labEdgeList = LG.labEdges inDec
-                edgeWeightList = filter (> 0.0) $ fmap (minLength . thd3) labEdgeList
-                defaultWeight =
-                    if null edgeWeightList
-                        then Just 1.0
-                        else Nothing
-                simpleEdgeList = fmap (convertToSimpleEdge defaultWeight) labEdgeList
+            decNodeList = LG.labNodes inDec
+            newNodeLabels = fmap (vertName . snd) decNodeList
+            simpleNodes = zip (fmap fst decNodeList) newNodeLabels
+            labEdgeList = LG.labEdges inDec
+            edgeWeightList = fmap (edgeWeight . thd3) labEdgeList
+            simpleEdgeList = fmap convertToSimpleEdge (zip edgeWeightList labEdgeList)
             in  LG.mkGraph simpleNodes simpleEdgeList
 
 
--- | convertToSimpleEdge takes a lables edge and relabels with 0.0
-convertToSimpleEdge ∷ Maybe VertexCost → LG.LEdge EdgeInfo → LG.LEdge Double
-convertToSimpleEdge defaultWeight (a, b, c) =
-    if isNothing defaultWeight
-        then (a, b, midRangeLength c)
-        else (a, b, fromJust defaultWeight)
+-- | convertDecoratedToSimpleGraph takes a decorated graph and returns the simple graph equivalent
+convertDecoratedToSimpleGraph ∷ DecoratedGraph → SimpleGraph
+convertDecoratedToSimpleGraph inDec = convertDecoratedToSimpleGraphBranchLength "min" inDec
+    
+-- | convertToSimpleEdge takes a lables edge and relabels with input
+convertToSimpleEdge ∷ (VertexCost, LG.LEdge EdgeInfo) → LG.LEdge Double
+convertToSimpleEdge (edgeWeight, (a, b, _)) = (a, b, edgeWeight)
 
 
 {- | graphCostFromNodes takes a Decorated graph and returns its cost by summing up the local costs
@@ -775,7 +778,6 @@ graphCostFromNodes inGraph =
     if LG.isEmpty inGraph
         then 0.0
         else sum $ fmap (vertexCost . snd) (LG.labNodes inGraph)
-
 
 -- | dichotomizeRoot takes greaph and dichotimizes not dichotomous roots in graph
 dichotomizeRoot ∷ Int → SimpleGraph → SimpleGraph

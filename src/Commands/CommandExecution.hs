@@ -1063,7 +1063,12 @@ reportCommand
 reportCommand globalSettings argList excludeRename numInputFiles crossReferenceString processedData curGraphs supportGraphs =
     let argListWithoutReconcileCommands = filter ((`notElem` VER.reconcileArgList) . fst) argList
         -- check for balances double quotes and only one pair
-        outFileNameList = filter (/= "") $ fmap snd argListWithoutReconcileCommands -- argList
+        outFileNameList = filter (`notElem` ["", "min", "max", "mid"]) $ fmap snd argListWithoutReconcileCommands -- argList
+        edgeWeigthVal = 
+            let valList = filter (`elem` ["min", "max", "mid"]) $ fmap snd argListWithoutReconcileCommands 
+            in
+            if null valList then "min"
+            else head valList
         commandList = fmap (fmap C.toLower) $ filter (/= "") $ fmap fst argListWithoutReconcileCommands
     in  -- reconcileList = filter (/= "") $ fmap fst argList
 
@@ -1092,7 +1097,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                             else if ("complexity" `elem` commandList) && (optimalityCriterion globalSettings `elem` [PMDL, SI])
                                 then -- else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
                                     let relabelledDecoratedGraph = fmap (relabelEdgeComplexity globalSettings processedData ) (fmap thd5 curGraphs)
-                                        graphString = outputGraphString commandList (outgroupIndex globalSettings) relabelledDecoratedGraph (fmap snd5 curGraphs)
+                                        graphString = outputGraphString edgeWeigthVal commandList (outgroupIndex globalSettings) relabelledDecoratedGraph (fmap snd5 curGraphs)
                                     in  if null curGraphs
                                         then do
                                             logWith LogInfo "No graphs to report edge compleities \n"
@@ -1204,7 +1209,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                             if ("graphs" `elem` commandList) && ("reconcile" `notElem` commandList)
                                                                 then -- else if (not .null) (L.intersect ["graphs", "newick", "dot", "dotpdf"] commandList) then
 
-                                                                    let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
+                                                                    let graphString = outputGraphString edgeWeigthVal commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
                                                                     in  if null curGraphs
                                                                             then do
                                                                                 logWith LogInfo "No graphs to report\n"
@@ -1305,7 +1310,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                             recResult ← R.makeReconcileGraph VER.reconcileArgList argList (fmap fst5 curGraphs)
                                                                                             -- let (reconcileString, ) = recResult
                                                                                             let (_, reconcileGraph) = recResult
-                                                                                            let reconcileString = outputGraphString commandList (outgroupIndex globalSettings) [GO.convertSimpleToDecoratedGraph reconcileGraph] [0]
+                                                                                            let reconcileString = outputGraphString edgeWeigthVal commandList (outgroupIndex globalSettings) [GO.convertSimpleToDecoratedGraph reconcileGraph] [0]
                                                                                             if null curGraphs
                                                                                                 then do
                                                                                                     logWith LogInfo "No graphs to reconcile\n"
@@ -1391,7 +1396,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                             pure (tntContentList, outfileName, writeMode)
                                                                                                                 else do
                                                                                                                     logWith LogWarn ("\nUnrecognized/missing report option in " <> show commandList <> " defaulting to 'graphs'" <> "\n")
-                                                                                                                    let graphString = outputGraphString commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
+                                                                                                                    let graphString = outputGraphString edgeWeigthVal commandList (outgroupIndex globalSettings) (fmap thd5 curGraphs) (fmap snd5 curGraphs)
                                                                                                                     if null curGraphs
                                                                                                                         then do
                                                                                                                             logWith LogInfo "No graphs to report\n"

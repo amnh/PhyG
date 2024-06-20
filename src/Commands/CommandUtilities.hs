@@ -319,11 +319,13 @@ makeBlockGraphStrings commandList costList lOutgroupIndex (labelString, graphL) 
             if ("dot" `elem` commandList) || ("dotpdf" `elem` commandList)
                 then ("//Display Tree(s): " <> show (length graphL) <> "\n")
                 else ("[Display Tree[s]: " <> show (length graphL) <> "]\n")
-        displayString = (<> "\n") $ outputDisplayString commandList costList lOutgroupIndex graphL
+        edgeWeightString = "min"  -- minimum length edges
+        --displayString = (<> "\n") $ outputDisplayString commandList costList lOutgroupIndex graphL
+        displayString = (<> "\n") $ outputGraphString edgeWeightString commandList lOutgroupIndex graphL costList
     in  labelString <> diplayIndexString <> displayString
 
-
--- | outputDisplayString is a wrapper around graph output functions--but without cost list
+{- Don't think need this--redundant with outputGraphString 
+-- | outputDisplayString is a wrapper around graph output function with different argument order for some rason
 outputDisplayString ∷ [String] → [VertexCost] → Int → [DecoratedGraph] → String
 outputDisplayString commandList costList lOutgroupIndex graphList
     | "dot" `elem` commandList =
@@ -352,11 +354,11 @@ outputDisplayString commandList costList lOutgroupIndex graphList
             costList
             lOutgroupIndex
             (fmap GO.convertDecoratedToSimpleGraph graphList)
-
+-}
 
 -- | outputGraphString is a wrapper around graph output functions
-outputGraphString ∷ [String] → Int → [DecoratedGraph] → [VertexCost] → String
-outputGraphString commandList lOutgroupIndex graphList costList
+outputGraphString ∷ String -> [String] → Int → [DecoratedGraph] → [VertexCost] → String
+outputGraphString edgeWeight commandList lOutgroupIndex graphList costList
     | "dot" `elem` commandList =
         makeDotList
             (not (elem "nobranchlengths" commandList))
@@ -364,16 +366,16 @@ outputGraphString commandList lOutgroupIndex graphList costList
             (elem "color" commandList)
             costList
             lOutgroupIndex
-            (fmap GO.convertDecoratedToSimpleGraph graphList)
+            (fmap (GO.convertDecoratedToSimpleGraphBranchLength edgeWeight) graphList)
     | "newick" `elem` commandList =
         GO.makeNewickList
             False
             (not (elem "nobranchlengths" commandList))
             (not (elem "nohtulabels" commandList))
             lOutgroupIndex
-            (fmap GO.convertDecoratedToSimpleGraph graphList)
+            (fmap (GO.convertDecoratedToSimpleGraphBranchLength edgeWeight) graphList)
             costList
-    | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap GO.convertDecoratedToSimpleGraph graphList)
+    | "ascii" `elem` commandList = makeAsciiList lOutgroupIndex (fmap (GO.convertDecoratedToSimpleGraphBranchLength edgeWeight) graphList)
     | otherwise -- "dot" as default
         =
         makeDotList
@@ -382,7 +384,7 @@ outputGraphString commandList lOutgroupIndex graphList costList
             (elem "color" commandList)
             costList
             lOutgroupIndex
-            (fmap GO.convertDecoratedToSimpleGraph graphList)
+            (fmap (GO.convertDecoratedToSimpleGraphBranchLength edgeWeight) graphList)
 
 
 -- | outputGraphStringSimple is a wrapper around graph output functions
@@ -1944,7 +1946,7 @@ removeRecurrrentSpaces inString
 
 -- | TNT report functions
 
-{- | getTNTStrings returns as a set of interleaved b;ocks==one for each "character"  so not mix numerical and
+{- | getTNTStrings returns as a set of interleaved blocks==one for each "character"  so not mix numerical and
 sequence characters
 softwired use display trees, hardWired transform to softwired then proceed with display trees
 key to keep cost matrices and weights
@@ -2427,19 +2429,6 @@ getCharacterString inCharData inCharInfo =
             if s == '-'
                 then '?'
                 else s
-
-
--- nothingToNothing a = if a == '\8220' then '\00'
---                     else a
-{-
--- | bitVectToCharStringTNT wraps '[]' around ambiguous states and removes commas between states
-bitVectToCharStringTNT ::  (Show b, FiniteBits b, Bits b) =>  Alphabet String -> b -> String
-bitVectToCharStringTNT localAlphabet bitValue =
-   -- let stateString = U.bitVectToCharState'' (fromJust $ NE.nonEmpty $ alphabetSymbols localAlphabet) bitValue
-   let stateString = U.bitVectToCharState' localAlphabet bitValue
-   in
-   stateString
--}
 
 -- | Implied Alignment report functions
 
