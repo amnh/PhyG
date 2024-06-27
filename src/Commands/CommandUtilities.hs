@@ -1146,6 +1146,8 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
                     
                     let edgeInfoList = fmap U.getEdgeInfo edgeList
 
+                    
+                    {-
                     -- Get complexity information--empty of not complexity
                     let edgeTripleList = U.getEdgeComplexityFactors inGS inData vertexList edgeList 
                     let edgeComplexityFactor = zipWith (:)(fmap show $ fmap fst3 edgeTripleList) (fmap (:[]) $fmap show $ fmap thd3 edgeTripleList)
@@ -1153,10 +1155,13 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
                     let (vertexComplexityLabel, vertexComplexityList) = if (optimalityCriterion inGS `elem` [PMDL, SI]) then
                                                                 (["Tail Vertex Complexity", "Complexity Factor"], edgeComplexityFactor) -- fmap (:[]) $ fmap show edgeComplexityFactor)
                                                else (["",""], fmap (:[]) $ replicate (length edgeList) "")
+                    -}
 
                     -- Edge length information
                     let edgeTitle = [[" "], ["Edge Weight/Length Information"]]
-                    let edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length", vertexComplexityLabel !! 0, vertexComplexityLabel !! 1]]
+                    let edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]] 
+                        -- , vertexComplexityLabel !! 0, vertexComplexityLabel !! 1]]
+                    
 
                     -- Alphabet element numbers
                     let alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
@@ -1285,7 +1290,8 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
                             <> vertexInfoList
                             <> edgeTitle
                             <> edgeHeaderList
-                            <> zipWith (<>) edgeInfoList vertexComplexityList
+                            <> edgeInfoList
+                            -- <> zipWith (<>) edgeInfoList vertexComplexityList
                             -- <> vertexChangeTitle
                             -- <> differenceList
                             <> vertexChangeTitleNew
