@@ -116,7 +116,7 @@ getEdgeComplexityFactors inGS inData vertexList edgeList =
     if optimalityCriterion inGS `notElem` [PMDL, SI]
         then (replicate (length edgeList) (0.0, 0.0, 0.0))
         else
-            let edgeInfoList = fmap getEdgeInfo edgeList
+            let edgeInfoList = fmap (getEdgeInfo (V.length $ fst3 inData)) edgeList
                 endVertexList = fmap (Just . snd3) edgeList
                 edgeVertexComplexity = fmap (calculatePMDLVertexComplexity False (Just $ V.fromList vertexList) inData) endVertexList
                 edgeMaxLength = fmap (maxLength . thd3) edgeList
@@ -155,12 +155,15 @@ getEdgeColor maxColorInt valueList =
 
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
-getEdgeInfo ∷ LG.LEdge EdgeInfo → [String]
-getEdgeInfo inEdge =
+getEdgeInfo ∷ Int -> LG.LEdge EdgeInfo -> [String]
+getEdgeInfo numLeaves inEdge =
+    let edgeTypeAdjust = if (snd3 inEdge < numLeaves) then PendantEdge
+                         else edgeType (thd3 inEdge)
+    in
     [ " "
     , show $ fst3 inEdge
     , show $ snd3 inEdge
-    , show $ edgeType (thd3 inEdge)
+    , show $ edgeTypeAdjust
     , show $ minLength (thd3 inEdge)
     , show $ maxLength (thd3 inEdge)
     , show $ midRangeLength (thd3 inEdge)

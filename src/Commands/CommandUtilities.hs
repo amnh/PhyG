@@ -958,7 +958,7 @@ getGraphMetaData _ inData (inGraph, graphIndex) =
                     let edgeHeaderList = [[" ", "Edge Head Vertex", "Edge Tail Vertex", "Edge Type", "Minimum Length", "Maximum Length", "MidRange Length"]]
                     
                     -- this is basically a Show
-                    let edgeInfoList = fmap U.getEdgeInfo edgeList
+                    let edgeInfoList = fmap (U.getEdgeInfo numLeaves) edgeList
 
                     -- Alphabet element numbers
                     let alphabetTitle = [["Alphabet (element, frequency, number) Gap, if estimated from unaligned sequences, is a minimum"]]
@@ -1144,7 +1144,7 @@ getGraphDiagnosis inGS inData (inGraph, graphIndex) =
                     let vertexInfoListChanges = vertexInfoList -- concatMap (getVertexCharInfo useIA (thd3 inData) (fst5 inGraph) (fft5 inGraph)) vertexList
 
                     
-                    let edgeInfoList = fmap U.getEdgeInfo edgeList
+                    let edgeInfoList = fmap (U.getEdgeInfo numLeaves) edgeList
 
                     
                     {-
