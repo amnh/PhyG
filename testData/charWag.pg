@@ -99,7 +99,8 @@ select()
 --search(hours:0, minutes:3, instances:4, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
-swap()
+swap(keep:1)
+swap(keep:10)
 
 --swap(replicates:5, drift, maxChanges:5)
 --swap(replicates:5)

@@ -147,9 +147,9 @@ getEdgeColor maxColorInt valueList =
     where
         getThresholdNumber l i a =
             if null l
-                then 1
+                then max i 1
                 else
-                    if a > head l
+                    if a >= head l
                         then i
                         else getThresholdNumber (tail l) (i + 1) a
 
