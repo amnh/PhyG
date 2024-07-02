@@ -720,10 +720,17 @@ getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
     [] -> failWithPhase Parsing "Empty list in inStringListList"
     inStringListList ->
-        let precisionFactor = 100.0
-            maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
+        let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
             doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
             minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
+            maxDouble = maximum $ fmap maximum doubleMatrix
+
+            -- set precisoin based on range of max and min values
+            range = maxDouble / minDouble
+            precisionFactor = if range >= 100.0 then 1
+                              else if range >= 10.0 then 10.0
+                              else 100.0
+            
             rescaledDoubleMatrix = fmap (fmap (* (precisionFactor / minDouble))) doubleMatrix
             integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
             -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
