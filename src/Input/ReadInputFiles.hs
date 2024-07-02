@@ -727,7 +727,7 @@ getCostMatrixAndScaleFactor fileName = \case
 
             -- set precisoin based on range of max and min values
             range = maxDouble / minDouble
-            precisionFactor = if range >= 100.0 then 1
+            precisionFactor = if range >= 100.0 then 1.0
                               else if range >= 10.0 then 10.0
                               else 100.0
             
