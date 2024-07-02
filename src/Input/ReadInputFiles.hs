@@ -712,20 +712,23 @@ getCostMatrixAndScaleFactor' fileName inStringListList =
 [[Int]] but if there are decimal values, a scalerFactor is determined and the
 cost matrix are integerized by multiplication by 1/scaleFactor
 Unlike version above is more flexible with Double format
+
+Adds precision to 100--fixes an issue when smallest and other values aresimilar
 -}
 getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
     [] -> failWithPhase Parsing "Empty list in inStringListList"
     inStringListList ->
-        let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
+        let precisionFactor = 100.0
+            maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
             doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
             minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
-            rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
+            rescaledDoubleMatrix = fmap (fmap (* (precisionFactor / minDouble))) doubleMatrix
             integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
             -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
             scaleFactor
                 | maxDecimalPlaces == 0 = 1.0
-                | otherwise = minDouble
+                | otherwise = precisionFactor * minDouble
                     -- else if not nonZeroDiagonals then minDouble
                     -- else minDouble / 2.0
 
