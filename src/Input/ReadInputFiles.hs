@@ -713,7 +713,8 @@ getCostMatrixAndScaleFactor' fileName inStringListList =
 cost matrix are integerized by multiplication by 1/scaleFactor
 Unlike version above is more flexible with Double format
 
-Adds precision to 100--fixes an issue when smallest and other values aresimilar
+Adds precision to 100--fixes an issue when smallest and other values are similar
+Have to stay under 2**16 for ffi for <8 alphabets
 -}
 getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
