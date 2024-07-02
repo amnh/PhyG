@@ -133,6 +133,16 @@ Source-Repository-Package
 Source-Repository-Package
   Type:     git
   Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-transition-matrix
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-transition-matrix-ffi
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
   Subdir:   pkg/PHANE-measure-units
 
 Source-Repository-Package
@@ -148,7 +158,6 @@ Source-Repository-Package
 -- and log files of the build/benchmarks/tests should go in `log`.
 ---------------------------------------------------------------------------------
 
-Builddir:         ./doc
 Symlink-bindir:   ./bin
 Installdir:       ./bin
 Logs-Dir:         ./log
@@ -206,7 +215,7 @@ Package PhyG
 ---------------------------------------------------------------------------------
 
 With-Compiler:
-    ghc-9.8.2
+    ghc-9.10.1
 
 Active-Repositories:
     hackage.haskell.org,

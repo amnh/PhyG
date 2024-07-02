@@ -9,22 +9,31 @@ module Input.ReadInputFiles (
 ) where
 
 import Commands.Verify qualified as V
+import Control.DeepSeq
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Data.Bits
 import Data.Char
 import Data.Char qualified as C
 import Data.Foldable
 import Data.Graph.Inductive.Basic qualified as B
+import Data.Hashable
 import Data.List qualified as L
 import Data.Maybe
+import Data.Ratio (denominator, numerator)
 import Data.Text.Lazy qualified as T
 import Data.Text.Lazy.IO qualified as TIO
 import Data.Text.Short qualified as ST
 import Debug.Trace
+import GHC.Float (rationalToDouble)
 import GeneralUtilities qualified as GU
 import GraphFormatUtilities qualified as GFU
 import Input.FastAC qualified as FAC
 import Input.TNTUtilities qualified as TNT
+import Measure.Transition (SymbolDistanceλ, symbolDistances)
+import Measure.Unit.SymbolCount (SymbolCount, symbolBounds)
+import Measure.Unit.SymbolDistance (SymbolDistance)
+import Measure.Unit.SymbolIndex (SymbolIndex)
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
@@ -32,6 +41,8 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import System.IO
 import System.Path.Glob qualified as SPG
 import Text.Read
+import TransitionMatrix.Diagnosis qualified as TMat
+import TransitionMatrix.Diagnosis.Error qualified as TMat
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
@@ -47,21 +58,21 @@ expandReadCommands _newReadList inCommand@(commandType, argList') =
         fileNames = fmap snd $ filter ((/= "tcm") . fst) $ filter ((/= "") . snd) argList'
         modifierList = fmap fst argList
     in  case commandType of
-          Read -> do
-              globbedFileNames ← liftIO $ mapM SPG.glob fileNames
-              when (all null globbedFileNames) . failWithPhase Inputting $ unwords
-                  [ "File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''):"
-                  , show fileNames
-                  ]
+            Read → do
+                globbedFileNames ← liftIO $ mapM SPG.glob fileNames
+                when (all null globbedFileNames) . failWithPhase Inputting $
+                    unwords
+                        [ "File(s) not found in 'read' command (could be due to incorrect filename or missing closing double quote '\"''):"
+                        , show fileNames
+                        ]
 
-              newArgPairs ← mapM makeNewArgs (zip modifierList globbedFileNames)
+                newArgPairs ← mapM makeNewArgs (zip modifierList globbedFileNames)
 
-              let commandList = replicate (length newArgPairs) commandType
-              let tcmArgListL = replicate (length newArgPairs) tcmArgList
+                let commandList = replicate (length newArgPairs) commandType
+                let tcmArgListL = replicate (length newArgPairs) tcmArgList
 
-              pure $ zip commandList (zipWith (<>) newArgPairs tcmArgListL)
-
-          _ -> failWithPhase Inputting $ unwords [ "Incorrect command type in expandReadCommands:", show inCommand ]
+                pure $ zip commandList (zipWith (<>) newArgPairs tcmArgListL)
+            _ → failWithPhase Inputting $ unwords ["Incorrect command type in expandReadCommands:", show inCommand]
 
 
 {- | makeNewArgs takes an argument modifier (first in pair) and replicates is and zips with
@@ -321,203 +332,206 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                                                                         (tail argList)
                                                                                             else do failWithPhase Parsing ("Cannot determine file type for " <> firstFile <> " need to prepend type")
                                             else -- fasta
+
                                                 let firstChar = T.head $ T.dropWhile (== ' ') fileContents
-                                                in
-                                                if firstOption `elem` ["fasta", "nucleotide", "aminoacid", "hugeseq"]
-                                                    then
-                                                        let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
-                                                        in  do
-                                                                (fastaCharInfo, fastaData) ←
-                                                                    {-# SCC "getFastaCharInfo_2" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
-                                                                executeReadCommands'
-                                                                    ((fastaData, [fastaCharInfo]) : curData)
-                                                                    curGraphs
-                                                                    curTerminals
-                                                                    curExcludeList
-                                                                    curRenamePairs
-                                                                    curReBlockPairs
-                                                                    isPrealigned'
-                                                                    tcmPair
-                                                                    (tail argList)
-                                                    else -- fastc
+                                                in  if firstOption `elem` ["fasta", "nucleotide", "aminoacid", "hugeseq"]
+                                                        then
+                                                            let fastaData' = FAC.getFastAText fileContents firstFile isPrealigned'
+                                                            in  do
+                                                                    (fastaCharInfo, fastaData) ←
+                                                                        {-# SCC "getFastaCharInfo_2" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption isPrealigned' tcmPair
+                                                                    executeReadCommands'
+                                                                        ((fastaData, [fastaCharInfo]) : curData)
+                                                                        curGraphs
+                                                                        curTerminals
+                                                                        curExcludeList
+                                                                        curRenamePairs
+                                                                        curReBlockPairs
+                                                                        isPrealigned'
+                                                                        tcmPair
+                                                                        (tail argList)
+                                                        else -- fastc
 
-                                                        if firstOption == "fastc"
-                                                            then
-                                                                let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
-                                                                in  do
-                                                                        fastcCharInfo ← FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
-                                                                        executeReadCommands'
-                                                                            ((fastcData, [fastcCharInfo]) : curData)
-                                                                            curGraphs
-                                                                            curTerminals
-                                                                            curExcludeList
-                                                                            curRenamePairs
-                                                                            curReBlockPairs
-                                                                            isPrealigned'
-                                                                            tcmPair
-                                                                            (tail argList)
-                                                            else -- prealigned fasta
+                                                            if firstOption == "fastc"
+                                                                then
+                                                                    let fastcData = FAC.getFastCText fileContents firstFile isPrealigned'
+                                                                    in  do
+                                                                            fastcCharInfo ← FAC.getFastcCharInfo fastcData firstFile isPrealigned' tcmPair
+                                                                            executeReadCommands'
+                                                                                ((fastcData, [fastcCharInfo]) : curData)
+                                                                                curGraphs
+                                                                                curTerminals
+                                                                                curExcludeList
+                                                                                curRenamePairs
+                                                                                curReBlockPairs
+                                                                                isPrealigned'
+                                                                                tcmPair
+                                                                                (tail argList)
+                                                                else -- prealigned fasta
 
-                                                                if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid", "prehugeseq"]
-                                                                    then
-                                                                        let fastaData' = FAC.getFastAText fileContents firstFile True
-                                                                        in  do
-                                                                                (fastaCharInfo, fastaData) ←
-                                                                                    {-# SCC "getFastaCharInfo_3" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption True tcmPair
-                                                                                -- trace ("POSTREAD:" <> (show fastaCharInfo) <> "\n" <> (show fastaData))
-                                                                                executeReadCommands'
-                                                                                    ((fastaData, [fastaCharInfo]) : curData)
-                                                                                    curGraphs
-                                                                                    curTerminals
-                                                                                    curExcludeList
-                                                                                    curRenamePairs
-                                                                                    curReBlockPairs
-                                                                                    isPrealigned'
-                                                                                    tcmPair
-                                                                                    (tail argList)
-                                                                    else -- prealigned fastc
+                                                                    if firstOption `elem` ["prefasta", "prenucleotide", "preaminoacid", "prehugeseq"]
+                                                                        then
+                                                                            let fastaData' = FAC.getFastAText fileContents firstFile True
+                                                                            in  do
+                                                                                    (fastaCharInfo, fastaData) ←
+                                                                                        {-# SCC "getFastaCharInfo_3" #-} FAC.getFastaCharInfo fastaData' firstFile firstOption True tcmPair
+                                                                                    -- trace ("POSTREAD:" <> (show fastaCharInfo) <> "\n" <> (show fastaData))
+                                                                                    executeReadCommands'
+                                                                                        ((fastaData, [fastaCharInfo]) : curData)
+                                                                                        curGraphs
+                                                                                        curTerminals
+                                                                                        curExcludeList
+                                                                                        curRenamePairs
+                                                                                        curReBlockPairs
+                                                                                        isPrealigned'
+                                                                                        tcmPair
+                                                                                        (tail argList)
+                                                                        else -- prealigned fastc
 
-                                                                        if firstOption == "prefastc"
-                                                                            then
-                                                                                let fastcData = FAC.getFastCText fileContents firstFile True
-                                                                                in  do
-                                                                                        fastcCharInfo ← FAC.getFastcCharInfo fastcData firstFile True tcmPair
-                                                                                        executeReadCommands'
-                                                                                            ((fastcData, [fastcCharInfo]) : curData)
-                                                                                            curGraphs
-                                                                                            curTerminals
-                                                                                            curExcludeList
-                                                                                            curRenamePairs
-                                                                                            curReBlockPairs
-                                                                                            isPrealigned'
-                                                                                            tcmPair
-                                                                                            (tail argList)
-                                                                            else -- tnt
-                                                                            -- tnt
+                                                                            if firstOption == "prefastc"
+                                                                                then
+                                                                                    let fastcData = FAC.getFastCText fileContents firstFile True
+                                                                                    in  do
+                                                                                            fastcCharInfo ← FAC.getFastcCharInfo fastcData firstFile True tcmPair
+                                                                                            executeReadCommands'
+                                                                                                ((fastcData, [fastcCharInfo]) : curData)
+                                                                                                curGraphs
+                                                                                                curTerminals
+                                                                                                curExcludeList
+                                                                                                curRenamePairs
+                                                                                                curReBlockPairs
+                                                                                                isPrealigned'
+                                                                                                tcmPair
+                                                                                                (tail argList)
+                                                                                else -- tnt
+                                                                                -- tnt
 
-                                                                                if firstOption == "tnt"
-                                                                                    then do
-                                                                                        tntData ← TNT.getTNTDataText fileContents firstFile
-                                                                                        executeReadCommands'
-                                                                                            (tntData : curData)
-                                                                                            curGraphs
-                                                                                            curTerminals
-                                                                                            curExcludeList
-                                                                                            curRenamePairs
-                                                                                            curReBlockPairs
-                                                                                            isPrealigned'
-                                                                                            tcmPair
-                                                                                            (tail argList)
-                                                                                    else -- else if firstOption == "prealigned" then executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                                                                                    -- FENEwick
+                                                                                    if firstOption == "tnt"
+                                                                                        then do
+                                                                                            tntData ← TNT.getTNTDataText fileContents firstFile
+                                                                                            executeReadCommands'
+                                                                                                (tntData : curData)
+                                                                                                curGraphs
+                                                                                                curTerminals
+                                                                                                curExcludeList
+                                                                                                curRenamePairs
+                                                                                                curReBlockPairs
+                                                                                                isPrealigned'
+                                                                                                tcmPair
+                                                                                                (tail argList)
+                                                                                        else -- else if firstOption == "prealigned" then executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
+                                                                                        -- FENEwick
 
-                                                                                        if firstOption `elem` ["newick", "enewick", "fenewick"]
-                                                                                            then
-                                                                                                let thisGraphList = getFENewickGraphText fileContents
-                                                                                                    hasLoops = filter id $ fmap B.hasLoop thisGraphList
-                                                                                                    hasCycles = filter id $ fmap GFU.cyclic thisGraphList
-                                                                                                in  if not $ null hasLoops
-                                                                                                        then do failWithPhase Parsing ("Input graphin " <> firstFile <> "  has loops/self-edges")
-                                                                                                        else
-                                                                                                            if not $ null hasCycles
-                                                                                                                then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
-                                                                                                                else
-                                                                                                                    executeReadCommands'
-                                                                                                                        curData
-                                                                                                                        (thisGraphList <> curGraphs)
-                                                                                                                        curTerminals
-                                                                                                                        curExcludeList
-                                                                                                                        curRenamePairs
-                                                                                                                        curReBlockPairs
-                                                                                                                        isPrealigned'
-                                                                                                                        tcmPair
-                                                                                                                        (tail argList)
-                                                                                            else -- reading terminals list to include--must be "new" names if taxa are renamed
-
-                                                                                                if firstOption == "include" then
-                                                                                                    
-                                                                                                    if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
-                                                                                                            then do 
-                                                                                                                failWithPhase Parsing ("Input 'include' file " <> firstFile <> " does not look like one.")
-                                                                                                    else
-                                                                                                        let terminalsList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments (T.unpack <$> T.lines fileContents))
-                                                                                                        in  executeReadCommands'
-                                                                                                                curData
-                                                                                                                curGraphs
-                                                                                                                (terminalsList <> curTerminals)
-                                                                                                                curExcludeList
-                                                                                                                curRenamePairs
-                                                                                                                curReBlockPairs
-                                                                                                                isPrealigned'
-                                                                                                                tcmPair
-                                                                                                                (tail argList)
-                                                                                                    else
-                                                                                                        if firstOption == "exclude" then
-                                                                                                                if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
-                                                                                                                    then do 
-                                                                                                                        failWithPhase Parsing ("Input 'exclude' file " <> firstFile <> " does not look like one.")
-                                                                                                        else
-                                                                                                                let excludeList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments (T.unpack <$> T.lines fileContents))
-                                                                                                                in  executeReadCommands'
-                                                                                                                        curData
-                                                                                                                        curGraphs
-                                                                                                                        curTerminals
-                                                                                                                        (excludeList <> curExcludeList)
-                                                                                                                        curRenamePairs
-                                                                                                                        curReBlockPairs
-                                                                                                                        isPrealigned'
-                                                                                                                        tcmPair
-                                                                                                                        (tail argList)
+                                                                                            if firstOption `elem` ["newick", "enewick", "fenewick"]
+                                                                                                then
+                                                                                                    let thisGraphList = getFENewickGraphText fileContents
+                                                                                                        hasLoops = filter id $ fmap B.hasLoop thisGraphList
+                                                                                                        hasCycles = filter id $ fmap GFU.cyclic thisGraphList
+                                                                                                    in  if not $ null hasLoops
+                                                                                                            then do failWithPhase Parsing ("Input graphin " <> firstFile <> "  has loops/self-edges")
                                                                                                             else
-                                                                                                                if firstOption == "rename" then 
-                                                                                                                    if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
-                                                                                                                    then do 
-                                                                                                                        failWithPhase Parsing ("Input 'rename' file " <> firstFile <> " does not look like one.")
-                                                                                                                    else do
-                                                                                                                        let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
-                                                                                                                        namePairsLL ← mapM (makeNamePairs firstFile) renameLines
-                                                                                                                        let namePairs = concat namePairsLL
-                                                                                                                        let changeNamePairs = filter areDiff (namePairs <> curRenamePairs)
-                                                                                                                        let newChangeNames = fmap fst changeNamePairs
-                                                                                                                        let origChangeNames = fmap snd changeNamePairs
-                                                                                                                        let intersectionChangeNames = L.nub $ L.intersect newChangeNames origChangeNames
+                                                                                                                if not $ null hasCycles
+                                                                                                                    then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle")
+                                                                                                                    else
+                                                                                                                        executeReadCommands'
+                                                                                                                            curData
+                                                                                                                            (thisGraphList <> curGraphs)
+                                                                                                                            curTerminals
+                                                                                                                            curExcludeList
+                                                                                                                            curRenamePairs
+                                                                                                                            curReBlockPairs
+                                                                                                                            isPrealigned'
+                                                                                                                            tcmPair
+                                                                                                                            (tail argList)
+                                                                                                else -- reading terminals list to include--must be "new" names if taxa are renamed
 
-                                                                                                                        if (not $ null intersectionChangeNames)
-                                                                                                                            then errorWithoutStackTrace ("Error: Renaming of " <> (show intersectionChangeNames) <> " as both a new name and to be renamed")
-                                                                                                                            else
-                                                                                                                                executeReadCommands'
+                                                                                                    if firstOption == "include"
+                                                                                                        then
+                                                                                                            if (toLower firstChar) `elem` ['/', 'd', 'g', '<', '(', 'x']
+                                                                                                                then do
+                                                                                                                    failWithPhase Parsing ("Input 'include' file " <> firstFile <> " does not look like one.")
+                                                                                                                else
+                                                                                                                    let terminalsList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments (T.unpack <$> T.lines fileContents))
+                                                                                                                    in  executeReadCommands'
+                                                                                                                            curData
+                                                                                                                            curGraphs
+                                                                                                                            (terminalsList <> curTerminals)
+                                                                                                                            curExcludeList
+                                                                                                                            curRenamePairs
+                                                                                                                            curReBlockPairs
+                                                                                                                            isPrealigned'
+                                                                                                                            tcmPair
+                                                                                                                            (tail argList)
+                                                                                                        else
+                                                                                                            if firstOption == "exclude"
+                                                                                                                then
+                                                                                                                    if (toLower firstChar) `elem` ['/', 'd', 'g', '<', '(', 'x']
+                                                                                                                        then do
+                                                                                                                            failWithPhase Parsing ("Input 'exclude' file " <> firstFile <> " does not look like one.")
+                                                                                                                        else
+                                                                                                                            let excludeList = fmap ((T.pack . filter (/= '"')) . filter C.isPrint) (words $ unlines $ U.stripComments (T.unpack <$> T.lines fileContents))
+                                                                                                                            in  executeReadCommands'
                                                                                                                                     curData
                                                                                                                                     curGraphs
                                                                                                                                     curTerminals
-                                                                                                                                    curExcludeList
-                                                                                                                                    (namePairs <> curRenamePairs)
+                                                                                                                                    (excludeList <> curExcludeList)
+                                                                                                                                    curRenamePairs
                                                                                                                                     curReBlockPairs
                                                                                                                                     isPrealigned'
                                                                                                                                     tcmPair
                                                                                                                                     (tail argList)
-                                                                                                                    else
-                                                                                                                        if firstOption == "block" then
-                                                                                                                            if (toLower firstChar) `elem` ['/','d','g','<','(', 'x']
-                                                                                                                            then do 
-                                                                                                                                failWithPhase Parsing ("Input 'block' file " <> firstFile <> " does not look like one.")
-                                                                                                                            else do
-                                                                                                                                let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
-                                                                                                                                blockPairsLL ← mapM (makeNamePairs firstFile) renameLines
-                                                                                                                                let blockPairs = concat blockPairsLL
+                                                                                                                else
+                                                                                                                    if firstOption == "rename"
+                                                                                                                        then
+                                                                                                                            if (toLower firstChar) `elem` ['/', 'd', 'g', '<', '(', 'x']
+                                                                                                                                then do
+                                                                                                                                    failWithPhase Parsing ("Input 'rename' file " <> firstFile <> " does not look like one.")
+                                                                                                                                else do
+                                                                                                                                    let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
+                                                                                                                                    namePairsLL ← mapM (makeNamePairs firstFile) renameLines
+                                                                                                                                    let namePairs = concat namePairsLL
+                                                                                                                                    let changeNamePairs = filter areDiff (namePairs <> curRenamePairs)
+                                                                                                                                    let newChangeNames = fmap fst changeNamePairs
+                                                                                                                                    let origChangeNames = fmap snd changeNamePairs
+                                                                                                                                    let intersectionChangeNames = L.nub $ L.intersect newChangeNames origChangeNames
 
-                                                                                                                                executeReadCommands'
-                                                                                                                                    curData
-                                                                                                                                    curGraphs
-                                                                                                                                    curTerminals
-                                                                                                                                    curExcludeList
-                                                                                                                                    curRenamePairs
-                                                                                                                                    (blockPairs <> curReBlockPairs)
-                                                                                                                                    isPrealigned'
-                                                                                                                                    tcmPair
-                                                                                                                                    (tail argList)
-                                                                                                                            else -- else if firstOption == "prealigned" then
-                                                                                                                            --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
-                                                                                                                            do failWithPhase Parsing ("\n\n'Read' command error: option " <> firstOption <> " not recognized/implemented")
+                                                                                                                                    if (not $ null intersectionChangeNames)
+                                                                                                                                        then errorWithoutStackTrace ("Error: Renaming of " <> (show intersectionChangeNames) <> " as both a new name and to be renamed")
+                                                                                                                                        else
+                                                                                                                                            executeReadCommands'
+                                                                                                                                                curData
+                                                                                                                                                curGraphs
+                                                                                                                                                curTerminals
+                                                                                                                                                curExcludeList
+                                                                                                                                                (namePairs <> curRenamePairs)
+                                                                                                                                                curReBlockPairs
+                                                                                                                                                isPrealigned'
+                                                                                                                                                tcmPair
+                                                                                                                                                (tail argList)
+                                                                                                                        else
+                                                                                                                            if firstOption == "block"
+                                                                                                                                then
+                                                                                                                                    if (toLower firstChar) `elem` ['/', 'd', 'g', '<', '(', 'x']
+                                                                                                                                        then do
+                                                                                                                                            failWithPhase Parsing ("Input 'block' file " <> firstFile <> " does not look like one.")
+                                                                                                                                        else do
+                                                                                                                                            let renameLines = U.stripComments (T.unpack <$> T.lines fileContents)
+                                                                                                                                            blockPairsLL ← mapM (makeNamePairs firstFile) renameLines
+                                                                                                                                            let blockPairs = concat blockPairsLL
+
+                                                                                                                                            executeReadCommands'
+                                                                                                                                                curData
+                                                                                                                                                curGraphs
+                                                                                                                                                curTerminals
+                                                                                                                                                curExcludeList
+                                                                                                                                                curRenamePairs
+                                                                                                                                                (blockPairs <> curReBlockPairs)
+                                                                                                                                                isPrealigned'
+                                                                                                                                                tcmPair
+                                                                                                                                                (tail argList)
+                                                                                                                                else -- else if firstOption == "prealigned" then
+                                                                                                                                --    executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePairs curReBlockPairs isPrealigned' tcmPair (tail argList)
+                                                                                                                                do failWithPhase Parsing ("\n\n'Read' command error: option " <> firstOption <> " not recognized/implemented")
     where
         areDiff (a, b) =
             if a /= b
@@ -666,8 +680,10 @@ processTCMContents indelGap inContents fileName =
                                             <> show numElements
                                             <> " elements are implied and there are "
                                             <> show numLines
-                                            <> "\n" <> (concat $ L.intersperse " " $ words $ head tcmLines)
-                                            <> "\n " <> (show $ length $ words $ head tcmLines)
+                                            <> "\n"
+                                            <> (concat $ L.intersperse " " $ words $ head tcmLines)
+                                            <> "\n "
+                                            <> (show $ length $ words $ head tcmLines)
                                         )
                                 else
                                     if not rowsCorrectLength
@@ -713,37 +729,69 @@ getCostMatrixAndScaleFactor' fileName inStringListList =
 cost matrix are integerized by multiplication by 1/scaleFactor
 Unlike version above is more flexible with Double format
 -}
-getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
+getCostMatrixAndScaleFactor
+    ∷ String
+    → [[String]]
+    → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
-    [] -> failWithPhase Parsing "Empty list in inStringListList"
-    inStringListList ->
+    [] → failWithPhase Parsing "Empty list in inStringListList"
+    inStringListList →
         let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
-            doubleMatrix = filter (/= []) $ fmap (fmap (GU.stringToDouble fileName)) inStringListList
-            minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
-            rescaledDoubleMatrix = fmap (fmap (* (1.0 / minDouble))) doubleMatrix
-            integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
-            -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
-            scaleFactor
-                | maxDecimalPlaces == 0 = 1.0
-                | otherwise = minDouble
-                    -- else if not nonZeroDiagonals then minDouble
-                    -- else minDouble / 2.0
+            omitEmptyRows = filter (/= [])
 
-            outputMatrix = case maxDecimalPlaces of
-                0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
-                _ -> integerizedMatrix
+            parseNumericMatrix ∷ [[String]] → PhyG [[Rational]]
+            parseNumericMatrix = traverse (traverse (stringToRational fileName))
+        in  do
+                rationalMatrix ← parseNumericMatrix $ omitEmptyRows inStringListList
 
-        in  -- trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
-            pure $ (scaleFactor, outputMatrix)
+                let diagnosisResult ∷ Either (TMat.DiagnosisFailure Rational) (TMat.TransitionMeasureDiagnosis Int)
+                    diagnosisResult = TMat.fromRows rationalMatrix
+
+                case diagnosisResult of
+                    Left errs → failWithPhase Parsing $ show errs
+                    Right (TMat.TransitionMeasureDiagnosis coefficientRat _ transMatrix) →
+                        let coefficientReal ∷ Double
+                            coefficientReal =
+                                let n = numerator coefficientRat
+                                    d = denominator coefficientRat
+                                in  rationalToDouble n d
+
+                            start, final ∷ SymbolIndex
+                            (start, final) = symbolBounds transMatrix
+
+                            sdm ∷ SymbolDistanceλ
+                            sdm = symbolDistances transMatrix
+
+                            row ∷ SymbolIndex → Maybe ([Int], SymbolIndex)
+                            row i
+                                | i <= final = Just (L.unfoldr (col i) start, succ i)
+                                | otherwise = Nothing
+
+                            col ∷ SymbolIndex → SymbolIndex → Maybe (Int, SymbolIndex)
+                            col i j
+                                | j <= final = Just (fromEnum $ sdm i j, succ j)
+                                | otherwise = Nothing
+
+                            mat ∷ [[Int]]
+                            mat = L.unfoldr row start
+                        in  pure (coefficientReal, mat)
+
+
+stringToRational ∷ String → String → PhyG Rational
+stringToRational fileName inStr = case readMaybe inStr of
+    Just v → pure v
+    Nothing →
+        failWithPhase Parsing $
+            "\n\n'Read' 'tcm' format error non-Double value " <> inStr <> " in " <> fileName
 
 
 {-
-- | diagonalsEqualZero takes an integer matrix [[Int]] 
+- | diagonalsEqualZero takes an integer matrix [[Int]]
 -- and checks if any diagonal values are == 0
 diagonalsEqualZero :: [[Int]] -> Int -> Bool
 diagonalsEqualZero inMatrix index =
     if null inMatrix then False
-    else 
+    else
         if (head inMatrix) !! index /= 0 then True
         else diagonalsEqualZero (tail inMatrix) (index + 1)
 -}

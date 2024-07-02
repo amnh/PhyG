@@ -1,4 +1,4 @@
-Cabal-Version: 3.8
+Cabal-Version: 3.12
 Name:          PhyG
 Version:       0.1.4
 Stability:     Alpha
@@ -341,6 +341,9 @@ Executable phyg
     PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PHANE-evaluation,
+    PHANE-measure-transition,
+    PHANE-measure-units,
+    PHANE-transition-matrix,
     PhyG:dynamic-character,
     PhyG:tcm,
     PHANE-PhyloLib,
