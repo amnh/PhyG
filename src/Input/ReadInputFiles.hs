@@ -691,6 +691,8 @@ Unlike version above is more flexible with Double format
 
 Adds precision to 100--fixes an issue when smallest and other values are similar
 Not sure how this related to 2**16 (CShort) for ffi for <= 8 alphabets
+Also can be integer overflow if the number are large since treated as integers 
+    during DO for DNA 
 -}
 getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
@@ -703,17 +705,19 @@ getCostMatrixAndScaleFactor fileName = \case
 
             -- set precisoin based on range of max and min values
             range = maxDouble / minDouble
-            precisionFactor = if range >= 1000.0 then 1.0
-                              else if range >= 100.0 then 10.0
-                              else if range >= 10.0 then 100.0
-                              else 1000.0
+            precisionFactor = if range >= 100000.0 then 1.0
+                              else if range >= 10000.0 then 10.0
+                              else if range >= 1000.0 then 100.0
+                              else if range >= 100.0 then 1000.0
+                              else if range >= 10.0 then 10000.0
+                              else 100000.0
             
             rescaledDoubleMatrix = fmap (fmap (* (precisionFactor / minDouble))) doubleMatrix
             integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
             -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
             scaleFactor
                 | maxDecimalPlaces == 0 = 1.0
-                | otherwise = precisionFactor * minDouble
+                | otherwise = minDouble / precisionFactor
                     -- else if not nonZeroDiagonals then minDouble
                     -- else minDouble / 2.0
 
@@ -721,7 +725,7 @@ getCostMatrixAndScaleFactor fileName = \case
                 0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
                 _ -> integerizedMatrix
 
-        in  -- trace ("GCMSC: " <> (show (scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
+        in  trace ("GCMSC: " <> (show (precisionFactor,minDouble,scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
             pure $ (scaleFactor, outputMatrix)
 
 
