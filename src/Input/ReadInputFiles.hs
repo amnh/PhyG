@@ -684,37 +684,13 @@ processTCMContents indelGap inContents fileName =
                                             return (localAlphabet <> [ST.singleton '-'], localCostMatrix, scaleFactor)
 
 
-{- | getCostMatrixAndScaleFactor takes [[String]] and returns cost matrix as
-[[Int]] but if there are decimal values, a scalerFactor is determined and the
-cost matrix are integerized by multiplication by 1/scaleFactor
-scaleFactor will alway be a factor of 10 to allow for easier
-compilation of tcm characters later (weights the same...)
--}
-getCostMatrixAndScaleFactor' ∷ String → [[String]] → PhyG (Double, [[Int]])
-getCostMatrixAndScaleFactor' fileName inStringListList =
-    if null inStringListList
-        then failWithPhase Parsing "Empty list in inStringListList"
-        else
-            let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
-                scaleFactor =
-                    if maxDecimalPlaces == 0
-                        then 1.0
-                        else 0.1 ** fromIntegral maxDecimalPlaces
-            in  if maxDecimalPlaces == 0
-                    then do
-                        return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
-                    else do
-                        let newStringListList = fmap (fmap (integerizeString maxDecimalPlaces)) inStringListList
-                        return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) newStringListList)
-
-
 {- | getCostMatrixAndScaleFactor' takes [[String]] and returns cost matrix as
 [[Int]] but if there are decimal values, a scalerFactor is determined and the
 cost matrix are integerized by multiplication by 1/scaleFactor
 Unlike version above is more flexible with Double format
 
 Adds precision to 100--fixes an issue when smallest and other values are similar
-Have to stay under 2**16 for ffi for <8 alphabets
+Not sure how this related to 2**16 (CShort) for ffi for <= 8 alphabets
 -}
 getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
@@ -727,9 +703,10 @@ getCostMatrixAndScaleFactor fileName = \case
 
             -- set precisoin based on range of max and min values
             range = maxDouble / minDouble
-            precisionFactor = if range >= 100.0 then 1.0
-                              else if range >= 10.0 then 10.0
-                              else 100.0
+            precisionFactor = if range >= 1000.0 then 1.0
+                              else if range >= 100.0 then 10.0
+                              else if range >= 10.0 then 100.0
+                              else 1000.0
             
             rescaledDoubleMatrix = fmap (fmap (* (precisionFactor / minDouble))) doubleMatrix
             integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
@@ -771,6 +748,31 @@ getDecimals inString =
                     else length decimalPart - 1
 
 
+{- Unused code
+
+{- | getCostMatrixAndScaleFactor takes [[String]] and returns cost matrix as
+[[Int]] but if there are decimal values, a scalerFactor is determined and the
+cost matrix are integerized by multiplication by 1/scaleFactor
+scaleFactor will alway be a factor of 10 to allow for easier
+compilation of tcm characters later (weights the same...)
+-}
+getCostMatrixAndScaleFactor' ∷ String → [[String]] → PhyG (Double, [[Int]])
+getCostMatrixAndScaleFactor' fileName inStringListList =
+    if null inStringListList
+        then failWithPhase Parsing "Empty list in inStringListList"
+        else
+            let maxDecimalPlaces = maximum $ getDecimals <$> concat inStringListList
+                scaleFactor =
+                    if maxDecimalPlaces == 0
+                        then 1.0
+                        else 0.1 ** fromIntegral maxDecimalPlaces
+            in  if maxDecimalPlaces == 0
+                    then do
+                        return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) inStringListList)
+                    else do
+                        let newStringListList = fmap (fmap (integerizeString maxDecimalPlaces)) inStringListList
+                        return $ (scaleFactor, filter (/= []) $ fmap (fmap (GU.stringToInt fileName)) newStringListList)
+
 {- | integerizeString integerizes a String by removing the '.' and adding the number of '0's to pad out
 adds maxDecimalPlaces - the nymber in the String
 -}
@@ -786,3 +788,4 @@ integerizeString maxDecimalPlaces inString =
                         if null decimalPart
                             then inString <> replicate maxDecimalPlaces '0'
                             else filter (/= '.') inString <> replicate (maxDecimalPlaces - (length decimalPart - 1)) '0'
+-}
