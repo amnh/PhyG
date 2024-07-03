@@ -717,7 +717,7 @@ getCostMatrixAndScaleFactor fileName = \case
             -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
             scaleFactor
                 | maxDecimalPlaces == 0 = 1.0
-                | otherwise = minDouble / precisionFactor
+                | otherwise = (minDouble / precisionFactor)
                     -- else if not nonZeroDiagonals then minDouble
                     -- else minDouble / 2.0
 
@@ -725,7 +725,7 @@ getCostMatrixAndScaleFactor fileName = \case
                 0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
                 _ -> integerizedMatrix
 
-        in  trace ("GCMSC: " <> (show (precisionFactor,minDouble,scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
+        in  --trace ("GCMSC: " <> (show (precisionFactor,minDouble,scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
             pure $ (scaleFactor, outputMatrix)
 
 
