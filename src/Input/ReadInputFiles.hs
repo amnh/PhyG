@@ -692,7 +692,7 @@ Unlike version above is more flexible with Double format
 Adds precision to 100--fixes an issue when smallest and other values are similar
 Not sure how this related to 2**16 (CShort) for ffi for <= 8 alphabets
 Also can be integer overflow if the number are large since treated as integers 
-    during DO for DNA 
+    during DO for DNA--seems like pairwise alignment cost may be limited to 2^31 or 2^32
 -}
 getCostMatrixAndScaleFactor ∷ String → [[String]] → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
@@ -714,12 +714,10 @@ getCostMatrixAndScaleFactor fileName = \case
             
             rescaledDoubleMatrix = fmap (fmap (* (precisionFactor / minDouble))) doubleMatrix
             integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
-            -- nonZeroDiagonals = checkDiagonalsEqualZero integerizedMatrix 0
+
             scaleFactor
                 | maxDecimalPlaces == 0 = 1.0
                 | otherwise = (minDouble / precisionFactor)
-                    -- else if not nonZeroDiagonals then minDouble
-                    -- else minDouble / 2.0
 
             outputMatrix = case maxDecimalPlaces of
                 0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
