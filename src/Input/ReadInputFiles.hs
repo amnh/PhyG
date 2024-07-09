@@ -749,7 +749,7 @@ getCostMatrixAndScaleFactor fileName = \case
 
                 case diagnosisResult of
                     Left errs → failWithPhase Parsing $ show errs
-                    Right (TMat.TransitionMeasureDiagnosis coefficientRat _ transMatrix) →
+                    Right (TMat.TransitionMeasureDiagnosis coefficientRat _ _ transMatrix) →
                         let coefficientReal ∷ Double
                             coefficientReal =
                                 let n = numerator coefficientRat
