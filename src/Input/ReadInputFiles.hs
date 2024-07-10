@@ -17,6 +17,7 @@ import Data.Char
 import Data.Char qualified as C
 import Data.Foldable
 import Data.Graph.Inductive.Basic qualified as B
+import Data.Scientific (scientificP)
 import Data.Hashable
 import Data.List qualified as L
 import Data.Maybe
@@ -46,6 +47,7 @@ import TransitionMatrix.Diagnosis.Error qualified as TMat
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+import Text.ParserCombinators.ReadP (readP_to_S)
 
 
 {- | expandReadCommands expands read commands to multiple satisfying wild cards
@@ -778,12 +780,11 @@ getCostMatrixAndScaleFactor fileName = \case
 
 
 stringToRational ∷ String → String → PhyG Rational
-stringToRational fileName inStr = case readMaybe inStr of
-    Just v → pure v
-    Nothing →
+stringToRational fileName inStr = case readP_to_S scientificP inStr of
+    (v,_) : _ → pure $ toRational v
+    [] →
         failWithPhase Parsing $
             "\n\n'Read' 'tcm' format error non-Double value " <> inStr <> " in " <> fileName
-
 
 {-
 - | diagonalsEqualZero takes an integer matrix [[Int]]

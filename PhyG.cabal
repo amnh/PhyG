@@ -337,16 +337,6 @@ Executable phyg
       -funbox-strict-fields
 
   Build-Depends:
-    PHANE-alphabet,
-    PHANE-dynamic-character,
-    PHANE-dynamic-character-element,
-    PHANE-evaluation,
-    PHANE-measure-transition,
-    PHANE-measure-units,
-    PHANE-transition-matrix,
-    PhyG:dynamic-character,
-    PhyG:tcm,
-    PHANE-PhyloLib,
 --    array,
     async,
     base >= 4.10,
@@ -383,6 +373,7 @@ Executable phyg
     process,
     random,
     random-shuffle,
+    scientific >= 0.3.8,     
 --    sort,
     split,
     template-haskell,
@@ -395,7 +386,17 @@ Executable phyg
     unliftio >= 0.2 && < 1.0,
     unliftio-core >= 0.2 && < 1.0,
     vector >= 0.13 && < 1.0,
-    zlib
+    zlib,
+    PHANE-alphabet,
+    PHANE-dynamic-character,
+    PHANE-dynamic-character-element,
+    PHANE-evaluation,
+    PHANE-measure-transition,
+    PHANE-measure-units,
+    PHANE-transition-matrix,
+    PhyG:dynamic-character,
+    PhyG:tcm,
+    PHANE-PhyloLib,
     -- currently doesn't compile but could be useful
     -- lots of good functions
     -- Graphalyze,
