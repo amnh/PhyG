@@ -51,7 +51,6 @@ import System.IO.Unsafe (unsafePerformIO)
 #include "c_code_alloc_setup.h"
 #include "costMatrix.h"
 #include "alignmentMatrices.h"
--- #include "seqAlign.h"
 
 
 -- |
@@ -134,9 +133,9 @@ data  CostMatrix3d
 -- Exposed wrapper for C allocated cost matrix structs.
 data  DenseTransitionCostMatrix
     = DenseTransitionCostMatrix
-    { matrixDimension :: {-# UNPACK #-} !Word
-    , costMatrix2D    :: {-# UNPACK #-} !(Ptr CostMatrix2d)
+    { costMatrix2D    :: {-# UNPACK #-} !(Ptr CostMatrix2d)
     , costMatrix3D    :: {-# UNPACK #-} !(Ptr CostMatrix3d)
+    , matrixDimension :: {-# UNPACK #-} !Word
     }
     deriving stock    (Eq, Generic)
     deriving anyclass (NFData)
@@ -325,20 +324,22 @@ instance Enum AlignmentStrategy where
 -- It is therefore indexed not by powers of two, but by cardinal integer.
 foreign import ccall unsafe "c_code_alloc_setup.h setUp2dCostMtx"
 
-    setUpCostMatrix2dFn_c :: Ptr CostMatrix2d
-                          -> Ptr CUInt         -- ^ tcm
-                          -> CSize             -- ^ alphSize
-                          -> CInt              -- ^ gap_open_cost
-                          -> IO ()
+    setUpCostMatrix2dFn_c
+      :: Ptr CostMatrix2d
+      -> Ptr CUInt -- ^ Symbol Change Matrix (SDM)
+      -> CUInt -- ^ Gap open cost
+      -> CSize -- ^ Alphabet size/symbol count
+      -> IO ()
 
 
 foreign import ccall unsafe "c_code_alloc_setup.h setUp3dCostMtx"
 
-    setUpCostMatrix3dFn_c :: Ptr CostMatrix3d
-                          -> Ptr CUInt         -- ^ tcm
-                          -> CSize             -- ^ alphSize
-                          -> CInt              -- ^ gap_open_cost
-                          -> IO ()
+    setUpCostMatrix3dFn_c
+      :: Ptr CostMatrix3d
+      -> Ptr CUInt -- ^ Symbol Change Matrix (SDM)
+      -> CUInt -- ^ Gap open cost
+      -> CSize -- ^ Alphabet size/symbol count
+      -> IO ()
 
 
 -- TODO: Collapse this definition and defer branching to the C side of the FFI call.
@@ -436,8 +437,8 @@ performMatrixAllocation openningCost alphabetSize costFn = unsafePerformIO . wit
     \allocedTCM -> do
         !ptr2D <- malloc :: IO (Ptr CostMatrix2d)
         !ptr3D <- malloc :: IO (Ptr CostMatrix3d)
-        !_ <- setUpCostMatrix2dFn_c ptr2D allocedTCM dimension gapOpen
-        !_ <- setUpCostMatrix3dFn_c ptr3D allocedTCM dimension gapOpen
+        !_ <- setUpCostMatrix2dFn_c ptr2D allocedTCM gapOpen dimension
+        !_ <- setUpCostMatrix3dFn_c ptr3D allocedTCM gapOpen dimension
         pure DenseTransitionCostMatrix
              { matrixDimension = alphabetSize
              , costMatrix2D    = ptr2D

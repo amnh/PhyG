@@ -109,8 +109,8 @@ void initializeAlignmentMtx( alignment_matrices_t *retMtx
 
 void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
                    , unsigned int       *tcm
-                   , size_t              alphSize
                    , unsigned int        gap_open
+                   , size_t              alphSize
                    )
 {
 
@@ -204,8 +204,8 @@ void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
 
 void setUp3dCostMtx( cost_matrices_3d_t *retMtx
                    , unsigned int       *tcm
-                   , size_t              alphSize
                    , unsigned int        gap_open
+                   , size_t              alphSize
                    )
 {
     // first allocate retMatrix

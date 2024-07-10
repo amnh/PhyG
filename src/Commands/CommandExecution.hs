@@ -29,7 +29,6 @@ import Data.Ord
 import Data.Text.Lazy qualified as T
 import Data.Vector qualified as V
 import Data.Version qualified as DV
-import Debug.Trace
 import GeneralUtilities
 import GraphOptimization.Traversals qualified as TRAV
 import Graphs.GraphOperations qualified as GO
@@ -1365,8 +1364,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                     if "support" `elem` commandList
                                                                                                         then
                                                                                                             let graphString = outputGraphStringSimple commandList (outgroupIndex globalSettings) (fmap fst5 supportGraphs) (fmap snd5 supportGraphs)
-                                                                                                            in  -- trace ("Rep Sup: " <> (LG.prettify $ fst5 $ head supportGraphs)) (
-                                                                                                                if null supportGraphs
+                                                                                                            in  if null supportGraphs
                                                                                                                     then do
                                                                                                                         logWith LogInfo "\tNo support graphs to report\n"
                                                                                                                         pure ([], outfileName, writeMode)

@@ -75,8 +75,8 @@ void resetCharValues( dyn_character_t *retChar );
  */
 void setUp2dCostMtx( cost_matrices_2d_t *retMtx
                    , unsigned int       *tcm
-                   , size_t              alphSize
                    , unsigned int        gap_open
+                   , size_t              alphSize
                    );
 
 
@@ -86,8 +86,8 @@ void setUp2dCostMtx( cost_matrices_2d_t *retMtx
  */
 void setUp3dCostMtx( cost_matrices_3d_t *retMtx
                    , unsigned int       *tcm
-                   , size_t              alphSize
                    , unsigned int        gap_open
+                   , size_t              alphSize
                    );
 
 

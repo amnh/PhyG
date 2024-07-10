@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE Strict #-}
 
 module System.Timing (
@@ -28,11 +29,9 @@ import Numeric.Natural
 import System.CPUTime
 
 
--- import qualified ParallelUtilities            as PU
-
 -- | CPU time with picosecond resolution
 newtype CPUTime = CPUTime Natural
-    deriving (Eq, Ord)
+    deriving stock (Eq, Ord)
 
 
 instance NFData CPUTime where
