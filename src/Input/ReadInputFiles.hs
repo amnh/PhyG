@@ -703,14 +703,19 @@ getCostMatrixAndScaleFactor fileName = \case
             minDouble = minimum $ fmap minimum $ fmap (filter (> 0.0)) doubleMatrix
             maxDouble = maximum $ fmap maximum doubleMatrix
 
-            -- set precisoin based on range of max and min values
+            -- set precision based on range of max and min values
+            -- to deal with some pathplogical situatinos with very high cost of no change and lo cost for change
             range = maxDouble / minDouble
-            precisionFactor = if range >= 100000.0 then 1.0
+            precisionFactor = if range < 10.0 then 10.0
+                              else 1.0 
+                              {-
+                              if range >= 100000.0 then 1.0
                               else if range >= 10000.0 then 10.0
                               else if range >= 1000.0 then 100.0
                               else if range >= 100.0 then 1000.0
                               else if range >= 10.0 then 10000.0
                               else 100000.0
+                              -}
             
             rescaledDoubleMatrix = fmap (fmap (* (precisionFactor / minDouble))) doubleMatrix
             integerizedMatrix = fmap (fmap round) rescaledDoubleMatrix
@@ -723,7 +728,7 @@ getCostMatrixAndScaleFactor fileName = \case
                 0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
                 _ -> integerizedMatrix
 
-        in  --trace ("GCMSC: " <> (show (precisionFactor,minDouble,scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
+        in  trace ("GCMSC: " <> (show (precisionFactor,minDouble,scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
             pure $ (scaleFactor, outputMatrix)
 
 
