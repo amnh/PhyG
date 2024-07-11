@@ -728,7 +728,7 @@ getCostMatrixAndScaleFactor fileName = \case
                 0 -> filter (/= []) $ fmap (GU.stringToInt fileName) <$> inStringListList
                 _ -> integerizedMatrix
 
-        in  trace ("GCMSC: " <> (show (precisionFactor,minDouble,scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
+        in  --trace ("GCMSC: " <> (show (precisionFactor,minDouble,scaleFactor,integerizedMatrix,rescaledDoubleMatrix) )) $
             pure $ (scaleFactor, outputMatrix)
 
 
