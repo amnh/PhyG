@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fmax-pmcheck-models=50 #-}
+
 {- |
 Module controlling timed randomized search functions
 -}
@@ -8,19 +10,15 @@ module Search.Search (
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
 import Control.Arrow ((&&&))
-import Control.Concurrent.Async
 import Control.Concurrent.Timeout (timeout)
 import Control.DeepSeq
-import Control.Exception
-import Control.Monad (join, when)
-import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad (when)
 import Control.Monad.IO.Unlift
-import Control.Monad.Random.Class
 import Control.Monad.Random.Class qualified as Sample
 import Data.Bifunctor (bimap)
 import Data.Char
 import Data.Foldable
-import Data.Foldable1 qualified as F1
+--import Data.Foldable1 qualified as F1
 import Data.Functor (($>), (<&>))
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty (..))
@@ -30,17 +28,12 @@ import Data.Vector qualified as V
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
-import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Build qualified as B
 import Search.Refinement qualified as R
-import System.IO
-import System.Random
 import System.Timing
 import Text.Read
 import Types.Types
-import UnliftIO.Async (pooledMapConcurrently)
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
@@ -87,10 +80,11 @@ uncurry' ∷ (Functor f, NFData d) ⇒ (a → b → f d) → (a, b) → f d
 uncurry' f (a, b) = force <$> f a b
 
 
+{-
 -- | A strict, three-way version of 'uncurry'.
 uncurry3' ∷ (Functor f, NFData d) ⇒ (a → b → c → f d) → (a, b, c) → f d
 uncurry3' f (a, b, c) = force <$> f a b c
-
+-}
 
 -- | search timed randomized search returns graph list and comment list with info String for each search instance
 search
@@ -102,7 +96,8 @@ search
 search inArgs inGS inData inGraphList' =
     -- flatThetaList is the initial prior list (flat) of search (bandit) choices
     -- can also be used in search for non-Thomspon search
-    let flattenList xs =
+    let flattenList :: Fractional b => [a] -> [(a, b)]
+        flattenList xs =
             let count = length xs
                 limit = 1 / fromIntegral count
             in  zip xs $ L.replicate count limit
@@ -305,9 +300,9 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                             stopNum
                     -- add lists together properly so first three are the graph bandits
                     let combinedThetaList = updatedGraphTheta <> updatedThetaList
-                    let thetaString = case snd output of
-                            [] → L.intercalate "," $ fmap (showRealValue . snd) totalThetaList
-                            _ → L.intercalate "," $ fmap (showRealValue . snd) combinedThetaList
+                    let thetaString = L.intercalate "," . fmap (showRealValue . snd) $ case snd output of
+                            [] → totalThetaList
+                            _ → combinedThetaList
 
                     let remainingTime = allotedSeconds `timeLeft` elapsedSeconds
                     logWith LogMore $
@@ -571,7 +566,7 @@ performSearch
     → CPUTime
     → ([ReducedPhylogeneticGraph], [String])
     → PhyG ([ReducedPhylogeneticGraph], [String])
-performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges inTime (inGraphList', _) =
+performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdges inTime (inGraphList', _) =
     -- set up basic parameters for search/refine methods
     let thetaList = drop 3 totalThetaList
         numLeaves = V.length $ fst3 inData'
@@ -591,12 +586,12 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                     _ →
                         let thoseValues =
                                 ["networkMove", "networkDelete", "driftNetwork", "annealNetwork"]
-                        in  case filter (== False) $ fmap LG.isTree $ fmap fst5 inGraphList' of
-                                x : _
+                        in  case filter (== False) $ LG.isTree . fst5 <$> inGraphList' of
+                                _ : _
                                     | rTheta `notElem` thoseValues →
                                         sampleRandomChoices
                                             [("networkAdd", 0.5), ("networkAddDelete", 0.5)]
-                                [] → pure rTheta
+                                _ → pure rTheta
 
         numToCharBuild = fromInteger $ squareRoot $ toInteger numLeaves
         numToDistBuild = min 1000 (numLeaves * numLeaves)
@@ -690,7 +685,7 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
             --    Tree does not use block--doesn't work very well for tree building
             buildMethod ← case inGraphList' of
                 [] → pure "unitary"
-                x : _ → case graphType inGS' of
+                _ : _ → case graphType inGS' of
                     Tree → pure "unitary"
                     _ → sampleRandomChoices [("unitary", 0.8), ("block", 0.2)]
 
@@ -723,7 +718,8 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                 _ → pure []
 
             let builder bArgs = B.buildGraph bArgs inGS' inData'
-            let attach = flip (,)
+            let attach :: b -> a -> (a, b)
+                attach = flip (,)
             let selectUniqueGraphs = GO.selectGraphs Unique (maxBound ∷ Int) 0.0
 
             -- bandit list with search arguments set
@@ -937,7 +933,8 @@ performSearch inGS' inData' pairwiseDistances keepNum totalThetaList maxNetEdges
                     | otherwise = (fth4 newDataMT, ",MultiTraverse:True")
 
             -- string of delta and cost of graphs
-            let extract = minimum . fmap snd5
+            let extract :: (Foldable f, Functor f, Ord b)  => f (a, b, c, d, e) -> b
+                extract = minimum . fmap snd5
 
             let deltaString
                     | null inGraphList' = "10.0,"
