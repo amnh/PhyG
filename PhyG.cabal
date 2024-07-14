@@ -1,4 +1,4 @@
-Cabal-Version: 3.8
+Cabal-Version: 3.12
 Name:          PhyG
 Version:       0.1.4
 Stability:     Alpha
@@ -242,6 +242,9 @@ Common build-defaults
       -Wno-redundant-bang-patterns
       -Wno-type-defaults
       -Wno-unsafe
+      -- Remove these exclusions later
+      -Wno-missed-specialisations
+      -Wno-x-partial
 
   If os(darwin)
     Ld-Options:
