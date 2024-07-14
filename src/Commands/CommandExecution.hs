@@ -20,7 +20,6 @@ import Data.CSV qualified as CSV
 import Data.Char
 import Data.Char qualified as C
 import Data.Foldable (fold)
-import Data.Functor (($>))
 import Data.InfList qualified as IL
 import Data.List qualified as L
 import Data.List.Split qualified as SL
