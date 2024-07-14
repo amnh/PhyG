@@ -8,7 +8,8 @@ set(outgroup:"Artemia")
 
 --read(fasta:"metazoa-aa-1.fas")
 --read(fasta:"chel.fas")
-read(fasta:"chel.fas", tcm:"neyman5.bit.tcm ")
+--read(fasta:"chel.fas", tcm:"neyman5.bit.tcm ")
+--read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
 --read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
 --read(fasta:"chel-16.fas")
 
@@ -21,8 +22,10 @@ read(fasta:"chel.fas", tcm:"neyman5.bit.tcm ")
 --read(prefasta:"chel-prealigned.fas")
 
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
---read(fasta:"chel.fas", tcm:"bitDNA.tcm")
+read(fasta:"chel.fas", tcm:"bitDNA.tcm")
+--read(fasta:"chel.fas", tcm:"ney5.bit.tcm")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
+--read(fasta:"chel.fas", tcm:(755360,1))
 
 --read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)
 
@@ -101,6 +104,7 @@ select()
 
 --swap(keep:1)
 --swap(keep:10)
+swap()
 
 --swap(replicates:5, drift, maxChanges:5)
 --swap(replicates:5)
