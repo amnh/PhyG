@@ -68,9 +68,9 @@ typedef struct alignment_matrices_t {
     size_t           cap_pre;          /** Length of the precalculated matrix == max(len_s1, len_s2) * (alphSize + 1)
                                         *  ---extra 1 is for gap
                                         */
-    unsigned int    *algn_costMtx;     /** NW cost matrix for 2d alignment */
+    cost_t    *algn_costMtx;     /** NW cost matrix for 2d alignment */
     DIR_MTX_ARROW_t *algn_dirMtx;      /** Matrix for backtrace directions in a 2d alignment */
-    unsigned int    *algn_precalcMtx;  /** a three-dimensional matrix that holds
+    cost_t    *algn_precalcMtx;  /** a three-dimensional matrix that holds
                                          *  the transition costs for the entire alphabet (of all three characters)
                                          *  with the character char3. The columns are the bases of char3, and the rows are
                                          *  each of the alphabet characters (possibly including ambiguities). See
@@ -101,10 +101,10 @@ algnMtx_precalc_4algn_2d(       alignment_matrices_t *alignmentMatrices
                         , const dyn_character_t      *inChar);
 
 
-unsigned int *
-algnMtx_get_precal_row ( unsigned int *p
-                       , elem_t        item
-                       , size_t        len
+cost_t *
+algnMtx_get_precal_row ( cost_t *p
+                       , elem_t item
+                       , size_t len
                        );
 
 

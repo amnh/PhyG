@@ -81,7 +81,7 @@ void cm_print_2d (cost_matrices_2d_t *costMatrix)
 
 
 void
-cm_print_matrix_2d (unsigned int *costMatrix, size_t height, size_t dimension) {
+cm_print_matrix_2d (cost_t *costMatrix, size_t height, size_t dimension) {
     for (size_t i = 0; i < height; i++) {
         //fprintf(stdout,"%zu: ", i);
         for (size_t j = 0; j < dimension; j++)
@@ -142,7 +142,7 @@ cm_alloc_2d ( cost_matrices_2d_t *res
             , size_t              alphSize
             , size_t              combinations
             , int                 do_aff
-            , unsigned int        gap_open_cost
+            , cost_t        gap_open_cost
             , int                 is_metric
             , size_t              num_elements
             )
@@ -202,15 +202,15 @@ cm_alloc_2d ( cost_matrices_2d_t *res
 
 
 static inline elem_t
-cm_calc_median_2d ( unsigned int *tcm
+cm_calc_median_2d ( cost_t *tcm
                   , elem_t a
                   , elem_t b
                   , int alphSize
                   )
 {
     elem_t *res;
-    unsigned int one        = 1;
-    unsigned int upperBound = one << alphSize;
+    cost_t one        = 1;
+    cost_t upperBound = one << alphSize;
     assert (alphSize   >= 0);
     assert (upperBound >  a);
     assert (upperBound >  b);
@@ -218,16 +218,16 @@ cm_calc_median_2d ( unsigned int *tcm
     return (*res);
 }
 
-unsigned int
-cm_calc_cost_2d ( unsigned int *tcm
+cost_t
+cm_calc_cost_2d ( cost_t *tcm
                 , elem_t        a
                 , elem_t        b
                 , size_t        alphSize
                 )
 {
-    unsigned int one = 1;
-    unsigned int upperBound = one << alphSize;
-    unsigned int boundBound = 8 * sizeof(unsigned int); // Otherwise we rotate the bits over
+    cost_t one = 1;
+    cost_t upperBound = one << alphSize;
+    cost_t boundBound = 8 * sizeof(cost_t); // Otherwise we rotate the bits over
     assert (alphSize   >  0);
     assert (alphSize   < boundBound);
     assert (upperBound > a);
@@ -236,10 +236,10 @@ cm_calc_cost_2d ( unsigned int *tcm
 }
 
 
-unsigned int *
-cm_get_row (unsigned int *tcm, elem_t a, size_t alphSize) {
-    unsigned int one = 1;
-    unsigned int upperBound = one << alphSize;
+cost_t *
+cm_get_row (cost_t *tcm, elem_t a, size_t alphSize) {
+    cost_t one = 1;
+    cost_t upperBound = one << alphSize;
 
     assert( alphSize   > 0 && "Alphabet size >= 3." );
     if (upperBound <= a) {
@@ -256,18 +256,18 @@ cm_set_value_2d (elem_t a, elem_t b, elem_t v, elem_t *p, int alphSize) {
     p[ cm_calc_cost_position_2d (a, b, alphSize) ] = v;
 }
 
-unsigned int
-cm_get_value_2d (elem_t a, elem_t b, unsigned int *p, size_t alphSize) {
+cost_t
+cm_get_value_2d (elem_t a, elem_t b, cost_t *p, size_t alphSize) {
     return p[ cm_calc_cost_position_2d (a, b, alphSize) ];
 }
 
 
 void
-cm_set_cost_2d (cost_matrices_2d_t *costMtx, elem_t elem1, elem_t elem2, unsigned int val) {
+cm_set_cost_2d (cost_matrices_2d_t *costMtx, elem_t elem1, elem_t elem2, cost_t val) {
     cm_set_value_2d (elem1, elem2, val, costMtx->cost, costMtx->alphSize);
 }
 
-unsigned int
+cost_t
 cm_get_cost_2d (cost_matrices_2d_t *costMtx, elem_t elem1, elem_t elem2) {
     return cm_get_value_2d (elem1, elem2, costMtx->cost, costMtx->alphSize);
 }
@@ -283,7 +283,7 @@ cm_set_tail_2d (cost_matrices_2d_t *c, int a, int b) {
 }
 
 void
-cm_set_median_2d (cost_matrices_2d_t *costMtx, elem_t elem1, elem_t elem2, unsigned int val) {
+cm_set_median_2d (cost_matrices_2d_t *costMtx, elem_t elem1, elem_t elem2, cost_t val) {
     cm_set_value_2d (elem1, elem2, val, costMtx->median, costMtx->alphSize);
 }
 
@@ -359,7 +359,7 @@ void cm_print_3d (cost_matrices_3d_t *costMatrix)
 // don't take entire cost matrix because I want to print only
 // medians or costs
 void
-cm_print_matrix_3d (unsigned int *costMatrix, size_t costMatrixDimension)
+cm_print_matrix_3d (cost_t *costMatrix, size_t costMatrixDimension)
 {
 
     for (size_t i = 1; i < costMatrixDimension; i++) {
@@ -461,8 +461,8 @@ cm_get_gap_opening_parameter_3d (const cost_matrices_3d_t *c) {
 // }
 
 
-unsigned int
-cm_get_value_3d( const unsigned int *p
+cost_t
+cm_get_value_3d( const cost_t *p
                ,       elem_t        a
                ,       elem_t        b
                ,       elem_t        c
@@ -480,7 +480,7 @@ cm_get_median_3d( const cost_matrices_3d_t *matrix
                 ,       elem_t              c
                 )
 {
-    unsigned int upperBound = ((elem_t) 1) << matrix->alphSize;
+    cost_t upperBound = ((elem_t) 1) << matrix->alphSize;
     if (DEBUG_3D) printf( "alphSize: %zu, upperBound: %2u;  elements a: %2u, b: %2u, c: %2u;  median: %2u\n"
                         , matrix->alphSize
                         , upperBound
@@ -499,15 +499,15 @@ cm_get_median_3d( const cost_matrices_3d_t *matrix
 }
 
 
-unsigned int *
-cm_get_row_3d( unsigned int *tcm
+cost_t *
+cm_get_row_3d( cost_t *tcm
              , elem_t        char1
              , elem_t        char2
              , size_t        alphSize
              )
 {
-    unsigned int one = 1;
-    unsigned int upperBound = one << alphSize;
+    cost_t one = 1;
+    cost_t upperBound = one << alphSize;
 
     assert( alphSize   > 0     && "Alphabet size should be > 0.");
     assert( upperBound > char1 && "Character 1 is bigger than alphabet size." );
@@ -516,11 +516,11 @@ cm_get_row_3d( unsigned int *tcm
 }
 
 static inline void
-cm_set_value_3d ( unsigned int *matrix_array
+cm_set_value_3d ( cost_t *matrix_array
                 , elem_t        elem1
                 , elem_t        elem2
                 , elem_t        elem3
-                , unsigned int  val
+                , cost_t  val
                 , size_t        alphSize
                 )
 {
@@ -532,13 +532,13 @@ cm_set_cost_3d( cost_matrices_3d_t *costMtx
               , elem_t              elem1
               , elem_t              elem2
               , elem_t              elem3
-              , unsigned int        val
+              , cost_t        val
               )
 {
     cm_set_value_3d (costMtx->cost, elem1, elem2, elem3, val, costMtx->alphSize);
 }
 
-unsigned int
+cost_t
 cm_get_cost_3d ( const cost_matrices_3d_t *costMtx
                ,       elem_t              elem1
                ,       elem_t              elem2

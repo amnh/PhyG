@@ -22,10 +22,10 @@
  *
  *  Requires symmetric, if not metric, matrix.
  */
-int distance( unsigned int const *tcm
-            , size_t              alphSize
-            , elem_t              nucleotide
-            , elem_t              ambElem
+int distance( cost_t const *tcm
+            , size_t alphSize
+            , elem_t nucleotide
+            , elem_t ambElem
             )
 {
     int min     = INT_MAX;
@@ -33,7 +33,7 @@ int distance( unsigned int const *tcm
 
     for (size_t pos = 0; pos < alphSize; pos++) {
         if ((1 << pos) & ambElem) { // if pos is set in ambElem, meaning pos is possible value of ambElem
-            curCost = tcm[pos * alphSize + nucleotide];
+            curCost = (int) tcm[pos * alphSize + nucleotide];
             if (curCost < min) {
                 min = curCost;
             }
@@ -91,9 +91,9 @@ void initializeAlignmentMtx( alignment_matrices_t *retMtx
     retMtx->cap_eff         =  0; // cap_eff was -1 so that cap_eff < cap, triggering the realloc
     retMtx->cap_pre         =  0; // again, trigger realloc
 
-    retMtx->algn_costMtx    = malloc( sizeof( unsigned int    ) );
+    retMtx->algn_costMtx    = malloc( sizeof( cost_t ) );
     retMtx->algn_dirMtx     = malloc( sizeof( DIR_MTX_ARROW_t ) );
-    retMtx->algn_precalcMtx = malloc( sizeof( unsigned int    ) );
+    retMtx->algn_precalcMtx = malloc( sizeof( cost_t ) );
     /* don't have to allocate these two, because they're just pointing to algn_costMtx and algn_dirMtx.
     retMtx->cube          = malloc ( sizeof( int* ) );
     retMtx->cube_d        = malloc ( sizeof( int* ) );
@@ -108,9 +108,9 @@ void initializeAlignmentMtx( alignment_matrices_t *retMtx
 
 
 void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
-                   , unsigned int       *tcm
-                   , unsigned int        gap_open
-                   , size_t              alphSize
+                   , cost_t const       *tcm
+                   , cost_t             gap_open
+                   , size_t             alphSize
                    )
 {
 
@@ -136,7 +136,7 @@ void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
                , alphSize
                , combinations
                , do_aff
-               , gap_open
+               , (int) gap_open
                , is_metric
                , all_elements
                );
@@ -203,9 +203,9 @@ void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
 
 
 void setUp3dCostMtx( cost_matrices_3d_t *retMtx
-                   , unsigned int       *tcm
-                   , unsigned int        gap_open
-                   , size_t              alphSize
+                   , cost_t const       *tcm
+                   , cost_t             gap_open
+                   , size_t             alphSize
                    )
 {
     // first allocate retMatrix
@@ -223,7 +223,7 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
                , alphSize
                , combinations
                , do_aff
-               , gap_open
+               , (int) gap_open
                , all_elements );
 
     for (elem_t ambElem1 = 1; ambElem1 <= all_elements; ambElem1++) { // for every possible value of ambElem1, ambElem2, ambElem3

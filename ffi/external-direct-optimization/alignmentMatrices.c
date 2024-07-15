@@ -130,8 +130,8 @@ algnMat_setup_size ( alignment_matrices_t *alignMtx
 }
 
 
-unsigned int *
-algnMtx_get_precal_row ( unsigned int *p
+cost_t *
+algnMtx_get_precal_row ( cost_t *p
                        , elem_t        item
                        , size_t        len
                        )
@@ -152,7 +152,7 @@ algnMtx_precalc_4algn_2d(       alignment_matrices_t *alignmentMatrices
            j,
            charLen = inChar->len;
 
-    unsigned int *tmpCost,
+    cost_t *tmpCost,
                  *precalcMtx = alignmentMatrices->algn_precalcMtx,
                  *charTcm    = costMatrix->cost,
                  *tmpPrecMtx = precalcMtx + charLen,
@@ -228,7 +228,7 @@ algnMtx_precalc_4algn_2d(       alignment_matrices_t *alignmentMatrices
 
 void
 algnMat_print_algn_2d (alignment_matrices_t *alignMtx, size_t w, size_t h) {
-    unsigned int *nwCostMatrix = alignMtx->algn_costMtx;
+    cost_t *nwCostMatrix = alignMtx->algn_costMtx;
 
     size_t i, j;
 

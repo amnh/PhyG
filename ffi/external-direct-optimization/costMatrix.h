@@ -22,11 +22,17 @@
 #ifndef COSTMATRIX_H
 #define COSTMATRIX_H
 
+
+/* The encoding type for costs/distances */
+#define cost_t unsigned int
+
+
 #define Cost_matrix_struct(a) ((struct cost_matrices_2d *) Data_custom_val(a))
 #define Cost_matrix_struct_3d(a) ((struct cost_matrices_3d *) Data_custom_val(a))
+
 #include "debug_constants.h"
-//#include "alignmentMatrices.h"
 #include "dyn_character.h"
+
 
 /*
  * Check cost_matrices_3d for further information. This is the corresponding data
@@ -54,7 +60,7 @@ typedef struct cost_matrices_2d_t {
                                  * for example, where the number of elements of the alphabet
                                  * is already too big to build all the possible combinations.
                                  */
-    unsigned int gap_open_cost; /* The cost of opening a gap. For affine (type 2). */
+    cost_t gap_open_cost; /* The cost of opening a gap. For affine (type 2). */
     int is_metric;              /* if tcm is symmetric
                                  *
                                  * -- MISSING IN 3D
@@ -62,19 +68,19 @@ typedef struct cost_matrices_2d_t {
     size_t num_elements;        /** total number of elements. This is alphSize if we're using only unambiguous elems,
                                  *  otherwise |power set|
                                  */
-    unsigned int *cost;         /* The transformation cost matrix, including ambiguities,
+    cost_t *cost;         /* The transformation cost matrix, including ambiguities,
                                  * storing the **best** cost for each ambiguity pair
                                  */
     elem_t *median;             /* The matrix of possible medians between elements in the
                                  * alphabet. The best possible medians according to the cost
                                  * matrix.
                                  */
-    unsigned int *worst;        /* The transformation cost matrix, including ambiguities,
+    cost_t *worst;        /* The transformation cost matrix, including ambiguities,
                                  * storing the **worst** cost for each ambiguity pair
                                  *
                                  * -- MISSING IN 3D
                                  */
-    unsigned int *prepend_cost; /* The cost of going from gap -> each base. For ambiguities, use best cost.
+    cost_t *prepend_cost; /* The cost of going from gap -> each base. For ambiguities, use best cost.
                                  * Set up as all_elements x all_elements
                                  * matrix, but seemingly only first row is used.               <-- TODO: fix this, and in tail_cost below.
                                  * Missing in 3d because current version of 3d sets gap cost
@@ -82,7 +88,7 @@ typedef struct cost_matrices_2d_t {
                                  *
                                  * -- MISSING IN 3D
                                  */
-    unsigned int *tail_cost;    /* As prepend_cost, but with reverse directionality,
+    cost_t *tail_cost;    /* As prepend_cost, but with reverse directionality,
                                  * so base -> gap.
                                  * As with prepend_cost, seems to be allocated as too large.
                                  * Missing in 3d because current version of 3d sets gap cost
@@ -113,13 +119,13 @@ typedef struct cost_matrices_3d_t {
                                   *  for example, where the number of elements of the alphabet
                                   *  is already too big to build all the possible combinations.
                                   */
-    unsigned int gap_open_cost;  /** The cost of opening a gap. This is only useful in
+    cost_t gap_open_cost;        /** The cost of opening a gap. This is only useful in
                                   *  certain cost_model_types.
                                   */
     size_t num_elements;         /** The integer that represents all the combinations, used
                                   *  for ambiguities
                                   */
-    unsigned int *cost;          /** The transformation cost matrix. The ordering is row-major,
+    cost_t *cost;                /** The transformation cost matrix. The ordering is row-major,
                                   *  and the lookup is a->b, where a is a row label and b is
                                   *  a column label
                                   */
@@ -151,18 +157,18 @@ void cm_alloc_2d ( cost_matrices_2d_t *res
                  , size_t              alphSize
                  , size_t              combinations
                  , int                 do_aff
-                 , unsigned int        gap_open_cost
+                 , cost_t              gap_open_cost
                  , int                 is_metric
                  , size_t              num_elements
                  );
 
 
 void
-cm_set_cost_2d (cost_matrices_2d_t *costMtx, elem_t elem1, elem_t elem2, unsigned int v);
+cm_set_cost_2d (cost_matrices_2d_t *costMtx, elem_t elem1, elem_t elem2, cost_t v);
 
 
-unsigned int *
-cm_get_row (unsigned int *tcm, elem_t a, size_t alphSize);
+cost_t *
+cm_get_row (cost_t *tcm, elem_t a, size_t alphSize);
 
 
 /*
@@ -200,11 +206,11 @@ cm_get_median_2d ( const cost_matrices_2d_t *t
  * transformation cost matrix tcm, containing information for an alphabet of
  * size alphSize.
  */
-unsigned int
-cm_calc_cost_2d ( unsigned int *tcm
-                , elem_t        a
-                , elem_t        b
-                , size_t        alphSize
+cost_t
+cm_calc_cost_2d ( cost_t *tcm
+                , elem_t a
+                , elem_t b
+                , size_t alphSize
                 );
 
 /*
@@ -223,9 +229,9 @@ cm_get_row ( int *tcm
 /* set the value of c->worst at location (a,b) to v */
 void
 cm_set_worst ( cost_matrices_2d_t *c
-             , size_t             a
-             , size_t             b
-             , unsigned int       v
+             , size_t a
+             , size_t b
+             , cost_t v
              );
 
 
@@ -237,10 +243,10 @@ cm_set_worst ( cost_matrices_2d_t *c
  * @param len is the length of the character that was source of the precalculated
  *  matrix.
  */
-unsigned int *
-cm_get_precal_row ( unsigned int *p
-                  , elem_t        item
-                  , size_t        len
+cost_t *
+cm_get_precal_row ( cost_t *p
+                  , elem_t item
+                  , size_t len
                   );
 
 
@@ -254,11 +260,11 @@ cm_free (cost_matrices_2d_t *costMtx);
 int
 cm_get_gap_opening_parameter (cost_matrices_2d_t *costMtx);
 
-unsigned int
+cost_t
 cm_get_cost_2d (cost_matrices_2d_t *costMtx, elem_t a, elem_t b);
 
-unsigned int
-cm_get_value_2d (elem_t a, elem_t b, unsigned int *p, size_t alphSize);
+cost_t
+cm_get_value_2d (elem_t a, elem_t b, cost_t *p, size_t alphSize);
 
 void
 cm_set_prepend_2d (cost_matrices_2d_t *costMtx, int a, int b);
@@ -281,17 +287,17 @@ void cm_print_matrix_3d (elem_t *costMatrix, size_t costMatrixDimension);
 
 
 void
-cm_set_cost_3d (cost_matrices_3d_t *costMtx, elem_t elem1, elem_t elem2, elem_t elem3, unsigned int v);
+cm_set_cost_3d (cost_matrices_3d_t *costMtx, elem_t elem1, elem_t elem2, elem_t elem3, cost_t v);
 
 
 /** As with 2d, but doesn't compute worst, prepend or tail */
 void
 cm_alloc_3d ( cost_matrices_3d_t *res
-            , int                 alphSize
-            , int                 combinations
-            , int                 do_aff
-            , int                 gap_open
-            , int                 all_elements
+            , int alphSize
+            , int combinations
+            , int do_aff
+            , int gap_open
+            , int all_elements
             );
 
 /*
@@ -306,9 +312,9 @@ cm_alloc_3d ( cost_matrices_3d_t *res
  */
 elem_t
 cm_get_median_3d( const cost_matrices_3d_t *matrix
-                ,       elem_t              a
-                ,       elem_t              b
-                ,       elem_t              c
+                ,       elem_t a
+                ,       elem_t b
+                ,       elem_t c
                 );
 
 
@@ -317,28 +323,28 @@ cm_get_median_3d( const cost_matrices_3d_t *matrix
  * of character a are located, when tcm holds information for an alphabet of
  * size alphSize.
  */
-unsigned int *
-cm_get_row_3d( unsigned int *tcm
-             , elem_t        char1
-             , elem_t        char2
-             , size_t        alphSize
+cost_t *
+cm_get_row_3d( cost_t *tcm
+             , elem_t char1
+             , elem_t char2
+             , size_t alphSize
              );
 
 
-unsigned int
+cost_t
 cm_get_cost_3d ( const cost_matrices_3d_t *costMtx
-               ,       elem_t              elem1
-               ,       elem_t              elem2
-               ,       elem_t              elem3
+               ,       elem_t elem1
+               ,       elem_t elem2
+               ,       elem_t elem3
                );
 
 
 void
 cm_set_median_3d( const cost_matrices_3d_t *costMtx
-                ,       elem_t              elem1
-                ,       elem_t              elem2
-                ,       elem_t              elem3
-                ,       elem_t              val
+                ,       elem_t elem1
+                ,       elem_t elem2
+                ,       elem_t elem3
+                ,       elem_t val
                 );
 
 
