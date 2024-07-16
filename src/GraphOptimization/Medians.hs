@@ -1847,12 +1847,12 @@ local3WaySlim lSlimTCM b c d =
 -- cost differences using matrix values
 -- if value has no bits on--it is set to 0th bit on for GAP or 0 for minimum
 -- the Nil Stuff can be an issue for counting 
+-- can't short circuit if equal due to PMDL stuff
 generalSequenceDiff ∷ (FiniteBits a, Show a) ⇒ S.Matrix Int → Int → a → a → (Int, Int)
 generalSequenceDiff thisMatrix numStates uState vState =
     --trace ("GSD: " <> (show (numStates, uState, vState))) $
-    let minState =  if uState == vState then 0
-                    else if (uState .&. vState) /= (uState `xor` uState) then 0
-                    else if uState == (uState `xor` uState) then 0
+                    -- these are checks for Nil
+    let minState =  if uState == (uState `xor` uState) then 0
                     else if vState == (uState `xor` uState) then 0
                     else maxBound :: Int
     in
