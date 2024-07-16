@@ -17,8 +17,9 @@ import Data.Char
 import Data.Char qualified as C
 import Data.Foldable
 import Data.Foldable1 qualified as F1
+import Data.Functor (($>))
 import Data.Graph.Inductive.Basic qualified as B
-import Data.Scientific (scientificP)
+import Data.Scientific (fromRationalRepetendLimited, scientificP)
 import Data.Hashable
 import Data.List qualified as L
 import Data.List.NonEmpty (NonEmpty(..))
@@ -714,7 +715,7 @@ Also can be integer overflow if the number are large since treated as integers
     during DO for DNA--seems like pairwise alignment cost may be limited to 2^31 or 2^32
 -}
 getCostMatrixAndScaleFactor
-    ∷ String
+    ∷ FilePath
     → [[String]]
     → PhyG (Double, [[Int]])
 getCostMatrixAndScaleFactor fileName = \case
@@ -734,7 +735,7 @@ getCostMatrixAndScaleFactor fileName = \case
 
                 case diagnosisResult of
                     Left errs → failWithPhase Parsing $ show errs
-                    Right (TMat.TransitionMeasureDiagnosis coefficientRat _ _ transMatrix) →
+                    Right (TMat.TransitionMeasureDiagnosis coefficientRat disErr _ transMatrix) →
                         let coefficientReal ∷ Double
                             coefficientReal =
                                 let n = numerator coefficientRat
@@ -759,15 +760,57 @@ getCostMatrixAndScaleFactor fileName = \case
 
                             mat ∷ [[Int]]
                             mat = L.unfoldr row start
-                        in  pure (coefficientReal, mat)
+
+                            numericalErrorReporting ∷ PhyG ()
+                            numericalErrorReporting =
+                                let prefix = fold ["Discretized matrix defined in '", fileName, "'."]
+                                    suffix = maybe superb numericalErrorRendering disErr
+                                    superb = [ "Exact discretization, no numerical from approximation" ]
+                                in  logWith LogMore . L.intercalate "\n" $ prefix : suffix
+                                        
+
+                            numericalErrorRendering ∷ TMat.ErrorFromDiscretization -> [String]
+                            numericalErrorRendering err =
+                                let renderErrorKVP
+                                      :: (TMat.ErrorFromDiscretization -> Rational)
+                                      -> String
+                                      -> String
+                                    renderErrorKVP f k = fold [ "    ", k, ":\t", renderRational 6 $ f err ]
+                                in  [ "Some numerical error occured during discrete approximation procedure:"
+                                    , renderErrorKVP TMat.discretizationErrrorMean "Mean"
+                                    , renderErrorKVP TMat.discretizationErrrorSTD "Std Dev"
+                                    , renderErrorKVP TMat.discretizationErrrorMin "Min"
+                                    , renderErrorKVP TMat.discretizationErrrorMax "Max"
+                                    , renderErrorKVP TMat.discretizationErrrorTotal "Total"
+                                    ]
+
+                        in   numericalErrorReporting $> (coefficientReal, mat)
 
 
-stringToRational ∷ String → String → PhyG Rational
+stringToRational ∷ FilePath → String → PhyG Rational
 stringToRational fileName inStr = case readP_to_S scientificP inStr of
     x:xs → pure . toRational . fst . F1.last $ x :| xs
     [] →
         failWithPhase Parsing $
             "\n\n'Read' 'tcm' format error non-Double value " <> inStr <> " in " <> fileName
+
+
+{- |
+Nicely render a rational number to the specified number of decimal points.
+-}
+renderRational :: Word -> Rational -> String
+renderRational decimalPoints =
+    let align str =
+            let n = fromEnum decimalPoints
+                (whole, other) = break (== '.') str
+                (float, power) = case other of
+                    [] -> ([], [])
+                    _:xs -> break (== 'e') xs
+                curbed = take n float
+                digits = curbed <> replicate (n - length curbed)  '0'
+            in  fold [ whole, ".", digits, power ]
+    in  align . show . either fst fst . fromRationalRepetendLimited 64
+
 
 {-
 - | diagonalsEqualZero takes an integer matrix [[Int]]
