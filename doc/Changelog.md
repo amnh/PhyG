@@ -37,7 +37,9 @@ The changelog is available [on GitHub][2].
 
     - `--version` Outputs the software version, commit hash, and compilation timestamp
 
-  * Added proper logging throughout computation(s).
+  * Added proper logging throughout computation(s)
+
+  * Added support for GHC 9.10
 
   * Corrected defect in median extraction from preliminary contexts
 
