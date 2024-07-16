@@ -8,7 +8,6 @@ set(outgroup:"Artemia")
 
 --read(fasta:"metazoa-aa-1.fas")
 --read(fasta:"chel.fas")
---read(fasta:"chel.fas", tcm:"neyman5.bit.tcm ")
 --read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
 --read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
 --read(fasta:"chel-16.fas")
@@ -102,8 +101,6 @@ select()
 --search(hours:0, minutes:3, instances:4, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
---swap(keep:1)
---swap(keep:10)
 swap()
 
 --swap(replicates:5, drift, maxChanges:5)
