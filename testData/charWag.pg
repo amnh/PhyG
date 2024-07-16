@@ -1,7 +1,7 @@
 
---set(criterion:PMDL)
+set(criterion:PMDL)
 --set(graphfactor:nopenalty)
---set(modelComplexity:3512)
+set(modelComplexity:3512)
 --set(graphtype:softwired)
 set(outgroup:"Artemia")
 
@@ -22,7 +22,7 @@ set(outgroup:"Artemia")
 
 --read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:"bitDNA.tcm")
-read(fasta:"chel.fas", tcm:"ney5.bit.tcm")
+read(fasta:"chel.fas", tcm:"neyman5.bit.tcm")
 --read(fasta:"chel.fas", tcm:"sg2t1.mat")
 --read(fasta:"chel.fas", tcm:(755360,1))
 

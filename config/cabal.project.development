@@ -206,7 +206,7 @@ Package PhyG
 ---------------------------------------------------------------------------------
 
 With-Compiler:
-    ghc-9.8.2
+    ghc-9.10.1
 
 Active-Repositories:
     hackage.haskell.org,

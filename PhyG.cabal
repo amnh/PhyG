@@ -1,4 +1,4 @@
-Cabal-Version: 3.8
+Cabal-Version: 3.12
 Name:          PhyG
 Version:       0.1.4
 Stability:     Alpha
@@ -8,6 +8,7 @@ Tested-With:
   GHC == 9.4.7
   GHC == 9.6.3
   GHC == 9.8.1
+  GHC == 9.10.1
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     © 2015 Ward Wheeler and The American Museum of Natural History
@@ -242,6 +243,9 @@ Common build-defaults
       -Wno-redundant-bang-patterns
       -Wno-type-defaults
       -Wno-unsafe
+      -- Remove these exclusions later
+      -Wno-missed-specialisations
+      -Wno-x-partial
 
   If os(darwin)
     Ld-Options:
@@ -344,15 +348,11 @@ Executable phyg
     PhyG:dynamic-character,
     PhyG:tcm,
     PHANE-PhyloLib,
---    array,
-    async,
     base >= 4.10,
     bimap,
     bv,
     bv-little,
     bytestring,
---    clock,
---    concurrent-hashtable,
     containers >= 0.6,
     cpuinfo,
     deepseq,
@@ -367,7 +367,6 @@ Executable phyg
     gitrev,
     graphviz   >=2999.20,
     hashable,
---    hmatrix,
     inflist,
     logfloat,     
     MissingH >= 1.4.3,
@@ -380,7 +379,6 @@ Executable phyg
     process,
     random,
     random-shuffle,
---    sort,
     split,
     template-haskell,
     text >= 2.0.1 && < 3.0,
@@ -389,7 +387,6 @@ Executable phyg
     th-lift-instances,
     time,
     unbounded-delays,     
-    unliftio >= 0.2 && < 1.0,
     unliftio-core >= 0.2 && < 1.0,
     vector >= 0.13 && < 1.0,
     zlib
