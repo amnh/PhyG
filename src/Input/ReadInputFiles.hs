@@ -16,16 +16,17 @@ import Data.Bits
 import Data.Char
 import Data.Char qualified as C
 import Data.Foldable
+import Data.Foldable1 qualified as F1
 import Data.Graph.Inductive.Basic qualified as B
 import Data.Scientific (scientificP)
 import Data.Hashable
 import Data.List qualified as L
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
 import Data.Ratio (denominator, numerator)
 import Data.Text.Lazy qualified as T
 import Data.Text.Lazy.IO qualified as TIO
 import Data.Text.Short qualified as ST
-import Debug.Trace
 import GHC.Float (rationalToDouble)
 import GeneralUtilities qualified as GU
 import GraphFormatUtilities qualified as GFU
@@ -763,7 +764,7 @@ getCostMatrixAndScaleFactor fileName = \case
 
 stringToRational ∷ String → String → PhyG Rational
 stringToRational fileName inStr = case readP_to_S scientificP inStr of
-    (v,_) : _ → pure $ toRational v
+    x:xs → pure . toRational . fst . F1.last $ x :| xs
     [] →
         failWithPhase Parsing $
             "\n\n'Read' 'tcm' format error non-Double value " <> inStr <> " in " <> fileName
