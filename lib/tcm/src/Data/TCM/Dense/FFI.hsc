@@ -54,6 +54,14 @@ import Prelude hiding (sequence, tail)
 #include "costMatrix.h"
 #include "alignmentMatrices.h"
 
+
+{- |
+Specify which alignment to perform
+-}
+data AlignmentStrategy = Linear | Affine | Other
+    deriving stock (Eq, Show)
+
+
 {- |
 The representation of values sent across the FFI.
 -}
@@ -68,13 +76,6 @@ type SequencePointer = Ptr DiscretizedResolutionIota
 
 
 {- |
-Specify which alignment to perform
--}
-data AlignmentStrategy = Linear | Affine | Other
-    deriving stock (Eq, Show)
-
-
-{- |
 Holds single cost matrix, which contains costs and medians for all possible
 character elements. It is completely filled using a TCM.
 
@@ -82,54 +83,45 @@ See note below at @setupCostMatrixFn_c@.
 -}
 data CostMatrix2d
     = CostMatrix2d
-    { alphSize2D            :: CSize
-    -- ^ alphabet size including gap, and including ambiguities if
-    , costMatrixDimension2D :: CSize
-    -- ^ ceiling of log_2 (alphSize)
-    , gapChar2D             :: ElementEncoding
-    -- ^ gap value (least significant bit set)
-    , costModelType2D       :: CInt
-    {- ^ The type of cost model to be used in the alignment, i.e. affine or not.
-         Based on cost_matrix.ml, values are:
-           • linear == 0
-           • no_alignment == 2
-           • affine == 3
-         but I updated it. See costMatrix.h.
-    -}
-    , include_ambiguities2D :: CInt
-    {- ^ This is a flag set to true if we are going to accept all possible
-         combinations of the elements in the alphabet in the alignments. This is
-         not true for protein characters for example, where the number of elements
-         of the alphabet is already too big to build all the possible combinations.
-    -}
-    , gapOpenCost2D         :: DiscretizedResolutionIota
-    {- ^ The cost of opening a gap. This is only useful in certain cost_model_types
-         (type 3: affine, based on my reading of ML code).
-    -}
-    , isMetric2D            :: CInt
-    -- ^ if tcm is metric
-    , allElems2D            :: CSize
-    -- ^ total number of elements
-    , bestCost2D            :: SequencePointer
-    {- ^ The transformation cost matrix, including ambiguities, storing the **best**
-         cost for each ambiguity pair
-    -}
-    , medians2D             :: Ptr ElementEncoding
-    {- ^ The matrix of possible medians between elements in the alphabet. The best
-         possible medians according to the cost matrix.
-    -}
-    , worstCost2D           :: SequencePointer
-    {- ^ The transformation cost matrix, including ambiguities, storing the **worst**
-         cost for each ambiguity pair
-    -}
-    , prependCost2D         :: SequencePointer
-    {- ^ The cost of going from gap -> each base. For ambiguities, use best cost.
-         Set up as num_elements x num_elements matrix, but seemingly only first row is used.
-    -}
-    , tailCost2D            :: SequencePointer
-    {- ^ As prepend_cost, but with reverse directionality, so base -> gap.
-         As with prepend_cost, seems to be allocated as too large.
-    -}
+    { alphSize ∷ CSize -- alphabet size including gap, and including ambiguities if
+    , costMatrixDimension ∷ CSize -- ceiling of log_2 (alphSize)
+    , gapChar ∷ ElementEncoding -- gap value (1 << (alphSize - 1))
+    , costModelType ∷ CInt {- The type of cost model to be used in the alignment,
+                            - i.e. affine or not.
+                            - Based on cost_matrix.ml, values are:
+                            - • linear == 0
+                            - • affine == 3
+                            - • no_alignment == 2,
+                            - but I updated it. See costMatrix.h.
+                            -}
+    , include_ambiguities ∷ CInt {- This is a flag set to true if we are going to accept
+                                    all possible combinations of the elements in the alphabet
+                                    in the alignments. This is not true for protein characters
+                                    for example, where the number of elements of the alphabet
+                                    is already too big to build all the possible combinations.
+                                 -}
+    , gapOpenCost ∷ DiscretizedResolutionIota {- The cost of opening a gap. This is only useful in
+                            certain cost_model_types (type 3: affine, based on my reading of ML code).
+                         -}
+    , isMetric ∷ CInt -- if tcm is metric
+    , allElems ∷ CSize -- total number of elements
+    , bestCost ∷ SequencePointer {- The transformation cost matrix, including ambiguities,
+                                  storing the **best** cost for each ambiguity pair
+                               -}
+    , medians ∷ Ptr ElementEncoding {- The matrix of possible medians between elements in the
+                                 alphabet. The best possible medians according to the cost
+                                  matrix.
+                              -}
+    , worstCost ∷ SequencePointer {- The transformation cost matrix, including ambiguities,
+                              storing the **worst** cost for each ambiguity pair
+                           -}
+    , prependCost ∷ SequencePointer {- The cost of going from gap -> each base. For ambiguities, use best cost.
+                                Set up as num_elements x num_elements matrix, but seemingly only first row is used.
+                             -}
+    , tailCost ∷ SequencePointer {- As prepend_cost, but with reverse directionality,
+                             so base -> gap.
+                             As with prepend_cost, seems to be allocated as too large.
+                          -}
     }
     deriving stock (Eq, Generic)
     deriving anyclass (NFData)
@@ -140,15 +132,15 @@ A representation of the 3D cost matrix structure used on the C side.
 -}
 data CostMatrix3d
     = CostMatrix3d -- See CostMatrix2d datatype for field description
-    { alphSize3D            :: CSize
-    , costMatrixDimension3D :: CSize
-    , gapChar3D             :: ElementEncoding
-    , costModelType3D       :: CInt
-    , include_ambiguities3D :: CInt
-    , gapOpenCost3D         :: DiscretizedResolutionIota
-    , allElems3D            :: CSize
-    , bestCost3D            :: SequencePointer
-    , medians3D             :: Ptr ElementEncoding
+    { alphSize3D ∷ CSize
+    , costMatrixDimension3D ∷ CSize
+    , gapChar3D ∷ ElementEncoding
+    , costModelType3D ∷ CInt
+    , include_ambiguities3D ∷ CInt
+    , gapOpenCost3D ∷ DiscretizedResolutionIota
+    , allElems3D ∷ CSize
+    , bestCost3D ∷ SequencePointer
+    , medians3D ∷ Ptr ElementEncoding
     }
     deriving stock (Eq, Generic)
     deriving anyclass (NFData)
