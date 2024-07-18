@@ -132,18 +132,20 @@ cm_print_matrix_2d
 void
 cm_free ( cost_matrices_2d_t *costMatrix )
 {
-    if (NULL != costMatrix->cost)         free(costMatrix->cost);
-    if (NULL != costMatrix->median)       free(costMatrix->median);
-    if (NULL != costMatrix->worst)        free(costMatrix->worst);
-    if (NULL != costMatrix->prepend_cost) free(costMatrix->prepend_cost);
-    if (NULL != costMatrix->tail_cost)    free(costMatrix->tail_cost);
-    if (NULL != costMatrix)               free(costMatrix);
-    costMatrix->cost = costMatrix->prepend_cost
-                     = costMatrix->tail_cost
-                     = costMatrix->worst
-                     = NULL;
-    costMatrix->median = NULL;
-    free(costMatrix);
+    if (NULL != costMatrix)
+    {
+        if (NULL != costMatrix->cost)         free(costMatrix->cost);
+        if (NULL != costMatrix->median)       free(costMatrix->median);
+        if (NULL != costMatrix->worst)        free(costMatrix->worst);
+        if (NULL != costMatrix->prepend_cost) free(costMatrix->prepend_cost);
+        if (NULL != costMatrix->tail_cost)    free(costMatrix->tail_cost);
+        costMatrix->cost = costMatrix->prepend_cost
+                         = costMatrix->tail_cost
+                         = costMatrix->worst
+                         = NULL;
+        costMatrix->median = NULL;
+        free(costMatrix);
+    }
 }
 
 /** As with cm_calc_cost_position_2d, but with three elements, so first element gets shifted alphSize twice, etc. */
