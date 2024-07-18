@@ -82,7 +82,7 @@ See note below at @setupCostMatrixFn_c@.
 -}
 data CostMatrix2d
     = CostMatrix2d
-{ alphSize2D            :: CSize
+    { alphSize2D            :: CSize
     -- ^ alphabet size including gap, and including ambiguities if
     , costMatrixDimension2D :: CSize
     -- ^ ceiling of log_2 (alphSize)
