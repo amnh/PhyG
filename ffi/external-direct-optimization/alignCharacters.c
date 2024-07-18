@@ -4779,7 +4779,7 @@ algn_get_cost_medians_3d ( characters_t       *input
 
     if (DEBUG_3D) {
         printf("Get cost median:\n");
-        printf("Seq length: %lu\n", input->idxSeq1);
+        printf("Seq length: %u\n", input->idxSeq1);
     }
 
     for (int i = input->idxSeq1 - 1; i >= 0; i--) {
