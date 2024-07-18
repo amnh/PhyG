@@ -69,9 +69,6 @@ The representation of values sent across the FFI.
 type DiscretizedResolutionIota = CULong
 
 
-type ElementEncoding = CUInt
-
-
 type SequencePointer = Ptr DiscretizedResolutionIota
 
 
@@ -85,7 +82,7 @@ data CostMatrix2d
     = CostMatrix2d
     { alphSize ∷ CSize -- alphabet size including gap, and including ambiguities if
     , costMatrixDimension ∷ CSize -- ceiling of log_2 (alphSize)
-    , gapChar ∷ ElementEncoding -- gap value (1 << (alphSize - 1))
+    , gapChar ∷ SlimState -- gap value (1 << (alphSize - 1))
     , costModelType ∷ CInt {- The type of cost model to be used in the alignment,
                             - i.e. affine or not.
                             - Based on cost_matrix.ml, values are:
@@ -108,7 +105,7 @@ data CostMatrix2d
     , bestCost ∷ SequencePointer {- The transformation cost matrix, including ambiguities,
                                   storing the **best** cost for each ambiguity pair
                                -}
-    , medians ∷ Ptr ElementEncoding {- The matrix of possible medians between elements in the
+    , medians ∷ Ptr SlimState {- The matrix of possible medians between elements in the
                                  alphabet. The best possible medians according to the cost
                                   matrix.
                               -}
@@ -134,13 +131,13 @@ data CostMatrix3d
     = CostMatrix3d -- See CostMatrix2d datatype for field description
     { alphSize3D ∷ CSize
     , costMatrixDimension3D ∷ CSize
-    , gapChar3D ∷ ElementEncoding
+    , gapChar3D ∷ SlimState
     , costModelType3D ∷ CInt
     , include_ambiguities3D ∷ CInt
     , gapOpenCost3D ∷ DiscretizedResolutionIota
     , allElems3D ∷ CSize
     , bestCost3D ∷ SequencePointer
-    , medians3D ∷ Ptr ElementEncoding
+    , medians3D ∷ Ptr SlimState
     }
     deriving stock (Eq, Generic)
     deriving anyclass (NFData)
@@ -419,10 +416,16 @@ lookupPairwise
 lookupPairwise m e1 e2 = unsafePerformIO $ do
     cm2d ← peek $ costMatrix2D m
     let dim = fromEnum $ alphSize cm2d
-    let off = (fromEnum e1 `shiftL` dim) + fromEnum e2
-    let get = peek . flip advancePtr off
-    cost ← get $ bestCost cm2d
-    med ← get $ medians cm2d
+        off = (fromEnum e1 `shiftL` dim) + fromEnum e2
+        
+        getC :: Ptr DiscretizedResolutionIota -> IO DiscretizedResolutionIota
+        getC = peek . flip advancePtr off
+        
+        getM :: Ptr SlimState -> IO SlimState
+        getM = peek . flip advancePtr off
+
+    cost ← getC $ bestCost cm2d
+    med ← getM $ medians cm2d
     pure (med, fromIntegral cost)
 
 
@@ -442,10 +445,16 @@ lookupThreeway
 lookupThreeway dtcm e1 e2 e3 = unsafePerformIO $ do
     cm3d ← peek $ costMatrix3D dtcm
     let dim = fromEnum $ alphSize3D cm3d
-    let off = (((fromEnum e1 `shiftL` dim) + fromEnum e2) `shiftL` dim) + fromEnum e3
-    let get = peek . flip advancePtr off
-    med ← get $ medians3D cm3d
-    cost ← get $ bestCost3D cm3d
+        off = (((fromEnum e1 `shiftL` dim) + fromEnum e2) `shiftL` dim) + fromEnum e3
+
+        getC :: Ptr DiscretizedResolutionIota -> IO DiscretizedResolutionIota
+        getC = peek . flip advancePtr off
+        
+        getM :: Ptr SlimState -> IO SlimState
+        getM = peek . flip advancePtr off
+
+    cost ← getC $ bestCost3D cm3d
+    med ← getM $ medians3D cm3d
     pure (med, fromIntegral cost)
 
 
