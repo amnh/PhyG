@@ -52,32 +52,31 @@
 #include "ukkCheckPoint.h"
 #include "ukkCommon.h"
 
-size_t neighbours[MAX_STATES];
-size_t stateNum[MAX_STATES];
-cost_t contCost[MAX_STATES];
-cost_t secondCost[MAX_STATES];
-cost_t transCost[MAX_STATES][MAX_STATES];
+int neighbours[MAX_STATES];
+int contCost[MAX_STATES];
+int secondCost[MAX_STATES];
+int transCost[MAX_STATES][MAX_STATES];
+int stateNum[MAX_STATES];
 
-cost_t misCost_g        = 1;
-cost_t startInsert_g    = 3;             // a: w(k) = a + b * k
-cost_t continueInsert_g = 1;             // b:
-cost_t startDelete_g    = 3;
-cost_t continueDelete_g = 1;
-
-size_t numStates_g;
-cost_t maxSingleStep_g;
+int misCost_g        = 1;
+int startInsert_g    = 3;             // a: w(k) = a + b * k
+int continueInsert_g = 1;             // b:
+int startDelete_g    = 3;
+int continueDelete_g = 1;
 
 elem_t gap_char_g;
 
-int
-powell_3D_align
-  ( characters_t *inputSeqs     // lengths set correctly; indices set to 0
-  , characters_t *outputSeqs    // lengths set correctly; indices set to 0
-  , size_t        alphabetSize  // not including gap
-  , cost_t        mm            // mismatch cost, must be > 0
-  , cost_t        go            // gap open cost, must be >= 0
-  , cost_t        ge            // gap extension cost, must be > 0
-  )
+int numStates_g;
+int maxSingleStep_g;
+
+
+int powell_3D_align ( characters_t *inputSeqs     // lengths set correctly; indices set to 0
+                    , characters_t *outputSeqs    // lengths set correctly; indices set to 0
+                    , size_t        alphabetSize  // not including gap
+                    , int           mm            // mismatch cost, must be > 0
+                    , int           go            // gap open cost, must be >= 0
+                    , int           ge            // gap extension cost, must be > 0
+                    )
 {
     gap_char_g = 1 << alphabetSize;
 
@@ -94,15 +93,15 @@ powell_3D_align
     if (DEBUG_3D) {
         int i;
         for (i = 0; i < inputSeqs->lenSeq1; i++) {
-            printf( "%" elem_p "  ", inputSeqs->seq1[i] );
+            printf( "%d  ", inputSeqs->seq1[i] );
         }
         printf("\n");
         for (i = 0; i < inputSeqs->lenSeq2; i++) {
-            printf( "%" elem_p "  ", inputSeqs->seq2[i] );
+            printf( "%d  ", inputSeqs->seq2[i] );
         }
         printf("\n");
         for (i = 0; i < inputSeqs->lenSeq3; i++) {
-            printf( "%" elem_p "  ", inputSeqs->seq3[i] );
+            printf( "%d  ", inputSeqs->seq3[i] );
         }
         printf("\n");
     }
@@ -179,34 +178,20 @@ void exists_neighbor_in_delete_state( int n, int *a, int *b, int *c )
   *c = (n >> 2) & 1;
 }
 
-size_t
-neighbourNum
-  ( size_t i
-  , size_t j
-  , size_t k
-  )
-{
+int neighbourNum(int i, int j, int k) {
   return (i * 1) + (j * 2) + (k * 4);
 }
 
-
 //-- ----------------------------------------------- -
 
-
-void
-transitions
-  ( size_t s
-  , Trans st[3]
-  )
+void transitions(int s, Trans st[3])
 {
     st[0] = (s / 1) % 3;
     st[1] = (s / 3) % 3;
     st[2] = (s / 9) % 3;
 }
 
-
-char
-*state2str( int s )
+char *state2str(int s)
 {
     static char str[4];
     Trans st[3];
@@ -220,14 +205,9 @@ char
     return str;
 }
 
-
-size_t
-countTrans
-  ( Trans st[3]
-  , Trans t
-  )
+int countTrans(Trans st[3], Trans t)
 {
-    size_t i, n = 0;
+    int i, n = 0;
     for (i = 0; i < 3; i++) {
        if (st[i] == t) n++;
     }
@@ -237,10 +217,9 @@ countTrans
 
 // TODO: Should be able to replace the first part of this with static array declaration.
 // Also, see my update of this using mod.
-void
-setup( void )
+void setup(void)
 {
-    size_t s,
+    int s,
         ns = 0;
 
     assert( startInsert_g    == startDelete_g    && "Need to rewrite setup routine" );
@@ -300,8 +279,8 @@ setup( void )
     numStates_g = ns;
 
     { // Setup state transition costs (transCost[][])
-        size_t s1, s2;
-        cost_t maxCost = 0;
+        int s1, s2;
+        int maxCost = 0;
 
         assert( startInsert_g == startDelete_g && "Need to rewrite setup routine" );
         for (s1 = 0; s1 < numStates_g; s1++) {
@@ -331,7 +310,7 @@ setup( void )
             }
         }
         maxSingleStep_g = maxCost;
-        if (DEBUG_3D)   fprintf(stderr, "Maximum single step cost = %" cost_p "\n", maxSingleStep_g);
+        if (DEBUG_3D)   fprintf(stderr, "Maximum single step cost = %d\n", maxSingleStep_g);
     } // End setup of transition costs
 }
 
@@ -417,16 +396,15 @@ characters_t *alloc_characters_t( size_t seq_1_number_elems, size_t seq_2_number
 }
 
 
-cost_t
-alignmentCost
-  ( int     states[]
-  , elem_t *al1
-  , elem_t *al2
-  , elem_t *al3
-  , int     len
-  )
+int alignmentCost
+    ( int     states[]
+    , elem_t *al1
+    , elem_t *al2
+    , elem_t *al3
+    , int     len
+    )
 {
-    cost_t cost = 0;
+    int cost = 0;
     Trans last_st[3] = { match, match, match };
 
     assert( startInsert_g == startDelete_g );
@@ -492,7 +470,7 @@ void *allocEntry( AllocInfo_t *a )
 {
     void *p;
 
-    size_t entries = CellsPerBlock * CellsPerBlock * numStates_g;
+    long entries     = CellsPerBlock * CellsPerBlock * numStates_g;
     a->memAllocated += entries * a->elemSize;
 
     p = calloc(entries, a->elemSize);
