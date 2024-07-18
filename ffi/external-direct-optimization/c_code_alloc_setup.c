@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "alignCharacters.h"
 #include "alignmentMatrices.h"
 #include "c_code_alloc_setup.h"
 #include "costMatrix.h"
@@ -22,11 +21,12 @@
  *
  *  Requires symmetric, if not metric, matrix.
  */
-int distance( cost_t const *tcm
-            , size_t alphSize
-            , elem_t nucleotide
-            , elem_t ambElem
-            )
+int distance
+  ( cost_t const *tcm
+  , size_t alphSize
+  , elem_t nucleotide
+  , elem_t ambElem
+  )
 {
     int min     = INT_MAX;
     int curCost = 0;
@@ -146,7 +146,7 @@ void setUp2dCostMtx( cost_matrices_2d_t *retCostMtx
         const size_t n = retCostMtx->costMatrixDimension;
         for (size_t i = 0; i < n; ++i) {
             for (size_t j = 0; j < n; ++j) {
-                printf("%2d ", tcm[ n * i + j ]);
+                printf("%2" cost_p " ", tcm[ n * i + j ]);
             }
             printf("\n");
         }
@@ -243,7 +243,7 @@ void setUp3dCostMtx( cost_matrices_3d_t *retMtx
                         median |= ((elem_t) 1) << bitIndex;
                     }
                 } // bitIndex
-                // printf("%2u %2u %2u %2d %2u\n", ambElem1, ambElem2, ambElem3, minCost, median);
+                // printf("%2" elem_p " %2" elem_p " %2" elem_p " %2" cost_p " %2" elem_p "\n", ambElem1, ambElem2, ambElem3, minCost, median);
                 cm_set_cost_3d(   retMtx, ambElem1, ambElem2, ambElem3, minCost );
                 cm_set_median_3d( retMtx, ambElem1, ambElem2, ambElem3, median  );
             } // ambElem3

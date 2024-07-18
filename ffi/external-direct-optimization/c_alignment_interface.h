@@ -17,17 +17,17 @@
  *  In the last case the union will replace the gapped character placeholder.
  */
 size_t cAlign2D
-  ( elem_t             *lesser
-  , elem_t             *longer
-  , elem_t             *outputMedian
-  , size_t             *outputLength
-  , const size_t        allocationLen
-  , const size_t        lesserLen
-  , const size_t        longerLen
-  , cost_matrices_2d_t *costMtx2d
-  , const int           getUngapped
-  , const int           getGapped
-  , const int           getUnion
+  (       elem_t             *lesser
+  ,       elem_t             *longer
+  ,       elem_t             *outputMedian
+  ,       size_t             *outputLength
+  , const size_t              allocationLen
+  , const size_t              lesserLen
+  , const size_t              longerLen
+  ,       cost_matrices_2d_t *costMtx2d
+  , const int                 getUngapped
+  , const int                 getGapped
+  , const int                 getUnion
   );
 
 
@@ -36,15 +36,15 @@ size_t cAlign2D
  *  If `getMedians` gapped & ungapped outputs will be medians.
  */
 size_t cAlignAffine2D
-  ( elem_t             *lesser
-  , elem_t             *longer
-  , elem_t             *outputMedian
-  , size_t             *outputLength
+  (       elem_t       *lesser
+  ,       elem_t       *longer
+  ,       elem_t       *outputMedian
+  ,       size_t       *outputLength
   , const size_t        allocationLen
   , const size_t        lesserLen
   , const size_t        longerLen
   , cost_matrices_2d_t *costMtx2d_affine
-  , int                 getMedians
+  ,      int            getMedians
   );
 
 
@@ -58,18 +58,19 @@ size_t cAlignAffine2D
  *
  *  Ordering of inputs by length does not matter, as they will be sorted inside the fn.
  */
-int cAlign3D( elem_t             *inputChar1_aio
-            , elem_t             *inputChar2_aio
-            , elem_t             *inputChar3_aio
-            , elem_t             *outputChar1_aio
-            , elem_t             *outputChar2_aio
-            , elem_t             *outputChar3_aio
-            , elem_t             *ungappedOutput_aio
-            , cost_matrices_3d_t *costMtx3d
-            , unsigned int        substitution_cost
-            , unsigned int        gap_open_cost
-            , unsigned int        gap_extension_cost
-            );
+int cAlign3D
+  ( elem_t             *inputChar1_aio
+  , elem_t             *inputChar2_aio
+  , elem_t             *inputChar3_aio
+  , elem_t             *outputChar1_aio
+  , elem_t             *outputChar2_aio
+  , elem_t             *outputChar3_aio
+  , elem_t             *ungappedOutput_aio
+  , cost_matrices_3d_t *costMtx3d
+  , cost_t              substitution_cost
+  , cost_t              gap_open_cost
+  , cost_t              gap_extension_cost
+  );
 
 
 /**  prints an alignIO struct */
@@ -88,12 +89,14 @@ void alignIO_print( const char *character );
  *
  *  Nota bene: assumes that retChar->character has already been allocated correctly.
  */
-void stringToDynChar(       dyn_character_t *retChar
-                    ,       elem_t          *input
-                    , const size_t           capacity
-                    , const size_t           length
-                    , const elem_t           gap_elem
-                    );
+void stringToDynChar
+  (       dyn_character_t *retChar
+  ,       elem_t          *input
+  , const size_t           capacity
+  , const size_t           length
+  , const elem_t           gap_elem
+  );
+
 
 /** For use in 2D alignment code.
  *
@@ -102,12 +105,12 @@ void stringToDynChar(       dyn_character_t *retChar
  *
  *  Also eliminates extra gap needed by legacy code.
  */
-void dynCharToString( elem_t          *output
-                    , dyn_character_t *input
-                    , const int        allocationLen
-                    , const int        delete_initial_gap
-                    );
-
+void dynCharToString
+  (       elem_t          *output
+  ,       dyn_character_t *input
+  , const int              allocationLen
+  , const int              delete_initial_gap
+  );
 
 
 #endif // C_ALIGNMENT_INTERFACE_H

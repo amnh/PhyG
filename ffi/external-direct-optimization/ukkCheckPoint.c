@@ -82,7 +82,10 @@ CPType *CP(int ab, int ac, int d, int s)
     return getPtr(&myCPAllocInfo, ab, ac, d, s);
 }
 
+
 void printTraceBack( characters_t *inputs, characters_t *outputs );
+
+
 
 int best( int ab, int ac, int d, int wantState );
 
@@ -122,12 +125,14 @@ int completeFromInfo = 0;    // Set to 1 for base cases, so 'from' info that ali
                              // can be retrieved from is set.
 
 int CPwidth;
-int CPcost;
+cost_t CPcost;
 
 
-int doUkk( characters_t *inputs
-         , characters_t *outputs
-         )
+cost_t
+doUkk
+  ( characters_t *inputs
+  , characters_t *outputs
+  )
 {
     int d = -1,
         finalab,
@@ -174,7 +179,7 @@ int doUkk( characters_t *inputs
         if (CPonDist && furthestReached_g >= inputs->lenSeq1 / 2) {
             CPcost   = d + 1;
             CPonDist = 0;
-            if (DEBUG_3D) fprintf(stderr, "Setting CPcost = %d\n", CPcost);
+            if (DEBUG_3D) fprintf(stderr, "Setting CPcost = %" cost_p "\n", CPcost);
         }
     } while (best(finalab, finalac, d, 0) < inputs->lenSeq1);
 
@@ -186,7 +191,7 @@ int doUkk( characters_t *inputs
     {
         // Recurse for alignment
         int fState = best(finalab, finalac, finalCost, 1);
-        int dist;
+        cost_t dist;
 
         if (U( finalab, finalac, finalCost, fState )->from.cost <= 0) {
             // We check pointed too late on this first pass.
@@ -252,8 +257,21 @@ int doUkk( characters_t *inputs
 }
 
 
-int doUkkInLimits(int sab, int sac, int sCost, int sState, int sDist,
-          int fab, int fac, int fCost, int fState, int fDist, characters_t *inputs, characters_t *outputs)
+cost_t
+doUkkInLimits
+  ( int sab
+  , int sac
+  , int sCost
+  , int sState
+  , int sDist
+  , int fab
+  , int fac
+  , int fCost
+  , int fState
+  , int fDist
+  , characters_t *inputs
+  , characters_t *outputs
+  )
 {
 
     assert( sCost >= 0 && fCost >= 0 );
@@ -272,11 +290,11 @@ int doUkkInLimits(int sab, int sac, int sCost, int sState, int sDist,
 
         int i;
         fprintf(stderr, "\n\nSequence to align at this step:\n");
-        for (i = sDist; i < fDist; i++)             fprintf(stderr, "%3d ", inputs->seq1[i]);
+        for (i = sDist; i < fDist; i++)             fprintf(stderr, "%3" elem_p " ", inputs->seq1[i]);
             fprintf(stderr, "\n");
-        for (i = sDist - sab; i < fDist - fab; i++) fprintf(stderr, "%3d ", inputs->seq2[i]);
+        for (i = sDist - sab; i < fDist - fab; i++) fprintf(stderr, "%3" elem_p " ", inputs->seq2[i]);
             fprintf(stderr, "\n");
-        for (i = sDist - sac; i < fDist - fac; i++) fprintf(stderr, "%3d ", inputs->seq3[i]);
+        for (i = sDist - sac; i < fDist - fac; i++) fprintf(stderr, "%3" elem_p " ", inputs->seq3[i]);
             fprintf(stderr, "\n");
     }
 
@@ -301,7 +319,7 @@ int doUkkInLimits(int sab, int sac, int sCost, int sState, int sDist,
   //     assert(U(fab, fac, fCost, fState)->dist == fDist);
   // #else
       {
-          int dist;
+          cost_t dist;
           i = sCost - 1;
           do {
             i++;
@@ -362,23 +380,25 @@ int doUkkInLimits(int sab, int sac, int sCost, int sState, int sDist,
                            fab, fac, fCost, fState, fDist, inputs, outputs);
 }
 
-int getSplitRecurse( int           sab
-                   , int           sac
-                   , int           sCost
-                   , int           sState
-                   , int           sDist
-                   , int           fab
-                   , int           fac
-                   , int           fCost
-                   , int           fState
-                   , int           fDist
-                   , characters_t *inputs
-                   , characters_t *outputs
-                   )
+size_t
+getSplitRecurse
+  ( int           sab
+  , int           sac
+  , int           sCost
+  , int           sState
+  , int           sDist
+  , int           fab
+  , int           fac
+  , int           fCost
+  , int           fState
+  , int           fDist
+  , characters_t *inputs
+  , characters_t *outputs
+  )
 {
     // Get 'from' and CP data.  Then recurse
-    int finalLen;
-    int CPdist;
+    size_t finalLen;
+    cost_t CPdist;
     fromType f;
 
     assert(sCost >= 0 && fCost >= 0);
@@ -394,9 +414,9 @@ int getSplitRecurse( int           sab
     assert(CPdist >= 0);
 
     if (DEBUG_3D) {
-        fprintf(stderr, "CPcost = %d CPwidth = %d\n", CPcost, CPwidth);
+        fprintf(stderr, "CPcost = %" cost_p " CPwidth = %d\n", CPcost, CPwidth);
         fprintf(stderr, "From: ab = %d ac = %d d = %d s = %d\n", f.ab, f.ac, f.cost, f.state);
-        fprintf(stderr, "CP dist = %d\n", CPdist);
+        fprintf(stderr, "CP dist = %" cost_p "\n", CPdist);
     }
 
 
@@ -417,6 +437,7 @@ int getSplitRecurse( int           sab
     return finalLen;
 }
 
+
 // -- Traceback routines --------------------------------------------------------------
 int si    = 0,
     costi = 0;
@@ -425,17 +446,19 @@ int state_vector[MAX_STR * 2],
     cost_vector[MAX_STR * 2];
 
 
-void traceBack( int           sab
-              , int           sac
-              , int           sCost
-              , int           sState
-              , int           fab
-              , int           fac
-              , int           fCost
-              , int           fState
-              , characters_t *inputs
-              , characters_t *outputs
-              )
+void
+traceBack
+  ( int           sab
+  , int           sac
+  , int           sCost
+  , int           sState
+  , int           fab
+  , int           fac
+  , int           fCost
+  , int           fState
+  , characters_t *inputs
+  , characters_t *outputs
+  )
 {
     int ab = fab,
         ac = fac,
@@ -481,17 +504,17 @@ void traceBack( int           sab
             outputs->seq3[outputs->idxSeq3++] = inputs->seq3[c];
 
             if (DEBUG_3D) {
-                printf("idxSeq1: %d\n", outputs->idxSeq1);
-                printf("idxSeq2: %d\n", outputs->idxSeq2);
-                printf("idxSeq3: %d\n", outputs->idxSeq3);
-                printf( "%d", inputs->seq1[a] );
-                printf( "  %d\n", outputs->seq1[outputs->idxSeq1 - 1] );
+                printf("idxSeq1: %zu\n", outputs->idxSeq1);
+                printf("idxSeq2: %zu\n", outputs->idxSeq2);
+                printf("idxSeq3: %zu\n", outputs->idxSeq3);
+                printf( "%" elem_p "", inputs->seq1[a] );
+                printf( "  %" elem_p "\n", outputs->seq1[outputs->idxSeq1 - 1] );
 
-                printf( "%d", inputs->seq2[b] );
-                printf( "  %d\n", outputs->seq2[outputs->idxSeq2 - 1] );
+                printf( "%" elem_p "", inputs->seq2[b] );
+                printf( "  %" elem_p "\n", outputs->seq2[outputs->idxSeq2 - 1] );
 
-                printf( "%d", inputs->seq3[c] );
-                printf( "  %d\n", outputs->seq3[outputs->idxSeq3 - 1] );
+                printf( "%" elem_p "", inputs->seq3[c] );
+                printf( "  %" elem_p "\n", outputs->seq3[outputs->idxSeq3 - 1] );
             }
 
             state_vector[si++]   = 0;        /* The match state */
@@ -530,16 +553,16 @@ void traceBack( int           sab
         int i;
 
         fprintf(stderr, "\n\nAlignment so far\n");
-        printf("Aidx: %d\n", outputs->idxSeq1);
-        for (i = outputs->idxSeq1 - 1; i >= 0; i--)    fprintf( stderr, "%6d", outputs->seq1[i] );
+        printf("A-idx: %zu\n", outputs->idxSeq1);
+        for (i = outputs->idxSeq1 - 1; i >= 0; i--)    fprintf( stderr, "%6" elem_p, outputs->seq1[i] );
         fprintf(stderr, "\n" );
 
-        printf("Bidx: %d\n", outputs->idxSeq2);
-        for (i = outputs->idxSeq2 - 1; i >= 0; i--)    fprintf( stderr, "%6d", outputs->seq2[i] );
+        printf("B-idx: %zu\n", outputs->idxSeq2);
+        for (i = outputs->idxSeq2 - 1; i >= 0; i--)    fprintf( stderr, "%6" elem_p, outputs->seq2[i] );
         fprintf(stderr, "\n" );
 
-        printf("Cidx: %d\n", outputs->idxSeq3);
-        for (i = outputs->idxSeq3 - 1; i >= 0; i--)    fprintf( stderr, "%6d", outputs->seq3[i] );
+        printf("C-idx: %zu\n", outputs->idxSeq3);
+        for (i = outputs->idxSeq3 - 1; i >= 0; i--)    fprintf( stderr, "%6" elem_p, outputs->seq3[i] );
         fprintf(stderr, "\n\n" );
 
         // Print state information
@@ -586,7 +609,7 @@ void printTraceBack( characters_t *inputs, characters_t *outputs )
 
         for (i = endRun - 1; i >= 0; i--)  {
             if (DEBUG_3D) {
-                printf("Aidx: %6d", outputs->idxSeq1);
+                printf("Aidx: %zu", outputs->idxSeq1);
                 printf("\n");
             }
             outputs->seq1[outputs->idxSeq1++] = inputs->seq1[i];

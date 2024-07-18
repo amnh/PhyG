@@ -60,14 +60,14 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "alignmentMatrices.h"
 #include "costMatrix.h"
 #include "debug_constants.h"
-#include "alignmentMatrices.h"
 #include "dyn_character.h"
 #include "ukkCommon.h"
 
 // TODO: consider changing this number
-#define VERY_LARGE_NUMBER 100000 // large number, but as this gets added to itself repeatedly, small enough that it won't overflow.
+#define VERY_LARGE_NUMBER 10000000 // large number, but as this gets added to itself repeatedly, small enough that it won't overflow.
 
 
 /** Prepend the character b to the character a. */
@@ -84,16 +84,18 @@
 
 
 void
-fill_parallel (       size_t           char3_len
-              , const unsigned int    *prev_m
-              , const unsigned int    *upper_m
-              , const unsigned int    *diag_m
-              ,       unsigned int     char1_gap_gap
-              ,       unsigned int     gap_char2_gap
-              ,       unsigned int     char1_char2_gap
-              ,       unsigned int    *curRow
-              ,       DIR_MTX_ARROW_t *dirMtx
-              );
+fill_parallel
+  (       size_t           char3_len
+  , const cost_t          *prev_m
+  , const cost_t          *upper_m
+  , const cost_t          *diag_m
+  ,       cost_t           char1_gap_gap
+  ,       cost_t           gap_char2_gap
+  ,       cost_t           char1_char2_gap
+  ,       cost_t          *curRow
+  ,       DIR_MTX_ARROW_t *dirMtx
+  );
+
 
 /**
  *  @param char1 is a pointer to the character char1 (vertical)
@@ -126,55 +128,61 @@ fill_parallel (       size_t           char3_len
  *  All following fns have the same argument values, when present
  */
 
-unsigned int
-algn_fill_3dMtx ( const dyn_character_t *lChar
-                , const dyn_character_t *mChar
-                ,       unsigned int    *precalcMtx
-                ,       size_t           longerChar_len
-                ,       size_t           mediumChar_len
-                ,       size_t           lesserChar_len
-                ,       unsigned int    *tcm
-                ,       DIR_MTX_ARROW_t *dirMtxPtr
-              // ,       int uk
-                ,       elem_t           gap_char
-                ,       size_t           alphSize
-                );
+cost_t
+algn_fill_3dMtx
+  ( const dyn_character_t *lChar
+  , const dyn_character_t *mChar
+  ,       cost_t           *precalcMtx
+  ,       size_t           longerChar_len
+  ,       size_t           mediumChar_len
+  ,       size_t           lesserChar_len
+  ,       cost_t          *tcm
+  ,       DIR_MTX_ARROW_t *dirMtxPtr
+//  ,       int uk
+  ,       elem_t           gap_char
+  ,       size_t           alphSize
+  );
 
 
-unsigned int
-algn_nw_2d ( const dyn_character_t      *char1
-           , const dyn_character_t      *char2
-           , const cost_matrices_2d_t   *c
-           ,       alignment_matrices_t *nwMtxs
-           ,       int                   uk
-           );
+cost_t
+algn_nw_2d
+  ( const dyn_character_t      *char1
+  , const dyn_character_t      *char2
+  , const cost_matrices_2d_t   *c
+  ,       alignment_matrices_t *nwMtxs
+  ,       int                   uk
+  );
 
 
 /** Creates N-W matrices, then does alignment
  *  deltawh is width of ukkonnen barrier
  */
-unsigned int
-algn_nw_3d ( const dyn_character_t      *char1
-           , const dyn_character_t      *char2
-           , const dyn_character_t      *char3
-           , const cost_matrices_3d_t   *costMatrix
-           ,       alignment_matrices_t *alignment_matrices
-        // , int deltawh
-           );
+cost_t
+algn_nw_3d
+  ( const dyn_character_t      *char1
+  , const dyn_character_t      *char2
+  , const dyn_character_t      *char3
+  , const cost_matrices_3d_t   *costMatrix
+  ,       alignment_matrices_t *alignment_matrices
+//  , int deltawh
+  );
 
 
 void
-algn_print_bcktrck_2d( const dyn_character_t      *char1
-                     , const dyn_character_t      *char2
-                     , const alignment_matrices_t *m
-                     );
+algn_print_bcktrck_2d
+  ( const dyn_character_t      *char1
+  , const dyn_character_t      *char2
+  , const alignment_matrices_t *m
+  );
 
 
 void
-algn_print_dynmtrx_2d( const dyn_character_t      *char1
-                     , const dyn_character_t      *char2
-                     , const alignment_matrices_t *m
-                     );
+algn_print_dynmtrx_2d
+  ( const dyn_character_t      *char1
+  , const dyn_character_t      *char2
+  , const alignment_matrices_t *m
+  );
+
 
 /** takes two previously aligned characters, @param char1 & @param char2, for which some align function has been called,
  *  and extracts their
@@ -189,124 +197,134 @@ algn_print_dynmtrx_2d( const dyn_character_t      *char1
  *  @param st_char1 and @param st_char2 are 0 if there are no limits, have values otherwise.
  */
 void
-algn_backtrace_2d ( const dyn_character_t      *char1
-                  , const dyn_character_t      *char2
-                  ,       dyn_character_t      *ret_char1
-                  ,       dyn_character_t      *ret_char2
-                  , const alignment_matrices_t *nwMatrix
-                  , const cost_matrices_2d_t   *costMatrix
-                  ,       int                   st_char1
-                  ,       int                   st_char2
-                  );
+algn_backtrace_2d
+  ( const dyn_character_t      *char1
+  , const dyn_character_t      *char2
+  ,       dyn_character_t      *ret_char1
+  ,       dyn_character_t      *ret_char2
+  , const alignment_matrices_t *nwMatrix
+  , const cost_matrices_2d_t   *costMatrix
+  ,       int                   st_char1
+  ,       int                   st_char2
+  );
 
 
 /** As backtrace_2d, but for three characters */
 void
-algn_backtrace_3d ( const dyn_character_t      *char1
-                  , const dyn_character_t      *char2
-                  , const dyn_character_t      *char3
-                  ,       dyn_character_t      *r1
-                  ,       dyn_character_t      *r2
-                  ,       dyn_character_t      *r3
-                  , const cost_matrices_3d_t   *costMatrix
-                  ,       alignment_matrices_t *nwMatrix
-                  );
+algn_backtrace_3d
+  ( const dyn_character_t      *char1
+  , const dyn_character_t      *char2
+  , const dyn_character_t      *char3
+  ,       dyn_character_t      *r1
+  ,       dyn_character_t      *r2
+  ,       dyn_character_t      *r3
+  , const cost_matrices_3d_t   *costMatrix
+  ,       alignment_matrices_t *nwMatrix
+  );
 
 
 /** Given three aligned characters char1, char2, and char3, the median between them is
  *  returned in the character sm, using the cost matrix stored in m.
  */
-unsigned int
-algn_get_cost_medians_3d ( characters_t       *input
-                         , cost_matrices_3d_t *costMatrix
-                         , dyn_character_t    *ungapped_median
-                         , dyn_character_t    *gapped_median
-                         );
+cost_t
+algn_get_cost_medians_3d
+  ( characters_t       *input
+  , cost_matrices_3d_t *costMatrix
+  , dyn_character_t    *ungapped_median
+  , dyn_character_t    *gapped_median
+  );
 
 
 void
-algn_initialize_matrices_affine(       unsigned int        gap_open_cost
-                               , const dyn_character_t    *shortChar
-                               , const dyn_character_t    *longerChar
-                               , const cost_matrices_2d_t *costMatrix
-                               ,       unsigned int       *close_block_diagonal
-                               ,       unsigned int       *extend_block_diagonal
-                               ,       unsigned int       *extend_vertical
-                               ,       unsigned int       *extend_horizontal
-                               ,       unsigned int       *final_cost_matrix
-                               ,       DIR_MTX_ARROW_t    *direction_matrix
-                               ,       unsigned int       *algn_precalcMtx
-                               );
+algn_initialize_matrices_affine
+  (       cost_t              gap_open_cost
+  , const dyn_character_t    *shortChar
+  , const dyn_character_t    *longerChar
+  , const cost_matrices_2d_t *costMatrix
+  ,       cost_t             *close_block_diagonal
+  ,       cost_t             *extend_block_diagonal
+  ,       cost_t             *extend_vertical
+  ,       cost_t             *extend_horizontal
+  ,       cost_t             *final_cost_matrix
+  ,       DIR_MTX_ARROW_t    *direction_matrix
+  ,       cost_t             *algn_precalcMtx
+  );
 
 
 // TODO: what is nobt? no backtrace?
-unsigned int
-algn_fill_plane_2d_affine_nobt ( const dyn_character_t   *si
-                               , const dyn_character_t   *sj
-                               ,       size_t             leni
-                               ,       size_t             lenj
-                               ,       cost_matrices_2d_t *costMtx
-                               ,       unsigned int       *extend_horizontal
-                               ,       unsigned int       *extend_vertical
-                               ,       unsigned int       *close_block_diagonal
-                               ,       unsigned int       *extend_block_diagonal
-                               ,       unsigned int       *precalcMtx
-                               ,       unsigned int       *gap_open_prec
-                               ,       unsigned int       *sj_horizontal_extension
-                               );
+cost_t
+algn_fill_plane_2d_affine_nobt
+  ( const dyn_character_t    *si
+  , const dyn_character_t    *sj
+  ,       size_t              leni
+  ,       size_t              lenj
+  ,       cost_matrices_2d_t *costMtx
+  ,       cost_t             *extend_horizontal
+  ,       cost_t             *extend_vertical
+  ,       cost_t             *close_block_diagonal
+  ,       cost_t             *extend_block_diagonal
+  ,       cost_t             *precalcMtx
+  ,       cost_t             *gap_open_prec
+  ,       cost_t             *sj_horizontal_extension
+  );
 
 
 void
-algn_backtrace_affine ( const dyn_character_t    *shortChar
-                      , const dyn_character_t    *longChar
-                      ,       DIR_MTX_ARROW_t    *direction_matrix
-                      ,       dyn_character_t    *median
-                      ,       dyn_character_t    *medianwg
-                      ,       dyn_character_t    *resultShort
-                      ,       dyn_character_t    *resultLong
-                      , const cost_matrices_2d_t *costMatrix
-                      );
+algn_backtrace_affine
+  ( const dyn_character_t    *shortChar
+  , const dyn_character_t    *longChar
+  ,       DIR_MTX_ARROW_t    *direction_matrix
+  ,       dyn_character_t    *median
+  ,       dyn_character_t    *medianwg
+  ,       dyn_character_t    *resultShort
+  ,       dyn_character_t    *resultLong
+  , const cost_matrices_2d_t *costMatrix
+  );
 
 
-unsigned int
-algn_fill_plane_2d_affine ( const dyn_character_t    *shortChar
-                          , const dyn_character_t    *longChar
-                          ,       size_t              shortChar_len    // note that this is actually 1 less than length
-                          ,       size_t              longerChar_len   // note that this is actually 1 less than length
-                          ,       unsigned int       *final_cost_matrix
-                          ,       DIR_MTX_ARROW_t    *direction_matrix
-                          , const cost_matrices_2d_t * costMatrix
-                          ,       unsigned int       *extend_horizontal
-                          ,       unsigned int       *extend_vertical
-                          ,       unsigned int       *close_block_diagonal
-                          ,       unsigned int       *extend_block_diagonal
-                          ,       unsigned int       *precalcMtx
-                          ,       unsigned int       *gap_open_prec
-                          ,       unsigned int       *longChar_horizontal_extension
-                          );
-
-
-void
-algn_get_median_2d_no_gaps ( dyn_character_t    *char1
-                           , dyn_character_t    *char2
-                           , cost_matrices_2d_t *costMatrix
-                           , dyn_character_t    *sm
-                           );
+cost_t
+algn_fill_plane_2d_affine
+  ( const dyn_character_t    *shortChar
+  , const dyn_character_t    *longChar
+  ,       size_t              shortChar_len  // note that this is actually 1 less than length
+  ,       size_t              longerChar_len // note that this is actually 1 less than length
+  ,       cost_t             *final_cost_matrix
+  ,       DIR_MTX_ARROW_t    *direction_matrix
+  , const cost_matrices_2d_t *costMatrix
+  ,       cost_t             *extend_horizontal
+  ,       cost_t             *extend_vertical
+  ,       cost_t             *close_block_diagonal
+  ,       cost_t             *extend_block_diagonal
+  ,       cost_t             *precalcMtx
+  ,       cost_t             *gap_open_prec
+  ,       cost_t             *longChar_horizontal_extension
+  );
 
 
 void
-algn_get_median_2d_with_gaps ( dyn_character_t    *char1
-                             , dyn_character_t    *char2
-                             , cost_matrices_2d_t *costMatrix
-                             , dyn_character_t    *sm
-                             );
+algn_get_median_2d_no_gaps
+  ( dyn_character_t    *char1
+  , dyn_character_t    *char2
+  , cost_matrices_2d_t *costMatrix
+  , dyn_character_t    *sm
+  );
 
 
 void
-algn_union ( dyn_character_t *char1
-           , dyn_character_t *char2
-           , dyn_character_t *unionChar
-           );
+algn_get_median_2d_with_gaps
+  ( dyn_character_t    *char1
+  , dyn_character_t    *char2
+  , cost_matrices_2d_t *costMatrix
+  , dyn_character_t    *sm
+  );
+
+
+void
+algn_union
+  ( dyn_character_t *char1
+  , dyn_character_t *char2
+  , dyn_character_t *unionChar
+  );
 
 
 #endif /* ALIGN_CHARACTERS_H */

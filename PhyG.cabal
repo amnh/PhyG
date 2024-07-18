@@ -115,18 +115,38 @@ Flag Memoize-Via-TVar
 -- Global deviations from Haskell98
 Common ffi-build-info
 
---  If !os(darwin)
---    CC-Options:
---      -rdynamic --std=c11
---
---  Else
---    CC-Options:
---      --std=c11
-
+  -- Unconditional C Compiler options
   CC-Options:
     --std=c11
-    -- this for LINUX compile
-    -fPIC
+
+  If !os(darwin)
+    CC-Options:
+      -rdynamic
+
+  -- This for LINUX compile
+  If !os(darwin) && !os(windows)
+    CC-Options:
+      -fPIC
+
+  -- These are warning we want unless specifically disabled!
+  If !flag(Forego-Sanity)
+    CC-Options:
+      -Wabi
+      -Wall
+      -Wpedantic
+      -- Disable these warnings
+      -Wno-invalid-utf8
+      -Wno-variadic-macros
+
+  C-Sources:
+    ffi/external-direct-optimization/alignCharacters.c
+    ffi/external-direct-optimization/alignmentMatrices.c
+    ffi/external-direct-optimization/c_alignment_interface.c
+    ffi/external-direct-optimization/c_code_alloc_setup.c
+    ffi/external-direct-optimization/costMatrix.c
+    ffi/external-direct-optimization/dyn_character.c
+    ffi/external-direct-optimization/ukkCheckPoint.c
+    ffi/external-direct-optimization/ukkCommon.c
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
@@ -152,15 +172,6 @@ Common ffi-build-info
     ukkCheckPoint.h
     ukkCommon.h
 
-  C-Sources:
-    ffi/external-direct-optimization/alignCharacters.c
-    ffi/external-direct-optimization/alignmentMatrices.c
-    ffi/external-direct-optimization/c_alignment_interface.c
-    ffi/external-direct-optimization/c_code_alloc_setup.c
-    ffi/external-direct-optimization/costMatrix.c
-    ffi/external-direct-optimization/dyn_character.c
-    ffi/external-direct-optimization/ukkCheckPoint.c
-    ffi/external-direct-optimization/ukkCommon.c
 
 -- This is required as compile option to make static binaries on Linux at least
 -- need to haev llvm-(verions) tools installed to link properly

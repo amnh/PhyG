@@ -18,10 +18,10 @@
 /* USA                                                                        */
 
 #ifndef NWMATRICES_H
-
 #define NWMATRICES_H
 
 #include "costMatrix.h"
+#include "dyn_character.h"
 
 /** The following consts are to define possible moves in an NW matrix.
  *  As we're only saving one possible matrix, we don't need ambiguities,
@@ -68,9 +68,9 @@ typedef struct alignment_matrices_t {
     size_t           cap_pre;          /** Length of the precalculated matrix == max(len_s1, len_s2) * (alphSize + 1)
                                         *  ---extra 1 is for gap
                                         */
-    cost_t    *algn_costMtx;     /** NW cost matrix for 2d alignment */
+    cost_t          *algn_costMtx;     /** NW cost matrix for 2d alignment */
     DIR_MTX_ARROW_t *algn_dirMtx;      /** Matrix for backtrace directions in a 2d alignment */
-    cost_t    *algn_precalcMtx;  /** a three-dimensional matrix that holds
+    cost_t          *algn_precalcMtx;  /** a three-dimensional matrix that holds
                                          *  the transition costs for the entire alphabet (of all three characters)
                                          *  with the character char3. The columns are the bases of char3, and the rows are
                                          *  each of the alphabet characters (possibly including ambiguities). See
@@ -96,16 +96,19 @@ typedef struct alignment_matrices_t {
  * TODO: why is this in cm instead of matrices?
  */
 void
-algnMtx_precalc_4algn_2d(       alignment_matrices_t *alignmentMatrices
-                        , const cost_matrices_2d_t   *costMatrix
-                        , const dyn_character_t      *inChar);
+algnMtx_precalc_4algn_2d
+  (       alignment_matrices_t *alignmentMatrices
+  , const cost_matrices_2d_t   *costMatrix
+  , const dyn_character_t      *inChar
+  );
 
 
 cost_t *
-algnMtx_get_precal_row ( cost_t *p
-                       , elem_t item
-                       , size_t len
-                       );
+algnMtx_get_precal_row
+  ( cost_t *p
+  , elem_t  item
+  , size_t  len
+  );
 
 
 /*
@@ -114,7 +117,11 @@ algnMtx_get_precal_row ( cost_t *p
  * memory, so no ukkonen barriers for this.
  */
 size_t
-algnMat_size_of_2d_matrix (size_t w, size_t h);
+algnMat_size_of_2d_matrix
+  ( size_t w
+  , size_t h
+  );
+
 
 /*
  * Rearrange or reallocate memory if necessary to perform an alignment between
@@ -123,11 +130,21 @@ algnMat_size_of_2d_matrix (size_t w, size_t h);
  * Order of characters is unimportant here, as just reallocing.
  */
 void
-algnMat_setup_size (alignment_matrices_t *m, size_t len_char1, size_t len_char2, size_t matrixDimension);
+algnMat_setup_size
+  ( alignment_matrices_t *m
+  , size_t                len_char1
+  , size_t                len_char2
+  , size_t                matrixDimension
+  );
+
 
 /* Printout the contents of the matrix */
 void
-algnMat_print_algn_2d (alignment_matrices_t *m, size_t w, size_t h);
+algnMat_print_algn_2d
+  ( alignment_matrices_t *m
+  , size_t                w
+  , size_t                h
+  );
 
 
 #endif /* NWMATRICES_H */

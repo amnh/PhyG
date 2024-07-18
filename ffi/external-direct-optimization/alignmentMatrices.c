@@ -21,12 +21,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "debug_constants.h"
 #include "alignmentMatrices.h"
 #include "costMatrix.h"
+#include "debug_constants.h"
 
 
-void algnMat_print(alignment_matrices_t *alignMtx, size_t alphSize) {
+void
+algnMat_print
+  ( alignment_matrices_t *alignMtx
+  , size_t alphSize
+  )
+{
     printf("\nMatrices:\n");
     printf("    NW Matrix cap:         %zu\n", alignMtx->cap_nw);
     printf("    Efficiency mtx cap:    %zu\n", alignMtx->cap_eff);
@@ -36,7 +41,7 @@ void algnMat_print(alignment_matrices_t *alignMtx, size_t alphSize) {
     for( size_t i = 0; i < alignMtx->cap_pre; i += alphSize) {
         printf("    ");
         for( size_t j = 0; j < alphSize; j++) {
-            printf("%4d", alignMtx->algn_precalcMtx[i + j]);
+            printf("%4" cost_p, alignMtx->algn_precalcMtx[i + j]);
         }
         printf("\n");
     }
@@ -165,7 +170,7 @@ algnMtx_precalc_4algn_2d(       alignment_matrices_t *alignmentMatrices
 
     if (DEBUG_MAT) {
         for (j = 0; j < charLen; j++) {
-            printf ("char_begin_t[%zu]: %d\n", j, char_begin[j]), fflush(stdout);
+            printf ("char_begin_t[%zu]: %" elem_p "\n", j, char_begin[j]), fflush(stdout);
         }
     }
 
@@ -186,7 +191,7 @@ algnMtx_precalc_4algn_2d(       alignment_matrices_t *alignmentMatrices
         //printf ("After  Assignment\n"), fflush(stdout);
 
         if (DEBUG_COST_M) {
-            printf ("%7d", precalcMtx[j]);
+            printf ("%7" cost_p, precalcMtx[j]);
             fflush(stdout);
         }
     }
@@ -203,14 +208,14 @@ algnMtx_precalc_4algn_2d(       alignment_matrices_t *alignmentMatrices
          * gap), is filled using the tail cost */
         tmpPrecMtx[0] = tailCosts[j];
         if (DEBUG_MAT) {
-            printf ("%7d", tmpPrecMtx[0]);
+            printf ("%7" cost_p, tmpPrecMtx[0]);
             fflush(stdout);
 
         }
         for (i = 1; i < charLen; i++) {
             tmpPrecMtx[i] = tmpCost[char_begin[i]];
             if (DEBUG_MAT) {
-                printf ("%7d", tmpPrecMtx[i]);
+                printf ("%7" cost_p, tmpPrecMtx[i]);
                 fflush(stdout);
             }
         }
@@ -234,7 +239,7 @@ algnMat_print_algn_2d (alignment_matrices_t *alignMtx, size_t w, size_t h) {
 
     for (i = 0; i < h; i++) {
         for (j = 0; j < w; j++)
-            fprintf (stdout, "%d\t", *(nwCostMatrix + (w * i) + j));
+            fprintf (stdout, "%" cost_p "\t", *(nwCostMatrix + (w * i) + j));
         fprintf (stdout, "\n");
     }
     fprintf (stdout, "\n");

@@ -167,7 +167,7 @@ size_t cAlign2D
         memcpy( lesserInput, retLesserChar->array_head, allocationLen * sizeof(elem_t));
         memcpy( longerInput, retLongerChar->array_head, allocationLen * sizeof(elem_t));
         memcpy(outputMedian,    medianChar->array_head, allocationLen * sizeof(elem_t));
-        *outputLength = medianChar->len == 0 ? 0 : medianChar->len - 1; // Subtract 1 for the prepended gap
+        *outputLength = medianChar->len - 1; // Subtract 1 for the prepended gap
 
         // Free temporary buffers
         dyn_char_free( retLongerChar );
@@ -250,15 +250,15 @@ size_t cAlignAffine2D
 
     // TODO: document these variables
     // int *matrix;                        //
-    unsigned int *close_block_diagonal;       //
-    unsigned int *extend_block_diagonal;      //
-    unsigned int *extend_vertical;            //
-    unsigned int *extend_horizontal;          //
-    unsigned int *final_cost_matrix;          //
-    unsigned int *precalcMtx;                 //
-    unsigned int *matrix_2d;                  //
-    unsigned int *precalc_gap_open_cost;      // precalculated gap opening value (top row of nw matrix)
-    unsigned int *s_horizontal_gap_extension; //
+    cost_t *close_block_diagonal;       //
+    cost_t *extend_block_diagonal;      //
+    cost_t *extend_vertical;            //
+    cost_t *extend_horizontal;          //
+    cost_t *final_cost_matrix;          //
+    cost_t *precalcMtx;                 //
+    cost_t *matrix_2d;                  //
+    cost_t *precalc_gap_open_cost;      // precalculated gap opening value (top row of nw matrix)
+    cost_t *s_horizontal_gap_extension; //
     size_t        lenLongerChar;              //
 
     DIR_MTX_ARROW_t  *direction_matrix;
@@ -376,9 +376,9 @@ cAlign3D( char          *inputChar1_aio
   , char          *outputChar3_aio
   , char          *ungappedOutput_aio
   , cost_matrices_3d_t *costMtx3d
-  , unsigned int        substitution_cost
-  , unsigned int        gap_open_cost // Set `gap_open_cost` == `gap_extension_cost` for non-affine. TODO: check this.
-  , unsigned int        gap_extension_cost
+  , cost_t        substitution_cost
+  , cost_t        gap_open_cost // Set `gap_open_cost` == `gap_extension_cost` for non-affine. TODO: check this.
+  , cost_t        gap_extension_cost
             )
 {
 
@@ -398,7 +398,7 @@ cAlign3D( char          *inputChar1_aio
 
     const size_t allocationLen = inputChar1_aio->length + inputChar2_aio->length + inputChar3_aio->length;
 
-    unsigned int algnCost;
+    cost_t algnCost;
 
     // powellInputs will be sent to Powell 3D alignment, powellOutputs will be returned.
     characters_t *powellInputs  = alloc_characters_t(inputChar1_aio->length, inputChar2_aio->length, inputChar3_aio->length);

@@ -22,9 +22,22 @@
 
 #include <stddef.h>
 
-// #ifdef USE_LARGE_ALPHABETS
-//#define elem_t char
-#define elem_t unsigned int
+/**
+ *  The encoding type for "sequence elements."
+ *
+ *  NOTE:
+ *    -  Always use 'elem_t' as the type for seuqence elements
+ *    -  Always use 'elem_p' within the formatting string for 'printf' calls.
+ */
+#ifndef TYPE_OF_ELEM
+#define TYPE_OF_ELEM
+
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
+#define elem_p PRIu32
+typedef uint32_t elem_t;
+
+#endif /* TYPE_OF_ELEM */
 
 
 /* Dynamic character structure to be used inside ocaml custom types. */
@@ -50,24 +63,26 @@ typedef struct dyn_character_t {
 dyn_character_t *dyn_char_alloc( size_t allocSize );
 
 
-void dyn_char_free(dyn_character_t *toFree);
+void dyn_char_free( dyn_character_t *toFree );
 
 
 /** Adds v to the front of the character array inside a. Increments the length of a and decrements the pointer to the head of
  *  the character.
  */
-void dyn_char_prepend( dyn_character_t *a
-                     , elem_t           v
-                     );
+void dyn_char_prepend
+  ( dyn_character_t *a
+  , elem_t           v
+  );
 
 
 void dyn_char_print( const dyn_character_t *inChar );
 
 
 /* Stores the value v in the position p of character a. */
-void dyn_char_set( dyn_character_t *character
-                 , size_t           position
-                 , elem_t           value
-                 );
+void dyn_char_set
+  ( dyn_character_t *character
+  , size_t           position
+  , elem_t           value
+  );
 
 #endif /* DYN_CHAR_H */

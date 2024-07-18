@@ -124,7 +124,7 @@ void dyn_char_print( const dyn_character_t *inChar )
     printf("Char length   %3zu\n", inChar->len);
     printf("Char capacity %3zu\n", inChar->cap);
     for( ; start <= end; start++) {
-        printf("%2d, ", *start);
+        printf("%2" elem_p ", ", *start);
     }
     printf("\n");
 }
