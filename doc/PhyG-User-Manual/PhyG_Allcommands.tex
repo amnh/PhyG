@@ -1366,13 +1366,24 @@
 			
 		\begin{description}
 			
+			\item[ncm] Graph costs are determined by the No-Common-Mechanism 
+			likelihood model of \citep{TuffleyandSteel1997}. This is exact for trees, but 
+			for networks should be treated as a form of character weighting.  
+			
 			\item[parsimony] Graph costs are determined by the parsimony criterion, 
 			that is the minimum sum of transformation events multiplied by their weights. 
 			This is the default.
 			
-			\item[ncm] Graph costs are determined by the No-Common-Mechanism 
-			likelihood model of \citep{TuffleyandSteel1997}. This is exact for trees, but 
-			for networks should be treated as a form of character weighting.  
+			\item[pmdl] Graph costs are determined by the Phylogenetic Minimum Description Length criterion, 
+			of \citep{WheelerandVaron2025}.  This command option is used in conjunction with 
+			\texttt{modelComplexity}. Any network costs are specified by the criterion and other network
+			penalty options are ignored.  Costs are reported in bits.
+			
+			\item[si] Graph costs are determined by the Self-Information (a form of maximum likelihood) criterion
+			of \citep{WheelerandVaron2025}.  This command option ignores. 
+			\texttt{modelComplexity}. Any network costs are specified by the criterion and other network
+			penalty options are ignored.  Costs are reported in bits.
+			
 			
 		\end{description}
 			
@@ -1453,7 +1464,10 @@
 		determined by the number of input blocks (files). Hence, a taxon with all missing values 
 		in a TNT file will be counted as not missing for this purpose.   
 		
-%		\item[modelcomplexity] Related to Information Theory. Not implemented yet.
+		\item[modelComplexity] The model complexity for use with the PMDL optimality criterion
+		of \citep{WheelerandVaron2025}.
+		These values can be generated using \texttt{phyloComplexity} 
+		\href{https://github.com/amnh/PhyAlgInfo}{phyloAlgInfo}
 		
 		\item[multiTraverse:[BOOL]] Controls the multi-traverse character optimization 
 		option. If \texttt{True}, character trees are traversed from each edge as in 
