@@ -381,7 +381,7 @@ so root independent
 Wrapper around more flexible calculatePMDLVertexComplexity
 -}
 calculatePMDLRootCost ∷ Bool → ProcessedData → VertexCost
-calculatePMDLRootCost useLogPiValues inData =
+calculatePMDLRootCost useLogPiValues inData = 
     calculatePMDLVertexComplexity useLogPiValues Nothing inData Nothing
 
 
@@ -405,13 +405,15 @@ getVerticesInsertCost charInfoV charDataV =
 
 -- | getLogPiRootCost gets log 2 ofelement dreqnecies over all data blocks
 getLogPiRootCost ∷ V.Vector BlockData → Double
-getLogPiRootCost inBlockDataV =
-    -- trace ("In GLPRC: " <> (show (V.sum $ fmap getBlockLogPiCost inBlockDataV))) $
+getLogPiRootCost inBlockDataV = 
+    --trace ("In GLPRC Blocks: " <> (show $ (V.length inBlockDataV, fmap (fmap V.length) $ fmap GU.snd3 inBlockDataV, fmap (V.length . GU.thd3) inBlockDataV))) $
     V.sum $ fmap getBlockLogPiCost inBlockDataV
 
 
 {- | getBlockLogPiCost sums up the character root complexity of a block
 relies on pulling charcters out of block
+
+NOT CORRECT  num chars and num tax confused
 -}
 getBlockLogPiCost ∷ BlockData → Double
 getBlockLogPiCost (_, leafCharVV, charInfoV) =
@@ -420,33 +422,34 @@ getBlockLogPiCost (_, leafCharVV, charInfoV) =
         else -- create leaf by single character structure to be mapped over
 
             let charNumList = [0 .. (V.length $ V.head leafCharVV) - 1]
-                charVect = fmap (leafCharVV V.!) (V.fromList charNumList)
-            in  -- trace ("In GBLPC: " <> (show ((V.length $ V.head leafCharVV),  V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV))) $
+                leafCharVV' = transposeVector leafCharVV
+                charVect = fmap (leafCharVV' V.!) (V.fromList charNumList)
+            in  -- trace ("In GBLPC: " <> (show ((length charNumList, V.length leafCharVV'), V.length charInfoV))) $
                 V.sum $ V.zipWith getCharacterLogPiCost charVect charInfoV
 
 
-{- | getCharacterLogPiCost takes a characterdata (vector of terminals for single character)
+{- | getCharacterLogPiCost takes a character data (vector of terminals for single character)
 and returns root complexity cost based on frequency of
 sequence character elements and state number for no-sequence
 -}
 getCharacterLogPiCost ∷ V.Vector CharacterData → CharInfo → Double
-getCharacterLogPiCost charDataV charInfo =
+getCharacterLogPiCost charDataV charInfo = 
+    --trace ("In GCLPC: " <> (show $ V.length charDataV)) $
     if V.null charDataV
         then 0.0
         else
-            let nonSequenceCharRootCost = getNonSequenceCharacterLogPiCost (V.head charDataV) charInfo
+            let nonSequenceCharRootCost = getNonSequenceCharacterLogPiCost charInfo (V.head charDataV)
                 sequenceCharRootCost = getSequenceCharacterLogPiCost charDataV charInfo
             in  -- trace ("In GCLPC: " <> (show (nonSequenceCharRootCost, sequenceCharRootCost))) $
                 nonSequenceCharRootCost + sequenceCharRootCost
 
-
 {- | getNonSequenceCharacterLogPiCost creates root cost for all add/nonAdd/Matrix characters
 based number of character states and the log2 of that same for each leaf (since static)
-so no need to average--can use a single leaf
+so no need to average--can use a single leaf--hence head
 -}
-getNonSequenceCharacterLogPiCost ∷ CharacterData → CharInfo → Double
-getNonSequenceCharacterLogPiCost inChar charInfo =
-    -- trace ("In GCIC: " <> (show $ charType charInfo)) $
+getNonSequenceCharacterLogPiCost ∷ CharInfo → CharacterData → Double
+getNonSequenceCharacterLogPiCost charInfo inChar =
+    --trace ("In GCIC: " <> (show (charType charInfo, stateBVPrelim inChar))) $
     let localCharType = charType charInfo
 
         numStates =
@@ -468,11 +471,12 @@ getNonSequenceCharacterLogPiCost inChar charInfo =
             | localCharType == NonAdd = alphabetWeight * fromIntegral (V.length $ GU.snd3 $ stateBVPrelim inChar)
             | localCharType `elem` packedNonAddTypes = fromIntegral (UV.length $ GU.snd3 $ packedNonAddPrelim inChar)
             | localCharType == Matrix = alphabetWeight * fromIntegral (V.length $ matrixStatesPrelim inChar)
-            | otherwise = error ("Non static charcter type: " <> (show localCharType))
-    in  -- trace ("GCIC: " <> (show (insertCost))) $
+            | otherwise = error ("Non static character type: " <> (show localCharType))
+    in  
         if localCharType `notElem` ([Add, NonAdd, Matrix] <> packedNonAddTypes)
             then 0.0
-            else insertCost
+            else -- trace ("GCIC: " <> (show (numStates, insertCost))) $ 
+                insertCost
 
 
 {- | getSequenceCharacterLogPiCost creates root cost for all characters as with add/nonAdd
@@ -481,7 +485,7 @@ average cost over leaves so root placement independent
 -}
 getSequenceCharacterLogPiCost ∷ V.Vector CharacterData → CharInfo → Double
 getSequenceCharacterLogPiCost charDataV charInfo =
-    -- trace ("In GSCLPC") $
+    --trace ("GSCLP") $ 
     if V.null charDataV
         then error "No data to calculate root cost"
         else
@@ -1744,7 +1748,7 @@ getUnionFieldsNode inVertData =
     "UnionFields " <> show inVertData
 
 
--- | transposeVector transposes a vrctor via conversino to lists transposing those and converting back
+-- | transposeVector transposes a vector via conversion to lists transposing those and converting back
 transposeVector ∷ V.Vector (V.Vector a) → V.Vector (V.Vector a)
 transposeVector inVect =
     if V.null inVect
