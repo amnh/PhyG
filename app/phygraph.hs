@@ -238,11 +238,6 @@ performSearch initialSeed inputFilePath = do
                     , "\n"
                     ]
 
-    -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
-    let reportingData
-            | reportNaiveData partitionCharOptimalityGlobalSettings = naiveData
-            | otherwise = emptyProcessedData
-
     -- Ladderizes (resolves) input graphs and ensures that networks are time-consistent
     -- chained network nodes should never be introduced later so only checked no
     -- checks for children of tree node that are all netowork nodee (causes displayu problem)
@@ -289,6 +284,11 @@ performSearch initialSeed inputFilePath = do
     let initialSetCommands = filter ((== Set) . fst) thingsToDoAfterReblock
 
     let commandsAfterInitialDiagnose = filter ((/= Set) . fst) thingsToDoAfterReblock
+
+    -- Set reporting data for qualitative characters to Naive data (usually but not if huge data set), empty if packed
+    reportingData <-
+            if reportNaiveData partitionCharOptimalityGlobalSettings then R.reBlockData newBlockPairList naiveData
+            else pure emptyProcessedData
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings, _) ←
