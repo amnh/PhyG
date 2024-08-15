@@ -654,7 +654,7 @@ processTCMContents indelGap inContents fileName =
                         then do
                             failWithPhase
                                 Parsing
-                                "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specifid as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
+                                "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specified as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
                         else
                             if numLines /= numElements
                                 then do
