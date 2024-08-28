@@ -78,7 +78,8 @@ softwareName = name `AbbreviationOf` "Phylogenetic Graph"
 Brief description of the software version.
 -}
 shortVersionInformation ∷ (IsString s, Semigroup s) ⇒ s
-shortVersionInformation = "β-version " <> fromString (showVersion version)
+--shortVersionInformation = "β-version " <> fromString (showVersion version)
+shortVersionInformation = "Version " <> fromString (showVersion version)
 
 
 {- |
