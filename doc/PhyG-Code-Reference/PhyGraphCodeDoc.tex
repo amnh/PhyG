@@ -1,0 +1,369 @@
+\documentclass[11pt]{article}
+\usepackage{longtable}
+\usepackage{color}
+\usepackage{tabu}
+\usepackage{setspace}
+\usepackage{pdflscape}
+\usepackage{graphicx}
+%\usepackage{subfigure}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{natbib}
+\usepackage{fullpage}
+\bibliographystyle{plain}
+%\bibliographystyle{cbe}
+\usepackage{algorithmic}
+\usepackage[vlined,ruled]{algorithm2e}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{url}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
+\usepackage[nottoc,numbib]{tocbibind}
+
+\let \oriAlgorithm=\algorithm%
+\renewcommand{\algorithm}[2]{%
+	\oriAlgorithm%
+	\SetAlgoLined%
+	\DontPrintSemicolon%
+	\SetKwComment{Comment}{$\triangleright\ $}{}%
+	\TitleOfAlgo{ #1 }%
+	\caption{ #2 }%
+}%
+\newcommand*{\Set}[2]{ #1 $\gets$ #2 \;}
+\newcommand*{\SetC}[3]{ #1 $\gets$ #2 \Comment*[r]{#3}}
+\newcommand*{\ForC}[3]{\For(\Comment*[f]{#2}){#1}{#3}}
+
+\begin{document}
+	%\firstpage{1}
+	
+	\title{PhylogeneticGraph\\Program Documentation\\Version 0.1}
+	%\subtitle{Program Documentation\\Version 0.1}
+	\author{Ward C. Wheeler\\
+		Division of Invertebrate Zoology,\\ American Museum of Natural History,\\ 200 Central Park West, New York, NY, 10024, USA;\\wheeler@amnh.org}
+	
+	
+	\maketitle
+%	\begin{center}
+%		Running Title: {PhyGraph Version 0.1}
+%	\end{center}
+	\newpage
+	
+	\tableofcontents
+	\newpage
+	\section{Introduction}
+	This document contains descriptions of algorithms, procedures, data structures and other aspects of the 
+	source code documentation for the program PhylogeneticGraph (\texttt{PhyG}).  
+	
+	 \texttt{PhyG} is a successor program to \texttt{POY} \citep{POY2,POY3,POY4,Varonetal2010,POY5, Wheeleretal2015} \url{https://github.com/wardwheeler/POY5}, 
+	 although a ``complete'' Haskell rewrite, optimized C (and even some assembler) was ported over from POY for pairwise alignment of small alphabet (<8)
+	 sequences.  These functions are access via the Haskell FFI.
+	
+	
+	
+	\section{Program Flow}
+	The ``main'' file is phygraph.hs and it controls program flow from data entry to completion.
+	Program flow follows these operations:
+	\begin{enumerate}
+		\item{Commands are input from a script file (by convention suffix ``.pg'') and processed with two functions both contained in module Commands.ProcessCommands.  The first expands commands contained in second level scripts files (specified with the ``run'' command) into a complete
+		list of commands processed with getCommandList} 
+	
+		\item{Read commands are expanded (name globbing) and placed at the head of the command list (all other commands are executed in order
+			specified by the command script file).  This ensures that all character data and input graph files are in place and can be checked to 
+			ensure leaf complements are the same in data and any input graph.}
+		
+		\item{Commands are checked to ensure they are properly formatted and have appropriate user-specified options.  Specified files are not checked
+			for formatting or availability.  An error is thrown if a file is used for both reading and writing.  Could be changed to a warning.
+			This uses module Commands.Verify.}
+		
+		\item{Commands that involve data and graph input, inclusion and exclusion of terminal taxa, taxon renaming, and network 
+			block assignment are processed.}
+		
+		\item{Internal sequence partitions (via default `\#' or `set(partitionCharacter:X)' specified characters) are applied (Module Input.DataTransformation).}
+		
+		\item{Data block names are assigned (via module Commands.CommandExecution)}
+		
+		\item{Leaves in data and graphs are renamed if specified by the user (Modules Input.DataTransformation and PhyloLibs/GraphFormatUtilities), 
+			and relevant commands
+			removed from command queue.}
+		
+		\item{A check is performed to identify taxa with all-missing data.}
+		
+		\item{Input graphs are ``ladderized'' to make sure all nodes are (indegree, outdegree) = $\{(0,2), (1,0), (1,2), or (2,1)\}$}
+		
+		\item{Leaf bitVector labels are created based on a data sort (to maintain label invariance) and allow for consistency 
+			in graph construction (i.e. left/right \cite{WashburnandWheeler2020})}
+		
+		\item{Initial ``naive'', analyzable (i.e. in correct structures), data are created (Module Input.DataTransformation).}
+		
+		
+		\item{Data are reorganized (groupDataByType) by type (Module Input.Reorganize).  This puts all additive, non-additive, and matrix (with same 
+			transformation cost/step matrix) characters in the initial data block into single character structures.  These structures contain vectors of 
+			characters of the same type.  
+			This improves both efficiency and clarity of code. In addition, Additive characters with maximum state 	$<$ 65 
+			are recoded as non-additive binary characters \cite{Farris1970} if they do not have weights--this to ensure proper optimization of 
+			`continuous' characters.} 
+		
+		\item{Data are optimized by 1) ``bit-packing'' non-additive characters into 64-bit words to improve both memory consumption
+			and efficiency of operations \cite{Ronquist1998, moilanen1999, goloboff2002, WhiteandHolland2011}, and 2) removing constant positions in prealigned sequence characters and recoding those with non-additive-type costs (ie all 1) as non-additive and then bit-packed.}
+		
+		\item{Data blocks are reassigned from  data (Module Input.Reorganize), and relevant commands remove from command queue.}
+		
+		\item{Characters in each data block are combined by type as with groupDataByType (using a different function that operated on non-singleton characters---ie after initial grouping by type in initial blocks).}
+		
+		\item{Global ``set'' operations are performed and relevant commands
+			removed from command queue.}
+		
+		\item{Any input graphs are optimized}
+		
+		\item{Pairwise distances (if required--data structure is non-strict) are calculated.}
+		
+		\item{Remaining commands are processed in turn, via executeCommands in Module 
+			Commands.CommandExecution, until the command queue is empty
+			and the program exits.}
+		
+	\end{enumerate} 
+
+	\section{Order of execution operations}
+		\begin{enumerate}
+			\item{Script file is input}
+			\item{Script file is expanded if script contains \texttt{run} commands}
+			\item{Script file is reordered to place \texttt{set} commands first, \texttt{read} commands second, other commands are in their input order and follow}
+			\item{Data are input}
+			\item{Any graphs are input}
+			\item{Other commands in order}
+		\end{enumerate}
+	
+	\section{Data Structures}
+	Most important (at least global) structures and definitions are contained in Module Types.Types.  Not all types are discussed here--just 
+	the most important, and most opaque.
+	
+	\begin{itemize}
+		\item {CharType is all the varieties of characters that can be optimized on graphs. Over time this variety will no doubt increase,
+		hence the instructions later on how to add new ones. Add, NonAdd and Matrix (step matrix or general characters) are fairly standard 
+		static character types.  The PackedN types are all Non-additive but have been bitpacked so have many functions specific to them.  In each case,
+		the data are packed into Word64 structures. The XSlim, XWide, and XHuge types refer to prealigned (AlignedX) or unaligned (XSeq) sequence
+		data with small ($<$ 9 alphabet elements including gaps `-`, Slim), medium (9--64 elements, Wide) and large ($>$ 64 elements, Huge) 
+		sequence character types.  The Slim types are structures as CUInt for use across an FFI to C-code.}
+	
+		\item{Graphs can be Tree, SoftWired, or HardWired \cite{KannanandWheeler2012,Fischeretal2013, KannanandWheeler2014}.  Vertices and edges have types that relate to the graph type.}
+		
+		\item{OptimalityCriterion, GraphFactor, and RootCost all refer to methods of attaching a real values cost value to a graph.}
+		
+		\item{GlobalSettings contains useful information that is required in many placed throughout the code.}
+		
+		\item{CharInfo contains information about charters and is used to determine many actions performed on and to character data.}
+		
+		\item{CharacterData holds the actual character data for all types as fields that are selectively recalled and modified 
+			thought the code. The basic type is a vector of some type that holds character information conveniently.}
+		
+		\item{SimpleGraph, DecoratedGraph, PhylogeneticGraph are graph data structures that are used throughout the code base.  
+			SimpleGraph has limited vertex and edge information including no character data. DecoratedGraph has similar structures to 
+			SimpleGraph but contains CharacterInfo at each vertex in VertexInfo. PhylogeneticGraph contains both the previous graph structures 
+			as well as block data, display trees, character trees, and character information.  PhylogeneticGraph is teh fundamental graph structure
+			throughout the code base.}
+		
+		\item{BlockData and ProcessedData are the main data structures outside of graphs.  ProcessedData includes leaf labels and a 
+			vector of BlockData--one element for each network data block.  Block data contain the name of the block, taxon by character 
+			data for all characters in the block, and character information for each character in the block.  PhylogeneticGraphs have block and 
+			character data for single nodes whereas Processed/Block data are taxon by character data.  Transposing the vectors, perhaps
+			via lists, can move between taxon and character dominant  matrices.}
+		
+	\end{itemize}
+	
+	
+	\section{Code Base}
+	
+	\section {Command Parsing}
+	
+	\section{Character reorganization and optimizing}
+		Input data are passed through several functions to:
+		\begin{itemize}
+			\item{Rename taxa}
+			\item{Exclude taxa}
+			\item{Add missing data for taxa not present in all input files}
+			\item{Check that input taxa and any input graphs contain the same leaf set}
+			\item{Data a reblocked if specified}
+			\item{Static (Non-additive, additive, and matrix) characters are reorganized so that
+				each class is put in a single (extensive) character (one for each type) type for each block.}
+			\item{Non-additive characters are `bit-packed' into new characters with state numbers $=$2, $\leq$
+				4, $\leq$5, $\leq$8, $\leq$64, and $>$ 64. Invariant characters are filtered out.}
+			 
+		\end{itemize}
+		\subsection{Character weights}
+		Static characters (Non-additive, additive, and matrix) with integer weights are reorganized
+		by repeating the character the number of times of its weight.  This is to avoid alot of 
+		unnecessary ($\times 1$) operations.  Non-integer weight characters are not reorganized or
+		bit packed.
+		
+		\subsection{BitPacking}
+		Non-additive characters, either from input or static approximation recoding, are initially 
+		encoded as little-endian bit-vectors.  These are flexible, with unbounded (more or less)state numbers.
+		They are also inefficient in space nad optimization compared with native types such as Word64. 
+		
+		An additional level of inefficiency comes from encoding characters with lower numbers of states in type (e.g. word64) with a single bit for each state.  As a result, non-additive characters are recoded according to their 
+		number os states into 5 new character types (in Types.hs): Packed2, Packed4, Packed5, Packed8, and Packed64. 
+		
+		Characters with $>$ 64 states remain (although a new character is created) as bit-vectors.  Characters with 
+		2, 3-4, 5, and 6-8 states are ``packed'' into 64 bit Word64 with 32, 16, 12, and 8 characters per word respectively. Characters with 9-64 states are encoded as a single Word64. These are concatenated into a Vector and stored in characterData as ``packedNonAddPrelim'' and ``packedNonAddFinal''.
+		
+		Non-additive charterers are first separated into groups of like-state number, then appropriate recoding
+		and packing are applied.  One important point is that states may be non-sequential (ie 3 and 23), yet
+		still binary (after accounting for ``missing'' = all bits On).  These are identified and recoded as sequential states (bits 0,1,2..).
+		
+		Simultaneous 2-median and 3-median (post-order and pre-order) optimization is performed via the methods described in \cite{WhiteandHolland2011} and \cite{goloboff2002} modified for 64-bit words and alternate state numbers (basically mask and shit numbers).  These methods, documented and undocumented likely originate with D. E. Knuth in a general sense, and \cite{Farris1988} in phylogenetic software.
+		
+		The module Input.BitPack.hs contains the functions and constants (e.g. masks) to deal 
+		with bit-packed characters.
+		
+	\section{Post-Order graph rerrot for Tree and SoftWired}
+		Block trees (yes trees) are pulled ofr each block from canonical decorated graph.  These are trees with best for each block.
+		
+		
+	\section{Post-Order Graph Traversal}
+		\subsection{Trees}
+		A decorated Graph (tree) is created for each character for each block for the graph.  For exact characters, where no addition traversals are required, 
+		the specified or default
+		outgroup sets the direction of the graph.  For non-exact (e.g. sequence) characters the best traversal rooting is stored for each character in each block
+		although the cost of the graph is recalculated based on the best traversal (over all edges in the graph), the preliminary (post-order) states are not propagated back
+		to the decorated graph (third field of phylogenetic graph).  After the pre-order pass, the final states are propagated back.
+		Vertices are not renumbered during the rerooting process, so indices remain unchanged.
+		
+			Preliminary states (post-order) are determined for exact and non-exact characters as in \cite{Wheeler2012}.
+	
+	\section{Pre-Order Graph Traversal}
+		\subsection{Trees}
+		Final state assignments of root vertices are set to the preliminary, post-order state.
+		Final  states are propagated back to the decorated graph (third field of phylogenetic graph).
+		Vertices are not renumbered during the rerooting process, so indices remain unchanged.
+		
+		Final states (pre-order) are determined for exact and non-exact characters as in \cite{Wheeler2012}.  Currently final states for 
+		non-exact characters (e.g. sequence) are set as the median between the gapped preliminary state of the vertex and the final state of its parent
+		(for a tree), `extra' gaps in preliminary state are propagated to the gaped left and right descendant sequences, left, right, and parent final sequences
+		should now line up and a 3-median can be calculated.
+		
+
+	\section{Adding New Character Types}
+		Current character types include Additive, Non-Additive, Matrix, Slim Sequences, Wide Sequences, and Huge Sequences.  
+		Functions that branch on character types need to be updates and are found in:
+		\begin{itemize}
+			 \item{GraphOptimization.Medians.hs}
+			 	\begin{itemize}
+			 		\item{Median2Single}
+					\item{Median2SingleStaticIA}
+					\item{Union2Single}
+					\item{GetPrealignedUnion}
+					\item{getPreAligned2Median}
+					\item{median2SingleNonExact}
+			 	\end{itemize}
+			 \item{GraphOptimization.PreOrderFunctions.hs}
+			 	\begin{itemize}
+			 		\item{updateCharacter}
+			 		\item{getCharacterDistFinal}
+			 		\item{setFinal}
+			 		\item{setPrelimToFinalCharacterData}
+			 	\end{itemize}
+		 
+			 \item{Commands.Transform.hs}
+				\begin{itemize}
+				\item{transformCharacter}
+			\end{itemize}
+			 \item{Commands.CommandExecution.hs}
+				\begin{itemize}
+				\item{makeCharLine}
+				\item{getCharCodeInfo}
+				\item{makeBlockCharacterString}
+				\item{pairList2Fasta}
+				\item{getCharacterString}
+				\end{itemize}
+			 \item{Types.Types.hs}
+				 \begin{itemize}
+				 	\item{CharType}
+				 	\item{nonExactCharacterTypes}
+				 	\item{exactCharacterTypes}
+				 	\item{prealignedCharacterTypes}
+				 	\item{CharacterData}
+				 	\item{emptyCharacter}
+				 \end{itemize}
+			 \item{Utilities.Utilities.hs}
+				\begin{itemize}
+					\item{getCharacterInsertCost}
+					\item{splitBlockCharacters}
+					\item{getNumberExactCharacters}
+					\item{getNumberSequenceCharactersC9l7mb7s!
+					}
+					\item{getCharacterLength}
+				\end{itemize}
+			 \item{Utilities.ThreeWayfunctions.hs}
+				\begin{itemize}
+					\item{threeMedianFinal}
+				\end{itemize}
+			 \item{Support.Support.hs}
+				\begin{itemize}
+					\item{subSampleStatic}
+					\item{makeSampledPairVect}
+				\end{itemize}
+			 \item{Input.Reorganize.hs}
+			 \begin{itemize}
+			 	\item{removeConstantChars}
+			 	\item{filterConst}
+			 	\item{getVariableChars}
+			 	\item{getVarVecBits}
+			 	\item{assignNewField}
+			 	\item{organizeBlockData'}
+			 \end{itemize}
+		 	  \item{Input.FastAC.hs}
+		 	 \begin{itemize}
+		 	 	\item{Functions for sequence data processing on input}
+		 	 \end{itemize}
+		 	 \item{Input.DataTransformation.hs}
+		 	 \begin{itemize}
+		 	 	\item{These are for input--so not used by static approx or bit-packed}
+		 	 	\item{getMissingValue}
+		 	 	\item{getGeneralSequenceChar}
+		 	 	\item{getQualitativeCharacters--potentially depending on character features}
+		 	 	\item{createLeafCharacter}
+		 	 	\item{missingAligned}
+		 	 \end{itemize}
+	 	 	 \item{Input.BitPack}
+	 	 	 \begin{itemize}
+	 	 	 	\item{If new character can be pit packed would go in here}
+	 	 	 \end{itemize}
+		 	 
+			 \item{Functions with ``== NonAdd'' etc will need extra cases for any new character type}
+	\end{itemize}
+
+	\section{Simulated Annealing/Drift}
+	The \texttt{swap()} and \texttt{net/add/delete/move/adddelete} commands contain options for Simulated Annealing
+	and ``Drifting'' (basically simulated annealing with a single temperature).  The options are set in SwapMaster.hs,
+	Refine.hs, and NetworkAddDelete.hs.  For Simulated Annealing, only the number of temperature steps and
+	number of annealing rounds (specified with \texttt{annealing:N}) are specified.  For Drifting, additional parameters
+	such as the maximum number of changes to graph topology, and probabilities of accepting equal and worse solutions.
+	
+	The acceptance functions are in Utilities.hs.
+
+	\section{Adding New Commands}
+	In addition to their locations (functions) of operation, commands and their options are specified in Verify.hs, CommandExecution.hs,
+	CommandUtilities.hs, and ProcessCommands.hs.  The command options are entered in lists in Verify.hs so that command scripts 
+	can be checked for malformed options before runs begin to avoid command failures later during runs and all the concomitant wasted time.
+	CommandExecution.hs has the central function for processing commands and their arguments along with helper functions in CommandUtilities.hs.
+	ProcessCommands.hs contains functions to parse commands and has some error processing. 
+	
+	In  verify, all commands are in lower case--although can be any case for user.
+
+	\section{Execution in Parallel}
+	By default the program will execute multi-threaded based on the number processors available.  By specifying the options `+RTS -NX -RTS' where `X' is the number of processors offered to the program. These are specified after the program as in (for 4 parallel threads):\\
+	\\
+	PhyGraph +RTS -N4 -RTS other options...  \\
+	
+	Parallel code options are set using a parmap-type strategy throughout the code.  This is usually specified by myParListChunkRDS from the ParallelUtilities module in PhyloLibs The basic definitions of this functionality are found in ParallelUtilities.hs
+	
+	\section*{Acknowledgments}
+	The author would like to thank DARPA SIMPLEX N66001-15-C-4039, the  Robert J. Kleberg Jr. and Helen C. Kleberg foundation grant ``Mechanistic Analyses of Pancreatic Cancer Evolution'', and the American Museum of Natural History for financial support.  
+	
+	\newpage
+	%\bibliography{big-refs-3.bib}
+	%\bibliography{/users/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+	\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
+\end{document}

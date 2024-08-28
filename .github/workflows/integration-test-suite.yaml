@@ -1,7 +1,7 @@
 ################################################################################
 ### GitHub Actions curation providing quality assurance for Haskell projects 
 ###
-name: 'PHAGE Integration Test CI'
+name: 'PHANE Integration Test CI'
 
 ################################################################################
 ### Actions Configuration
@@ -99,7 +99,6 @@ jobs:
             # Recipient & email information
             to: crowley@amnh.org
             cc: wheeler@amnh.org
-            from: PHAGE ρbit
-            subject: "PHAGE CI Failure: Integration Test-suite - job ${{ github.job }}"
-            body: "The continuous integration performed by GitHub Workflows has failed!\n\nInspect job ${{ github.job.name }} numbered ${{ github.job }} at:\n\n    https://github.com/${{ github.repository }}actions.\n\n\nVigilantly,\n  ~ PHAGE ρbit"
-
+            from: PHANE ρbit
+            subject: "PHANE CI Failure: Integration Test-suite - job ${{ github.job }}"
+            body: "The continuous integration performed by GitHub Workflows has failed!\n\nInspect job ${{ github.job.name }} numbered ${{ github.job }} at:\n\n    https://github.com/${{ github.repository }}actions.\n\n\nVigilantly,\n  ~ PHANE ρbit"

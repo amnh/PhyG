@@ -1,0 +1,37 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: 'PhylogeneticGraph (PhyG) '
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Ward
+    family-names: Wheeler
+    email: wheeler@amnh.org
+    affiliation: American Museum of Natural History
+    orcid: 'https://orcid.org/0000-0001-6977-984X'
+repository-code: 'https://github.com/amnh/PhyG'
+url: 'https://github.com/amnh/PhyG'
+repository-artifact: 'https://github.com/amnh/PhyG-Integration-Tests'
+abstract: >-
+  Phylogenetic Graph (PhyG) is a multi-platform program
+  designed to produce phylogenetic graphs from input data
+  and graphs via heuristic searching of general phylogenetic
+  graph space. The bio-informatics framework libraries of
+  the broader Phylogenetic Haskell Analytic Network Engine
+  (PHANE) project are the foundation upon which PhyG is
+  constructed. PhyG offers vast functionality, including the
+  optimization of unaligned sequences, and the ability to
+  implement search strategies such as random addition
+  sequence, swapping, and tree fusing. Furthermore, PhyG can
+  generate outputs in the form of implied alignments and
+  graphical representations of cladograms and graphs. What
+  sets PhyG apart from other phylogenetic analysis programs,
+  is the extension to broader classes of input data and
+  phylogenetic graphs. The phylogenetic graph inputs and
+  outputs of PhyG include trees, as well as softwired and
+  hardwired networks.
+license: BSD-3-Clause

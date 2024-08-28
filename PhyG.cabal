@@ -1,0 +1,736 @@
+Cabal-Version: 3.12
+Name:          PhyG
+Version:       0.1.4
+Stability:     Alpha
+Build-Type:    Simple
+Tested-With:
+  GHC == 9.2.8
+  GHC == 9.4.7
+  GHC == 9.6.3
+  GHC == 9.8.1
+  GHC == 9.10.1
+
+Author:        Ward Wheeler <wheeler@amnh.org>
+Copyright:     © 2015 Ward Wheeler and The American Museum of Natural History
+License:       BSD-3-Clause
+License-File:  doc/LICENSE
+
+Maintainer:    Ward Wheeler <wheeler@amnh.org>
+Homepage:      https://github.com/AMNH/PhyG#readme
+Bug-Reports:   https://github.com/AMNH/PhyG/issues
+
+Synopsis:      Performs heuristic search of phylogenetic graph space via scoring abstract input data.
+Description:
+  Phylogenetic Graph (PhyG) is a multi-platform program designed to produce phylogenetic graphs
+  from input data and graphs via heuristic searching of general phylogenetic graph space. The
+  bio-informatics framework libraries of the broader Phylogenetic Haskell Analytic Network Engine
+  (PHANE) project are the foundation upon which PhyG is constructed. PhyG offers vast functionality,
+  including the optimization of unaligned sequences, and the ability to implement search strategies
+  such as random addition sequence, swapping, and tree fusing. Furthermore, PhyG can generate
+  outputs in the form of implied alignments and graphical representations of cladograms and graphs.
+  What sets PhyG apart from other phylogenetic analysis programs, is the extension to broader
+  classes of input data and phylogenetic graphs. The phylogenetic graph inputs and outputs of PhyG
+  include trees, as well as softwired and hardwired networks.
+
+Data-Files:
+  doc/Authors.md
+  doc/Funding.md
+  doc/LICENSE
+
+Extra-Doc-Files:
+  doc/Authors.md
+  doc/Changelog.md
+  doc/Funding.md
+  doc/LICENSE
+  README.md
+
+Extra-Source-Files:
+  doc/Authors.md
+  doc/Funding.md
+  doc/LICENSE
+  ffi/external-direct-optimization/*.h
+
+
+Flag Enforce-Sanity
+   Description: Ensure that all warnings are handled
+   Default:     False
+   Manual:      True
+
+Flag Enforce-Timestamp
+   Description: Disable multi-threading
+   Default:     True
+   Manual:      False
+
+Flag Forego-Sanity
+   Description: Disable extensive and helpful compiler warnings
+   Default:     False
+   Manual:      True
+
+Flag Single-Threaded
+   Description: Disable multi-threading
+   Default:     False
+   Manual:      True
+
+Flag Super-Optimization
+   Description: Apply extremely agressive and extremely time consuming optimization passes
+   Default:     False
+   Manual:      True
+
+Flag Use-LLVM
+   Description: Utilize the LLVM code generator backend
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-ConcurrentHashtable
+   Description: Memoized hash-table uses the "Concurrent Hashtable" package's implementation
+   Default:     True
+   Manual:      True
+
+Flag Memoize-Via-IORef
+   Description: Memoized hash-table uses the "IORef" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-ManualLock
+   Description: Memoized hash-table uses the "ManualLock" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-ReadWriteLock
+   Description: Memoized hash-table uses the "ReadWriteLock" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-Semaphore
+   Description: Memoized hash-table uses the "Semaphore" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-TVar
+   Description: Memoized hash-table uses the "TVar" implementation
+   Default:     False
+   Manual:      True
+
+
+-- Global deviations from Haskell98
+Common ffi-build-info
+
+--  If !os(darwin)
+--    CC-Options:
+--      -rdynamic --std=c11
+--
+--  Else
+--    CC-Options:
+--      --std=c11
+
+  CC-Options:
+    --std=c11
+    -- this for LINUX compile
+    -fPIC
+
+  -- Here we list all directories that contain C & C++ header files that the FFI
+  -- tools will need to locate when preprocessing the C files. Without listing
+  -- the directories containing the C header files here, the FFI preprocessor
+  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
+  -- that the parent directory of the nessicary C & C++ header files must be
+  -- specified. The preprocessor will not recursively look in subdirectories for
+  -- header files!
+  Include-Dirs:
+    ffi/external-direct-optimization
+
+  -- Specify the header files as required source files here.
+  -- Do not specify them in the c-sources or cxx-sources stanzas.
+  -- This is required for sdist and install commands to work correctly.
+  Includes:
+    alignCharacters.h
+    alignmentMatrices.h
+    c_alignment_interface.h
+    c_code_alloc_setup.h
+    costMatrix.h
+    debug_constants.h
+    dyn_character.h
+    ukkCheckPoint.h
+    ukkCommon.h
+
+  C-Sources:
+    ffi/external-direct-optimization/alignCharacters.c
+    ffi/external-direct-optimization/alignmentMatrices.c
+    ffi/external-direct-optimization/c_alignment_interface.c
+    ffi/external-direct-optimization/c_code_alloc_setup.c
+    ffi/external-direct-optimization/costMatrix.c
+    ffi/external-direct-optimization/dyn_character.c
+    ffi/external-direct-optimization/ukkCheckPoint.c
+    ffi/external-direct-optimization/ukkCommon.c
+
+-- This is required as compile option to make static binaries on Linux at least
+-- need to haev llvm-(verions) tools installed to link properly
+-- enable-executable-static -fpic (no idea why but lower case seems to mater on 
+-- commandline)--sometimes have to run twice to get link correct
+
+-- Global build directives
+Common build-defaults
+
+  -- If we want to enforce that the compile-time timestamp is accurate,
+  -- then we must ensure that we recompile the appropriate module(s).
+  -- This sets the CPP flag so that the modules can query if they should
+  -- always be recompield and then ask GHC to recompile them.
+  If flag(Enforce-Timestamp)
+    CPP-Options:
+      -DENFORCE_TIMESTAMP
+
+  -- Select the memoized hash-table implmentation to be used!
+  If flag(Memoize-Via-ReadWriteLock)
+    CPP-Options:
+      -DMemoize_Via_ReadWriteLock
+
+  Elif flag(Memoize-Via-IORef)
+    CPP-Options:
+      -DMemoize_Via_IORef
+            
+  Elif flag(Memoize-Via-ManualLock)
+    CPP-Options:
+      -DMemoize_Via_ManualLock
+            
+  Elif flag(Memoize-Via-Semaphore)
+    CPP-Options:
+      -DMemoize_Via_Semaphore
+            
+  Elif flag(Memoize-Via-TVar)
+    CPP-Options:
+      -DMemoize_Via_TVar
+
+  -- The flag of the default implementation goes last to give others preference.
+  Elif flag(Memoize-Via-ConcurrentHashtable)
+    CPP-Options:
+      -DMemoize_Via_ConcurrentHashtable
+
+  -- If no flags are set, meaning that the default flag was manually disabled,
+  -- then proceed with the default implementation anyways!
+  Else
+    CPP-Options:
+      -DMemoize_Via_ConcurrentHashtable
+
+  -- We want these Language Extensions enabled in *all* modules by default.      
+  Default-Extensions:
+    BangPatterns
+    DerivingStrategies
+    ImportQualifiedPost
+    LambdaCase
+    NoGeneralizedNewtypeDeriving
+    RoleAnnotations
+    UnicodeSyntax
+
+  Default-Language:
+    GHC2021
+
+  If flag(Enforce-Sanity)
+    GHC-Options:
+      -Werror
+
+  If !flag(Forego-Sanity)
+    GHC-Options:
+      -- Sanity check warnings
+      --   1. Include all warnings by default
+      -Weverything
+      --   2. Exclude the undesirable warnings
+      -Wno-all-missed-specialisations
+      -Wno-implicit-prelude
+      -Wno-inferred-safe-imports
+      -Wno-missing-import-lists
+      -Wno-missing-kind-signatures
+      -Wno-missing-safe-haskell-mode
+      -Wno-monomorphism-restriction
+      -Wno-redundant-bang-patterns
+      -Wno-type-defaults
+      -Wno-unsafe
+      -- Remove these exclusions later
+      -Wno-missed-specialisations
+      -Wno-x-partial
+
+  If os(darwin)
+    Ld-Options:
+      -Wl,-no_fixup_chains
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Preamble of package description and reusable definitions from above has ended
+-- and below we list all build targets of the package. Build targets include:
+--
+--   * Primary executable(s) for public usage
+--
+--   * Exposed sub-libraries for public consumption as program dependancies
+--
+--   * Benchmarks for executables and sub-libraries
+--
+--   * Test-suites for executables and sub-libraries
+--
+--   * Additional executables for non-public, diagnostic purposes
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+-- Phylogenetic Graphs
+--
+-- This is the main program of this package, supporting fully featured
+-- phylogenetic trees, networks, and forests.
+Executable phyg
+
+  Import:
+    build-defaults,
+    ffi-build-info,
+
+  Main-Is:
+    phygraph.hs
+
+  GHC-Options:
+--     -feager-blackholing --  may be causing parallel loop errors
+    -O2
+    -rtsopts
+    -Wall
+    --  Maybe this is required for good paralellism?          
+    -fno-omit-yields 
+    -- There is/are known compiler bug(s) with this optimization in GHC 9.6.2 (and earlier?).
+    -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
+    -- -fno-polymorphic-specialisation
+
+--  Ghc-Prof-Options: 
+
+  If flag(Use-LLVM)
+    GHC-Options:
+      -fllvm
+
+  -- Setup the Run-Time System (RTS) defaults
+  -- Note:
+  --   * Usage of -AL8 was rejected  should be >= A
+  --   * usage of --nonmoving-gc causes large memory blow-ups on cluster
+
+  -- If the the program should only use a single thread,
+  -- Then use the following RTS options:
+  If flag(Single-Threaded)
+    GHC-Options:
+      "-with-rtsopts=-A64m -AL128M -H1024m -n4m"
+
+  -- Otherwise, enable threading
+  -- and additionally set the maximum number of threads as the default:
+  Else
+    GHC-Options:
+      -threaded
+      "-with-rtsopts=-N -A64m -AL128M -H1024m -n4m -qa -qm"
+
+  -- If need for a high performance executable was specified,
+  -- then at compile-time GHC will allocate additional time and memory
+  -- to explore and apply the most agrressive optimization possible.
+  If flag(Super-Optimization)
+    GHC-Options:
+      -fexcess-precision
+      -fexpose-all-unfoldings
+      -flate-specialise
+      -fmax-simplifier-iterations=16
+      -foptimal-applicative-do
+      -fspec-constr-count=8
+      -fspec-constr-keen
+      -fspecialize-aggressively
+      -fstatic-argument-transformation
+      -fstg-cse
+      -fstrictness-before=1
+      -fstrictness-before=2
+      -fstrictness-before=3
+      -fstrictness-before=4
+      -funbox-small-strict-fields
+      -funbox-strict-fields
+
+  Build-Depends:
+    PHANE-alphabet,
+    PHANE-dynamic-character,
+    PHANE-dynamic-character-element,
+    PHANE-evaluation,
+    PhyG:dynamic-character,
+    PhyG:tcm,
+    PHANE-PhyloLib,
+    base >= 4.10,
+    bimap,
+    bv,
+    bv-little,
+    bytestring,
+    containers >= 0.6,
+    cpuinfo,
+    deepseq,
+    directory,
+    encode-string,
+    fingertree,
+    file-embed,
+    filepath >= 1.4.100,
+    fingertree,
+    fgl >=5.8,
+    foldl,
+    gitrev,
+    graphviz   >=2999.20,
+    hashable,
+    inflist,
+    logfloat,     
+    MissingH >= 1.4.3,
+    MonadRandom >= 0.6 && < 1.0,
+    mmark,
+    modern-uri,
+    optparse-applicative,
+    parallel,
+    prettyprinter,
+    process,
+    random,
+    random-shuffle,
+    split,
+    template-haskell,
+    text >= 2.0.1 && < 3.0,
+    text-builder-linear >= 0.1.1.1,
+    text-short,
+    th-lift-instances,
+    time,
+    unbounded-delays,     
+    unliftio-core >= 0.2 && < 1.0,
+    vector >= 0.13 && < 1.0,
+    zlib
+    -- currently doesn't compile but could be useful
+    -- lots of good functions
+    -- Graphalyze,
+
+  -- include the source files needed in src for github library
+  -- this for local library files
+  HS-Source-Dirs:
+    app
+    src
+
+  Other-Extensions:
+    CPP
+    TemplateHaskell
+
+  Autogen-Modules:
+    PackageInfo_PhyG
+    Paths_PhyG
+
+  Other-Modules:
+    CommandLineOptions
+    CommandLineOptions.Display
+    CommandLineOptions.Types
+    Commands.CommandExecution
+    Commands.CommandUtilities
+    Commands.ProcessCommands
+    Commands.Transform
+    Commands.Verify
+    Complexity.CodeStrings
+    Complexity.Constants
+    Complexity.Graphs
+    Complexity.Huffman
+    Complexity.Utilities
+    Debug.Debug
+    GraphOptimization.Medians
+    GraphOptimization.PostOrderSoftWiredFunctions
+    GraphOptimization.PostOrderSoftWiredFunctionsNew
+    GraphOptimization.PreOrderFunctions
+    GraphOptimization.Traversals
+    Graphs.GraphOperations
+    Input.BitPack
+    Input.DataTransformation
+    Input.FastAC
+    Input.ReadInputFiles
+    Input.Reorganize
+    Input.TNTUtilities
+    PackageInfo_PhyG
+    Paths_PhyG
+    Reconciliation.Adams
+    Reconciliation.Eun
+    Reconciliation.ReconcileGraphs
+    Search.Build
+    Search.DistanceMethods
+    Search.DistanceWagner
+    Search.Fuse
+    Search.GeneticAlgorithm
+    Search.NetworkAddDelete
+    Search.Refinement
+    Search.Search
+    Search.Swap
+    Search.SwapMaster
+    Search.WagnerBuild
+    Software.Credits
+    Software.License
+    Software.Metadata
+    Software.Metadata.Embedded
+    Software.Metadata.TimeStamp
+    Software.Preamble
+    Software.SplashImage
+    Support.Support
+    System.Timing
+    Types.DistanceTypes
+    Types.Types
+    Utilities.DistanceUtilities
+    Utilities.Distances
+    Utilities.LocalGraph
+    Utilities.LocalSequence
+    Utilities.TcmHash
+    Utilities.ThreeWayFunctions
+    Utilities.Utilities
+    -- GraphOptimization.PostOrderFunctions
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Collection of sub-libraries which both, compose the package's primary program
+-- (PCG/PhyG), and are also exposed for external consumption by other programs.
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+-- Library for performing string alignment on dynamic characters.
+
+-- Provides various metrics for scoring static characters and
+-- performing string alignment on dynamic characters.
+
+Library dynamic-character
+
+  Import:
+    build-defaults,
+    ffi-build-info
+
+  HS-Source-Dirs:
+    lib/dynamic-character/src
+
+  Build-Depends:
+--    PHANE-alphabet,
+    PHANE-dynamic-character,
+    PHANE-dynamic-character-element,
+    PhyG:tcm,
+    PhyG:utility,
+    base                     >= 4.11      && < 5.0,
+--    bv-little,
+    containers               >= 0.6.2     && < 1.0,
+    matrices                 >= 0.5       && < 1.0,
+    monad-loops              >= 0.4       && < 1.0,
+    primitive                >= 0.7.1     && < 1.0,
+    vector                   >= 0.12.0.3  && < 1.0,
+
+  Exposed-Modules:
+--    Bio.DynamicCharacter
+--    Bio.DynamicCharacter.Measure
+--    Bio.DynamicCharacter.HandleGaps
+    DirectOptimization.Pairwise
+    DirectOptimization.Pairwise.Visualization
+    DirectOptimization.Pairwise.Swapping
+    DirectOptimization.Pairwise.Ukkonen
+    DirectOptimization.PreOrder
+
+  Other-Modules:
+    DirectOptimization.Pairwise.Direction
+    DirectOptimization.Pairwise.Huge
+    DirectOptimization.Pairwise.Internal
+    DirectOptimization.Pairwise.Slim
+    DirectOptimization.Pairwise.Slim.FFI
+    DirectOptimization.Pairwise.Wide
+
+
+-- Library for working with TCMs and SCMs in various representations.
+
+-- General purpose library for working with transition cost matrices (TCMs)
+-- and symbol change matrices (SCMs). Specialization options are provided
+-- for the discrete metric (non-additive) and the L1 norm (additive) TCMs &
+-- SCMs. Exposes a memoized binding for sparsely indexed, large TCMs.
+
+Library tcm
+
+  Import:
+    build-defaults,
+    ffi-build-info
+
+  HS-Source-Dirs:
+    lib/tcm/src
+
+  Build-Depends:
+--    PHANE-dynamic-character,
+    PHANE-dynamic-character-element,
+    PhyG:utility,
+    binary                   >= 0.8       && < 1.0,
+    base                     >= 4.11      && < 5.0,
+    containers               >= 0.6.2     && < 1.0,
+    concurrent-extra         >= 0.7.0     && < 1.0,
+    concurrent-hashtable     >= 0.1.8     && < 1.0,     
+    deepseq                  >= 1.4       && < 2.0,
+    hashable                 >= 1.3       && < 2.0,
+    hashtables               >= 1.2       && < 2.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    mono-traversable         >= 1.0       && < 2.0,
+    semigroupoids            >= 5.3       && < 7.0,
+    stm,
+    vector                   >= 0.12.0.3  && < 1.0,
+    vector-binary-instances  >= 0.2.5     && < 1.0,
+
+  Exposed-Modules:
+    Data.Hashable.Memoize
+    Data.Hashable.Memoize.ViaConcurrentHashtable
+--    Data.Hashable.Memoize.ViaConcurrentHashtableOpt
+    Data.Hashable.Memoize.ViaIORef
+    Data.Hashable.Memoize.ViaManualLock
+    Data.Hashable.Memoize.ViaReadWriteLock
+    Data.Hashable.Memoize.ViaSemaphore
+    Data.Hashable.Memoize.ViaTVar
+    Data.MetricRepresentation
+    Data.TCM
+    Data.TCM.Dense
+    Data.TCM.Overlap
+
+  Other-Modules:
+    Data.TCM.Dense.FFI
+    Data.TCM.Internal
+
+
+Library utility
+
+  Import:
+    build-defaults
+
+  HS-Source-Dirs:
+    lib/utility/src
+
+  Build-Depends:
+    base                     >= 4.11      && < 5.0,
+    binary                   >= 0.8       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    deepseq                  >= 1.4       && < 2.0,
+    foldl                    >= 1.4       && < 2.0,
+    hashable                 >= 1.3       && < 2.0,
+    keys                     >= 3.12      && < 4.0,
+    lens                     >= 4.18      && < 6.0,
+    matrix                   >= 0.3.6     && < 0.4,
+    pointed                  >= 5.0       && < 6.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    semigroupoids            >= 5.3       && < 7.0,
+    vector                   >= 0.12.0.3  && < 1.0,
+    vector-binary-instances  >= 0.2       && < 1.0,
+    vector-instances         >= 3.4       && < 3.5,
+
+  If impl(ghc < 9.0)
+    Build-Depends:
+      integer-gmp            >= 1.0.2     && < 2.0
+
+  Exposed-Modules:
+    Data.List.Utility
+    Data.Matrix.NotStupid
+    Data.Vector.NonEmpty
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Test-suites of the sub-libraries which compose PCG/PhyG
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+Test-Suite test-dynamic-character
+
+  Import:
+    build-defaults
+
+  Main-Is:
+    TestSuite.hs
+
+  Type:
+    exitcode-stdio-1.0
+
+  HS-Source-Dirs:
+    lib/dynamic-character/test
+
+  Build-Depends:
+    PHANE-alphabet,
+    PHANE-dynamic-character,
+    PHANE-dynamic-character-element:quickcheck,
+    PhyG:dynamic-character,
+    PhyG:tcm,
+    base                     >= 4.11      && < 5.0,
+    bimap                    >= 0.3       && < 1.0,
+    containers               >= 0.6.2     && < 1.0,
+    QuickCheck               >= 2.14      && < 3.0,
+    tasty                    >= 1.4       && < 2.0,
+    tasty-quickcheck         >= 0.10      && < 1.0,
+    vector                   >= 0.12.0.3  && < 1.0,
+
+  Other-Modules:
+    DirectOptimization.Pairwise.Test
+    Test.Aligners
+    Test.QuickCheck.Instances.DynamicCharacter
+
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+--
+-- Additional executables which exist for the one of a few select purposes:
+--
+--   * Generating data for PCG/PhyG input
+--
+--   * Debugging the component sub-libraries of PCG/PhyG and PCG/PhyG itself
+--
+--   * Performing correctness verification
+--
+--   * Stocastically searching for non-totality counterexamples
+--
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+
+--Executable inspect-dynamic-character
+--
+--  Import:
+--    build-defaults,
+--
+--  Scope:
+--    private
+--
+--  Main-Is:
+--    Inspect.hs
+--
+--  HS-Source-Dirs:
+--    lib/dynamic-character/test
+--
+--  Build-Depends:
+--    PHANE-alphabet,
+--    PhyG:dynamic-character,
+--    PhyG:tcm,
+--    base                     >= 4.11      && < 5.0,
+--    bimap                    >= 0.3       && < 1.0,
+--    containers               >= 0.6.2     && < 1.0,
+--    QuickCheck               >= 2.14      && < 3.0,
+--    tasty                    >= 1.4       && < 2.0,
+--    tasty-quickcheck         >= 0.10      && < 1.0,
+--    vector                   >= 0.12.0.3  && < 1.0,
+--
+--  Other-Modules:
+--    Test.Aligners
+--    Test.QuickCheck.Instances.DynamicCharacter
+
+
+
+Benchmark bench-memoized-hashtable
+
+  Import:
+    build-defaults
+
+  Main-Is:
+    Time.hs
+
+  Type:
+    exitcode-stdio-1.0
+
+  GHC-Options:
+    -threaded
+    "-with-rtsopts=-N"
+
+  Hs-Source-Dirs:
+    lib/tcm/bench
+
+  Build-Depends:
+    PhyG:tcm,
+    async,
+    base                     >= 4.11      && < 5.0,
+    criterion                >= 1.5       && < 2.0,
+    deepseq                  >= 1.4       && < 2.0,
+    mtl >= 2.3 && < 3.0,
+    random,      
+    vector                   >= 0.12.0.3  && < 1.0,
+
+  Other-Modules:
+    Benchmark.Internal
