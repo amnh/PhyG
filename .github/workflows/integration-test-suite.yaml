@@ -11,7 +11,7 @@ defaults:
     shell: bash
 
 env:
-  PROJECTFILE: --project-file=cfg/cabal.project.integration
+  PROJECTFILE: --project-file=config/cabal.project.integration
   TESTDETAILS: --test-show-details=streaming
   TESTOPTIONS: --test-options="--timeout=30s"
   THISMAINEXE: PhyGraph:phyg
