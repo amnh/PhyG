@@ -28,6 +28,7 @@ module Test.QuickCheck.Instances.DynamicCharacter
   ) where
 
 import           Bio.DynamicCharacter
+import           Bio.DynamicCharacter.Element.QuickCheck
 import           Control.Applicative
 import           Data.Alphabet
 import           Data.Alphabet.Codec
@@ -45,7 +46,6 @@ import qualified Data.Vector               as V
 import           Data.Vector.Generic       (Vector)
 import qualified Data.Vector.Generic       as GV
 import qualified Data.Vector.Storable      as SV
-import           Foreign.C.Types           (CUInt(..))
 import           Test.Tasty.QuickCheck     hiding ((.&.))
 
 

@@ -26,10 +26,10 @@ import Data.MetricRepresentation
 import Data.TCM                                   (fromList)
 import Data.TCM.Dense
 import Data.Word
+import Foreign.C.Types (CUInt)
 import DirectOptimization.Pairwise
 import DirectOptimization.Pairwise.Swapping
 import DirectOptimization.Pairwise.Ukkonen
-import Foreign.C.Types                            (CUInt(..))
 import Test.QuickCheck.Instances.DynamicCharacter
 
 
@@ -65,23 +65,28 @@ metricRepresentationToDenseTCM =
 
 translateSlimStateTCM :: MetricRepresentation Word32 -> SlimState -> SlimState -> (SlimState, Word)
 translateSlimStateTCM m =
-      let tcm = retreivePairwiseTCM m
-          c2w = coerce :: SlimState -> Word32
-          w2c = coerce :: Word32 -> SlimState
-      in  \x y -> first w2c $ tcm (c2w x) (c2w y)
+    let tcm = retreivePairwiseTCM m
+        c2w = (toEnum . fromEnum) :: SlimState -> Word32
+        w2c = (toEnum . fromEnum) :: Word32 -> SlimState
+    in  \x y -> first w2c $ tcm (c2w x) (c2w y)
 
 
 metricChoices :: [(String, MetricRepresentation Word32)]
 metricChoices =
       [ ("Discrete Metric", discreteMetric)
       , ("1st Linear Norm", linearNorm len)
+{-
       , ("Sub-InDel (1:2)", subInDel 1 2  )
       , ("Sub-InDel (2:1)", subInDel 2 1  )
+-}
       ]
   where
     len = toEnum $ finiteBitSize nucleotideGap
 
+-- Comment out the monadic code
+{-
     subInDel :: Word -> Word -> MetricRepresentation Word32
     subInDel x g = metricRepresentation . snd . fromList $
         let indices = [ 0 .. length nucleotideAlphabet - 1 ]
         in  [ if i == j then 0 else if i == 0 || j == 0 then g else x | i <- indices, j <- indices ]
+-}

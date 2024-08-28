@@ -54,9 +54,29 @@ Preferences:
     unordered-containers >= 0.2.18.0,
 
 Source-Repository-Package
-  Type: git
+  Type:     git
   Location: https://github.com/amnh/PHANE
-  Subdir: pkg/PHANE-PhyloLib
+  Subdir:   pkg/PHANE-alphabet
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-dynamic-character
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-dynamic-character-element
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-measure-units
+
+Source-Repository-Package
+  Type:     git
+  Location: https://github.com/amnh/PHANE
+  Subdir:   pkg/PHANE-PhyloLib
 
 
 ---------------------------------------------------------------------------------
@@ -118,3 +138,26 @@ Package PhyG
     Library-Profiling:    False
     Library-Stripping:    True
     Flags: +Forgo-Sanity +Super-Optimization
+
+
+-- Reduce the project's dependency footprint via build flags
+Constraints:
+     bifunctors -tagged,
+     comonad -indexed-traversable,
+     lens +inlining -test-hunit -test-properties -test-templates +trustworthy, 
+     pointed -comonad -kan-extensions -semigroupoids -semigroups -stm -tagged,
+     semialign -semigroupoids,
+     semigroups -binary -bytestring -deepseq -hashable -tagged -template-haskell -text -transformers -unordered-containers,
+     semigroupoids -comonad,
+
+     
+-- Apply performance flags to specific packages
+Constraints:
+    bitvec +simd,
+    directory +os-string,
+    hashable -random-initial-seed,
+    hashtables -bounds-checking -debug -portable +unsafe-tricks,
+    optparse-applicative +process,
+    tasty +unix,
+    text -pure-haskell +simdutf,
+    vector -BoundsChecks -InternalChecks -UnsafeChecks -Wall,

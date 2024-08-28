@@ -573,3 +573,66 @@
 
 451) TNT newick file--no labels, no lengths., no commas (spaces in stead)
 
+452) Affine and IP for slim
+
+453) Make tnt char weight work with negative wqeights-- or perhaps add "\" for negative weights (versus "/")"
+
+454) Static approx for wide/huge waaay off
+
+455) Check duynamicEpsilon references
+
+456) Check "<-" stricness-- move coputaiotns into logic
+
+457) numThreads <- liftIO $ getNumCapabilities 
+
+458) PHANE-Evaluation
+	alterenvironment (global)
+	Control.Monad.MonadReader MondaReder Type classs  "local"  for local case, ask to get global
+	reader 
+	gs <- ask (then can send to pure function)
+	good for abrtacting out inGS
+	
+459) Fix double processing stuff in commandExecution
+
+460) fix/ disable static approx for wide/huge
+
+471) split post order (cost only) and preorder to help with strict calls to
+	multi traverse?  Maybe check on profiling to see if its a drag
+
+472) new random seeds
+	if atRandom swapParams
+                                {-
+                                NOTE: Optional Syntax
+                                f x y = undefined
+                                z = f x y
+                                z = x `f` y -- Infix notation
+                                Could use infix notation for this randomness call:
+                                then (`permuteList` rejoinEdges') <$> getRandom
+                                -}
+                                then (\randVal -> permuteList randVal rejoinEdges') <$> getRandom
+                                else pure rejoinEdges'
+
+473) Add Moilannen recombination.  Different and intersting method (Moilanen 1999, fig 1.)
+
+474) Change fuse to recombine, drift to SA
+
+475) Fix refactor issues in:
+	TNT parsing
+	IA errors + length
+	Diagnosis non-dequence states and differences in IA alignment states
+	
+476) Report diagnois--does it work for :
+	Multi character states -- it fastc?
+	MultiCharacter blocks (ie after reblock)?
+
+477) Parallelize diagnosis over edges
+
+478) Check strictness in heuasritics for swap and network edits
+
+479) IMporve tree identity testing--check 1k example in phastSimulations
+
+481) Check parallelize over blocks and characters
+
+482) affine and 3D IP
+
+483) Look into branch lengths at root--suspiciously long

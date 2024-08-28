@@ -1,5 +1,8 @@
+--set(criterion:PMDL)
+
 read("net-I.fas")
 read("net-II.fas")
+
 -- read("net-Ia.fas")
 -- read("net-IIa.fas")
 --reblock ("net1", "net-I*.fas*")
@@ -10,25 +13,35 @@ read("net-II.fas")
 --read("net-I.tre")
 --read("net-II.tre")
 --read("net-II.dot")
-read("net-I-II.dot")
+--read("net-I-II.dot")
+
 set(outgroup:"zero")
 set(graphtype:softwired)
+
 --set(softwiredmethod:naive)
 --Set(Compressresolutions:True)
 --set(graphFactor:W15)
-set(graphFactor:W23)
---set(graphFactor:nopenalty)
-set(rootcost:NoRootCost)
-set(finalassignment:DO)
+--set(graphFactor:W23)
+
+set(graphFactor:nopenalty)
+
+--set(rootcost:NoRootCost)
+--set(finalassignment:DO)
 --set(softwiredmethod:naive)
 --read("net-test.dot")
 --build(replicates:100)
---build(distance, rdwag, replicates:10)
+build(distance, dwag)
 --transform(softwiredmethod:resolutioncache)
 --swap()
-refine(netadd)
+
+refine(netadd,maxnetedges:5)
 refine(netmove)
-select(best)
+refine (netdelete)
+refine(netadddelete,maxnetedges:5)
+
+--select(best)
+--fuse()
+
 report("net-test-out.tre", graphs, newick, overwrite)
 report("net-test-out.dot", graphs, dotpdf, overwrite)
 report("net-test-diag-IA.csv", diagnosis, overwrite)

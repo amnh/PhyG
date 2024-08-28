@@ -6,17 +6,19 @@
 
 .gitignore
 
-# Temporaty files
+# Temporary files
 *.*~
 *#*#
+*.DS_Store
+*.pdf
 
 # Testing artifacts
 log.err
 log.out
+*.DS_Store
 
 # Outputs from testing
 *.csv
-*.tre
 *.tree
 *.eps
 *.ps
@@ -200,7 +202,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/

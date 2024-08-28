@@ -1,12 +1,14 @@
-Cabal-Version: 3.8
+Cabal-Version: 3.12
 Name:          PhyG
-Version:       0.1.3
+Version:       0.1.4
 Stability:     Alpha
 Build-Type:    Simple
 Tested-With:
-  GHC == 9.2.7
-  GHC == 9.4.5
-  GHC == 9.6.2
+  GHC == 9.2.8
+  GHC == 9.4.7
+  GHC == 9.6.3
+  GHC == 9.8.1
+  GHC == 9.10.1
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     © 2015 Ward Wheeler and The American Museum of Natural History
@@ -54,6 +56,11 @@ Flag Enforce-Sanity
    Default:     False
    Manual:      True
 
+Flag Enforce-Timestamp
+   Description: Disable multi-threading
+   Default:     True
+   Manual:      False
+
 Flag Forego-Sanity
    Description: Disable extensive and helpful compiler warnings
    Default:     False
@@ -74,12 +81,52 @@ Flag Use-LLVM
    Default:     False
    Manual:      True
 
+Flag Memoize-Via-ConcurrentHashtable
+   Description: Memoized hash-table uses the "Concurrent Hashtable" package's implementation
+   Default:     True
+   Manual:      True
+
+Flag Memoize-Via-IORef
+   Description: Memoized hash-table uses the "IORef" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-ManualLock
+   Description: Memoized hash-table uses the "ManualLock" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-ReadWriteLock
+   Description: Memoized hash-table uses the "ReadWriteLock" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-Semaphore
+   Description: Memoized hash-table uses the "Semaphore" implementation
+   Default:     False
+   Manual:      True
+
+Flag Memoize-Via-TVar
+   Description: Memoized hash-table uses the "TVar" implementation
+   Default:     False
+   Manual:      True
+
 
 -- Global deviations from Haskell98
 Common ffi-build-info
 
+--  If !os(darwin)
+--    CC-Options:
+--      -rdynamic --std=c11
+--
+--  Else
+--    CC-Options:
+--      --std=c11
+
   CC-Options:
-    -rdynamic --std=c11
+    --std=c11
+    -- this for LINUX compile
+    -fPIC
 
   -- Here we list all directories that contain C & C++ header files that the FFI
   -- tools will need to locate when preprocessing the C files. Without listing
@@ -115,17 +162,70 @@ Common ffi-build-info
     ffi/external-direct-optimization/ukkCheckPoint.c
     ffi/external-direct-optimization/ukkCommon.c
 
+-- This is required as compile option to make static binaries on Linux at least
+-- need to haev llvm-(verions) tools installed to link properly
+-- enable-executable-static -fpic (no idea why but lower case seems to mater on 
+-- commandline)--sometimes have to run twice to get link correct
 
 -- Global build directives
 Common build-defaults
 
+  -- If we want to enforce that the compile-time timestamp is accurate,
+  -- then we must ensure that we recompile the appropriate module(s).
+  -- This sets the CPP flag so that the modules can query if they should
+  -- always be recompield and then ask GHC to recompile them.
+  If flag(Enforce-Timestamp)
+    CPP-Options:
+      -DENFORCE_TIMESTAMP
+
+  -- Select the memoized hash-table implmentation to be used!
+  If flag(Memoize-Via-ReadWriteLock)
+    CPP-Options:
+      -DMemoize_Via_ReadWriteLock
+
+  Elif flag(Memoize-Via-IORef)
+    CPP-Options:
+      -DMemoize_Via_IORef
+            
+  Elif flag(Memoize-Via-ManualLock)
+    CPP-Options:
+      -DMemoize_Via_ManualLock
+            
+  Elif flag(Memoize-Via-Semaphore)
+    CPP-Options:
+      -DMemoize_Via_Semaphore
+            
+  Elif flag(Memoize-Via-TVar)
+    CPP-Options:
+      -DMemoize_Via_TVar
+
+  -- The flag of the default implementation goes last to give others preference.
+  Elif flag(Memoize-Via-ConcurrentHashtable)
+    CPP-Options:
+      -DMemoize_Via_ConcurrentHashtable
+
+  -- If no flags are set, meaning that the default flag was manually disabled,
+  -- then proceed with the default implementation anyways!
+  Else
+    CPP-Options:
+      -DMemoize_Via_ConcurrentHashtable
+
+  -- We want these Language Extensions enabled in *all* modules by default.      
   Default-Extensions:
     BangPatterns
     DerivingStrategies
+    ImportQualifiedPost
+    LambdaCase
     NoGeneralizedNewtypeDeriving
+    RoleAnnotations
+    UnicodeSyntax
 
   Default-Language:
     GHC2021
+
+  If flag(Enforce-Sanity)
+    GHC-Options:
+      -Werror
 
   If !flag(Forego-Sanity)
     GHC-Options:
@@ -143,61 +243,13 @@ Common build-defaults
       -Wno-redundant-bang-patterns
       -Wno-type-defaults
       -Wno-unsafe
+      -- Remove these exclusions later
+      -Wno-missed-specialisations
+      -Wno-x-partial
 
-  If flag(Enforce-Sanity)
-    GHC-Options:
-      -Werror
-
-
-Common static-build-flags
-
-  -- MacOS static compilation options
   If os(darwin)
---    cc-options:
-
-    GHC-Options:
---      -static
-
---    ld-options:
---        -pie --tryng for dlopen stuff
-
-  -- Linux static compilation options
-  Else
-    -- Options for: C Compiler
---    CC-Options:
---      -pthread
---      -static
-
-    extra-bundled-libraries:
-      HSprocess,
-      HSunix,
-
-    Extra-Lib-Dirs:
-      /usr/lib/x86_64-linux-gnu
-
-    Extra-Lib-Dirs-Static:
-      /usr/lib/x86_64-linux-gnu
-
-    -- Options for: GHC
-    GHC-Options:
-      -static
---      -staticlib
---      -optc-pthread
---      -optc-static
---      -optl-static
---      -optl-pthread
---      -optl-lglibc
---      -optl-static-libgcc
-
-    -- Options for: Linker
-    LD-Options:
---      -pie --tryng for dlopen stuff
---      -pthread
---      -static
---      -static-libgcc
-
-
--- at command line "--enable-executable-static" for static binaries
+    Ld-Options:
+      -Wl,-no_fixup_chains
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -227,7 +279,6 @@ Executable phyg
   Import:
     build-defaults,
     ffi-build-info,
-    static-build-flags
 
   Main-Is:
     phygraph.hs
@@ -237,10 +288,13 @@ Executable phyg
     -O2
     -rtsopts
     -Wall
+    --  Maybe this is required for good paralellism?          
+    -fno-omit-yields 
     -- There is/are known compiler bug(s) with this optimization in GHC 9.6.2 (and earlier?).
     -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
     -- -fno-polymorphic-specialisation
 
+--  Ghc-Prof-Options: 
 
   If flag(Use-LLVM)
     GHC-Options:
@@ -266,7 +320,7 @@ Executable phyg
 
   -- If need for a high performance executable was specified,
   -- then at compile-time GHC will allocate additional time and memory
-  -- to explore and apply the most agrressive optimization possible. 
+  -- to explore and apply the most agrressive optimization possible.
   If flag(Super-Optimization)
     GHC-Options:
       -fexcess-precision
@@ -288,32 +342,35 @@ Executable phyg
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character,
+    PHANE-dynamic-character-element,
+    PHANE-evaluation,
     PhyG:dynamic-character,
     PhyG:tcm,
     PHANE-PhyloLib,
---    array,
-    async,
     base >= 4.10,
     bimap,
     bv,
     bv-little,
-    bytestring,     
---    clock,
---    concurrent-hashtable,
+    bytestring,
     containers >= 0.6,
     cpuinfo,
     deepseq,
     directory,
+    encode-string,
+    fingertree,
     file-embed,
     filepath >= 1.4.100,
+    fingertree,
     fgl >=5.8,
     foldl,
     gitrev,
     graphviz   >=2999.20,
     hashable,
     inflist,
-    logfloat,
+    logfloat,     
     MissingH >= 1.4.3,
+    MonadRandom >= 0.6 && < 1.0,
     mmark,
     modern-uri,
     optparse-applicative,
@@ -322,15 +379,17 @@ Executable phyg
     process,
     random,
     random-shuffle,
---    sort,
     split,
     template-haskell,
-    text >= 2.0,
-    text-builder-linear,
+    text >= 2.0.1 && < 3.0,
+    text-builder-linear >= 0.1.1.1,
     text-short,
     th-lift-instances,
     time,
-    vector >= 0.13.0.0,
+    unbounded-delays,     
+    unliftio-core >= 0.2 && < 1.0,
+    vector >= 0.13 && < 1.0,
+    zlib
     -- currently doesn't compile but could be useful
     -- lots of good functions
     -- Graphalyze,
@@ -342,6 +401,7 @@ Executable phyg
     src
 
   Other-Extensions:
+    CPP
     TemplateHaskell
 
   Autogen-Modules:
@@ -357,9 +417,13 @@ Executable phyg
     Commands.ProcessCommands
     Commands.Transform
     Commands.Verify
+    Complexity.CodeStrings
+    Complexity.Constants
+    Complexity.Graphs
+    Complexity.Huffman
+    Complexity.Utilities
     Debug.Debug
     GraphOptimization.Medians
-    -- GraphOptimization.PostOrderFunctions
     GraphOptimization.PostOrderSoftWiredFunctions
     GraphOptimization.PostOrderSoftWiredFunctionsNew
     GraphOptimization.PreOrderFunctions
@@ -398,13 +462,14 @@ Executable phyg
     System.Timing
     Types.DistanceTypes
     Types.Types
-    Utilities.Distances
     Utilities.DistanceUtilities
+    Utilities.Distances
     Utilities.LocalGraph
     Utilities.LocalSequence
     Utilities.TcmHash
     Utilities.ThreeWayFunctions
     Utilities.Utilities
+    -- GraphOptimization.PostOrderFunctions
 
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -430,11 +495,13 @@ Library dynamic-character
     lib/dynamic-character/src
 
   Build-Depends:
-    PHANE-alphabet,
+--    PHANE-alphabet,
+    PHANE-dynamic-character,
+    PHANE-dynamic-character-element,
     PhyG:tcm,
     PhyG:utility,
     base                     >= 4.11      && < 5.0,
-    bv-little,
+--    bv-little,
     containers               >= 0.6.2     && < 1.0,
     matrices                 >= 0.5       && < 1.0,
     monad-loops              >= 0.4       && < 1.0,
@@ -442,9 +509,9 @@ Library dynamic-character
     vector                   >= 0.12.0.3  && < 1.0,
 
   Exposed-Modules:
-    Bio.DynamicCharacter
-    Bio.DynamicCharacter.Measure
-    Bio.DynamicCharacter.HandleGaps
+--    Bio.DynamicCharacter
+--    Bio.DynamicCharacter.Measure
+--    Bio.DynamicCharacter.HandleGaps
     DirectOptimization.Pairwise
     DirectOptimization.Pairwise.Visualization
     DirectOptimization.Pairwise.Swapping
@@ -477,22 +544,33 @@ Library tcm
     lib/tcm/src
 
   Build-Depends:
+--    PHANE-dynamic-character,
+    PHANE-dynamic-character-element,
     PhyG:utility,
     binary                   >= 0.8       && < 1.0,
     base                     >= 4.11      && < 5.0,
     containers               >= 0.6.2     && < 1.0,
+    concurrent-extra         >= 0.7.0     && < 1.0,
+    concurrent-hashtable     >= 0.1.8     && < 1.0,     
     deepseq                  >= 1.4       && < 2.0,
     hashable                 >= 1.3       && < 2.0,
     hashtables               >= 1.2       && < 2.0,
     QuickCheck               >= 2.14      && < 3.0,
     mono-traversable         >= 1.0       && < 2.0,
-    semigroupoids            >= 5.3       && < 5.4,
+    semigroupoids            >= 5.3       && < 7.0,
     stm,
     vector                   >= 0.12.0.3  && < 1.0,
     vector-binary-instances  >= 0.2.5     && < 1.0,
 
   Exposed-Modules:
     Data.Hashable.Memoize
+    Data.Hashable.Memoize.ViaConcurrentHashtable
+--    Data.Hashable.Memoize.ViaConcurrentHashtableOpt
+    Data.Hashable.Memoize.ViaIORef
+    Data.Hashable.Memoize.ViaManualLock
+    Data.Hashable.Memoize.ViaReadWriteLock
+    Data.Hashable.Memoize.ViaSemaphore
+    Data.Hashable.Memoize.ViaTVar
     Data.MetricRepresentation
     Data.TCM
     Data.TCM.Dense
@@ -502,87 +580,6 @@ Library tcm
     Data.TCM.Dense.FFI
     Data.TCM.Internal
 
-  -- Includes: (Omitted)
-  --    costMatrix_2d.hpp
-  --    costMatrix_3d.hpp
-  --    costMatrixWrapper_2d.h
-  --    costMatrixWrapper_3d.h
-  --    costMatrixWrapper.h
-  --    dynamicCharacterOperations.h
-
-  -- Include-Dirs: (Omitted)
-  --    ffi/memoized-tcm
-
-
-
-
--- A binding to a C++ hashtable for thread-safe memoization.
-
--- This package is designed to provide a thread safe binding to a "pure"
--- memoization of two-way and three-way Sankoff character cost and median
--- computations.
-
---library tcm-memo
---
---  Import:
---    ffi-buildinfo,
-----    build-defaults,
---
---  default-language:
---    Haskell2010
---
---  HS-Source-Dirs:
---    lib/tcm-memo/src
---
---  cc-options:       --std=c11
---
---  cxx-options:      --std=c++14
---
---  -- This library is required for linking to the C++ standard template library.
---  If os(darwin)
---    extra-libraries:  c++
---  else
---    extra-libraries:  stdc++
---
---  HS-Source-Dirs:   lib/tcm-memo/ffi
---
---  c-sources:
---    ffi/memoized-tcm/costMatrixWrapper.c
---    ffi/memoized-tcm/dynamicCharacterOperations.c
---
---  cxx-sources:
---    ffi/memoized-tcm/costMatrix_2d.cpp
---    ffi/memoized-tcm/costMatrix_3d.cpp
---
---  -- Here we list all directories that contain C & C++ header files that the FFI
---  -- tools will need to locate when preprocessing the C files. Without listing
---  -- the directories containing the C header files here, the FFI preprocessor
---  -- (hsc2hs, c2hs, etc.) will fail to locate the requisite files. Note also,
---  -- that the parent directory of the nessicary C & C++ header files must be
---  -- specified. The preprocessor will not recursively look in subdirectories for
---  -- header files!
---  include-dirs:
---    ffi/memoized-tcm
---
---  Build-Depends:
---    exportable,
---    base                     >= 4.11      && < 5.0,
---    deepseq                  >= 1.4       && < 2.0,
---    QuickCheck               >= 2.14      && < 3.0,
---
---  Exposed-Modules:
---    Data.TCM.Memoized
---    Data.TCM.Memoized.Types
---    Data.TCM.Memoized.FFI
---
---  Other-Modules:
---  --  Data.TCM.Memoized.FFI
-
-
--- Collection of utility functions and data structures
-
--- Defines custom data structures for special use cases, more abstract functions
--- that base provides, and re-exported correcting to deficient libraries.
 
 Library utility
 
@@ -604,7 +601,7 @@ Library utility
     matrix                   >= 0.3.6     && < 0.4,
     pointed                  >= 5.0       && < 6.0,
     QuickCheck               >= 2.14      && < 3.0,
-    semigroupoids            >= 5.3       && < 5.4,
+    semigroupoids            >= 5.3       && < 7.0,
     vector                   >= 0.12.0.3  && < 1.0,
     vector-binary-instances  >= 0.2       && < 1.0,
     vector-instances         >= 3.4       && < 3.5,
@@ -642,6 +639,8 @@ Test-Suite test-dynamic-character
 
   Build-Depends:
     PHANE-alphabet,
+    PHANE-dynamic-character,
+    PHANE-dynamic-character-element:quickcheck,
     PhyG:dynamic-character,
     PhyG:tcm,
     base                     >= 4.11      && < 5.0,
@@ -677,7 +676,6 @@ Test-Suite test-dynamic-character
 --
 --  Import:
 --    build-defaults,
---    static-build-flags
 --
 --  Scope:
 --    private
@@ -703,3 +701,36 @@ Test-Suite test-dynamic-character
 --  Other-Modules:
 --    Test.Aligners
 --    Test.QuickCheck.Instances.DynamicCharacter
+
+
+
+Benchmark bench-memoized-hashtable
+
+  Import:
+    build-defaults
+
+  Main-Is:
+    Time.hs
+
+  Type:
+    exitcode-stdio-1.0
+
+  GHC-Options:
+    -threaded
+    "-with-rtsopts=-N"
+
+  Hs-Source-Dirs:
+    lib/tcm/bench
+
+  Build-Depends:
+    PhyG:tcm,
+    async,
+    base                     >= 4.11      && < 5.0,
+    criterion                >= 1.5       && < 2.0,
+    deepseq                  >= 1.4       && < 2.0,
+    mtl >= 2.3 && < 3.0,
+    random,      
+    vector                   >= 0.12.0.3  && < 1.0,
+
+  Other-Modules:
+    Benchmark.Internal

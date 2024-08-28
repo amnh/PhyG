@@ -67,6 +67,7 @@ build(replicates:1)
 
 transform(staticApprox)
 swap()
+transform(dynamic)
 
 
 --search(hours:0, minutes:1, instances:2, Thompson:1, linear, maxnetedges:5)

@@ -1,23 +1,21 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 {- |
 Human readable message describing the program being used.
 -}
-
-{-# Language LambdaCase #-}
-{-# Language OverloadedStrings #-}
-{-# Language Strict #-}
-{-# Language TemplateHaskell #-}
-
-module Software.Preamble
-  ( preambleText
-  ) where
+module Software.Preamble (
+    preambleText,
+) where
 
 import Data.Foldable (fold)
-import Data.Functor ((<&>))
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.String (IsString(fromString))
-import Data.Text.Builder.Linear
+import Data.List.NonEmpty (NonEmpty (..))
+import Data.String (IsString (fromString))
 import Data.Text (unpack)
 import Data.Text qualified as T
+import Data.Text.Builder.Linear
 import PackageInfo_PhyG (copyright, homepage, synopsis)
 import Software.License
 import Software.Metadata
@@ -27,7 +25,7 @@ import System.Environment (getProgName)
 {- |
 Text to be displayed at the beginning of each computation.
 -}
-preambleText :: IO Builder
+preambleText ∷ IO Builder
 preambleText =
     let copywriting = fromString copyright
         description = fromString synopsis
@@ -36,52 +34,58 @@ preambleText =
 
         above = encloseAbove :| []
         below = encloseBelow :| []
-        inner progName = fmap encloseLine $
-            fullVersionInformation :|
-            [ ""
-            , copywriting
-            , "The program '" <> fromString progName <> "' comes with ABSOLUTELY NO WARRANTY;"
-            , "This is free software, and may be redistributed under the " <> licenseName <> "."
-            , ""
-            , description
-            , "For more information, see: " <> homepageURL
-            ]
+        inner progName =
+            let makeMainBlock =
+                    flip
+                        (:|)
+                        [ ""
+                        , copywriting
+                        , "The program '" <> fromString progName <> "' comes with ABSOLUTELY NO WARRANTY;"
+                        , "This is free software, and may be redistributed under the " <> licenseName <> "."
+                        , ""
+                        , description
+                        , "For more information, see: " <> homepageURL
+                        ]
+            in  fmap encloseLine . makeMainBlock <$> fullVersionInformation
 
-        content n = above <> inner n <> below
+        surround x = above <> x <> below
 
-    in  getProgName <&> intercalate' "\n" . content
+        topProgBlock = fmap surround . inner
+    in  getProgName >>= fmap (intercalate' "\n") . topProgBlock
 
 
-enclosing :: Char -> String -> String -> String -> Builder
+enclosing ∷ Char → String → String → String → Builder
 enclosing pad strL strR strM =
-    let widthPreamble :: Int
+    let widthPreamble ∷ Int
         widthPreamble = 100
         widthL = length strL
         widthR = length strR
         widthM = length strM
         padded = replicate (widthPreamble - widthL - widthM - widthR) pad
-    in  fromString $ fold [ strL, strM, padded, strR ]
+    in  fromString $ fold [strL, strM, padded, strR]
 
 
-encloseAbove :: Builder
+encloseAbove ∷ Builder
 encloseAbove = enclosing '─' "┌" "┐" ""
 
 
-encloseBelow :: Builder
+encloseBelow ∷ Builder
 encloseBelow = enclosing '─' "└" "┘" ""
 
 
-encloseLine :: String -> Builder
+encloseLine ∷ String → Builder
 encloseLine = enclosing ' ' "│ " " │"
 
 
-getLicenseLine :: Word -> String
+getLicenseLine ∷ Word → String
 getLicenseLine lineNum =
     let n = fromEnum lineNum
-    in  unpack . head . drop (n - 1) . take n $ T.lines licenseText
+    in  case drop (n - 1) . take n $ T.lines licenseText of
+            [] → mempty
+            x : _ → unpack x
 
 
-intercalate' :: Builder -> NonEmpty Builder -> Builder
+intercalate' ∷ Builder → NonEmpty Builder → Builder
 intercalate' sep = \case
-    x :| [] -> x
-    x :| xs -> x <> foldMap (sep <>) xs
+    x :| [] → x
+    x :| xs → x <> foldMap (sep <>) xs

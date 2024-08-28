@@ -79,7 +79,7 @@ from the \phyg \href{https://github.com/amnh/PhyGraph}{GitHub} website.
 
 \begin{enumerate}
 \item Open a web browser and navigate to the \phyg \href{https://github.com/amnh/PhyGraph}
-{GitHub} website. In the \textit{bin} directory, binaries are available for Mac OSX 
+{GitHub} website. In the \textit{bin} directory, binaries are available for macOS 
 computers with either Intel or M1 processors, and Linux (Intel) machines (see information 
 relating to Windows machine below).
 
@@ -94,8 +94,8 @@ binary is located. Type the following:
 	chmod +x phyg
 	\end{quote}
 
-\item With Mac OSX machines, right click on the binary, and select `open with 
-\textit{Terminal}', and click `Open'. The OSX has now marked the binary as `safe' 
+\item With macOS machines, right click on the binary, and select `open with 
+\textit{Terminal}', and click `Open'. The macOS has now marked the binary as `safe' 
 to open. In Linux machines, it is not necessary to mark executables as `safe'.
 
 \item The binary should either be moved into your \$PATH or referred to its 
@@ -192,14 +192,21 @@ replicates:10)}.
 \item In this script, the seed for the random number generator is \texttt{set} to 
 the integer value 73412305. By setting this value, you are guaranteed to reproduce 
 a given search strategy each time the script is run. This value can be any number of 
-digits in length. Note: this seed value should not be mistaken for the initial random
+digits in length. This seed value should not be mistaken for the initial random
 seed value, as chosen by the application (see Figure \ref{output1}).
+
+Note: \phyg is a multi-threading application and will, by default, use all available cores. 
+To guarantee the reproducibility of a given search each time the scripts is run, the user
+should specify the same number of processors used by \phyg for each run.
+This is achieved by including the options `+RTS -NX' where `X' is the number 
+of processors offered to the program.
 
 \item Next \texttt{set} the outgroup for the analysis to \textit{Limulus}. If the outgroup
 is not set, \phyg will sort the taxa alphabetically and choose the first taxon as the
-outgroup. Only a single taxon can be set as the outgroup of the analysis. Note: taxon 
-names cannot have spaces, otherwise the names can be incorrectly interpreted by
-the program.
+outgroup. Only a single taxon can be set as the outgroup of the analysis. 
+
+Note: taxon names cannot have spaces, otherwise the names can be incorrectly 
+interpreted by the program.
 
 \item The command \texttt{read} imports file-based information, including data files, 
 tree and graph files. \texttt{read} commands must contain an input file. Supported 
@@ -233,7 +240,9 @@ parsed by checking the characters and terminals in the cross-references and data
 files. We will examine these files below (Section \ref{subsec:Inspecting}).
 
 \item Save this file with the name \textbf{run1.pg} in a directory \textbf{phygfiles} 
-located on your Desktop. Note: the tutorial data files should be moved to this 
+located on your Desktop. 
+
+Note: the tutorial data files should be moved to this 
 location also.
 
 \end{enumerate}
@@ -268,16 +277,16 @@ begin, open a \textit{Terminal} window.
 	phyg commandFile
 	\end{quote}
 	
-To run the script \textbf{run1.pg} type the following:
+To run the script \textbf{run1.pg} using four processors type the following:
 		
 	\begin{quote}
-  	phyg run1.pg
+  	phyg run1.pg +RTS -N4
 	\end{quote}
 	
 This is equivalent to typing the following from any location on your computer:
 	
 	\begin{quote}
-  	phyg ~/Desktop/phygfiles/run1.pg
+  	phyg ~/Desktop/phygfiles/run1.pg +RTS -N4
 	\end{quote}
 
 Note: should you get the error ``phyg: command not found'' this indicated that 
@@ -438,7 +447,7 @@ like \textit{FigTree} or \textit{TreeView}. The values associated with the taxon
 HTUs are the branch lengths. The cost of the tree(s) can be found in square brackets, at 
 the end of each tree. Notice that the trees appear in order of cost in the file, with the most 
 optimal tree appearing last. In this analysis, \phyg returned 50 trees ranging in cost from 
-1005 to 1044 with the cost of the most optimal tree being 1005.
+1003 to 1040 with the cost of the most optimal tree being 1003.
 
 \end{enumerate}
 
@@ -476,53 +485,53 @@ After each round \phyg will \texttt{keep} 10 graphs per input graph.
 	\end{quote}
 	
 \item Now reexamine the reported file \textbf{"chel\_run1.tre"}. Notice that this 
-simple local search has reduced the cost of the initial best tree from 1005 to 998.
+simple local search has reduced the cost of the initial best tree from 1003 to 998.
 
 \end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
-\subsection{Selecting trees}
-\label{subsec:Selecting}
-
-So far we have performed the basic steps of importing character data, building 
-initial trees, and conducting a simple local search. In this tutorial we will select 
-trees at various stages of the analysis. 
-
-\begin{enumerate}
-
-\item It may be useful to \texttt{select} all topologically unique trees during the 
-analysis. Contra \texttt{select()}, which selects topologically unique and optimal 
-trees, \texttt{select(unique)} selects all unique trees (after collapsing zero-length 
-branches), regardless of cost. This is a useful command that ensures that a 
-larger tree space is explored. Modify the script to \texttt{select(unique)} tree(s) 
-following the distance \texttt{build}. If this is used as an option during the 
-search, the user should remember to \texttt{select()} at the end of the run, 
-prior to reporting the results. The remaining trees are deleted from memory.
-
-\item Generally, users will want to \texttt{select} only those trees that are both 
-optimal \textit{and} topologically unique at the end of an analysis. The default 
-setting of the \texttt{select()} does exactly that. Add \texttt{select()} to our script, 
-ensuring that \phyg will select the topologically unique trees of best cost upon 
-completion. For now we will comment out this command as we will only include 
-a pool of topologically unique trees for the next stage of the analysis (Section 
-\ref{subsec:Fusing}).
-
-	\begin{quote}
-	-\/-Chel first analysis\\
-	set(seed:73412305)\\
-	set(outgroup:"Limulus")\\
-	read(nucleotide:"chel\_16S.fas")\\
-	read(nucleotide:"chel\_cox1.fas")\\
-	build(distance, rdwag, replicates:50)\\
-	select(unique)\\
-	swap(alternate, keep:10)\\
-	-\/-select()\\
-	report("chel\_cr1.csv", crossrefs, overwrite)\\
-	report("chel\_data1.csv", data, overwrite)\\
-	report("chel\_run1.tre", newick, graphs, overwrite)\\
-	\end{quote}
-
-\end{enumerate}
+%\subsection{Selecting trees}
+%\label{subsec:Selecting}
+%
+%So far we have performed the basic steps of importing character data, building 
+%initial trees, and conducting a simple local search. In this tutorial we will select 
+%trees at various stages of the analysis. 
+%
+%\begin{enumerate}
+%
+%\item It may be useful to \texttt{select} all topologically unique trees during the 
+%analysis. Contra \texttt{select()}, which selects topologically unique and optimal 
+%trees, \texttt{select(unique)} selects all unique trees (after collapsing zero-length 
+%branches), regardless of cost. This is a useful command that ensures that a 
+%larger tree space is explored. Modify the script to \texttt{select(unique)} tree(s) 
+%following the distance \texttt{build}. If this is used as an option during the 
+%search, the user should remember to \texttt{select()} at the end of the run, 
+%prior to reporting the results. The remaining trees are deleted from memory.
+%
+%\item Generally, users will want to \texttt{select} only those trees that are both 
+%optimal \textit{and} topologically unique at the end of an analysis. The default 
+%setting of the \texttt{select()} does exactly that. Add \texttt{select()} to our script, 
+%ensuring that \phyg will select the topologically unique trees of best cost upon 
+%completion. For now we will comment out this command as we will only include 
+%a pool of topologically unique trees for the next stage of the analysis (Section 
+%\ref{subsec:Fusing}).
+%
+%	\begin{quote}
+%	-\/-Chel first analysis\\
+%	set(seed:73412305)\\
+%	set(outgroup:"Limulus")\\
+%	read(nucleotide:"chel\_16S.fas")\\
+%	read(nucleotide:"chel\_cox1.fas")\\
+%	build(distance, rdwag, replicates:50)\\
+%	select(unique)\\
+%	swap(alternate, keep:10)\\
+%	-\/-select()\\
+%	report("chel\_cr1.csv", crossrefs, overwrite)\\
+%	report("chel\_data1.csv", data, overwrite)\\
+%	report("chel\_run1.tre", newick, graphs, overwrite)\\
+%	\end{quote}
+%
+%\end{enumerate}
 
 %-------------------------------------------------------------------------------------------------------
 \subsection{Performing tree recombination}
@@ -533,8 +542,9 @@ fusing can be used to escape local optima. \texttt{fuse} operates on a collectio
 of graphs performing reciprocal graph recombination between pairs of graphs. 
 Non-identical subgraphs with identical leaf sets are exchanged between graphs 
 and the results evaluated. This process of exchange and evaluation continues 
-until no new graphs are found. Note: more than one tree must be stored in 
-memory in order to perform this operation.
+until no new graphs are found. 
+
+Note: more than one tree must be stored in memory in order to perform this operation.
 
 \begin{enumerate}
 
@@ -552,10 +562,10 @@ limited to 1.
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
 	build(distance, rdwag, replicates:50)\\
-	select(unique)\\
+%	select(unique)\\
 	swap(alternate, keep:10)\\
 	fuse(tbr:10, keep:1)\\
-	select()\\
+%	select()\\
 	report("chel\_cr1.csv", crossrefs, overwrite)\\
 	report("chel\_data1.csv", data, overwrite)\\
 	report("chel\_run1.tre", newick, graphs, overwrite)\\
@@ -595,10 +605,10 @@ another lab session.
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
 	build(distance, rdwag, replicates:50)\\
-	select(unique)\\
+%	select(unique)\\
 	swap(alternate, keep:10)\\
 	fuse(tbr:10, keep:1)\\
-	select()\\
+%	select()\\
 	report("chel\_cr1.csv", crossrefs, overwrite)\\
 	report("chel\_data1.csv", data, overwrite)\\
 	report("chel\_run1.tre", newick, graphs, overwrite)\\
@@ -643,10 +653,10 @@ or any vectorial image edition program. Modify the script to include this comman
 	read(nucleotide:"chel\_16S.fas")\\
 	read(nucleotide:"chel\_cox1.fas")\\
 	build(distance, rdwag, replicates:50)\\
-	select(unique)\\
+%	select(unique)\\
 	swap(alternate, keep:10)\\
 	fuse(tbr:10, keep:1)\\
-	select()\\
+%	select()\\
 	report("chel\_cr1.csv", crossrefs, overwrite)\\
 	report("chel\_data1.csv", data, overwrite)\\
 	report("chel\_run1.tre", newick, graphs, overwrite)\\
@@ -655,7 +665,7 @@ or any vectorial image edition program. Modify the script to include this comman
 	\end{quote}
 	
 \item Notice that two files were outputted from using this command. \phyg has 
-output an eps (on OSX) or pdf (on linux) file that can be viewed in a vector graphics 
+output an eps (on macOS) or pdf (on linux) file that can be viewed in a vector graphics 
 program and a dot file, which can be viewed (and modified) in \textit{Graphviz}.
 \end{enumerate}
 
@@ -724,7 +734,7 @@ values.
 	read(newick:"chel\_run1.tre") \\
 	support(gb:spr, gbsample:10000)\\
 	report("chel\_run1\_GB.dot", support, dotpdf, overwrite)
-        \end{quote}  
+        \end{quote}
        
 \item Save this file in the same directory as your tree file, i.e. \texttt{run1}.
 We will name this file \texttt{run1\_GBs.pg}.
@@ -740,9 +750,9 @@ over the branches.
          
 \end{enumerate}
 
-\subsection{Calculating Supports: Bootstrap}
+%\subsection{Calculating Supports: Bootstrap}
 
-\subsection{Calculating Supports: Jackknife}
+%\subsection{Calculating Supports: Jackknife}
 
 
 %\printindex

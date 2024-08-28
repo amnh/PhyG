@@ -1,61 +1,61 @@
 -----------------------------------------------------------------------------
--- |
--- Module      :  DirectOptimization.Pairwise.Visualization
--- Copyright   :  (c) 2015-2021 Ward Wheeler
--- License     :  BSD-style
---
--- Maintainer  :  wheeler@amnh.org
--- Stability   :  provisional
--- Portability :  portable
---
--- Direct optimization pairwise alignment using the Needleman-Wunsch algorithm.
--- These functions will allocate an M * N matrix.
---
 -----------------------------------------------------------------------------
-
-{-# LANGUAGE ApplicativeDo         #-}
-{-# LANGUAGE ConstraintKinds       #-}
-{-# LANGUAGE DerivingStrategies    #-}
-{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Strict                #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE UnboxedTuples         #-}
-
+{-# LANGUAGE Strict #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module DirectOptimization.Pairwise.Visualization
-  ( Direction()
+{- |
+Module      :  DirectOptimization.Pairwise.Visualization
+Copyright   :  (c) 2015-2021 Ward Wheeler
+License     :  BSD-style
+
+Maintainer  :  wheeler@amnh.org
+Stability   :  provisional
+Portability :  portable
+
+Direct optimization pairwise alignment using the Needleman-Wunsch algorithm.
+These functions will allocate an M * N matrix.
+-}
+module DirectOptimization.Pairwise.Visualization (
+    Direction (),
+
     -- * Operational
-  , directOptimizationDiffDirectionMatricies
+    directOptimizationDiffDirectionMatricies,
+
     -- * Rendering
-  , renderMatrix
-  , renderDirectionMatrix
-  , diffDirectionMatrix
-  ) where
+    renderMatrix,
+    renderDirectionMatrix,
+    diffDirectionMatrix,
+) where
 
 import Bio.DynamicCharacter
 import Bio.DynamicCharacter.Measure
 import Data.Bits
-import Data.Foldable                         (fold)
-import Data.Matrix.Class                     (Matrix, dim, toLists, unsafeIndex)
-import Data.Set                              (Set, fromDistinctAscList, member)
-import Data.Vector.Generic                   (Vector, basicLength, toList)
+import Data.Foldable (fold)
+import Data.Matrix.Class (Matrix, dim, toLists, unsafeIndex)
+import Data.Set (Set, fromDistinctAscList, member)
+import Data.Vector.Generic (Vector, basicLength, toList)
 import DirectOptimization.Pairwise.Direction
 
 
 directOptimizationDiffDirectionMatricies
-  :: ( FiniteBits e
-     , Matrix m t Direction
-     , Ord (v e)
-     , Vector v e
-     )
-  => (v e -> v e -> (Word, m t Direction))
-  -> (v e -> v e -> (Word, m t Direction))
-  -> OpenDynamicCharacter v e
-  -> OpenDynamicCharacter v e
-  -> String
+    ∷ ( FiniteBits e
+      , Matrix m t Direction
+      , Ord (v e)
+      , Vector v e
+      )
+    ⇒ (v e → v e → (Word, m t Direction))
+    → (v e → v e → (Word, m t Direction))
+    → OpenDynamicCharacter v e
+    → OpenDynamicCharacter v e
+    → String
 directOptimizationDiffDirectionMatricies matrixGenerator1 matrixGenerator2 lhs rhs =
     let -- Remove gaps from the inputs and measure the results to determine
         -- which ungapped character is longer and which is shorter.
@@ -64,296 +64,319 @@ directOptimizationDiffDirectionMatricies matrixGenerator1 matrixGenerator2 lhs r
         lesserMeds = extractMediansGapped lesser
         longerMeds = extractMediansGapped longer
     in  case basicLength lesserMeds of
-          -- Neither character was Missing, but one or both are empty when gaps are removed
-          0 ->  "One character was all gaps"
-          -- Both have some non-gap elements, perform string alignment
-          _ ->  let dm1 = snd $ matrixGenerator1 lesserMeds longerMeds
+            -- Neither character was Missing, but one or both are empty when gaps are removed
+            0 → "One character was all gaps"
+            -- Both have some non-gap elements, perform string alignment
+            _ →
+                let dm1 = snd $ matrixGenerator1 lesserMeds longerMeds
                     dm2 = snd $ matrixGenerator2 lesserMeds longerMeds
                 in  diffDirectionMatrix lesserMeds longerMeds dm1 dm2
 
 
--- |
--- Serializes an alignment matrix to a 'String'. Uses input characters for row
--- and column labelings.
---
--- Useful for debugging purposes.
-renderMatrix
-  :: ( Matrix m t x
-     , Vector v e
-     , Show x
-     )
-  => v e   -- ^ Shorter vector of elements
-  -> v e   -- ^ Longer  vector of elements
-  -> m t x -- ^ Matrix of cells
-  -> String
-renderMatrix lesser longer mtx = unlines
-    [ dimensionPrefix
-    , headerRow
-    , barRow
-    , renderedRows
-    ]
-  where
-    (colCount, rowCount, lesserTokens, longerTokens, maxPrefixWidth, maxColumnWidth, [matrixTokens]) =
-        getMatrixConstants lesser longer [mtx]
-{-
-    toShownIntegers   = fmap (show . showBitsValue) . otoList
+{- |
+Serializes an alignment matrix to a 'String'. Uses input characters for row
+and column labelings.
 
-    showBitsValue :: FiniteBits b => b -> Word
-    showBitsValue b = go (finiteBitSize b) 0
-      where
-        go 0 v = v
-        go i v = let i' = i-1
-                     v' | b `testBit` i' = v + bit i'
-                        | otherwise      = v
-                 in  go i' v'
+Useful for debugging purposes.
 -}
-
-    dimensionPrefix  = " " <> unwords
-        [ "Dimensions:"
-        , show rowCount
-        , "X"
-        , show colCount
+renderMatrix
+    ∷ ( Matrix m t x
+      , Vector v e
+      , Show x
+      )
+    ⇒ v e
+    -- ^ Shorter vector of elements
+    → v e
+    -- ^ Longer  vector of elements
+    → m t x
+    -- ^ Matrix of cells
+    → String
+renderMatrix lesser longer mtx =
+    unlines
+        [ dimensionPrefix
+        , headerRow
+        , barRow
+        , renderedRows
         ]
+    where
+        (colCount, rowCount, lesserTokens, longerTokens, maxPrefixWidth, maxColumnWidth, [matrixTokens]) =
+            getMatrixConstants lesser longer [mtx]
+        {-
+            toShownIntegers   = fmap (show . showBitsValue) . otoList
 
-    headerRow = fold
-        [ " "
-        , pad maxPrefixWidth "\\"
-        , "| "
-        , pad maxColumnWidth "*"
-        , concatMap (pad maxColumnWidth) longerTokens
-        ]
+            showBitsValue :: FiniteBits b => b -> Word
+            showBitsValue b = go (finiteBitSize b) 0
+              where
+                go 0 v = v
+                go i v = let i' = i-1
+                             v' | b `testBit` i' = v + bit i'
+                                | otherwise      = v
+                         in  go i' v'
+        -}
 
-    barRow = fold
-        [ " "
-        , bar maxPrefixWidth
-        , "+"
-        , concatMap (const (bar maxColumnWidth)) $ undefined : longerTokens
-        ]
-      where
-        bar n = replicate (n+1) '-'
+        dimensionPrefix =
+            " "
+                <> unwords
+                    [ "Dimensions:"
+                    , show rowCount
+                    , "X"
+                    , show colCount
+                    ]
 
-    renderedRows = unlines $ zipWith renderRow ("*":lesserTokens) matrixTokens
-      where
-        renderRow e cs = prefix <> suffix
-          where
-            prefix = fold [" ", pad maxPrefixWidth e, "| "]
-            suffix = concatMap (pad maxColumnWidth) cs
+        headerRow =
+            fold
+                [ " "
+                , pad maxPrefixWidth "\\"
+                , "| "
+                , pad maxColumnWidth "*"
+                , concatMap (pad maxColumnWidth) longerTokens
+                ]
 
-    pad :: Int -> String -> String
-    pad n e = replicate (n - len) ' ' <> e <> " "
-      where
-        len = length e
+        barRow =
+            fold
+                [ " "
+                , bar maxPrefixWidth
+                , "+"
+                , concatMap (const (bar maxColumnWidth)) $ undefined : longerTokens
+                ]
+            where
+                bar n = replicate (n + 1) '-'
+
+        renderedRows = unlines $ zipWith renderRow ("*" : lesserTokens) matrixTokens
+            where
+                renderRow e cs = prefix <> suffix
+                    where
+                        prefix = fold [" ", pad maxPrefixWidth e, "| "]
+                        suffix = concatMap (pad maxColumnWidth) cs
+
+        pad ∷ Int → String → String
+        pad n e = replicate (n - len) ' ' <> e <> " "
+            where
+                len = length e
 
 
--- |
--- Serializes an alignment matrix to a 'String'. Uses input characters for row
--- and column labelings.
---
--- Useful for debugging purposes.
+{- |
+Serializes an alignment matrix to a 'String'. Uses input characters for row
+and column labelings.
+
+Useful for debugging purposes.
+-}
 renderDirectionMatrix
-  :: ( Matrix m t Direction
-     , Vector v e
-     )
-  => v e
-  -> v e
-  -> m t Direction
-  -> String
-renderDirectionMatrix lesser longer mtx = unlines
-    [ dimensionPrefix
-    , headerRow
-    , barRow
-    , renderedRows
-    ]
-  where
-    (colCount, rowCount, lesserTokens, longerTokens, maxPrefixWidth, maxColumnWidth, [matrixTokens]) =
-        getMatrixConstants lesser longer [mtx]
-
-    tracebackCells = getTracebackIndices mtx
-
-    dimensionPrefix  = " " <> unwords
-        [ "Dimensions:"
-        , show rowCount
-        , "X"
-        , show colCount
+    ∷ ( Matrix m t Direction
+      , Vector v e
+      )
+    ⇒ v e
+    → v e
+    → m t Direction
+    → String
+renderDirectionMatrix lesser longer mtx =
+    unlines
+        [ dimensionPrefix
+        , headerRow
+        , barRow
+        , renderedRows
         ]
+    where
+        (colCount, rowCount, lesserTokens, longerTokens, maxPrefixWidth, maxColumnWidth, [matrixTokens]) =
+            getMatrixConstants lesser longer [mtx]
 
-    headerRow = fold
-        [ " "
-        , pad maxPrefixWidth "\\"
-        , "| "
-        , pad maxColumnWidth "*"
-        , concatMap (pad maxColumnWidth) longerTokens
-        ]
+        tracebackCells = getTracebackIndices mtx
 
-    barRow = fold
-        [ " "
-        , bar maxPrefixWidth
-        , "+"
-        , concatMap (const (bar maxColumnWidth)) $ undefined : longerTokens
-        ]
-      where
-        bar n = replicate (n+1) '-'
+        dimensionPrefix =
+            " "
+                <> unwords
+                    [ "Dimensions:"
+                    , show rowCount
+                    , "X"
+                    , show colCount
+                    ]
 
-    renderedRows = unlines $ zipWith3 renderRow [0..] ("*":lesserTokens) matrixTokens
-      where
-        renderRow i e cs = prefix <> suffix
-          where
-            prefix = fold [" ", pad maxPrefixWidth e, "| "]
-            suffix = fold $ zipWith (renderCell i) [0..] cs
+        headerRow =
+            fold
+                [ " "
+                , pad maxPrefixWidth "\\"
+                , "| "
+                , pad maxColumnWidth "*"
+                , concatMap (pad maxColumnWidth) longerTokens
+                ]
 
-        renderCell i j = fmap f . pad maxColumnWidth
-          where
-            f | (i,j) `elem` tracebackCells = boldDirection
-              | otherwise = id
+        barRow =
+            fold
+                [ " "
+                , bar maxPrefixWidth
+                , "+"
+                , concatMap (const (bar maxColumnWidth)) $ undefined : longerTokens
+                ]
+            where
+                bar n = replicate (n + 1) '-'
 
-    pad :: Int -> String -> String
-    pad n e = replicate (n - len) ' ' <> e <> " "
-      where
-        len = length e
+        renderedRows = unlines $ zipWith3 renderRow [0 ..] ("*" : lesserTokens) matrixTokens
+            where
+                renderRow i e cs = prefix <> suffix
+                    where
+                        prefix = fold [" ", pad maxPrefixWidth e, "| "]
+                        suffix = fold $ zipWith (renderCell i) [0 ..] cs
+
+                renderCell i j = fmap f . pad maxColumnWidth
+                    where
+                        f
+                            | (i, j) `elem` tracebackCells = boldDirection
+                            | otherwise = id
+
+        pad ∷ Int → String → String
+        pad n e = replicate (n - len) ' ' <> e <> " "
+            where
+                len = length e
 
 
--- |
--- Serializes an alignment matrix to a 'String'. Uses input characters for row
--- and column labelings.
---
--- Useful for debugging purposes.
+{- |
+Serializes an alignment matrix to a 'String'. Uses input characters for row
+and column labelings.
+
+Useful for debugging purposes.
+-}
 diffDirectionMatrix
-  :: ( Matrix m t Direction
-     , Vector v e
-     )
-  => v e
-  -> v e
-  -> m t Direction
-  -> m t Direction
-  -> String
-diffDirectionMatrix lesser longer mtx1 mtx2 = unlines
-    [ dimensionPrefix
-    , headerRow
-    , barRow
-    , renderedRows
-    ]
-  where
-    (colCount, rowCount, lesserTokens, longerTokens, maxPrefixWidth, maxColumnWidth, [tokMtx1,tokMtx2]) =
-        getMatrixConstants lesser longer [mtx1, mtx2]
-
-    tracebackCells1 = getTracebackIndices mtx1
-    tracebackCells2 = getTracebackIndices mtx2
-
-    dimensionPrefix  = " " <> unwords
-        [ "Dimensions:"
-        , show rowCount
-        , "X"
-        , show colCount
+    ∷ ( Matrix m t Direction
+      , Vector v e
+      )
+    ⇒ v e
+    → v e
+    → m t Direction
+    → m t Direction
+    → String
+diffDirectionMatrix lesser longer mtx1 mtx2 =
+    unlines
+        [ dimensionPrefix
+        , headerRow
+        , barRow
+        , renderedRows
         ]
+    where
+        (colCount, rowCount, lesserTokens, longerTokens, maxPrefixWidth, maxColumnWidth, [tokMtx1, tokMtx2]) =
+            getMatrixConstants lesser longer [mtx1, mtx2]
 
-    headerRow = fold
-        [ " "
-        , pad maxPrefixWidth "\\"
-        , "| "
-        , pad maxColumnWidth "*"
-        , concatMap (pad maxColumnWidth) longerTokens
-        ]
+        tracebackCells1 = getTracebackIndices mtx1
+        tracebackCells2 = getTracebackIndices mtx2
 
-    barRow = fold
-        [ " "
-        , bar maxPrefixWidth
-        , "+"
-        , concatMap (const (bar maxColumnWidth)) $ undefined : longerTokens
-        ]
-      where
-        bar n = replicate (n+1) '-'
+        dimensionPrefix =
+            " "
+                <> unwords
+                    [ "Dimensions:"
+                    , show rowCount
+                    , "X"
+                    , show colCount
+                    ]
 
-    renderedRows = unlines $ zipWith3 renderRow ("*":lesserTokens) strMtx1 strMtx2
-      where
-        renderRow e xs ys = prefix <> suffix
-          where
-            prefix = fold [" ", pad maxPrefixWidth e, "| "]
-            suffix = fold $ zipWith renderCell xs ys
+        headerRow =
+            fold
+                [ " "
+                , pad maxPrefixWidth "\\"
+                , "| "
+                , pad maxColumnWidth "*"
+                , concatMap (pad maxColumnWidth) longerTokens
+                ]
 
-        renderCell x y
-          | x' == y'  = x
-          | otherwise = replicate (max (length x) (length y)) ' '
-          where
-            x' = boldDirection <$> x
-            y' = boldDirection <$> y
+        barRow =
+            fold
+                [ " "
+                , bar maxPrefixWidth
+                , "+"
+                , concatMap (const (bar maxColumnWidth)) $ undefined : longerTokens
+                ]
+            where
+                bar n = replicate (n + 1) '-'
 
-    strMtx1 = tok2Str tracebackCells1 tokMtx1
-    strMtx2 = tok2Str tracebackCells2 tokMtx2
+        renderedRows = unlines $ zipWith3 renderRow ("*" : lesserTokens) strMtx1 strMtx2
+            where
+                renderRow e xs ys = prefix <> suffix
+                    where
+                        prefix = fold [" ", pad maxPrefixWidth e, "| "]
+                        suffix = fold $ zipWith renderCell xs ys
 
-    tok2Str s = zipWith f [0..]
-      where
-        f i   = zipWith (g i) [0..]
-        g i j = fmap h . pad maxColumnWidth
-          where
-            h | (i,j) `member` s = boldDirection
-              | otherwise = id
+                renderCell x y
+                    | x' == y' = x
+                    | otherwise = replicate (max (length x) (length y)) ' '
+                    where
+                        x' = boldDirection <$> x
+                        y' = boldDirection <$> y
+
+        strMtx1 = tok2Str tracebackCells1 tokMtx1
+        strMtx2 = tok2Str tracebackCells2 tokMtx2
+
+        tok2Str s = zipWith f [0 ..]
+            where
+                f i = zipWith (g i) [0 ..]
+                g i j = fmap h . pad maxColumnWidth
+                    where
+                        h
+                            | (i, j) `member` s = boldDirection
+                            | otherwise = id
+
+        pad ∷ Int → String → String
+        pad n e = replicate (n - len) ' ' <> e <> " "
+            where
+                len = length e
 
 
-    pad :: Int -> String -> String
-    pad n e = replicate (n - len) ' ' <> e <> " "
-      where
-        len = length e
-
-
--- |
--- Get the indices of the traceback route.
+{- |
+Get the indices of the traceback route.
+-}
 getTracebackIndices
-  :: Matrix m t Direction
-  => m t Direction
-  -> Set (Int, Int)
+    ∷ (Matrix m t Direction)
+    ⇒ m t Direction
+    → Set (Int, Int)
 getTracebackIndices mtx = fromDistinctAscList $ go (# m - 1, n - 1 #)
-  where
-    getDirection = curry $ unsafeIndex mtx
-    (m,n) = dim mtx
-    go (# i, j #)
-      | i < 0 || j < 0 = []
-      | (i,j) == (0,0) = [(0,0)]
-      | otherwise =
-          (i,j) : case getDirection i j of
-                    LeftArrow -> go (# i    , j - 1 #)
-                    DiagArrow -> go (# i - 1, j - 1 #)
-                    UpArrow   -> go (# i - 1, j     #)
+    where
+        getDirection = curry $ unsafeIndex mtx
+        (m, n) = dim mtx
+        go (# i, j #)
+            | i < 0 || j < 0 = []
+            | (i, j) == (0, 0) = [(0, 0)]
+            | otherwise =
+                (i, j) : case getDirection i j of
+                    LeftArrow → go (# i, j - 1 #)
+                    DiagArrow → go (# i - 1, j - 1 #)
+                    UpArrow → go (# i - 1, j #)
 
 
-characterVectorToIndices :: Vector v e => v e -> [String]
+characterVectorToIndices ∷ (Vector v e) ⇒ v e → [String]
 characterVectorToIndices =
-    let numbers = tail $ pure <$> cycle ['0'..'9']
+    let numbers = tail $ pure <$> cycle ['0' .. '9']
     in  zipWith const numbers . toList
 
 
-tokenizeMatrix :: (Matrix m t x, Show x) => m t x -> [[String]]
+tokenizeMatrix ∷ (Matrix m t x, Show x) ⇒ m t x → [[String]]
 tokenizeMatrix = fmap (fmap show) . toLists
 
 
-maxLengthOfGrid :: (Foldable g, Foldable r, Foldable f, Functor g, Functor r) => g (r (f a)) -> Int
+maxLengthOfGrid ∷ (Foldable g, Foldable r, Foldable f, Functor g, Functor r) ⇒ g (r (f a)) → Int
 maxLengthOfGrid = maximum . fmap maxLengthOfRow
 
 
-maxLengthOfRow :: (Foldable r, Foldable f, Functor r) => r (f a) -> Int
+maxLengthOfRow ∷ (Foldable r, Foldable f, Functor r) ⇒ r (f a) → Int
 maxLengthOfRow = maximum . fmap length
 
 
 getMatrixConstants
-  :: ( Matrix m t x
-     , Show x
-     , Vector v e
-     )
-  => v e
-  -> v e
-  -> [m t x]
-  -> (Int, Int, [String], [String], Int, Int, [[[String]]])
+    ∷ ( Matrix m t x
+      , Show x
+      , Vector v e
+      )
+    ⇒ v e
+    → v e
+    → [m t x]
+    → (Int, Int, [String], [String], Int, Int, [[[String]]])
 getMatrixConstants lesser longer matrices =
     (colCount, rowCount, lesserTokens, longerTokens, maxPrefixWidth, maxColumnWidth, matrixTokens)
-  where
-    colCount       = basicLength longer + 1
-    rowCount       = basicLength lesser + 1
-    lesserTokens   = characterVectorToIndices lesser
-    longerTokens   = characterVectorToIndices longer
-    maxPrefixWidth = maxLengthOfRow lesserTokens
-    maxHeaderWidth = maxLengthOfRow longerTokens
+    where
+        colCount = basicLength longer + 1
+        rowCount = basicLength lesser + 1
+        lesserTokens = characterVectorToIndices lesser
+        longerTokens = characterVectorToIndices longer
+        maxPrefixWidth = maxLengthOfRow lesserTokens
+        maxHeaderWidth = maxLengthOfRow longerTokens
 
-    matrixTokens   = tokenizeMatrix <$> matrices
-    maxColumnWidth = maximum $
-        maxHeaderWidth : (maxLengthOfGrid <$> matrixTokens)
-
-
+        matrixTokens = tokenizeMatrix <$> matrices
+        maxColumnWidth =
+            maximum $
+                maxHeaderWidth : (maxLengthOfGrid <$> matrixTokens)

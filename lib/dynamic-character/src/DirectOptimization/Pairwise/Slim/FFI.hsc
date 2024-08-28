@@ -30,7 +30,8 @@ module DirectOptimization.Pairwise.Slim.FFI
 --  , foreignThreeWayDO
   ) where
 
-import Bio.DynamicCharacter
+import Bio.DynamicCharacter (SlimDynamicCharacter)
+import Bio.DynamicCharacter.Element (SlimState)
 import Data.Coerce
 import Data.Functor (($>))
 import Data.TCM.Dense
@@ -43,6 +44,7 @@ import Foreign.C.Types
 import GHC.ForeignPtr
 import Prelude   hiding (sequence, tail)
 import System.IO.Unsafe (unsafePerformIO)
+import System.IO (hPutStrLn, stderr)
 
 #include "c_alignment_interface.h"
 #include "c_code_alloc_setup.h"
@@ -81,9 +83,9 @@ instance Enum UnionContext where
 foreign import ccall unsafe "c_alignment_interface.h cAlign2D"
 
     align2dFn_c
-      :: Ptr CUInt -- ^ character1, input & output (lesser)
-      -> Ptr CUInt -- ^ character2, input & output (longer)
-      -> Ptr CUInt -- ^ gapped median output
+      :: Ptr SlimState -- ^ character1, input & output (lesser)
+      -> Ptr SlimState -- ^ character2, input & output (longer)
+      -> Ptr SlimState -- ^ gapped median output
       -> Ptr CSize -- ^ length median output
       -> CSize     -- ^ size of each buffer
       -> CSize     -- ^ length of character1
@@ -174,7 +176,7 @@ algn2d
   -> (Word, SlimDynamicCharacter) -- ^ The cost of the alignment
 algn2d computeUnion computeMedians denseTCMs = directOptimization useC $ lookupPairwise denseTCMs
   where
-    useC :: Vector CUInt -> Vector CUInt -> (Word, SlimDynamicCharacter)
+    useC :: Vector SlimState -> Vector SlimState -> (Word, SlimDynamicCharacter)
     useC lesser longer = {-# SCC useC #-} unsafePerformIO . V.unsafeWith lesser $ \lesserPtr -> V.unsafeWith longer $ \longerPtr -> do
         let lesserLength = V.length lesser
         let longerLength = V.length longer
@@ -189,7 +191,8 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization useC $ lookupP
         let medianOpt = coerceEnum computeMedians
         cost <- case strategy of
                       Affine -> {-# SCC affine_undefined #-}
-                        undefined -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
+                        hPutStrLn stderr "Control Flow Diversion:\tAffine alignment not implemented" $> 0
+                        -- align2dAffineFn_c lesserBuffer longerBuffer medianBuffer resultLength (ics bufferLength) (ics lesserLength) (ics longerLength) costStruct medianOpt
                       _      -> {-# SCC align2dFn_c #-}
                           V.unsafeWith lesserVector $ \lesserBuffer ->
                               V.unsafeWith medianVector $ \medianBuffer ->
@@ -220,14 +223,14 @@ algn2d computeUnion computeMedians denseTCMs = directOptimization useC $ lookupP
         pure $ {-# SCC ffi_result #-} (alignmentCost, alignmentContext)
 
       where
-        costStruct  = costMatrix2D denseTCMs
+        costStruct = costMatrix2D denseTCMs
         neverComputeOnlyGapped = 0
         {-# SCC ics #-}
         ics :: Int -> CSize
         ics = coerce . (toEnum :: Int -> Word64)
         {-# SCC csi #-}
         csi :: CSize -> Int
-        csi = (fromEnum :: Word64 -> Int) . coerce 
+        csi = (fromEnum :: Word64 -> Int) . coerce
 
 
 
@@ -323,7 +326,7 @@ algn3d char1 char2 char3 mismatchCost openningGapCost indelCost denseTCMs = hand
 --
 -- /Should/ minimize number of, and maximize speed of copying operations.
 {-# SCC initializeCharacterBuffer #-}
-initializeCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
+initializeCharacterBuffer :: Int -> Int -> Ptr SlimState -> IO (Vector SlimState)
 initializeCharacterBuffer maxSize elemCount elements =
     let e   = min maxSize elemCount
         off = maxSize - e
@@ -345,17 +348,25 @@ initializeCharacterBuffer maxSize elemCount elements =
 --
 -- /Should/ minimize number of, and maximize speed of copying operations.
 {-# SCC finalizeCharacterBuffer #-}
-finalizeCharacterBuffer :: Int -> Int -> Vector CUInt -> Vector CUInt
+finalizeCharacterBuffer :: Int -> Int -> Vector SlimState -> Vector SlimState
 finalizeCharacterBuffer bufferLength alignedLength =
     let e   = min bufferLength alignedLength
         off = bufferLength - e
-    in  basicUnsafeSlice off e 
+    in  basicUnsafeSlice off e
 
 
 -- |
+-- Read and free the length of the resulting alignment.
+getAlignedLength :: Ptr CSize -> IO Int
+getAlignedLength lenRef =
+    let f = coerce :: CSize -> Word64
+    in  (fromEnum . f <$> peek lenRef) <* free lenRef
+
+{-
+-- |
 -- Allocates space for an align_io struct to be sent to C.
 {-# SCC allocCharacterBuffer #-}
-allocCharacterBuffer :: Int -> Int -> Ptr CUInt -> IO (Ptr CUInt)
+allocCharacterBuffer :: Int -> Int -> Ptr SlimState -> IO (Ptr SlimState)
 allocCharacterBuffer maxSize elemCount elements = do
     let e   = min maxSize elemCount
     buffer <- mallocArray maxSize
@@ -374,27 +385,12 @@ getAlignedLength lenRef =
     in  (fromEnum . f <$> peek lenRef) <* free lenRef
 
 
-buildResult :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
+buildResult :: Int -> Int -> Ptr SlimState -> IO (Vector SlimState)
 buildResult bufferLength alignedLength alignedBuffer =
     let e   = min bufferLength alignedLength
         off = bufferLength - e
         ref = advancePtr alignedBuffer off
     in  (V.fromListN e <$> peekArray e ref) <* free alignedBuffer
-
-
-{-
-buildResult :: Int -> Int -> Ptr CUInt -> IO (Vector CUInt)
-buildResult bufferLength alignedLength alignedBuffer = do
-    let e   = min bufferLength alignedLength
-    let off = bufferLength - e
-    let ref = advancePtr alignedBuffer off
-    (V.fromListN e <$> peekArray e ref) <* free alignedBuffer
-    vector <- mallocArray alignedLength
-    copyArray vector ref e
-    free alignedBuffer
-    fPtr   <- newConcForeignPtr vector (free vector)
-    let res = V.unsafeFromForeignPtr0 fPtr e :: Vector CUInt
-    pure res
 -}
 
 
@@ -409,4 +405,3 @@ buildResult bufferLength alignedLength alignedBuffer = do
 {-# SPECIALISE coerceEnum :: CUInt -> Word  #-}
 coerceEnum :: (Enum a, Enum b) => a -> b
 coerceEnum = toEnum . fromEnum
-

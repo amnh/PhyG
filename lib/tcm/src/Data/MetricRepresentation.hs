@@ -34,6 +34,7 @@ module Data.MetricRepresentation
   ) where
 
 import Control.DeepSeq
+import Control.Monad.IO.Class (MonadIO)
 import Data.Binary
 import Data.Bits
 import Data.Hashable
@@ -64,6 +65,9 @@ data  MetricRepresentation a
     deriving anyclass (NFData)
 
 
+type role MetricRepresentation representational
+
+
 instance Eq (MetricRepresentation a) where
 
     (==)  DiscreteMetric             DiscreteMetric            = True
@@ -78,56 +82,69 @@ instance Show (MetricRepresentation a) where
     show ExplicitLayout {} = "General-Metric"
 
 
--- |
--- Nullary constructor for the <https://en.wikipedia.org/wiki/Discrete_space discrete metric>.
+{- |
+__Time:__ \( \mathcal{O}\left( 1 \right) \)
+
+Nullary constructor for the <https://en.wikipedia.org/wiki/Discrete_space discrete metric>.
+-}
 discreteMetric :: MetricRepresentation a
 discreteMetric = DiscreteMetric
 
 
--- |
--- Nullary constructor for the <https://en.wikipedia.org/wiki/Lp_space 1st linear norm>.
+{- |
+__Time:__ \( \mathcal{O}\left( 1 \right) \)
+
+Nullary constructor for the <https://en.wikipedia.org/wiki/Lp_space 1st linear norm>.
+-}
 linearNorm :: Word -> MetricRepresentation a
 linearNorm = LinearNorm
 
 
--- |
--- General constructor for an arbitrary metric.
---
--- Performs memoization so repeated value queries are not recomputed.
+{- |
+__Time:__ \( \mathcal{O}\left( a \right) \), where \( a \) is the alphabet length.
+
+General constructor for an arbitrary metric.
+
+Performs memoization so repeated value queries are not recomputed.
+-}
 metricRepresentation
   :: ( FiniteBits a
      , Hashable a
+     , MonadIO m
      , NFData a
      )
   => TCM
-  -> MetricRepresentation a
-metricRepresentation tcm =
-    let scm = makeSCM tcm
-    in  ExplicitLayout tcm minInDel maxInDel
-          (memoize2 (overlap2 bitWidth scm))
-          (memoize3 (overlap3 bitWidth scm))
-  where
-    -- /O(2*(a - 1))/
-    --
-    -- This was taken from Ukkonen's original 1985 paper wherein the coefficient
-    -- delta @(Δ)@ was defined by the minimum transition cost from any symbol in
-    -- the alphabet @(Σ)@ to the gap symbol @'-'@.
-    --
-    -- If there is any transition to a gap from a non-gap for which the cost is
-    -- zero, then this coefficient will be zero. This leaves us with no way to
-    -- determine if optimality is preserved, and the Ukkonen algorithm will hang.
-    -- Consequently, we do not perform Ukkonen's algorithm if the coefficient is
-    -- zero.
-    minInDel       = fromIntegral . minimum $ inDelCost min <$> nonGapElements
-    maxInDel       = fromIntegral . maximum $ inDelCost max <$> nonGapElements
-    bitWidth       = toEnum alphabetSize
-    alphabetSize   = size tcm
-    gapIndex       = 0
-    nonGapElements = [ 1 .. alphabetSize - 1 ]
+  -> m (MetricRepresentation a)
+metricRepresentation tcm = 
+    let {- |
+        /O(2*(a - 1))/
+       
+        This was taken from Ukkonen's original 1985 paper wherein the coefficient
+        delta @(Δ)@ was defined by the minimum transition cost from any symbol in
+        the alphabet @(Σ)@ to the gap symbol @'-'@.
+       
+        If there is any transition to a gap from a non-gap for which the cost is
+        zero, then this coefficient will be zero. This leaves us with no way to
+        determine if optimality is preserved, and the Ukkonen algorithm will hang.
+        Consequently, we do not perform Ukkonen's algorithm if the coefficient is
+        zero.
+        -}
+        minInDel       = fromIntegral . minimum $ inDelCost min <$> nonGapElements
+        maxInDel       = fromIntegral . maximum $ inDelCost max <$> nonGapElements
+        bitWidth       = toEnum alphabetSize
+        alphabetSize   = size tcm
+        gapIndex       = 0
+        nonGapElements = [ 1 .. alphabetSize - 1 ]
+    
+        inDelCost :: (Word32 -> Word32 -> t) -> Int -> t
+        inDelCost f i = f (tcm ! (i, gapIndex))
+                          (tcm ! (gapIndex, i))
+                        
+    in  do  let scm = makeSCM tcm
+            memo2D <- memoize2 $ overlap2 bitWidth scm
+            memo3D <- memoize3 $ overlap3 bitWidth scm
 
-    inDelCost :: (Word32 -> Word32 -> t) -> Int -> t
-    inDelCost f i = f (tcm ! (i, gapIndex))
-                      (tcm ! (gapIndex, i))
+            pure $ ExplicitLayout tcm minInDel maxInDel memo2D memo3D
 
 
 -- |
