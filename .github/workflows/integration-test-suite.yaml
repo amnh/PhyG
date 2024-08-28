@@ -1,5 +1,5 @@
 ################################################################################
-### GitHub Actions curation providing quality assurance for Haskell projects 
+### GitHub Actions curation providing quality assurance for Haskell projects
 ###
 name: 'PHANE Integration Test CI'
 
@@ -12,19 +12,29 @@ defaults:
 
 env:
   PROJECTFILE: --project-file=config/cabal.project.integration
-  TESTDETAILS: --test-show-details=streaming
-  TESTOPTIONS: --test-options="--timeout=30s"
-  THISMAINEXE: PhyGraph:phyg
-  THISTESTEXE: PHAGE-integration-tests:integration-tests
+#  TESTDETAILS: --test-show-details=streaming
+  TESTOPTIONS: --subset-rapid
+#  TESTOPTIONS: --test-options="--timeout=30s"
+  THISMAINEXE: :pkg:PhyG:exe:phyg
+  THISTESTEXE: :pkg:PhyG-integration-tests:exe:PhyG-Integration-Tests
 
 on:
 
   # Build every pull request, to check for regressions.
   pull_request:
+    branches: [ main ]
 
   # Build on branch updates
   push:
-    branches: [ github-ci ]
+    branches: [ main, github-ci ]
+
+
+# INFO: The following configuration block ensures that only one build runs per branch,
+# which may be desirable for projects with a costly build process.
+# Remove this block from the CI workflow to let each CI job run to completion.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 
 ################################################################################
@@ -48,57 +58,97 @@ jobs:
       fail-fast: true
 
     steps:
-      - name: 'Clone Project'
-        uses: actions/checkout@v3
-      
-      - name: 'Setup Haskell'
-        uses: haskell/actions/setup@v2
+      - name: 'Clone Integration TestSuite'
+        uses: actions/checkout@v4
         with:
-          ghc-version:   9.2
-          cabal-version: 3.6
- 
+          repository: amnh/PhyG-Integration-Tests
+
+      - name: 'Setup Haskell'
+        uses: haskell-actions/setup@v2
+        id: setup
+        with:
+          ghc-version:   9.10.1
+          cabal-version: 3.12
+          cabal-update: true
+
       - name: 'Cabal - Configure'
         run: |
-            cabal update ${PROJECTFILE}
-            cabal clean  ${PROJECTFILE}
-            cabal freeze ${PROJECTFILE}
+            cabal update
+            cabal clean
+            cabal freeze
+            cabal configure --enable-tests --enable-benchmarks --disable-documentation
+            cabal install ${THISMAINEXE} ${THISTESTEXE} --dry-run
+            # The last step generates dist-newstyle/cache/plan.json for the cache key.
 
-      - name: 'Cabal - Cache'
-        uses: actions/cache@v3
+      - name: 'Cabal - Cache [1]'
+        uses: actions/cache/restore@v4
+        id: cache
+        env:
+          key: ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{ steps.setup.outputs.cabal-version }}
         with:
-          path: |
-            ~/.cabal/store
-            dist-newstyle
-          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
-          # restore keys is a fall back when the freeze plan is different
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.ghc }}-
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ env.key }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: ${{ env.key }}-
+
+      - name: 'Cabal - Install dependencies'
+        # If we had an exact cache hit, the dependencies will be up to date.
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cabal build ${THISMAINEXE} ${THISTESTEXE} --only-dependencies
+
+      # Cache dependencies already here, so that we do not have to rebuild them should the subsequent steps fail.
+      - name: 'Cabal - Cache [2]'
+        uses: actions/cache/save@v4
+        # If we had an exact cache hit, trying to save the cache would error because of key clash.
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: 'Cabal - Build'
         run: |
-          cabal build ${THISMAINEXE} ${THISTESTEXE} ${PROJECTFILE} --only-dependencies
+#          ./bin/refresh-phyg.sh
+          cabal install ${THISMAINEXE}
+          cabal build   ${THISTESTEXE}
+
+      - name: 'When Failed - Rerun build to minimize output'
+        if: ${{ failure() }}
+        run: |
+          cabal install ${THISMAINEXE}
+          cabal build   ${THISTESTEXE}
+
+      - name: 'Test-suite Filepath'
+        id: testsuite-filepath
+        # Output, for later use, the file path of integration test-suite as determined by cabal
+        run: |
+          echo "TESTPATH=$(cabal list-bin ${THISTESTEXE} ${PROJECTFILE})"
+          echo "TESTPATH=$(cabal list-bin ${THISTESTEXE} ${PROJECTFILE})" >> "$GITHUB_OUTPUT"
 
       - name: 'Cabal - Integration Tests'
+        # Retieve the file path of integration test-suite output from a prior step
+        env:
+          TESTPATH: ${{ steps.testsuite-filepath.outputs.TESTPATH }}
         run: |
-          cabal test  ${THISTESTEXE} ${PROJECTFILE} ${TESTDETAILS} ${TESTOPTIONS}
+          cabal test integration-tests --test-show-details=streaming ="--subset-rapid"~
+#          echo "TESTPATH is '$TESTPATH'"
+#          $TESTPATH ${TESTOPTIONS}
 
-      - name: Send mail on failure
-        if: ${{ failure() }}
-        uses: dawidd6/action-send-mail@v3
-        with:
-            # Mail server settings
-            ignore_cert: true
-            secure: true
-            server_address: smtp.domain.com
-            server_port: 465
-
-            # Sender credentials
-            username: ${{ secrets.EMAIL_USERNAME }}
-            password: ${{ secrets.EMAIL_PASSWORD }}
-
-            # Recipient & email information
-            to: crowley@amnh.org
-            cc: wheeler@amnh.org
-            from: PHANE ρbit
-            subject: "PHANE CI Failure: Integration Test-suite - job ${{ github.job }}"
-            body: "The continuous integration performed by GitHub Workflows has failed!\n\nInspect job ${{ github.job.name }} numbered ${{ github.job }} at:\n\n    https://github.com/${{ github.repository }}actions.\n\n\nVigilantly,\n  ~ PHANE ρbit"
+#      - name: 'When Failed - Send Notification Email'
+#        if: ${{ failure() }}
+#        uses: dawidd6/action-send-mail@v3
+#        with:
+#            # Mail server settings
+#            ignore_cert: true
+#            secure: true
+#            server_address: smtp.domain.com
+#            server_port: 465
+#
+#            # Sender credentials
+#            username: ${{ secrets.EMAIL_USERNAME }}
+#            password: ${{ secrets.EMAIL_PASSWORD }}
+#
+#            # Recipient & email information
+#            to: crowley@amnh.org
+#            cc: wheeler@amnh.org
+#            from: PHANE ρbit
+#            subject: "PHANE CI Failure: Integration Test-suite - job ${{ github.job }}"
+#            body: "The continuous integration performed by GitHub Workflows has failed!\n\nInspect job ${{ github.job.name }} numbered ${{ github.job }} at:\n\n    https://github.com/${{ github.repository }}actions.\n\n\nVigilantly,\n  ~ PHANE ρbit"

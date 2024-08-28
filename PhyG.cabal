@@ -287,7 +287,6 @@ Executable phyg
 --     -feager-blackholing --  may be causing parallel loop errors
     -O2
     -rtsopts
-    -Wall
     --  Maybe this is required for good paralellism?          
     -fno-omit-yields 
     -- There is/are known compiler bug(s) with this optimization in GHC 9.6.2 (and earlier?).
@@ -495,13 +494,11 @@ Library dynamic-character
     lib/dynamic-character/src
 
   Build-Depends:
---    PHANE-alphabet,
     PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PhyG:tcm,
     PhyG:utility,
     base                     >= 4.11      && < 5.0,
---    bv-little,
     containers               >= 0.6.2     && < 1.0,
     matrices                 >= 0.5       && < 1.0,
     monad-loops              >= 0.4       && < 1.0,
@@ -509,9 +506,6 @@ Library dynamic-character
     vector                   >= 0.12.0.3  && < 1.0,
 
   Exposed-Modules:
---    Bio.DynamicCharacter
---    Bio.DynamicCharacter.Measure
---    Bio.DynamicCharacter.HandleGaps
     DirectOptimization.Pairwise
     DirectOptimization.Pairwise.Visualization
     DirectOptimization.Pairwise.Swapping
@@ -544,7 +538,6 @@ Library tcm
     lib/tcm/src
 
   Build-Depends:
---    PHANE-dynamic-character,
     PHANE-dynamic-character-element,
     PhyG:utility,
     binary                   >= 0.8       && < 1.0,
@@ -655,53 +648,6 @@ Test-Suite test-dynamic-character
     DirectOptimization.Pairwise.Test
     Test.Aligners
     Test.QuickCheck.Instances.DynamicCharacter
-
-
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
---
--- Additional executables which exist for the one of a few select purposes:
---
---   * Generating data for PCG/PhyG input
---
---   * Debugging the component sub-libraries of PCG/PhyG and PCG/PhyG itself
---
---   * Performing correctness verification
---
---   * Stocastically searching for non-totality counterexamples
---
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-
-
---Executable inspect-dynamic-character
---
---  Import:
---    build-defaults,
---
---  Scope:
---    private
---
---  Main-Is:
---    Inspect.hs
---
---  HS-Source-Dirs:
---    lib/dynamic-character/test
---
---  Build-Depends:
---    PHANE-alphabet,
---    PhyG:dynamic-character,
---    PhyG:tcm,
---    base                     >= 4.11      && < 5.0,
---    bimap                    >= 0.3       && < 1.0,
---    containers               >= 0.6.2     && < 1.0,
---    QuickCheck               >= 2.14      && < 3.0,
---    tasty                    >= 1.4       && < 2.0,
---    tasty-quickcheck         >= 0.10      && < 1.0,
---    vector                   >= 0.12.0.3  && < 1.0,
---
---  Other-Modules:
---    Test.Aligners
---    Test.QuickCheck.Instances.DynamicCharacter
-
 
 
 Benchmark bench-memoized-hashtable

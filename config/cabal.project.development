@@ -157,7 +157,6 @@ Source-Repository-Package
 -- and log files of the build/benchmarks/tests should go in `log`.
 ---------------------------------------------------------------------------------
 
-Builddir:         ./doc
 Symlink-bindir:   ./bin
 Installdir:       ./bin
 Logs-Dir:         ./log
