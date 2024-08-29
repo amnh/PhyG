@@ -412,6 +412,27 @@
 		\item[STRING] Reads the file specified in the path included in the string argument. A path 
 		can be absolute or relative to the current working directory. The file type is recognized
 		automatically, but as mentioned previously, this should be confirmed.
+		
+		\item [tcm:(Int, Int)] This refers to setting indel and substitution costs as two integers
+		seprated by a comma.  The first value is the indel cost and the second the substitution cost
+		for any alphabet type and size.\\
+		
+		Specifying tcm:(X,Y) for a sequence with four elements alpha, beta, gamma and delta would be
+		equivalent to the custom alphabet file below:
+		\\
+		\begin{equation*}
+			%\nolabel
+			\begin{array}{lllll}
+				alpha & beta & gamma & delta &  \\
+				0 &  Y &  Y &  Y &   X \\
+				Y &  0 &  Y &  Y &   X \\
+				Y &  Y &  0 &  Y &   X \\
+				Y &  Y &  Y &  0 &   X \\
+				X &  X &  X &  X &   0
+			\end{array}
+		\end{equation*} 
+		\\
+		
 
 		\item [tcm:STRING] This refers to a file containing a custom-alphabet matrix that 
 		specifies varying costs among alphabet elements in a sequence. The elements in 
@@ -1362,6 +1383,25 @@
 %		or \texttt{transform(softwiredMethod:\\Exhaustive)} 
 %		at a later stage to improve graph score. Not implemented yet.
 			
+		\item[bc2:(FLOAT, FLOAT)] Sets the bit cost for binary characters.  The first value 
+		is the cost of a character transformation and the second for character stasis.
+		
+		\item[bc4:(FLOAT, FLOAT)] Sets the bit cost for four-state non-additive characters.  The first value 
+		is the cost of a character transformation and the second for character stasis.
+		
+		\item[bc5:(FLOAT, FLOAT)] Sets the bit cost for five-state non-additive characters.  The first value 
+		is the cost of a character transformation and the second for character stasis.
+		
+		\item[bc8:(FLOAT, FLOAT)] Sets the bit cost for eight-state non-additive characters.  The first value 
+		is the cost of a character transformation and the second for character stasis.
+		
+		\item[bc64:(FLOAT, FLOAT)] Sets the bit cost for 64-state non-additive characters.  The first value 
+		is the cost of a character transformation and the second for character stasis.
+		
+		\item[bcgt64:(FLOAT, FLOAT)] Sets the bit cost for greater than 64 state non-additive characters.  The first value 
+		is the cost of a character transformation and the second for character stasis.
+		
+		
 		\item[criterion:] Sets the optimality criterion for graph search.
 			
 		\begin{description}
