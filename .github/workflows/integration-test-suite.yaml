@@ -106,9 +106,9 @@ jobs:
 
       - name: 'Cabal - Build'
         run: |
-#          ./bin/refresh-phyg.sh
           cabal install ${THISMAINEXE}
           cabal build   ${THISTESTEXE}
+#          ./bin/refresh-phyg.sh
 
       - name: 'When Failed - Rerun build to minimize output'
         if: ${{ failure() }}
