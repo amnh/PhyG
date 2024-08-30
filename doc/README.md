@@ -2,9 +2,6 @@
 
 Performs heuristic search of phylogenetic graph space via scoring abstract input data.
 
-[![CI    Status        ][GitHub-actions-img]][GitHub-actions-ref]
-[![Maintained          ][GitHub-support-img]][GitHub-support-ref]
-
 [![Release             ][GitHub-release-img]][GitHub-release-ref]
 [![Release Date        ][GitHub-tagdate-img]][GitHub-release-ref]
 [![New Commits         ][GitHub-commits-img]][GitHub-commits-ref]
@@ -66,8 +63,6 @@ That's it! You've done it and are certainly a hero who just saved the day.
 [Funding-1]: https://www.darpa.mil/program/simplifying-complexity-in-scientific-discovery
 [Funding-2]: http://www.klebergfoundation.org/
 
-[GitHub-actions-img]: https://github.com/amnh/PhyG/actions/workflows/integration-test-suite.yaml/badge.svg?branch=master
-[GitHub-actions-ref]: https://github.com/AMNH/PhyG/actions
 [GitHub-authors-img]: https://img.shields.io/badge/author-Ward%20Wheeler-blue.svg?color=134EA2
 [GitHub-authors-ref]: https://github.com/AMNH/PhyG/tree/master/doc/AUTHORS.md
 [GitHub-codelen-img]: https://img.shields.io/github/languages/code-size/AMNH/PhyG.svg?style=popout&color=yellowgreen
@@ -83,8 +78,6 @@ That's it! You've done it and are certainly a hero who just saved the day.
 [GitHub-release-img]: https://img.shields.io/github/release-pre/AMNH/PhyG.svg?style=popout&color=orange
 [GitHub-release-ref]: https://github.com/AMNH/PhyG/releases/latest
 [GitHub-tagdate-img]: https://img.shields.io/github/release-date-pre/AMNH/PhyG.svg?style=popout&color=orange
-[GitHub-support-img]: https://img.shields.io/maintenance/yes/2023.svg?style=popout
-[GitHub-support-ref]: https://github.com/AMNH/PhyG/graphs/contributors
 
 [GitHub-Funding]: https://github.com/AMNH/PhyG/blob/master/doc/Funding.md
 [GitHub-Install]: https://github.com/AMNH/PhyG/blob/master/doc/tutorials/Installation.md
