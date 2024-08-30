@@ -1405,9 +1405,14 @@
 			
 		\begin{description}
 			
+			\item[mapa] Graph costs are determined by the Maximum A Posteriori Assignment (MAPA)
+			integrated likelihood method of \citep{Wheeler2014}. 
+			Graph costs are reported in $- \log_{10}$ units (dits).
+			
 			\item[ncm] Graph costs are determined by the No-Common-Mechanism 
 			likelihood model of \citep{TuffleyandSteel1997}. This is exact for trees, but 
 			for networks should be treated as a form of character weighting.  
+			Graph costs are reported in $- \log_{10}$ units (dits).
 			
 			\item[parsimony] Graph costs are determined by the parsimony criterion, 
 			that is the minimum sum of transformation events multiplied by their weights. 
@@ -1416,12 +1421,12 @@
 			\item[pmdl] Graph costs are determined by the Phylogenetic Minimum Description Length criterion, 
 			of \citep{WheelerandVaron2025}.  This command option is used in conjunction with 
 			\texttt{modelComplexity}. Any network costs are specified by the criterion and other network
-			penalty options are ignored.  Costs are reported in bits.
+			penalty options are ignored.  Graph costs are reported in $\log_{2}$ units (bits).
 			
 			\item[si] Graph costs are determined by the Self-Information (a form of maximum likelihood) criterion
 			of \citep{WheelerandVaron2025}.  This command option ignores. 
 			\texttt{modelComplexity}. Any network costs are specified by the criterion and other network
-			penalty options are ignored.  Costs are reported in bits.
+			penalty options are ignored.   Graph costs are reported in $\log_{2}$ units (bits).
 			
 			
 		\end{description}
