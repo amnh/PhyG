@@ -3,7 +3,6 @@ Module specifying graph swapping rearrangement functions
 -}
 module Search.SwapV2 (
     swapV2,
-    swapNaive,
 ) where
 
 import Control.Monad (filterM)
@@ -58,18 +57,22 @@ swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
 
 
 {- | Naive swap functions to create reference for later algorithmic improvements 
+    1) Take first graph
 
-1) Take first graph
-2) Create list of splits of graph
-3) Rejoin all places for all splits
-    This is "all around" in that not switching to lower cost graphs
-    at first opportunity (ie. 'steepest").
-4) Full evaluation of graphs 
-    Time complexities should be with O(n) for graph traversals
-        NNI O(n^2)
-        SPR O(n^3)
-        TBR O(n^4)
+    2) Create list of splits of graph 
+        LG.getEdgeSplitList
 
+    3) Rejoin all places for all splits
+        This is "all around" in that not switching to lower cost graphs
+        at first opportunity (ie. 'steepest").
+        LG.splitGraphOnEdge (check base graph leaves >=3)
+        LG.joinGraphOnEdge
+
+    4) Full evaluation of graphs 
+        Time complexities should be with O(n) for graph traversals
+            NNI O(n^2)
+            SPR O(n^3)
+            TBR O(n^4)
 -}
 swapNaive 
     ∷ SwapParams
@@ -83,3 +86,5 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     if null curBestGraphList
         then pure ([], inCounter)
         else pure (curBestGraphList, inCounter)
+
+
