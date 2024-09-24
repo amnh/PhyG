@@ -64,6 +64,12 @@ swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
 3) Rejoin all places for all splits
     This is "all around" in that not switching to lower cost graphs
     at first opportunity (ie. 'steepest").
+4) Full evaluation of graphs 
+    Time complexities should be with O(n) for graph traversals
+        NNI O(n^2)
+        SPR O(n^3)
+        TBR O(n^4)
+
 -}
 swapNaive 
     ∷ SwapParams
