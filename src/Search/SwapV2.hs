@@ -35,6 +35,13 @@ import Utilities.Utilities as U
 
 
 {- | New Swap functions that are based on PHANE paralleization routines.
+    1) Naive version
+    2) steepest descent
+        Continue when swtuch to new (order of edges)
+        Keep single graph only until no better, then multiple
+    3) heuristic cost calculations
+    4) unions
+    5) SA/Drift
 -}
 swapV2
     ∷ SwapParams
@@ -49,6 +56,15 @@ swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
         then pure ([], inCounter)
         else swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
 
+
+{- | Naive swap functions to create reference for later algorithmic improvements 
+
+1) Take first graph
+2) Create list of splits of graph
+3) Rejoin all places for all splits
+    This is "all around" in that not switching to lower cost graphs
+    at first opportunity (ie. 'steepest").
+-}
 swapNaive 
     ∷ SwapParams
     → GlobalSettings
