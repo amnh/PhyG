@@ -62,7 +62,7 @@ swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     1) Take first graph
 
     2) Create list of splits of graph 
-        LG.getEdgeSplitList
+        LG.getEdgeSplitList O(n)
 
     3) Rejoin all places for all splits
         This is "all around" in that not switching to lower cost graphs

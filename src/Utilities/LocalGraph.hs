@@ -1741,6 +1741,8 @@ this is quadratic
 should change to Tarjan's algorithm (linear)
 everything else in there is O(n^2-3) so maybe doesn't matter
 filters out edges with parent nodes that are out degree 1 and root edges
+
+Still seems to be linear at least for a tree
 -}
 getEdgeSplitList ∷ (Show a, Show b, Eq b) ⇒ Gr a b → [LEdge b]
 getEdgeSplitList inGraph =
