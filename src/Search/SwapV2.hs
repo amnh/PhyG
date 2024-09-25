@@ -38,9 +38,11 @@ import Utilities.Utilities as U
     2) steepest descent
         Continue when swtuch to new (order of edges)
         Keep single graph only until no better, then multiple
-    3) heuristic cost calculations
-    4) unions
+    3) Randomized trajectories
+    4) heuristic cost calculations
     5) SA/Drift
+    6) unions
+    
 -}
 swapV2
     ∷ SwapParams
