@@ -27,7 +27,6 @@ import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
-import Search.Swap qualified as SV1
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
@@ -86,8 +85,14 @@ swapNaive
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
 swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
-    if null curBestGraphList
+    let inGraphPair = L.uncons curBestGraphList
+    in
+    if isNothing inGraphPair
         then pure ([], inCounter)
-        else pure (curBestGraphList, inCounter)
+        else do
+            let (firstGraph, graphsRemaining) = fromJust inGraphPair
+            let  edgeList = LG.getEdgeSplitList $ thd5 firstGraph
+            logWith LogInfo $ "\tBreakable Edges: " <> (show $ length edgeList)
+            pure (graphsRemaining, inCounter + 1)
 
 

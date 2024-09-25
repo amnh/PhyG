@@ -24,6 +24,7 @@ import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.PreOrderFunctions qualified as PRE
+import Search.SwapV2 qualified as SV2
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
@@ -34,10 +35,8 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
-
 {- | SwapDriver
-    Uses compnent functions but with alternate high-level logic
-    Generates new simmanneal params for recursive rounds
+    Top levl formtesting and swithcing between functions
 -}
 swapDriver
     ∷ SwapParams
@@ -47,7 +46,23 @@ swapDriver
     → [ReducedPhylogeneticGraph]
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
+swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams = 
+    -- swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
+    SV2.swapV2  swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
+
+{- | SwapDriver
+    Uses compnent functions but with alternate high-level logic
+    Generates new simmanneal params for recursive rounds
+-}
+swapDriver'
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams = 
     if null curBestGraphList
         then pure ([], inCounter)
         else do
@@ -77,7 +92,7 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                                     else -- found better-- go around again
                                     do
                                         let newSimAnnealParamList = zip (U.generateUniqueRandList (length newGraphList) newSAParams) newGraphList
-                                        swapDriver swapParams inGS inData newCounter newGraphList newSimAnnealParamList
+                                        swapDriver' swapParams inGS inData newCounter newGraphList newSimAnnealParamList
 
 
 {- swapMAster
