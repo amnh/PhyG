@@ -1,0 +1,16 @@
+-- script to amke Archea graphs
+set(seed:1683323754)
+
+-- Read data
+read("Metazoa20.fas")
+
+--build(distance, replicates:10, rdwag, dwag,wpgma,nj, best:10)
+
+--select(best)
+
+read("Metazoa20-dist-spr.dot")
+
+swap(spr)
+
+report("Metazoa20-dist-spr-2.dot", graphs, dotpdf, overwrite, nocollapse)
+report("Metazoa20-dist-spr-search.csv", search, overwrite)

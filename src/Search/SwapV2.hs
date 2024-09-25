@@ -36,7 +36,8 @@ import Utilities.Utilities as U
 {- | New Swap functions that are based on PHANE paralleization routines.
     1) Naive version
     2) steepest descent
-        Continue when swtuch to new (order of edges)
+        Order edges by distace to original break point on rejoin
+        Continue when swtich to new (order of edges)
         Keep single graph only until no better, then multiple
     3) Randomized trajectories
     4) heuristic cost calculations

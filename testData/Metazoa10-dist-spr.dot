@@ -1,0 +1,42 @@
+digraph G {
+	rankdir = LR;	edge [colorscheme=spectral11];	node [shape = none];
+
+    0 [label=Acanthobdella];
+    1 [label=Acoelasp];
+    2 [label=Aelosoma];
+    3 [label=Alcyonidium];
+    4 [label=Alcyonium];
+    5 [label=Alligator];
+    6 [label=Allomachilis];
+    7 [label=Amia];
+    8 [label=Amphiporus];
+    9 [label=Rhabdocalyptus];
+    10 [label=HTU10];
+    11 [label=HTU11];
+    12 [label=HTU12];
+    13 [label=HTU13];
+    14 [label=HTU14];
+    15 [label=HTU15];
+    16 [label=HTU16];
+    17 [label=HTU17];
+    18 [label=HTU18];
+    10 -> 0 [label=202.0];
+    10 -> 18 [label=143.0];
+    11 -> 1 [label=172.0];
+    11 -> 12 [label=62.0];
+    12 -> 4 [label=63.0];
+    12 -> 9 [label=114.0];
+    13 -> 8 [label=67.0];
+    13 -> 14 [label=17.0];
+    14 -> 15 [label=71.0];
+    14 -> 17 [label=13.0];
+    15 -> 5 [label=17.0];
+    15 -> 7 [label=24.0];
+    16 -> 6 [label=77.0];
+    16 -> 11 [label=55.0];
+    17 -> 3 [label=136.0];
+    17 -> 16 [label=31.0];
+    18 -> 2 [label=53.0];
+    18 -> 13 [label=27.0];
+}
+//2015.0
