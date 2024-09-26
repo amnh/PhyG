@@ -34,15 +34,15 @@ import Utilities.Utilities as U
 
 {- | New Swap functions that are based on PHANE paralleization routines.
     1) Naive version
-    2) steepest descent
+    2) Incremental for split and move evaluation SPR/TBR where possible
+    3) steepest descent
         Order edges by distace to original break point on rejoin
         Continue when swtich to new (order of edges)
         Keep single graph only until no better, then multiple
-    3) Randomized trajectories
-    4) heuristic cost calculations
-    5) SA/Drift
+    4) Randomized trajectories
+    5) heuristic cost calculations
     6) unions
-    
+    7) SA/Drift    
 -}
 swapV2
     ∷ SwapParams
