@@ -44,7 +44,7 @@ Allow-Newer:
     ghc-prim,
     hashable,
     integer-gmp,
-    lens,
+--    lens,
     mtl,
     pretty,
     primative,
@@ -91,6 +91,7 @@ Preferences:
     aeson >= 2.1.0.0,
     bytestring >= 0.12.0.0,
     filepath >= 1.4.100.0,
+    lens >= 5.3.0,
     mtl >= 2.3.1,
     text >= 2.0.1,
     unordered-containers >= 0.2.18.0,
@@ -207,7 +208,7 @@ Package PhyG
 
 
 ---------------------------------------------------------------------------------
--- GHC-9.8.* comptibility
+-- GHC-9.10.* comptibility
 --
 -- Updated Hackage references for GHC maintainer patched dependency packages
 --
@@ -219,7 +220,8 @@ With-Compiler:
 
 Active-Repositories:
     hackage.haskell.org,
-    head.hackage.ghc.haskell.org:override
+    head.hackage.ghc.haskell.org
+--    head.hackage.ghc.haskell.org:override
 
 Repository head.hackage.ghc.haskell.org
     url: https://ghc.gitlab.haskell.org/head.hackage/
@@ -229,10 +231,6 @@ Repository head.hackage.ghc.haskell.org
        26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329
        7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d
        f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89
-
-       -- f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89
-       -- 26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329
-       -- 7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d
 
 
 --Source-Repository-Package
