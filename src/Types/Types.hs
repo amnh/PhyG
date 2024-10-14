@@ -538,16 +538,17 @@ instance NFData ResolutionData where rnf x = seq x ()
 
 -- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo
-    { index ∷ Int -- For accessing
-    , bvLabel ∷ NameBV -- For comparison of vertices subtrees, left/right
-    , parents ∷ V.Vector Int -- indegree indices
+    { bvLabel ∷ NameBV -- For comparison of vertices subtrees, left/right
     , children ∷ V.Vector Int -- outdegree indices
+    , converged :: Bool -- used in incremental optimization to see if reoptimization equals original
+    , index ∷ Int -- For accessing
     , nodeType ∷ NodeType -- root, leaf, network, tree
-    , vertName ∷ NameText -- Text name of vertex either input or HTU#
-    , vertData ∷ VertexBlockData -- data as vector of blocks (each a vector of characters)
-    , vertexResolutionData ∷ V.Vector ResolutionBlockData -- soft-wired network component resolution information for Blocks
-    , vertexCost ∷ VertexCost -- local cost of vertex
+    , parents ∷ V.Vector Int -- indegree indices
     , subGraphCost ∷ VertexCost -- cost of graph to leaves from the vertex
+    , vertexCost ∷ VertexCost -- local cost of vertex
+    , vertData ∷ VertexBlockData -- data as vector of blocks (each a vector of characters)
+    , vertName ∷ NameText -- Text name of vertex either input or HTU#
+    , vertexResolutionData ∷ V.Vector ResolutionBlockData -- soft-wired network component resolution information for Blocks
     }
     deriving stock (Generic, Show, Eq)
 
@@ -557,10 +558,10 @@ instance NFData VertexInfo where rnf x = seq x ()
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
 data EdgeInfo = EdgeInfo
-    { minLength ∷ VertexCost
+    { edgeType ∷ EdgeType
     , maxLength ∷ VertexCost
     , midRangeLength ∷ VertexCost
-    , edgeType ∷ EdgeType
+    , minLength ∷ VertexCost
     }
     deriving stock (Show, Eq, Ord)
 
@@ -876,6 +877,7 @@ emptyVertexInfo =
         , bvLabel = BV.fromBits [False]
         , parents = mempty
         , children = mempty
+        , converged = False
         , nodeType = TreeNode -- root, leaf, network, tree
         , vertName = "EmptyVertex"
         , vertData = mempty
