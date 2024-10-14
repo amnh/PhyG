@@ -174,12 +174,12 @@ on a graph (tree, softWired, or hardWired) to determine the "preliminary" charac
 include penalty factor cost but not root cost which may or may not be wanted depending on context
 if full graph--yes, if a component yes or no.
 hence returns the pair
-Adds root complexity cost if the star vertex is Nothing (e.g. the graph root), so should be corrext when graphs are split in swap.
+Adds root complexity cost if the start vertex is Nothing (e.g. the graph root), so should be corrext when graphs are split in swap.
 -}
 generalizedGraphPostOrderTraversal
     ∷ GlobalSettings → Int → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG (PhylogeneticGraph, Int)
 generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA startVertex inSimpleGraph = do
-    -- next edges (to vertex in list) to perform rerroting
+    -- next edges (to vertex in list) to perform rerooting
     -- progresses recursivey over adjacent edges to minimize node reoptimization
     -- childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) startVertexList
     -- grandChildrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) childrenOfRoot
@@ -187,11 +187,11 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData leafGraph staticIA 
     -- create list of multi-traversals with original rooting first
     -- subsequent rerooting do not reoptimize exact characters (add nonadd etc)
     -- they are taken from the fully labelled first input decorated graph later when output graph created
-    -- it is important that the first graph be the ourgroup rooted graph (outgroupRootedPhyloGraph) so this
+    -- it is important that the first graph be the outgroup rooted graph (outgroupRootedPhyloGraph) so this
     -- will have the preorder assignments for the outgroup rooted graph as 3rd field.  This can be used for incremental
-    -- optimization to get O(log n) initial postorder assingment when mutsating graph.
+    -- optimization to get O(log n) initial postorder assingment when mutating graph.
     -- hardwired reroot cause much pain
-    -- the head startvertex list for reoptimizing spit trees ni swapping
+    -- the head startvertex list for reoptimizing spit trees in swapping
 
     -- create optimal final graph with best costs and best traversal (rerooting) forest for each character
     -- traversal for exact characters (and costs) are the first of each least since exact only optimizaed for that

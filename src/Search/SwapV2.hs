@@ -118,7 +118,7 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 logWith LogInfo $ "\tSplit Cost: " <> (show splitCost)
                 -}
                 (reoptimizedSplitGraph', splitCost') ←
-                        reoptimizeSplitGraphFromVertexNew inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex
+                        reoptimizeSplitGraphFromVertexNew swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex
                 logWith LogInfo $ "\tSplit Cost New: " <> (show splitCost')
                 pure (graphsRemaining, inCounter + 1)
 
@@ -129,7 +129,8 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     roughly O(n)
 -}
 reoptimizeSplitGraphFromVertexNew
-    ∷ GlobalSettings
+    ∷ SwapParams
+    → GlobalSettings
     → ProcessedData
     → Bool
     → VertexCost
@@ -138,7 +139,7 @@ reoptimizeSplitGraphFromVertexNew
     → Int
     → Int
     → PhyG (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertexNew inGS inData doIA netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex =
+reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex =
     -- trace ("RSGFV: " <> (show startVertex)) (
     if doIA
         then -- only reoptimize the IA states for dynamic characters
@@ -196,21 +197,7 @@ reoptimizeSplitGraphFromVertexNew inGS inData doIA netPenaltyFactor curGraph inS
 
                     -- False for staticIA
                     -- Can use existing postOrder assignments for pruned
-                    {-
-                    (postOrderPrunedGraph, _) ←
-                        T.generalizedGraphPostOrderTraversal
-                            (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
-                            nonExactCharacters
-                            inData
-                            leafGraph
-                            False
-                            (Just prunedSubGraphRootVertex)
-                            splitGraphSimple
-                    -}
-
-                    -- False for staticIA
-                    
-
+                    -- updating pruned root final to preliminary for preorder pass
                     let postOrderPrunedGraph = if LG.isLeaf origGraph prunedSubGraphRootVertex then curGraph
                                                else 
                                                     -- updating pruned root final to preliminary for preorder pass
@@ -223,17 +210,20 @@ reoptimizeSplitGraphFromVertexNew inGS inData doIA netPenaltyFactor curGraph inS
                                                         newPrunedGraph =  LG.insEdges newPrunedRootOutEdges $ LG.insNode newFinalPrunedRoot $ LG.delNode prunedSubGraphRootVertex (thd6 curGraph)
                                                     in (fst6 curGraph, prunedGraphCost, newPrunedGraph, fth6 curGraph, fft6 curGraph, six6 curGraph)
                     
-                    fullPrunedGraph ←
-                        PRE.preOrderTreeTraversal
-                            (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
-                            (finalAssignment inGS)
-                            False
-                            calcBranchLengths
-                            (nonExactCharacters > 0)
-                            prunedSubGraphRootVertex
-                            True
-                            postOrderPrunedGraph
-                    
+                    -- if not TBR then don't need preorder assignments
+                    fullPrunedGraph ← if swapType swapParams `elem` [NNI, SPR] then 
+                                            pure postOrderPrunedGraph
+                                      else          
+                                            PRE.preOrderTreeTraversal
+                                                (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                                                (finalAssignment inGS)
+                                                False
+                                                calcBranchLengths
+                                                (nonExactCharacters > 0)
+                                                prunedSubGraphRootVertex
+                                                True
+                                                postOrderPrunedGraph
+                                        
 
                     --logWith LogInfo $ "\nPruned Cost: " <> (show $ subGraphCost $ fromJust $ (LG.lab (thd6 curGraph) prunedSubGraphRootVertex))
                     --logWith LogInfo $ "\nPruned Cost: " <> (show $ subGraphCost $ fromJust $ (LG.lab (thd6 fullPrunedGraph) prunedSubGraphRootVertex))
