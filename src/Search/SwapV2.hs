@@ -195,17 +195,33 @@ reoptimizeSplitGraphFromVertexNew inGS inData doIA netPenaltyFactor curGraph inS
                     let startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
 
                     -- False for staticIA
-                    -- Can use existing postOrder assignments for pruned if leaf
-                    -- updating pruned root final to preliminary for preorder pass if not leaf                           
+                    -- Can use existing postOrder assignments for pruned
+                    {-
+                    (postOrderPrunedGraph, _) ←
+                        T.generalizedGraphPostOrderTraversal
+                            (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                            nonExactCharacters
+                            inData
+                            leafGraph
+                            False
+                            (Just prunedSubGraphRootVertex)
+                            splitGraphSimple
+                    -}
+
+                    -- False for staticIA
+                    
+
                     let postOrderPrunedGraph = if LG.isLeaf origGraph prunedSubGraphRootVertex then curGraph
                                                else 
+                                                    -- updating pruned root final to preliminary for preorder pass
                                                     let origLabelPrunedRoot = fromJust $ (LG.lab (thd6 curGraph) prunedSubGraphRootVertex)
                                                         originalVertInfoPrunedRoot = vertData origLabelPrunedRoot
+                                                        prunedGraphCost = subGraphCost origLabelPrunedRoot
                                                         newVertInfoPrunedRoot = PRE.setFinalToPreliminaryStates originalVertInfoPrunedRoot
                                                         newFinalPrunedRoot = (prunedSubGraphRootVertex, origLabelPrunedRoot {vertData = newVertInfoPrunedRoot})
                                                         newPrunedRootOutEdges = LG.out (thd6 curGraph) prunedSubGraphRootVertex
                                                         newPrunedGraph =  LG.insEdges newPrunedRootOutEdges $ LG.insNode newFinalPrunedRoot $ LG.delNode prunedSubGraphRootVertex (thd6 curGraph)
-                                                    in (fst6 curGraph, snd6 curGraph, newPrunedGraph, fth6 curGraph, fft6 curGraph, six6 curGraph)
+                                                    in (fst6 curGraph, prunedGraphCost, newPrunedGraph, fth6 curGraph, fft6 curGraph, six6 curGraph)
                     
                     fullPrunedGraph ←
                         PRE.preOrderTreeTraversal
@@ -218,6 +234,11 @@ reoptimizeSplitGraphFromVertexNew inGS inData doIA netPenaltyFactor curGraph inS
                             True
                             postOrderPrunedGraph
                     
+
+                    --logWith LogInfo $ "\nPruned Cost: " <> (show $ subGraphCost $ fromJust $ (LG.lab (thd6 curGraph) prunedSubGraphRootVertex))
+                    --logWith LogInfo $ "\nPruned Cost: " <> (show $ subGraphCost $ fromJust $ (LG.lab (thd6 fullPrunedGraph) prunedSubGraphRootVertex))
+                    
+
                     -- get root node of base graph
                     let startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
 
@@ -240,8 +261,7 @@ reoptimizeSplitGraphFromVertexNew inGS inData doIA netPenaltyFactor curGraph inS
                     let prunedCost = 
                             if LG.isLeaf origGraph prunedSubGraphRootVertex
                                 then 0
-                                else snd6 fullPrunedGraph
-                            
+                                else snd6 postOrderPrunedGraph
                     let splitGraphCost = ((1.0 + netPenaltyFactor) * ((snd6 fullBaseGraph) + prunedCost))
 
                     {-
