@@ -1811,6 +1811,8 @@ if doIA is TRUE then call function that onl;y optimizes the IA assignments on th
 this keeps teh IA chracters in sync across the two graphs
 NB uses PhylogeneticGraph internally
 This should return infinity for split graph cost if either component is emptyGraph
+
+Tested 3 doublings of metazoa and roughtly O(n)
 -}
 reoptimizeSplitGraphFromVertex
     ∷ GlobalSettings
@@ -1952,6 +1954,7 @@ reoptimizeSplitGraphFromVertexTuple inGS inData doIA netPenaltyFactor (inSplitGr
 {- | reoptimizeSplitGraphFromVertexIA performs operations of reoptimizeSplitGraphFromVertex for static charcaters
 but dynamic characters--only update IA assignments and initialized from origPhylo graph (at leaves) to keep IA characters in sync
 since all "static" only need single traversal post order pass
+
 uses PhylogenetiGraph internally
 -}
 reoptimizeSplitGraphFromVertexIA
