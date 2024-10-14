@@ -1792,7 +1792,17 @@ getTBREdgeEditsSimple inGraph prunedGraphRootIndex rerootEdge =
         (newEdgeOnOldRoot : (flippedEdges <> newRootEdges), LG.toEdge rerootEdge : (fmap LG.toEdge (edgesToFlip <> originalRootEdges)))
 
 
--- )
+-- | reoptimizeSplitGraphFromVertexTuple wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
+reoptimizeSplitGraphFromVertexTuple
+    ∷ GlobalSettings
+    → ProcessedData
+    → Bool
+    → VertexCost
+    → (DecoratedGraph, Int, Int)
+    → PhyG (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexTuple inGS inData doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+    reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
+
 
 {- | reoptimizeSplitGraphFromVertex fully labels the component graph that is connected to the specified vertex
 retuning that graph with 2 optimized components and their cost
@@ -1937,18 +1947,6 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                         else pure (fullSplitGraph, splitGraphCost)
 
 
--- )
-
--- | reoptimizeSplitGraphFromVertexTuple wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
-reoptimizeSplitGraphFromVertexTuple
-    ∷ GlobalSettings
-    → ProcessedData
-    → Bool
-    → VertexCost
-    → (DecoratedGraph, Int, Int)
-    → PhyG (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertexTuple inGS inData doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
-    reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
 
 
 {- | reoptimizeSplitGraphFromVertexIA performs operations of reoptimizeSplitGraphFromVertex for static charcaters

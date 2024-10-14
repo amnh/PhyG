@@ -2,8 +2,9 @@
 Module specifying graph swapping rearrangement functions
 -}
 module Search.SwapV2 (
-    reoptimizeSplitGraphFromVertexNew,
     reoptimizeSplitGraphFromVertexIANew,
+    reoptimizeSplitGraphFromVertexNew,
+    reoptimizeSplitGraphFromVertexTupleNew,
     swapV2,
 ) where
 
@@ -408,6 +409,32 @@ reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curG
                                     <> (show origGraph)
                                 )
                         else pure (fullSplitGraph, splitGraphCost)
+
+-- | reoptimizeSplitGraphFromVertexTupleNew wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
+reoptimizeSplitGraphFromVertexTupleNew
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Bool
+    → VertexCost
+    → (PhylogeneticGraph, DecoratedGraph, Int, Int)
+    → PhyG (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData doIA netPenaltyFactor (curGraph, inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+    reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex
+
+
+
+-- | reoptimizeSplitGraphFromVertexTupleOrig wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
+reoptimizeSplitGraphFromVertexTupleOrig
+    ∷ GlobalSettings
+    → ProcessedData
+    → Bool
+    → VertexCost
+    → (DecoratedGraph, Int, Int)
+    → PhyG (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexTupleOrig inGS inData doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+    reoptimizeSplitGraphFromVertexOrig inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
+
 
 {- | reoptimizeSplitGraphFromVertex 
     Original version of reoptimizeSplitGraphFromVertex from Swap

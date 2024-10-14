@@ -29,6 +29,7 @@ import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Swap qualified as S
+import Search.SwapV2 qualified as SV2
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
@@ -284,8 +285,11 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                             → (DecoratedGraph, Int, Int, Int, Int)
                         exchangeAction = exchangePrunedGraphs numLeaves
 
-                        reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
-                        reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
+                        --reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
+                        --reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
+
+                        reoptimizeActionNew ∷ (PhylogeneticGraph, DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
+                        reoptimizeActionNew = SV2.reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData False netPenalty
                     in  do
                             splitLeftPar ← getParallelChunkMap
                             let leftSplitTupleList = splitLeftPar splitLeftAction leftBreakEdgeList
@@ -333,7 +337,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
                                     leftRightOptimizedSplitGraphCostList ←
                                         getParallelChunkTraverse >>= \pTraverse →
-                                            pTraverse reoptimizeAction $ zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                            pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph rightGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
                                     let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
 
@@ -395,7 +399,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
                                                 rightLeftOptimizedSplitGraphCostList ←
                                                     getParallelChunkTraverse >>= \pTraverse →
-                                                        pTraverse reoptimizeAction $ zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+                                                        pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length rightBaseLeftPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
 
                                                 let ( _
                                                         , rightLeftOptimizedSplitGraphCostList'
