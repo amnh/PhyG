@@ -2,6 +2,8 @@
 Module specifying graph swapping rearrangement functions
 -}
 module Search.SwapV2 (
+    reoptimizeSplitGraphFromVertexNew,
+    reoptimizeSplitGraphFromVertexIANew,
     swapV2,
 ) where
 
@@ -143,8 +145,7 @@ reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor c
     -- trace ("RSGFV: " <> (show startVertex)) (
     if doIA
         then -- only reoptimize the IA states for dynamic characters
-            pure (LG.empty, infinity)
-            -- reoptimizeSplitGraphFromVertex inGS inData netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
+            reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex
         else -- perform full optimizations of nodes
         -- these required for full optimization
 
@@ -266,6 +267,147 @@ reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor c
                         else pure (fullSplitGraph, splitGraphCost)
 
 
+{- | reoptimizeSplitGraphFromVertexIAOrig performs operations of reoptimizeSplitGraphFromVertex for static charcaters
+but dynamic characters--only update IA assignments and initialized from origPhylo graph (at leaves) to keep IA characters in sync
+since all "static" only need single traversal post order pass
+
+uses PhylogenetiGraph internally
+-}
+reoptimizeSplitGraphFromVertexIANew
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → VertexCost
+    → PhylogeneticGraph
+    → DecoratedGraph
+    → Int
+    → Int
+    → PhyG (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex =
+    -- if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeSplitGraphFromVertexIA"
+    -- else
+    let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
+        origGraph = inSplitGraph -- thd5 origPhyloGraph
+
+        -- create leaf graphs--but copy IA final to prelim
+        leafGraph =
+            if graphType inGS == SoftWired
+                then GO.copyIAFinalToPrelim $ LG.extractLeafGraph origGraph -- POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
+                else GO.copyIAFinalToPrelim $ LG.extractLeafGraph origGraph
+        calcBranchLengths = False
+
+        -- this for multitravers in swap for softwired to turn off
+        multiTraverse =
+            if graphType inGS == Tree
+                then multiTraverseCharacters inGS
+                else False
+
+        -- create simple graph version of split for post order pass
+        splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
+    in  do
+            -- Create base graph
+            -- create postorder assignment--but only from single traversal
+            -- True flag fior staticIA
+            postOrderBaseGraph ←
+                POSW.postOrderTreeTraversal
+                    (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                    inData
+                    leafGraph
+                    True
+                    (Just startVertex)
+                    splitGraphSimple
+            let baseGraphCost = snd6 postOrderBaseGraph
+
+            -- True flag fior staticIA
+            fullBaseGraph ←
+                PRE.preOrderTreeTraversal
+                    (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                    (finalAssignment inGS)
+                    True
+                    calcBranchLengths
+                    (nonExactCharacters > 0)
+                    startVertex
+                    True
+                    postOrderBaseGraph
+
+            {-
+            localRootCost = if (rootCost inGS) == NoRootCost then 0.0
+                              else error ("Root cost type " <> (show $ rootCost inGS) <> " is not yet implemented")
+            -}
+
+            -- get root node of base graph
+            let startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
+
+            -- Create pruned graph
+            -- get root node of pruned graph--parent since that is the full pruned piece (keeping that node for addition to base graph and edge creation)
+            let startPrunedNode = GO.makeIAPrelimFromFinal (prunedSubGraphRootVertex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
+            let startPrunedParentNode = head $ LG.labParents origGraph prunedSubGraphRootVertex
+            let startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
+
+            -- True flag fior staticIA
+            let postOrderPrunedGraph = if LG.isLeaf origGraph prunedSubGraphRootVertex then curGraph
+                                               else 
+                                                    -- updating pruned root final to preliminary for preorder pass
+                                                    let origLabelPrunedRoot = fromJust $ (LG.lab (thd6 curGraph) prunedSubGraphRootVertex)
+                                                        originalVertInfoPrunedRoot = vertData origLabelPrunedRoot
+                                                        prunedGraphCost = subGraphCost origLabelPrunedRoot
+                                                        newVertInfoPrunedRoot = PRE.setFinalToPreliminaryStates originalVertInfoPrunedRoot
+                                                        newFinalPrunedRoot = (prunedSubGraphRootVertex, origLabelPrunedRoot {vertData = newVertInfoPrunedRoot})
+                                                        newPrunedRootOutEdges = LG.out (thd6 curGraph) prunedSubGraphRootVertex
+                                                        newPrunedGraph =  LG.insEdges newPrunedRootOutEdges $ LG.insNode newFinalPrunedRoot $ LG.delNode prunedSubGraphRootVertex (thd6 curGraph)
+                                                    in (fst6 curGraph, prunedGraphCost, newPrunedGraph, fth6 curGraph, fft6 curGraph, six6 curGraph)
+            let prunedGraphCost = snd6 postOrderPrunedGraph
+            
+            -- True flag fior staticIA
+            fullPrunedGraph ← if swapType swapParams `elem` [NNI, SPR] then 
+                                            pure postOrderPrunedGraph
+                                      else          
+                                            PRE.preOrderTreeTraversal
+                                                (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                                                (finalAssignment inGS)
+                                                True
+                                                calcBranchLengths
+                                                (nonExactCharacters > 0)
+                                                prunedSubGraphRootVertex
+                                                True
+                                                postOrderPrunedGraph
+
+            -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd5)
+            let (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]
+
+            let (prunedGraphNonRootNodes, prunedGraphEdges) =
+                    if LG.isLeaf origGraph prunedSubGraphRootVertex
+                        then ([], [])
+                        else LG.nodesAndEdgesAfter (thd6 fullPrunedGraph) [startPrunedNode]
+
+            -- make fully optimized graph from base and split components
+            let fullSplitGraph =
+                    LG.mkGraph
+                        ([startBaseNode, startPrunedNode, startPrunedParentNode] <> baseGraphNonRootNodes <> prunedGraphNonRootNodes)
+                        (startPrunedParentEdge : (baseGraphEdges <> prunedGraphEdges))
+
+            let splitGraphCost = ((1.0 + netPenaltyFactor) * (baseGraphCost + prunedGraphCost))
+
+            -- remove when working
+            -- trace ("ROGFVIA split costs:" <> (show (baseGraphCost, prunedGraphCost, localRootCost)) <> " -> " <> (show splitGraphCost)) (
+            if prunedGraphCost == infinity || baseGraphCost == infinity
+                then pure (LG.empty, infinity)
+                else
+                    if splitGraphCost == 0
+                        then
+                            error
+                                ( "Split costs:"
+                                    <> (show (baseGraphCost, prunedGraphCost))
+                                    <> " -> "
+                                    <> (show splitGraphCost)
+                                    <> " Split graph simple:\n"
+                                    <> (LG.prettify splitGraphSimple)
+                                    <> "\nFull:\n"
+                                    <> (show inSplitGraph)
+                                    <> "\nOriginal Graph:\n"
+                                    <> (show origGraph)
+                                )
+                        else pure (fullSplitGraph, splitGraphCost)
 
 {- | reoptimizeSplitGraphFromVertex 
     Original version of reoptimizeSplitGraphFromVertex from Swap
@@ -285,8 +427,7 @@ reoptimizeSplitGraphFromVertexOrig inGS inData doIA netPenaltyFactor inSplitGrap
     -- trace ("RSGFV: " <> (show startVertex)) (
     if doIA
         then -- only reoptimize the IA states for dynamic characters
-            pure (LG.empty, infinity)
-            -- reoptimizeSplitGraphFromVertex inGS inData netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
+            reoptimizeSplitGraphFromVertexIAOrig inGS inData netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
         else -- perform full optimizations of nodes
         -- these required for full optimization
 
@@ -395,3 +536,137 @@ reoptimizeSplitGraphFromVertexOrig inGS inData doIA netPenaltyFactor inSplitGrap
                         then pure (LG.empty, infinity)
                         else pure (fullSplitGraph, splitGraphCost)
 
+{- | reoptimizeSplitGraphFromVertexIAOrig performs operations of reoptimizeSplitGraphFromVertex for static charcaters
+but dynamic characters--only update IA assignments and initialized from origPhylo graph (at leaves) to keep IA characters in sync
+since all "static" only need single traversal post order pass
+
+uses PhylogenetiGraph internally
+-}
+reoptimizeSplitGraphFromVertexIAOrig
+    ∷ GlobalSettings
+    → ProcessedData
+    → VertexCost
+    → DecoratedGraph
+    → Int
+    → Int
+    → PhyG (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexIAOrig inGS inData netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex =
+    -- if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeSplitGraphFromVertexIA"
+    -- else
+    let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
+        origGraph = inSplitGraph -- thd5 origPhyloGraph
+
+        -- create leaf graphs--but copy IA final to prelim
+        leafGraph =
+            if graphType inGS == SoftWired
+                then GO.copyIAFinalToPrelim $ LG.extractLeafGraph origGraph -- POSW.makeLeafGraphSoftWired inGS inData -- LG.extractLeafGraph origGraph
+                else GO.copyIAFinalToPrelim $ LG.extractLeafGraph origGraph
+        calcBranchLengths = False
+
+        -- this for multitravers in swap for softwired to turn off
+        multiTraverse =
+            if graphType inGS == Tree
+                then multiTraverseCharacters inGS
+                else False
+
+        -- create simple graph version of split for post order pass
+        splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
+    in  do
+            -- Create base graph
+            -- create postorder assignment--but only from single traversal
+            -- True flag fior staticIA
+            postOrderBaseGraph ←
+                POSW.postOrderTreeTraversal
+                    (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                    inData
+                    leafGraph
+                    True
+                    (Just startVertex)
+                    splitGraphSimple
+            let baseGraphCost = snd6 postOrderBaseGraph
+
+            -- True flag fior staticIA
+            fullBaseGraph ←
+                PRE.preOrderTreeTraversal
+                    (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                    (finalAssignment inGS)
+                    True
+                    calcBranchLengths
+                    (nonExactCharacters > 0)
+                    startVertex
+                    True
+                    postOrderBaseGraph
+
+            {-
+            localRootCost = if (rootCost inGS) == NoRootCost then 0.0
+                              else error ("Root cost type " <> (show $ rootCost inGS) <> " is not yet implemented")
+            -}
+
+            -- get root node of base graph
+            let startBaseNode = (startVertex, fromJust $ LG.lab (thd6 fullBaseGraph) startVertex)
+
+            -- Create pruned graph
+            -- get root node of pruned graph--parent since that is the full pruned piece (keeping that node for addition to base graph and edge creation)
+            let startPrunedNode = GO.makeIAPrelimFromFinal (prunedSubGraphRootVertex, fromJust $ LG.lab origGraph prunedSubGraphRootVertex)
+            let startPrunedParentNode = head $ LG.labParents origGraph prunedSubGraphRootVertex
+            let startPrunedParentEdge = (fst startPrunedParentNode, prunedSubGraphRootVertex, dummyEdge)
+
+            -- True flag fior staticIA
+            postOrderPrunedGraph ←
+                POSW.postOrderTreeTraversal
+                    (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                    inData
+                    leafGraph
+                    True
+                    (Just prunedSubGraphRootVertex)
+                    splitGraphSimple
+            let prunedGraphCost = snd6 postOrderPrunedGraph
+
+            -- True flag fior staticIA
+            fullPrunedGraph ←
+                PRE.preOrderTreeTraversal
+                    (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
+                    (finalAssignment inGS)
+                    True
+                    calcBranchLengths
+                    (nonExactCharacters > 0)
+                    prunedSubGraphRootVertex
+                    True
+                    postOrderPrunedGraph
+
+            -- get nodes and edges in base and pruned graph (both PhylogeneticGrapgs so thd5)
+            let (baseGraphNonRootNodes, baseGraphEdges) = LG.nodesAndEdgesAfter (thd6 fullBaseGraph) [startBaseNode]
+
+            let (prunedGraphNonRootNodes, prunedGraphEdges) =
+                    if LG.isLeaf origGraph prunedSubGraphRootVertex
+                        then ([], [])
+                        else LG.nodesAndEdgesAfter (thd6 fullPrunedGraph) [startPrunedNode]
+
+            -- make fully optimized graph from base and split components
+            let fullSplitGraph =
+                    LG.mkGraph
+                        ([startBaseNode, startPrunedNode, startPrunedParentNode] <> baseGraphNonRootNodes <> prunedGraphNonRootNodes)
+                        (startPrunedParentEdge : (baseGraphEdges <> prunedGraphEdges))
+
+            let splitGraphCost = ((1.0 + netPenaltyFactor) * (baseGraphCost + prunedGraphCost))
+
+            -- remove when working
+            -- trace ("ROGFVIA split costs:" <> (show (baseGraphCost, prunedGraphCost, localRootCost)) <> " -> " <> (show splitGraphCost)) (
+            if prunedGraphCost == infinity || baseGraphCost == infinity
+                then pure (LG.empty, infinity)
+                else
+                    if splitGraphCost == 0
+                        then
+                            error
+                                ( "Split costs:"
+                                    <> (show (baseGraphCost, prunedGraphCost))
+                                    <> " -> "
+                                    <> (show splitGraphCost)
+                                    <> " Split graph simple:\n"
+                                    <> (LG.prettify splitGraphSimple)
+                                    <> "\nFull:\n"
+                                    <> (show inSplitGraph)
+                                    <> "\nOriginal Graph:\n"
+                                    <> (show origGraph)
+                                )
+                        else pure (fullSplitGraph, splitGraphCost)
