@@ -74,7 +74,7 @@ this for a single root
 -}
 postDecorateSoftWired
     ∷ GlobalSettings → Maybe DecoratedGraph → SimpleGraph → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.Node → LG.Node → PhyG PhylogeneticGraph
-postDecorateSoftWired inGS existingGraph simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+postDecorateSoftWired inGS incrementalGraph simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in current decorated graph then nothing to do and return it
     --   this because will hit node twice if network node
     if LG.gelem curNode curDecGraph
@@ -94,10 +94,10 @@ postDecorateSoftWired inGS existingGraph simpleGraph curDecGraph blockCharInfo r
                 leftChild = head nodeChildren
                 rightChild = last nodeChildren -- will be same is first for out 1 (network) node
             in  do
-                    leftChildTree ← postDecorateSoftWired inGS existingGraph simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+                    leftChildTree ← postDecorateSoftWired inGS incrementalGraph simpleGraph curDecGraph blockCharInfo rootIndex leftChild
                     rightLeftChildTree ←
                         if length nodeChildren == 2
-                            then postDecorateSoftWired inGS existingGraph simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+                            then postDecorateSoftWired inGS incrementalGraph simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                             else pure leftChildTree
 
                     -- Checks on children

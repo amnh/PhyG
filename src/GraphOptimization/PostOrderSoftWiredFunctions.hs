@@ -238,13 +238,13 @@ getCharacterTreeCost rootIndex characterTree =
 -- | postOrderSoftWiredTraversal is a wrapper to allow correct function choice for alternate softwired algorithms
 postOrderSoftWiredTraversal
     ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
-postOrderSoftWiredTraversal inGS inData existingGraph leafGraph _ startVertex inSimpleGraph =
+postOrderSoftWiredTraversal inGS inData incrementalGraph leafGraph _ startVertex inSimpleGraph =
     -- firt case shouldn't happen--just checking if naive is chosen
     if graphType inGS == Tree
-        then postOrderSoftWiredTraversal' inGS inData existingGraph leafGraph startVertex inSimpleGraph
+        then postOrderSoftWiredTraversal' inGS inData incrementalGraph leafGraph startVertex inSimpleGraph
         else
             if softWiredMethod inGS == ResolutionCache
-                then postOrderSoftWiredTraversal' inGS inData existingGraph leafGraph startVertex inSimpleGraph
+                then postOrderSoftWiredTraversal' inGS inData incrementalGraph leafGraph startVertex inSimpleGraph
                 else naivePostOrderSoftWiredTraversal inGS inData leafGraph startVertex inSimpleGraph
 
 
@@ -255,7 +255,7 @@ ur-root = ntaxa is an invariant
 -}
 postOrderSoftWiredTraversal'
     ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
-postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) existingGraph leafGraph startVertex inSimpleGraph =
+postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) incrementalGraph leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph
         then pure emptyPhylogeneticGraph
         else -- Assumes root is Number of Leaves--should be invariant everywhere
@@ -267,7 +267,7 @@ postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) existingGraph lea
                 blockCharInfo = V.map thd3 blockDataVect
             in  do
                     -- newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
-                    newSoftWired ← NEW.postDecorateSoftWired inGS existingGraph inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
+                    newSoftWired ← NEW.postDecorateSoftWired inGS incrementalGraph inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
 
                     if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex)
                         then
@@ -833,8 +833,6 @@ makeCharacterLabels isMissing characterIndex inVertexInfo =
             }
 
 
--- ) )
-
 {- | postOrderTreeTraversal takes a 'simple' graph and generates 'preliminary' assignments
 vi post-order traversal, yields cost as well
 for a binary tree only
@@ -842,7 +840,7 @@ depending on optimality criterion--will calculate root cost
 -}
 postOrderTreeTraversal
     ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
-postOrderTreeTraversal inGS (_, _, blockDataVect) existingGraph leafGraph staticIA startVertex inGraph =
+postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalGraph leafGraph staticIA startVertex inGraph =
     if LG.isEmpty inGraph
         then pure emptyPhylogeneticGraph
         else -- Assumes root is Number of Leaves
@@ -858,7 +856,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) existingGraph leafGraph static
                 inGraph' = if graphType inGS == Tree then inGraph
                            else (LG.removeNonLeafOut0NodesAfterRoot . LG.removeDuplicateEdges) inGraph
                 -}
-                newTree = postDecorateTree inGS existingGraph staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                newTree = postDecorateTree inGS incrementalGraph staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
             in  -- trace ("It Begins at " <> (show $ fmap fst $ LG.getRoots inGraph) <> "\n" <> show inGraph) (
                 if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex)
                     then
@@ -878,10 +876,8 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) existingGraph leafGraph static
                                     <> GFU.showGraph inGraph
                                 )
                 else do
-                        postDecorateTree inGS existingGraph staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                        postDecorateTree inGS incrementalGraph staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
 
-
--- )
 
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 labelling vertices and edges as it goes back to root
@@ -897,7 +893,7 @@ postDecorateTree
     → LG.Node
     → LG.Node
     → PhyG PhylogeneticGraph
-postDecorateTree inGS existingGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+postDecorateTree inGS incrementalGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there (leaf) or Hardwired network nothing to do and return
     if LG.gelem curNode curDecGraph
         then
@@ -915,10 +911,10 @@ postDecorateTree inGS existingGraph staticIA simpleGraph curDecGraph blockCharIn
                 leftChild = head nodeChildren
                 rightChild = last nodeChildren
             in do
-                leftChildTree <- postDecorateTree inGS existingGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+                leftChildTree <- postDecorateTree inGS incrementalGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
                 rightLeftChildTree <-
                     if length nodeChildren == 2
-                        then postDecorateTree inGS existingGraph staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+                        then postDecorateTree inGS incrementalGraph staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                         else pure leftChildTree
                 let newSubTree = thd6 rightLeftChildTree
                 let ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode newSubTree leftChild, LG.labelNode newSubTree rightChild)
