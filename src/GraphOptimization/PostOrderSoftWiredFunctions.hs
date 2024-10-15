@@ -148,7 +148,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
                 staticIA = False
 
                 postOrderAction ∷ SimpleGraph → PhyG PhylogeneticGraph
-                postOrderAction = postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)
+                postOrderAction = postOrderTreeTraversal inGS inData Nothing leafGraph staticIA (Just rootIndex)
 
                 displayAction ∷ PhylogeneticGraph → PhyG PhylogeneticGraph
                 displayAction = getDisplayBasedRerootSoftWired' inGS Tree rootIndex
@@ -237,14 +237,14 @@ getCharacterTreeCost rootIndex characterTree =
 
 -- | postOrderSoftWiredTraversal is a wrapper to allow correct function choice for alternate softwired algorithms
 postOrderSoftWiredTraversal
-    ∷ GlobalSettings → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
-postOrderSoftWiredTraversal inGS inData leafGraph _ startVertex inSimpleGraph =
+    ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
+postOrderSoftWiredTraversal inGS inData existingGraph leafGraph _ startVertex inSimpleGraph =
     -- firt case shouldn't happen--just checking if naive is chosen
     if graphType inGS == Tree
-        then postOrderSoftWiredTraversal' inGS inData leafGraph startVertex inSimpleGraph
+        then postOrderSoftWiredTraversal' inGS inData existingGraph leafGraph startVertex inSimpleGraph
         else
             if softWiredMethod inGS == ResolutionCache
-                then postOrderSoftWiredTraversal' inGS inData leafGraph startVertex inSimpleGraph
+                then postOrderSoftWiredTraversal' inGS inData existingGraph leafGraph startVertex inSimpleGraph
                 else naivePostOrderSoftWiredTraversal inGS inData leafGraph startVertex inSimpleGraph
 
 
@@ -254,8 +254,8 @@ staticIA is ignored--but kept for functional polymorphism
 ur-root = ntaxa is an invariant
 -}
 postOrderSoftWiredTraversal'
-    ∷ GlobalSettings → ProcessedData → DecoratedGraph → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
-postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVertex inSimpleGraph =
+    ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
+postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) existingGraph leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph
         then pure emptyPhylogeneticGraph
         else -- Assumes root is Number of Leaves--should be invariant everywhere
@@ -267,7 +267,7 @@ postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) leafGraph startVe
                 blockCharInfo = V.map thd3 blockDataVect
             in  do
                     -- newSoftWired = postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
-                    newSoftWired ← NEW.postDecorateSoftWired inGS inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
+                    newSoftWired ← NEW.postDecorateSoftWired inGS existingGraph inSimpleGraph leafGraph blockCharInfo rootIndex rootIndex
 
                     if (startVertex == Nothing) && (not $ LG.isRoot inSimpleGraph rootIndex)
                         then
@@ -426,7 +426,7 @@ getCharTreeBestRoot' inGS rootIndex nodesToRoot (inCharacterGraph, charInfo) =
 
 -- | getCharTreeBestRoot takes the root index, a character tree (from a block) and its character info
 
---- and prerforms the rerootings of that character tree to get the best reroot cost and preliminary assignments
+--- and performs the rerootings of that character tree to get the best reroot cost and preliminary assignments
 getCharTreeBestRoot ∷ GlobalSettings → LG.Node → [LG.Node] → DecoratedGraph → CharInfo → (DecoratedGraph, VertexCost)
 getCharTreeBestRoot inGS rootIndex nodesToRoot inCharacterGraph charInfo =
     -- if prealigned should be rerooted?
@@ -841,8 +841,8 @@ for a binary tree only
 depending on optimality criterion--will calculate root cost
 -}
 postOrderTreeTraversal
-    ∷ GlobalSettings → ProcessedData → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
-postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex inGraph =
+    ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
+postOrderTreeTraversal inGS (_, _, blockDataVect) existingGraph leafGraph staticIA startVertex inGraph =
     if LG.isEmpty inGraph
         then pure emptyPhylogeneticGraph
         else -- Assumes root is Number of Leaves
@@ -858,7 +858,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex
                 inGraph' = if graphType inGS == Tree then inGraph
                            else (LG.removeNonLeafOut0NodesAfterRoot . LG.removeDuplicateEdges) inGraph
                 -}
-                newTree = postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                newTree = postDecorateTree inGS existingGraph staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
             in  -- trace ("It Begins at " <> (show $ fmap fst $ LG.getRoots inGraph) <> "\n" <> show inGraph) (
                 if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex)
                     then
@@ -878,7 +878,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) leafGraph staticIA startVertex
                                     <> GFU.showGraph inGraph
                                 )
                 else do
-                        postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                        postDecorateTree inGS existingGraph staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
 
 
 -- )
@@ -889,6 +889,7 @@ this for a tree so single root
 -}
 postDecorateTree
     ∷ GlobalSettings
+    → Maybe DecoratedGraph
     → Bool
     → SimpleGraph
     → DecoratedGraph
@@ -896,7 +897,7 @@ postDecorateTree
     → LG.Node
     → LG.Node
     → PhyG PhylogeneticGraph
-postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+postDecorateTree inGS existingGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there (leaf) or Hardwired network nothing to do and return
     if LG.gelem curNode curDecGraph
         then
@@ -914,10 +915,10 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                 leftChild = head nodeChildren
                 rightChild = last nodeChildren
             in do
-                leftChildTree <- postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+                leftChildTree <- postDecorateTree inGS existingGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
                 rightLeftChildTree <-
                     if length nodeChildren == 2
-                        then postDecorateTree inGS staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+                        then postDecorateTree inGS existingGraph staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                         else pure leftChildTree
                 let newSubTree = thd6 rightLeftChildTree
                 let ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode newSubTree leftChild, LG.labelNode newSubTree rightChild)
@@ -1160,7 +1161,7 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                                 staticIA = False
 
                                 postOrderAction ∷ SimpleGraph → PhyG PhylogeneticGraph
-                                postOrderAction = postOrderTreeTraversal inGS inData (GO.makeLeafGraph inData) staticIA (Just rootIndex)
+                                postOrderAction = postOrderTreeTraversal inGS inData Nothing (GO.makeLeafGraph inData) staticIA (Just rootIndex)
 
                                 displayAction ∷ PhylogeneticGraph → PhyG PhylogeneticGraph
                                 displayAction = getDisplayBasedRerootSoftWired' inGS Tree rootIndex

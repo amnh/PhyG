@@ -174,6 +174,7 @@ reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor c
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
+                            (Just $ thd6 curGraph)
                             leafGraph
                             False
                             (Just startVertex)
@@ -313,6 +314,7 @@ reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curG
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
+                    (Just $ thd6 curGraph)
                     leafGraph
                     True
                     (Just startVertex)
@@ -482,6 +484,7 @@ reoptimizeSplitGraphFromVertexOrig inGS inData doIA netPenaltyFactor inSplitGrap
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
+                            Nothing
                             leafGraph
                             False
                             (Just startVertex)
@@ -511,6 +514,7 @@ reoptimizeSplitGraphFromVertexOrig inGS inData doIA netPenaltyFactor inSplitGrap
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
+                            Nothing
                             leafGraph
                             False
                             (Just prunedSubGraphRootVertex)
@@ -606,6 +610,7 @@ reoptimizeSplitGraphFromVertexIAOrig inGS inData netPenaltyFactor inSplitGraph s
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
+                    Nothing
                     leafGraph
                     True
                     (Just startVertex)
@@ -643,6 +648,7 @@ reoptimizeSplitGraphFromVertexIAOrig inGS inData netPenaltyFactor inSplitGraph s
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
+                    Nothing
                     leafGraph
                     True
                     (Just prunedSubGraphRootVertex)

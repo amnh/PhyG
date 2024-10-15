@@ -1865,6 +1865,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
+                            Nothing
                             leafGraph
                             False
                             (Just startVertex)
@@ -1894,6 +1895,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
+                            Nothing
                             leafGraph
                             False
                             (Just prunedSubGraphRootVertex)
@@ -1992,6 +1994,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
+                    Nothing
                     leafGraph
                     True
                     (Just startVertex)
@@ -2029,6 +2032,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
+                    Nothing
                     leafGraph
                     True
                     (Just prunedSubGraphRootVertex)
