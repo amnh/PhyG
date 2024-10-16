@@ -876,17 +876,21 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalInfo leafGraph stat
                                     <> "\n"
                                     <> GFU.showGraph inGraph
                                 )
-                else if isJust incrementalInfo then 
-                    postDecorateTreeIncremental inGS incrementalInfo staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
-                else 
+                -- case where need full post-order optimization to/from root
+                else if isNothing incrementalInfo || isNothing startVertex then 
                     postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                else do
+                    -- incremental for partial pot-order
+                    postDecorateTreeIncremental inGS incrementalInfo staticIA inGraph leafGraph blockCharInfo 
 
-{- | postDecorateTreeIncremental begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
-labelling vertices and edges as it goes back to root
+{- | postDecorateTreeIncremental begins at first node that needs to be optimized
+and progresses post-order to root reoptimizing each node and checking if character labels changeed,
+and updating subtree cost.  If the nre optimization equals the exiting (from incremntal graph)
+then the optimization is damped and niode assigment copeid form incremental graoh and subtree costs updated.
 this for a tree so single root
 
-if incrementalInfo is Nothing then not incremental optimization (ie full postorder path)
-else adds damping along spine to root with updated subgraph costs
+For split graph optimization (in swap and fuse) the base graph starts with the grandparent of pruned graph--this is passed with 
+incremental graph, otherwise it begins with the parent of the startVertex if it not Nothing, otherwise full optimization.
 -}
 postDecorateTreeIncremental
     ∷ GlobalSettings
@@ -895,18 +899,32 @@ postDecorateTreeIncremental
     → SimpleGraph
     → DecoratedGraph
     → V.Vector (V.Vector CharInfo)
-    → LG.Node
-    → LG.Node
     → PhyG PhylogeneticGraph
-postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode = 
-    postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode
+postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph curDecGraph blockCharInfo = 
+    -- Determine where need to start optimizing nodes (ie first node that could change)
+    -- must be specified by call in incremental info
+    let (incrementalGraph, startVertex) = fromJust incrementalInfo
+        startLabel = fromJust $ LG.lab incrementalGraph startVertex 
+        (nodesToReoptimize, _) = LG.pathToRoot incrementalGraph (startVertex, startLabel)
+        newGraph = reoptimizeGraphNodes incrementalGraph incrementalGraph nodesToReoptimize
+        (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
+        -- this odd cost due to networks
+        -- really should just get root cost after updated subGraphs (at least for trees and softwired)
+        -- is due also to rerooting of individual charcters and may not haev root costs for all corectly
+        localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph                                        
+
+    in pure (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
+
+{- | reoptimizeGraphNodes created a new graph from existing nodes that re unmodified and 
+creting new nodes and stopping when new nodes are equal to existing nodes.
+the order or nodes should be child -> parent until root.
+-}
+reoptimizeGraphNodes :: DecoratedGraph → DecoratedGraph → [LG.LNode VertexInfo] → DecoratedGraph
+reoptimizeGraphNodes incrementalGraph currentGraph nodesToReoptimize = LG.empty
 
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 labelling vertices and edges as it goes back to root
 this for a tree so single root
-
-if incrementalInfo is Nothing then not incremental optimization (ie full postorder path)
-else adds damping along spine to root with updated subgraph costs
 -}
 postDecorateTree
     ∷ GlobalSettings
@@ -1037,7 +1055,9 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
 
                                             if nodeType newVertex == RootNode || curNode == rootIndex
                                                 then -- Need full info for building trees
-
+                                                    -- This wierd cost thing due to hardwired graphs
+                                                    -- really should just get root cost after updated subGraphs (at least for trees and softwired)
+                                                    -- is due also to rerooting of individual charcters and may not haev root costs for all corectly
                                                     let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph
                                                     in  do
                                                         let (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
