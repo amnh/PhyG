@@ -177,7 +177,7 @@ Extra input MaybeGraph (incrementalGraph) for incremental optimization for initi
 (no need for reroots--already contant time for each edge)
 -}
 generalizedGraphPostOrderTraversal
-    ∷ GlobalSettings → Int → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG (PhylogeneticGraph, Int)
+    ∷ GlobalSettings → Int → ProcessedData → Maybe (DecoratedGraph, LG.Node) → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG (PhylogeneticGraph, Int)
 generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalGraph leafGraph staticIA startVertex inSimpleGraph = do
     -- next edges (to vertex in list) to perform rerooting
     -- progresses recursivey over adjacent edges to minimize node reoptimization

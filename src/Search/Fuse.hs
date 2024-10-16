@@ -288,7 +288,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                         --reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
                         --reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
 
-                        reoptimizeActionNew ∷ (PhylogeneticGraph, DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
+                        reoptimizeActionNew ∷ (PhylogeneticGraph, DecoratedGraph, LG.Node, LG.Node) → PhyG (DecoratedGraph, VertexCost)
                         reoptimizeActionNew = SV2.reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData False netPenalty
                     in  do
                             splitLeftPar ← getParallelChunkMap

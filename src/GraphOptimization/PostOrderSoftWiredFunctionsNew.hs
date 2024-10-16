@@ -73,7 +73,7 @@ and then recurses to root postorder labelling vertices and edges as it goes
 this for a single root
 -}
 postDecorateSoftWired
-    ∷ GlobalSettings → Maybe DecoratedGraph → SimpleGraph → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.Node → LG.Node → PhyG PhylogeneticGraph
+    ∷ GlobalSettings → Maybe (DecoratedGraph, LG.Node) → SimpleGraph → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.Node → LG.Node → PhyG PhylogeneticGraph
 postDecorateSoftWired inGS incrementalGraph simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in current decorated graph then nothing to do and return it
     --   this because will hit node twice if network node

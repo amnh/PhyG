@@ -121,7 +121,7 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 logWith LogInfo $ "\tSplit Cost: " <> (show splitCost)
                 -}
                 (reoptimizedSplitGraph', splitCost') ←
-                        reoptimizeSplitGraphFromVertexNew swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex
+                        reoptimizeSplitGraphFromVertexNew swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex 
                 logWith LogInfo $ "\tSplit Cost New: " <> (show splitCost')
                 pure (graphsRemaining, inCounter + 1)
 
@@ -139,18 +139,27 @@ reoptimizeSplitGraphFromVertexNew
     → VertexCost
     → PhylogeneticGraph
     → DecoratedGraph
-    → Int
-    → Int
+    → LG.Node
+    → LG.Node
     → PhyG (DecoratedGraph, VertexCost)
 reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex =
     -- trace ("RSGFV: " <> (show startVertex)) (
     if doIA
         then -- only reoptimize the IA states for dynamic characters
-            reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex
+            reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex 
         else -- perform full optimizations of nodes
-        -- these required for full optimization
+            
+            -- determine position to start incremental optimization for base graphs
+            -- grandparent of pruned root due to recontruction of base graph--so use orig graph
+            let parentPoint = L.uncons $ concat $ fmap (LG.parents (thd6 curGraph)) $ LG.parents (thd6 curGraph) prunedSubGraphRootVertex
+                
+                parentOriginalConnection = if isNothing parentPoint then error ("Split graph involving near-root edges: " <> (show prunedSubGraphRootVertex))
+                                           else if (not . null . snd) $ fromJust parentPoint then error ("Split graph involving network edge: " <> (show (prunedSubGraphRootVertex, snd $ fromJust parentPoint)))
+                                           else fst $ fromJust parentPoint
 
-            let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
+                -- these required for full optimization
+
+                nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
                 origGraph = inSplitGraph -- thd5 origPhyloGraph
                 leafGraph =
                     if graphType inGS == SoftWired
@@ -174,7 +183,7 @@ reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor c
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
-                            (Just $ thd6 curGraph)
+                            (Just (thd6 curGraph, parentOriginalConnection))
                             leafGraph
                             False
                             (Just startVertex)
@@ -282,8 +291,8 @@ reoptimizeSplitGraphFromVertexIANew
     → VertexCost
     → PhylogeneticGraph
     → DecoratedGraph
-    → Int
-    → Int
+    → LG.Node
+    → LG.Node
     → PhyG (DecoratedGraph, VertexCost)
 reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex =
     -- if graphType inGS /= Tree then error "Networks not yet implemented in reoptimizeSplitGraphFromVertexIA"
@@ -306,6 +315,12 @@ reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curG
 
         -- create simple graph version of split for post order pass
         splitGraphSimple = GO.convertDecoratedToSimpleGraph inSplitGraph
+
+        parentPoint = L.uncons $ concat $ fmap (LG.parents (thd6 curGraph)) $ LG.parents (thd6 curGraph) prunedSubGraphRootVertex
+                
+        parentOriginalConnection = if isNothing parentPoint then error ("Split graph involving near-root edges: " <> (show prunedSubGraphRootVertex))
+                                           else if (not . null . snd) $ fromJust parentPoint then error ("Split graph involving network edge: " <> (show (prunedSubGraphRootVertex, snd $ fromJust parentPoint)))
+                                           else fst $ fromJust parentPoint
     in  do
             -- Create base graph
             -- create postorder assignment--but only from single traversal
@@ -314,7 +329,7 @@ reoptimizeSplitGraphFromVertexIANew swapParams inGS inData netPenaltyFactor curG
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
-                    (Just $ thd6 curGraph)
+                    (Just (thd6 curGraph, parentOriginalConnection))
                     leafGraph
                     True
                     (Just startVertex)
@@ -419,10 +434,10 @@ reoptimizeSplitGraphFromVertexTupleNew
     → ProcessedData
     → Bool
     → VertexCost
-    → (PhylogeneticGraph, DecoratedGraph, Int, Int)
+    → (PhylogeneticGraph, DecoratedGraph, LG.Node, LG.Node)
     → PhyG (DecoratedGraph, VertexCost)
 reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData doIA netPenaltyFactor (curGraph, inSplitGraph, startVertex, prunedSubGraphRootVertex) =
-    reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex
+    reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex 
 
 
 

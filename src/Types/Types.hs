@@ -540,7 +540,6 @@ instance NFData ResolutionData where rnf x = seq x ()
 data VertexInfo = VertexInfo
     { bvLabel ∷ NameBV -- For comparison of vertices subtrees, left/right
     , children ∷ V.Vector Int -- outdegree indices
-    , converged :: Bool -- used in incremental optimization to see if reoptimization equals original
     , index ∷ Int -- For accessing
     , nodeType ∷ NodeType -- root, leaf, network, tree
     , parents ∷ V.Vector Int -- indegree indices
@@ -877,7 +876,6 @@ emptyVertexInfo =
         , bvLabel = BV.fromBits [False]
         , parents = mempty
         , children = mempty
-        , converged = False
         , nodeType = TreeNode -- root, leaf, network, tree
         , vertName = "EmptyVertex"
         , vertData = mempty

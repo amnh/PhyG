@@ -237,7 +237,7 @@ getCharacterTreeCost rootIndex characterTree =
 
 -- | postOrderSoftWiredTraversal is a wrapper to allow correct function choice for alternate softwired algorithms
 postOrderSoftWiredTraversal
-    ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
+    ∷ GlobalSettings → ProcessedData → Maybe (DecoratedGraph, LG.Node) → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
 postOrderSoftWiredTraversal inGS inData incrementalGraph leafGraph _ startVertex inSimpleGraph =
     -- firt case shouldn't happen--just checking if naive is chosen
     if graphType inGS == Tree
@@ -254,7 +254,7 @@ staticIA is ignored--but kept for functional polymorphism
 ur-root = ntaxa is an invariant
 -}
 postOrderSoftWiredTraversal'
-    ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
+    ∷ GlobalSettings → ProcessedData → Maybe (DecoratedGraph, LG.Node) → DecoratedGraph → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
 postOrderSoftWiredTraversal' inGS inData@(_, _, blockDataVect) incrementalGraph leafGraph startVertex inSimpleGraph =
     if LG.isEmpty inSimpleGraph
         then pure emptyPhylogeneticGraph
@@ -839,7 +839,7 @@ for a binary tree only
 depending on optimality criterion--will calculate root cost
 -}
 postOrderTreeTraversal
-    ∷ GlobalSettings → ProcessedData → Maybe DecoratedGraph → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
+    ∷ GlobalSettings → ProcessedData → Maybe (DecoratedGraph, LG.Node) → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG PhylogeneticGraph
 postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalGraph leafGraph staticIA startVertex inGraph =
     if LG.isEmpty inGraph
         then pure emptyPhylogeneticGraph
@@ -882,10 +882,13 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalGraph leafGraph sta
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 labelling vertices and edges as it goes back to root
 this for a tree so single root
+
+if incrementalGraph is Nothing then not incremental optimization (ie full postorder path)
+else adds damping along spine to root with updated subgraph costs
 -}
 postDecorateTree
     ∷ GlobalSettings
-    → Maybe DecoratedGraph
+    → Maybe (DecoratedGraph, LG.Node)
     → Bool
     → SimpleGraph
     → DecoratedGraph
@@ -895,22 +898,23 @@ postDecorateTree
     → PhyG PhylogeneticGraph
 postDecorateTree inGS incrementalGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there (leaf) or Hardwired network nothing to do and return
+    --  this can happen in networks (which call this function)
     if LG.gelem curNode curDecGraph
         then
             let nodeLabel = LG.lab curDecGraph curNode
             in  if isNothing nodeLabel
                     then error ("Null label for node " <> show curNode)
                     else -- checks for node already in graph--either leaf or pre-optimized node in Hardwired
-                    -- trace ("In graph :" <> (show curNode) <> " " <> (show nodeLabel))
-                        pure $ (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
+                         pure $ (simpleGraph, subGraphCost (fromJust nodeLabel), curDecGraph, mempty, mempty, blockCharInfo)
         else -- Need to make node
 
-        -- check if children in graph
-
-            let nodeChildren = LG.descendants simpleGraph curNode -- should be 1 or 2, not zero since all leaves already in graph
+            -- check if children in graph
+            -- should be 1 or 2, not zero since all leaves already in graph
+            let nodeChildren = LG.descendants simpleGraph curNode 
                 leftChild = head nodeChildren
                 rightChild = last nodeChildren
             in do
+                -- recurse to children, left first.
                 leftChildTree <- postDecorateTree inGS incrementalGraph staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
                 rightLeftChildTree <-
                     if length nodeChildren == 2
@@ -923,8 +927,8 @@ postDecorateTree inGS incrementalGraph staticIA simpleGraph curDecGraph blockCha
                     else
                         if null nodeChildren
                             then error ("Leaf not in graph in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify simpleGraph)
-                            else -- out-degree 1 should not happen with Tree but will with HardWired graph
-
+                            else 
+                                -- out-degree 1 should not happen with Tree but will with HardWired graph
                                 if length nodeChildren == 1
                                     then -- make node from single child and single new edge to child
                                     -- takes characters in blocks--but for tree really all same block
