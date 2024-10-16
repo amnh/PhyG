@@ -40,6 +40,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions (
     divideDecoratedGraphByBlockAndCharacterTree,
     postOrderTreeTraversal,
     postDecorateTree,
+    postDecorateTreeIncremental,
     createVertexDataOverBlocks,
     createVertexDataOverBlocksStaticIA,
     createVertexDataOverBlocksNonExact,
@@ -856,7 +857,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalInfo leafGraph stat
                 inGraph' = if graphType inGS == Tree then inGraph
                            else (LG.removeNonLeafOut0NodesAfterRoot . LG.removeDuplicateEdges) inGraph
                 -}
-                newTree = postDecorateTree inGS incrementalInfo staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                -- newTree = postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
             in  -- trace ("It Begins at " <> (show $ fmap fst $ LG.getRoots inGraph) <> "\n" <> show inGraph) (
                 if (startVertex == Nothing) && (not $ LG.isRoot inGraph rootIndex)
                     then
@@ -875,9 +876,30 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalInfo leafGraph stat
                                     <> "\n"
                                     <> GFU.showGraph inGraph
                                 )
-                else do
-                        postDecorateTree inGS incrementalInfo staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                else if isJust incrementalInfo then 
+                    postDecorateTreeIncremental inGS incrementalInfo staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
+                else 
+                    postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
 
+{- | postDecorateTreeIncremental begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
+labelling vertices and edges as it goes back to root
+this for a tree so single root
+
+if incrementalInfo is Nothing then not incremental optimization (ie full postorder path)
+else adds damping along spine to root with updated subgraph costs
+-}
+postDecorateTreeIncremental
+    ∷ GlobalSettings
+    → Maybe (DecoratedGraph, LG.Node)
+    → Bool
+    → SimpleGraph
+    → DecoratedGraph
+    → V.Vector (V.Vector CharInfo)
+    → LG.Node
+    → LG.Node
+    → PhyG PhylogeneticGraph
+postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode = 
+    postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode
 
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 labelling vertices and edges as it goes back to root
@@ -888,7 +910,6 @@ else adds damping along spine to root with updated subgraph costs
 -}
 postDecorateTree
     ∷ GlobalSettings
-    → Maybe (DecoratedGraph, LG.Node)
     → Bool
     → SimpleGraph
     → DecoratedGraph
@@ -896,7 +917,7 @@ postDecorateTree
     → LG.Node
     → LG.Node
     → PhyG PhylogeneticGraph
-postDecorateTree inGS incrementalInfo staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in there (leaf) or Hardwired network nothing to do and return
     --  this can happen in networks (which call this function)
     if LG.gelem curNode curDecGraph
@@ -915,10 +936,10 @@ postDecorateTree inGS incrementalInfo staticIA simpleGraph curDecGraph blockChar
                 rightChild = last nodeChildren
             in do
                 -- recurse to children, left first.
-                leftChildTree <- postDecorateTree inGS incrementalInfo staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+                leftChildTree <- postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex leftChild
                 rightLeftChildTree <-
                     if length nodeChildren == 2
-                        then postDecorateTree inGS incrementalInfo staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+                        then postDecorateTree inGS staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                         else pure leftChildTree
                 let newSubTree = thd6 rightLeftChildTree
                 let ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode newSubTree leftChild, LG.labelNode newSubTree rightChild)
@@ -1007,7 +1028,7 @@ postDecorateTree inGS incrementalInfo staticIA simpleGraph curDecGraph blockChar
                                             let newLEdges = fmap (LG.toLEdge' newEdgesLabel) newEdges
                                             let newGraph = LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
 
-                                            let (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
+                                            
                                           
                                             -- Graph cost is calculated differently for Tree and Hardwired.  Sub trees can be counted multiple times
                                             -- in hardwired for outdegree two nodes with one or more network nodes as descendents
@@ -1018,12 +1039,8 @@ postDecorateTree inGS incrementalInfo staticIA simpleGraph curDecGraph blockChar
                                                 then -- Need full info for building trees
 
                                                     let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph
-                                                    in  -- updatedDisplayVect = V.zipWith NEW.backPortBlockTreeNodesToCanonicalGraph (fmap head newDisplayVect) newCharTreeVV
-                                                        -- updatedCanonicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph newGraph updatedDisplayVect
-
-                                                        -- trace ("PDT End: " <> (show (newCost, subGraphCost newVertex, localCostSum)))
-                                                        -- (LG.removeDuplicateEdges simpleGraph, localCostSum, LG.removeDuplicateEdges newGraph, fmap (fmap LG.removeDuplicateEdges) newDisplayVect, fmap (fmap LG.removeDuplicateEdges) newCharTreeVV, blockCharInfo)
-                                                        -- (simpleGraph, localCostSum, updatedCanonicalGraph, fmap (:[]) updatedDisplayVect, newCharTreeVV, blockCharInfo)
+                                                    in  do
+                                                        let (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
                                                         pure (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
                                                 else pure (simpleGraph, subGraphCost newVertex, newGraph, mempty, mempty, blockCharInfo)
 

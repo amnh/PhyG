@@ -96,7 +96,7 @@ wagnerTreeBuild inGS inData leafSimpleGraph leafDecGraph numLeaves hasNonExactCh
         -- False flag for staticIA--can't be done in build
         calculateBranchLengths = False -- must be True for delata using existing edge
     in  do
-            initialPostOrderTree ← POSW.postDecorateTree inGS Nothing False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
+            initialPostOrderTree ← POSW.postDecorateTree inGS False initialTree leafDecGraph blockCharInfo numLeaves numLeaves
             initialFullyDecoratedTree ←
                 PRE.preOrderTreeTraversal
                     inGS
@@ -175,7 +175,7 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                     -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
                     -- False flag for static IA--can't do when adding in new leaves
                     let calculateBranchLengths = False -- must be True for delata using existing edge
-                    postOrderStuff ← POSW.postDecorateTree inGS Nothing False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+                    postOrderStuff ← POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
                     newPhyloGraph ← -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
                         if V.length additionSequence > 1
                             then
@@ -227,8 +227,6 @@ addTaxonWagner maxDistance useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) l
         edge2 = (numVerts, snd3 targetEdge, 0.0)
         newNode = (numVerts, TL.pack ("HTU" <> show numVerts))
     in  -- full post order
-        -- newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge (LG.toEdge targetEdge) inSimple
-        -- newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
         do
             -- heuristic delta
             (delta, edgeUnionVertData) ← getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV
