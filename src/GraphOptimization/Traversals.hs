@@ -173,12 +173,12 @@ if full graph--yes, if a component yes or no.
 hence returns the pair
 Adds root complexity cost if the start vertex is Nothing (e.g. the graph root), so should be corrext when graphs are split in swap.
 
-Extra input MaybeGraph (incrementalGraph) for incremental optimization for initial post-order 
+Extra input MaybeGraph (incrementalInfo) for incremental optimization for initial post-order 
 (no need for reroots--already contant time for each edge)
 -}
 generalizedGraphPostOrderTraversal
     ∷ GlobalSettings → Int → ProcessedData → Maybe (DecoratedGraph, LG.Node) → DecoratedGraph → Bool → Maybe Int → SimpleGraph → PhyG (PhylogeneticGraph, Int)
-generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalGraph leafGraph staticIA startVertex inSimpleGraph = do
+generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalInfo leafGraph staticIA startVertex inSimpleGraph = do
     -- next edges (to vertex in list) to perform rerooting
     -- progresses recursivey over adjacent edges to minimize node reoptimization
     -- childrenOfRoot = concatMap (LG.descendants (thd6 outgroupRooted)) startVertexList
@@ -213,10 +213,10 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalGraph le
     -- first traversal on outgroup root
     outgroupRooted ←
         if (graphType inGS) `elem` [Tree, HardWired]
-            then POSW.postOrderTreeTraversal inGS inData incrementalGraph leafGraph staticIA startVertex inSimpleGraph
+            then POSW.postOrderTreeTraversal inGS inData incrementalInfo leafGraph staticIA startVertex inSimpleGraph
             else
                 if (graphType inGS) == SoftWired
-                    then POSW.postOrderSoftWiredTraversal inGS inData incrementalGraph leafGraph staticIA startVertex inSimpleGraph
+                    then POSW.postOrderSoftWiredTraversal inGS inData incrementalInfo leafGraph staticIA startVertex inSimpleGraph
                     else error ("Graph type not implemented: " <> (show $ graphType inGS))
 
     -- start at start vertex--for components or ur-root for full graph
