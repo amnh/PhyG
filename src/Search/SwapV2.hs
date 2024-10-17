@@ -116,10 +116,11 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
 
                 -- split and optimize graph components (original for time complexity check)
                 
+                {-
                 (reoptimizedSplitGraph, splitCost) ←
                         reoptimizeSplitGraphFromVertexOrig inGS inData (doIA swapParams) inGraphNetPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
                 logWith LogInfo $ "\tSplit Cost: " <> (show splitCost) -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph
-                
+                -}
                 (reoptimizedSplitGraph', splitCost') ←
                         reoptimizeSplitGraphFromVertexNew swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex 
                 logWith LogInfo $ "\n\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
