@@ -337,7 +337,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
                                     leftRightOptimizedSplitGraphCostList ←
                                         getParallelChunkTraverse >>= \pTraverse →
-                                            pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph rightGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                            pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
                                     let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
 
@@ -399,7 +399,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
                                                 rightLeftOptimizedSplitGraphCostList ←
                                                     getParallelChunkTraverse >>= \pTraverse →
-                                                        pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length rightBaseLeftPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+                                                        pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length rightBaseLeftPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph rightGraph) rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
 
                                                 let ( _
                                                         , rightLeftOptimizedSplitGraphCostList'

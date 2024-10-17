@@ -115,14 +115,16 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 let (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd5 firstGraph) firstEdge
 
                 -- split and optimize graph components (original for time complexity check)
-                {-
+                
                 (reoptimizedSplitGraph, splitCost) ←
                         reoptimizeSplitGraphFromVertexOrig inGS inData (doIA swapParams) inGraphNetPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
-                logWith LogInfo $ "\tSplit Cost: " <> (show splitCost)
-                -}
+                logWith LogInfo $ "\tSplit Cost: " <> (show splitCost) -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph
+                
                 (reoptimizedSplitGraph', splitCost') ←
                         reoptimizeSplitGraphFromVertexNew swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex 
-                logWith LogInfo $ "\tSplit Cost New: " <> (show splitCost')
+                logWith LogInfo $ "\n\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
+
+
                 pure (graphsRemaining, inCounter + 1)
 
 
@@ -183,7 +185,7 @@ reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor c
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
-                            (Just (thd6 curGraph, parentOriginalConnection))
+                            (Just (inSplitGraph, parentOriginalConnection))
                             leafGraph
                             False
                             (Just startVertex)

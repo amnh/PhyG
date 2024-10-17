@@ -881,7 +881,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalInfo leafGraph stat
                     postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
                 else do
                     -- incremental for partial pot-order
-                    postDecorateTreeIncremental inGS incrementalInfo staticIA inGraph leafGraph blockCharInfo 
+                    postDecorateTreeIncremental inGS incrementalInfo staticIA inGraph blockCharInfo 
 
 {- | postDecorateTreeIncremental begins at first node that needs to be optimized
 and progresses post-order to root reoptimizing each node and checking if character labels changeed,
@@ -897,30 +897,164 @@ postDecorateTreeIncremental
     → Maybe (DecoratedGraph, LG.Node)
     → Bool
     → SimpleGraph
-    → DecoratedGraph
     → V.Vector (V.Vector CharInfo)
     → PhyG PhylogeneticGraph
-postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph curDecGraph blockCharInfo = 
+postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph blockCharInfo = 
     -- Determine where need to start optimizing nodes (ie first node that could change)
     -- must be specified by call in incremental info
     let (incrementalGraph, startVertex) = fromJust incrementalInfo
         startLabel = fromJust $ LG.lab incrementalGraph startVertex 
         (nodesToReoptimize, _) = LG.pathToRoot incrementalGraph (startVertex, startLabel)
-        newGraph = reoptimizeGraphNodes incrementalGraph incrementalGraph nodesToReoptimize
-        (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
+                                             
+
+    in do
+        logWith LogInfo $ "\tNodes to redo: " <> (show $ fmap fst nodesToReoptimize)
+        newGraph <- reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph incrementalGraph nodesToReoptimize blockCharInfo
+        let (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
         -- this odd cost due to networks
         -- really should just get root cost after updated subGraphs (at least for trees and softwired)
         -- is due also to rerooting of individual charcters and may not haev root costs for all corectly
-        localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph                                        
+        let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph   
+        logWith LogInfo $ "\tIncremental Cost: " <> (show localCostSum) 
+        pure (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
 
-    in pure (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
-
-{- | reoptimizeGraphNodes created a new graph from existing nodes that re unmodified and 
-creting new nodes and stopping when new nodes are equal to existing nodes.
+{- | reoptimizeGraphNodes created a new graph from existing nodes that are unmodified and 
+cretaing new nodes and stopping when new nodes are equal to existing nodes.
 the order or nodes should be child -> parent until root.
+
+Key that the start point to root should be the same--as far as nodes are concerned as in 
+incrementalGraph.
 -}
-reoptimizeGraphNodes :: DecoratedGraph → DecoratedGraph → [LG.LNode VertexInfo] → DecoratedGraph
-reoptimizeGraphNodes incrementalGraph currentGraph nodesToReoptimize = LG.empty
+reoptimizeGraphNodesIncremental 
+    :: GlobalSettings 
+    → Bool 
+    → DecoratedGraph 
+    → DecoratedGraph 
+    → [LG.LNode VertexInfo] 
+    → V.Vector (V.Vector CharInfo) 
+    → PhyG DecoratedGraph
+reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph nodesToReoptimize blockCharInfo = 
+    let nodePair = L.uncons nodesToReoptimize
+    in 
+    -- none left to do
+    if isNothing nodePair then pure currentGraph
+    else 
+        -- create new node at current position
+        let curNode = fst $ fromJust nodePair
+            curNodeIndex = LG.toNode curNode
+            nodeChildren = LG.descendants incrementalGraph curNodeIndex
+            leftChild = head nodeChildren
+            rightChild = last nodeChildren
+
+            -- preserve left/right
+            ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode incrementalGraph leftChild, LG.labelNode incrementalGraph rightChild)
+        in
+        if length nodeChildren > 2 then
+            error ("Graph not dichotomous in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify incrementalGraph)
+
+        else if null nodeChildren then 
+            error ("Leaf not in graph in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify incrementalGraph)
+                
+                -- out-degree 1 should not happen with Tree but will with HardWired graph
+        else if length nodeChildren == 1 then 
+            -- make node from single child and single new edge to child
+            -- takes characters in blocks--but for tree really all same block
+
+            let childVertexData = vertData leftChildLabel
+                newVertex = 
+                        VertexInfo
+                            { index = curNodeIndex
+                            , -- same as child--could and perhaps should prepend 1 to make distinct
+                              bvLabel = bvLabel leftChildLabel
+                            , parents = V.fromList $ LG.parents incrementalGraph curNodeIndex
+                            , children = V.fromList nodeChildren
+                            , nodeType = GO.getNodeType incrementalGraph curNodeIndex
+                            , vertName = T.pack $ "HTU" <> show curNodeIndex
+                            , vertData = childVertexData
+                            , -- this not used for Hardwired or Tree
+                              vertexResolutionData = mempty
+                            , vertexCost = 0.0
+                            , subGraphCost = subGraphCost leftChildLabel
+                            }
+                        
+                newEdgesLabel =
+                        EdgeInfo
+                            { minLength = 0.0
+                            , maxLength = 0.0
+                            , midRangeLength = 0.0
+                            , edgeType = TreeEdge
+                            }
+                newOutEdges = LG.toEdge <$> LG.out incrementalGraph curNodeIndex
+                newLInEdges = LG.inn incrementalGraph curNodeIndex
+                newLOEdges = fmap (LG.toLEdge' newEdgesLabel) newOutEdges
+                
+                -- make incremental here
+                -- by deleting a node its edge are deleted as well
+                -- need to insert in and out edges
+                newGraph = LG.insEdges (newLOEdges <> newLInEdges) $ LG.insNode (curNodeIndex, newVertex) $ LG.delNode curNodeIndex currentGraph
+      
+            in  
+            -- incremental check
+            -- if vertData the sme then converged and done.
+            if childVertexData == (vertData $ snd curNode) then 
+                pure currentGraph
+            else 
+                reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo 
+
+        -- make node from 2 children
+        else do 
+
+            -- make node from children and new edges to children
+            -- takes characters in blocks--but for tree really all same block
+
+            -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
+            -- larger bitvector is Right, smaller or equal Left
+
+                newCharData <-
+                        if staticIA
+                            then createVertexDataOverBlocksStaticIA inGS (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
+                            else createVertexDataOverBlocks inGS (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
+
+                let vertAssignData = V.map (V.map fst) newCharData
+
+                 -- make incremental decision here    
+                if vertAssignData == (vertData $ snd curNode) then 
+                    pure currentGraph   
+
+                else 
+                    let newCost = V.sum $ V.map V.sum $ V.map (V.map snd) newCharData
+
+                        newVertex = VertexInfo
+                                    { index = curNodeIndex
+                                    , bvLabel = bvLabel leftChildLabel .|. bvLabel rightChildLabel
+                                    , parents = V.fromList $ LG.parents incrementalGraph curNodeIndex
+                                    , children = V.fromList nodeChildren
+                                    , nodeType = GO.getNodeType incrementalGraph curNodeIndex
+                                    , vertName = T.pack $ "HTU" <> show curNodeIndex
+                                    , vertData = vertAssignData
+                                    , vertexResolutionData = mempty
+                                    , vertexCost = newCost
+                                    , -- this cost is incorrrect for Harwired netwqork fix at root
+                                      subGraphCost = subGraphCost leftChildLabel + subGraphCost rightChildLabel + newCost
+                                    }
+
+                        newEdgesLabel = EdgeInfo
+                                    { minLength = newCost / 2.0
+                                    , maxLength = newCost / 2.0
+                                    , midRangeLength = newCost / 2.0
+                                    , edgeType = TreeEdge
+                                    }
+
+                        newOutEdges = LG.toEdge <$> LG.out incrementalGraph curNodeIndex
+                        newLInEdges = LG.inn incrementalGraph curNodeIndex
+                        newLOEdges = fmap (LG.toLEdge' newEdgesLabel) newOutEdges
+
+                        -- make incremental graph here
+                        newGraph = LG.insEdges (newLOEdges <> newLInEdges) $ LG.insNode (curNodeIndex, newVertex) $ LG.delNode curNodeIndex currentGraph
+
+                    in do
+                        logWith LogInfo $ "\n\tUPdating node: " <> (show curNodeIndex) <> " " <> (show (newCost, subGraphCost newVertex))
+                        reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo
 
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 labelling vertices and edges as it goes back to root
@@ -960,6 +1094,8 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                         then postDecorateTree inGS staticIA simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                         else pure leftChildTree
                 let newSubTree = thd6 rightLeftChildTree
+
+                -- preserve left/right
                 let ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode newSubTree leftChild, LG.labelNode newSubTree rightChild)
                 if length nodeChildren > 2
                     then error ("Graph not dichotomous in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify simpleGraph)
