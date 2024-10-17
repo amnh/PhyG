@@ -116,11 +116,10 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
 
                 -- split and optimize graph components (original for time complexity check)
                 
-                {-
                 (reoptimizedSplitGraph, splitCost) ←
                         reoptimizeSplitGraphFromVertexOrig inGS inData (doIA swapParams) inGraphNetPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
                 logWith LogInfo $ "\tSplit Cost: " <> (show splitCost) -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph
-                -}
+                
                 (reoptimizedSplitGraph', splitCost') ←
                         reoptimizeSplitGraphFromVertexNew swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex 
                 logWith LogInfo $ "\n\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
@@ -268,7 +267,7 @@ reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor c
                                 then 0
                                 else snd6 postOrderPrunedGraph
                     let splitGraphCost = ((1.0 + netPenaltyFactor) * ((snd6 fullBaseGraph) + prunedCost))
-
+                    logWith LogInfo $ "\n\tBase/pruned costs new: " <> (show (snd6 fullBaseGraph, prunedCost))
                     {-
                     -- check fo unlabbeld nodes
                     coninicalNodes =  LG.labNodes fullSplitGraph
@@ -580,7 +579,7 @@ reoptimizeSplitGraphFromVertexOrig inGS inData doIA netPenaltyFactor inSplitGrap
                     nodeLabels = fmap (LG.lab fullSplitGraph) (fmap fst coninicalNodes)
                     unlabelledNodes = filter ((== Nothing) .snd) $ (zip (fmap fst coninicalNodes) nodeLabels)
                     -}
-
+                    logWith LogInfo $ "\n\tBase/pruned costs: " <> (show (snd6 fullBaseGraph, prunedCost))
                     if prunedCost == infinity || (snd6 fullBaseGraph) == infinity
                         then pure (LG.empty, infinity)
                         else pure (fullSplitGraph, splitGraphCost)
