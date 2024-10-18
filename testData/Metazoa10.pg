@@ -4,10 +4,10 @@ set(seed:1683323754)
 -- Read data
 read("Metazoa10.fas")
 
---uild(distance, replicates:10, rdwag, dwag,wpgma,nj, best:10)
+--build(distance, replicates:10, rdwag, dwag,wpgma,nj, best:10)
 
 --select(best:1)
-
+set(multitraverse:false)
 read("Metazoa10-dist-spr.dot")
 
 swap(spr)

@@ -891,6 +891,8 @@ this for a tree so single root
 
 For split graph optimization (in swap and fuse) the base graph starts with the grandparent of pruned graph--this is passed with 
 incremental graph, otherwise it begins with the parent of the startVertex if it not Nothing, otherwise full optimization.
+
+NB--THis only works properly whenmultitraverse=False due to differnt rooting cost assignment of characters that can vary from graph to graph
 -}
 postDecorateTreeIncremental
     ∷ GlobalSettings
@@ -948,6 +950,7 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
 
             -- preserve left/right--labels from current graph since may ahev changed in update
             ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode currentGraph leftChild, LG.labelNode currentGraph rightChild)
+            ((_, leftChildLabelIncr), (_, rightChildLabelIncr)) = U.leftRightChildLabelBVNode (LG.labelNode incrementalGraph leftChild, LG.labelNode incrementalGraph rightChild)
         in
         if length nodeChildren > 2 then
             error ("Graph not dichotomous in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify incrementalGraph)
@@ -1017,8 +1020,7 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
                             else createVertexDataOverBlocks inGS (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
 
                 let vertAssignData = V.map (V.map fst) newCharData
-
-                 -- make incremental decision here    
+                -- make incremental decision here    
                 if vertAssignData == (vertData $ snd curNode) then do
                     logWith LogInfo $ "\n\tConverged at node: " <> (show curNodeIndex) 
                     pure currentGraph   
@@ -1055,8 +1057,8 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
                         newGraph = LG.insEdges (newLOEdges <> newLInEdges) $ LG.insNode (curNodeIndex, newVertex) $ LG.delNode curNodeIndex currentGraph
 
                     in do
-                        logWith LogInfo $ "\n\tUPdating node: " <> (show curNodeIndex) <> " Children: " <> (show (leftChild, rightChild)) <> " " <> (show (newCost, subGraphCost newVertex)) <> " from " <> (show (subGraphCost leftChildLabel, subGraphCost rightChildLabel))
-                        --logWith LogInfo $ "\n\tIncremental node: " <> (show curNodeIndex) <> " " <> (show (vertexCost (snd curNode), subGraphCost (snd curNode)))
+                        --logWith LogInfo $ "\n\tUPdating node: " <> (show curNodeIndex) <> " Children: " <> (show (leftChild, rightChild)) <> " " <> (show (newCost, subGraphCost newVertex)) <> " from " <> (show (vertexCost leftChildLabel, subGraphCost leftChildLabel, vertexCost rightChildLabel, subGraphCost rightChildLabel))
+                        --logWith LogInfo $ "\n\t\tIncremental node: " <> (show curNodeIndex) <> " " <> (show (vertexCost (snd curNode), subGraphCost (snd curNode), subGraphCost leftChildLabelIncr, subGraphCost rightChildLabelIncr))
                         reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo
 
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
@@ -1186,7 +1188,8 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
                                             let newGraph = LG.insEdges newLEdges $ LG.insNode (curNode, newVertex) newSubTree
 
                                             
-                                          
+                                            --logWith LogInfo $ "\n\tUpdating node: " <> (show curNode) <> " Children: " <> (show (leftChild, rightChild)) <> " " <> (show (newCost, subGraphCost newVertex)) <> " from " <> (show (subGraphCost leftChildLabel, subGraphCost rightChildLabel))
+
                                             -- Graph cost is calculated differently for Tree and Hardwired.  Sub trees can be counted multiple times
                                             -- in hardwired for outdegree two nodes with one or more network nodes as descendents
                                             -- this cannot be dealt with at the local node since there can be network all over the graph
