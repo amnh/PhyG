@@ -877,7 +877,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalInfo leafGraph stat
                                     <> GFU.showGraph inGraph
                                 )
                 -- case where need full post-order optimization to/from root
-                else if isNothing incrementalInfo || isNothing startVertex then 
+                else if isNothing incrementalInfo || isNothing startVertex || (multiTraverseCharacters inGS == True)then 
                     postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
                 else do
                     -- incremental for partial pot-order
@@ -910,14 +910,14 @@ postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph blockCharI
         nodesToReoptimize = (startVertex, startLabel): pathNodesToReoptimize
 
     in do
-        logWith LogInfo $ "\tNodes to redo: " <> (show $ fmap fst nodesToReoptimize)
+        --logWith LogInfo $ "\tNodes to redo: " <> (show $ fmap fst nodesToReoptimize)
         newGraph <- reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph incrementalGraph nodesToReoptimize blockCharInfo
         let (newDisplayVect, newCharTreeVV) = divideDecoratedGraphByBlockAndCharacterTree newGraph
         -- this odd cost due to networks
         -- really should just get root cost after updated subGraphs (at least for trees and softwired)
         -- is due also to rerooting of individual charcters and may not haev root costs for all corectly
         let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph   
-        logWith LogInfo $ "\tIncremental Cost: " <> (show localCostSum) 
+        --logWith LogInfo $ "\tIncremental Cost: " <> (show localCostSum) 
         pure (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
 
 {- | reoptimizeGraphNodes created a new graph from existing nodes that are unmodified and 
@@ -1000,7 +1000,7 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
             -- incremental check
             -- if vertData the sme then converged and done.
             if childVertexData == (vertData $ snd curNode) then do
-                logWith LogInfo $ "\n\tConverged at node: " <> (show curNodeIndex) 
+                -- logWith LogInfo $ "\n\tConverged at node: " <> (show curNodeIndex) 
                 pure currentGraph
             else 
                 reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo 
@@ -1022,7 +1022,7 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
                 let vertAssignData = V.map (V.map fst) newCharData
                 -- make incremental decision here    
                 if vertAssignData == (vertData $ snd curNode) then do
-                    logWith LogInfo $ "\n\tConverged at node: " <> (show curNodeIndex) 
+                    -- logWith LogInfo $ "\n\tConverged at node: " <> (show curNodeIndex) 
                     pure currentGraph   
 
                 else 

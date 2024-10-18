@@ -130,7 +130,7 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 logWith LogInfo $ "\n\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
                 -}
 
-                result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor firstGraph (LG.getEdgeSplitList $ thd5 firstGraph)
+                result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor firstGraph (take 1 $ LG.getEdgeSplitList $ thd5 firstGraph)
 
                 pure ([firstGraph], inCounter + 1)
                 -- pure ([(LG.empty, snd result, fst result, fth5 firstGraph, fft5 firstGraph)], inCounter + 1)
@@ -151,20 +151,21 @@ doAllSplits swapParams inGS inData doIA inGraphNetPenaltyFactor firstGraph edgeL
                         logWith LogInfo $ "\tBreakable Edges: " <> (show $ 1 + (length restEdges))
 
                         --logWith LogInfo $ "\tOrig Graph: " <> (LG.prettyDot $ thd5 firstGraph)
-                        logWith LogInfo $ "\tFirst Edge: " <> (show $ LG.toEdge firstEdge)
+                        --logWith LogInfo $ "\tFirst Edge: " <> (show $ LG.toEdge firstEdge)
                         -- split graph on the first edge
                         let (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd5 firstGraph) firstEdge
                         
-                        logWith LogInfo $ "\tPruned verts: " <> (show $ (graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, subGraphCost $ fromJust $ LG.lab splitGraph originalConnectionOfPruned))
+                        --logWith LogInfo $ "\tPruned verts: " <> (show $ (graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, subGraphCost $ fromJust $ LG.lab splitGraph originalConnectionOfPruned))
 
                         -- split and optimize graph components (original for time complexity check)    
+                        {-
                         (reoptimizedSplitGraph, splitCost) ←
                                 reoptimizeSplitGraphFromVertexOrig inGS inData doIA  inGraphNetPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
                         logWith LogInfo $ "\tSplit Cost: " <> (show splitCost) -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph
-                        
+                        -}
                         (reoptimizedSplitGraph', splitCost') ←
                                 reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex 
-                        logWith LogInfo $ "\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
+                        --logWith LogInfo $ "\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
 
                         doAllSplits swapParams inGS inData doIA inGraphNetPenaltyFactor firstGraph restEdges
                         --pure (thd5 firstGraph, 0.0)
@@ -308,7 +309,7 @@ reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA netPenaltyFactor c
                                 then 0
                                 else snd6 postOrderPrunedGraph
                     let splitGraphCost = ((1.0 + netPenaltyFactor) * ((snd6 fullBaseGraph) + prunedCost))
-                    logWith LogInfo $ "\n\tBase/pruned costs new: " <> (show (snd6 fullBaseGraph, prunedCost))
+                    -- logWith LogInfo $ "\n\tBase/pruned costs new: " <> (show (snd6 fullBaseGraph, prunedCost))
                     {-
                     -- check fo unlabbeld nodes
                     coninicalNodes =  LG.labNodes fullSplitGraph
