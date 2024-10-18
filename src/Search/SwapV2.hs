@@ -111,9 +111,12 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 let edgeList@(firstEdge, restEdges) = fromJust edgeList'
                 logWith LogInfo $ "\tBreakable Edges: " <> (show $ 1 + (length restEdges))
 
+                --logWith LogInfo $ "\tOrig Graph: " <> (LG.prettyDot $ thd5 firstGraph)
+                logWith LogInfo $ "\tFirst Edge: " <> (show $ LG.toEdge firstEdge)
                 -- split graph on the first edge
                 let (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd5 firstGraph) firstEdge
-
+                
+                logWith LogInfo $ "\tPruned verts: " <> (show $ (graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, subGraphCost $ fromJust $ LG.lab splitGraph originalConnectionOfPruned))
                 -- split and optimize graph components (original for time complexity check)
                 
                 (reoptimizedSplitGraph, splitCost) ←

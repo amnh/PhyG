@@ -904,8 +904,8 @@ postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph blockCharI
     -- must be specified by call in incremental info
     let (incrementalGraph, startVertex) = fromJust incrementalInfo
         startLabel = fromJust $ LG.lab incrementalGraph startVertex 
-        (nodesToReoptimize, _) = LG.pathToRoot incrementalGraph (startVertex, startLabel)
-                                             
+        (pathNodesToReoptimize, _) = LG.pathToRoot incrementalGraph (startVertex, startLabel)
+        nodesToReoptimize = (startVertex, startLabel): pathNodesToReoptimize
 
     in do
         logWith LogInfo $ "\tNodes to redo: " <> (show $ fmap fst nodesToReoptimize)
@@ -939,15 +939,15 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
     -- none left to do
     if isNothing nodePair then pure currentGraph
     else 
-        -- create new node at current position
+        -- create new node at current position, get children from incremental graph since this node not yet in current graph
         let curNode = fst $ fromJust nodePair
             curNodeIndex = LG.toNode curNode
             nodeChildren = LG.descendants incrementalGraph curNodeIndex
             leftChild = head nodeChildren
             rightChild = last nodeChildren
 
-            -- preserve left/right
-            ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode incrementalGraph leftChild, LG.labelNode incrementalGraph rightChild)
+            -- preserve left/right--labels from current graph since may ahev changed in update
+            ((_, leftChildLabel), (_, rightChildLabel)) = U.leftRightChildLabelBVNode (LG.labelNode currentGraph leftChild, LG.labelNode currentGraph rightChild)
         in
         if length nodeChildren > 2 then
             error ("Graph not dichotomous in postDecorateTree node " <> show curNode <> "\n" <> LG.prettify incrementalGraph)
@@ -996,7 +996,8 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
             in  
             -- incremental check
             -- if vertData the sme then converged and done.
-            if childVertexData == (vertData $ snd curNode) then 
+            if childVertexData == (vertData $ snd curNode) then do
+                logWith LogInfo $ "\n\tConverged at node: " <> (show curNodeIndex) 
                 pure currentGraph
             else 
                 reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo 
@@ -1018,7 +1019,8 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
                 let vertAssignData = V.map (V.map fst) newCharData
 
                  -- make incremental decision here    
-                if vertAssignData == (vertData $ snd curNode) then 
+                if vertAssignData == (vertData $ snd curNode) then do
+                    logWith LogInfo $ "\n\tConverged at node: " <> (show curNodeIndex) 
                     pure currentGraph   
 
                 else 
@@ -1053,7 +1055,8 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
                         newGraph = LG.insEdges (newLOEdges <> newLInEdges) $ LG.insNode (curNodeIndex, newVertex) $ LG.delNode curNodeIndex currentGraph
 
                     in do
-                        logWith LogInfo $ "\n\tUPdating node: " <> (show curNodeIndex) <> " " <> (show (newCost, subGraphCost newVertex))
+                        logWith LogInfo $ "\n\tUPdating node: " <> (show curNodeIndex) <> " Children: " <> (show (leftChild, rightChild)) <> " " <> (show (newCost, subGraphCost newVertex)) <> " from " <> (show (subGraphCost leftChildLabel, subGraphCost rightChildLabel))
+                        --logWith LogInfo $ "\n\tIncremental node: " <> (show curNodeIndex) <> " " <> (show (vertexCost (snd curNode), subGraphCost (snd curNode)))
                         reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo
 
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
