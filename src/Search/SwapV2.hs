@@ -130,7 +130,7 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 logWith LogInfo $ "\n\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
                 -}
 
-                result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor firstGraph (take 1 $ LG.getEdgeSplitList $ thd5 firstGraph)
+                result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor firstGraph (LG.getEdgeSplitList $ thd5 firstGraph)
 
                 pure ([firstGraph], inCounter + 1)
                 -- pure ([(LG.empty, snd result, fst result, fth5 firstGraph, fft5 firstGraph)], inCounter + 1)
