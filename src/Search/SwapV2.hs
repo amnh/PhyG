@@ -236,9 +236,80 @@ doAllSplitsAndRejoin swapParams inGS inData doIA inGraphNetPenaltyFactor curBest
                                 doAllSplitsAndRejoin swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
                         
 
+{- | singleJoinHeuristic "rejoins" a pruned graph to base graph based on an edge target in the base graph
+    returns the joined graph and heuristic graph cost
+    DOES NOT fully optimize graph
 
+    return is list in case of invalid graph (network case)
+-}
+singleJoinHeuristic 
+    ∷ GlobalSettings
+    → ProcessedData
+    → DecoratedGraph
+    → VertexCost
+    → LG.Node
+    → LG.Node
+    → [LG.LEdge EdgeInfo]
+    → LG.LEdge EdgeInfo
+    → PhyG [(DecoratedGraph, VertexCost)]
+singleJoinHeuristic inGS inData splitGraph splitCost prunedGraphRootIndex originalConnectionOfPruned edgesInPrunedGraph targetEdge@(u, v, _) =
+    let charInfoVV = fmap thd3 $ thd3 inData
 
+        -- create new edges
+        newEdgeList =
+                    [ (u, originalConnectionOfPruned, dummyEdge)
+                    , (originalConnectionOfPruned, v, dummyEdge)
+                    , (originalConnectionOfPruned, prunedGraphRootIndex, dummyEdge)
+                    ]
 
+        sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u, v), (originalConnectionOfPruned, prunedGraphRootIndex)] splitGraph
+
+        (makeEdgeDataFunction, edgeJoinFunction) =
+            if graphType inGS == HardWired then 
+                (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+            else if not (useIA inGS) then 
+                (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+            else 
+                (M.makeEdgeDataM True True, edgeJoinDelta inGS True)
+
+        -- here when needed--correct graph is issue in network
+        -- swap can screw up time consistency and other issues
+    in do
+        getCheckedGraphNewSPR <-
+            if graphType inGS == Tree then pure sprNewGraph
+            else do
+                isPhyloGraph ← LG.isPhylogeneticGraph sprNewGraph
+                if isPhyloGraph then pure sprNewGraph
+                else pure LG.empty    
+
+        -- if not a phylogeentic graph (can happen with networks)
+        if getCheckedGraphNewSPR == LG.empty then pure []
+
+        else do
+            -- Create union-thype data for target edge
+            targetEdgeData ← makeEdgeDataFunction splitGraph charInfoVV targetEdge
+
+            -- get the data from teh root of the pruned graph (or leaf if only that)
+            let prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
+
+            -- calculate heuristics join cost
+            sprReJoinCost ← edgeJoinFunction charInfoVV prunedRootVertexData targetEdgeData
+
+            -- return new graph with heuristic cost
+            pure [(getCheckedGraphNewSPR, splitCost + sprReJoinCost)]     
+
+{- | edgeJoinDelta calculates heuristic cost for joining pair edges
+    IA field is faster--but has to be there and not for harwired
+-}
+edgeJoinDelta ∷ GlobalSettings → Bool → V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → PhyG VertexCost
+edgeJoinDelta inGS useIA charInfoVV edgeA edgeB =
+    if (not useIA)
+        then do
+            vertexStuff ← POSW.createVertexDataOverBlocks inGS edgeA edgeB charInfoVV []
+            pure $ V.sum $ fmap V.sum $ fmap (fmap snd) vertexStuff
+        else do
+            vertexStuff ← POSW.createVertexDataOverBlocksStaticIA inGS edgeA edgeB charInfoVV []
+            pure $ V.sum $ fmap V.sum $ fmap (fmap snd) vertexStuff
 
 {- doASplit a test function to check a single split reoptimizations
 -}
