@@ -109,30 +109,15 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 let inGraphNetPenaltyFactor = inGraphNetPenalty / curBestCost
 
 
-                {-
-                let edgeList@(firstEdge, restEdges) = fromJust edgeList'
-                logWith LogInfo $ "\tBreakable Edges: " <> (show $ 1 + (length restEdges))
-
-                --logWith LogInfo $ "\tOrig Graph: " <> (LG.prettyDot $ thd5 firstGraph)
-                logWith LogInfo $ "\tFirst Edge: " <> (show $ LG.toEdge firstEdge)
-                -- split graph on the first edge
-                let (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd5 firstGraph) firstEdge
                 
-                logWith LogInfo $ "\tPruned verts: " <> (show $ (graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, subGraphCost $ fromJust $ LG.lab splitGraph originalConnectionOfPruned))
-                -- split and optimize graph components (original for time complexity check)
-                
-                (reoptimizedSplitGraph, splitCost) ←
-                        reoptimizeSplitGraphFromVertexOrig inGS inData (doIA swapParams) inGraphNetPenaltyFactor splitGraph graphRoot prunedGraphRootIndex
-                logWith LogInfo $ "\tSplit Cost: " <> (show splitCost) -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph
-                
-                (reoptimizedSplitGraph', splitCost') ←
-                        reoptimizeSplitGraphFromVertexNew swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph splitGraph graphRoot prunedGraphRootIndex 
-                logWith LogInfo $ "\n\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
-                -}
+                -- splitAction ::  LG.LEdge EdgeInfo → PhyG (DecoratedGraph, VertexCost)
+                let splitAction = doASplit swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph
+                spltActionPar <- (getParallelChunkTraverseBy snd)
+                resultListP <- spltActionPar splitAction (LG.getEdgeSplitList $ thd5 firstGraph)
 
-                resultList <- mapM (doASplit swapParams inGS inData (doIA swapParams)  inGraphNetPenaltyFactor fullFirstGraph) (LG.getEdgeSplitList $ thd6 fullFirstGraph)
+                --resultList <- mapM (doASplit swapParams inGS inData (doIA swapParams)  inGraphNetPenaltyFactor fullFirstGraph) (LG.getEdgeSplitList $ thd6 fullFirstGraph)
 
-                let resultsSorted = L.sortOn snd resultList
+                let resultsSorted = L.sortOn snd resultListP
                 logWith LogInfo $ "\tBiggest break delta split cost: " <> (show $ snd $ head resultsSorted)
 
                 --result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph (LG.getEdgeSplitList $ thd5 firstGraph)
