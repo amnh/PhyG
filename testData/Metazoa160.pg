@@ -7,7 +7,7 @@ read("Metazoa160.fas")
 --build(distance, replicates:10, rdwag, dwag,wpgma,nj, best:10)
 
 --select(best:1)
-set(multitraverse:false)
+set(multitraverse:True)
 
 --report("Metazoa160-dist-spr.dot")
 read("Metazoa160-dist-spr.dot")

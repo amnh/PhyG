@@ -390,6 +390,7 @@ swapArgList =
     , "nni"
     , "replicates"
     , "returnmutated"
+    , "sortsplit"
     , "spr"
     , "steepest"
     , "steps"

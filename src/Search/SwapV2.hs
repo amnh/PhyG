@@ -108,20 +108,33 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing fullFirstGraph
                 let inGraphNetPenaltyFactor = inGraphNetPenalty / curBestCost
 
+                -- sort overrides random
+                edgeList <- if (atRandom swapParams) && (not $ sortEdgesSplitCost swapParams) then 
+                                shuffleList (LG.getEdgeSplitList $ thd5 firstGraph)
+                            else pure (LG.getEdgeSplitList $ thd5 firstGraph)
 
-                
+
+                -- this is doing all splits in parallel so can sort on those with greatest cost difference
+                    -- probbaly should be an option since does alot of work that would discarded in a "steepeast descent"
+                    -- though my still be worth it
+                    -- could do in batches also
+                -- if random order perhaps do parallel in the join phase in tranches
+
                 -- splitAction ::  LG.LEdge EdgeInfo → PhyG (DecoratedGraph, VertexCost)
                 let splitAction = doASplit swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph
                 spltActionPar <- (getParallelChunkTraverseBy snd)
-                resultListP <- spltActionPar splitAction (LG.getEdgeSplitList $ thd5 firstGraph)
+                resultListP <- spltActionPar splitAction edgeList
 
                 --resultList <- mapM (doASplit swapParams inGS inData (doIA swapParams)  inGraphNetPenaltyFactor fullFirstGraph) (LG.getEdgeSplitList $ thd6 fullFirstGraph)
 
-                let resultsSorted = L.sortOn snd resultListP
-                logWith LogInfo $ "\tBiggest break delta split cost: " <> (show $ snd $ head resultsSorted)
+                let splitList = if sortEdgesSplitCost swapParams then L.sortOn snd resultListP
+                                else resultListP
 
-                --result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph (LG.getEdgeSplitList $ thd5 firstGraph)
-
+                logWith LogInfo $ "\tFirst break delta split cost: " <> (show $ snd $ head splitList)
+                
+                {- This is recursive with joins inside splits
+                result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph edgeList
+                -}
 
                 pure ([firstGraph], inCounter + 1)
                 -- pure ([(LG.empty, snd result, fst result, fth5 firstGraph, fft5 firstGraph)], inCounter + 1)

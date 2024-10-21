@@ -712,6 +712,7 @@ data SwapParams = SwapParams
     { swapType ∷ SwapType -- NNI/SPR/TBR/Alternate
     , joinType ∷ JoinType -- Union priuning on or off
     , atRandom ∷ Bool -- randomized splitting and rejoining
+    , sortEdgesSplitCost :: Bool -- sort edges based on split cost-- greatest delta first
     , keepNum ∷ Int -- number equally costly solutoins to keep
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
     , steepest ∷ Bool -- steepest descent versus "all"

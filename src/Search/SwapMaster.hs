@@ -103,6 +103,15 @@ swapMaster inArgs inGS inData inGraphListInput =
                     | any ((== "inOrder") . fst) lcArgList = False
                     | otherwise = True
 
+                -- split edge order based on greartest diffenrece in costr when graph is split
+                    -- does all of them before sorting
+                    -- since comes after testing for random will override
+                sortEdgesSplitCost
+                    | any ((== "sortsplit") . fst) lcArgList = True
+                    | otherwise = False
+
+
+
                 -- populate SwapParams structure
                 localSwapParams =
                     SwapParams
