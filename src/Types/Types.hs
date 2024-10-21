@@ -711,7 +711,7 @@ instance NFData SAParams where rnf x = seq x ()
 data SwapParams = SwapParams
     { swapType ∷ SwapType -- NNI/SPR/TBR/Alternate
     , joinType ∷ JoinType -- Union priuning on or off
-    , atRandom ∷ Bool -- randomized spluting and rejoining
+    , atRandom ∷ Bool -- randomized splitting and rejoining
     , keepNum ∷ Int -- number equally costly solutoins to keep
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
     , steepest ∷ Bool -- steepest descent versus "all"

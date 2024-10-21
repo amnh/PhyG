@@ -8,7 +8,7 @@ module Search.SwapV2 (
     swapV2,
 ) where
 
-import Control.Monad (filterM)
+import Control.Monad (filterM, liftM)
 import Control.Monad.IO.Class
 import Control.Monad.Random.Class
 import Data.Foldable (fold, toList)
@@ -130,17 +130,23 @@ swapNaive swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                 logWith LogInfo $ "\n\tSplit Cost New: " <> (show splitCost') -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
                 -}
 
-                result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph (LG.getEdgeSplitList $ thd5 firstGraph)
+                resultList <- mapM (doASplit swapParams inGS inData (doIA swapParams)  inGraphNetPenaltyFactor fullFirstGraph) (LG.getEdgeSplitList $ thd6 fullFirstGraph)
+
+                let resultsSorted = L.sortOn snd resultList
+                logWith LogInfo $ "\tBiggest break delta split cost: " <> (show $ snd $ head resultsSorted)
+
+                --result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph (LG.getEdgeSplitList $ thd5 firstGraph)
+
 
                 pure ([firstGraph], inCounter + 1)
                 -- pure ([(LG.empty, snd result, fst result, fth5 firstGraph, fft5 firstGraph)], inCounter + 1)
                 --pure (graphsRemaining, inCounter + 1)
 
 
-{- doASplits a test function to check a single split reoptimizations
+{- doASplit a test function to check a single split reoptimizations
 -}
-doASplits :: SwapParams -> GlobalSettings → ProcessedData -> Bool -> VertexCost -> PhylogeneticGraph -> (LG.LEdge EdgeInfo) -> PhyG (DecoratedGraph, VertexCost)
-doASplits swapParams inGS inData doIA inGraphNetPenaltyFactor firstFullGraph edgeToSplit = 
+doASplit :: SwapParams -> GlobalSettings → ProcessedData -> Bool -> VertexCost -> PhylogeneticGraph -> (LG.LEdge EdgeInfo) -> PhyG (DecoratedGraph, VertexCost)
+doASplit swapParams inGS inData doIA inGraphNetPenaltyFactor firstFullGraph edgeToSplit = 
     let (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd6 firstFullGraph) edgeToSplit
     in do
         reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA inGraphNetPenaltyFactor firstFullGraph splitGraph graphRoot prunedGraphRootIndex 
