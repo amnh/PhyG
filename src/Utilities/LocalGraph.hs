@@ -1939,12 +1939,21 @@ mergeConcurrentNodeLists inListList currentListList =
                         --   " noInter " <> (show $ fmap (fmap fst) noIntersectLists) <> " curList " <> (show $ fmap (fmap fst) currentListList))
                         mergeConcurrentNodeLists (drop 1inListList) (mergedList : noIntersectLists)
 
+{- | sortEdgesByIndexDistance sorts edges in a list by minimum distance between and node index and the 
+    edges indices
+-}
+sortEdgesByIndexDistance :: Node -> [LEdge b] -> [LEdge b]
+sortEdgesByIndexDistance nodeIndex edgeList = 
+    if null edgeList then []
+    else 
+        L.sortOn (f nodeIndex) edgeList
+        where f i (e,v, _) = min (abs $ i - e) (abs $ i - v)
 
 {- | sortEdgeListByDistance sorts edges by distance (in edges) from edge pair of vertices
-cretes a list of edges into (but traveling away from) an initial eNOde and away from
+creates a list of edges into (but traveling away from) an initial eNOde and away from
 an initial vNode adding new nodes to those lists as encountered by traversing edges.
-the eidea is theat the nodes from a directed edge (eNode, vNode)
-the list is creted at each round from the "in" and "out" edge lists
+the idea is that the nodes from a directed edge (eNode, vNode)
+the list is created at each round from the "in" and "out" edge lists
 so they are in order of 1 edge 2 edges etc.
 -}
 sortEdgeListByDistance ∷ Gr a b → [Node] → [Node] → [LEdge b]
