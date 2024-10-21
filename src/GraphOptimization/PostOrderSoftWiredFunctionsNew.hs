@@ -37,6 +37,7 @@ module GraphOptimization.PostOrderSoftWiredFunctionsNew (
     softWiredPostOrderTraceBack,
     createBlockResolutions,
     addNodeAndEdgeToResolutionData,
+    updateNodeCost,
     updateRootCost,
     getOutDegree1VertexAndGraph,
     getOutDegree1VertexSoftWired,
@@ -743,11 +744,26 @@ assumes its a tree wiht a single root
 -}
 updateRootCost ∷ VertexCost → DecoratedGraph → DecoratedGraph
 updateRootCost newRootCost inGraph =
-    let (rootIndex, rootLabel) = head $ LG.getRoots inGraph
-        rootEdges = LG.out inGraph rootIndex
+    let rootNode = head $ LG.getRoots inGraph
+    in
+    updateNodeCost rootNode newRootCost inGraph
+    {-
+    }    rootEdges = LG.out inGraph rootIndex
         newRootLabel = rootLabel{subGraphCost = newRootCost}
     in  -- trace ("DCC: " <> (show newRootCost))
         LG.insEdges rootEdges $ LG.insNode (rootIndex, newRootLabel) $ LG.delNode rootIndex inGraph
+    -}
+
+{- | updateNodeCost  updates the subGraphCost of the specified node(s) with input value
+ node is created, so original is deleted,  added, and original edges added back
+since deleted when node is
+-}
+updateNodeCost ∷ LG.LNode VertexInfo -> VertexCost → DecoratedGraph → DecoratedGraph
+updateNodeCost (nodeIndex, nodeLabel) newNodeCost inGraph =
+    let nodeEdges = LG.out inGraph nodeIndex
+        newNodeLabel = nodeLabel{subGraphCost = newNodeCost}
+    in  -- trace ("DCC: " <> (show newRootCost))
+        LG.insEdges nodeEdges $ LG.insNode (nodeIndex, newNodeLabel) $ LG.delNode nodeIndex inGraph
 
 
 {-

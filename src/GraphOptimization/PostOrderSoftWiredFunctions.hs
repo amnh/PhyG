@@ -877,7 +877,7 @@ postOrderTreeTraversal inGS (_, _, blockDataVect) incrementalInfo leafGraph stat
                                     <> GFU.showGraph inGraph
                                 )
                 -- case where need full post-order optimization to/from root
-                else if isNothing incrementalInfo || isNothing startVertex || (multiTraverseCharacters inGS == True)then 
+                else if isNothing incrementalInfo || isNothing startVertex || (multiTraverseCharacters inGS == True) then 
                     postDecorateTree inGS staticIA inGraph leafGraph blockCharInfo rootIndex rootIndex
                 else do
                     -- incremental for partial pot-order
@@ -892,7 +892,9 @@ this for a tree so single root
 For split graph optimization (in swap and fuse) the base graph starts with the grandparent of pruned graph--this is passed with 
 incremental graph, otherwise it begins with the parent of the startVertex if it not Nothing, otherwise full optimization.
 
-NB--THis only works properly whenmultitraverse=False due to differnt rooting cost assignment of characters that can vary from graph to graph
+NB--THis only works properly when multitraverse=False due to differnet rooting cost assignment of characters that can vary from graph to graph
+
+This split cost seems correct but I don't know why its not counting the pruned nodes as well.
 -}
 postDecorateTreeIncremental
     ∷ GlobalSettings
@@ -917,6 +919,7 @@ postDecorateTreeIncremental inGS incrementalInfo staticIA simpleGraph blockCharI
         -- really should just get root cost after updated subGraphs (at least for trees and softwired)
         -- is due also to rerooting of individual charcters and may not haev root costs for all corectly
         let localCostSum = sum $ fmap vertexCost $ fmap snd $ LG.labNodes newGraph   
+        
         --logWith LogInfo $ "\tIncremental Cost: " <> (show localCostSum) 
         pure (simpleGraph, localCostSum, newGraph, newDisplayVect, newCharTreeVV, blockCharInfo)
 
