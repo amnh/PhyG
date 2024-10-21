@@ -118,6 +118,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         { swapType = swapType
                         , joinType = joinType
                         , atRandom = atRandom
+                        , sortEdgesSplitCost = sortEdgesSplitCost
                         , keepNum = (fromJust keepNum)
                         , maxMoveEdgeDist = maxMoveEdgeDist
                         , steepest = doSteepest
