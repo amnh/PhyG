@@ -200,6 +200,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             edgeToBreakOn = (originalConnectionOfPruned, prunedGraphRootIndex, dummyEdge)
             -- edgesInBaseGraph = splitEdgeList L.\\ (edgeToBreakOn : edgesInPrunedGraph)
 
+            --Need these edges for TBR
             (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
             --edgesInBaseGraph = edgesInBaseGraph' L.\\ [edgeToBreakOn]
 
