@@ -706,19 +706,27 @@ data SAParams = SAParams
 
 instance NFData SAParams where rnf x = seq x ()
 
+-- type for reoptimizinmg candiate graphs after heuristic cost
+    -- Best = only the best/lowest heuristic costs get rechecked
+    -- Better = all thse graphs with better heuristic scores than the curernt best score
+    -- BestN = check the best N scores that are better than the curent best score
 
+data HeuristicCheck = BestOnly | Better | BetterN
+    deriving stock (Read, Show, Eq)
+    
 -- | SwapParam type for swap parameers
 data SwapParams = SwapParams
-    { swapType ∷ SwapType -- NNI/SPR/TBR/Alternate
+    { atRandom ∷ Bool -- randomized splitting and rejoining
+    , checkHeuristic :: HeuristicCheck -- for reoptimizing graphs after heuristic costs
+    , doIA ∷ Bool -- use Implied alignment fields for rearragement costs
+    , joinAlternate ∷ Bool -- in alternate swapping for TBR
     , joinType ∷ JoinType -- Union priuning on or off
-    , atRandom ∷ Bool -- randomized splitting and rejoining
-    , sortEdgesSplitCost :: Bool -- sort edges based on split cost-- greatest delta first
     , keepNum ∷ Int -- number equally costly solutoins to keep
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
-    , steepest ∷ Bool -- steepest descent versus "all"
-    , joinAlternate ∷ Bool -- in alternate swapping for TBR
-    , doIA ∷ Bool -- use Implied alignment fields for rearragement costs
     , returnMutated ∷ Bool -- return changed graphs for simlated annealing, genetic algorithm
+    , sortEdgesSplitCost :: Bool -- sort edges based on split cost-- greatest delta first
+    , steepest ∷ Bool -- steepest descent versus "all"
+    , swapType ∷ SwapType -- NNI/SPR/TBR/Alternate
     }
     deriving stock (Show, Eq)
 

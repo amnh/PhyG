@@ -89,6 +89,13 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
 
+                -- checking of heuristic graph costs
+                heuristicCheck 
+                    | any ((== "bestonly") . fst) lcArgList = BestOnly
+                    | any ((== "better") . fst) lcArgList = Better
+                    | any ((== "betterN") . fst) lcArgList = BetterN
+                    | otherwise = BestOnly
+
                 -- turn off union selection of rejoin--default to do both, union first
                 joinType
                     | graphType inGS == HardWired = JoinAll
@@ -113,11 +120,12 @@ swapMaster inArgs inGS inData inGraphListInput =
 
 
                 -- populate SwapParams structure
-                localSwapParams =
+                localSwapParams = 
                     SwapParams
                         { swapType = swapType
                         , joinType = joinType
                         , atRandom = atRandom
+                        , checkHeuristic = heuristicCheck
                         , sortEdgesSplitCost = sortEdgesSplitCost
                         , keepNum = (fromJust keepNum)
                         , maxMoveEdgeDist = maxMoveEdgeDist

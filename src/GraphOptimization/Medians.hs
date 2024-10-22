@@ -411,7 +411,7 @@ median2Single isMedian staticIA firstVertChar secondVertChar inCharInfo =
                                                                         | staticIA = makeIAPrelimCharacter isMedian inCharInfo emptyCharacter firstVertChar secondVertChar
                                                                         | otherwise =
                                                                             getDOMedian isMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM thisType firstVertChar secondVertChar
-                                                                in  -- trace ("M2S: " <> (show $ localCost  newCharVect))
+                                                                in  --trace ("M2S: " <> (show $ localCost  newCharVect) <> " " <> (show staticIA))
                                                                     (newCharVect, localCost newCharVect)
                                                             else error ("Character type " <> show thisType <> " unrecognized/not implemented")
 
@@ -1100,7 +1100,7 @@ getDOMedian isMedian thisWeight thisMatrix thisSlimTCM thisWideTCM thisHugeTCM t
                     if isMedian
                         then 0
                         else snd $ get2WaySlim thisSlimTCM (extractMedians r) (extractMedians r)
-            in  -- trace ("GDM: " <> (show (cost, noChangeAdjust, cost'))) $
+            in  --trace ("GDM: " <> (show (cost, SV.length (snd3 $ slimGapped leftChar), SV.length (snd3 $ slimGapped rightChar)))) $
                 blankCharacterData
                     { slimPrelim = extractMedians r
                     , slimGapped = r

@@ -11,7 +11,8 @@ set(multitraverse:False)
 
 read("Metazoa40-dist-spr.dot")
 
-swap(spr)
+swap(spr, sortSplit, bestOnly)
+--swap(spr)
 
 report("Metazoa40-dist-spr-2.dot", graphs, dotpdf, overwrite, nocollapse)
 report("Metazoa40-dist-spr-search.csv", search, overwrite)
