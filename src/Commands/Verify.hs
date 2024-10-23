@@ -379,6 +379,7 @@ swapArgList =
     , "alternate"
     , "annealing"
     , "atrandom"
+    , "bestall"
     , "bestonly"
     , "better"
     , "bettern"

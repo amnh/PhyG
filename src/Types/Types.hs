@@ -710,8 +710,9 @@ instance NFData SAParams where rnf x = seq x ()
     -- Best = only the best/lowest heuristic costs get rechecked
     -- Better = all thse graphs with better heuristic scores than the curernt best score
     -- BestN = check the best N scores that are better than the curent best score
+    -- BestAll checks all graphs
 
-data HeuristicCheck = BestOnly | Better | BetterN
+data HeuristicCheck = BestOnly | Better | BetterN | BestAll
     deriving stock (Read, Show, Eq)
 
 -- | SwapParam type for swap parameers

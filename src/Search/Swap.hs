@@ -1782,13 +1782,7 @@ getTBREdgeEditsSimple inGraph prunedGraphRootIndex rerootEdge =
         -- add new root edges
         -- and new edge on old root--but need orientation
         -- flip edges from new root to old (delete and add list)
-        {-
-        trace ("\n\nIn Graph:\n" <> (LG.prettyIndices inGraph) <> "\nTBR Edits: " <> (show (LG.toEdge rerootEdge, prunedGraphRootIndex))
-             <> " NewEdgeOldRoot: " <> (show $ LG.toEdge newEdgeOnOldRoot)
-             <> " New rootEdges: " <> (show $ fmap LG.toEdge newRootEdges)
-             )
-        -}
-        --   <> "\nEdges to add: " <> (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges <> newRootEdges)) <> "\nEdges to delete: " <> (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip <> originalRootEdges))))
+       
         (newEdgeOnOldRoot : (flippedEdges <> newRootEdges), LG.toEdge rerootEdge : (fmap LG.toEdge (edgesToFlip <> originalRootEdges)))
 
 

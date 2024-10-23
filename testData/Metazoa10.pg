@@ -10,7 +10,8 @@ read("Metazoa10.fas")
 set(multitraverse:false)
 read("Metazoa10-dist-spr.dot")
 
-swap(spr, sortSplit, bestOnly)
+swap(spr, sortSplit, betterN)
+
 --swap(spr)
 
 report("Metazoa10-dist-spr-2.dot", graphs, dotpdf, overwrite, nocollapse)

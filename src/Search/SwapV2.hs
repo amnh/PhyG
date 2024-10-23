@@ -191,13 +191,20 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
             
             -- Parallel set up
-            heuristicAction :: LG.LEdge EdgeInfo → PhyG [(DecoratedGraph, VertexCost)]
+            heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
             heuristicAction = singleJoinHeuristic swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned
 
             -- this needs to sytart with prunedGraphRoot
             diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
             diagnoseAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
 
+            -- Remake Graphs from joins
+            makeGraphAction :: LG.LEdge EdgeInfo -> PhyG DecoratedGraph
+            makeGraphAction = makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned
+
+            -- generate TBR reroot info for the pruned graph so can apply to all rejoins.
+            -- and pass to the singleJoin for TBR
+            -- for heuristic returns edge state and reroot edge for later graph reconstruction if needed
 
         in do
             rejoinEdges <- if atRandom swapParams then 
@@ -210,20 +217,28 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             heuristicActionPar <- getParallelChunkTraverse 
             heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-            let bettterHeuristicGraphs = filter ((< curBestCost) . snd) $ concat heuristicResultList
-            let minHeuristicCost = minimum $ fmap snd bettterHeuristicGraphs
+            let bettterHeuristicEdges = filter ((< curBestCost) . snd) $ concat heuristicResultList
+            let minHeuristicCost = if (null bettterHeuristicEdges) then infinity
+                                   else minimum $ fmap snd bettterHeuristicEdges
 
-            let toReoptimizeAndCheckCost = if (checkHeuristic swapParams == Better) then bettterHeuristicGraphs
-                                           else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicGraphs
-                                           else take (graphsSteepest inGS) $ L.sortOn snd bettterHeuristicGraphs
+            let toReoptimizeAndCheckCost =  if (checkHeuristic swapParams == Better) then bettterHeuristicEdges
+                                            else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdges
+                                            else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd bettterHeuristicEdges 
+                                            -- BestAll
+                                            else concat heuristicResultList
+
+            --- Make full graphs that are needed for eoptimizaiton
+            makeGraphPar <- getParallelChunkTraverse
+            toReoptimizeGraphs <- makeGraphPar makeGraphAction (fmap fst toReoptimizeAndCheckCost)
             
             {-Diagnose and check costs-}
             diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-            checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph $ fmap fst $ concat heuristicResultList)
+            checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
 
             --checkedGraphCosts <- mapM (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing)  (fmap GO.convertDecoratedToSimpleGraph $ fmap fst $ concat heuristicResultList)
 
-            let minimimCheckedCost = minimum $ fmap snd5 checkedGraphCosts
+            let minimimCheckedCost = if (null checkedGraphCosts) then infinity
+                                     else minimum $ fmap snd5 checkedGraphCosts
 
             (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
                                                 logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
@@ -284,12 +299,17 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                 (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
 
                                 -- Parallel set up
-                                heuristicAction :: LG.LEdge EdgeInfo → PhyG [(DecoratedGraph, VertexCost)]
+                                heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
                                 heuristicAction = singleJoinHeuristic swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned
 
                                 -- this needs to sytart with prunedGraphRoot
                                 diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
                                 diagnoseAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
+
+                                -- Remake Graphs from joins
+                                makeGraphAction :: LG.LEdge EdgeInfo -> PhyG DecoratedGraph
+                                makeGraphAction = makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned
+
 
                             in do
                                 rejoinEdges <- if atRandom swapParams then 
@@ -303,19 +323,26 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                 heuristicActionPar <- getParallelChunkTraverse 
                                 heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-                                let bettterHeuristicGraphs = filter ((< curBestCost) . snd) $ concat heuristicResultList
-                                let minHeuristicCost = minimum $ fmap snd bettterHeuristicGraphs
+                                let bettterHeuristicEdges = filter ((< curBestCost) . snd) $ concat heuristicResultList
+                                let minHeuristicCost = if (null bettterHeuristicEdges) then infinity
+                                                       else minimum $ fmap snd bettterHeuristicEdges
 
-                                let toReoptimizeAndCheckCost = if (checkHeuristic swapParams == Better) then bettterHeuristicGraphs
-                                                               else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicGraphs
-                                                               -- BestNN
-                                                               else take (graphsSteepest inGS) $ L.sortOn snd bettterHeuristicGraphs
-                                
+                                let toReoptimizeAndCheckCost =  if (checkHeuristic swapParams == Better) then bettterHeuristicEdges
+                                                                else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdges
+                                                                else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd bettterHeuristicEdges 
+                                                                -- BestAll
+                                                                else concat heuristicResultList
+
+                                -- toReoptimizeGraphs <- mapM (makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned) (fmap fst toReoptimizeAndCheckCost)
+                                makeGraphPar <- getParallelChunkTraverse
+                                toReoptimizeGraphs <- makeGraphPar makeGraphAction (fmap fst toReoptimizeAndCheckCost)
+
                                 {-Diagnose and check costs-}
                                 diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-                                checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph $ fmap fst $ concat heuristicResultList)
+                                checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
 
-                                let minimimCheckedCost = minimum $ fmap snd5 checkedGraphCosts
+                                let minimimCheckedCost = if (null checkedGraphCosts) then infinity
+                                                         else minimum $ fmap snd5 checkedGraphCosts
 
                                 (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
                                                                     logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
@@ -323,12 +350,32 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                                                 else 
                                                                     pure (curBestGraphList, curBestCost)
 
-
-
+                                -- recurse or shortcut if better and steepest
                                 if steepest swapParams && minimimCheckedCost < curBestCost then
                                     pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
                                 else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
                         
+
+{- | makeSprNewGraph takes plsit graph and readded edge making new complete graph for rediagnosis etc
+-}
+makeSprNewGraph :: GlobalSettings -> DecoratedGraph -> LG.Node -> LG.Node -> LG.LEdge EdgeInfo -> PhyG DecoratedGraph
+makeSprNewGraph inGS splitGraph prunedGraphRootIndex originalConnectionOfPruned targetEdge@(u, v, _) =
+    -- create new edges
+    let newEdgeList =
+                    [ (u, originalConnectionOfPruned, dummyEdge)
+                    , (originalConnectionOfPruned, v, dummyEdge)
+                    --, (originalConnectionOfPruned, prunedGraphRootIndex, dummyEdge)
+                    ]
+        sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u, v)] splitGraph
+    in do
+        getCheckedGraphNewSPR <-
+            if graphType inGS == Tree then pure sprNewGraph
+            else do
+                isPhyloGraph ← LG.isPhylogeneticGraph sprNewGraph
+                if isPhyloGraph then pure sprNewGraph
+                else pure LG.empty    
+    
+        pure getCheckedGraphNewSPR
 
 {- | singleJoinHeuristic "rejoins" a pruned graph to base graph based on an edge target in the base graph
     returns the joined graph and heuristic graph cost
@@ -345,18 +392,9 @@ singleJoinHeuristic
     → LG.Node
     → LG.Node
     → LG.LEdge EdgeInfo
-    → PhyG [(DecoratedGraph, VertexCost)]
+    → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
 singleJoinHeuristic swapParams inGS inData splitGraph splitCost prunedGraphRootIndex originalConnectionOfPruned targetEdge@(u, v, _) =
     let charInfoVV = fmap thd3 $ thd3 inData
-
-        -- create new edges
-        newEdgeList =
-                    [ (u, originalConnectionOfPruned, dummyEdge)
-                    , (originalConnectionOfPruned, v, dummyEdge)
-                    --, (originalConnectionOfPruned, prunedGraphRootIndex, dummyEdge)
-                    ]
-
-        sprNewGraph = LG.insEdges newEdgeList $ LG.delEdges [(u, v)] splitGraph -- , (originalConnectionOfPruned, prunedGraphRootIndex)] splitGraph
 
         (makeEdgeDataFunction, edgeJoinFunction) =
             if graphType inGS == HardWired then 
@@ -369,17 +407,6 @@ singleJoinHeuristic swapParams inGS inData splitGraph splitCost prunedGraphRootI
         -- here when needed--correct graph is issue in network
         -- swap can screw up time consistency and other issues
     in do
-        getCheckedGraphNewSPR <-
-            if graphType inGS == Tree then pure sprNewGraph
-            else do
-                isPhyloGraph ← LG.isPhylogeneticGraph sprNewGraph
-                if isPhyloGraph then pure sprNewGraph
-                else pure LG.empty    
-
-        -- if not a phylogeentic graph (can happen with networks)
-        if getCheckedGraphNewSPR == LG.empty then pure []
-
-        else do
             -- Create union-thype data for target edge
             targetEdgeData ← makeEdgeDataFunction splitGraph charInfoVV targetEdge
 
@@ -398,7 +425,7 @@ singleJoinHeuristic swapParams inGS inData splitGraph splitCost prunedGraphRootI
             --logWith LogInfo $ " rejoin cost: " <> (show sprReJoinCost)
             
             -- return new graph with heuristic cost
-            pure [(getCheckedGraphNewSPR, splitCost + sprReJoinCost)]     
+            pure [(targetEdge, splitCost + sprReJoinCost)]     
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
     IA field is faster--but has to be there and not for harwired
