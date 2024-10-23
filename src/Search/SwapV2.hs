@@ -188,23 +188,46 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             -- get root in base (for readdition) and edges in pruned section for rerooting during readdition
             (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(originalConnectionOfPruned, fromJust $ LG.lab splitGraphOptimized originalConnectionOfPruned)]
 
+            -- Filter for bridge edges and desendents of root of pruned graph -- for TBR when needed
+            -- remeber to add in root of pruned graph data for TBR edge data so SPR is subset TBR
+            tbrRerootEdges
+                | swapType swapParams /= TBR = []
+                | (graphType inGS == Tree) || LG.isTree splitGraphOptimized = edgesInPrunedGraph L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))
+                | otherwise = (fmap fst . filter snd . zip edgesInPrunedGraph $ LG.isBridge splitGraphOptimized . LG.toEdge <$> edgesInPrunedGraph) L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))
+
+            charInfoVV = fmap thd3 $ thd3 inData
+
             (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
+
+            -- Functions for edge data and rejoin function
+            (makeEdgeDataFunction, edgeJoinFunction) =
+                if graphType inGS == HardWired then 
+                    (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                else if not doIA then 
+                    (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                else 
+                    (M.makeEdgeDataM True True, edgeJoinDelta inGS True)
             
+            {-
             -- Parallel set up
             heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
-            heuristicAction = singleJoinHeuristic swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned
+            heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned tbrEdgeDataPairList
+            -}
 
             -- this needs to sytart with prunedGraphRoot
             diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
             diagnoseAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
 
             -- Remake Graphs from joins
-            makeGraphAction :: LG.LEdge EdgeInfo -> PhyG DecoratedGraph
-            makeGraphAction = makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned
+            makeSPRGraphAction :: LG.LEdge EdgeInfo -> PhyG DecoratedGraph
+            makeSPRGraphAction = makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned
 
             -- generate TBR reroot info for the pruned graph so can apply to all rejoins.
             -- and pass to the singleJoin for TBR
             -- for heuristic returns edge state and reroot edge for later graph reconstruction if needed
+            makeTBREdgeData :: LG.LEdge EdgeInfo → PhyG VertexBlockData
+            makeTBREdgeData =  makeEdgeDataFunction splitGraphOptimized charInfoVV
+
 
         in do
             rejoinEdges <- if atRandom swapParams then 
@@ -213,23 +236,35 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                              -- should re-add close to original placement first 
                              pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
 
+
+            {-Make TBR EdgeData-}
+            makeTBREdgeDataPar <- getParallelChunkTraverse 
+            tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
+
+            -- this will be [] if SPR
+            let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
+
+            -- Parallel set up
+            --heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
+            let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned tbrEdgeDataPairList
+
             {-Heuristic cost calculations-}
             heuristicActionPar <- getParallelChunkTraverse 
             heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-            let bettterHeuristicEdges = filter ((< curBestCost) . snd) $ concat heuristicResultList
-            let minHeuristicCost = if (null bettterHeuristicEdges) then infinity
-                                   else minimum $ fmap snd bettterHeuristicEdges
+            let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ fmap fst heuristicResultList
+            let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
+                                        else minimum $ fmap snd bettterHeuristicEdgesSPR
 
-            let toReoptimizeAndCheckCost =  if (checkHeuristic swapParams == Better) then bettterHeuristicEdges
-                                            else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdges
-                                            else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd bettterHeuristicEdges 
-                                            -- BestAll
-                                            else concat heuristicResultList
+            let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesSPR
+                                                else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCostSPR) . snd) bettterHeuristicEdgesSPR
+                                                else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList 
+                                                -- BestAll
+                                                else fmap fst heuristicResultList
 
             --- Make full graphs that are needed for eoptimizaiton
-            makeGraphPar <- getParallelChunkTraverse
-            toReoptimizeGraphs <- makeGraphPar makeGraphAction (fmap fst toReoptimizeAndCheckCost)
+            makeSPRGraphPar <- getParallelChunkTraverse
+            toReoptimizeGraphs <- makeSPRGraphPar makeSPRGraphAction (fmap fst toReoptimizeAndCheckCostSPR)
             
             {-Diagnose and check costs-}
             diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
@@ -296,19 +331,45 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                             -- get root in base (for readdition) and edges in pruned section for rerooting during readdition
                             let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(originalConnectionOfPruned, fromJust $ LG.lab splitGraphOptimized originalConnectionOfPruned)]
 
+                                -- Filter for bridge edges and desendents of root of pruned graph -- for TBR when needed
+                                -- remeber to add in root of pruned graph data for TBR edge data so SPR is subset TBR
+                                tbrRerootEdges
+                                    | swapType swapParams /= TBR = []
+                                    | (graphType inGS == Tree) || LG.isTree splitGraphOptimized = edgesInPrunedGraph L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))
+                                    | otherwise = (fmap fst . filter snd . zip edgesInPrunedGraph $ LG.isBridge splitGraphOptimized . LG.toEdge <$> edgesInPrunedGraph) L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))
+
                                 (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
 
+                                charInfoVV = fmap thd3 $ thd3 inData
+
+                                -- Functions for edge data and rejoin function
+                                (makeEdgeDataFunction, edgeJoinFunction) =
+                                    if graphType inGS == HardWired then 
+                                        (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                                    else if not doIA then 
+                                        (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                                    else 
+                                        (M.makeEdgeDataM True True, edgeJoinDelta inGS True)
+
+                                {-
                                 -- Parallel set up
                                 heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
-                                heuristicAction = singleJoinHeuristic swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned
+                                heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned
+                                -}
 
                                 -- this needs to sytart with prunedGraphRoot
                                 diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
                                 diagnoseAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
 
                                 -- Remake Graphs from joins
-                                makeGraphAction :: LG.LEdge EdgeInfo -> PhyG DecoratedGraph
-                                makeGraphAction = makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned
+                                makeSPRGraphAction :: LG.LEdge EdgeInfo -> PhyG DecoratedGraph
+                                makeSPRGraphAction = makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned
+
+                                -- generate TBR reroot info for the pruned graph so can apply to all rejoins.
+                                -- and pass to the singleJoin for TBR
+                                -- for heuristic returns edge state and reroot edge for later graph reconstruction if needed
+                                makeTBREdgeData :: LG.LEdge EdgeInfo → PhyG VertexBlockData
+                                makeTBREdgeData =  makeEdgeDataFunction splitGraphOptimized charInfoVV
 
 
                             in do
@@ -319,23 +380,34 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                                 pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
 
 
+                                {-Make TBR EdgeData-}
+                                makeTBREdgeDataPar <- getParallelChunkTraverse 
+                                tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
+
+                                let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
+
+                                -- Parallel set up
+                                --heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
+                                let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned tbrEdgeDataPairList
+
+
                                 {-Heuristic cost calculations-}
                                 heuristicActionPar <- getParallelChunkTraverse 
                                 heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-                                let bettterHeuristicEdges = filter ((< curBestCost) . snd) $ concat heuristicResultList
-                                let minHeuristicCost = if (null bettterHeuristicEdges) then infinity
-                                                       else minimum $ fmap snd bettterHeuristicEdges
+                                let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ fmap fst heuristicResultList
+                                let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
+                                                            else minimum $ fmap snd bettterHeuristicEdgesSPR
 
-                                let toReoptimizeAndCheckCost =  if (checkHeuristic swapParams == Better) then bettterHeuristicEdges
-                                                                else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdges
-                                                                else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd bettterHeuristicEdges 
-                                                                -- BestAll
-                                                                else concat heuristicResultList
+                                let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesSPR
+                                                                    else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCostSPR) . snd) bettterHeuristicEdgesSPR
+                                                                    else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList 
+                                                                    -- BestAll
+                                                                    else fmap fst heuristicResultList
 
-                                -- toReoptimizeGraphs <- mapM (makeSprNewGraph inGS splitGraphOptimized prunedGraphRootIndex originalConnectionOfPruned) (fmap fst toReoptimizeAndCheckCost)
-                                makeGraphPar <- getParallelChunkTraverse
-                                toReoptimizeGraphs <- makeGraphPar makeGraphAction (fmap fst toReoptimizeAndCheckCost)
+                                --- Make full graphs that are needed for eoptimizaiton
+                                makeSPRGraphPar <- getParallelChunkTraverse
+                                toReoptimizeGraphs <- makeSPRGraphPar makeSPRGraphAction (fmap fst toReoptimizeAndCheckCostSPR)
 
                                 {-Diagnose and check costs-}
                                 diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
@@ -356,7 +428,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                 else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
                         
 
-{- | makeSprNewGraph takes plsit graph and readded edge making new complete graph for rediagnosis etc
+{- | makeSprNewGraph takes split graph and readded edge making new complete graph for rediagnosis etc
 -}
 makeSprNewGraph :: GlobalSettings -> DecoratedGraph -> LG.Node -> LG.Node -> LG.LEdge EdgeInfo -> PhyG DecoratedGraph
 makeSprNewGraph inGS splitGraph prunedGraphRootIndex originalConnectionOfPruned targetEdge@(u, v, _) =
@@ -377,35 +449,97 @@ makeSprNewGraph inGS splitGraph prunedGraphRootIndex originalConnectionOfPruned 
     
         pure getCheckedGraphNewSPR
 
+
+{- | makeTBRNewGraph takes split graph, rerooted edge and readded edge making new complete graph for rediagnosis etc
+-}
+makeTBRNewGraph :: GlobalSettings -> DecoratedGraph -> LG.Node -> LG.Node -> LG.LEdge EdgeInfo -> LG.LEdge EdgeInfo -> PhyG DecoratedGraph
+makeTBRNewGraph inGS splitGraph prunedGraphRootIndex originalConnectionOfPruned targetEdge@(u, v, _) rerootEdge =
+
+    -- pruned graph rerooted edges
+    let (prunedEdgesToAdd, prunedEdgesToDelete) = getTBREdgeEditsDec splitGraph prunedGraphRootIndex rerootEdge
+
+    -- create new edges readdition edges
+        newEdgeList =
+                    [ (u, originalConnectionOfPruned, dummyEdge)
+                    , (originalConnectionOfPruned, v, dummyEdge)
+                    --, (originalConnectionOfPruned, prunedGraphRootIndex, dummyEdge)
+                    ]
+        tbrNewGraph =
+            LG.insEdges (newEdgeList <> prunedEdgesToAdd) $
+                LG.delEdges ((u, v) : prunedEdgesToDelete) splitGraph
+    in do
+        getCheckedGraphNewTBR <-
+            if graphType inGS == Tree then pure tbrNewGraph
+            else do
+                isPhyloGraph ← LG.isPhylogeneticGraph tbrNewGraph
+                if isPhyloGraph then pure tbrNewGraph
+                else pure LG.empty    
+    
+        pure getCheckedGraphNewTBR
+
+
+{- | getTBREdgeEditsDec takes and edge and returns the list of edit to pruned subgraph
+as a pair of edges to add and those to delete
+since reroot edge is directed (e,v), edges away from v will have correct
+orientation. Edges between 'e' and the root will have to be flipped
+original root edges and reroort edge are deleted and new root and edge spanning orginal root created
+delete original connection edge and creates a new one--like SPR
+returns ([add], [delete])
+-}
+getTBREdgeEditsDec ∷ DecoratedGraph → LG.Node → LG.LEdge EdgeInfo → ([LG.LEdge EdgeInfo], [LG.Edge])
+getTBREdgeEditsDec inGraph prunedGraphRootIndex rerootEdge =
+    -- trace ("Getting TBR Edits for " <> (show rerootEdge)) (
+    let -- originalRootEdgeNodes = LG.descendants inGraph prunedGraphRootIndex
+        originalRootEdges = LG.out inGraph prunedGraphRootIndex
+
+        -- get path from new root edge fst vertex to orginal root and flip those edges
+        -- since (u,v) is u -> v u "closer" to root
+        closerToPrunedRootEdgeNode = (fst3 rerootEdge, fromJust $ LG.lab inGraph $ fst3 rerootEdge)
+        (nodesInPath, edgesinPath) =
+            LG.postOrderPathToNode inGraph closerToPrunedRootEdgeNode (prunedGraphRootIndex, fromJust $ LG.lab inGraph prunedGraphRootIndex)
+
+        -- don't want original root edges to be flipped since later deleted
+        edgesToFlip = edgesinPath L.\\ originalRootEdges
+        flippedEdges = fmap LG.flipLEdge edgesToFlip
+
+        -- new edges on new root position and spanning old root
+        -- add in closer vertex to root to make sure direction of edge is correct
+        newEdgeOnOldRoot =
+            if (snd3 $ head originalRootEdges) `elem` ((fst3 rerootEdge) : (fmap fst nodesInPath))
+                then (snd3 $ head originalRootEdges, snd3 $ last originalRootEdges, dummyEdge)
+                else (snd3 $ last originalRootEdges, snd3 $ head originalRootEdges, dummyEdge)
+        newRootEdges = [(prunedGraphRootIndex, fst3 rerootEdge, dummyEdge), (prunedGraphRootIndex, snd3 rerootEdge, dummyEdge)]
+    in  -- assumes we are not checking original root
+        -- rerooted
+        -- delete orignal root edges and rerootEdge
+        -- add new root edges
+        -- and new edge on old root--but need orientation
+        -- flip edges from new root to old (delete and add list)
+       
+        (newEdgeOnOldRoot : (flippedEdges <> newRootEdges), LG.toEdge rerootEdge : (fmap LG.toEdge (edgesToFlip <> originalRootEdges)))
+
+
 {- | singleJoinHeuristic "rejoins" a pruned graph to base graph based on an edge target in the base graph
     returns the joined graph and heuristic graph cost
     DOES NOT fully optimize graph
 
-    return is list in case of invalid graph (network case)
+    return is pair of SPR result and list of tbr results (if any)
 -}
 singleJoinHeuristic 
-    :: SwapParams
+    :: (DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.LEdge EdgeInfo → PhyG VertexBlockData)
+    -> (V.Vector (V.Vector CharInfo) → VertexBlockData → VertexBlockData → PhyG VertexCost)
+    -> SwapParams
     -> GlobalSettings
     → ProcessedData
     → DecoratedGraph
     → VertexCost
     → LG.Node
     → LG.Node
+    -> [(LG.LEdge EdgeInfo, VertexBlockData)]
     → LG.LEdge EdgeInfo
-    → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
-singleJoinHeuristic swapParams inGS inData splitGraph splitCost prunedGraphRootIndex originalConnectionOfPruned targetEdge@(u, v, _) =
+    → PhyG ((LG.LEdge EdgeInfo, VertexCost), [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo, VertexCost)])
+singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraph splitCost prunedGraphRootIndex originalConnectionOfPruned tbrReRootEdgePairList targetEdge =
     let charInfoVV = fmap thd3 $ thd3 inData
-
-        (makeEdgeDataFunction, edgeJoinFunction) =
-            if graphType inGS == HardWired then 
-                (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
-            else if not (doIA swapParams) then 
-                (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
-            else 
-                (M.makeEdgeDataM True True, edgeJoinDelta inGS True)
-
-        -- here when needed--correct graph is issue in network
-        -- swap can screw up time consistency and other issues
     in do
             -- Create union-thype data for target edge
             targetEdgeData ← makeEdgeDataFunction splitGraph charInfoVV targetEdge
@@ -422,10 +556,14 @@ singleJoinHeuristic swapParams inGS inData splitGraph splitCost prunedGraphRootI
             --logWith LogInfo $ "\nEdges to delete: " <> (show (u, v))
             --logWith LogInfo $ " Edges to insert: " <> (show ((u, originalConnectionOfPruned), (originalConnectionOfPruned, v)))
             
-            --logWith LogInfo $ " rejoin cost: " <> (show sprReJoinCost)
+            logWith LogInfo $ " TBR reroots: " <> (show $ length tbrReRootEdgePairList)
+            let rerootEdge = (-1, -1, dummyEdge)
             
             -- return new graph with heuristic cost
-            pure [(targetEdge, splitCost + sprReJoinCost)]     
+            if null tbrReRootEdgePairList then 
+                pure ((targetEdge, splitCost + sprReJoinCost), []) 
+            else 
+                pure ((targetEdge, splitCost + sprReJoinCost), [(targetEdge, rerootEdge, splitCost + sprReJoinCost)])    
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
     IA field is faster--but has to be there and not for harwired
