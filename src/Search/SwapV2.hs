@@ -187,6 +187,15 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
             -- get root in base (for readdition) and edges in pruned section for rerooting during readdition
             (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(originalConnectionOfPruned, fromJust $ LG.lab splitGraphOptimized originalConnectionOfPruned)]
+<<<<<<< HEAD
+=======
+            edgeToBreakOn = (originalConnectionOfPruned, prunedGraphRootIndex, dummyEdge)
+            -- edgesInBaseGraph = splitEdgeList L.\\ (edgeToBreakOn : edgesInPrunedGraph)
+
+            --Need these edges for TBR
+            (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
+            --edgesInBaseGraph = edgesInBaseGraph' L.\\ [edgeToBreakOn]
+>>>>>>> 4f450e6223c260080eef9b0ee09e7ae6f5bf7f51
 
             (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
             
