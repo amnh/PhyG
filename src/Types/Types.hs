@@ -713,7 +713,7 @@ instance NFData SAParams where rnf x = seq x ()
 
 data HeuristicCheck = BestOnly | Better | BetterN
     deriving stock (Read, Show, Eq)
-    
+
 -- | SwapParam type for swap parameers
 data SwapParams = SwapParams
     { atRandom ∷ Bool -- randomized splitting and rejoining
@@ -725,6 +725,7 @@ data SwapParams = SwapParams
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
     , returnMutated ∷ Bool -- return changed graphs for simlated annealing, genetic algorithm
     , sortEdgesSplitCost :: Bool -- sort edges based on split cost-- greatest delta first
+    , splitParallel :: Bool -- when splittting graph--do spliots in parallel or sequenctial
     , steepest ∷ Bool -- steepest descent versus "all"
     , swapType ∷ SwapType -- NNI/SPR/TBR/Alternate
     }

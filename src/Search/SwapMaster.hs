@@ -117,6 +117,14 @@ swapMaster inArgs inGS inData inGraphListInput =
                     | any ((== "sortsplit") . fst) lcArgList = True
                     | otherwise = False
 
+                -- when plitting base graph--do in parallel or via recursive sequential
+                -- might save on memeory, coulod be a bit more efficient time-wise
+                -- definately affects trajectory--small examples had worse optimality outcomes
+                parallelSplit
+                    | sortEdgesSplitCost = True
+                    | any ((== "splitparallel") . fst) lcArgList = True
+                    | any ((== "splitsequential") . fst) lcArgList = False
+                    | otherwise = True
 
 
                 -- populate SwapParams structure
@@ -129,6 +137,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         , sortEdgesSplitCost = sortEdgesSplitCost
                         , keepNum = (fromJust keepNum)
                         , maxMoveEdgeDist = maxMoveEdgeDist
+                        , splitParallel = parallelSplit
                         , steepest = doSteepest
                         , joinAlternate = False -- join prune alternates--turned off for now
                         , doIA = doIA''

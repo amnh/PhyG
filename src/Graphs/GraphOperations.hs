@@ -78,6 +78,8 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
 
+
+
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
 convertPhylogeneticGraph2Reduced ∷ PhylogeneticGraph → ReducedPhylogeneticGraph
 convertPhylogeneticGraph2Reduced inPhyloGraph@(a, b, c, displayTreeV, _, f) =

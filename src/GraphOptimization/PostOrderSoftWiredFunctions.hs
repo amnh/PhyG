@@ -33,6 +33,7 @@ Stability   :  unstable
 Portability :  portable (I hope)
 -}
 module GraphOptimization.PostOrderSoftWiredFunctions (
+    convertDecoratedToPhylogeneticGraph,
     updateAndFinalizePostOrderSoftWired,
     postOrderSoftWiredTraversal,
     makeLeafGraphSoftWired,
@@ -1499,3 +1500,11 @@ getBlockW2015 treeEdgeList rootIndex blockTreeList =
                 blockCost = subGraphCost $ fromJust $ LG.lab (head blockTreeList) rootIndex
             in  -- trace ("GBW: " <> (show (numExtraEdges, blockCost, blockTreeEdgeList)) <> "\n" <> (show $ fmap (subGraphCost . snd) $ LG.labNodes (head blockTreeList)))
                 blockCost * (fromIntegral numExtraEdges)
+
+{- | convertDecoratedToPhylogeneticGraph takes a decorated gaph and  charInfoVV and makes ReducedPhylogeneticGraph
+-}
+convertDecoratedToPhylogeneticGraph ::VertexCost -> V.Vector (V.Vector CharInfo) -> DecoratedGraph -> ReducedPhylogeneticGraph
+convertDecoratedToPhylogeneticGraph inCost inCharInfo inDec =
+    let (newDisplayVect, _) = divideDecoratedGraphByBlockAndCharacterTree inDec
+    in
+    (GO.convertDecoratedToSimpleGraph inDec, inCost, inDec, fmap (fmap GO.convertDecoratedToSimpleGraph) newDisplayVect, inCharInfo)

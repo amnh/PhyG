@@ -395,6 +395,8 @@ swapArgList =
     , "returnmutated"
     , "sortsplit"
     , "spr"
+    , "splitparallel"
+    , "splitsequential"
     , "steepest"
     , "steps"
     , "tbr"
