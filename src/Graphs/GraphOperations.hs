@@ -76,7 +76,7 @@ import Text.Read
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
-
+import Debug.Trace
 
 
 
@@ -361,7 +361,8 @@ makeNewickList isTNT writeEdgeWeight writeNodeLabel' rootIndex graphList costLis
             if not isTNT
                 then graphStringCost
                 else (take (length graphStringCostTNT - 2) graphStringCostTNT) <> ";\n"
-    in  graphStringCost'
+    in  --trace ("MNL: " <> (show (writeNodeLabel, isTNT, writeEdgeWeight, writeNodeLabel',graphStringCost)))
+        graphStringCost'
     where
         commaToSpace a = if a /= ',' then a else ' '
 
@@ -1018,18 +1019,18 @@ nubGraph curList inList =
             let (firstGraphNC, firstGraphC) = head inList
 
                 -- nub on newick topology only--should be collapsed already
-                firstString = makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
+                firstString = makeNewickList False False False (fst $ head $ LG.getRoots $ LG.rerootTree 0 $ fst6 firstGraphNC) [LG.rerootTree 0 $ fst6 firstGraphNC] [snd6 firstGraphNC]
 
                 -- nub on prettty string
                 -- firstString = LG.prettyIndices $ thd6 firstGraphNC
                 isMatch = filter (== firstString) (fmap thd3 curList)
-            in  -- trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString) $
+            in  trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString <> "\n" <> (concat $ fmap thd3 curList)) $
                 if null curList
                     then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
                     else
                         if null isMatch
                             then nubGraph ((firstGraphNC, firstGraphC, firstString) : curList) (tail inList)
-                            else nubGraph curList (tail inList)
+                            else nubGraph curList (tail inList) 
 
 
 -- )
