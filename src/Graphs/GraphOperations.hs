@@ -1024,7 +1024,7 @@ nubGraph curList inList =
                 -- nub on prettty string
                 -- firstString = LG.prettyIndices $ thd6 firstGraphNC
                 isMatch = filter (== firstString) (fmap thd3 curList)
-            in  trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString <> "\n" <> (concat $ fmap thd3 curList)) $
+            in  --trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString <> "\n" <> (concat $ fmap thd3 curList)) $
                 if null curList
                     then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
                     else
