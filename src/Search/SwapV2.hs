@@ -58,7 +58,43 @@ swapV2
 swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     if null curBestGraphList
         then pure ([], inCounter)
-        else swapNaive swapParams inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
+        else 
+            if swapType swapParams `elem` [NNI, SPR, TBR] then 
+                swapNaive swapParams inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
+            else if swapType swapParams == Alternate then
+                -- alternate between SPR and TBROnly
+                swapAlternate swapParams inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
+            else error ("Swap type not recognized/implemented: " <> (show $ swapType swapParams))
+
+{- | swapAlternate uses SPR and TBROnly to sear where if TBROnly finds a new solution, it 
+    returns to SPR on new graph and does this untill TBROnly finds no new solutions.
+-}
+swapAlternate 
+    
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → [ReducedPhylogeneticGraph]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAnnealParams = 
+    if null graphsToSwap then pure ([], inCounter)
+    else 
+        let curBestCost = minimum $ fmap snd5 graphsToSwap
+        in do
+            (sprGraphResult, _) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
+            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBR}) inGS inData inCounter sprGraphResult sprGraphResult inSimAnnealParams
+
+            let newBestCost = minimum $ fmap snd5 tbrOnlyResult
+
+            if newBestCost < curBestCost then
+                swapAlternate swapParams inGS inData (inCounter + 1) tbrOnlyResult tbrOnlyResult inSimAnnealParams
+
+            else 
+                pure (tbrOnlyResult, inCounter + 1)
+        
 
 
 {- | Naive swap functions to create reference for later algorithmic improvements 
@@ -164,7 +200,6 @@ swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAn
 
 {- | rejoinFromOptSplitList\plitList takes a list of optimized split graphs and
     calls rejoin function
-
     Good for parallel exectution
 -}
 rejoinFromOptSplitList 
@@ -192,7 +227,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             -- Filter for bridge edges and desendents of root of pruned graph -- for TBR when needed
             -- remeber to add in root of pruned graph data for TBR edge data so SPR is subset TBR
             tbrRerootEdges
-                | swapType swapParams /= TBR = []
+                | swapType swapParams `elem` [NNI, SPR] = []
                 | (graphType inGS == Tree) || LG.isTree splitGraphOptimized = edgesInPrunedGraph L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))
                 | otherwise = (fmap fst . filter snd . zip edgesInPrunedGraph $ LG.isBridge splitGraphOptimized . LG.toEdge <$> edgesInPrunedGraph) L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))
 
@@ -229,9 +264,12 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
         in do
             rejoinEdges <- if atRandom swapParams then 
                              shuffleList edgesInBaseGraph
+                           -- should re-add close to original placement first
+                           else if swapType swapParams == NNI then
+                                pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                                    
                            else 
-                             -- should re-add close to original placement first 
-                             pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
 
 
             {-Make TBR EdgeData-}
@@ -242,7 +280,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
 
             -- Parallel set up
-            --heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
+            --heuristicAction :: LG.LEdge EdgeInfo → PhyG ([(LG.LEdge EdgeInfo, VertexCost)], [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo, VertexCost)])
             let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex tbrEdgeDataPairList
 
             {-Heuristic cost calculations-}
@@ -250,7 +288,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
             -- process SPR returns
-            let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ fmap fst heuristicResultList
+            let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
             let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
                                         else minimum $ fmap snd bettterHeuristicEdgesSPR
 
@@ -266,9 +304,9 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                                 else if (checkHeuristic swapParams == BestOnly) then 
                                                     filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
                                                 else if (checkHeuristic swapParams == BetterN) then 
-                                                    take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList 
+                                                    take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
                                                 -- BestAll
-                                                else fmap fst heuristicResultList
+                                                else concat $ fmap fst heuristicResultList
 
             --logWith LogInfo $ "\n\tTaking:" <> (show  ((length $ take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList), (length $ take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart)))
                                                     
@@ -304,6 +342,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                                 pure (curBestGraphList, curBestCost)
                                         
             --logWith LogInfo $ "\n\tcurBestCost: " <> (show (curBestCost, splitCost)) <> " " <> (show $ zip (fmap snd $ concat heuristicResultList) (fmap snd5 checkedGraphCosts))
+            --logWith LogInfo $ "Steepest " <> (show $ steepest swapParams) 
             if steepest swapParams && minimimCheckedCost < curBestCost then
                 pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
             else rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor newBestGraphs newBestCost splitEdgeList restSplits
@@ -370,12 +409,6 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                     else 
                                         (M.makeEdgeDataM True True, edgeJoinDelta inGS True)
 
-                                {-
-                                -- Parallel set up
-                                heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
-                                heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex originalConnectionOfPruned
-                                -}
-
                                 -- this needs to sytart with prunedGraphRoot
                                 diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
                                 diagnoseAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
@@ -395,11 +428,13 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
                             in do
                                 rejoinEdges <- if atRandom swapParams then 
-                                                shuffleList edgesInBaseGraph
+                                                 shuffleList edgesInBaseGraph
+                                               -- should re-add close to original placement first
+                                               else if swapType swapParams == NNI then
+                                                    pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                                                        
                                                else 
-                                                -- should re-add close to original placement first 
-                                                pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
-
+                                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
 
                                 {-Make TBR EdgeData-}
                                 makeTBREdgeDataPar <- getParallelChunkTraverse 
@@ -408,7 +443,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                 let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
 
                                 -- Parallel set up
-                                --heuristicAction :: LG.LEdge EdgeInfo → PhyG [(LG.LEdge EdgeInfo, VertexCost)]
+                                --heuristicAction :: LG.LEdge EdgeInfo → PhyG ([(LG.LEdge EdgeInfo, VertexCost)], [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo, VertexCost)])
                                 let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex tbrEdgeDataPairList
 
 
@@ -417,7 +452,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                 heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
                                 -- process SPR returns
-                                let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ fmap fst heuristicResultList
+                                let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
                                 let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
                                                             else minimum $ fmap snd bettterHeuristicEdgesSPR
 
@@ -430,9 +465,9 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
                                 let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesSPR
                                                                     else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
-                                                                    else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList 
+                                                                    else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
                                                                     -- BestAll
-                                                                    else fmap fst heuristicResultList
+                                                                    else concat $ fmap fst heuristicResultList
 
                                 --- Make full graphs that are needed for reoptimizaiton
                                 makeSPRGraphPar <- getParallelChunkTraverse
@@ -566,6 +601,13 @@ getTBREdgeEditsDec inGraph prunedGraphRootIndex rerootEdge =
     DOES NOT fully optimize graph
 
     return is pair of SPR result and list of tbr results (if any)
+
+    if swaptype is SPR then the tbrReRootEdgePairList is [] but can be in 
+        a TBR search for many splits
+
+    if swapType is TBROnly--does not perform the spr rejoin, for use 
+        in Alternate type swap procedure
+
 -}
 singleJoinHeuristic 
     :: (DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.LEdge EdgeInfo → PhyG VertexBlockData)
@@ -578,7 +620,7 @@ singleJoinHeuristic
     → LG.Node
     -> [(LG.LEdge EdgeInfo, VertexBlockData)]
     → LG.LEdge EdgeInfo
-    → PhyG ((LG.LEdge EdgeInfo, VertexCost), [((LG.LEdge EdgeInfo, LG.LEdge EdgeInfo), VertexCost)])
+    → PhyG ([(LG.LEdge EdgeInfo, VertexCost)], [((LG.LEdge EdgeInfo, LG.LEdge EdgeInfo), VertexCost)])
 singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraph splitCost prunedGraphRootIndex tbrReRootEdgePairList targetEdge =
     let charInfoVV = fmap thd3 $ thd3 inData
     in do
@@ -593,13 +635,16 @@ singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData
 
             
             -- SPR return new graph with heuristic cost
-            if null tbrReRootEdgePairList then 
-                pure ((targetEdge, splitCost + sprReJoinCost), []) 
+            if swapType swapParams `elem` [NNI, SPR] then 
+                pure ([(targetEdge, splitCost + sprReJoinCost)], []) 
+
+            else if swapType swapParams == TBROnly && null tbrReRootEdgePairList then 
+                pure ([],[])
 
             -- logWith LogInfo $ " TBR reroots: " <> (show $ length tbrReRootEdgePairList)
 
-            -- tbr (includes SPR result)
-            else 
+            -- tbr (includes SPR result) and TBROnly which does not
+            else if swapType swapParams `elem` [TBR, TBROnly] then 
                 let -- Parallel set up
                     joinAction :: VertexBlockData → PhyG VertexCost
                     joinAction = edgeJoinFunction charInfoVV targetEdgeData 
@@ -614,8 +659,11 @@ singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData
                     let tbrResult = zip (zip (replicate (length tbrReRootEdgePairList) targetEdge) (fmap fst tbrReRootEdgePairList)) tbrHeuristicCosts
 
                     -- logWith LogInfo $ " TBR reroots: " <> (show $ length tbrReRootEdgePairList) <> " " <> (show tbrHeuristicCosts)
-                
-                    pure ((targetEdge, splitCost + sprReJoinCost), tbrResult)    
+                    if swapType swapParams == TBR then
+                        pure ([(targetEdge, splitCost + sprReJoinCost)], tbrResult)   
+                    else 
+                        pure ([], tbrResult)
+            else error ("Unimplemented swap type: " <> (show $ swapType swapParams)) 
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
     IA field is faster--but has to be there and not for harwired

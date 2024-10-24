@@ -109,6 +109,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 atRandom
                     | any ((== "atrandom") . fst) lcArgList = True
                     | any ((== "inOrder") . fst) lcArgList = False
+                    | swapType == NNI = False
                     | otherwise = True
 
                 -- split edge order based on greartest diffenrece in costr when graph is split

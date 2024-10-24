@@ -101,8 +101,8 @@ select()
 --search(hours:0, minutes:3, instances:4, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
---swap()
-swap(tbr, betterN)
+swap(NNI, bestAll)
+swap(alternate, betterN)
 --swap(tbr, betterN)
 
 --swap(replicates:5, drift, maxChanges:5)

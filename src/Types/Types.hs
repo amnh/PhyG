@@ -251,7 +251,9 @@ maxSimultaneousGraphsSteepest = 10
 
 
 -- | SwapType types for swapping, TBRAlternate for special casing in Swap
-data SwapType = NoSwap | NNI | SPR | TBR | Alternate | TBRAlternate
+-- TBR only does non-Spr moves in a TBR searc process, would be done after SPR in an 
+-- Alternate seaarch
+data SwapType = NoSwap | NNI | SPR | TBR | Alternate | TBRAlternate |TBROnly
     deriving stock (Show, Eq)
 
 
