@@ -11,7 +11,7 @@ set(multitraverse:false)
 
 read("Metazoa20-dist-spr.dot")
 
-swap(tbr, sortSplit,bestonly)
+swap(spr, sortSplit,bestonly)
 --swap(spr)
 
 transform(multitraverse:True)

@@ -93,7 +93,8 @@ swapMaster inArgs inGS inData inGraphListInput =
                 heuristicCheck 
                     | any ((== "bestonly") . fst) lcArgList = BestOnly
                     | any ((== "better") . fst) lcArgList = Better
-                    | any ((== "betterN") . fst) lcArgList = BetterN
+                    | any ((== "bettern") . fst) lcArgList = BetterN
+                    | any ((== "bestall") . fst) lcArgList = BestAll
                     | otherwise = BestOnly
 
                 -- turn off union selection of rejoin--default to do both, union first
