@@ -37,6 +37,8 @@ import Utilities.Utilities as U
 
 {- | SwapDriver
     Top levl formtesting and swithcing between functions
+
+    SA stuff should be changed in swapMaster to reflect the single SAParams
 -}
 swapDriver
     ∷ SwapParams
@@ -47,8 +49,13 @@ swapDriver
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
 swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams = 
+    let saList = L.uncons inSimAnnealParams
+    in
+    if isNothing saList then
     -- swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
-    SV2.swapV2  swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
+        SV2.swapV2  swapParams inGS inData inCounter curBestGraphList Nothing 
+    else 
+        SV2.swapV2  swapParams inGS inData inCounter curBestGraphList ((fst . fst . fromJust) saList)
 
 {- | SwapDriver
     Uses compnent functions but with alternate high-level logic

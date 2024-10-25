@@ -35,17 +35,10 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
 
-{- | New Swap functions that are based on PHANE paralleization routines.
-    1) Naive version
-    2) Incremental for split and move evaluation SPR/TBR where possible
-    3) steepest descent
-        Order edges by distace to original break point on rejoin
-        Continue when swtich to new (order of edges)
-        Keep single graph only until no better, then multiple
-    4) Randomized trajectories
-    5) heuristic cost calculations
-    6) unions
-    7) SA/Drift    
+{- | New Swap functions that are based on strict PHANE parallelization routines.
+    6) SA/Drift
+    7) unions--only for TBR moves?
+        
 -}
 swapV2
     ∷ SwapParams
@@ -53,9 +46,61 @@ swapV2
     → ProcessedData
     → Int
     → [ReducedPhylogeneticGraph]
-    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
 swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
+    if null curBestGraphList
+        then pure ([], inCounter)
+        else 
+            if isNothing inSimAnnealParams then 
+                swapByType swapParams inGS inData inCounter curBestGraphList Nothing
+            else -- simlayed annealing/drift
+                swapSimulatedAnnealing swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
+
+{- | Controls the simulated annealing/drift swapping phases
+    1) swap potentially accepting worse cost graphs according to SA?Drif
+    2) swapping back (normally) if graph cost > input best
+
+    This should really be operating only on a single graph
+-}
+swapSimulatedAnnealing
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → Maybe SAParams
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapSimulatedAnnealing swapParams inGS inData inCounter inBestGraphList inSimAnnealParams =
+    if null inBestGraphList
+        then pure ([], inCounter)
+        else do
+            let inBestCost = minimum $ fmap snd5 inBestGraphList
+            -- generate SA/Drift graphs
+            (saGraphs, saCounter) <- swapByType swapParams inGS inData inCounter inBestGraphList inSimAnnealParams
+
+            -- swap "back" to optimal costs
+            (backGraphs, backCounter) <- swapByType swapParams inGS inData saCounter saGraphs Nothing
+
+            -- take SA/Drif or Input solutions based on cost 
+            let finalGraphs =   if (minimum $ fmap snd5 backGraphs) < inBestCost then 
+                                    backGraphs
+                                else inBestGraphList
+
+            pure (finalGraphs, backCounter)
+
+{- | Controls the use of alternate versus other types of swap
+    makes things cleaner for SA/Drift
+-}
+swapByType
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → Maybe SAParams
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapByType swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     if null curBestGraphList
         then pure ([], inCounter)
         else 
@@ -70,14 +115,13 @@ swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
     returns to SPR on new graph and does this untill TBROnly finds no new solutions.
 -}
 swapAlternate 
-    
     ∷ SwapParams
     → GlobalSettings
     → ProcessedData
     → Int
     → [ReducedPhylogeneticGraph]
     → [ReducedPhylogeneticGraph]
-    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
 swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAnnealParams = 
     if null graphsToSwap then pure ([], inCounter)
@@ -97,8 +141,6 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inS
             else 
                 pure (tbrOnlyResult, sprCount)
         
-
-
 {- | Naive swap functions to create reference for later algorithmic improvements 
     1) Take first graph
 
@@ -116,9 +158,9 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inS
 
     4) Full evaluation of graphs 
         Time complexities should be with O(n) for graph traversals
-            NNI O(n^2)
-            SPR O(n^3)
-            TBR O(n^4)
+            NNI O(n)
+            SPR O(n^2)
+            TBR O(n^3)
 -}
 swapNaive 
     ∷ SwapParams
@@ -127,7 +169,7 @@ swapNaive
     → Int
     → [ReducedPhylogeneticGraph]
     → [ReducedPhylogeneticGraph]
-    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
 swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAnnealParams =
     let inGraphPair = L.uncons graphsToSwap
@@ -184,24 +226,25 @@ swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAn
                                     else -- this is recursive on splitting as opposed to paeallelized
                                         doAllSplitsAndRejoin swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor graphsToSwap curBestCost fullFirstGraph edgeList
                     
-                    {- This is recursive with joins inside splits
-                    result <- doAllSplits swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor fullFirstGraph edgeList
-                    -}
                     (newValList, returnCost) <-  if (minimum $ fmap snd rejoinResult) < curBestCost then 
-                                                    pure (fmap fst rejoinResult, minimum $ fmap snd rejoinResult )
+                                                    pure (fmap fst rejoinResult, minimum $ fmap snd rejoinResult)
                                                 else if (minimum $ fmap snd rejoinResult) == curBestCost then 
                                                     pure ((fmap fst rejoinResult) <> curBestGraphList, curBestCost)
                                                 else pure (curBestGraphList, curBestCost)
 
+                    -- Conditions to keep going or return
+                    -- Better graphs than input
                     if returnCost < curBestCost then 
                         if (TBROnly == swapType swapParams) then
                             pure (newValList, inCounter + 1)
                         else
                             swapNaive swapParams inGS inData (inCounter + 1) newValList newValList inSimAnnealParams
-
+                    -- equal graph costs to input
                     else if returnCost == curBestCost then do
                         uniqueBestGraphs <- GO.selectGraphs Unique (keepNum swapParams) 0.0 $ newValList <> curBestGraphList
                         swapNaive swapParams inGS inData (inCounter + 1) (graphsRemaining L.\\ uniqueBestGraphs) uniqueBestGraphs inSimAnnealParams
+
+                    -- worse graphs than input
                     else swapNaive swapParams inGS inData (inCounter + 1) graphsRemaining curBestGraphList inSimAnnealParams
 
 {- | rejoinFromOptSplitList\plitList takes a list of optimized split graphs and
