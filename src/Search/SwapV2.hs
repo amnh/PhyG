@@ -84,16 +84,18 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inS
     else 
         let curBestCost = minimum $ fmap snd5 graphsToSwap
         in do
-            (sprGraphResult, _) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
-            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBR}) inGS inData inCounter sprGraphResult sprGraphResult inSimAnnealParams
+            (sprGraphResult, sprCount) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
+            (tbrOnlyResult, tbrCount) <- swapNaive (swapParams {swapType = TBR}) inGS inData sprCount sprGraphResult sprGraphResult inSimAnnealParams
+            
+            let sprBestCost = minimum $ fmap snd5 sprGraphResult
+            let tbrBestCost = minimum $ fmap snd5 tbrOnlyResult
 
-            let newBestCost = minimum $ fmap snd5 tbrOnlyResult
-
-            if newBestCost < curBestCost then
+            -- The to see if TBR rearrangements did anything--if not end
+            if tbrBestCost < sprBestCost then
                 swapAlternate swapParams inGS inData (inCounter + 1) tbrOnlyResult tbrOnlyResult inSimAnnealParams
 
             else 
-                pure (tbrOnlyResult, inCounter + 1)
+                pure (tbrOnlyResult, tbrCount)
         
 
 
@@ -192,7 +194,11 @@ swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAn
                                                 else pure (curBestGraphList, curBestCost)
 
                     if returnCost < curBestCost then 
-                        swapNaive swapParams inGS inData (inCounter + 1) newValList newValList inSimAnnealParams
+                        if (TBROnly == swapType swapParams) then
+                            pure (newValList, inCounter + 1)
+                        else
+                            swapNaive swapParams inGS inData (inCounter + 1) newValList newValList inSimAnnealParams
+
                     else if returnCost == curBestCost then do
                         uniqueBestGraphs <- GO.selectGraphs Unique (keepNum swapParams) 0.0 $ newValList <> curBestGraphList
                         swapNaive swapParams inGS inData (inCounter + 1) (graphsRemaining L.\\ uniqueBestGraphs) uniqueBestGraphs inSimAnnealParams
@@ -271,81 +277,81 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                            else 
                                 pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
 
+            if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
+                    rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitEdgeList restSplits
+            else do
+                {-Make TBR EdgeData-}
+                makeTBREdgeDataPar <- getParallelChunkTraverse 
+                tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
 
-            {-Make TBR EdgeData-}
-            makeTBREdgeDataPar <- getParallelChunkTraverse 
-            tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
+                -- this will be [] if SPR
+                let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
 
-            -- this will be [] if SPR
-            let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
+                -- Parallel set up
+                --heuristicAction :: LG.LEdge EdgeInfo → PhyG ([(LG.LEdge EdgeInfo, VertexCost)], [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo, VertexCost)])
+                let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex tbrEdgeDataPairList
 
-            -- Parallel set up
-            --heuristicAction :: LG.LEdge EdgeInfo → PhyG ([(LG.LEdge EdgeInfo, VertexCost)], [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo, VertexCost)])
-            let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex tbrEdgeDataPairList
+                {-Heuristic cost calculations-}
+                heuristicActionPar <- getParallelChunkTraverse 
+                heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-            {-Heuristic cost calculations-}
-            heuristicActionPar <- getParallelChunkTraverse 
-            heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
+                -- process SPR returns
+                let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
+                let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
+                                            else minimum $ fmap snd bettterHeuristicEdgesSPR
 
-            -- process SPR returns
-            let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
-            let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
-                                        else minimum $ fmap snd bettterHeuristicEdgesSPR
+                let tbrPart = concat $ fmap snd heuristicResultList
+                let bettterHeuristicEdgesTBR = filter ((< curBestCost) . snd) tbrPart
+                let minHeuristicCostTBR =   if (null bettterHeuristicEdgesTBR) then infinity
+                                            else minimum $ fmap snd bettterHeuristicEdgesTBR
 
-            let tbrPart = concat $ fmap snd heuristicResultList
-            let bettterHeuristicEdgesTBR = filter ((< curBestCost) . snd) tbrPart
-            let minHeuristicCostTBR =   if (null bettterHeuristicEdgesTBR) then infinity
-                                        else minimum $ fmap snd bettterHeuristicEdgesTBR
+                let minHeuristicCost =  min minHeuristicCostSPR minHeuristicCostTBR
 
-            let minHeuristicCost =  min minHeuristicCostSPR minHeuristicCostTBR
+                let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then 
+                                                        bettterHeuristicEdgesSPR
+                                                    else if (checkHeuristic swapParams == BestOnly) then 
+                                                        filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
+                                                    else if (checkHeuristic swapParams == BetterN) then 
+                                                        take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
+                                                    -- BestAll
+                                                    else concat $ fmap fst heuristicResultList
 
-            let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then 
-                                                    bettterHeuristicEdgesSPR
-                                                else if (checkHeuristic swapParams == BestOnly) then 
-                                                    filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
-                                                else if (checkHeuristic swapParams == BetterN) then 
-                                                    take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
-                                                -- BestAll
-                                                else concat $ fmap fst heuristicResultList
+                --logWith LogInfo $ "\n\tTaking:" <> (show  ((length $ take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList), (length $ take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart)))
+                                                        
+                --- Make full graphs that are needed for reoptimizaiton
+                makeSPRGraphPar <- getParallelChunkTraverse
+                toReoptimizeGraphsSPR <- makeSPRGraphPar makeSPRGraphAction (fmap fst toReoptimizeAndCheckCostSPR)
 
-            --logWith LogInfo $ "\n\tTaking:" <> (show  ((length $ take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList), (length $ take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart)))
-                                                    
-            --- Make full graphs that are needed for reoptimizaiton
-            makeSPRGraphPar <- getParallelChunkTraverse
-            toReoptimizeGraphsSPR <- makeSPRGraphPar makeSPRGraphAction (fmap fst toReoptimizeAndCheckCostSPR)
+                -- process TBR returns (if done)
+                let toReoptimizeAndCheckCostTBR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesTBR
+                                                    else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesTBR
+                                                    else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart
+                                                    -- BestAll
+                                                    else tbrPart
 
-            -- process TBR returns (if done)
-            let toReoptimizeAndCheckCostTBR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesTBR
-                                                else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesTBR
-                                                else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart
-                                                -- BestAll
-                                                else tbrPart
+                makeTBRGraphPar <- getParallelChunkTraverse
+                toReoptimizeGraphsTBR <- makeTBRGraphPar makeTBRGraphAction (fmap fst toReoptimizeAndCheckCostTBR)
 
-            makeTBRGraphPar <- getParallelChunkTraverse
-            toReoptimizeGraphsTBR <- makeTBRGraphPar makeTBRGraphAction (fmap fst toReoptimizeAndCheckCostTBR)
+                -- combine graaphs for reoptimization
+                let toReoptimizeGraphs = toReoptimizeGraphsSPR <> toReoptimizeGraphsTBR
+                --logWith LogInfo $ "\n\tRediagnosing: " <> (show $ length toReoptimizeGraphs) <> " of " <> (show (length heuristicResultList, length tbrPart))
+                
+                {-Diagnose and check costs-}
+                diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
+                checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
 
-            -- combine graaphs for reoptimization
-            let toReoptimizeGraphs = toReoptimizeGraphsSPR <> toReoptimizeGraphsTBR
-            --logWith LogInfo $ "\n\tRediagnosing: " <> (show $ length toReoptimizeGraphs) <> " of " <> (show (length heuristicResultList, length tbrPart))
-            
-            {-Diagnose and check costs-}
-            diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-            checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
+                let minimimCheckedCost = if (null checkedGraphCosts) then infinity
+                                         else minimum $ fmap snd5 checkedGraphCosts
 
-            let minimimCheckedCost = if (null checkedGraphCosts) then infinity
-                                     else minimum $ fmap snd5 checkedGraphCosts
-
-            (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
-                                                logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
-                                                pure (filter ((== minimimCheckedCost) .snd5) checkedGraphCosts, minimimCheckedCost)
-                                            else 
-                                                pure (curBestGraphList, curBestCost)
-                                        
-            --logWith LogInfo $ "\n\tcurBestCost: " <> (show (curBestCost, splitCost)) <> " " <> (show $ zip (fmap snd $ concat heuristicResultList) (fmap snd5 checkedGraphCosts))
-            --logWith LogInfo $ "Steepest " <> (show $ steepest swapParams) 
-            if steepest swapParams && minimimCheckedCost < curBestCost then
-                pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
-            else rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor newBestGraphs newBestCost splitEdgeList restSplits
+                (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
+                                                    logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
+                                                    pure (filter ((== minimimCheckedCost) .snd5) checkedGraphCosts, minimimCheckedCost)
+                                                else 
+                                                    pure (curBestGraphList, curBestCost)
+                                            
+                if steepest swapParams && minimimCheckedCost < curBestCost then
+                    pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
+                else rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor newBestGraphs newBestCost splitEdgeList restSplits
 
 
 {- doAllSplitsAndRejoin generates all split reoptimizations
@@ -436,73 +442,77 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                                else 
                                                     pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
 
-                                {-Make TBR EdgeData-}
-                                makeTBREdgeDataPar <- getParallelChunkTraverse 
-                                tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
+                                -- shot circuit for TBTROnly in Alternate
+                                if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
+                                    doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
 
-                                let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
+                                else do{-Make TBR EdgeData-}
+                                    makeTBREdgeDataPar <- getParallelChunkTraverse 
+                                    tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
 
-                                -- Parallel set up
-                                --heuristicAction :: LG.LEdge EdgeInfo → PhyG ([(LG.LEdge EdgeInfo, VertexCost)], [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo, VertexCost)])
-                                let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex tbrEdgeDataPairList
+                                    let tbrEdgeDataPairList = zip tbrRerootEdges tbrEdgeDataList
+
+                                    -- Parallel set up
+                                    --heuristicAction :: LG.LEdge EdgeInfo → PhyG ([(LG.LEdge EdgeInfo, VertexCost)], [(LG.LEdge EdgeInfo, LG.LEdge EdgeInfo, VertexCost)])
+                                    let heuristicAction = singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraphOptimized splitCost prunedGraphRootIndex tbrEdgeDataPairList
 
 
-                                {-Heuristic cost calculations-}
-                                heuristicActionPar <- getParallelChunkTraverse 
-                                heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
+                                    {-Heuristic cost calculations-}
+                                    heuristicActionPar <- getParallelChunkTraverse 
+                                    heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-                                -- process SPR returns
-                                let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
-                                let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
-                                                            else minimum $ fmap snd bettterHeuristicEdgesSPR
+                                    -- process SPR returns
+                                    let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
+                                    let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
+                                                                else minimum $ fmap snd bettterHeuristicEdgesSPR
 
-                                let tbrPart = concat $ fmap snd heuristicResultList
-                                let bettterHeuristicEdgesTBR = filter ((< curBestCost) . snd) tbrPart
-                                let minHeuristicCostTBR =   if (null bettterHeuristicEdgesTBR) then infinity
-                                                            else minimum $ fmap snd bettterHeuristicEdgesTBR
+                                    let tbrPart = concat $ fmap snd heuristicResultList
+                                    let bettterHeuristicEdgesTBR = filter ((< curBestCost) . snd) tbrPart
+                                    let minHeuristicCostTBR =   if (null bettterHeuristicEdgesTBR) then infinity
+                                                                else minimum $ fmap snd bettterHeuristicEdgesTBR
 
-                                let minHeuristicCost =  min minHeuristicCostSPR minHeuristicCostTBR
+                                    let minHeuristicCost =  min minHeuristicCostSPR minHeuristicCostTBR
 
-                                let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesSPR
-                                                                    else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
-                                                                    else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
-                                                                    -- BestAll
-                                                                    else concat $ fmap fst heuristicResultList
+                                    let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesSPR
+                                                                        else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
+                                                                        else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
+                                                                        -- BestAll
+                                                                        else concat $ fmap fst heuristicResultList
 
-                                --- Make full graphs that are needed for reoptimizaiton
-                                makeSPRGraphPar <- getParallelChunkTraverse
-                                toReoptimizeGraphsSPR <- makeSPRGraphPar makeSPRGraphAction (fmap fst toReoptimizeAndCheckCostSPR)
+                                    --- Make full graphs that are needed for reoptimizaiton
+                                    makeSPRGraphPar <- getParallelChunkTraverse
+                                    toReoptimizeGraphsSPR <- makeSPRGraphPar makeSPRGraphAction (fmap fst toReoptimizeAndCheckCostSPR)
 
-                                -- process TBR returns (if done)
-                                let toReoptimizeAndCheckCostTBR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesTBR
-                                                                    else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesTBR
-                                                                    else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart
-                                                                    -- BestAll
-                                                                    else tbrPart
+                                    -- process TBR returns (if done)
+                                    let toReoptimizeAndCheckCostTBR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesTBR
+                                                                        else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesTBR
+                                                                        else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart
+                                                                        -- BestAll
+                                                                        else tbrPart
 
-                                makeTBRGraphPar <- getParallelChunkTraverse
-                                toReoptimizeGraphsTBR <- makeTBRGraphPar makeTBRGraphAction (fmap fst toReoptimizeAndCheckCostTBR)
+                                    makeTBRGraphPar <- getParallelChunkTraverse
+                                    toReoptimizeGraphsTBR <- makeTBRGraphPar makeTBRGraphAction (fmap fst toReoptimizeAndCheckCostTBR)
 
-                                -- combine graaphs for reoptimization
-                                let toReoptimizeGraphs = toReoptimizeGraphsSPR <> toReoptimizeGraphsTBR
+                                    -- combine graaphs for reoptimization
+                                    let toReoptimizeGraphs = toReoptimizeGraphsSPR <> toReoptimizeGraphsTBR
 
-                                {-Diagnose and check costs-}
-                                diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-                                checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
+                                    {-Diagnose and check costs-}
+                                    diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
+                                    checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
 
-                                let minimimCheckedCost = if (null checkedGraphCosts) then infinity
-                                                         else minimum $ fmap snd5 checkedGraphCosts
+                                    let minimimCheckedCost = if (null checkedGraphCosts) then infinity
+                                                             else minimum $ fmap snd5 checkedGraphCosts
 
-                                (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
-                                                                    logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
-                                                                    pure (filter ((== minimimCheckedCost) .snd5) checkedGraphCosts, minimimCheckedCost)
-                                                                else 
-                                                                    pure (curBestGraphList, curBestCost)
+                                    (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
+                                                                        logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
+                                                                        pure (filter ((== minimimCheckedCost) .snd5) checkedGraphCosts, minimimCheckedCost)
+                                                                    else 
+                                                                        pure (curBestGraphList, curBestCost)
 
-                                -- recurse or shortcut if better and steepest
-                                if steepest swapParams && minimimCheckedCost < curBestCost then
-                                    pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
-                                else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
+                                    -- recurse or shortcut if better and steepest
+                                    if steepest swapParams && minimimCheckedCost < curBestCost then
+                                        pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
+                                    else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
                         
 
 {- | makeSprNewGraph takes split graph and readded edge making new complete graph for rediagnosis etc
