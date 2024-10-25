@@ -95,7 +95,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     | any ((== "better") . fst) lcArgList = Better
                     | any ((== "bettern") . fst) lcArgList = BetterN
                     | any ((== "bestall") . fst) lcArgList = BestAll
-                    | otherwise = BestOnly
+                    | otherwise = BetterN
 
                 -- turn off union selection of rejoin--default to do both, union first
                 joinType
@@ -116,8 +116,10 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- does all of them before sorting
                     -- since comes after testing for random will override
                 sortEdgesSplitCost
+                    | any ((== "splitsequential") . fst) lcArgList = False
                     | any ((== "sortsplit") . fst) lcArgList = True
-                    | otherwise = False
+                    | atRandom = False
+                    | otherwise = True
 
                 -- when plitting base graph--do in parallel or via recursive sequential
                 -- might save on memeory, coulod be a bit more efficient time-wise
