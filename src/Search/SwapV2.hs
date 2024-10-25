@@ -349,7 +349,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                                 else 
                                                     pure (curBestGraphList, curBestCost)
                                             
-                if steepest swapParams && minimimCheckedCost < curBestCost then
+                if ((swapType swapParams == TBROnly) || steepest swapParams) && minimimCheckedCost < curBestCost then
                     pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
                 else rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor newBestGraphs newBestCost splitEdgeList restSplits
 
@@ -510,7 +510,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                                                         pure (curBestGraphList, curBestCost)
 
                                     -- recurse or shortcut if better and steepest
-                                    if steepest swapParams && minimimCheckedCost < curBestCost then
+                                    if ((swapType swapParams == TBROnly) || steepest swapParams) && minimimCheckedCost < curBestCost then
                                         pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
                                     else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
                         
