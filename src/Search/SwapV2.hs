@@ -48,14 +48,14 @@ swapV2
     → [ReducedPhylogeneticGraph]
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapV2 swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
+swapV2 swapParams inGS inData inCounter curBestGraphList saParams =
     if null curBestGraphList
         then pure ([], inCounter)
         else 
-            if isNothing inSimAnnealParams then 
+            if isNothing saParams then 
                 swapByType swapParams inGS inData inCounter curBestGraphList Nothing
             else -- simlayed annealing/drift
-                swapSimulatedAnnealing swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
+                swapSimulatedAnnealing swapParams inGS inData inCounter curBestGraphList saParams 
 
 {- | Controls the simulated annealing/drift swapping phases
     1) swap potentially accepting worse cost graphs according to SA?Drif
@@ -71,13 +71,17 @@ swapSimulatedAnnealing
     → [ReducedPhylogeneticGraph]
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSimulatedAnnealing swapParams inGS inData inCounter inBestGraphList inSimAnnealParams =
+swapSimulatedAnnealing swapParams inGS inData inCounter inBestGraphList saParams =
     if null inBestGraphList
         then pure ([], inCounter)
         else do
             let inBestCost = minimum $ fmap snd5 inBestGraphList
-            -- generate SA/Drift graphs
-            (saGraphs, saCounter) <- swapByType swapParams inGS inData inCounter inBestGraphList inSimAnnealParams
+
+            -- this to make SA/Drift  simpler
+            let driftSwapType = if swapType swapParams `elem` [NNI, SPR, TBR] then swapType swapParams
+                                else TBR
+            -- generate SA/Drift graphs, use "Best" since want the "worse" results to some extent, and minimizes work
+            (saGraphs, saCounter) <- swapByType (swapParams {checkHeuristic = BestOnly, swapType = driftSwapType}) inGS inData inCounter inBestGraphList saParams
 
             -- swap "back" to optimal costs
             (backGraphs, backCounter) <- swapByType swapParams inGS inData saCounter saGraphs Nothing
@@ -91,6 +95,7 @@ swapSimulatedAnnealing swapParams inGS inData inCounter inBestGraphList inSimAnn
 
 {- | Controls the use of alternate versus other types of swap
     makes things cleaner for SA/Drift
+    No SA/Drift for Alternate--stick with NNI/SPR/TBR celaner
 -}
 swapByType
     ∷ SwapParams
@@ -100,19 +105,21 @@ swapByType
     → [ReducedPhylogeneticGraph]
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapByType swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
+swapByType swapParams inGS inData inCounter curBestGraphList saParams =
     if null curBestGraphList
         then pure ([], inCounter)
         else 
             if swapType swapParams `elem` [NNI, SPR, TBR] then 
-                swapNaive swapParams inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
+                swapNaive swapParams inGS inData inCounter curBestGraphList curBestGraphList saParams
             else if swapType swapParams == Alternate then
                 -- alternate between SPR and TBROnly
-                swapAlternate swapParams inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
+                swapAlternate swapParams inGS inData inCounter curBestGraphList curBestGraphList
             else error ("Swap type not recognized/implemented: " <> (show $ swapType swapParams))
 
 {- | swapAlternate uses SPR and TBROnly to sear where if TBROnly finds a new solution, it 
     returns to SPR on new graph and does this untill TBROnly finds no new solutions.
+
+    No SAPArams since not used in drift/SA
 -}
 swapAlternate 
     ∷ SwapParams
@@ -121,22 +128,21 @@ swapAlternate
     → Int
     → [ReducedPhylogeneticGraph]
     → [ReducedPhylogeneticGraph]
-    → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAnnealParams = 
+swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList = 
     if null graphsToSwap then pure ([], inCounter)
     else 
         let curBestCost = minimum $ fmap snd5 graphsToSwap
         in do
-            (sprGraphResult, sprCount) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
-            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBR}) inGS inData sprCount sprGraphResult sprGraphResult inSimAnnealParams
+            (sprGraphResult, sprCount) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList curBestGraphList Nothing
+            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBR}) inGS inData sprCount sprGraphResult sprGraphResult Nothing
             
             let sprBestCost = minimum $ fmap snd5 sprGraphResult
             let tbrBestCost = minimum $ fmap snd5 tbrOnlyResult
 
             -- The to see if TBR rearrangements did anything--if not end
             if tbrBestCost < sprBestCost then
-                swapAlternate swapParams inGS inData sprCount tbrOnlyResult tbrOnlyResult inSimAnnealParams
+                swapAlternate swapParams inGS inData sprCount tbrOnlyResult tbrOnlyResult 
 
             else 
                 pure (tbrOnlyResult, sprCount)
@@ -161,6 +167,8 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inS
             NNI O(n)
             SPR O(n^2)
             TBR O(n^3)
+
+    SA/Drift uses the recursive call not full parallel on splits
 -}
 swapNaive 
     ∷ SwapParams
@@ -171,7 +179,7 @@ swapNaive
     → [ReducedPhylogeneticGraph]
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAnnealParams =
+swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList saParams =
     let inGraphPair = L.uncons graphsToSwap
     in
     if isNothing inGraphPair
@@ -188,68 +196,76 @@ swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList inSimAn
             else do
                 let curBestCost = minimum $ fmap snd5 graphsToSwap
 
-                -- skip if already have better graphs
-                if curBestCost < snd5 firstGraph then
-                    swapNaive swapParams inGS inData (inCounter + 1) graphsRemaining curBestGraphList inSimAnnealParams
+                -- do not shortcicuit here based on cost -- need for SA/Drift
 
-                else do
+                let fullFirstGraph = GO.convertReduced2PhylogeneticGraph firstGraph
+                inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing fullFirstGraph
+                let inGraphNetPenaltyFactor = inGraphNetPenalty / curBestCost
 
-                    let fullFirstGraph = GO.convertReduced2PhylogeneticGraph firstGraph
-                    inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing fullFirstGraph
-                    let inGraphNetPenaltyFactor = inGraphNetPenalty / curBestCost
+                -- sort overrides random
+                -- SA/Drif uses randomized order
+                edgeList <- if (atRandom swapParams) && (not $ sortEdgesSplitCost swapParams) || (isJust saParams) then 
+                                shuffleList (LG.getEdgeSplitList $ thd5 firstGraph)
+                            else pure (LG.getEdgeSplitList $ thd5 firstGraph)
 
-                    -- sort overrides random
-                    edgeList <- if (atRandom swapParams) && (not $ sortEdgesSplitCost swapParams) then 
-                                    shuffleList (LG.getEdgeSplitList $ thd5 firstGraph)
-                                else pure (LG.getEdgeSplitList $ thd5 firstGraph)
-
-                    let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
+                let nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
                 
-                    -- this is doing all splits in parallel so can sort on those with greatest cost difference
-                        -- probably should be an option since does alot of work that would discarded in a "steepeast descent"
-                        -- though my still be worth it
-                        -- could do in batches also
-                    -- if random order perhaps do parallel in the join phase in tranches
-                    rejoinResult <- if splitParallel swapParams then do
-                                        -- splitAction ::  LG.LEdge EdgeInfo → PhyG (DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)
-                                        let splitAction = doASplit swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor fullFirstGraph
-                                        spltActionPar <- (getParallelChunkTraverseBy snd5)
-                                        resultListP <- spltActionPar splitAction edgeList
+                -- this is doing all splits in parallel so can sort on those with greatest cost difference
+                    -- probably should be an option since does alot of work that would discarded in a "steepeast descent"
+                    -- though my still be worth it
+                    -- could do in batches also
+                -- if random order perhaps do parallel in the join phase in tranches
+                -- SA/Drift uses the recursive to save work if terminates early
+                rejoinResult <- if (splitParallel swapParams) && (isNothing saParams) then do
+                                -- splitAction ::  LG.LEdge EdgeInfo → PhyG (DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)
+                                    let splitAction = doASplit swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor fullFirstGraph
+                                    spltActionPar <- (getParallelChunkTraverseBy snd5)
+                                    resultListP <- spltActionPar splitAction edgeList
 
-                                        -- order of split cost
-                                        if sortEdgesSplitCost swapParams then
-                                            rejoinFromOptSplitList swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor graphsToSwap curBestCost edgeList (L.sortOn snd5 resultListP) -- ([head splitList])
+                                    -- order of split cost
+                                    if sortEdgesSplitCost swapParams then
+                                        rejoinFromOptSplitList swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor graphsToSwap curBestCost edgeList (L.sortOn snd5 resultListP) -- ([head splitList])
 
-                                        -- could have been randomized order
-                                        else rejoinFromOptSplitList swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor graphsToSwap curBestCost edgeList resultListP
+                                    -- could have been randomized order
+                                    else rejoinFromOptSplitList swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor graphsToSwap curBestCost edgeList resultListP
 
-                                    else -- this is recursive on splitting as opposed to paeallelized
-                                        doAllSplitsAndRejoin swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor graphsToSwap curBestCost fullFirstGraph edgeList
-                    
-                    (newValList, returnCost) <-  if (minimum $ fmap snd rejoinResult) < curBestCost then 
-                                                    pure (fmap fst rejoinResult, minimum $ fmap snd rejoinResult)
-                                                else if (minimum $ fmap snd rejoinResult) == curBestCost then 
-                                                    pure ((fmap fst rejoinResult) <> curBestGraphList, curBestCost)
-                                                else pure (curBestGraphList, curBestCost)
+                                -- this is recursive on splitting as opposed to parallelized
+                                -- used by SA/Drift (with randomization) as well to save work
+                                else 
+                                    doAllSplitsAndRejoin swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor graphsToSwap curBestCost fullFirstGraph saParams edgeList
 
-                    -- Conditions to keep going or return
-                    -- Better graphs than input
-                    if returnCost < curBestCost then 
-                        if (TBROnly == swapType swapParams) then
-                            pure (newValList, inCounter + 1)
-                        else
-                            swapNaive swapParams inGS inData (inCounter + 1) newValList newValList inSimAnnealParams
-                    -- equal graph costs to input
-                    else if returnCost == curBestCost then do
-                        uniqueBestGraphs <- GO.selectGraphs Unique (keepNum swapParams) 0.0 $ newValList <> curBestGraphList
-                        swapNaive swapParams inGS inData (inCounter + 1) (graphsRemaining L.\\ uniqueBestGraphs) uniqueBestGraphs inSimAnnealParams
+                -- Always return the whole lot for SA, since BEstOnly has been specified should be single graph
+                (newValList, returnCost) <- if isJust saParams then 
+                                                pure (fmap fst rejoinResult, minimum $ fmap snd rejoinResult)
+                                            else if (minimum $ fmap snd rejoinResult) < curBestCost then 
+                                                pure (fmap fst rejoinResult, minimum $ fmap snd rejoinResult)
+                                            else if (minimum $ fmap snd rejoinResult) == curBestCost then 
+                                                pure ((fmap fst rejoinResult) <> curBestGraphList, curBestCost)
+                                            else pure (curBestGraphList, curBestCost)
 
-                    -- worse graphs than input
-                    else swapNaive swapParams inGS inData (inCounter + 1) graphsRemaining curBestGraphList inSimAnnealParams
+                -- Conditions to keep going or return
+                -- SA?Drift hit max numbers
+                if isJust saParams then
+                    pure (newValList, inCounter + 1)
+                -- Better graphs than input
+                else if returnCost < curBestCost then 
+                    if (TBROnly == swapType swapParams) then
+                        pure (newValList, inCounter + 1)
+                    else
+                        swapNaive swapParams inGS inData (inCounter + 1) newValList newValList saParams
+                -- equal graph costs to input
+                else if returnCost == curBestCost then do
+                    uniqueBestGraphs <- GO.selectGraphs Unique (keepNum swapParams) 0.0 $ newValList <> curBestGraphList
+                    swapNaive swapParams inGS inData (inCounter + 1) (graphsRemaining L.\\ uniqueBestGraphs) uniqueBestGraphs saParams
+
+                -- worse graphs than input
+                else swapNaive swapParams inGS inData (inCounter + 1) graphsRemaining curBestGraphList saParams
 
 {- | rejoinFromOptSplitList\plitList takes a list of optimized split graphs and
     calls rejoin function
     Good for parallel exectution
+
+    Does not have SA/Drift functionality
 -}
 rejoinFromOptSplitList 
     :: SwapParams 
@@ -287,7 +303,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             -- Functions for edge data and rejoin function
             (makeEdgeDataFunction, edgeJoinFunction) =
                 if graphType inGS == HardWired then 
-                    (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
+                (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
                 else if not doIA then 
                     (M.makeEdgeDataM False True, edgeJoinDelta inGS False)
                 else 
@@ -311,18 +327,19 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             makeTBREdgeData =  makeEdgeDataFunction splitGraphOptimized charInfoVV
 
         in do
-            rejoinEdges <- if atRandom swapParams then 
-                             shuffleList edgesInBaseGraph
-                           -- should re-add close to original placement first
-                           else if swapType swapParams == NNI then
-                                pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
-                                                    
-                           else 
-                                pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
-
             if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
                     rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitEdgeList restSplits
             else do
+                rejoinEdges <- if atRandom swapParams then 
+                                 shuffleList edgesInBaseGraph
+                               -- should re-add close to original placement first
+                               else if swapType swapParams == NNI then
+                                    pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                                        
+                               else 
+                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+
+                
                 {-Make TBR EdgeData-}
                 makeTBREdgeDataPar <- getParallelChunkTraverse 
                 tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
@@ -338,36 +355,33 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 heuristicActionPar <- getParallelChunkTraverse 
                 heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-                -- process SPR returns
+                -- process returns
+                -- changed this to keep list of all not better for BestOnly and SA/Drift
+                -- BestOnly now gets best evein if not better than current cost
                 let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
-                let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
-                                            else minimum $ fmap snd bettterHeuristicEdgesSPR
+                let minHeuristicCostSPR =   if (null $ fmap fst heuristicResultList) then infinity
+                                            else minimum $ fmap snd $ concat $ fmap fst heuristicResultList -- bettterHeuristicEdgesSPR
 
                 let tbrPart = concat $ fmap snd heuristicResultList
                 let bettterHeuristicEdgesTBR = filter ((< curBestCost) . snd) tbrPart
-                let minHeuristicCostTBR =   if (null bettterHeuristicEdgesTBR) then infinity
-                                            else minimum $ fmap snd bettterHeuristicEdgesTBR
+                let minHeuristicCostTBR =   if (null tbrPart) then infinity
+                                            else minimum $ fmap snd tbrPart -- $ fmap snd bettterHeuristicEdgesTBR
 
                 let minHeuristicCost =  min minHeuristicCostSPR minHeuristicCostTBR
 
-                let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then 
-                                                        bettterHeuristicEdgesSPR
-                                                    else if (checkHeuristic swapParams == BestOnly) then 
-                                                        filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
-                                                    else if (checkHeuristic swapParams == BetterN) then 
-                                                        take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
+                let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesSPR
+                                                    else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) $ concat $ fmap fst heuristicResultList -- bettterHeuristicEdgesSPR
+                                                    else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
                                                     -- BestAll
                                                     else concat $ fmap fst heuristicResultList
 
-                --logWith LogInfo $ "\n\tTaking:" <> (show  ((length $ take (graphsSteepest inGS) $ L.sortOn snd $ fmap fst heuristicResultList), (length $ take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart)))
-                                                        
                 --- Make full graphs that are needed for reoptimizaiton
                 makeSPRGraphPar <- getParallelChunkTraverse
                 toReoptimizeGraphsSPR <- makeSPRGraphPar makeSPRGraphAction (fmap fst toReoptimizeAndCheckCostSPR)
 
                 -- process TBR returns (if done)
                 let toReoptimizeAndCheckCostTBR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesTBR
-                                                    else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesTBR
+                                                    else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) tbrPart -- bettterHeuristicEdgesTBR
                                                     else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart
                                                     -- BestAll
                                                     else tbrPart
@@ -383,16 +397,16 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                 checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
 
-                let minimimCheckedCost = if (null checkedGraphCosts) then infinity
+                let minimumCheckedCost = if (null checkedGraphCosts) then infinity
                                          else minimum $ fmap snd5 checkedGraphCosts
 
-                (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
-                                                    logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
-                                                    pure (filter ((== minimimCheckedCost) .snd5) checkedGraphCosts, minimimCheckedCost)
+                (newBestGraphs, newBestCost) <- if minimumCheckedCost < curBestCost then do
+                                                    logWith LogInfo $ "\t-> " <> (show minimumCheckedCost)
+                                                    pure (filter ((== minimumCheckedCost) .snd5) checkedGraphCosts, minimumCheckedCost)
                                                 else 
                                                     pure (curBestGraphList, curBestCost)
                                             
-                if ((swapType swapParams == TBROnly) || steepest swapParams) && minimimCheckedCost < curBestCost then
+                if ((swapType swapParams == TBROnly) || steepest swapParams) && minimumCheckedCost < curBestCost then
                     pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
                 else rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor newBestGraphs newBestCost splitEdgeList restSplits
 
@@ -412,9 +426,10 @@ doAllSplitsAndRejoin
     -> [ReducedPhylogeneticGraph]
     -> VertexCost 
     -> PhylogeneticGraph 
+    -> Maybe SAParams
     -> [LG.LEdge EdgeInfo] 
     -> PhyG [(ReducedPhylogeneticGraph, VertexCost)]
-doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph edgeList'' = 
+doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph saParams edgeList'' = 
                 let edgeList' = L.uncons edgeList''
                 in
                 if isNothing edgeList' then pure $ zip curBestGraphList (fmap snd5 curBestGraphList)
@@ -429,9 +444,9 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                 reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor firstFullGraph splitGraph graphRoot prunedGraphRootIndex 
                         --
                         --logWith LogInfo $ "\tSplit Cost New: " <> (show splitCost) -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
-
-                        if (splitCost >= curBestCost) then 
-                            doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
+                        -- avoid shorcircuiting on SA/Drif
+                        if (splitCost >= curBestCost) && (isNothing saParams) then 
+                            doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph saParams restEdges
                         else 
                             -- rejoin function
 
@@ -487,9 +502,10 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
                                 -- shot circuit for TBTROnly in Alternate
                                 if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
-                                    doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
+                                    doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph saParams restEdges
 
-                                else do{-Make TBR EdgeData-}
+                                --Make TBR EdgeData
+                                else do 
                                     makeTBREdgeDataPar <- getParallelChunkTraverse 
                                     tbrEdgeDataList <- makeTBREdgeDataPar makeTBREdgeData tbrRerootEdges
 
@@ -504,20 +520,22 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                     heuristicActionPar <- getParallelChunkTraverse 
                                     heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
 
-                                    -- process SPR returns
+                                    -- process returns
+                                    -- changed this to keep list of all not better for BestOnly and SA/Drift
+                                    -- BestOnly now gets best evein if not better than current cost
                                     let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
-                                    let minHeuristicCostSPR =   if (null bettterHeuristicEdgesSPR) then infinity
-                                                                else minimum $ fmap snd bettterHeuristicEdgesSPR
+                                    let minHeuristicCostSPR =   if (null $ fmap fst heuristicResultList) then infinity
+                                                                else minimum $ fmap snd $ concat $ fmap fst heuristicResultList -- bettterHeuristicEdgesSPR
 
                                     let tbrPart = concat $ fmap snd heuristicResultList
                                     let bettterHeuristicEdgesTBR = filter ((< curBestCost) . snd) tbrPart
-                                    let minHeuristicCostTBR =   if (null bettterHeuristicEdgesTBR) then infinity
-                                                                else minimum $ fmap snd bettterHeuristicEdgesTBR
+                                    let minHeuristicCostTBR =   if (null tbrPart) then infinity
+                                                                else minimum $ fmap snd tbrPart -- $ fmap snd bettterHeuristicEdgesTBR
 
                                     let minHeuristicCost =  min minHeuristicCostSPR minHeuristicCostTBR
 
                                     let toReoptimizeAndCheckCostSPR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesSPR
-                                                                        else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesSPR
+                                                                        else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) $ concat $ fmap fst heuristicResultList -- bettterHeuristicEdgesSPR
                                                                         else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ concat $ fmap fst heuristicResultList 
                                                                         -- BestAll
                                                                         else concat $ fmap fst heuristicResultList
@@ -528,7 +546,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
                                     -- process TBR returns (if done)
                                     let toReoptimizeAndCheckCostTBR =   if (checkHeuristic swapParams == Better) then bettterHeuristicEdgesTBR
-                                                                        else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) bettterHeuristicEdgesTBR
+                                                                        else if (checkHeuristic swapParams == BestOnly) then filter ((== minHeuristicCost) . snd) tbrPart -- bettterHeuristicEdgesTBR
                                                                         else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sortOn snd $ tbrPart
                                                                         -- BestAll
                                                                         else tbrPart
@@ -543,19 +561,37 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                     diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                                     checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap GO.convertDecoratedToSimpleGraph toReoptimizeGraphs)
 
-                                    let minimimCheckedCost = if (null checkedGraphCosts) then infinity
+                                    let minimumCheckedCost = if (null checkedGraphCosts) then infinity
                                                              else minimum $ fmap snd5 checkedGraphCosts
 
-                                    (newBestGraphs, newBestCost) <- if minimimCheckedCost < curBestCost then do
-                                                                        logWith LogInfo $ "\t-> " <> (show minimimCheckedCost)
-                                                                        pure (filter ((== minimimCheckedCost) .snd5) checkedGraphCosts, minimimCheckedCost)
-                                                                    else 
-                                                                        pure (curBestGraphList, curBestCost)
+                                    -- SA/Drift process graphs
+                                    if isJust saParams then do
+                                        (acceptGraph, newSAParams) <- U.simAnnealAccept saParams curBestCost minimumCheckedCost
+                                        (newBestGraphs, newBestCost) <- if acceptGraph then do
+                                                                            logWith LogInfo $ "\t-> " <> (show minimumCheckedCost)
+                                                                            pure (filter ((== minimumCheckedCost) .snd5) checkedGraphCosts, minimumCheckedCost)
+                                                                            
+                                                                        else 
+                                                                            pure (curBestGraphList, curBestCost)
 
-                                    -- recurse or shortcut if better and steepest
-                                    if ((swapType swapParams == TBROnly) || steepest swapParams) && minimimCheckedCost < curBestCost then
-                                        pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
-                                    else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph restEdges
+                                        if U.isSimAnnealTerminated saParams then
+                                            pure $ zip newBestGraphs (replicate (length newBestGraphs) newBestCost)
+                                        else
+                                            doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor newBestGraphs curBestCost firstFullGraph newSAParams restEdges
+
+
+                                    -- regular swap
+                                    else do
+                                        (newBestGraphs, newBestCost) <- if minimumCheckedCost < curBestCost then do
+                                                                            logWith LogInfo $ "\t-> " <> (show minimumCheckedCost)
+                                                                            pure (filter ((== minimumCheckedCost) .snd5) checkedGraphCosts, minimumCheckedCost)
+                                                                        else 
+                                                                            pure (curBestGraphList, curBestCost)
+
+                                        if ((swapType swapParams == TBROnly) || steepest swapParams) && minimumCheckedCost < curBestCost then
+                                            pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
+                                        
+                                        else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph saParams restEdges
                         
 
 {- | makeSprNewGraph takes split graph and readded edge making new complete graph for rediagnosis etc

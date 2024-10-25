@@ -265,6 +265,8 @@ swapMaster inArgs inGS inData inGraphListInput =
 
 
 -- | getSimumlatedAnnealingParams returns SA parameters
+-- set SA?Drif max changes / number steps > 0 so can always check if one otr other matches 
+-- to terminate in swapping etc
 getSimAnnealParams
     ∷ Bool
     → Bool
@@ -302,7 +304,7 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
             worseFactor = max (fromJust acceptWorseFactor) 0.0
 
             changes = case maxChanges of
-                Just num | num >= 0 → num
+                Just num | num > 0 → num
                 _ → 15
 
             getResult =
