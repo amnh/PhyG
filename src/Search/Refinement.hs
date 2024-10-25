@@ -321,6 +321,7 @@ fuseGraphs inArgs inGS inData inGraphList
                 SwapParams
                     { swapType = swapType
                     , joinType = joinType
+                    , checkHeuristic = BestOnly
                     , atRandom = randomPairs -- really same as swapping at random not so important here
                     , keepNum = (fromJust keepNum)
                     , maxMoveEdgeDist = (2 * fromJust maxMoveEdgeDist)

@@ -24,6 +24,7 @@ import GeneralUtilities
 import GraphOptimization.Medians qualified as M
 import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.PreOrderFunctions qualified as PRE
+import Search.SwapV2 qualified as SV2
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
@@ -34,10 +35,10 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
-
 {- | SwapDriver
-    Uses compnent functions but with alternate high-level logic
-    Generates new simmanneal params for recursive rounds
+    Top levl formtesting and swithcing between functions
+
+    SA stuff should be changed in swapMaster to reflect the single SAParams
 -}
 swapDriver
     ∷ SwapParams
@@ -47,7 +48,28 @@ swapDriver
     → [ReducedPhylogeneticGraph]
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
+swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams = 
+    let saList = L.uncons inSimAnnealParams
+    in
+    if isNothing saList then
+    -- swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
+        SV2.swapV2  swapParams inGS inData inCounter curBestGraphList Nothing 
+    else 
+        SV2.swapV2  swapParams inGS inData inCounter curBestGraphList ((fst . fst . fromJust) saList)
+
+{- | SwapDriver
+    Uses compnent functions but with alternate high-level logic
+    Generates new simmanneal params for recursive rounds
+-}
+swapDriver'
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Int
+    → [ReducedPhylogeneticGraph]
+    → [(Maybe SAParams, ReducedPhylogeneticGraph)]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams = 
     if null curBestGraphList
         then pure ([], inCounter)
         else do
@@ -77,7 +99,7 @@ swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams =
                                     else -- found better-- go around again
                                     do
                                         let newSimAnnealParamList = zip (U.generateUniqueRandList (length newGraphList) newSAParams) newGraphList
-                                        swapDriver swapParams inGS inData newCounter newGraphList newSimAnnealParamList
+                                        swapDriver' swapParams inGS inData newCounter newGraphList newSimAnnealParamList
 
 
 {- swapMAster
@@ -1767,17 +1789,21 @@ getTBREdgeEditsSimple inGraph prunedGraphRootIndex rerootEdge =
         -- add new root edges
         -- and new edge on old root--but need orientation
         -- flip edges from new root to old (delete and add list)
-        {-
-        trace ("\n\nIn Graph:\n" <> (LG.prettyIndices inGraph) <> "\nTBR Edits: " <> (show (LG.toEdge rerootEdge, prunedGraphRootIndex))
-             <> " NewEdgeOldRoot: " <> (show $ LG.toEdge newEdgeOnOldRoot)
-             <> " New rootEdges: " <> (show $ fmap LG.toEdge newRootEdges)
-             )
-        -}
-        --   <> "\nEdges to add: " <> (show $ fmap LG.toEdge $ newEdgeOnOldRoot : (flippedEdges <> newRootEdges)) <> "\nEdges to delete: " <> (show $ rerootEdge : (fmap LG.toEdge (edgesToFlip <> originalRootEdges))))
+       
         (newEdgeOnOldRoot : (flippedEdges <> newRootEdges), LG.toEdge rerootEdge : (fmap LG.toEdge (edgesToFlip <> originalRootEdges)))
 
 
--- )
+-- | reoptimizeSplitGraphFromVertexTuple wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
+reoptimizeSplitGraphFromVertexTuple
+    ∷ GlobalSettings
+    → ProcessedData
+    → Bool
+    → VertexCost
+    → (DecoratedGraph, Int, Int)
+    → PhyG (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexTuple inGS inData doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+    reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
+
 
 {- | reoptimizeSplitGraphFromVertex fully labels the component graph that is connected to the specified vertex
 retuning that graph with 2 optimized components and their cost
@@ -1796,6 +1822,8 @@ if doIA is TRUE then call function that onl;y optimizes the IA assignments on th
 this keeps teh IA chracters in sync across the two graphs
 NB uses PhylogeneticGraph internally
 This should return infinity for split graph cost if either component is emptyGraph
+
+Tested 3 doublings of metazoa and roughtly O(n)
 -}
 reoptimizeSplitGraphFromVertex
     ∷ GlobalSettings
@@ -1838,6 +1866,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
+                            Nothing
                             leafGraph
                             False
                             (Just startVertex)
@@ -1867,6 +1896,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                             (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                             nonExactCharacters
                             inData
+                            Nothing
                             leafGraph
                             False
                             (Just prunedSubGraphRootVertex)
@@ -1920,23 +1950,12 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                         else pure (fullSplitGraph, splitGraphCost)
 
 
--- )
-
--- | reoptimizeSplitGraphFromVertexTuple wrapper for reoptimizeSplitGraphFromVertex with last 3 args as tuple
-reoptimizeSplitGraphFromVertexTuple
-    ∷ GlobalSettings
-    → ProcessedData
-    → Bool
-    → VertexCost
-    → (DecoratedGraph, Int, Int)
-    → PhyG (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertexTuple inGS inData doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
-    reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
 
 
 {- | reoptimizeSplitGraphFromVertexIA performs operations of reoptimizeSplitGraphFromVertex for static charcaters
 but dynamic characters--only update IA assignments and initialized from origPhylo graph (at leaves) to keep IA characters in sync
 since all "static" only need single traversal post order pass
+
 uses PhylogenetiGraph internally
 -}
 reoptimizeSplitGraphFromVertexIA
@@ -1976,6 +1995,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
+                    Nothing
                     leafGraph
                     True
                     (Just startVertex)
@@ -2013,6 +2033,7 @@ reoptimizeSplitGraphFromVertexIA inGS inData netPenaltyFactor inSplitGraph start
                 POSW.postOrderTreeTraversal
                     (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = multiTraverse})
                     inData
+                    Nothing
                     leafGraph
                     True
                     (Just prunedSubGraphRootVertex)
