@@ -7,13 +7,19 @@ read("Metazoa20.fas")
 --build(distance, replicates:10, rdwag, dwag,wpgma,nj, best:10)
 
 --select(best)
-set(multitraverse:false)
 
-read("Metazoa20-dist-spr.dot")
+--read("Metazoa20-dist-spr.dot")
 
-swap(alternate, sortSplit,betterN)
+-- for drift test
+read("Metazoa20-dist-spr-2.dot")
+
+transform(multitraverse:false)
+
+--swap(alternate, sortSplit,betterN)
+swap(tbr, drift:5, maxchanges:5, acceptequal:0.0, acceptworse:0.05, betterN)
 --swap(spr)
 
 transform(multitraverse:True)
-report("Metazoa20-dist-spr-2.dot", graphs, dotpdf, overwrite, nocollapse)
+
+report("Metazoa20-dist-spr-3.dot", graphs, dotpdf, overwrite, nocollapse)
 report("Metazoa20-dist-spr-search.csv", search, overwrite)

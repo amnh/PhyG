@@ -54,8 +54,25 @@ swapV2 swapParams inGS inData inCounter curBestGraphList saParams =
         else 
             if isNothing saParams then 
                 swapByType swapParams inGS inData inCounter curBestGraphList Nothing
-            else -- simlayed annealing/drift
-                swapSimulatedAnnealing swapParams inGS inData inCounter curBestGraphList saParams 
+            else
+                let numberInstances = rounds $ fromJust saParams
+                    -- parallel setup
+                    action ∷ ReducedPhylogeneticGraph → PhyG ([ReducedPhylogeneticGraph], Int)
+                    action = swapSimulatedAnnealing swapParams inGS inData inCounter saParams
+
+                in do
+                -- simulated annealing/drift
+                -- spawn rounds 
+                actionPar <- getParallelChunkTraverse 
+                annealGraphPairList <- actionPar action (L.replicate numberInstances (head curBestGraphList))
+
+                -- collect results
+                let (annealGraphList, counterList) = unzip annealGraphPairList
+
+                bestGraphs <- GO.selectGraphs Best (keepNum swapParams) 0.0 $ curBestGraphList <> (concat annealGraphList)
+
+                pure (bestGraphs, sum counterList)
+                
 
 {- | Controls the simulated annealing/drift swapping phases
     1) swap potentially accepting worse cost graphs according to SA?Drif
@@ -68,20 +85,25 @@ swapSimulatedAnnealing
     → GlobalSettings
     → ProcessedData
     → Int
-    → [ReducedPhylogeneticGraph]
     → Maybe SAParams
+    → ReducedPhylogeneticGraph
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapSimulatedAnnealing swapParams inGS inData inCounter inBestGraphList saParams =
-    if null inBestGraphList
-        then pure ([], inCounter)
-        else do
-            let inBestCost = minimum $ fmap snd5 inBestGraphList
+swapSimulatedAnnealing swapParams inGS inData inCounter saParams inBestGraph = do
+    --if null inBestGraphList
+    --    then pure ([], inCounter)
+    --    else do
+            let inBestCost = snd5 inBestGraph
 
             -- this to make SA/Drift  simpler
             let driftSwapType = if swapType swapParams `elem` [NNI, SPR, TBR] then swapType swapParams
                                 else TBR
+
+            --logWith LogInfo $ "\tStarting with " <> (show inBestCost)
+
             -- generate SA/Drift graphs, use "Best" since want the "worse" results to some extent, and minimizes work
-            (saGraphs, saCounter) <- swapByType (swapParams {checkHeuristic = BestOnly, swapType = driftSwapType}) inGS inData inCounter inBestGraphList saParams
+            (saGraphs, saCounter) <- swapByType (swapParams {checkHeuristic = BestOnly, swapType = driftSwapType}) inGS inData inCounter [inBestGraph] saParams
+
+            --logWith LogInfo $ "\tGoing back with " <> (show $ fmap snd5 saGraphs)
 
             -- swap "back" to optimal costs
             (backGraphs, backCounter) <- swapByType swapParams inGS inData saCounter saGraphs Nothing
@@ -89,7 +111,7 @@ swapSimulatedAnnealing swapParams inGS inData inCounter inBestGraphList saParams
             -- take SA/Drif or Input solutions based on cost 
             let finalGraphs =   if (minimum $ fmap snd5 backGraphs) < inBestCost then 
                                     backGraphs
-                                else inBestGraphList
+                                else [inBestGraph]
 
             pure (finalGraphs, backCounter)
 
