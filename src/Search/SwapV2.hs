@@ -36,7 +36,6 @@ import Utilities.Utilities as U
 
 
 {- | New Swap functions that are based on strict PHANE parallelization routines.
-    6) SA/Drift
     7) unions--only for TBR moves?
         
 -}
