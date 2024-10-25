@@ -321,12 +321,14 @@ fuseGraphs inArgs inGS inData inGraphList
                 SwapParams
                     { swapType = swapType
                     , joinType = joinType
-                    , checkHeuristic = BestOnly
+                    , checkHeuristic = BetterN
                     , atRandom = randomPairs -- really same as swapping at random not so important here
                     , keepNum = (fromJust keepNum)
                     , maxMoveEdgeDist = (2 * fromJust maxMoveEdgeDist)
                     , steepest = doSteepest
                     , joinAlternate = False -- join prune alternates--turned off for now
+                    , sortEdgesSplitCost = True -- sort edges based on split cost-- greatest delta first
+                    , splitParallel = True -- when splittting graph--do spliots in parallel or sequenctial
                     , doIA = withIA
                     , returnMutated = False -- no SA/Drift swapping in Fuse
                     }
