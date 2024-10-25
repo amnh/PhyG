@@ -85,17 +85,17 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList inS
         let curBestCost = minimum $ fmap snd5 graphsToSwap
         in do
             (sprGraphResult, sprCount) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter curBestGraphList curBestGraphList inSimAnnealParams
-            (tbrOnlyResult, tbrCount) <- swapNaive (swapParams {swapType = TBR}) inGS inData sprCount sprGraphResult sprGraphResult inSimAnnealParams
+            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBR}) inGS inData sprCount sprGraphResult sprGraphResult inSimAnnealParams
             
             let sprBestCost = minimum $ fmap snd5 sprGraphResult
             let tbrBestCost = minimum $ fmap snd5 tbrOnlyResult
 
             -- The to see if TBR rearrangements did anything--if not end
             if tbrBestCost < sprBestCost then
-                swapAlternate swapParams inGS inData (inCounter + 1) tbrOnlyResult tbrOnlyResult inSimAnnealParams
+                swapAlternate swapParams inGS inData sprCount tbrOnlyResult tbrOnlyResult inSimAnnealParams
 
             else 
-                pure (tbrOnlyResult, tbrCount)
+                pure (tbrOnlyResult, sprCount)
         
 
 
@@ -634,46 +634,44 @@ singleJoinHeuristic
 singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData splitGraph splitCost prunedGraphRootIndex tbrReRootEdgePairList targetEdge =
     let charInfoVV = fmap thd3 $ thd3 inData
     in do
-            -- Create union-thype data for target edge
-            targetEdgeData ← makeEdgeDataFunction splitGraph charInfoVV targetEdge
-
-            -- get the data from the root of the pruned graph (or leaf if only that)
-            let prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
-
-            -- calculate heuristics join cost
-            sprReJoinCost ← edgeJoinFunction charInfoVV prunedRootVertexData targetEdgeData
-
-            
-            -- SPR return new graph with heuristic cost
-            if swapType swapParams `elem` [NNI, SPR] then 
-                pure ([(targetEdge, splitCost + sprReJoinCost)], []) 
-
-            else if swapType swapParams == TBROnly && null tbrReRootEdgePairList then 
+            if swapType swapParams == TBROnly && null tbrReRootEdgePairList then 
                 pure ([],[])
+            else do
+                -- Create union-thype data for target edge
+                targetEdgeData ← makeEdgeDataFunction splitGraph charInfoVV targetEdge
 
-            -- logWith LogInfo $ " TBR reroots: " <> (show $ length tbrReRootEdgePairList)
+                -- get the data from the root of the pruned graph (or leaf if only that)
+                let prunedRootVertexData = vertData $ fromJust $ LG.lab splitGraph prunedGraphRootIndex
 
-            -- tbr (includes SPR result) and TBROnly which does not
-            else if swapType swapParams `elem` [TBR, TBROnly] then 
-                let -- Parallel set up
-                    joinAction :: VertexBlockData → PhyG VertexCost
-                    joinAction = edgeJoinFunction charInfoVV targetEdgeData 
+                -- calculate heuristics join cost
+                sprReJoinCost ← edgeJoinFunction charInfoVV prunedRootVertexData targetEdgeData
 
-                in do
-                    {-Heuristic cost calculations-}
-                    joinActionPar <- getParallelChunkTraverse 
-                    joinActionResultList <- joinActionPar joinAction (fmap snd tbrReRootEdgePairList)
+                
+                -- SPR return new graph with heuristic cost
+                if swapType swapParams `elem` [NNI, SPR] then 
+                    pure ([(targetEdge, splitCost + sprReJoinCost)], []) 
 
-                    let tbrHeuristicCosts = fmap (+ splitCost) joinActionResultList
+                -- tbr (includes SPR result) and TBROnly which does not
+                else if swapType swapParams `elem` [TBR, TBROnly] then 
+                    let -- Parallel set up
+                        joinAction :: VertexBlockData → PhyG VertexCost
+                        joinAction = edgeJoinFunction charInfoVV targetEdgeData 
 
-                    let tbrResult = zip (zip (replicate (length tbrReRootEdgePairList) targetEdge) (fmap fst tbrReRootEdgePairList)) tbrHeuristicCosts
+                    in do
+                        {-Heuristic cost calculations-}
+                        joinActionPar <- getParallelChunkTraverse 
+                        joinActionResultList <- joinActionPar joinAction (fmap snd tbrReRootEdgePairList)
 
-                    -- logWith LogInfo $ " TBR reroots: " <> (show $ length tbrReRootEdgePairList) <> " " <> (show tbrHeuristicCosts)
-                    if swapType swapParams == TBR then
-                        pure ([(targetEdge, splitCost + sprReJoinCost)], tbrResult)   
-                    else 
-                        pure ([], tbrResult)
-            else error ("Unimplemented swap type: " <> (show $ swapType swapParams)) 
+                        let tbrHeuristicCosts = fmap (+ splitCost) joinActionResultList
+
+                        let tbrResult = zip (zip (replicate (length tbrReRootEdgePairList) targetEdge) (fmap fst tbrReRootEdgePairList)) tbrHeuristicCosts
+
+                        -- logWith LogInfo $ " TBR reroots: " <> (show $ length tbrReRootEdgePairList) <> " " <> (show tbrHeuristicCosts)
+                        if swapType swapParams == TBR then
+                            pure ([(targetEdge, splitCost + sprReJoinCost)], tbrResult)   
+                        else 
+                            pure ([], tbrResult)
+                else error ("Unimplemented swap type: " <> (show $ swapType swapParams)) 
 
 {- | edgeJoinDelta calculates heuristic cost for joining pair edges
     IA field is faster--but has to be there and not for harwired
