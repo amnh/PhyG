@@ -15,8 +15,10 @@ read("Metazoa20-dist-spr-2.dot")
 
 transform(multitraverse:false)
 
---swap(alternate, sortSplit,betterN)
-swap(tbr, drift:5, maxchanges:5, acceptequal:0.0, acceptworse:0.05, betterN)
+set(jointhreshold: 1.17)
+swap(alternate, sortSplit,betterN, joinPruned)
+--swap(alternate, sortSplit,betterN, joinAll)
+--swap(sortSplit, betterN)
 --swap(spr)
 
 transform(multitraverse:True)

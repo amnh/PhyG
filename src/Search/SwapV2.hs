@@ -351,14 +351,34 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
                     rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitEdgeList restSplits
             else do
+                {-pruning of edge via unions
+                    Does not seem to help as much as I would have thought--perhaps the union process is not coreect
+                    Leaving in to perhaps use/fix later
+                -}
+                let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
+                unionEdgeList ←
+                    getUnionRejoinEdgeListNew
+                    inGS
+                    splitGraphOptimized
+                    charInfoVV
+                    [graphRoot]
+                    (curBestCost - splitCost)
+                    prunedToRejoinUnionData
+                    []
+
+                let edgesInBaseGraph' = if joinType swapParams == JoinPruned then 
+                                                unionEdgeList
+                                            else edgesInBaseGraph
+                
+
                 rejoinEdges <- if atRandom swapParams then 
-                                 shuffleList edgesInBaseGraph
+                                 shuffleList edgesInBaseGraph'
                                -- should re-add close to original placement first
                                else if swapType swapParams == NNI then
-                                    pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                    pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
                                                         
                                else 
-                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
 
                 
                 {-Make TBR EdgeData-}
@@ -512,14 +532,38 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
 
                             in do
+
+                                {-pruning of edge via unions
+                                    Does not seem to help as much as I would have thought--perhaps the union process is not coreect
+                                    Leaving in to perhaps use/fix later-}
+                                let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
+                                
+                                unionEdgeList ←
+                                    getUnionRejoinEdgeListNew
+                                        inGS
+                                        splitGraphOptimized
+                                        charInfoVV
+                                        [graphRoot]
+                                        ((snd6 firstFullGraph) - splitCost)
+                                        prunedToRejoinUnionData
+                                        []
+
+                                let edgesInBaseGraph' = if joinType swapParams == JoinPruned then 
+                                                             unionEdgeList
+                                                        else edgesInBaseGraph
+
+                                
+
                                 rejoinEdges <- if atRandom swapParams then 
-                                                 shuffleList edgesInBaseGraph
+                                                 shuffleList edgesInBaseGraph'
                                                -- should re-add close to original placement first
                                                else if swapType swapParams == NNI then
-                                                    pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                                    pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
                                                                         
                                                else 
-                                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph
+                                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
+                                
+                                -- logWith LogInfo $ "\nEdge to rejoin: " <> (show $ length rejoinEdges) <> " Union: " <> (show $ length unionEdgeList)
 
                                 -- shot circuit for TBTROnly in Alternate
                                 if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
@@ -613,7 +657,95 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                             pure $  zip newBestGraphs (replicate (length newBestGraphs) newBestCost)         
                                         
                                         else doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph saParams restEdges
-                        
+
+
+{- | getUnionRejoinEdgeListNew takes a graph (split and reoptimized usually), the overall root index (of split),
+split cost, and union threshold value and returns list of edges that have union distance <= threshold factor
+assumes that root edges are not network edges (an invariant)
+checks node then recurses to children
+-}
+getUnionRejoinEdgeListNew
+    ∷ GlobalSettings
+    → DecoratedGraph
+    → V.Vector (V.Vector CharInfo)
+    → [LG.Node]
+    → Double
+    → VertexBlockData
+    → [LG.LEdge EdgeInfo]
+    → PhyG [LG.LEdge EdgeInfo]
+getUnionRejoinEdgeListNew inGS inGraph charInfoVV nodeIndexList splitDiffCost nodeToJoinUnionData curEdgeList =
+    -- returns edges in post order since prepending--could reverse if want pre-order edges
+    -- might be better post order, unclear
+    if null nodeIndexList
+        then pure curEdgeList
+        else
+            let nodeIndex = head nodeIndexList
+                childEdges = LG.out inGraph nodeIndex
+                childNodeIndexList = fmap snd3 childEdges
+
+                -- node data and union distance
+                nodeData = vertData $ fromJust $ LG.lab inGraph nodeIndex
+            in  -- nodeDataString = U.getUnionFieldsNode nodeData
+                -- toJoinString = U.getUnionFieldsNode nodeToJoinUnionData
+
+                -- traceNoLF ("GURE: " <> (show nodeIndex)) (
+                -- trace ("GUREL: " <> (show (unionDistance, splitDiffCost, unionThreshold * splitDiffCost))) (
+                if (length childEdges) `notElem` [0, 1, 2]
+                    then error ("Node has improper number of children : " <> (show $ length childEdges))
+                    else do
+                        -- add non-outgroup root edge to list for rejoin after checking for acceptable union distance
+                        -- if edge is not within union distance factor then stop--no recursion
+                        -- this since distance cannot get lower further upt the graph given union creation
+
+                        unionDistance ← getUnionDistanceM nodeToJoinUnionData nodeData charInfoVV
+                        let metThreshold = unionDistance < splitDiffCost * (unionThreshold inGS)
+
+                        if LG.isRoot inGraph nodeIndex
+                            then
+                                if metThreshold
+                                    then
+                                        if (null $ LG.out inGraph (head childNodeIndexList))
+                                            then
+                                                getUnionRejoinEdgeListNew
+                                                    inGS
+                                                    inGraph
+                                                    charInfoVV
+                                                    [(snd3 $ last childEdges)]
+                                                    splitDiffCost
+                                                    nodeToJoinUnionData
+                                                    ((last childEdges) : curEdgeList)
+                                            else
+                                                getUnionRejoinEdgeListNew
+                                                    inGS
+                                                    inGraph
+                                                    charInfoVV
+                                                    [(snd3 $ head childEdges)]
+                                                    splitDiffCost
+                                                    nodeToJoinUnionData
+                                                    ((head childEdges) : curEdgeList)
+                                    else pure curEdgeList
+                            else do
+                                -- non-root node--process childre 1/2
+                                -- recurses to their children if union condition met--but doesn't add network edges
+                                -- check current node--then recurse to children
+
+                                -- let -- first and second child data child
+                                newCurEdgeListChild ←
+                                    if metThreshold
+                                        then getUnionRejoinEdgeListNew inGS inGraph charInfoVV childNodeIndexList splitDiffCost nodeToJoinUnionData (childEdges <> curEdgeList)
+                                        else pure curEdgeList
+                                -- in  -- recurse remaining nodes
+                                getUnionRejoinEdgeListNew inGS inGraph charInfoVV (tail nodeIndexList) splitDiffCost nodeToJoinUnionData newCurEdgeListChild
+
+
+{- | getUnionDistanceM gets distance between two the union fields of two characters
+since its a distance no need for no change cost adjustment
+-}
+getUnionDistanceM ∷ VertexBlockData → VertexBlockData → V.Vector (V.Vector CharInfo) → PhyG Double
+getUnionDistanceM union1 union2 charInfoVV =
+    let noChangeCostAdjut = False
+    in  M.distance2UnionsM noChangeCostAdjut union1 union2 charInfoVV
+
 
 {- | makeSprNewGraph takes split graph and readded edge making new complete graph for rediagnosis etc
 -}

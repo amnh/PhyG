@@ -103,7 +103,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     | any ((== "joinall") . fst) lcArgList = JoinAll
                     | any ((== "joinpruned") . fst) lcArgList = JoinPruned
                     | any ((== "joinalternate") . fst) lcArgList = JoinAlternate
-                    | otherwise = JoinAlternate
+                    | otherwise = JoinAll
 
                 -- randomize split graph and rejoin edges, defualt to randomize
                 atRandom

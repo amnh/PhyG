@@ -723,7 +723,7 @@ data SwapParams = SwapParams
     , checkHeuristic :: HeuristicCheck -- for reoptimizing graphs after heuristic costs
     , doIA ∷ Bool -- use Implied alignment fields for rearragement costs
     , joinAlternate ∷ Bool -- in alternate swapping for TBR
-    , joinType ∷ JoinType -- Union priuning on or off
+    , joinType ∷ JoinType -- Union pruning on or off
     , keepNum ∷ Int -- number equally costly solutoins to keep
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
     , returnMutated ∷ Bool -- return changed graphs for simlated annealing, genetic algorithm
