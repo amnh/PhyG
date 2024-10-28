@@ -285,11 +285,15 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                             → (DecoratedGraph, Int, Int, Int, Int)
                         exchangeAction = exchangePrunedGraphs numLeaves
 
-                        --reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
-                        --reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
-
+                        {- Issues with the new reoptimize--made tpoo many assumptions and need to revisit.
                         reoptimizeActionNew ∷ (PhylogeneticGraph, DecoratedGraph, LG.Node, LG.Node) → PhyG (DecoratedGraph, VertexCost)
                         reoptimizeActionNew = SV2.reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData False (U.getNumberSequenceCharacters $ thd3 inData) netPenalty
+                        -}
+
+                        reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
+                        reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
+
+                        
                     in  do
                             splitLeftPar ← getParallelChunkMap
                             let leftSplitTupleList = splitLeftPar splitLeftAction leftBreakEdgeList
@@ -337,7 +341,9 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
                                     leftRightOptimizedSplitGraphCostList ←
                                         getParallelChunkTraverse >>= \pTraverse →
-                                            pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                            -- need to revisit to make a better incremental optimization here
+                                            -- pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                            pTraverse reoptimizeAction $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
                                     let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
 
@@ -399,7 +405,9 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
 
                                                 rightLeftOptimizedSplitGraphCostList ←
                                                     getParallelChunkTraverse >>= \pTraverse →
-                                                        pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length rightBaseLeftPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph rightGraph) rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+                                                    -- need to revisit to make a better incremental optimization here
+                                                    -- pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length rightBaseLeftPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph rightGraph) rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+                                                    pTraverse reoptimizeAction $ L.zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
 
                                                 let ( _
                                                         , rightLeftOptimizedSplitGraphCostList'
