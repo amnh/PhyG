@@ -390,6 +390,7 @@ swapArgList =
     , "joinpruned"
     --, "joinalternate"
     , "keep"
+    , "level"
     , "maxchanges"
     , "nni"
     , "replicates"
