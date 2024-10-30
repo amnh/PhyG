@@ -1704,8 +1704,8 @@
 		group of algorithms referred to as branch swapping, that proceed by clipping
 		parts of the given tree and attaching them in different positions. These algorithms 
 		include `NNI' \citep{CaminandSokal1965, Robinson1971}, `SPR' \citep{Dayhoff1969}, 
-		and `TBR' \citep{Farris1988, swofford1990a} refinement.  Default swapping trajectories 
-		are randomized.}
+		and `TBR' \citep{Farris1988, swofford1990a} refinement.  %Default swapping trajectories are randomized.
+		}
 	\end{phygdescription}
 		
 	\subsubsection{Arguments}
@@ -1727,7 +1727,7 @@
 		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best 
 		graph, $k$ is the step number, and $k_{max}$ is the maximum number of steps (set 
 		by the argument \texttt{steps}, with a default of 10).
-		
+			
 		\begin{description}
 			
 			\item[steps:[INT]] Specifies the number of temperature steps to be performed during 
@@ -1737,7 +1737,20 @@
 		
 		\item[atRandom] Swap neighborhoods are traversed in a randomized order (compare 
 		with \texttt{inorder}). 	This will result in different trajectories of the swap space being 
-		explored. This is the default.
+		explored. % This is the default.
+		
+		\item[bestAll] Specifies that when evaluating heuristic costs, all heuristic costs are 
+		reevaluated.  This will add a factor of $n$ (number of terminals) to swapping time complexity
+		(e.g. $O(n^4)$ for TBR as opposed to $O(n^3)$), dramatically increasing execution time.
+		
+		\item[bestOnly] Specifies that when evaluating heuristic costs, only the best heuristic cost is 
+		reevaluated.
+		
+		\item[better] Specifies that when evaluating heuristic costs, all heuristic costs that are lower 
+		then the current best cost are reevaluated.
+		
+		\item[betterN] Specifies that when evaluating heuristic costs, the best $N$ heuristic costs are 
+		reevaluated where $N$ is set by \texttt{graphsSteepest}.  This is the default.
 		
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
 		annealing \citep{goloboff1999} optimization that are performed, as indicated by the integer 
@@ -1771,12 +1784,33 @@
 		\item[joinAll] Turns off all preference strategies to make a join, simply trying all possible 
 		join positions for each pair of clades generated after a break. 
 
-%		\item[joinPruned] Only internal---used for testing purposes.
+		\item[joinPruned] Enables preferences for join strategies. This option can reduce execution time, 
+		but at the cost of a less effective search.
 		
 %		\item[joinAlternate] Only internal---used for testing purposes.
 				
 		\item[keep:INT] Specifies the number of equally costly graphs to be retained, as
 		determined by the integer value.		
+		
+		\item[level:INT] Specifies a series of heuristic intensities (and execution times) from 0 (all preferences 
+		and heuristics off) 
+		to 3 (all preferences and heuristics on) used during swapping.  Levels 2 and 3 perform an additional level 1 
+		swap after completion.  Graphs are rediagnosed (if necessary) to the global 
+		\texttt{multiTraverse} state.
+		
+		\begin{description}
+			
+			\item[level:0] Equivalent to options \texttt{bestAll, joinAll, multiTraverse:True}. This level is extremely 
+			time consuming.
+			
+			\item[level:1] Equivalent to options \texttt{bestN, joinAll, multiTraverse:False}.
+			
+			\item[level:2] Equivalent to options \texttt{bestN, joinPruned, multiTraverse:False}. 
+			
+			\item[level:3] Equivalent to options \texttt{bestOnly, joinPruned, multiTraverse:False}. This level 
+			will be the fastest, but most approximate search.
+			
+		\end{description}  
 		
 		\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} 
 		is performed.
@@ -1784,7 +1818,16 @@
 		\item[replicates:[INT]] Sets the number of randomized swap replicate trajectories. 
 		Default 1.
 		
+		\item[sortSplit] Specifies that graph breaks are examined in reverse split cost order.
+		This is the default.
+		
 %		\item[returnMutated] Only internal---used for testing purposes.
+		\item[splitSequential] Specifies that graph breaks during the swap are performed sequentially.
+		This can reduce memory footprint and execution time but does not allow graph splits to be 
+		randomized or ordered by cost.
+
+		\item[splitParallel] Specifies that graph breaks during the swap are performed in parallel.
+		This is the default.
 		
 		\item[spr:[INT]] Specifies that SPR refinement \citep{Dayhoff1969} is performed. If an 
 		integer value is specified, the re-addition of pruned graphs will be within $INT$ 
@@ -1800,7 +1843,7 @@
 	\end{description}	
 		
 		\subsubsection{Defaults}
-			\texttt{swap(alternate, keep:10, steepest)}
+			\texttt{swap(alternate, keep:10, steepest, sortSplit, betterN, joinAll)}
 		
 		\begin{example}
 		

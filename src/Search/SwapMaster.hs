@@ -16,6 +16,7 @@ import Data.Functor ((<&>))
 import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
+import GraphOptimization.Traversals qualified as T
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
@@ -44,6 +45,7 @@ swapMaster inArgs inGS inData inGraphListInput =
         else -- else if graphType inGS == HardWired then trace ("Swapping hardwired graphs is currenty not implemented") inGraphList
 
             let -- process args for swap
+                inputBestCost = minimum $ fmap snd5 inGraphList
                 ( keepNum
                     , maxMoveEdgeDist'
                     , steps'
@@ -54,6 +56,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     , acceptWorseFactor
                     , maxChanges
                     , replicateNumber
+                    , levelNumber
                     , lcArgList
                     ) = getSwapParams inArgs
 
@@ -130,24 +133,65 @@ swapMaster inArgs inGS inData inGraphListInput =
                     | any ((== "splitsequential") . fst) lcArgList = False
                     | otherwise = True
 
+                -- set level of swap heristric intensity
+                swapLevel
+                    | all ((/= "level") . fst) lcArgList = (-1)
+                    | fromJust levelNumber < 0 = 0
+                    | fromJust levelNumber > 3 = 3
+                    | otherwise = fromJust levelNumber
 
                 -- populate SwapParams structure
-                localSwapParams = 
-                    SwapParams
-                        { swapType = swapType
-                        , joinType = joinType
-                        , atRandom = atRandom
-                        , checkHeuristic = heuristicCheck
-                        , sortEdgesSplitCost = sortEdgesSplitCost
-                        , keepNum = (fromJust keepNum)
-                        , maxMoveEdgeDist = maxMoveEdgeDist
-                        , splitParallel = parallelSplit
-                        , steepest = doSteepest
-                        , joinAlternate = False -- join prune alternates--turned off for now
-                        , doIA = doIA''
-                        , returnMutated = returnMutated
-                        }
+                -- levels may have > 1 swap pass
+                standardSwap = SwapParams
+                                    { swapType = swapType
+                                    , joinType = joinType
+                                    , atRandom = atRandom
+                                    , checkHeuristic = heuristicCheck
+                                    , sortEdgesSplitCost = sortEdgesSplitCost
+                                    , keepNum = (fromJust keepNum)
+                                    , maxMoveEdgeDist = maxMoveEdgeDist
+                                    , splitParallel = parallelSplit
+                                    , steepest = doSteepest
+                                    , joinAlternate = False -- join prune alternates--turned off for now
+                                    , doIA = doIA''
+                                    , returnMutated = returnMutated
+                                    }
 
+                -- levels may have > 1 swap pass
+                -- and different values 
+                (localSwapParams, localMultiTraverse) = if swapLevel == (-1) then
+                                                            (standardSwap, multiTraverseCharacters inGS) 
+
+                                                        -- Basicall zero heuristics (adds factor of n)
+                                                        else if swapLevel == 0 then
+                                                            (standardSwap 
+                                                                { joinType = JoinAll
+                                                                , checkHeuristic = BestAll
+                                                                }, True)
+
+                                                        -- Other heuristics from 1 (slowest) -> 3 (fastest)
+                                                        -- will make a call to reoptimize using MultiTraverse after swap
+                                                        else if swapLevel == 1 then
+                                                            (standardSwap 
+                                                                { joinType = JoinAll
+                                                                , checkHeuristic = BetterN
+                                                                }, False)
+
+                                                        -- This is default behavior
+                                                        else if swapLevel == 2 then
+                                                            (standardSwap 
+                                                                { joinType = JoinPruned
+                                                                , checkHeuristic = BetterN
+                                                                }, False)
+
+                                                        -- Fastest least effective
+                                                        else if swapLevel == 3 then
+                                                            (standardSwap 
+                                                                { joinType = JoinPruned
+                                                                , checkHeuristic = BestOnly
+                                                                }, False)
+
+                                                        else error ("Unimplemented swap level: " <> (show swapLevel))
                 -- swap replicates is meant to allow multiple randomized swap trajectories
                 -- set to 1 if not randomized swap or SA/Drifting (set by their own options)
                 replicates
@@ -160,9 +204,11 @@ swapMaster inArgs inGS inData inGraphListInput =
                 numGraphs = length inGraphList
 
                 -- parallel setup
-                action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
-                -- action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapSPRTBR localSwapParams inGS inData 0 inGraphList
-                action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver localSwapParams inGS inData 0 inGraphList
+                --action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
+                --action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver localSwapParams inGS inData 0 inGraphList
+
+                reoptimizeAction ∷ GlobalSettings → ProcessedData → Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
+                reoptimizeAction = T.multiTraverseFullyLabelGraphReduced
             in  do
                     simAnnealParams ←
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
@@ -213,7 +259,37 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     logWith LogInfo progressString
 
-                    let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList
+                    -- Rediagnose with MultiTraverse on if that is the setting
+                    inGraphList' <- if swapLevel == (-1) then
+                                            pure inGraphList
+
+                                    -- swap level 0 uses MultiTraverse
+                                    else if swapLevel == 0  && (not $ multiTraverseCharacters inGS) then do
+                                                logWith LogInfo $ "\tMultiTraverse to True for swap level 0 " <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) inGraphList
+
+                                    else if swapLevel == 0 then 
+                                                pure inGraphList
+
+                                    -- already not MultiTraverse and swap levels (1-3) that do not use it
+                                    else if (not $ multiTraverseCharacters inGS) then do
+                                                pure inGraphList
+
+                                    -- is MultiTraverse and swap levels 1-3, need to reoptimize to false
+                                    else do
+                                                logWith LogInfo $ "\tMultiTraverse to False for swap level " <> (show swapLevel) <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) inGraphList
+                                        
+
+                    -- parallel setup
+                    --action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
+                    let action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver localSwapParams (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 inGraphList'
+
+                    let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList'
                     graphPairList ←
                         getParallelChunkTraverse >>= \pTraverse →
                             action `pTraverse` simAnnealList
@@ -222,7 +298,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x → (x, sum counterList)
 
                     let finalGraphList = case newGraphList of
-                            [] → inGraphList
+                            [] → inGraphList'
                             _ → newGraphList
 
                     let fullBuffWarning =
@@ -263,8 +339,71 @@ swapMaster inArgs inGS inData inGraphListInput =
                                     <> show swapType
 
                     logWith LogInfo (endString <> fullBuffWarning <> "\n")
-                    pure finalGraphList
 
+                    -- add in second round for higher swap levels
+                    if swapLevel == (-1) then 
+                        pure finalGraphList
+                    else if swapLevel == 0 then
+                        if multiTraverseCharacters inGS then 
+                            pure finalGraphList
+
+                        else do
+                                logWith LogInfo  "\tMultiTraverse to False\n"
+                                getParallelChunkTraverse >>= \pTraverse →
+                                                pTraverse
+                                                    (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) finalGraphList
+                    else if swapLevel == 1 then
+                        if not $ multiTraverseCharacters inGS then 
+                            pure finalGraphList
+                        else do
+                            logWith LogInfo  "\tMultiTraverse to True\n"
+                            reDiagGraphs <- getParallelChunkTraverse >>= \pTraverse →
+                                                pTraverse
+                                                    (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) finalGraphList
+                            if inputBestCost < (minimum $ fmap snd5 reDiagGraphs) then 
+                                pure inGraphListInput
+                            else 
+                                pure reDiagGraphs
+
+                    -- swap levels 2 and 3 are followed by a 2
+                    else do
+                        logWith LogInfo $ "\tSecond round level swap " <> "\n"
+                        
+                        let swapParamsLevel = standardSwap { joinType = JoinAll
+                                                            , checkHeuristic = BetterN
+                                                            }
+                        let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 finalGraphList
+
+                        let simAnnealListLevel = (: []) <$> zip newSimAnnealParamList finalGraphList
+                        graphPairListLevel ←
+                            getParallelChunkTraverse >>= \pTraverse →
+                                actionLevel `pTraverse` simAnnealListLevel
+
+                        let (graphListListLevel, counterListLevel) = first fold $ unzip graphPairListLevel
+
+                        -- Rediagnose with MultiTraverse on if that is the setting
+                        reoptimizedGraphList <- if not $ multiTraverseCharacters inGS then do
+                                                    logWith LogInfo "\n"
+                                                    pure graphListListLevel
+
+                                                else do
+                                                    logWith LogInfo $ "\n\tMultiTraverse  to True\n"
+                                                    reDiagGraphs <- getParallelChunkTraverse >>= \pTraverse →
+                                                            pTraverse
+                                                                (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) graphListListLevel
+                                                    if inputBestCost < (minimum $ fmap snd5 reDiagGraphs) then 
+                                                        pure inGraphListInput
+                                                    else 
+                                                        pure reDiagGraphs
+
+
+                        (newGraphListLevel, counterLevel) ← GO.selectGraphs Best (fromJust keepNum) 0 reoptimizedGraphList <&> \x → (x, sum counterListLevel)
+
+                        let finalGraphListLevel = case newGraphListLevel of
+                                [] → finalGraphList
+                                _ → newGraphListLevel
+
+                        pure finalGraphListLevel
 
 -- | getSimumlatedAnnealingParams returns SA parameters
 -- set SA?Drif max changes / number steps > 0 so can always check if one otr other matches 
@@ -342,6 +481,7 @@ getSwapParams
       , Maybe Double
       , Maybe Int
       , Maybe Int
+      , Maybe Int
       , [(String, String)]
       )
 getSwapParams inArgs =
@@ -408,6 +548,14 @@ getSwapParams inArgs =
                         | null acceptWorseList = Just 20.0
                         | otherwise = readMaybe (snd $ head acceptWorseList) ∷ Maybe Double
 
+                    levelList = filter ((== "level") . fst) lcArgList
+                    levelNumber
+                        | length levelList > 1 =
+                            errorWithoutStackTrace ("Multiple 'level' number specifications in swap command--can have only one: " <> show inArgs)
+                        | null levelList = Just 2
+                        | otherwise = readMaybe (snd $ head levelList) ∷ Maybe Int
+
+
                     maxChangesList = filter ((== "maxchanges") . fst) lcArgList
                     maxChanges
                         | length maxChangesList > 1 =
@@ -450,6 +598,10 @@ getSwapParams inArgs =
                                                                         then
                                                                             errorWithoutStackTrace
                                                                                 ("Swap 'replicates' specification not an integer (e.g. replicates:5): " <> show (snd $ head replicatesList))
+                                                                    else if isNothing levelNumber
+                                                                        then
+                                                                            errorWithoutStackTrace
+                                                                                ("Swap 'level' specification not an integer (e.g. level:2): " <> show (snd $ head replicatesList))
                                                                         else -- trace ("GSP: " <> (show inArgs) <> " " <> (show )(keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList))
 
                                                                             ( keepNum
@@ -462,5 +614,6 @@ getSwapParams inArgs =
                                                                             , acceptWorseFactor
                                                                             , maxChanges
                                                                             , replicates
+                                                                            , levelNumber
                                                                             , lcArgList
                                                                             )
