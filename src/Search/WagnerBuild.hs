@@ -227,8 +227,6 @@ addTaxonWagner maxDistance useIA numVerts (_, _, inDecGraph, _, _, charInfoVV) l
         edge2 = (numVerts, snd3 targetEdge, 0.0)
         newNode = (numVerts, TL.pack ("HTU" <> show numVerts))
     in  -- full post order
-        -- newSimpleGraph =  LG.insEdges [edge0, edge1, edge2] $ LG.insNode newNode $ LG.delEdge (LG.toEdge targetEdge) inSimple
-        -- newCost = snd6 $ T.postDecorateTree newSimpleGraph leafDecGraph charInfoVV numLeaves
         do
             -- heuristic delta
             (delta, edgeUnionVertData) ← getDelta useIA leafToAddVertData targetEdge inDecGraph charInfoVV

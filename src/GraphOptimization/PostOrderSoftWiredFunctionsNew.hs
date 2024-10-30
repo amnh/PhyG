@@ -37,6 +37,7 @@ module GraphOptimization.PostOrderSoftWiredFunctionsNew (
     softWiredPostOrderTraceBack,
     createBlockResolutions,
     addNodeAndEdgeToResolutionData,
+    updateNodeCost,
     updateRootCost,
     getOutDegree1VertexAndGraph,
     getOutDegree1VertexSoftWired,
@@ -73,8 +74,8 @@ and then recurses to root postorder labelling vertices and edges as it goes
 this for a single root
 -}
 postDecorateSoftWired
-    ∷ GlobalSettings → SimpleGraph → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.Node → LG.Node → PhyG PhylogeneticGraph
-postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNode =
+    ∷ GlobalSettings → Maybe (DecoratedGraph, LG.Node) → SimpleGraph → DecoratedGraph → V.Vector (V.Vector CharInfo) → LG.Node → LG.Node → PhyG PhylogeneticGraph
+postDecorateSoftWired inGS incrementalInfo simpleGraph curDecGraph blockCharInfo rootIndex curNode =
     -- if node in current decorated graph then nothing to do and return it
     --   this because will hit node twice if network node
     if LG.gelem curNode curDecGraph
@@ -94,10 +95,10 @@ postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex curNo
                 leftChild = head nodeChildren
                 rightChild = last nodeChildren -- will be same is first for out 1 (network) node
             in  do
-                    leftChildTree ← postDecorateSoftWired inGS simpleGraph curDecGraph blockCharInfo rootIndex leftChild
+                    leftChildTree ← postDecorateSoftWired inGS incrementalInfo simpleGraph curDecGraph blockCharInfo rootIndex leftChild
                     rightLeftChildTree ←
                         if length nodeChildren == 2
-                            then postDecorateSoftWired inGS simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
+                            then postDecorateSoftWired inGS incrementalInfo simpleGraph (thd6 leftChildTree) blockCharInfo rootIndex rightChild
                             else pure leftChildTree
 
                     -- Checks on children
@@ -743,11 +744,26 @@ assumes its a tree wiht a single root
 -}
 updateRootCost ∷ VertexCost → DecoratedGraph → DecoratedGraph
 updateRootCost newRootCost inGraph =
-    let (rootIndex, rootLabel) = head $ LG.getRoots inGraph
-        rootEdges = LG.out inGraph rootIndex
+    let rootNode = head $ LG.getRoots inGraph
+    in
+    updateNodeCost rootNode newRootCost inGraph
+    {-
+    }    rootEdges = LG.out inGraph rootIndex
         newRootLabel = rootLabel{subGraphCost = newRootCost}
     in  -- trace ("DCC: " <> (show newRootCost))
         LG.insEdges rootEdges $ LG.insNode (rootIndex, newRootLabel) $ LG.delNode rootIndex inGraph
+    -}
+
+{- | updateNodeCost  updates the subGraphCost of the specified node(s) with input value
+ node is created, so original is deleted,  added, and original edges added back
+since deleted when node is
+-}
+updateNodeCost ∷ LG.LNode VertexInfo -> VertexCost → DecoratedGraph → DecoratedGraph
+updateNodeCost (nodeIndex, nodeLabel) newNodeCost inGraph =
+    let nodeEdges = LG.out inGraph nodeIndex
+        newNodeLabel = nodeLabel{subGraphCost = newNodeCost}
+    in  -- trace ("DCC: " <> (show newRootCost))
+        LG.insEdges nodeEdges $ LG.insNode (nodeIndex, newNodeLabel) $ LG.delNode nodeIndex inGraph
 
 
 {-

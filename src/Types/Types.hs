@@ -251,7 +251,9 @@ maxSimultaneousGraphsSteepest = 10
 
 
 -- | SwapType types for swapping, TBRAlternate for special casing in Swap
-data SwapType = NoSwap | NNI | SPR | TBR | Alternate | TBRAlternate
+-- TBR only does non-Spr moves in a TBR searc process, would be done after SPR in an 
+-- Alternate seaarch
+data SwapType = NoSwap | NNI | SPR | TBR | Alternate | TBRAlternate |TBROnly
     deriving stock (Show, Eq)
 
 
@@ -538,16 +540,16 @@ instance NFData ResolutionData where rnf x = seq x ()
 
 -- | VertexInfo type -- vertex information for Decorated Graph
 data VertexInfo = VertexInfo
-    { index ∷ Int -- For accessing
-    , bvLabel ∷ NameBV -- For comparison of vertices subtrees, left/right
-    , parents ∷ V.Vector Int -- indegree indices
+    { bvLabel ∷ NameBV -- For comparison of vertices subtrees, left/right
     , children ∷ V.Vector Int -- outdegree indices
+    , index ∷ Int -- For accessing
     , nodeType ∷ NodeType -- root, leaf, network, tree
-    , vertName ∷ NameText -- Text name of vertex either input or HTU#
-    , vertData ∷ VertexBlockData -- data as vector of blocks (each a vector of characters)
-    , vertexResolutionData ∷ V.Vector ResolutionBlockData -- soft-wired network component resolution information for Blocks
-    , vertexCost ∷ VertexCost -- local cost of vertex
+    , parents ∷ V.Vector Int -- indegree indices
     , subGraphCost ∷ VertexCost -- cost of graph to leaves from the vertex
+    , vertexCost ∷ VertexCost -- local cost of vertex
+    , vertData ∷ VertexBlockData -- data as vector of blocks (each a vector of characters)
+    , vertName ∷ NameText -- Text name of vertex either input or HTU#
+    , vertexResolutionData ∷ V.Vector ResolutionBlockData -- soft-wired network component resolution information for Blocks
     }
     deriving stock (Generic, Show, Eq)
 
@@ -557,10 +559,10 @@ instance NFData VertexInfo where rnf x = seq x ()
 
 -- | type edge data, source and sink node indices are fst3 and snd3 fields.
 data EdgeInfo = EdgeInfo
-    { minLength ∷ VertexCost
+    { edgeType ∷ EdgeType
     , maxLength ∷ VertexCost
     , midRangeLength ∷ VertexCost
-    , edgeType ∷ EdgeType
+    , minLength ∷ VertexCost
     }
     deriving stock (Show, Eq, Ord)
 
@@ -706,18 +708,29 @@ data SAParams = SAParams
 
 instance NFData SAParams where rnf x = seq x ()
 
+-- type for reoptimizinmg candiate graphs after heuristic cost
+    -- Best = only the best/lowest heuristic costs get rechecked
+    -- Better = all thse graphs with better heuristic scores than the curernt best score
+    -- BestN = check the best N scores that are better than the curent best score
+    -- BestAll checks all graphs
+
+data HeuristicCheck = BestOnly | Better | BetterN | BestAll
+    deriving stock (Read, Show, Eq)
 
 -- | SwapParam type for swap parameers
 data SwapParams = SwapParams
-    { swapType ∷ SwapType -- NNI/SPR/TBR/Alternate
-    , joinType ∷ JoinType -- Union priuning on or off
-    , atRandom ∷ Bool -- randomized spluting and rejoining
+    { atRandom ∷ Bool -- randomized splitting and rejoining
+    , checkHeuristic :: HeuristicCheck -- for reoptimizing graphs after heuristic costs
+    , doIA ∷ Bool -- use Implied alignment fields for rearragement costs
+    , joinAlternate ∷ Bool -- in alternate swapping for TBR
+    , joinType ∷ JoinType -- Union pruning on or off
     , keepNum ∷ Int -- number equally costly solutoins to keep
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
-    , steepest ∷ Bool -- steepest descent versus "all"
-    , joinAlternate ∷ Bool -- in alternate swapping for TBR
-    , doIA ∷ Bool -- use Implied alignment fields for rearragement costs
     , returnMutated ∷ Bool -- return changed graphs for simlated annealing, genetic algorithm
+    , sortEdgesSplitCost :: Bool -- sort edges based on split cost-- greatest delta first
+    , splitParallel :: Bool -- when splittting graph--do spliots in parallel or sequenctial
+    , steepest ∷ Bool -- steepest descent versus "all"
+    , swapType ∷ SwapType -- NNI/SPR/TBR/Alternate
     }
     deriving stock (Show, Eq)
 

@@ -450,6 +450,7 @@ Executable phyg
     Search.Search
     Search.Swap
     Search.SwapMaster
+    Search.SwapV2
     Search.WagnerBuild
     Software.Credits
     Software.License

@@ -1481,6 +1481,21 @@ simAnnealAccept inParams curBestCost candCost = case inParams of
                         (< intAccept) . snd . (`divMod` randMultiplier) . abs <$> getRandom
             in  withUpdatedParams <$> costCheck
 
+-- | isSimAnnealTerminated checks if conditions met to terminate SA/Drift
+isSimAnnealTerminated :: Maybe SAParams -> Bool
+isSimAnnealTerminated inParams =
+    if isNothing inParams then error ("Calling for info from Nothing in isSimAnnealTerminated")
+    else
+        let simAnneal = fromJust inParams
+        in
+        if method simAnneal == SimAnneal then
+            if currentStep simAnneal >= numberSteps simAnneal then 
+                 True
+            else False
+        else 
+            if driftChanges simAnneal >= driftMaxChanges simAnneal then 
+                 True
+            else False
 
 -- | incrementSimAnnealParams increments the step number by 1 but returns all other the same
 incrementSimAnnealParams ∷ Maybe SAParams → Maybe SAParams

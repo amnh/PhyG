@@ -1,6 +1,9 @@
 {-
-Need to integerize costs for swapping very slow on Double values
-  do due spurious precision
+Need to 
+    integerize costs for swapping very slow on Double values
+    do due spurious precision
+
+    Only do full graph update after having chosen best placement
 -}
 
 {- |

@@ -89,28 +89,59 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
 
+                -- checking of heuristic graph costs
+                heuristicCheck 
+                    | any ((== "bestonly") . fst) lcArgList = BestOnly
+                    | any ((== "better") . fst) lcArgList = Better
+                    | any ((== "bettern") . fst) lcArgList = BetterN
+                    | any ((== "bestall") . fst) lcArgList = BestAll
+                    | otherwise = BetterN
+
                 -- turn off union selection of rejoin--default to do both, union first
                 joinType
                     | graphType inGS == HardWired = JoinAll
                     | any ((== "joinall") . fst) lcArgList = JoinAll
                     | any ((== "joinpruned") . fst) lcArgList = JoinPruned
                     | any ((== "joinalternate") . fst) lcArgList = JoinAlternate
-                    | otherwise = JoinAlternate
+                    | otherwise = JoinAll
 
                 -- randomize split graph and rejoin edges, defualt to randomize
                 atRandom
                     | any ((== "atrandom") . fst) lcArgList = True
                     | any ((== "inOrder") . fst) lcArgList = False
+                    | swapType == NNI = False
                     | otherwise = True
 
+                -- split edge order based on greartest diffenrece in costr when graph is split
+                    -- does all of them before sorting
+                    -- since comes after testing for random will override
+                sortEdgesSplitCost
+                    | any ((== "splitsequential") . fst) lcArgList = False
+                    | any ((== "sortsplit") . fst) lcArgList = True
+                    | atRandom = False
+                    | otherwise = True
+
+                -- when plitting base graph--do in parallel or via recursive sequential
+                -- might save on memeory, coulod be a bit more efficient time-wise
+                -- definately affects trajectory--small examples had worse optimality outcomes
+                parallelSplit
+                    | sortEdgesSplitCost = True
+                    | any ((== "splitparallel") . fst) lcArgList = True
+                    | any ((== "splitsequential") . fst) lcArgList = False
+                    | otherwise = True
+
+
                 -- populate SwapParams structure
-                localSwapParams =
+                localSwapParams = 
                     SwapParams
                         { swapType = swapType
                         , joinType = joinType
                         , atRandom = atRandom
+                        , checkHeuristic = heuristicCheck
+                        , sortEdgesSplitCost = sortEdgesSplitCost
                         , keepNum = (fromJust keepNum)
                         , maxMoveEdgeDist = maxMoveEdgeDist
+                        , splitParallel = parallelSplit
                         , steepest = doSteepest
                         , joinAlternate = False -- join prune alternates--turned off for now
                         , doIA = doIA''
@@ -236,6 +267,8 @@ swapMaster inArgs inGS inData inGraphListInput =
 
 
 -- | getSimumlatedAnnealingParams returns SA parameters
+-- set SA?Drif max changes / number steps > 0 so can always check if one otr other matches 
+-- to terminate in swapping etc
 getSimAnnealParams
     ∷ Bool
     → Bool
@@ -273,7 +306,7 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
             worseFactor = max (fromJust acceptWorseFactor) 0.0
 
             changes = case maxChanges of
-                Just num | num >= 0 → num
+                Just num | num > 0 → num
                 _ → 15
 
             getResult =

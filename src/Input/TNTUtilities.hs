@@ -460,8 +460,8 @@ getCosts fileName charNumber commandWordList curCharInfo =
                 charIndices = L.nub $ L.sort $ concatMap (scopeToIndex fileName charNumber) scopeList
                 (localAlphabet, localMatrix) = processCostsLine fileName $ tail $ dropWhile (/= T.pack "=") commandWordList
                 updatedCharInfo = newCharInfoMatrix curCharInfo localAlphabet localMatrix charIndices 0 []
-            in  trace
-                    ("Alph " <> (show $ fmap alphabet updatedCharInfo))
+            in  --trace
+                    --("Alph " <> (show $ fmap alphabet updatedCharInfo))
                     updatedCharInfo
 
 

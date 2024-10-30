@@ -2,29 +2,15 @@
 set(seed:1683323754)
 
 -- Read data
---read("../data/Archea/Archea-10.fas")
-read("archea_ssu_585_aln.fas")
+read("Metazoa10.fas")
 
--- set optimization parameters
---report("../data/Archea/Achea.csv", data, overwrite)
---set(graphssteepest:100)
---build(distance, replicates:1, rdwag)
+build(distance, replicates:10, rdwag, dwag,wpgma,nj, best:10)
 
---build(replicates:1)
+select(best)
 
---transform(staticApprox)
+report("Metazoa10-dist.dot", graphs, dotpdf, overwrite, nocollapse)
 
---report("archea-test-10.dot", graphs, dotpdf, overwrite, nocollapse)
---read("../graphs/Archea-test-build.dot")
-read("archea-test-10.dot")
---search(hours:200, instances:10)
+swap(spr)
 
---fuse(tbr)
---swap(drift:10)
---refine(ga)
---swap()
---select(best)
---transform(multitraverse:false)
---transform(staticApprox)
-report("archea-test-out.dot", graphs, dotpdf, overwrite, nocollapse)
-report("archea-test-search.csv", search, overwrite)
+report("Metazoa10-dist-spr.dot", graphs, dotpdf, overwrite, nocollapse)
+report("Metazoa10-dist-spr-search.csv", search, overwrite)
