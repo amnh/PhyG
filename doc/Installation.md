@@ -15,7 +15,9 @@ install cabal 3.12
 
 cabal update
 
--- build phyg
+-- install LLVM
+
+-- build phyg (after you have installed LLVM, or delete Use-LLVM from flags command)
 
 cabal build PhyG:phyg --with-compiler ghc-9.10.1 --flags="Super-Optimization Use-LLVM"
 
