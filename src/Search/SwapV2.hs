@@ -371,14 +371,18 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                             else edgesInBaseGraph
                 
 
-                rejoinEdges <- if atRandom swapParams then 
-                                 shuffleList edgesInBaseGraph'
-                               -- should re-add close to original placement first
-                               else if swapType swapParams == NNI then
+                let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
+
+                rejoinEdges <-  if atRandom swapParams then 
+                                    shuffleList edgesInBaseGraph'
+                                    
+                                -- should re-add close to original placement first
+                                else if swapType swapParams == NNI then
                                     pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
-                                                        
-                               else 
-                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
+                                                                                    
+                                else 
+                                    pure $ take maxMoveEdgeDistance $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
+
 
                 
                 {-Make TBR EdgeData-}
@@ -553,6 +557,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                                         else edgesInBaseGraph
 
                                 
+                                let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
 
                                 rejoinEdges <- if atRandom swapParams then 
                                                  shuffleList edgesInBaseGraph'
@@ -561,7 +566,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                                     pure $ take 3 $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
                                                                         
                                                else 
-                                                    pure $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
+                                                    pure $ take maxMoveEdgeDistance $ LG.sortEdgesByIndexDistance originalConnectionOfPruned edgesInBaseGraph'
                                 
                                 -- logWith LogInfo $ "\nEdge to rejoin: " <> (show $ length rejoinEdges) <> " Union: " <> (show $ length unionEdgeList)
 
