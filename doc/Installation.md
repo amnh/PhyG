@@ -18,7 +18,7 @@ cabal update
 
 install LLVM via your package manager (e.g. homebrew, apt)
 
--- build phyg (after you have installed LLVM, or delete Use-LLVM from flags command)
+-- build phyg (after you have installed LLVM, or delete Use-LLVM from flags option)
 
 cabal build PhyG:phyg --with-compiler ghc-9.10.1 --flags="Super-Optimization Use-LLVM"
 
