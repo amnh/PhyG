@@ -16,7 +16,9 @@ install cabal 3.12
 
 cabal update
 
-install LLVM via your package manager (e.g. homebrew, apt)
+install LLVM via your package manager (e.g. homebrew, apt). The process for installation 
+of LLVM varies from machine to machine. The user should consult their package manager
+for information. 
 
 -- build phyg (after you have installed LLVM, or delete Use-LLVM from flags option)
 
