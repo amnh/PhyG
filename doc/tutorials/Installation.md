@@ -26,5 +26,5 @@ cabal build PhyG:phyg --with-compiler ghc-9.10.1 --flags="Super-Optimization Use
 
 -- install manually
 
-note the very very long path for phyg binary and copy to a convenient location
+note the very very long path for phyg binary and copy the desired location
 
