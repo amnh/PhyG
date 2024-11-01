@@ -183,11 +183,14 @@ mutateGraph inGS inData maxNetEdges inGraph
             valAlternate = False
             valDoIA = False
             valDoRandomOrder = True
-            valJoinType = JoinAll -- keep selection of rejoins based on all possibilities
+            valJoinType = JoinPruned -- keep selection of rejoins based on all possibilities
             valMaxMoveEdgeDist = 10000
             valNumToKeep = 5
             valReturnMutated = True
             valSteepest = True
+            valSortEdgesSplitCost = False
+            valSplitParallel = False
+            valCheckHeuristic = BestOnly
 
             -- randomize simulated annealing parameters
             getRandomSAParams = do
@@ -224,6 +227,9 @@ mutateGraph inGS inData maxNetEdges inGraph
                         , joinAlternate = False
                         , doIA = valDoIA
                         , returnMutated = valReturnMutated
+                        , sortEdgesSplitCost = valSortEdgesSplitCost
+                        , splitParallel = valSplitParallel
+                        , heckHeuristic = valCheckHeuristic
                         }
 
             firstOrOldIfNoneExists =
