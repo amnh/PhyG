@@ -1,0 +1,10 @@
+--Chel search
+set(seed:73412305) 
+set(outgroup:"Limulus") 
+read(nucleotide:"chel_16S.fas") 
+read(nucleotide:"chel_cox1.fas") 
+read(nucleotide:"chel_12S.fas") 
+search(minutes:30)
+report("chel_search1.tre", newick, graphs, overwrite) 
+report("chel_search1.ss", ia, overwrite) 
+report("chel_search1.dot", graphs, dotpdf, overwrite)
