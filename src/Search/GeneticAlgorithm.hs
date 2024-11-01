@@ -115,6 +115,9 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                         , joinAlternate = False -- not working now
                                         , doIA = False
                                         , returnMutated = False
+                                        , sortEdgesSplitCost = False
+                                        , splitParallel = False
+                                        , checkHeuristic = BetterN
                                         }
 
                             (recombinedGraphList, _) ←
@@ -229,7 +232,7 @@ mutateGraph inGS inData maxNetEdges inGraph
                         , returnMutated = valReturnMutated
                         , sortEdgesSplitCost = valSortEdgesSplitCost
                         , splitParallel = valSplitParallel
-                        , heckHeuristic = valCheckHeuristic
+                        , checkHeuristic = valCheckHeuristic
                         }
 
             firstOrOldIfNoneExists =
