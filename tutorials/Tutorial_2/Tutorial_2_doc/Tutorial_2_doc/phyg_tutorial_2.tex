@@ -1,0 +1,78 @@
+\documentclass[]{article}
+\usepackage{longtable}
+\usepackage{color}
+\usepackage{tabu}
+\usepackage{setspace}
+\usepackage{pdflscape}
+\usepackage{graphicx}
+\usepackage {float}
+%\usepackage{subfigure}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{natbib}
+%\usepackage{fullpage}
+\bibliographystyle{plain}
+\usepackage{fancyhdr}
+%\bibliographystyle{cbe}
+\usepackage{algorithmic}
+\usepackage[vlined,ruled]{algorithm2e}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+ 
+\usepackage[dvipsnames]{xcolor}
+\usepackage{color, soul}
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=DarkOrchid, urlcolor=TealBlue ]{hyperref}
+%\usepackage[nottoc,numbib]{tocbibind}
+\usepackage{tocloft}
+
+
+\setlength\itemindent{0.25cm}
+
+\newcommand{\phyg}{\texttt{PhyG} }
+\newcommand{\BigO}[1]{\ensuremath{\mathcal{O}\left(\,#1\,\right)}\xspace}
+
+\title{PhyG 0.2 Tutorials}
+
+\author{Louise M. Crowley}
+\makeindex
+\begin{document}
+\maketitle
+
+\pagestyle{fancy}
+
+%Maybe add:\\
+%\begin{enumerate}
+%	\item{reports of diagnosis}
+%	\item{Supports--Goodman-Bremer, bootstrap, jackknife--maybe on chel or 
+%	something preassigned and small}
+%	\item{Consensus etc outputs}
+%\end{enumerate}
+
+\section{\phyg Tutorial 2}
+
+These tutorials are intended to provide guidance for using the phylogenetic 
+program \texttt{PhyG}. Each tutorial contains a \phyg script that includes 
+detailed commentaries explaining the rationale behind each step of the analysis. 
+The command arguments will differ substantially depending on type, complexity, 
+and size of the data set. The values of arguments within this tutorial have been 
+chosen such that the analysis can complete within the timeframe of this session.
+Therefore, the values used here should not be taken to be optimal parameters. 
+
+The tutorials use sample datasets that can also be downloaded from the \texttt{PhyG} 
+\href{https://github.com/amnh/PhyGraph}{GitHub} website. The minimally required 
+items to run the tutorial analyses are the \phyg application and sample data files. 
+A complete guide to the commands and associated arguments of \phyg can be found 
+\href{https://github.com/amnh/PhyGraph}{here}.
+
+%-------------------------------------------------------------------------------------------------------
+\subsection{Running a timed search with \phyg}
+\label{subsec:timedsearch}
+
+In this tutorial, you will learn how to run a timed search with \phyg .  
+
+%\printindex
+
+\end{document}
