@@ -125,52 +125,56 @@
 
 	\subsubsection{Installing from the binaries}
 		Download the \phyg binary from the \href{https://github.com/amnh/PhyGraph}{GitHub} 
-		website. Binaries are available for MacOS computers with either Intel or M1 processors, 
-		and Linux machines (see information relating to Windows machines below).
-		The user can go directly to the website, navigate to 
-		\href{https://github.com/amnh/PhyGraph/releases}{Releases} and click on the appropriate link 
-		for the binary. On most systems this will download to either your Desktop or Downloads folder. \\
-		
-		Alternatively, open a \textit{Terminal} window (located in your Applications folder) and type 
-		the following for either the Mac Intel, Mac M1 or Linux binary:
-		
-		\begin {quote}
-		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/OSX/phyg-Intel?raw=true
-		\end{quote}		
-		
-		\noindent or 
-		
-		\begin {quote}
-		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/OSX/phyg-M1?raw=true
-		\end{quote}	
-		
-		\noindent or 
-		
-		\begin {quote}
-		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/linux/phyg?
-		raw=true
-		\end{quote}
-		
-		\noindent The binary should either be moved into your \$PATH or referred to its 
-		absolute when executing a script.\\
+		website. Binaries are available for MacOS computers with either Intel or M family processors, 
+		and Linux machines (see information relating to Windows machines below). The user can go 
+		directly to the website, navigate to \href{https://github.com/amnh/PhyGraph/releases}{Releases} 
+		and click on the appropriate link for the binary. On most systems this will download to either 
+		your Desktop or Downloads folder. The binary should either be moved into your \$PATH or 
+		referred to its absolute when executing a script.
 		
 		For those users with Windows machines, a Windows Subsystem for Linux 
 		(WSL) can be installed. This system will allow you to run the Linux binary directly 
 		on your machine, without having to install a virtual machine or dual-boot setup. 
 		The WSL, along with directions for installation, can be found 
 		\href{https://learn.microsoft.com/en-us/windows/wsl/}{here}.
-	
+		
 	\subsubsection{Compiling from the source}
+		
 		For the majority of users, downloading the binaries will suffice. Should the user prefer to 
 		compile \phyg directly from the source, the source code can be downloaded 
-		from the \href{https://github.com/amnh/PhyGraph}{GitHub} website. \phyg is largely 
-		written in Haskell. In order to compile \phyg from the source, the user must install Cabal, 
-		a command-line program for downloading and building software written in Haskell (GHC).  
-		Information on its installation can be found  
+		from the \href{https://github.com/amnh/PhyGraph}{GitHub} website, by cloning
+		the \phyg repository to their desired location. 
+		
+		
+		
+		\phyg is largely 
+		written in Haskell. In order to compile \phyg from the source, the user must first install the
+		Haskell compiler and Cabal (a command-line program for downloading and building 
+		software written in Haskell (GHC)). More information on its installation can be found  
 		\href{https://www.schoolofhaskell.com/user/simonmichael/how-to-cabal-install}{here}.
+		
 		The `README.md' file on the GitHub website provides instructions for compiling an 
-		optimized version of \texttt{PhyG}.
-				
+		optimized version of \texttt{PhyG}. Open a \textit{Terminal} window (located in your 
+		Applications folder) and type the following for 
+		either the Mac Intel, Mac M1 or Linux binary:
+
+		
+%		\begin {quote}
+%		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/OSX/phyg-Intel?raw=true
+%		\end{quote}		
+%		
+%		\noindent or 
+%		
+%		\begin {quote}
+%		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/OSX/phyg-M1?raw=true
+%		\end{quote}	
+%		
+%		\noindent or 
+%		
+%		\begin {quote}
+%		curl -LJ --output phyg https://github.com/amnh/PhyGraph/blob/main/bin/linux/phyg?
+%		raw=true
+%		\end{quote}
 %		\begin{quote}
 %		%cabal install PhyGraph:phyg --project-file=cfg/cabal.project.release
 %		\hl{cabal build PhyGraph:phyg --flags=super-optimization}
