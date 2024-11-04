@@ -436,23 +436,25 @@ addColor colorEdgeList inString =
                 newLines = fmap (makeNewLine colorEdgeList) lineStringList
             in  unlines newLines
     where
-        makeNewLine cl a =
+        makeNewLine cel a =
             if (null $ L.intersect "->" a)
                 then a
                 else 
                     let b = words a
-                        newB3 = getEdgeColor cl b
+                        newB3 = getEdgeColor cel b
                     in  
                     if (length b > 2) then "    " <> (concat [b !! 0, " ", b !! 1, " ", b !! 2, " ", newB3])
                     else a
 
-        getEdgeColor cl b = 
-            if null cl then unwords b -- error ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cl)) 
-            else if (b !! 0) == (fst3 $ head cl) && (b !! 2) == (snd3 $ head cl) then
+        getEdgeColor cel b = 
+            if null cel then 
+                trace ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cel))
+                unwords b  
+            else if (b !! 0) == (fst3 $ head cel) && (b !! 2) == (snd3 $ head cel) then
                 if (length b > 3) then 
-                    "[" <> "color=" <> (thd3 $ head cl) <> "," <> (tail $ b !! 3) 
-                else  "[" <> "color=" <> (thd3 $ head cl) <> "]"
-                else getEdgeColor (tail cl) b
+                    "[" <> "color=" <> (thd3 $ head cel) <> "," <> (tail $ b !! 3) 
+                else  "[" <> "color=" <> (thd3 $ head cel) <> "]"
+                else getEdgeColor (tail cel) b
 
 
 -- | stripDotLabels strips away edge and HTU labels from dot files
