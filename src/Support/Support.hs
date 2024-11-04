@@ -260,7 +260,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
     newData ← resampleData resampleType jackFreq inData
     -- pairwise distances for distance analysis
     -- pairwiseDistances ← DD.getPairwiseDistances newData
-    let buildGraphs = B.buildGraph buildOptions inGS newData
+    -- let buildGraphs = B.buildGraph buildOptions inGS newData
 
     -- if not a tree then try to add net edges
     let netAddArgs = [("netadd", ""), ("keep", show (1 ∷ Int)), ("steepest", ""), ("atrandom", ""), ("maxnetedges", "5")]

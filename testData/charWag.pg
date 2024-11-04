@@ -83,7 +83,7 @@ set(seed:1701287416)
 --build(dwag, distance)
 build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
-fuse()
+--fuse()
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
@@ -96,17 +96,17 @@ fuse()
 
 
 --select(unique:10)
-select()
+--select()
 
 --refine(netadd, atrandom, maxnetedges:5)
 --refine(netdelete, atrandom, maxnetedges:5)
 
---search(hours:0, minutes:3, instances:4, Thompson:1, linear, maxnetedges:5)
+search(hours:0, minutes:30, instances:5, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
-swap(NNI, bestAll)
-swap(alternate, betterN)
---swap(tbr, betterN)
+--swap(NNI, bestAll)
+--swap(alternate, betterN)
+--swap()
 
 --swap(replicates:5, drift, maxChanges:5)
 --swap(replicates:5)
