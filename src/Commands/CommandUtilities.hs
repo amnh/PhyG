@@ -406,7 +406,7 @@ makeDotList ∷ Bool → Bool → Bool-> [VertexCost] → Int → [SimpleGraph] 
 makeDotList writeEdgeWeight writeNodeLabel colorEdges costList rootIndex graphList =
     let graphStringList'' = fmap (fgl2DotString . LG.rerootTree rootIndex) graphList
         graphStringList' = fmap (stripDotLabels writeEdgeWeight writeNodeLabel) graphStringList''
-        graphStringList = if colorEdges then zipWith addEdgeColor graphList graphStringList'
+        graphStringList = if colorEdges then zipWith addEdgeColor (fmap (LG.rerootTree rootIndex) graphList) graphStringList'
                           else graphStringList'
         costStringList = fmap (("\n//" <>) . show) costList
     in  L.intercalate "\n" (zipWith (<>) graphStringList costStringList)
@@ -430,9 +430,9 @@ addEdgeColor inGraph inString =
 -- | addColor removes edge labels from HTUs in graphviz format string
 addColor ∷ [(String, String, String)] -> String → String
 addColor colorEdgeList inString =
-    if null inString 
-        then inString
-        else
+    if null inString  then inString
+    else if null colorEdgeList then inString
+    else
             let lineStringList = lines inString
                 newLines = fmap (makeNewLine colorEdgeList) lineStringList
             in  unlines newLines
@@ -450,12 +450,12 @@ addColor colorEdgeList inString =
         getEdgeColor cel b = 
             if null cel then 
                 trace ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cel))
-                unwords b  
+                unwords $ drop 3 b  
             else if (b !! 0) == (fst3 $ head cel) && (b !! 2) == (snd3 $ head cel) then
                 if (length b > 3) then 
                     "[" <> "color=" <> (thd3 $ head cel) <> "," <> (tail $ b !! 3) 
                 else  "[" <> "color=" <> (thd3 $ head cel) <> "]"
-                else getEdgeColor (tail cel) b
+            else getEdgeColor (tail cel) b
 
 
 -- | stripDotLabels strips away edge and HTU labels from dot files
