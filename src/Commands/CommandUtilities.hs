@@ -419,8 +419,9 @@ addEdgeColor inGraph inString =
     if LG.isEmpty inGraph || null inString then []
     else
         let edgeWeightList = fmap thd3 $ LG.labEdges inGraph
+            minColorNumber = 1
             maxColorNumber = 11
-            edgeColorList = fmap show $ U.getEdgeColor maxColorNumber edgeWeightList
+            edgeColorList = fmap show $ U.getEdgeColor minColorNumber maxColorNumber edgeWeightList
             newEdgeInfo = zip3 (fmap (show .fst3) $ LG.labEdges inGraph) (fmap (show . snd3) $ LG.labEdges inGraph) edgeColorList
         in
         -- trace ("AEC: " <> (show edgeWeightList)) $ 
