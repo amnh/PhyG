@@ -68,9 +68,15 @@ swapV2 swapParams inGS inData inCounter curBestGraphList saParams =
                 -- collect results
                 let (annealGraphList, counterList) = unzip annealGraphPairList
 
-                bestGraphs <- GO.selectGraphs Best (keepNum swapParams) 0.0 $ curBestGraphList <> (concat annealGraphList)
+                -- this for genetic algorithm to generate mutated graphs
+                if returnMutated swapParams then
+                    pure (concat $ annealGraphList,sum counterList)
 
-                pure (bestGraphs, sum counterList)
+                -- for regular swapping
+                else do 
+                    bestGraphs <- GO.selectGraphs Best (keepNum swapParams) 0.0 $ curBestGraphList <> (concat annealGraphList)
+
+                    pure (bestGraphs, sum counterList)
                 
 
 {- | Controls the simulated annealing/drift swapping phases
@@ -103,16 +109,20 @@ swapSimulatedAnnealing swapParams inGS inData inCounter saParams inBestGraph = d
             (saGraphs, saCounter) <- swapByType (swapParams {checkHeuristic = BestOnly, swapType = driftSwapType}) inGS inData inCounter [inBestGraph] saParams
 
             --logWith LogInfo $ "\tGoing back with " <> (show $ fmap snd5 saGraphs)
+            -- this for genetic algorithm to generate mutated graphs
+            if returnMutated swapParams then 
+                pure (saGraphs, saCounter) 
 
             -- swap "back" to optimal costs
-            (backGraphs, backCounter) <- swapByType swapParams inGS inData saCounter saGraphs Nothing
+            else do 
+                (backGraphs, backCounter) <- swapByType swapParams inGS inData saCounter saGraphs Nothing
 
-            -- take SA/Drif or Input solutions based on cost 
-            let finalGraphs =   if (minimum $ fmap snd5 backGraphs) < inBestCost then 
-                                    backGraphs
-                                else [inBestGraph]
+                -- take SA/Drif or Input solutions based on cost 
+                let finalGraphs =   if (minimum $ fmap snd5 backGraphs) < inBestCost then 
+                                        backGraphs
+                                    else [inBestGraph]
 
-            pure (finalGraphs, backCounter)
+                pure (finalGraphs, backCounter)
 
 {- | Controls the use of alternate versus other types of swap
     makes things cleaner for SA/Drift

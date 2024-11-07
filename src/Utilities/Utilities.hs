@@ -129,30 +129,31 @@ getEdgeComplexityFactors inGS inData vertexList edgeList =
     and violet(blue) = max then assignes blue to lowest of
         Double input and 1 highest (if all <1.0 then 1.0 is highest).
 -}
-getEdgeColor ∷ Int → [Double] → [Int]
-getEdgeColor maxColorInt valueList =
+getEdgeColor ∷ Int -> Int → [Double] → [Int]
+getEdgeColor minColorInt maxColorInt valueList =
     if null valueList
         then []
         else
             let maxListVal = maximum valueList
+                minListVal = minimum valueList
                 maxVal =
-                    if maxListVal < 1.0
+                    if maxListVal <= 1.0
                         then 1.0 -- this for bootstraps, info index etc
                         else maxListVal
-                categories = reverse [1 .. maxColorInt]
-                thresholds = fmap (maxVal / (fromIntegral maxColorInt) *) (fmap fromIntegral categories)
-            in  -- trace ("GEC: " <> (show maxColorInt) <> " " <> (show maxVal) <> "\n" <> (show valueList) <> "\n" <> (show categories) <> "\n" <>
-                --    (show thresholds)  <> "\n" <> (show $ fmap (getThresholdNumber thresholds 0) valueList)) $
-                fmap (getThresholdNumber thresholds 0) valueList
-    where
-        getThresholdNumber l i a =
-            if null l
-                then max i 1
-                else
-                    if a >= head l
-                        then max i 1
-                        else getThresholdNumber (tail l) (i + 1) a
+                categories = V.fromList $ reverse [minColorInt .. maxColorInt]
+                
+                -- reset values to integers 
+                reScaledValueList = fmap ((fromIntegral (length categories)) / maxListVal *) valueList
+                adjustedColorList = fmap (adjustVals minColorInt maxColorInt) reScaledValueList
 
+                colorList = fmap (categories V.!) adjustedColorList
+
+            in  --trace ("Max = " <> (show (minListVal, maxListVal)) <> " " <> (show $ zip colorList valueList))
+                colorList
+    where
+        adjustVals minColorInt maxColorInt inVal = if inVal > ((fromIntegral maxColorInt) - 0.5) then maxColorInt - minColorInt
+                                                   else floor inVal
+        
 
 -- | getEdgeInfo returns a list of Strings of edge infomation
 getEdgeInfo ∷ Int -> LG.LEdge EdgeInfo -> [String]

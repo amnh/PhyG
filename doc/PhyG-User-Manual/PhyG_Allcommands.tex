@@ -1499,7 +1499,10 @@
 						
 		\end{description}
 			
-%		\item[jointhreshold] Only internal---used for testing purposes.
+		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in \citealp{VaronandWheeler2013}) 
+		during SPR and TBR
+		branch swapping. The default value is 1.17. Higher values will allow more heuristic graph
+		rejoins, resulting in potentially better solutions at the cost of greater execution times.
 
 %		\item[lazyparstrat] Only internal---used for testing purposes.
 
@@ -1784,8 +1787,10 @@
 		\item[joinAll] Turns off all preference strategies to make a join, simply trying all possible 
 		join positions for each pair of clades generated after a break. 
 
-		\item[joinPruned] Enables preferences for join strategies. This option can reduce execution time, 
-		but at the cost of a less effective search.
+		\item[joinPruned] Enables heuristic preferences for graph rejoinstrategies in SPR and TBR (as described
+		in \citep{VaronandWheeler2013}, and used in \citep{Wheeler1991-1998}, \cite{Goloboffetal2008}, and \cite{Varonetal2010, Wheeleretal2015}). This option can reduce execution time, but at the cost
+		of a less eﬀective search. The default threshold value is 1.17, which can be modified with
+		joinThreshold.
 		
 %		\item[joinAlternate] Only internal---used for testing purposes.
 				
@@ -1801,11 +1806,13 @@
 		\begin{description}
 			
 			\item[level:0] Equivalent to options \texttt{bestAll, joinAll, multiTraverse:True}. This level is extremely 
-			time consuming.
+			time consuming  since it uses bestAll (TBR at $O(n4)$) may be prohibitive for even moderately 
+			sized data sets. Its main utility resides in analytical and
+			heuristic testing.
 			
-			\item[level:1] Equivalent to options \texttt{bestN, joinAll, multiTraverse:False}.
+			\item[level:1] Equivalent to options \texttt{betterN, joinAll, multiTraverse:False}.
 			
-			\item[level:2] Equivalent to options \texttt{bestN, joinPruned, multiTraverse:False}. 
+			\item[level:2] Equivalent to options \texttt{betterN, joinPruned, multiTraverse:False}. 
 			
 			\item[level:3] Equivalent to options \texttt{bestOnly, joinPruned, multiTraverse:False}. This level 
 			will be the fastest, but most approximate search.
@@ -1936,7 +1943,10 @@
 		of parallel thread numbers.  Higher numbers will consume more memory and lower, less.
 		The default value is 10.  
 		
-%		\item[jointhreshold] Only internal---used for testing purposes.
+		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in \citealp{VaronandWheeler2013}) 
+		during SPR and TBR
+		branch swapping. The default value is 1.17. Higher values will allow more heuristic graph
+		rejoins, resulting in potentially better solutions at the cost of greater execution times.
 		
 		\item[multiTraverse:BOOL] Controls the multi-traverse character optimization option. 
 		If \texttt{True}, character trees are traversed from each edge as in 
