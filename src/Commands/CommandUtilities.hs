@@ -449,8 +449,8 @@ addColor colorEdgeList inString =
 
         getEdgeColor cel b = 
             if null cel then 
-                trace ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cel))
-                unwords $ drop 3 b  
+                error ("Edge not found in getEdgeColor: " <> (show b) <> " " <> (show cel))
+                -- unwords $ drop 3 b  
             else if (b !! 0) == (fst3 $ head cel) && (b !! 2) == (snd3 $ head cel) then
                 if (length b > 3) then 
                     "[" <> "color=" <> (thd3 $ head cel) <> "," <> (tail $ b !! 3) 
