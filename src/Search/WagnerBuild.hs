@@ -159,9 +159,10 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                 addTaxonAction ∷ LG.LEdge EdgeInfo → PhyG (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
                 addTaxonAction = addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd
 
-                -- False flag for static IA--can't do when adding in new leaves
+                {-- False flag for static IA--can't do when adding in new leaves
                 postOrderAction :: SimpleGraph → PhyG PhylogeneticGraph
                 postOrderAction = POSW.postDecorateTreeForList inGS False leafDecGraph charInfoVV numLeaves numLeaves
+                -}
 
                 -- Combined graph creation and diagnosis
                 createSimpleAndDiagnoseAction :: (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) → PhyG PhylogeneticGraph
