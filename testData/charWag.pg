@@ -83,7 +83,7 @@ read(fasta:"chel.fas")
 
 --build(dwag, distance)
 build(character, replicates:50)
-build(distance, rdwag, replicates:50, best:10)
+build(distance, rdwag, replicates:50, best:50)
 --build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 --fuse()

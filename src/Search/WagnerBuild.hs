@@ -162,6 +162,11 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                 -- False flag for static IA--can't do when adding in new leaves
                 postOrderAction :: SimpleGraph → PhyG PhylogeneticGraph
                 postOrderAction = POSW.postDecorateTreeForList inGS False leafDecGraph charInfoVV numLeaves numLeaves
+
+                -- Combined graph creation and diagnosis
+                createSimpleAndDiagnoseAction :: (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) → PhyG PhylogeneticGraph
+                createSimpleAndDiagnoseAction = createSimpleAndDiagnose inGS False (outgroupIndex inGS) inSimple leafDecGraph charInfoVV numLeaves
+
             in  do
                     --- TODO
                     addTaxonWagnerPar ← getParallelChunkTraverseBy U.strict1of4
@@ -169,16 +174,23 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                     -- let candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
 
                     let bestNCandidateEdgesList = take (graphsSteepest inGS) $ L.sortOn fst4 candidateEditList
-                   
-                    let newSimpleRerootedList = fmap (createNewSimpleGraph (outgroupIndex inGS) inSimple) bestNCandidateEdgesList
                     
                     -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
                     -- False flag for static IA--can't do when adding in new leaves
                     let calculateBranchLengths = False -- must be True for delaa using existing edge
                     
+                    {-
+                    let newSimpleRerootedList = fmap (createNewSimpleGraph (outgroupIndex inGS) inSimple) bestNCandidateEdgesList
+                    
                     -- parallel postorder check on cost
                     postOrderPar <- getParallelChunkTraverseBy U.strict2of6
                     postOrderCandidateList <- postOrderPar postOrderAction newSimpleRerootedList
+                    -}
+                    
+                     -- parallel postorder create graph and check on cost
+                    postOrderPar <- getParallelChunkTraverseBy U.strict2of6
+                    postOrderCandidateList <- postOrderPar createSimpleAndDiagnoseAction bestNCandidateEdgesList                    
+
                     let bestCandCost = minimum $ fmap snd6 $ postOrderCandidateList
                     let postOrderStuff =  head $ filter ((== bestCandCost) . snd6) postOrderCandidateList
 
@@ -214,6 +226,23 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                                 leafDecGraph
                                 newPhyloGraph
 
+{- | createSimpleAndDiagnose puts together the new graph fomation (new edges etc) and rediagnosis for parallel
+execution of both steps
+-}
+createSimpleAndDiagnose 
+    ∷ GlobalSettings
+    → Bool
+    → LG.Node
+    → SimpleGraph
+    → DecoratedGraph
+    → V.Vector (V.Vector CharInfo)
+    → LG.Node
+    → (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
+    → PhyG PhylogeneticGraph
+createSimpleAndDiagnose inGS staticIA outgroupIndex inSimple leafDecGraph charInfoVV numLeaves inGraphEdits =
+    let newSimpleGraph = createNewSimpleGraph outgroupIndex inSimple inGraphEdits
+    in
+    POSW.postDecorateTreeForList inGS False leafDecGraph charInfoVV numLeaves numLeaves newSimpleGraph
 
 {- | createNewSimpleGraph perfomrs the addition, new edges, rerotting tasks for a candidate tree
 -}
