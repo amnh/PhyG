@@ -95,6 +95,14 @@ strict2of5 ∷ (NFData b) ⇒ (a, b, c, d, e) → (a, b, c, d, e)
 strict2of5 ~val@(_, !x, _, _, _) =
     force x `seq` val
 
+{- | strict2of5 ensures parallelism and demands strict return of 2nd of 5 tuple elements
+    this is used in lazy-ish parallel evalution functions in PHANE evaluation
+-}
+strict2of6 ∷ (NFData b) ⇒ (a, b, c, d, e, f) → (a, b, c, d, e, f)
+strict2of6 ~val@(_, !x, _, _, _, _) =
+    force x `seq` val
+
+
 
 {- | strict1and2of5 ensures parallelism and demands strict return of 2nd of 5 tuple elements
     this is used in lazy-ish parallel evalution functions in PHANE evaluation

@@ -41,6 +41,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions (
     divideDecoratedGraphByBlockAndCharacterTree,
     postOrderTreeTraversal,
     postDecorateTree,
+    postDecorateTreeForList,
     postDecorateTreeIncremental,
     createVertexDataOverBlocks,
     createVertexDataOverBlocksStaticIA,
@@ -1064,6 +1065,20 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
                         --logWith LogInfo $ "\n\tUPdating node: " <> (show curNodeIndex) <> " Children: " <> (show (leftChild, rightChild)) <> " " <> (show (newCost, subGraphCost newVertex)) <> " from " <> (show (vertexCost leftChildLabel, subGraphCost leftChildLabel, vertexCost rightChildLabel, subGraphCost rightChildLabel))
                         --logWith LogInfo $ "\n\t\tIncremental node: " <> (show curNodeIndex) <> " " <> (show (vertexCost (snd curNode), subGraphCost (snd curNode), subGraphCost leftChildLabelIncr, subGraphCost rightChildLabelIncr))
                         reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo
+
+{- | postDecorateTreeForList reorders arguments for postDecorateTree to allow for parallelization over list
+-}
+postDecorateTreeForList
+    ∷ GlobalSettings
+    → Bool
+    → DecoratedGraph
+    → V.Vector (V.Vector CharInfo)
+    → LG.Node
+    → LG.Node
+    → SimpleGraph
+    → PhyG PhylogeneticGraph
+postDecorateTreeForList inGS staticIA curDecGraph blockCharInfo rootIndex curNode simpleGraph =
+    postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode 
 
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 labelling vertices and edges as it goes back to root
