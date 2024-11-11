@@ -164,7 +164,7 @@ buildGraph inArgs inGS inData =
                                                 , "graphs at cost range"
                                                 , fold ["(", show loCost, ", ", show hiCost, ")"]
                                                 ]
-                                    in  ("\tBlock build yielded" <> suffix, "\tReturning " <> suffix)
+                                    in  ("\tBlock build yielded " <> suffix, "\tReturning " <> suffix)
 
                         case numDisplayTrees of
                             Nothing → failure ["DisplayTrees specification in build not an integer:", show . snd $ head displayBlock]

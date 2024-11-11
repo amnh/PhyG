@@ -253,6 +253,10 @@ swapNaive swapParams inGS inData inCounter graphsToSwap curBestGraphList saParam
                                     spltActionPar <- (getParallelChunkTraverseBy snd5)
                                     resultListP <- spltActionPar splitAction edgeList
 
+                                    -- this filter for malformed graphs from split graph
+                                    -- can happen with networks when there are lots of network edges
+                                    let resultListP' = filter (not . (LG.isEmpty . fst5)) resultListP
+
                                     -- order of split cost
                                     if sortEdgesSplitCost swapParams then
                                         rejoinFromOptSplitList swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor graphsToSwap curBestCost edgeList (L.sortOn snd5 resultListP) -- ([head splitList])
@@ -361,24 +365,25 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
                     rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitEdgeList restSplits
             else do
-                {-pruning of edge via unions
+                {-  pruning of edge via unions
                     Does not seem to help as much as I would have thought--perhaps the union process is not coreect
-                    Leaving in to perhaps use/fix later
-                -}
-                let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
-                unionEdgeList ←
-                    getUnionRejoinEdgeListNew
-                    inGS
-                    splitGraphOptimized
-                    charInfoVV
-                    [graphRoot]
-                    (curBestCost - splitCost)
-                    prunedToRejoinUnionData
-                    []
+                    Leaving in to perhaps use/fix later or perhaps really only significant for large taxon sets
 
-                let edgesInBaseGraph' = if joinType swapParams == JoinPruned then 
-                                                unionEdgeList
-                                            else edgesInBaseGraph
+                    May not work properly for networks yielding Nothing on edge label call--hence the check
+                -}
+                edgesInBaseGraph' <- if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
+                                        do 
+                                            let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
+                                            getUnionRejoinEdgeListNew
+                                                inGS
+                                                splitGraphOptimized
+                                                charInfoVV
+                                                [graphRoot]
+                                                (curBestCost - splitCost)
+                                                prunedToRejoinUnionData
+                                                []
+                                                             
+                                     else pure edgesInBaseGraph
                 
 
                 let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
@@ -497,10 +502,13 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                         
                         (splitGraphOptimized, splitCost) ←
                                 reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor firstFullGraph splitGraph graphRoot prunedGraphRootIndex 
-                        --
-                        --logWith LogInfo $ "\tSplit Cost New: " <> (show splitCost) -- <> "\n" <> LG.prettyDot reoptimizedSplitGraph'
-                        -- avoid shorcircuiting on SA/Drif
-                        if (splitCost >= curBestCost) && (isNothing saParams) then 
+                        
+                        -- this if no split graph--can happen if lots of network edges
+                        if LG.isEmpty splitGraphOptimized then
+                            doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph saParams restEdges
+
+                        -- avoid shorcircuiting on SA/Drift
+                        else if (splitCost >= curBestCost) && (isNothing saParams) then 
                             doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost firstFullGraph saParams restEdges
                         else 
                             -- rejoin function
@@ -549,22 +557,23 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
                                 {-pruning of edge via unions
                                     Does not seem to help as much as I would have thought--perhaps the union process is not coreect
-                                    Leaving in to perhaps use/fix later-}
-                                let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
-                                
-                                unionEdgeList ←
-                                    getUnionRejoinEdgeListNew
-                                        inGS
-                                        splitGraphOptimized
-                                        charInfoVV
-                                        [graphRoot]
-                                        ((snd6 firstFullGraph) - splitCost)
-                                        prunedToRejoinUnionData
-                                        []
+                                    Leaving in to perhaps use/fix later or perhaps really only significant for large taxon sets
 
-                                let edgesInBaseGraph' = if joinType swapParams == JoinPruned then 
-                                                             unionEdgeList
-                                                        else edgesInBaseGraph
+                                    May not work properly for networks yielding Nothing on edge label call--hence the check
+                                -}
+                                edgesInBaseGraph' <- if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
+                                                        do 
+                                                            let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
+                                                            getUnionRejoinEdgeListNew
+                                                                inGS
+                                                                splitGraphOptimized
+                                                                charInfoVV
+                                                                [graphRoot]
+                                                                ((snd6 firstFullGraph) - splitCost)
+                                                                prunedToRejoinUnionData
+                                                                []
+                                                             
+                                                     else pure edgesInBaseGraph
 
                                 
                                 let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
