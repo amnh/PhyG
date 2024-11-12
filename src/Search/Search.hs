@@ -744,7 +744,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                             buildGraphs ← builder buildArgs
                             buildGraphs' ← selectUniqueGraphs buildGraphs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "buildAlternate" →
@@ -757,7 +757,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                             buildGraphs ← builder buildArgs
                             buildGraphs' ← selectUniqueGraphs buildGraphs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "swapSPR" →
@@ -766,7 +766,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     in  -- search
                         do
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData inGraphList
                             pure (swapList, swapArgs)
                 "swapAlternate" →
@@ -775,7 +775,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     in  -- search
                         do
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData inGraphList
                             pure (swapList, swapArgs)
                 -- drift only best graphs
@@ -786,7 +786,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             driftArgs ← getDriftArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
 
                             -- swap with drift (common) arguments
                             let swapDriftArgs = swapArgs <> driftArgs
@@ -800,7 +800,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             driftArgs ← getDriftArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             -- swap with drift (common) arguments
                             let swapDriftArgs = swapArgs <> driftArgs
                             swapList ← R.swapMaster swapDriftArgs inGS inData inGraphList
@@ -813,7 +813,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             annealArgs ← getAnnealArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             -- swap with anneal (common) arguments
                             let swapAnnealArgs = swapArgs <> annealArgs
                             swapList ← R.swapMaster swapAnnealArgs inGS inData inGraphList
@@ -826,7 +826,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             annealArgs ← getAnnealArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             -- swap with anneal (common) arguments
                             let swapAnnealArgs = swapArgs <> annealArgs
                             swapList ← R.swapMaster swapAnnealArgs inGS inData inGraphList

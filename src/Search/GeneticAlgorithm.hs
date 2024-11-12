@@ -93,7 +93,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
 
                             -- options to join via union choices or all in fuse
                             -- this is ignored for now in fuse--JoinAll is what it does
-                            let joinType = getRandomElement (seedList !! 6) [JoinAlternate, JoinAll]
+                            let joinType = getRandomElement (seedList !! 6) [JoinPruned, JoinAll]
 
                             let doSteepest = True
                             let returnBest = False

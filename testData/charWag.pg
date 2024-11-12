@@ -34,7 +34,7 @@ read(fasta:"chel.fas")
 --read("chel-3.ss")
 --transform(weight:0.01, name:"chel.fas#0*")
 
---set(seed:1701287416)
+set(seed:1701287416)
 --set(reportNaive:False)
 --set(missingThreshold:10)
 
@@ -82,9 +82,9 @@ read(fasta:"chel.fas")
 --read("chel-335.tre")
 
 --build(dwag, distance)
-build(character, replicates:50)
-build(distance, rdwag, replicates:50, best:50)
---build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
+--build(character, replicates:50)
+--build(distance, rdwag, replicates:50, best:50)
+build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 --fuse()
 
@@ -99,7 +99,7 @@ build(distance, rdwag, replicates:50, best:50)
 
 
 --select(unique:10)
---select()
+select()
 
 --refine(netadd, atrandom, maxnetedges:5)
 --refine(netdelete, atrandom, maxnetedges:5)
@@ -108,7 +108,7 @@ build(distance, rdwag, replicates:50, best:50)
 -- transform(dynamic)
 
 --swap(NNI, bestAll)
---swap(alternate, betterN)
+swap(alternate, betterN)
 --swap()
 
 --swap(replicates:5, drift, maxChanges:5)

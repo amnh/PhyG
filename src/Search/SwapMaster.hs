@@ -49,6 +49,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 ( keepNum
                     , maxMoveEdgeDist'
                     , steps'
+                    , doAnnealing
                     , annealingRounds'
                     , doDrift
                     , driftRounds'
@@ -86,10 +87,6 @@ swapMaster inArgs inGS inData inGraphListInput =
                 -- steepest default
                 doSteepest = ((not doSteepest' && not doAll) || doSteepest')
 
-                -- simulated annealing parameters
-                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
-                doAnnealing = any ((== "annealing") . fst) lcArgList
-
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
 
                 -- checking of heuristic graph costs
@@ -104,14 +101,17 @@ swapMaster inArgs inGS inData inGraphListInput =
                 joinType
                     | graphType inGS == HardWired = JoinAll
                     | any ((== "joinall") . fst) lcArgList = JoinAll
+                    | doAnnealing || doDrift = JoinAll
                     | any ((== "joinpruned") . fst) lcArgList = JoinPruned
-                    | any ((== "joinalternate") . fst) lcArgList = JoinAlternate
+                    -- | any ((== "joinalternate") . fst) lcArgList = JoinPruned
                     | otherwise = JoinAll
 
                 -- randomize split graph and rejoin edges, defualt to randomize
                 atRandom
                     | any ((== "atrandom") . fst) lcArgList = True
+                    | doAnnealing || doDrift = True
                     | any ((== "inOrder") . fst) lcArgList = False
+                    | any ((== "sortsplit") . fst) lcArgList = False
                     | swapType == NNI = False
                     | otherwise = True
 
@@ -119,6 +119,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- does all of them before sorting
                     -- since comes after testing for random will override
                 sortEdgesSplitCost
+                    | doAnnealing || doDrift = False
                     | any ((== "splitsequential") . fst) lcArgList = False
                     | any ((== "sortsplit") . fst) lcArgList = True
                     | atRandom = False
@@ -128,6 +129,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 -- might save on memeory, coulod be a bit more efficient time-wise
                 -- definately affects trajectory--small examples had worse optimality outcomes
                 parallelSplit
+                    | doAnnealing || doDrift = False
                     | sortEdgesSplitCost = True
                     | any ((== "splitparallel") . fst) lcArgList = True
                     | any ((== "splitsequential") . fst) lcArgList = False
@@ -474,6 +476,7 @@ getSwapParams
     → ( Maybe Int
       , Maybe Int
       , Maybe Int
+      , Bool
       , Maybe Int
       , Bool
       , Maybe Int
@@ -516,6 +519,9 @@ getSwapParams inArgs =
                                 ("Multiple annealing steps value specifications in swap command--can have only one (e.g. steps:10): " <> show inArgs)
                         | null stepsList = Just 10
                         | otherwise = readMaybe (snd $ head stepsList) ∷ Maybe Int
+
+                    -- simulated annealing parameters
+                    doAnnealing = any ((== "annealing") . fst) lcArgList
 
                     annealingList = filter ((== "annealing") . fst) lcArgList
                     annealingRounds'
@@ -607,6 +613,7 @@ getSwapParams inArgs =
                                                                             ( keepNum
                                                                             , maxMoveEdgeDist'
                                                                             , steps'
+                                                                            , doAnnealing
                                                                             , annealingRounds'
                                                                             , doDrift
                                                                             , driftRounds'

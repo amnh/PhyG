@@ -254,8 +254,10 @@ swapAll swapParams inGS inData counter curBestCost curSameBetterList inGraphList
             {- This isn't improving performance so turned off in SwapSPRTBR-}
             -- if found better and alternating union pruning then return so can go back to start union pruning again
             case joinType swapParams of
-                JoinAlternate | sprBestCost < curBestCost → pure (sprGraphs, sprCounter, sprSAPArams)
-                JoinAlternate | tbrBestCost < curBestCost → pure (tbrGraphs, tbrCounter, tbrSAPArams)
+                JoinPruned | sprBestCost < curBestCost → pure (sprGraphs, sprCounter, sprSAPArams)
+                JoinPruned | tbrBestCost < curBestCost → pure (tbrGraphs, tbrCounter, tbrSAPArams)
+                -- JoinAlternate | sprBestCost < curBestCost → pure (sprGraphs, sprCounter, sprSAPArams)
+                -- JoinAlternate | tbrBestCost < curBestCost → pure (tbrGraphs, tbrCounter, tbrSAPArams)
                 _ → case tbrBestCost `compare` sprBestCost of
                     -- found nothing better or equal
                     GT → pure (graphsToTBR, tbrCounter, tbrSAPArams)
@@ -430,7 +432,7 @@ swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphLis
                                     logWith LogInfo $ "\t->" <> (show newMinCost)
                                     -- for alternate do SPR first then TBR
                                     -- for alternate in TBR or prune union alternate if found better return immediately
-                                    if swapType swapParams == TBRAlternate || joinType swapParams == JoinAlternate || steepest swapParams
+                                    if swapType swapParams == TBRAlternate || joinType swapParams == JoinPruned || steepest swapParams
                                         then pure (newGraphList, counter, newSAParams)
                                         else -- regular swap--keep going with better graphs
 

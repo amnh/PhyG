@@ -292,7 +292,7 @@ fuseGraphs inArgs inGS inData inGraphList
         let joinType
                 | any ((== "joinall") . fst) lcArgList = JoinAll
                 | any ((== "joinpruned") . fst) lcArgList = JoinPruned
-                | otherwise = JoinAlternate
+                | otherwise = JoinAll
 
         -- set implied alignment swapping
         let doIA' = any ((== "ia") . fst) lcArgList
