@@ -263,7 +263,8 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
 
                                     -- Reorder list based on previous splits to keep going where previous stopped (Farris suggestion)
                                     let resultListP'' = if atRandom swapParams then resultListP'
-                                                        else
+                                                        else if isJust saParams then resultListP'
+                                                        else 
                                                             -- order of split cost or not
                                                             let newEdgeOrder =  if sortEdgesSplitCost swapParams then 
                                                                                         L.sortOn snd5 resultListP'
@@ -279,6 +280,7 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
                                 else do
                                     -- Reorder list based on previous splits to keep going where previous stopped (Farris suggestion)
                                     let edgeList' = if atRandom swapParams then edgeList
+                                                    else if isJust saParams then edgeList
                                                     else
                                                         let splitNumber = rem splitCounter (length edgeList)
                                                         in
