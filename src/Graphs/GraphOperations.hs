@@ -874,9 +874,11 @@ selectPhylogeneticGraphReduced inArgs curGraphs =
             pure $ convertPhylogeneticGraph2Reduced <$> selectedPhylographs
 
 
-{- | selectPhylogeneticGraph takes  a series OF arguments and an input list ot PhylogeneticGraphs
+{- | selectPhylogeneticGraph takes  a series of arguments and an input list ot PhylogeneticGraphs
 and returns or filters that list based on options.
 uses selectListCostPairs in GeneralUtilities
+
+Operates on collapsed graphs
 -}
 selectPhylogeneticGraph
     ∷ [Argument]
