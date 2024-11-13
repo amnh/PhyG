@@ -219,7 +219,7 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
     if isNothing inGraphPair
         then pure (curBestGraphList, inCounter)
         else do
-            logWith LogInfo $ " Split Counter " <> (show splitCounter)
+            --logWith LogInfo $ " Split Counter " <> (show splitCounter)
             -- if graph list not empty proceed 
             let (firstGraph, graphsRemaining) = fromJust inGraphPair
 
@@ -345,7 +345,8 @@ rejoinFromOptSplitList
 rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter splitEdgeList splitInfoList'' =
     let splitInfoList' = L.uncons splitInfoList''
     in
-    if isNothing splitInfoList' then pure $ (zip curBestGraphList (fmap snd5 curBestGraphList), splitCounter)
+    -- split counter back to 0 when end of list of splits
+    if isNothing splitInfoList' then pure $ (zip curBestGraphList (fmap snd5 curBestGraphList), 0)
     else 
         let (firstSplit, restSplits) = fromJust splitInfoList'
             (splitGraphOptimized, splitCost, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = firstSplit
@@ -391,6 +392,8 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             makeTBREdgeData =  makeEdgeDataFunction splitGraphOptimized charInfoVV
 
         in do
+            -- logWith LogInfo $ " Split Counter (Opt) " <> (show splitCounter)
+            
             if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
                     rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost (splitCounter + 1) splitEdgeList restSplits
 
@@ -405,7 +408,8 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
                     May not work properly for networks yielding Nothing on edge label call--hence the check
                 -}
-                edgesInBaseGraph' <- if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
+                edgesInBaseGraph' <- if graphType inGS /= Tree then pure edgesInBaseGraph
+                                     else if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
                                         do 
                                             let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
                                             getUnionRejoinEdgeListNew
@@ -530,11 +534,12 @@ doAllSplitsAndRejoin
 doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter firstFullGraph saParams edgeList'' = 
                 let edgeList' = L.uncons edgeList''
                 in
-                if isNothing edgeList' then pure $ (zip curBestGraphList (fmap snd5 curBestGraphList), splitCounter)
+                -- spolit counter back to 0 when complete splirts list
+                if isNothing edgeList' then pure $ (zip curBestGraphList (fmap snd5 curBestGraphList), 0)
                 else 
                     let edgeList@(firstEdge, restEdges) = fromJust edgeList'
                     in do
-                        
+                        -- logWith LogInfo $ " Split Counter (Edge) " <> (show splitCounter)
                         -- split graph on the first edge
                         let (splitGraph, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = LG.splitGraphOnEdge (thd6 firstFullGraph) firstEdge
                         
@@ -604,7 +609,8 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
                                     May not work properly for networks yielding Nothing on edge label call--hence the check
                                 -}
-                                edgesInBaseGraph' <- if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
+                                edgesInBaseGraph' <- if graphType inGS /= Tree then pure edgesInBaseGraph
+                                                     else if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
                                                         do 
                                                             let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
                                                             getUnionRejoinEdgeListNew

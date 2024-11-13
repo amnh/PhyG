@@ -120,7 +120,8 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                                             pure blockCharDecNewLeafIA
 
                         preOrderBlockVect' ←
-                            if hasNonExact && (graphType inGS /= HardWired)
+                            -- for networks this causes problems-- used in union pruning
+                            if hasNonExact && (graphType inGS /= HardWired) && (graphType inGS /= SoftWired)
                                 then do
                                     preOrderPar ← getParallelChunkMap
                                     pure . V.fromList . preOrderPar makeIAAction . V.toList $ V.zip softwiredUpdatedLeafIA inCharInfoVV
