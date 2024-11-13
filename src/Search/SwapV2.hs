@@ -534,7 +534,7 @@ doAllSplitsAndRejoin
 doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter firstFullGraph saParams edgeList'' = 
                 let edgeList' = L.uncons edgeList''
                 in
-                -- spolit counter back to 0 when complete splirts list
+                -- split counter back to 0 when complete splits list
                 if isNothing edgeList' then pure $ (zip curBestGraphList (fmap snd5 curBestGraphList), 0)
                 else 
                     let edgeList@(firstEdge, restEdges) = fromJust edgeList'

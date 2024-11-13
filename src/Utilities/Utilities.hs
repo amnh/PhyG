@@ -43,7 +43,6 @@ import SymMatrix qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 
-
 listApplying ∷ ∀ a b. (a → a) → [a] → [a]
 listApplying strictnessSpec ~val =
     let go ∷ [a] → [a]

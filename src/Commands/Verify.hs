@@ -226,10 +226,10 @@ reconcileArgList ∷ [String]
 reconcileArgList = 
     [ "compare"
     , "connect"
-    , "edgelabel"
+    --, "edgelabel"
     , "method"
     , "threshold"
-    , "vertexlabel"
+    --, "vertexlabel"
     ] -- "outfile"
 
 
