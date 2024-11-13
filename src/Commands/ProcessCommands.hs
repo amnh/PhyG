@@ -138,7 +138,7 @@ getCommandList rawContents =
             if null reportCommands || null (reportGraphsArgs <> reportNewickArgs <> reportDotArgs)
                 then -- trace ("Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'") $
 
-                    let addedReport = (Report, [("graphs", []), ([], "_defaultGraph.dot_"), ("dotpdf", [])])
+                    let addedReport = (Report, [("graphs", []), ([], "_defaultGraph.dot_"), ("dot", [])]) --("dotpdf", [])])
                     in  do
                             logWith LogWarn "Warning: No reporting of resulting graphs is specified.  Adding default report graph file 'defaultGraph.dot'\n"
                             return (processedCommands <> [addedReport])
