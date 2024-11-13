@@ -540,7 +540,7 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                                                                                                 checkReconcile3 =
                                                                                                                     checkCommandArgs
                                                                                                                         --"reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"
-                                                                                                                        "reconcile modifier (method, compare, connectl)"
+                                                                                                                        "reconcile modifier (method, compare, connect)"
                                                                                                                         (fmap snd nonThresholdreconcileModPairList)
                                                                                                                         reconcileOptionsList
                                                                                                                 checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))
