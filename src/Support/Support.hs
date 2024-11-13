@@ -213,20 +213,20 @@ getResampleGraph inGS inData resampleType replicates buildOptions swapOptions ja
             Tree →
                 [ ("method", "majority")
                 , ("compare", "identity")
-                , ("edgelabel", "true")
-                , ("vertexlabel", "true")
+                --, ("edgelabel", "true")
+                --, ("vertexlabel", "true")
                 , ("connect", "true")
                 , ("threshold", "51")
-                , ("outformat", "dot")
+                --, ("outformat", "dot")
                 ]
             _ →
                 [ ("method", "eun")
                 , ("compare", "identity")
-                , ("edgelabel", "true")
-                , ("vertexlabel", "true")
+                --, ("edgelabel", "true")
+                --, ("vertexlabel", "true")
                 , ("connect", "true")
                 , ("threshold", "51")
-                , ("outformat", "dot")
+                --, ("outformat", "dot")
                 ]
         -- parallel stuff
         action ∷ PhyG ReducedPhylogeneticGraph

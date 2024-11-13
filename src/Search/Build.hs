@@ -196,8 +196,11 @@ reconcileBlockTrees blockTrees numDisplayTrees returnTrees returnGraph returnRan
         reconcileArgList ∷ ∀ {a}. [(String, [a])]
         reconcileArgList =
             if doEUN
-                then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
-                else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
+                then [("eun", []), ("connect:True", [])]
+                else [("cun", []), ("connect:True", [])]
+
+                --then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
+                --else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
 
         -- parallel setup
         convertAction ∷ SimpleGraph → PhyG SimpleGraph
