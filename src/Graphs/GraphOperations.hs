@@ -1021,13 +1021,24 @@ nubGraph curList inList =
             let (firstGraphNC, firstGraphC) = head inList
 
                 -- nub on newick topology only--should be collapsed already
-                firstString = makeNewickList False False False (fst $ head $ LG.getRoots $ LG.rerootTree 0 $ fst6 firstGraphNC) [LG.rerootTree 0 $ fst6 firstGraphNC] [snd6 firstGraphNC]
+                costList = [snd6 firstGraphNC]
+                -- rerooted on 0 so don't need inGS passed around
+                outgroupIndex = 0
+                rerootGraph = LG.rerootTree outgroupIndex $ fst6 firstGraphNC
+                graphRoot = head $ LG.parents rerootGraph outgroupIndex
 
+                --firstString = makeNewickList False False False (fst $ head $ LG.getRoots $ LG.rerootTree 0 $ fst6 firstGraphNC) [LG.rerootTree 0 $ fst6 firstGraphNC] [snd6 firstGraphNC]
+                firstString = if (null (LG.parents rerootGraph outgroupIndex)) then 
+                                    makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
+                              else
+                                    makeNewickList False False False graphRoot [rerootGraph] costList
+                
                 -- nub on prettty string
                 -- firstString = LG.prettyIndices $ thd6 firstGraphNC
                 isMatch = filter (== firstString) (fmap thd3 curList)
             in  --trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString <> "\n" <> (concat $ fmap thd3 curList)) $
-                if null curList
+                if null (LG.parents rerootGraph outgroupIndex) then error ("No root for graph in nubGraph:\n" <> (LG.prettyDot rerootGraph))
+                else if null curList
                     then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
                     else
                         if null isMatch
