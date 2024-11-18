@@ -2,9 +2,11 @@
 Module specifying graph swapping rearrangement functions
 -}
 module Search.SwapV2 (
+    rejoinGraphTuple,
     reoptimizeSplitGraphFromVertexIANew,
     reoptimizeSplitGraphFromVertexNew,
     reoptimizeSplitGraphFromVertexTupleNew,
+    reoptimizeSplitGraphFromVertexTuplePO,
     swapV2,
 ) where
 
@@ -36,8 +38,6 @@ import Utilities.Utilities as U
 
 
 {- | New Swap functions that are based on strict PHANE parallelization routines.
-    7) unions--only for TBR moves?
-        
 -}
 swapV2
     ∷ SwapParams
@@ -273,7 +273,7 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
                                                             in
                                                             (drop splitNumber newEdgeOrder) <> (take splitNumber newEdgeOrder)
 
-                                    rejoinFromOptSplitList swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor graphsToSwap curBestCost splitCounter edgeList resultListP''
+                                    rejoinFromOptSplitList swapParams inGS inData (doIA swapParams) inGraphNetPenaltyFactor graphsToSwap curBestCost splitCounter resultListP''
 
                                 -- this is recursive on splitting as opposed to parallelized
                                 -- used by SA/Drift (with randomization) as well to save work
@@ -339,10 +339,10 @@ rejoinFromOptSplitList
     -> [ReducedPhylogeneticGraph]
     -> VertexCost 
     -> Int
-    -> [LG.LEdge EdgeInfo] 
+    -- -> [LG.LEdge EdgeInfo] 
     -> [(DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)] 
     -> PhyG ([(ReducedPhylogeneticGraph, VertexCost)], Int)
-rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter splitEdgeList splitInfoList'' =
+rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter  splitInfoList'' =
     let splitInfoList' = L.uncons splitInfoList''
     in
     -- split counter back to 0 when end of list of splits
@@ -395,11 +395,11 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
             -- logWith LogInfo $ " Split Counter (Opt) " <> (show splitCounter)
             
             if (null tbrRerootEdges) && (swapType swapParams == TBROnly) then
-                    rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost (splitCounter + 1) splitEdgeList restSplits
+                    rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost (splitCounter + 1)  restSplits
 
             -- empty edges can happen in networks due to non-briding edge deficit
             else if null edgesInBaseGraph || null edgesInPrunedGraph then 
-                    rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost (splitCounter + 1) splitEdgeList restSplits
+                    rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost (splitCounter + 1)  restSplits
 
             else do
                 {-  pruning of edge via unions
@@ -507,8 +507,54 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 if ((swapType swapParams == TBROnly) || steepest swapParams) && minimumCheckedCost < curBestCost then
                     pure $ (zip newBestGraphs (replicate (length newBestGraphs) newBestCost) , splitCounter + 1)
 
-                else rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor newBestGraphs newBestCost (splitCounter + 1) splitEdgeList restSplits
+                else rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor newBestGraphs newBestCost (splitCounter + 1)  restSplits
 
+
+{- | rejoinGraphTuple is a wrapper around doAllSplitsAndRejoin for use
+in fusing
+-}
+rejoinGraphTuple 
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → VertexCost
+    → [ReducedPhylogeneticGraph]
+    → Maybe SAParams
+    → (DecoratedGraph, SimpleGraph, VertexCost, LG.Node, LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)
+    → PhyG [ReducedPhylogeneticGraph]
+rejoinGraphTuple swapParams inGS inData curBestCost curBestGraphs inSimAnnealParams
+    ( reoptimizedSplitGraph
+        , splitGraphSimple
+        , splitGraphCost
+        , graphRoot
+        , prunedGraphRootIndex
+        , originalConnectionOfPruned
+        , rejoinEdges
+        , edgesInPrunedGraph
+        , netPenaltyFactor
+        ) = 
+    let splitInfo = (reoptimizedSplitGraph, splitGraphCost,  graphRoot, prunedGraphRootIndex, originalConnectionOfPruned)
+    in do
+        rejoinedReturnList <- rejoinFromOptSplitList swapParams {joinType = JoinAll, steepest = False} inGS inData False netPenaltyFactor curBestGraphs curBestCost 0 [splitInfo]
+        let rejoinGraphsList = fmap fst $ fst rejoinedReturnList
+        graphsToReturn <- GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0.0 $ curBestGraphs <> rejoinGraphsList
+        pure graphsToReturn
+
+{-
+rejoinFromOptSplitList 
+    :: SwapParams 
+    -> GlobalSettings 
+    → ProcessedData 
+    -> Bool 
+    -> VertexCost 
+    -> [ReducedPhylogeneticGraph]
+    -> VertexCost 
+    -> Int
+    -> [LG.LEdge EdgeInfo] 
+    -> [(DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)] 
+    -> PhyG ([(ReducedPhylogeneticGraph, VertexCost)], Int)
+rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter  splitInfoList''
+-}
 
 {- | doAllSplitsAndRejoin generates all split reoptimizations
     Calls the rejoin function after creating the optimizaed split graph
@@ -1324,5 +1370,31 @@ reoptimizeSplitGraphFromVertexTupleNew
 reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData doIA nonExactCharacters netPenaltyFactor (curGraph, inSplitGraph, startVertex, prunedSubGraphRootVertex) =
     reoptimizeSplitGraphFromVertexNew swapParams inGS inData doIA nonExactCharacters netPenaltyFactor curGraph inSplitGraph startVertex prunedSubGraphRootVertex 
 
+
+
+
+-- | reoptimizeSplitGraphFromVertexTuplePO wrapper for postorder traversal withlast 3 args as tuple
+reoptimizeSplitGraphFromVertexTuplePO
+    ∷ SwapParams
+    → GlobalSettings
+    → ProcessedData
+    → Bool
+    -> Int
+    → VertexCost
+    → (DecoratedGraph, LG.Node, LG.Node)
+    → PhyG (DecoratedGraph, VertexCost)
+reoptimizeSplitGraphFromVertexTuplePO swapParams inGS inData doIA nonExactCharacters netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+    do
+        (outGraph, _) <- T.generalizedGraphPostOrderTraversal
+                            (inGS{graphFactor = NoNetworkPenalty, multiTraverseCharacters = False})
+                            nonExactCharacters
+                            inData
+                            Nothing
+                            (LG.extractLeafGraph inSplitGraph) 
+                            False
+                            (Just startVertex)
+                            (GO.convertDecoratedToSimpleGraph inSplitGraph)
+        logWith LogInfo $ " PO: " <> (show $ snd6 outGraph)
+        pure (thd6 outGraph, snd6 outGraph)
 
 

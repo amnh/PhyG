@@ -86,7 +86,12 @@ set(seed:1701287416)
 --build(distance, rdwag, replicates:50, best:50)
 build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
---fuse()
+
+
+transform(multitraverse:false)
+--fuse(noreciprocal)
+fuse(spr)
+transform(multitraverse:true)
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
@@ -109,6 +114,7 @@ build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 --swap(NNI, bestAll)
 --swap(alternate, betterN)
+
 swap()
 
 --swap(replicates:5, drift, maxChanges:5)

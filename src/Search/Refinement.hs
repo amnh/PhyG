@@ -286,6 +286,7 @@ fuseGraphs inArgs inGS inData inGraphList
         let swapType
                 | any ((== "tbr") . fst) lcArgList = TBR
                 | any ((== "spr") . fst) lcArgList = SPR
+                | any ((== "nni") . fst) lcArgList = SPR
                 | otherwise = NoSwap
 
         -- turn off union selection of rejoin--default to do both, union first

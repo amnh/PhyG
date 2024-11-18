@@ -1903,7 +1903,7 @@ reoptimizeSplitGraphFromVertex inGS inData doIA netPenaltyFactor inSplitGraph st
                             False
                             (Just prunedSubGraphRootVertex)
                             splitGraphSimple
-
+                    
                     -- False for staticIA
                     fullPrunedGraph ←
                         PRE.preOrderTreeTraversal

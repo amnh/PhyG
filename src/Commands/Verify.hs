@@ -142,6 +142,7 @@ fuseArgList =
     , "keep"
     , "once"
     , "pairs"
+    , "nni"
     , "none"
     , "spr"
     , "steepest"
