@@ -297,7 +297,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                             action `pTraverse` simAnnealList
 
                     let (graphListList, counterList) = first fold $ unzip graphPairList
-                    (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x → (x, sum counterList)
+                    (newGraphList, counter) ← GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 graphListList <&> \x → (x, sum counterList)
 
                     let finalGraphList = case newGraphList of
                             [] → inGraphList'
@@ -399,7 +399,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                                                         pure reDiagGraphs
 
 
-                        (newGraphListLevel, counterLevel) ← GO.selectGraphs Best (fromJust keepNum) 0 reoptimizedGraphList <&> \x → (x, sum counterListLevel)
+                        (newGraphListLevel, counterLevel) ← GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 reoptimizedGraphList <&> \x → (x, sum counterListLevel)
 
                         let finalGraphListLevel = case newGraphListLevel of
                                 [] → finalGraphList

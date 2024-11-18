@@ -74,7 +74,7 @@ swapV2 swapParams inGS inData inCounter curBestGraphList saParams =
 
                 -- for regular swapping
                 else do 
-                    bestGraphs <- GO.selectGraphs Best (keepNum swapParams) 0.0 $ curBestGraphList <> (concat annealGraphList)
+                    bestGraphs <- GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 $ curBestGraphList <> (concat annealGraphList)
 
                     pure (bestGraphs, sum counterList)
                 
@@ -318,7 +318,7 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
 
                 -- equal graph costs to input
                 else if returnCost == curBestCost then do
-                    uniqueBestGraphs <- GO.selectGraphs Unique (keepNum swapParams) 0.0 $ newValList <> curBestGraphList
+                    uniqueBestGraphs <- GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0.0 $ newValList <> curBestGraphList
                     swapNaive swapParams inGS inData (inCounter + 1) splitCounter (graphsRemaining L.\\ uniqueBestGraphs) uniqueBestGraphs saParams
 
                 -- worse graphs than input

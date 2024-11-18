@@ -271,7 +271,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
         else do
             -- build graphs
             buildGraphs ← B.buildGraph buildOptions inGS newData
-            bestBuildGraphList ← GO.selectGraphs Best (maxBound ∷ Int) 0.0 buildGraphs
+            bestBuildGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0.0 buildGraphs
 
             edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
             let netGraphList = case graphType inGS of

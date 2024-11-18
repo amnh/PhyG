@@ -823,15 +823,15 @@ showDecGraphs inDecVV =
 {- |
 A wrapper around selectGraphsFull for ReducedPhylogeneticGraph.
 -}
-selectGraphs ∷ SelectGraphType → Int → Double → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
-selectGraphs selectType numberToKeep threshold inGraphList =
+selectGraphs ∷ SelectGraphType → LG.Node -> Int → Double → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
+selectGraphs selectType outgroupIndex numberToKeep threshold inGraphList =
     let convertReduced2GenPhyloGraph (a, b, c, d, f) = (a, b, c, d, mempty, f)
 
         convertGenPhyloGraph2Reduced (a, b, c, d, _, f) = (a, b, c, d, f)
 
         fullPhyloGraphList = convertReduced2GenPhyloGraph <$> inGraphList
 
-        newFullGraphs = selectGraphsFull selectType numberToKeep threshold fullPhyloGraphList
+        newFullGraphs = selectGraphsFull selectType outgroupIndex numberToKeep threshold fullPhyloGraphList
     in  fmap convertGenPhyloGraph2Reduced <$> newFullGraphs
 
 
@@ -843,11 +843,12 @@ A wrapper around selectPhylogeneticGraph with a better interface.
 -}
 selectGraphsFull
     ∷ SelectGraphType
+    -> LG.Node
     → Int
     → Double
     → [GenPhyloGraph a b]
     → PhyG [GenPhyloGraph a b]
-selectGraphsFull selectType numberToKeep threshold = \case
+selectGraphsFull selectType outgroupIndex numberToKeep threshold = \case
     [] → pure []
     inGraphList →
         let stringArgs
@@ -858,7 +859,7 @@ selectGraphsFull selectType numberToKeep threshold = \case
                     AtRandom → ("atrandom", "")
                     All → ("all", "")
                     _ → ("best", "")
-        in  take numberToKeep <$> selectPhylogeneticGraph [stringArgs] [] inGraphList
+        in  take numberToKeep <$> selectPhylogeneticGraph [stringArgs] outgroupIndex [] inGraphList
 
 
 {- |
@@ -866,11 +867,11 @@ A wrapper for ReducedPhylogeneticGraph.
 
 /Note: Inefficient in conversions./
 -}
-selectPhylogeneticGraphReduced ∷ [Argument] → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
-selectPhylogeneticGraphReduced inArgs curGraphs =
+selectPhylogeneticGraphReduced ∷ [Argument] -> LG.Node → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
+selectPhylogeneticGraphReduced inArgs outgroupIndex curGraphs =
     let phylographList = fmap convertReduced2PhylogeneticGraph curGraphs
     in  do
-            selectedPhylographs ← selectPhylogeneticGraph inArgs [] phylographList
+            selectedPhylographs ← selectPhylogeneticGraph inArgs outgroupIndex [] phylographList
             pure $ convertPhylogeneticGraph2Reduced <$> selectedPhylographs
 
 
@@ -882,11 +883,12 @@ Operates on collapsed graphs
 -}
 selectPhylogeneticGraph
     ∷ [Argument]
+    -> LG.Node
     → [String]
     → [GenPhyloGraph a b]
     → PhyG [GenPhyloGraph a b]
-selectPhylogeneticGraph inArgs _ [] = pure []
-selectPhylogeneticGraph inArgs _ curGraphs =
+selectPhylogeneticGraph inArgs outgroupIndex _ [] = pure []
+selectPhylogeneticGraph inArgs outgroupIndex _ curGraphs =
     let fstArgList = fmap (fmap C.toLower . fst) inArgs
         sndArgList = fmap (fmap C.toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -934,11 +936,11 @@ selectPhylogeneticGraph inArgs _ curGraphs =
                                             curGraphsCollapsed = fmap U.collapseGraph curGraphs
 
                                             -- keep only unique graphs based on non-zero edges--in sorted by cost
-                                            uniqueGraphList = L.sortOn snd6 $ getUniqueGraphs'' (zip curGraphs curGraphsCollapsed) -- curGraphs --  True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
+                                            uniqueGraphList = L.sortOn snd6 $ nubGraph outgroupIndex [] (zip curGraphs curGraphsCollapsed) -- curGraphs --  True curGraphs -- getBVUniqPhylogeneticGraph True curGraphs -- getTopoUniqPhylogeneticGraph True curGraphs
 
                                             -- this to avaoid alot of unncesesary graph comparisons for 'best' graphs
                                             bestCostGraphs = filter ((== minGraphCost) . snd6) curGraphs
-                                            uniqueBestGraphs = getUniqueGraphs'' (zip bestCostGraphs (fmap U.collapseGraph bestCostGraphs))
+                                            uniqueBestGraphs = nubGraph outgroupIndex [] (zip bestCostGraphs (fmap U.collapseGraph bestCostGraphs))
 
                                             result
                                                 | doUnique = pure $ take keep uniqueGraphList
@@ -981,11 +983,13 @@ basically a nub
 need to add a collapse function for compare as well
 takes pairs of (noCollapsed, collapsed) phylogenetic graphs,
 make strings based on collapsed and returns not collpased
--}
+
 getUniqueGraphs''
-    ∷ [(GenPhyloGraph a b, GenPhyloGraph a b)]
+    ∷ LG.Node
+    -> [(GenPhyloGraph a b, GenPhyloGraph a b)]
     → [GenPhyloGraph a b]
-getUniqueGraphs'' = nubGraph []
+getUniqueGraphs'' = nubGraph outgroupIndex []
+-}
 
 
 {- | isNovelGraph  checks if a graph is in list of existing graphs
@@ -1009,41 +1013,55 @@ isNovelGraph graphList testGraph =
 String prettyIndices w/0 HTU names and branch lengths
 arbitrarily rooted on 0 for oonsistency
 reversed to keep original order in case sorted on length
+
+reroots graph for comparison if needed--but not for networks
 -}
 nubGraph
-    ∷ [(GenPhyloGraph a b, GenPhyloGraph a b, String)]
+    ∷ LG.Node
+    -> [(GenPhyloGraph a b, GenPhyloGraph a b, String)]
     → [(GenPhyloGraph a b, GenPhyloGraph a b)]
     → [GenPhyloGraph a b]
-nubGraph curList inList =
+nubGraph outgroupIndex curList inList =
     if null inList
         then reverse $ fmap fst3 curList
         else
             let (firstGraphNC, firstGraphC) = head inList
 
                 -- nub on newick topology only--should be collapsed already
+                -- reroot for comparison since can move root in search
+
+                -- check curent graph rpoot to see if needs to be rerooted
+                inRoot = (fst $ head $ LG.getRoots $ fst6 firstGraphNC)
+                inRootChildren = LG.descendants (fst6 firstGraphNC) inRoot
+                isOutGroupRooted = outgroupIndex `elem` inRootChildren
+
                 costList = [snd6 firstGraphNC]
-                -- rerooted on 0 so don't need inGS passed around
-                outgroupIndex = 0
                 rerootGraph = LG.rerootTree outgroupIndex $ fst6 firstGraphNC
                 graphRoot = head $ LG.parents rerootGraph outgroupIndex
 
-                --firstString = makeNewickList False False False (fst $ head $ LG.getRoots $ LG.rerootTree 0 $ fst6 firstGraphNC) [LG.rerootTree 0 $ fst6 firstGraphNC] [snd6 firstGraphNC]
-                firstString = if (null (LG.parents rerootGraph outgroupIndex)) then 
+                firstString = if isOutGroupRooted || (not $ LG.isTree (fst6 firstGraphNC)) then 
+                                     makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
+
+                              -- tried to reoot but not properly rooted--eg tried to reroot on a network edge
+                              else if (null (LG.parents rerootGraph outgroupIndex)) then 
                                     makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
+
+                              -- not in correct root but ok rerooted--ie tree
                               else
                                     makeNewickList False False False graphRoot [rerootGraph] costList
                 
                 -- nub on prettty string
                 -- firstString = LG.prettyIndices $ thd6 firstGraphNC
                 isMatch = filter (== firstString) (fmap thd3 curList)
+
             in  --trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString <> "\n" <> (concat $ fmap thd3 curList)) $
                 if null (LG.parents rerootGraph outgroupIndex) then error ("No root for graph in nubGraph:\n" <> (LG.prettyDot rerootGraph))
                 else if null curList
-                    then nubGraph [(firstGraphNC, firstGraphC, firstString)] (tail inList)
+                    then nubGraph outgroupIndex [(firstGraphNC, firstGraphC, firstString)] (tail inList)
                     else
                         if null isMatch
-                            then nubGraph ((firstGraphNC, firstGraphC, firstString) : curList) (tail inList)
-                            else nubGraph curList (tail inList) 
+                            then nubGraph outgroupIndex ((firstGraphNC, firstGraphC, firstString) : curList) (tail inList)
+                            else nubGraph outgroupIndex curList (tail inList) 
 
 
 -- )

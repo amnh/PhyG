@@ -148,7 +148,7 @@ buildGraph inArgs inGS inData =
 
                         -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
                         firstGraphs ← case buildBlock of
-                            [] → GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 firstGraphs'
+                            [] → GO.selectGraphs Unique (outgroupIndex inGS) (fromJust numReturnTrees) 0.0 firstGraphs'
                             _ → pure firstGraphs'
 
                         -- reporting info
@@ -293,7 +293,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
         performBuildCharacter numReplicates =
             let treeList = WB.rasWagnerBuild inGS inData numReplicates
                 treeList'
-                    | simpleTreeOnly = GO.selectGraphs Best 1 0.0 (-1) treeList
+                    | simpleTreeOnly = GO.selectGraphs Best (outgroupIndex inGS) 1 0.0 (-1) treeList
                     | otherwise = treeList
             in  do
                     logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList'
@@ -371,7 +371,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                             logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs) <> "\n"
                             if not simpleTreeOnly
                                 then pure xs
-                                else GO.selectGraphs Best 1 0 xs
+                                else GO.selectGraphs Best (outgroupIndex inGS) 1 0 xs
     in  do
             failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
             failWhen (buildDistance && buildCharacter) $
@@ -395,7 +395,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 do
                     -- character build
                     treeList ← WB.rasWagnerBuild inGS inData numReplicates
-                    treeList' ← GO.selectGraphs Best 1 0 treeList
+                    treeList' ← GO.selectGraphs Best (outgroupIndex inGS) 1 0 treeList
                     if simpleTreeOnly
                         then do
                             logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList') <> "\n"

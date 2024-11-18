@@ -79,7 +79,7 @@ swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
             (newGraphList', newCounter, newSAParams) ←
                 swapMaster swapParams inGS inData inCounter curBestGraphList inSimAnnealParams
 
-            newGraphList ← GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList'
+            newGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 newGraphList'
             -- liftIO $ putStr ("SD-After: " <> (show $ fmap snd5 newGraphList))
             -- found no better
 
@@ -94,7 +94,7 @@ swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
 
                                 if newCost == inBestCost
                                     then do
-                                        allGraphs <- GO.selectGraphs Best (keepNum swapParams) 0.0 (newGraphList <> curBestGraphList)
+                                        allGraphs <- GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 (newGraphList <> curBestGraphList)
                                         pure (allGraphs, newCounter)
                                     else -- found better-- go around again
                                     do
@@ -166,7 +166,7 @@ swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList i
                             (annealDriftGraphs', anealDriftCounterList, annealDriftParams) ← unzip3 <$> swapPar action newSimAnnealParamList
 
                             -- annealed/Drifted 'mutated' graphs
-                            annealDriftGraphs ← GO.selectGraphs Unique (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
+                            annealDriftGraphs ← GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0.0 $ concat annealDriftGraphs'
 
                             -- swap back "normally" if desired for full drifting/annealing
                             (swappedGraphs, counter, _) ←
@@ -182,7 +182,7 @@ swapMaster swapParams inGS inData@(leafNames, _, _) inCounter curBestGraphList i
                                     inGraphNetPenaltyFactor
                                     Nothing
 
-                            bestGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ curBestGraphList <> swappedGraphs
+                            bestGraphs ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 $ curBestGraphList <> swappedGraphs
                             -- this Bool for Genetic Algorithm mutation step
                             pure $
                                 if not $ returnMutated swapParams
@@ -230,7 +230,7 @@ swapAll swapParams inGS inData counter curBestCost curSameBetterList inGraphList
                     netPenaltyFactor
                     0
                     inSimAnnealParams
-            graphsToTBR ← GO.selectGraphs Best (keepNum swapParams) 0.0 $ sprGraphs <> inGraphList
+            graphsToTBR ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 $ sprGraphs <> inGraphList
             let sprBestCost = getGraphCost graphsToTBR
 
             -- tbr until find better or novel equal
@@ -276,7 +276,7 @@ swapAll swapParams inGS inData counter curBestCost curSameBetterList inGraphList
                             tbrSAPArams
                     -- check if found additional
                     EQ → do
-                        bestTBRGraphs ← GO.selectGraphs Best (keepNum swapParams) 0.0 tbrGraphs
+                        bestTBRGraphs ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 tbrGraphs
                         let newTBRGraphs = GO.reducedphylogeneticGraphListMinus bestTBRGraphs $ sprGraphs <> curSameBetterList
                         case newTBRGraphs of
                             g : gs
@@ -343,7 +343,7 @@ swapAll'
     → Maybe SAParams
     → PhyG ([ReducedPhylogeneticGraph], Int, Maybe SAParams)
 swapAll' swapParams inGS inData counter curBestCost curSameBetterList inGraphList numLeaves netPenaltyFactor breakEdgeNumber inSimAnnealParams =
-    let selectionOf x = GO.selectGraphs x (keepNum swapParams) 0.0
+    let selectionOf x = GO.selectGraphs x (outgroupIndex inGS) (keepNum swapParams) 0.0
     in  -- don't need to check for mutated here since checked above
         case inGraphList of
             [] →
@@ -723,7 +723,7 @@ splitJoinGraph swapParams inGS inData curBestCost curSameBetterList numLeaves ne
                         <> "\nFull edgelist: " <> (show $ fmap LG.toEdge breakEdgeListComplete))
                         -}
 
-                        newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 newGraphList
+                        newGraphList' ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 newGraphList
 
                         case inSimAnnealParams of
                             -- only returns graphs if same of better else empty
@@ -1012,7 +1012,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                 -}
 
                                                 -- newGraphList = fmap (T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing) (fmap fst rejoinGraphList) `using` PU.myParListChunkRDS
-                                                newGraphList ← GO.selectGraphs Best (keepNum swapParams) 0 rejoinGraphList
+                                                newGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0 rejoinGraphList
 
                                                 -- will only return graph if <= curBest cost
                                                 case rejoinGraphList of
@@ -1057,7 +1057,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
                                                     getParallelChunkTraverseBy (listApplying strict1and2of5) >>= \pTraverse →
                                                         fold <$> pTraverse action rejoinEdgeList
 
-                                                newGraphList' ← GO.selectGraphs Best (keepNum swapParams) 0.0 rejoinGraphList
+                                                newGraphList' ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 rejoinGraphList
 
                                                 -- found nothing better or equal
                                                 if null rejoinGraphList
@@ -1088,7 +1088,7 @@ rejoinGraph swapParams inGS inData curBestCost curBestGraphs netPenaltyFactor re
 
                                                                 if (snd5 . head) newGraphList' == curBestCost
                                                                     then do
-                                                                        newBestList ← GO.selectGraphs Best (keepNum swapParams) 0 $ curBestGraphs <> newGraphList'
+                                                                        newBestList ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0 $ curBestGraphs <> newGraphList'
                                                                         rejoinGraph
                                                                             swapParams
                                                                             inGS
