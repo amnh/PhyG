@@ -3,7 +3,7 @@ Module specifying graph swapping rearrangement functions
 -}
 module Search.Swap (
     --getUnionRejoinEdgeList,
-    rejoinGraphTuple,
+    -- rejoinGraphTuple,
     reoptimizeSplitGraphFromVertexTuple,
     swapDriver,
 ) where

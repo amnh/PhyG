@@ -576,7 +576,7 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
 
                 -- Unconditional printing, conditional output payload.
                 do
-                    firstRejoinResult ← S.rejoinGraphTuple swapParams inGS inData curBestCost [] inSimAnnealParams firstGraphData'
+                    firstRejoinResult ← SV2.rejoinGraphTuple swapParams inGS inData curBestCost [] inSimAnnealParams firstGraphData'
                     let firstBestCost =
                             if (not . null) firstRejoinResult
                                 then minimum $ fmap snd5 firstRejoinResult
