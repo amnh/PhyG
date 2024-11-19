@@ -847,7 +847,6 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     -- inGSgs1 = inGS{graphsSteepest = gsNum}
                     let fuseArgs =
                             [ ("none", "")
-                            , ("all", "")
                             , ("unique", "")
                             , ("atrandom", "")
                             , ("pairs", fusePairs)
@@ -862,7 +861,6 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     fusePairs ← getFusePairs
                     let fuseArgs =
                             [ ("spr", "")
-                            , ("all", "")
                             , ("unique", "")
                             , ("atrandom", "")
                             , ("pairs", fusePairs)
@@ -877,7 +875,6 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     fusePairs ← getFusePairs
                     let fuseArgs =
                             [ ("tbr", "")
-                            , ("all", "")
                             , ("unique", "")
                             , ("atrandom", "")
                             , ("pairs", fusePairs)
