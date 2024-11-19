@@ -7,8 +7,6 @@ module Search.SwapMaster (
 
 import Commands.Verify qualified as VER
 import Control.Monad (when)
-import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Random.Class
 import Data.Bifunctor (first)
 import Data.Char
 import Data.Foldable (fold)
@@ -18,13 +16,10 @@ import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import GraphOptimization.Traversals qualified as T
 import PHANE.Evaluation
-import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
-import Search.Swap qualified as S
+import Search.SwapV2 qualified as SV2
 import Text.Read
 import Types.Types
-import Utilities.Utilities as U
 
 
 {- | swapMaster processes and spawns the swap functions
@@ -289,7 +284,7 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     -- parallel setup
                     --action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
-                    let action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver localSwapParams (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 inGraphList'
+                    let action = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver localSwapParams (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 inGraphList'
 
                     let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList'
                     graphPairList ←
@@ -374,7 +369,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         let swapParamsLevel = standardSwap { joinType = JoinAll
                                                             , checkHeuristic = BetterN
                                                             }
-                        let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 finalGraphList
+                        let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 finalGraphList
 
                         let simAnnealListLevel = (: []) <$> zip newSimAnnealParamList finalGraphList
                         graphPairListLevel ←

@@ -291,15 +291,8 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                         --reoptimizeActionNew ∷ (PhylogeneticGraph, DecoratedGraph, LG.Node, LG.Node) → PhyG (DecoratedGraph, VertexCost)
                         --reoptimizeActionNew = SV2.reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData False (U.getNumberSequenceCharacters $ thd3 inData) netPenalty
 
-                        --reoptimizeActionPO ∷ (DecoratedGraph, LG.Node, LG.Node) → PhyG (DecoratedGraph, VertexCost)
-                        --reoptimizeActionPO = SV2.reoptimizeSplitGraphFromVertexTuplePO swapParams inGS inData False (U.getNumberSequenceCharacters $ thd3 inData) netPenalty
-                        
-
                         reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
-                        reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
-
-
-
+                        reoptimizeAction = SV2.reoptimizeSplitGraphFromVertexTupleFuse inGS inData False netPenalty
                         
                     in  do
                             splitLeftPar ← getParallelChunkMap
@@ -537,7 +530,7 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                                     else pure []
 
 
-{- | rejoinGraphTupleRecursive is a wrapper for S.rejoinGraphTuple that recursively goes through list as opposd to parMapping
+{- | rejoinGraphTupleRecursive is a wrapper for SV2.rejoinGraphTuple that recursively goes through list as opposd to parMapping
 this to save on memory footprint since there would be many calls generated
 the rejoin operation is parallelized itself
 recursive best cost so can keep all better than input but can have progress info
@@ -559,13 +552,6 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
                 -- update with unions for rejoining
                 -- using best cost for differentiate since there was no single graph to get original deltas
                 -- add randomize edges option?
-
-                {- Turned off join prune option here
-                 charInfoVV = fmap thd3 $ thd3 inData
-                 (splitGraphDec, splitGraphSimple, splitCost, baseGraphRootIndex, prunedGraphRootIndex, prunedParent~RootIndex, _, edgesInPrunedList, netPenaltyFactor) = firstGraphData
-                 prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphDec prunedGraphRootIndex
-                 unionEdgeList <- S.getUnionRejoinEdgeList inGS splitGraphDec charInfoVV [baseGraphRootIndex] (curBestCost - splitCost) prunedToRejoinUnionData []
-                -}
 
                 firstGraphData' = firstGraphData
             in  {-Turned off for now since doesn't alternate

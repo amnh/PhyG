@@ -1039,6 +1039,7 @@ nubGraph outgroupIndex curList inList =
                 rerootGraph = LG.rerootTree outgroupIndex $ fst6 firstGraphNC
                 graphRoot = head $ LG.parents rerootGraph outgroupIndex
 
+                              -- already rooted properly or is not a tree so dangerous to reroot
                 firstString = if isOutGroupRooted || (not $ LG.isTree (fst6 firstGraphNC)) then 
                                      makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
 
@@ -1054,9 +1055,8 @@ nubGraph outgroupIndex curList inList =
                 -- firstString = LG.prettyIndices $ thd6 firstGraphNC
                 isMatch = filter (== firstString) (fmap thd3 curList)
 
-            in  --trace ("NG: " <> (show $ null isMatch) <> "->" <> firstString <> "\n" <> (concat $ fmap thd3 curList)) $
-                if null (LG.parents rerootGraph outgroupIndex) then error ("No root for graph in nubGraph:\n" <> (LG.prettyDot rerootGraph))
-                else if null curList
+            in  
+                if null curList
                     then nubGraph outgroupIndex [(firstGraphNC, firstGraphC, firstString)] (tail inList)
                     else
                         if null isMatch

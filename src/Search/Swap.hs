@@ -4,8 +4,8 @@ Module specifying graph swapping rearrangement functions
 module Search.Swap (
     --getUnionRejoinEdgeList,
     -- rejoinGraphTuple,
-    reoptimizeSplitGraphFromVertexTuple,
-    swapDriver,
+    --reoptimizeSplitGraphFromVertexTuple,
+    --swapDriver,
 ) where
 
 import Control.Monad (filterM)

@@ -17,7 +17,7 @@ import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Fuse qualified as F
 import Search.NetworkAddDelete qualified as N
-import Search.Swap qualified as S
+import Search.SwapV2 qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 
