@@ -136,16 +136,17 @@ buildArgList =
 -- | fuseArgList arguments
 fuseArgList ∷ [String]
 fuseArgList =
-    [ "all"
-    , "atrandom"
+    [ --"all"
+      "atrandom"
     , "best"
     , "keep"
+    , "multitraverse"
     , "once"
     , "pairs"
     , "nni"
     , "none"
     , "spr"
-    , "steepest"
+    --, "steepest"
     , "tbr"
     , "unique"
     , "reciprocal"

@@ -28,7 +28,6 @@ import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
-import Search.Swap qualified as S
 import Search.SwapV2 qualified as SV2
 import Types.Types
 import Utilities.LocalGraph qualified as LG
