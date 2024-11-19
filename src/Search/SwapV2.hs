@@ -395,8 +395,8 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
             charInfoVV = fmap thd3 $ thd3 inData
 
-            -- chekc for fuse edges input
-            (_, edgesInBaseGraph) = if isNothing fuseEdgesToJoin then 
+            -- check for fuse edges input
+            (_, edgesInBaseGraph) = if isNothing fuseEdgesToJoin then                                
                                         LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
                                     else ([], fromJust fuseEdgesToJoin)
 
@@ -466,6 +466,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
                 let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
 
+                -- shouldn't matter for fuse NoSwap since taking small number anyway
                 rejoinEdges <-  if atRandom swapParams then 
                                     shuffleList edgesInBaseGraph'
                                     
