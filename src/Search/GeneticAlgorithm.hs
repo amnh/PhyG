@@ -89,7 +89,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                             uniqueMutatedGraphList ← GO.selectGraphs Unique (outgroupIndex inGS) (maxBound ∷ Int) 0 $ mutatedGraphList <> inGraphList
 
                             -- recombine elite with mutated and mutated with mutated
-                            let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
+                            let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, SPR, TBR] --  these take too long, "tbr", "alternate"]
 
                             -- options to join via union choices or all in fuse
                             -- this is ignored for now in fuse--JoinAll is what it does

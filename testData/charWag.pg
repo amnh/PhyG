@@ -88,10 +88,8 @@ build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 
 
-transform(multitraverse:false)
 --fuse(noreciprocal)
-fuse(spr, pairs:10)
-transform(multitraverse:true)
+fuse(pairs:10)
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
@@ -115,7 +113,7 @@ transform(multitraverse:true)
 --swap(NNI, bestAll)
 --swap(alternate, betterN)
 
---swap()
+swap()
 
 --swap(replicates:5, drift, maxChanges:5)
 --swap(replicates:5)

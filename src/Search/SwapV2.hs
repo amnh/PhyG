@@ -281,7 +281,14 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
 
                                     -- this filter for malformed graphs from split graph
                                     -- can happen with networks when there are lots of network edges
-                                    let resultListP' = filter (not . (LG.isEmpty . fst5)) resultListP
+                                    let resultListP' = 
+                                            let fiveList = filter (not . (LG.isEmpty . fst5)) resultListP
+                                                (a,b,c,d,e) = L.unzip5 fiveList
+                                                f = L.replicate (length fiveList) Nothing
+                                            in L.zip6 a b c d e f 
+
+                                    -- add Nothing for fuse edges
+
 
                                     -- Reorder list based on previous splits to keep going where previous stopped (Farris suggestion)
                                     let resultListP'' = if atRandom swapParams then resultListP'
@@ -289,7 +296,7 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
                                                         else 
                                                             -- order of split cost or not
                                                             let newEdgeOrder =  if sortEdgesSplitCost swapParams then 
-                                                                                        L.sortOn snd5 resultListP'
+                                                                                        L.sortOn snd6 resultListP'
                                                                                 else resultListP'
                                                                 splitNumber = rem splitCounter (length resultListP')
                                                             in
@@ -351,6 +358,9 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
     Good for parallel execution
 
     Does not have SA/Drift functionality
+
+    last arg in split info is edges for use by fuse reconnection--first of which is original fuse 
+    connection
 -}
 rejoinFromOptSplitList 
     :: SwapParams 
@@ -362,16 +372,16 @@ rejoinFromOptSplitList
     -> VertexCost 
     -> Int
     -- -> [LG.LEdge EdgeInfo] 
-    -> [(DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)] 
+    -> [(DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node, Maybe [LG.LEdge EdgeInfo])] 
     -> PhyG ([(ReducedPhylogeneticGraph, VertexCost)], Int)
-rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter  splitInfoList'' =
+rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter splitInfoList'' =
     let splitInfoList' = L.uncons splitInfoList''
     in
     -- split counter back to 0 when end of list of splits
     if isNothing splitInfoList' then pure $ (zip curBestGraphList (fmap snd5 curBestGraphList), 0)
     else 
         let (firstSplit, restSplits) = fromJust splitInfoList'
-            (splitGraphOptimized, splitCost, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned) = firstSplit
+            (splitGraphOptimized, splitCost, graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, fuseEdgesToJoin) = firstSplit
 
             -- get root in base (for readdition) and edges in pruned section for rerooting during readdition
             (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(originalConnectionOfPruned, fromJust $ LG.lab splitGraphOptimized originalConnectionOfPruned)]
@@ -385,7 +395,10 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
             charInfoVV = fmap thd3 $ thd3 inData
 
-            (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
+            -- chekc for fuse edges input
+            (_, edgesInBaseGraph) = if isNothing fuseEdgesToJoin then 
+                                        LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
+                                    else ([], fromJust fuseEdgesToJoin)
 
             -- Functions for edge data and rejoin function
             (makeEdgeDataFunction, edgeJoinFunction) =
@@ -431,6 +444,11 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                     May not work properly for networks yielding Nothing on edge label call--hence the check
                 -}
                 edgesInBaseGraph' <- if graphType inGS /= Tree then pure edgesInBaseGraph
+                                     else if isJust fuseEdgesToJoin then 
+                                        -- for fuse--first is fuse connection w/o swap
+                                        if swapType swapParams == NoSwap then 
+                                            pure $ take 3 edgesInBaseGraph
+                                        else pure edgesInBaseGraph
                                      else if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
                                         do 
                                             let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
@@ -551,32 +569,16 @@ rejoinGraphTuple swapParams inGS inData curBestCost curBestGraphs inSimAnnealPar
         , graphRoot
         , prunedGraphRootIndex
         , originalConnectionOfPruned
-        , rejoinEdges
+        , rejoinEdges -- first element is oringal connection--edge that can be rejoined to
         , edgesInPrunedGraph
         , netPenaltyFactor
         ) = 
-    let splitInfo = (reoptimizedSplitGraph, splitGraphCost,  graphRoot, prunedGraphRootIndex, originalConnectionOfPruned)
+    let splitInfo = (reoptimizedSplitGraph, splitGraphCost,  graphRoot, prunedGraphRootIndex, originalConnectionOfPruned, Just rejoinEdges)
     in do
         rejoinedReturnList <- rejoinFromOptSplitList swapParams {joinType = JoinAll, steepest = False} inGS inData False netPenaltyFactor curBestGraphs curBestCost 0 [splitInfo]
         let rejoinGraphsList = fmap fst $ fst rejoinedReturnList
         graphsToReturn <- GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0.0 $ curBestGraphs <> rejoinGraphsList
         pure graphsToReturn
-
-{-
-rejoinFromOptSplitList 
-    :: SwapParams 
-    -> GlobalSettings 
-    → ProcessedData 
-    -> Bool 
-    -> VertexCost 
-    -> [ReducedPhylogeneticGraph]
-    -> VertexCost 
-    -> Int
-    -> [LG.LEdge EdgeInfo] 
-    -> [(DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)] 
-    -> PhyG ([(ReducedPhylogeneticGraph, VertexCost)], Int)
-rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBestGraphList curBestCost splitCounter  splitInfoList''
--}
 
 {- | doAllSplitsAndRejoin generates all split reoptimizations
     Calls the rejoin function after creating the optimizaed split graph
@@ -1021,7 +1023,8 @@ singleJoinHeuristic makeEdgeDataFunction edgeJoinFunction swapParams inGS inData
 
                 
                 -- SPR return new graph with heuristic cost
-                if swapType swapParams `elem` [NNI, SPR] then 
+                -- NoSwap for fusing
+                if swapType swapParams `elem` [NoSwap, NNI, SPR] then 
                     pure ([(targetEdge, splitCost + sprReJoinCost)], []) 
 
                 -- tbr (includes SPR result) and TBROnly which does not
