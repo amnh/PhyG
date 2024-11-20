@@ -89,7 +89,7 @@ build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 
 --fuse(noreciprocal)
-fuse(pairs:10)
+fuse(tbr,pairs:10)
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
@@ -113,7 +113,7 @@ fuse(pairs:10)
 --swap(NNI, bestAll)
 --swap(alternate, betterN)
 
-swap()
+--swap()
 
 --swap(replicates:5, drift, maxChanges:5)
 --swap(replicates:5)

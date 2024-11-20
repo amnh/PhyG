@@ -395,7 +395,8 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
             charInfoVV = fmap thd3 $ thd3 inData
 
-            -- check for fuse edges input
+            -- check for fuse edges input.  Only use if NoSwap which contains the initial fuse edge
+            -- take 3 for NoSwap to do a litle more work
             (_, edgesInBaseGraph) = if isNothing fuseEdgesToJoin then                                
                                         LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
                                     else ([], fromJust fuseEdgesToJoin)
@@ -443,12 +444,15 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
                     May not work properly for networks yielding Nothing on edge label call--hence the check
                 -}
-                edgesInBaseGraph' <- if graphType inGS /= Tree then pure edgesInBaseGraph
-                                     else if isJust fuseEdgesToJoin then 
+                edgesInBaseGraph' <- -- edges fuse 
+                                     if (isJust fuseEdgesToJoin) && (swapType swapParams == NoSwap) then 
                                         -- for fuse--first is fuse connection w/o swap
-                                        if swapType swapParams == NoSwap then 
-                                            pure $ take 3 edgesInBaseGraph
-                                        else pure edgesInBaseGraph
+                                        pure $ take 3 edgesInBaseGraph
+
+                                     -- network
+                                     else if graphType inGS /= Tree then 
+                                        pure edgesInBaseGraph
+                                     
                                      else if joinType swapParams == JoinPruned && isJust (LG.lab splitGraphOptimized prunedGraphRootIndex) then 
                                         do 
                                             let prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphOptimized prunedGraphRootIndex
@@ -466,8 +470,11 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
                 let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
 
-                -- shouldn't matter for fuse NoSwap since taking small number anyway
-                rejoinEdges <-  if atRandom swapParams then 
+                -- reorder/shuffle edge list if desired
+                rejoinEdges <-  if isJust fuseEdgesToJoin then 
+                                    pure edgesInBaseGraph'
+
+                                else if atRandom swapParams then 
                                     shuffleList edgesInBaseGraph'
                                     
                                 -- should re-add close to original placement first
