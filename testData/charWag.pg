@@ -87,9 +87,9 @@ set(seed:1701287416)
 build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 
-
+transform(multiTraverse:True)
 --fuse(noreciprocal)
-fuse(tbr,pairs:10)
+fuse(spr,pairs:10)
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
