@@ -346,14 +346,14 @@ fuseGraphs inArgs inGS inData inGraphList
         -- set up parallel for potential rediagnose
         --diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
         -- let diagnoseAction = T.MultiTraverseFullyLabelGraphReduced inGS inData False False Nothing
-        let diagnoseSingleAction = T.MultiTraverseFullyLabelGraphReduced (inGS {MultiTraverseCharacters = False}) inData False False Nothing
-        let diagnoseMultiAction = T.MultiTraverseFullyLabelGraphReduced (inGS {MultiTraverseCharacters = True}) inData False False Nothing
+        let diagnoseSingleAction = T.multiTraverseFullyLabelGraphReduced (inGS {multiTraverseCharacters = False}) inData False False Nothing
+        let diagnoseMultiAction = T.multiTraverseFullyLabelGraphReduced (inGS {multiTraverseCharacters = True}) inData False False Nothing
 
         -- if MultiTraverse is true coming in and isn't during fuse--need to rediagnose current best graphs
         -- to single traverse or may not find better sue to that alone.
-        inGraphList' <- if (MultiTraverseCharacters inGS) == doMultiTraverse then
+        inGraphList' <- if (multiTraverseCharacters inGS) == doMultiTraverse then
                                 pure inGraphList
-                        else if (MultiTraverseCharacters inGS) && (not doMultiTraverse) then
+                        else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
                                 do -- multtraverse in is True but False during fuse
                                     {-Rediagnoses-}
                                     logWith LogInfo $ "\tRediagnosing to MultiTraverse -> False\n"
@@ -372,7 +372,7 @@ fuseGraphs inArgs inGS inData inGraphList
         (newGraphList, counterFuse) ←
             F.fuseAllGraphs
                 (swapParams withIA)
-                inGS {MultiTraverseCharacters = doMultiTraverse}
+                inGS {multiTraverseCharacters = doMultiTraverse}
                 inData
                 0
                 returnBest
@@ -384,9 +384,9 @@ fuseGraphs inArgs inGS inData inGraphList
                 inGraphList'
 
         -- if multiTravers on Globally and single traverse done in fuse then rediagnose
-        rediagnoseGraphList <- if (MultiTraverseCharacters inGS) == doMultiTraverse then
+        rediagnoseGraphList <- if (multiTraverseCharacters inGS) == doMultiTraverse then
                                     pure newGraphList
-                               else if (MultiTraverseCharacters inGS) && (not doMultiTraverse) then
+                               else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
                                      do -- MultiTraverse in is Fasle but True during fuse
                                     {-Rediagnoses-}
                                     logWith LogInfo $ "\tRediagnosing to MultiTraverse -> True\n"
