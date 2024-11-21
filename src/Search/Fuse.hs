@@ -33,8 +33,7 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
-
--- In general, needs simplification and refactoring
+--import Debug.Trace
 
 {- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 later--could limit by options making random choices for fusing
@@ -76,6 +75,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                 let action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
                     action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
 
+                -- logWith LogInfo $ "FuAG: " <> (show (fusePairs, randomPairs))
                 -- get fuse pairs
                 let graphPairList' = getListPairs inGraphList
                 (graphPairList, randString) ← case fusePairs of
@@ -84,8 +84,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         selectedGraphs ← take count <$> shuffleList graphPairList'
                         pure (selectedGraphs, " randomized")
                     Just index → pure (takeNth index graphPairList', "")
-
-                --logWith LogInfo $ "FAG pairs: " <> (show $ length graphPairList)
                                                 
                 newGraphList ←
                     getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
