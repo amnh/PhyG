@@ -84,15 +84,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         selectedGraphs ← take count <$> shuffleList graphPairList'
                         pure (selectedGraphs, " randomized")
                     Just index → pure (takeNth index graphPairList', "")
-                                                
-                newGraphList ←
-                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
-                        fold <$> pTraverse action graphPairList
-
-                let fuseBest =
-                        if not (null newGraphList)
-                            then minimum $ fmap snd5 newGraphList
-                            else infinity
 
                 let swapTypeString =
                         if swapType swapParams == NoSwap
@@ -107,12 +98,23 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         <> " graph pairs with"
                         <> swapTypeString
                         <> " swapping at minimum cost "
-                        <> (show $ min fuseBest curBest)
+                        <> (show curBest)
                         <> "\n"
                     )
+                                                
+                newGraphList ←
+                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
+                        fold <$> pTraverse action graphPairList
+
+                let fuseBest =
+                        if not (null newGraphList)
+                            then minimum $ fmap snd5 newGraphList
+                            else infinity
+
                 if null newGraphList
                     then return (inGraphList, counter + 1)
-                    else
+                    else do
+                        logWith LogInfo "\n"
                         if returnUnique
                             then do
                                 uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0 $ inGraphList <> newGraphList
