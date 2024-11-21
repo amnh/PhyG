@@ -116,7 +116,7 @@ postDecorateSoftWired inGS incrementalInfo simpleGraph curDecGraph blockCharInfo
                                     let newSubTree = thd6 rightLeftChildTree
                                     in  -- single child of node--network node
                                         if length nodeChildren == 1
-                                            then -- use left child for out degree = 1 nmodes, right should be "Nothing"
+                                            then -- use left child for out degree = 1 nodes, right should be "Nothing"
 
                                                 let (newGraph, _, _, _, _) = getOutDegree1VertexAndGraph curNode (fromJust $ LG.lab newSubTree leftChild) simpleGraph nodeChildren newSubTree
                                                 in  -- display graphs and character block are not done yet since will need traceback to get preliminary states

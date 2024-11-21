@@ -258,7 +258,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
         Select → do
             (elapsedSeconds, newGraphList) ←
                 timeOp $
-                    GO.selectPhylogeneticGraphReduced firstArgs curGraphs
+                    GO.selectPhylogeneticGraphReduced firstArgs (outgroupIndex globalSettings) curGraphs
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             let typeSelected = case firstArgs of

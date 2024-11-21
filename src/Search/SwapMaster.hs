@@ -7,8 +7,6 @@ module Search.SwapMaster (
 
 import Commands.Verify qualified as VER
 import Control.Monad (when)
-import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Random.Class
 import Data.Bifunctor (first)
 import Data.Char
 import Data.Foldable (fold)
@@ -18,13 +16,10 @@ import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
 import GraphOptimization.Traversals qualified as T
 import PHANE.Evaluation
-import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
-import Search.Swap qualified as S
+import Search.SwapV2 qualified as SV2
 import Text.Read
 import Types.Types
-import Utilities.Utilities as U
 
 
 {- | swapMaster processes and spawns the swap functions
@@ -49,6 +44,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 ( keepNum
                     , maxMoveEdgeDist'
                     , steps'
+                    , doAnnealing
                     , annealingRounds'
                     , doDrift
                     , driftRounds'
@@ -86,10 +82,6 @@ swapMaster inArgs inGS inData inGraphListInput =
                 -- steepest default
                 doSteepest = ((not doSteepest' && not doAll) || doSteepest')
 
-                -- simulated annealing parameters
-                -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
-                doAnnealing = any ((== "annealing") . fst) lcArgList
-
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
 
                 -- checking of heuristic graph costs
@@ -104,14 +96,17 @@ swapMaster inArgs inGS inData inGraphListInput =
                 joinType
                     | graphType inGS == HardWired = JoinAll
                     | any ((== "joinall") . fst) lcArgList = JoinAll
+                    | doAnnealing || doDrift = JoinAll
                     | any ((== "joinpruned") . fst) lcArgList = JoinPruned
-                    | any ((== "joinalternate") . fst) lcArgList = JoinAlternate
+                    -- | any ((== "joinalternate") . fst) lcArgList = JoinPruned
                     | otherwise = JoinAll
 
                 -- randomize split graph and rejoin edges, defualt to randomize
                 atRandom
                     | any ((== "atrandom") . fst) lcArgList = True
+                    | doAnnealing || doDrift = True
                     | any ((== "inOrder") . fst) lcArgList = False
+                    | any ((== "sortsplit") . fst) lcArgList = False
                     | swapType == NNI = False
                     | otherwise = True
 
@@ -119,6 +114,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- does all of them before sorting
                     -- since comes after testing for random will override
                 sortEdgesSplitCost
+                    | doAnnealing || doDrift = False
                     | any ((== "splitsequential") . fst) lcArgList = False
                     | any ((== "sortsplit") . fst) lcArgList = True
                     | atRandom = False
@@ -128,6 +124,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 -- might save on memeory, coulod be a bit more efficient time-wise
                 -- definately affects trajectory--small examples had worse optimality outcomes
                 parallelSplit
+                    | doAnnealing || doDrift = False
                     | sortEdgesSplitCost = True
                     | any ((== "splitparallel") . fst) lcArgList = True
                     | any ((== "splitsequential") . fst) lcArgList = False
@@ -287,7 +284,7 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     -- parallel setup
                     --action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
-                    let action = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver localSwapParams (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 inGraphList'
+                    let action = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver localSwapParams (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 inGraphList'
 
                     let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList'
                     graphPairList ←
@@ -295,7 +292,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                             action `pTraverse` simAnnealList
 
                     let (graphListList, counterList) = first fold $ unzip graphPairList
-                    (newGraphList, counter) ← GO.selectGraphs Best (fromJust keepNum) 0 graphListList <&> \x → (x, sum counterList)
+                    (newGraphList, counter) ← GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 graphListList <&> \x → (x, sum counterList)
 
                     let finalGraphList = case newGraphList of
                             [] → inGraphList'
@@ -372,7 +369,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         let swapParamsLevel = standardSwap { joinType = JoinAll
                                                             , checkHeuristic = BetterN
                                                             }
-                        let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} S.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 finalGraphList
+                        let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 finalGraphList
 
                         let simAnnealListLevel = (: []) <$> zip newSimAnnealParamList finalGraphList
                         graphPairListLevel ←
@@ -397,7 +394,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                                                         pure reDiagGraphs
 
 
-                        (newGraphListLevel, counterLevel) ← GO.selectGraphs Best (fromJust keepNum) 0 reoptimizedGraphList <&> \x → (x, sum counterListLevel)
+                        (newGraphListLevel, counterLevel) ← GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 reoptimizedGraphList <&> \x → (x, sum counterListLevel)
 
                         let finalGraphListLevel = case newGraphListLevel of
                                 [] → finalGraphList
@@ -474,6 +471,7 @@ getSwapParams
     → ( Maybe Int
       , Maybe Int
       , Maybe Int
+      , Bool
       , Maybe Int
       , Bool
       , Maybe Int
@@ -516,6 +514,9 @@ getSwapParams inArgs =
                                 ("Multiple annealing steps value specifications in swap command--can have only one (e.g. steps:10): " <> show inArgs)
                         | null stepsList = Just 10
                         | otherwise = readMaybe (snd $ head stepsList) ∷ Maybe Int
+
+                    -- simulated annealing parameters
+                    doAnnealing = any ((== "annealing") . fst) lcArgList
 
                     annealingList = filter ((== "annealing") . fst) lcArgList
                     annealingRounds'
@@ -607,6 +608,7 @@ getSwapParams inArgs =
                                                                             ( keepNum
                                                                             , maxMoveEdgeDist'
                                                                             , steps'
+                                                                            , doAnnealing
                                                                             , annealingRounds'
                                                                             , doDrift
                                                                             , driftRounds'

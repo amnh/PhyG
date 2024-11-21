@@ -60,6 +60,7 @@ import Data.Vector qualified as V
 import GraphFormatUtilities qualified as PhyP
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
+import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Reconciliation.Adams qualified as A
 import Types.Types
@@ -883,6 +884,7 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
 
 
 -- | reconcile is the overall function to drive all methods
+-- All lazyness has been removed--need to add logic so not do everything
 reconcile ∷ (String, String, Int, Bool, Bool, Bool, String, [P.Gr String String]) → PhyG (String, P.Gr String String)
 reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, vertexLabel, outputFormat, inputGraphList) =
     let -- parallel
@@ -891,6 +893,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
     in  -- intersectionAction :: G.LNode BV.BV -> [G.LEdge (BV.BV,BV.BV)]
         -- intersectionAction = getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes
         do
+            --logWith LogInfo $ " Reconcile: " <> (show ( edgeLabel, vertexLabel)) 
             -- Reformat graphs with appropriate annotations, BV.BVs, etc
             processedGraphs ←
                 getParallelChunkTraverse >>= \pTraverse →
@@ -916,6 +919,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
             let totallLeafString = L.foldl' L.union [] (fmap (fmap snd . getLeafListNewick) inputGraphList)
             let totallLeafSet = zip [0 .. (length totallLeafString - 1)] totallLeafString
 
+            {-
             -- Create Adams II consensus
             --
             adamsII ← A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
@@ -923,6 +927,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
             let adamsII' = changeVertexEdgeLabels vertexLabel edgeLabel adamsII
             let adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII
             let adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] True True
+            -}
 
             --
             -- Create thresholdMajority rule Consensus and dot string
@@ -954,7 +959,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
             let gvRelabelledConsensusGraph =
                     GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel labelledTresholdConsensusGraph
             let thresholdConsensusOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledConsensusGraph
-            let thresholdConsensusOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph labelledTresholdConsensusGraph] edgeLabel True
+            let thresholdConsensusOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph labelledTresholdConsensusGraph] edgeLabel vertexLabel
 
             --
             -- Create threshold EUN and dot string, orignial EUN is threshold = 0
@@ -981,7 +986,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
             -- Create EUN Dot String
             let gvRelabelledEUNGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
             let thresholdEUNOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledEUNGraph -- eunGraph
-            let thresholdEUNOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph thresholdLabelledEUNGraph] edgeLabel True
+            let thresholdEUNOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph thresholdLabelledEUNGraph] edgeLabel vertexLabel
 
             -- Create Adams II consensus
             --
@@ -989,8 +994,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
             -- adamsIIInfo = "There are " <> show (length $ G.nodes adamsII) <> " nodes present in Adams II consensus"
             let adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
             let adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'
-            let adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] False False
-
+            let adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] edgeLabel vertexLabel
             if localMethod == "eun"
                 then
                     if outputFormat == "dot"

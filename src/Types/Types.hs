@@ -258,7 +258,7 @@ data SwapType = NoSwap | NNI | SPR | TBR | Alternate | TBRAlternate |TBROnly
 
 
 -- | JoinType types for join methods
-data JoinType = JoinPruned | JoinAll | JoinAlternate
+data JoinType = JoinPruned | JoinAll -- | JoinAlternate
     deriving stock (Show, Eq)
 
 

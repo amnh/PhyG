@@ -8,6 +8,7 @@ module Search.WagnerBuild (
 ) where
 
 import Control.Monad (replicateM)
+import Data.List qualified as L
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
@@ -71,7 +72,7 @@ wagnerTreeBuild' inGS inData leafSimpleGraph leafDecGraph numLeaves hasNonExactC
     pure $ GO.convertPhylogeneticGraph2Reduced $ wagResult
 
 
-{- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition seqeuces--not "best" addition)
+{- | wagnerTreeBuild builds a wagner tree (Farris 1970--but using random addition sequeces--not "best" addition)
 from a leaf addition sequence. Always produces a tree that can be converted to a soft/hard wired network
 afterwards
 basic procs is to add edges to unresolved tree
@@ -157,25 +158,46 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
 
                 addTaxonAction ∷ LG.LEdge EdgeInfo → PhyG (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
                 addTaxonAction = addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd
+
+                {-- False flag for static IA--can't do when adding in new leaves
+                postOrderAction :: SimpleGraph → PhyG PhylogeneticGraph
+                postOrderAction = POSW.postDecorateTreeForList inGS False leafDecGraph charInfoVV numLeaves numLeaves
+                -}
+
+                -- Combined graph creation and diagnosis
+                createSimpleAndDiagnoseAction :: (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) → PhyG PhylogeneticGraph
+                createSimpleAndDiagnoseAction = createSimpleAndDiagnose inGS False (outgroupIndex inGS) inSimple leafDecGraph charInfoVV numLeaves
+
             in  do
                     --- TODO
                     addTaxonWagnerPar ← getParallelChunkTraverseBy U.strict1of4
                     candidateEditList ← addTaxonWagnerPar addTaxonAction edgesToInvade
                     -- let candidateEditList = PU.seqParMap  (parStrategy $ lazyParStrat inGS)  (addTaxonWagner maxDistance useIA numVerts inGraph leafToAddVertData leafToAdd) edgesToInvade
 
-                    let minDelta = minimum $ fmap fst4 candidateEditList
-                    let (_, nodeToAdd, edgesToAdd, edgeToDelete) = head $ filter ((== minDelta) . fst4) candidateEditList
-
-                    -- create new tree
-                    let newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
-
-                    -- this reroot since could add taxon sister to outgroup
-                    let newSimple' = LG.rerootTree (outgroupIndex inGS) newSimple
-
+                    let bestNCandidateEdgesList = take (graphsSteepest inGS) $ L.sortOn fst4 candidateEditList
+                    
                     -- create fully labelled tree, if all taxa in do full multi-labelled for correct graph type
                     -- False flag for static IA--can't do when adding in new leaves
-                    let calculateBranchLengths = False -- must be True for delata using existing edge
-                    postOrderStuff ← POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+                    let calculateBranchLengths = False -- must be True for delaa using existing edge
+                    
+                    {-
+                    let newSimpleRerootedList = fmap (createNewSimpleGraph (outgroupIndex inGS) inSimple) bestNCandidateEdgesList
+                    
+                    -- parallel postorder check on cost
+                    postOrderPar <- getParallelChunkTraverseBy U.strict2of6
+                    postOrderCandidateList <- postOrderPar postOrderAction newSimpleRerootedList
+                    -}
+                    
+                     -- parallel postorder create graph and check on cost
+                    postOrderPar <- getParallelChunkTraverseBy U.strict2of6
+                    postOrderCandidateList <- postOrderPar createSimpleAndDiagnoseAction bestNCandidateEdgesList                    
+
+                    let bestCandCost = minimum $ fmap snd6 $ postOrderCandidateList
+                    let postOrderStuff =  head $ filter ((== bestCandCost) . snd6) postOrderCandidateList
+
+                    -- postOrderStuff ← POSW.postDecorateTree inGS False newSimple' leafDecGraph charInfoVV numLeaves numLeaves
+
+
                     newPhyloGraph ← -- T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
                         if V.length additionSequence > 1
                             then
@@ -188,7 +210,7 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                                     numLeaves
                                     False
                                     postOrderStuff
-                            else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) newSimple'
+                            else T.multiTraverseFullyLabelTree inGS inData leafDecGraph (Just numLeaves) (fst6 postOrderStuff)
 
                     if isNothing (LG.lab inDecGraph leafToAdd)
                         then error "Missing label data for vertices"
@@ -205,10 +227,36 @@ recursiveAddEdgesWagner maxDistance useIA additionSequence numLeaves numVerts in
                                 leafDecGraph
                                 newPhyloGraph
 
+{- | createSimpleAndDiagnose puts together the new graph fomation (new edges etc) and rediagnosis for parallel
+execution of both steps
+-}
+createSimpleAndDiagnose 
+    ∷ GlobalSettings
+    → Bool
+    → LG.Node
+    → SimpleGraph
+    → DecoratedGraph
+    → V.Vector (V.Vector CharInfo)
+    → LG.Node
+    → (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
+    → PhyG PhylogeneticGraph
+createSimpleAndDiagnose inGS staticIA outgroupIndex inSimple leafDecGraph charInfoVV numLeaves inGraphEdits =
+    let newSimpleGraph = createNewSimpleGraph outgroupIndex inSimple inGraphEdits
+    in
+    POSW.postDecorateTreeForList inGS False leafDecGraph charInfoVV numLeaves numLeaves newSimpleGraph
 
--- )
+{- | createNewSimpleGraph perfomrs the addition, new edges, rerotting tasks for a candidate tree
+-}
+createNewSimpleGraph :: LG.Node -> SimpleGraph -> (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge) -> SimpleGraph
+createNewSimpleGraph outgroupIndex inSimple (_, nodeToAdd, edgesToAdd, edgeToDelete) =
+    -- create new tree
+    let newSimple = LG.insEdges edgesToAdd $ LG.insNode nodeToAdd $ LG.delEdge edgeToDelete inSimple
 
-{- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creteing 3 more
+    -- this reroot since could add taxon sister to outgroup
+    in
+    LG.rerootTree outgroupIndex newSimple
+
+{- | addTaxonWagner adds a taxon (really edges) by 'invading' and edge, deleting that adege and creating 3 more
 to existing tree and gets cost (for now by postorder traversal--so wasteful but will be by final states later)
 returns a tuple of the cost, node to add, edges to add, edge to delete
 -}

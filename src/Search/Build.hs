@@ -148,7 +148,7 @@ buildGraph inArgs inGS inData =
 
                         -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
                         firstGraphs ← case buildBlock of
-                            [] → GO.selectGraphs Unique (fromJust numReturnTrees) 0.0 firstGraphs'
+                            [] → GO.selectGraphs Unique (outgroupIndex inGS) (fromJust numReturnTrees) 0.0 firstGraphs'
                             _ → pure firstGraphs'
 
                         -- reporting info
@@ -164,7 +164,7 @@ buildGraph inArgs inGS inData =
                                                 , "graphs at cost range"
                                                 , fold ["(", show loCost, ", ", show hiCost, ")"]
                                                 ]
-                                    in  ("\tBlock build yielded" <> suffix, "\tReturning " <> suffix)
+                                    in  ("\tBlock build yielded " <> suffix, "\tReturning " <> suffix)
 
                         case numDisplayTrees of
                             Nothing → failure ["DisplayTrees specification in build not an integer:", show . snd $ head displayBlock]
@@ -196,8 +196,11 @@ reconcileBlockTrees blockTrees numDisplayTrees returnTrees returnGraph returnRan
         reconcileArgList ∷ ∀ {a}. [(String, [a])]
         reconcileArgList =
             if doEUN
-                then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
-                else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
+                then [("eun", []), ("connect:True", [])]
+                else [("cun", []), ("connect:True", [])]
+
+                --then [("eun", []), ("vertexLabel:true", []), ("connect:True", [])]
+                --else [("cun", []), ("vertexLabel:true", []), ("connect:True", [])]
 
         -- parallel setup
         convertAction ∷ SimpleGraph → PhyG SimpleGraph
@@ -290,7 +293,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
         performBuildCharacter numReplicates =
             let treeList = WB.rasWagnerBuild inGS inData numReplicates
                 treeList'
-                    | simpleTreeOnly = GO.selectGraphs Best 1 0.0 (-1) treeList
+                    | simpleTreeOnly = GO.selectGraphs Best (outgroupIndex inGS) 1 0.0 (-1) treeList
                     | otherwise = treeList
             in  do
                     logWith LogMore $ getBuildLogMessage "Character" "yielded" "trees" treeList'
@@ -368,7 +371,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                             logWith LogMore $ (getBuildLogMessage "Distance" "yielded" "trees" $ xs) <> "\n"
                             if not simpleTreeOnly
                                 then pure xs
-                                else GO.selectGraphs Best 1 0 xs
+                                else GO.selectGraphs Best (outgroupIndex inGS) 1 0 xs
     in  do
             failWhen (not checkCommandList) $ "Unrecognized command in 'build': " <> show inArgs
             failWhen (buildDistance && buildCharacter) $
@@ -392,7 +395,7 @@ buildTree simpleTreeOnly inArgs inGS inData@(nameTextVect, _, _) pairwiseDistanc
                 do
                     -- character build
                     treeList ← WB.rasWagnerBuild inGS inData numReplicates
-                    treeList' ← GO.selectGraphs Best 1 0 treeList
+                    treeList' ← GO.selectGraphs Best (outgroupIndex inGS) 1 0 treeList
                     if simpleTreeOnly
                         then do
                             logWith LogMore $ (getBuildLogMessage "Character" "yielded" "trees" treeList') <> "\n"

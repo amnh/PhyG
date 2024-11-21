@@ -154,7 +154,7 @@ search inArgs inGS inData inGraphList' =
                             inGS
                             inData
 
-                    fmap (take keepNum) . GO.selectGraphs Unique (maxBound ∷ Int) 0 $ dWagGraphList <> inGraphList'
+                    fmap (take keepNum) . GO.selectGraphs Unique (outgroupIndex inGS) (maxBound ∷ Int) 0 $ dWagGraphList <> inGraphList'
                 _ → pure inGraphList'
 
             let threadCount = instances -- <- (max 1) <$> getNumCapabilities
@@ -180,7 +180,7 @@ search inArgs inGS inData inGraphList' =
                         <> "\n"
                     )
             let completeGraphList = inGraphList <> fold newGraphList
-            filteredGraphList ← GO.selectGraphs Unique (maxBound ∷ Int) 0 completeGraphList
+            filteredGraphList ← GO.selectGraphs Unique (outgroupIndex inGS) (maxBound ∷ Int) 0 completeGraphList
             let selectedGraphList = take keepNum filteredGraphList
 
             logWith LogInfo iterationHitString
@@ -235,7 +235,7 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
         runForDuration = liftIOOp (timeout timeLimit)
     in  do
             -- this line to keep control of graph number
-            inGraphList' ← take keepNum <$> GO.selectGraphs Unique (maxBound ∷ Int) 0.0 inGraphList
+            inGraphList' ← take keepNum <$> GO.selectGraphs Unique (outgroupIndex inGS) (maxBound ∷ Int) 0.0 inGraphList
 
             -- searchingInnerOp ∷ PhyG ([ReducedPhylogeneticGraph], [String])
             let searchingInnerOp =
@@ -655,7 +655,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
             inGraphList'' ←
                 if searchBandit `elem` ["fuse", "fuseSPR", "fuseTBR", "geneticAlgorithm"]
                     then pure inGraphList'
-                    else GO.selectGraphs Best keepNum 0 inGraphList'
+                    else GO.selectGraphs Best (outgroupIndex inGS') keepNum 0 inGraphList'
 
             -- Can't do both static approx and multitraverse:False
             let transformBy xs = TRANS.transform xs inGS' inData' inData' inGraphList''
@@ -720,7 +720,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
             let builder bArgs = B.buildGraph bArgs inGS' inData'
             let attach :: b -> a -> (a, b)
                 attach = flip (,)
-            let selectUniqueGraphs = GO.selectGraphs Unique (maxBound ∷ Int) 0.0
+            let selectUniqueGraphs = GO.selectGraphs Unique (outgroupIndex inGS) (maxBound ∷ Int) 0.0
 
             -- bandit list with search arguments set
             -- primes (') for build to start with untransformed data
@@ -744,7 +744,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                             buildGraphs ← builder buildArgs
                             buildGraphs' ← selectUniqueGraphs buildGraphs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "buildAlternate" →
@@ -757,7 +757,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                             buildGraphs ← builder buildArgs
                             buildGraphs' ← selectUniqueGraphs buildGraphs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData buildGraphs'
                             pure (swapList, buildArgs <> swapArgs)
                 "swapSPR" →
@@ -766,7 +766,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     in  -- search
                         do
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData inGraphList
                             pure (swapList, swapArgs)
                 "swapAlternate" →
@@ -775,7 +775,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     in  -- search
                         do
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             swapList ← R.swapMaster swapArgs inGS inData inGraphList
                             pure (swapList, swapArgs)
                 -- drift only best graphs
@@ -786,7 +786,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             driftArgs ← getDriftArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
 
                             -- swap with drift (common) arguments
                             let swapDriftArgs = swapArgs <> driftArgs
@@ -800,7 +800,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             driftArgs ← getDriftArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             -- swap with drift (common) arguments
                             let swapDriftArgs = swapArgs <> driftArgs
                             swapList ← R.swapMaster swapDriftArgs inGS inData inGraphList
@@ -813,7 +813,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             annealArgs ← getAnnealArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             -- swap with anneal (common) arguments
                             let swapAnnealArgs = swapArgs <> annealArgs
                             swapList ← R.swapMaster swapAnnealArgs inGS inData inGraphList
@@ -826,7 +826,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         do
                             annealArgs ← getAnnealArgs
                             swapKeep ← getSwapKeep
-                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", "")]
+                            let swapArgs = [(swapType, ""), ("steepest", ""), ("keep", show swapKeep), ("atrandom", ""), ("splitsequential", "")]
                             -- swap with anneal (common) arguments
                             let swapAnnealArgs = swapArgs <> annealArgs
                             swapList ← R.swapMaster swapAnnealArgs inGS inData inGraphList
@@ -847,7 +847,6 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     -- inGSgs1 = inGS{graphsSteepest = gsNum}
                     let fuseArgs =
                             [ ("none", "")
-                            , ("all", "")
                             , ("unique", "")
                             , ("atrandom", "")
                             , ("pairs", fusePairs)
@@ -862,7 +861,6 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     fusePairs ← getFusePairs
                     let fuseArgs =
                             [ ("spr", "")
-                            , ("all", "")
                             , ("unique", "")
                             , ("atrandom", "")
                             , ("pairs", fusePairs)
@@ -877,7 +875,6 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     fusePairs ← getFusePairs
                     let fuseArgs =
                             [ ("tbr", "")
-                            , ("all", "")
                             , ("unique", "")
                             , ("atrandom", "")
                             , ("pairs", fusePairs)

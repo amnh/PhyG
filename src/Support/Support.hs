@@ -213,20 +213,20 @@ getResampleGraph inGS inData resampleType replicates buildOptions swapOptions ja
             Tree →
                 [ ("method", "majority")
                 , ("compare", "identity")
-                , ("edgelabel", "true")
-                , ("vertexlabel", "true")
+                --, ("edgelabel", "true")
+                --, ("vertexlabel", "true")
                 , ("connect", "true")
                 , ("threshold", "51")
-                , ("outformat", "dot")
+                --, ("outformat", "dot")
                 ]
             _ →
                 [ ("method", "eun")
                 , ("compare", "identity")
-                , ("edgelabel", "true")
-                , ("vertexlabel", "true")
+                --, ("edgelabel", "true")
+                --, ("vertexlabel", "true")
                 , ("connect", "true")
                 , ("threshold", "51")
-                , ("outformat", "dot")
+                --, ("outformat", "dot")
                 ]
         -- parallel stuff
         action ∷ PhyG ReducedPhylogeneticGraph
@@ -271,7 +271,7 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
         else do
             -- build graphs
             buildGraphs ← B.buildGraph buildOptions inGS newData
-            bestBuildGraphList ← GO.selectGraphs Best (maxBound ∷ Int) 0.0 buildGraphs
+            bestBuildGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0.0 buildGraphs
 
             edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
             let netGraphList = case graphType inGS of

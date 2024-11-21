@@ -41,6 +41,7 @@ module GraphOptimization.PostOrderSoftWiredFunctions (
     divideDecoratedGraphByBlockAndCharacterTree,
     postOrderTreeTraversal,
     postDecorateTree,
+    postDecorateTreeForList,
     postDecorateTreeIncremental,
     createVertexDataOverBlocks,
     createVertexDataOverBlocksStaticIA,
@@ -181,7 +182,7 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
                     let newBestTriple = L.foldl' chooseBetterTriple currentBestTriple multiTraverseTripleList -- multiTraverseTree
 
                     -- save best overall dysplay trees for later use in penalty phase
-                    newBestTreeList ← GO.selectGraphsFull Best (maxBound ∷ Int) 0.0 $ multiTraverseTreeList <> currentBestTreeList
+                    newBestTreeList ← GO.selectGraphsFull Best (outgroupIndex inGS) (maxBound ∷ Int) 0.0 $ multiTraverseTreeList <> currentBestTreeList
 
                     -- trace ("GBDCBL: " <> (show (fmap snd6 currentBestTreeList, fmap snd6 newBestTreeList, fmap snd6 multiTraverseTreeList)))
                     getBestDisplayCharBlockList
@@ -1065,6 +1066,20 @@ reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph currentGraph node
                         --logWith LogInfo $ "\n\t\tIncremental node: " <> (show curNodeIndex) <> " " <> (show (vertexCost (snd curNode), subGraphCost (snd curNode), subGraphCost leftChildLabelIncr, subGraphCost rightChildLabelIncr))
                         reoptimizeGraphNodesIncremental inGS staticIA incrementalGraph newGraph (snd $ fromJust nodePair) blockCharInfo
 
+{- | postDecorateTreeForList reorders arguments for postDecorateTree to allow for parallelization over list
+-}
+postDecorateTreeForList
+    ∷ GlobalSettings
+    → Bool
+    → DecoratedGraph
+    → V.Vector (V.Vector CharInfo)
+    → LG.Node
+    → LG.Node
+    → SimpleGraph
+    → PhyG PhylogeneticGraph
+postDecorateTreeForList inGS staticIA curDecGraph blockCharInfo rootIndex curNode simpleGraph =
+    postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex curNode 
+
 {- | postDecorateTree begins at start index (usually root, but could be a subtree) and moves preorder till children are labelled and then returns postorder
 labelling vertices and edges as it goes back to root
 this for a tree so single root
@@ -1358,7 +1373,7 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                                         getParallelChunkTraverse >>= \pTraverse →
                                             displayAction `pTraverse` outgroupRootedList
 
-                                    lowestCostDisplayTree ← head <$> GO.selectGraphsFull Best 1 0.0 multiTraverseTreeList
+                                    lowestCostDisplayTree ← head <$> GO.selectGraphsFull Best (outgroupIndex inGS) 1 0.0 multiTraverseTreeList
 
                                     -- now can do as input (below)
                                     let lowestCostEdgeList = (LG.edges . fst6) lowestCostDisplayTree

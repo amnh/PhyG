@@ -17,7 +17,7 @@ import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Fuse qualified as F
 import Search.NetworkAddDelete qualified as N
-import Search.Swap qualified as S
+import Search.SwapV2 qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 
@@ -61,7 +61,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                         then return (inGraphList, generationCounter)
                         else do
                             -- get elite list of best solutions
-                            initialEliteList ← GO.selectGraphs Best (maxBound ∷ Int) 0 inGraphList
+                            initialEliteList ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0 inGraphList
 
                             logWith LogInfo ("Genetic algorithm generation: " <> (show generationCounter) <> "\n")
 
@@ -86,14 +86,14 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                 _ → pure mutatedGraphList'
 
                             -- get unique graphs, no point in recombining repetitions
-                            uniqueMutatedGraphList ← GO.selectGraphs Unique (maxBound ∷ Int) 0 $ mutatedGraphList <> inGraphList
+                            uniqueMutatedGraphList ← GO.selectGraphs Unique (outgroupIndex inGS) (maxBound ∷ Int) 0 $ mutatedGraphList <> inGraphList
 
                             -- recombine elite with mutated and mutated with mutated
-                            let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, NNI, SPR] --  these take too long, "tbr", "alternate"]
+                            let recombineSwap = getRandomElement (seedList !! 4) [NoSwap, SPR, TBR] --  these take too long, "tbr", "alternate"]
 
                             -- options to join via union choices or all in fuse
                             -- this is ignored for now in fuse--JoinAll is what it does
-                            let joinType = getRandomElement (seedList !! 6) [JoinAlternate, JoinAll]
+                            let joinType = getRandomElement (seedList !! 6) [JoinPruned, JoinAll]
 
                             let doSteepest = True
                             let returnBest = False
@@ -136,7 +136,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
 
                             -- selection of graphs population
                             -- unique sorted on cost so getting unique with lowest cost
-                            selectedGraphs ← GO.selectGraphs Unique popSize 0 recombinedGraphList
+                            selectedGraphs ← GO.selectGraphs Unique (outgroupIndex inGS) popSize 0 recombinedGraphList
                             let newCost = snd5 $ head selectedGraphs
 
                             -- if new graphs better cost then take those
@@ -158,7 +158,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                         selectedGraphs
                                 else do
                                     -- if new graphs not better then add in elites to ensure monotonic decrease in cost
-                                    newGraphList ← GO.selectGraphs Unique keepNum 0 $ initialEliteList <> selectedGraphs
+                                    newGraphList ← GO.selectGraphs Unique (outgroupIndex inGS) keepNum 0 $ initialEliteList <> selectedGraphs
                                     geneticAlgorithm
                                         inGS
                                         inData

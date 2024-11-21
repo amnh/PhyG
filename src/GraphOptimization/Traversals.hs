@@ -65,6 +65,7 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
                 let leafGraph = POSW.makeLeafGraphSoftWired inGS inData
                 in  multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph startVertex inGraph
             HardWired →
+                -- for Harwired--only if its a tree will is trully multitraverse
                 let leafGraph = GO.makeLeafGraph inData
                 in  multiTraverseFullyLabelHardWired inGS inData leafGraph startVertex inGraph
             Tree →
@@ -200,6 +201,9 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalInfo lea
     -- doesn't have to be sorted, but should minimize assignments
     -- graphWithBestAssignments = head recursiveRerootList -- L.foldl1' setBetterGraphAssignment recursiveRerootList'
 
+    -- HardWired only multitraverses if it is in fact a tree--otherwise screws up netowkr directions for optimization
+
+
     {-  root and model complexities moved to output
     -- same root cost if same data and number of roots
     localRootCost = rootComplexity inGS
@@ -247,10 +251,7 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalInfo lea
             pure (staticOnlyGraph', head startVertexList)
         else do
             recursiveRerootList ←
-                if (graphType inGS == HardWired)
-                    then pure [outgroupRooted]
-                    else
-                        if (graphType inGS == SoftWired)
+                if (graphType inGS == SoftWired)
                             then do
                                 displayResult ← POSW.getDisplayBasedRerootSoftWired inGS SoftWired (head startVertexList) outgroupRooted
                                 pure [displayResult]
@@ -260,7 +261,16 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalInfo lea
                                         displayResult ← POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted
                                         -- logWith LogInfo ("RRL: " <> (show (snd6 displayResult, snd6 outgroupRooted)) <> "\n")
                                         pure [displayResult]
-                                    else error ("Graph type not implemented: " <> (show $ graphType inGS))
+
+                                else if (graphType inGS == HardWired) then 
+                                    -- if is a tree (ie no network edges) can do multitraverse
+                                    if (not . LG.isTree $ inSimpleGraph) then 
+                                        pure [outgroupRooted]
+                                    else do
+                                        displayResult ← POSW.getDisplayBasedRerootSoftWired inGS Tree (head startVertexList) outgroupRooted
+                                        pure [displayResult]
+                        
+                                else error ("Graph type not implemented: " <> (show $ graphType inGS))
 
             -- single sequence (prealigned, dynamic) only (ie no static)
 

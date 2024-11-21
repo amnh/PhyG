@@ -18,17 +18,16 @@ module Search.Refinement (
 
 import Commands.Verify qualified as VER
 import Control.Monad (when)
-import Control.Monad.Random.Class
 import Data.Char
 import Data.Foldable (fold)
 import Data.Functor (($>), (<$), (<&>))
 import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
+import GraphOptimization.Traversals qualified as T
 import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Fuse qualified as F
 import Search.GeneticAlgorithm qualified as GA
 import Search.NetworkAddDelete qualified as N
@@ -77,10 +76,14 @@ refineGraph inArgs inGS inData inGraphList =
                             doNetMov = any ((== "netmove") . fst) lcArgList
                             doGenAlg = any ((== "ga") . fst) lcArgList || any ((== "geneticalgorithm") . fst) lcArgList
                         in  -- network edge edits
-                            if doNetAdd || doNetDel || doNetAddDel || doNetMov
-                                then netEdgeMaster inArgs inGS inData inGraphList
-                                else -- genetic algorithm
-                                    geneticAlgorithmMaster inArgs inGS inData inGraphList
+                            if doNetAdd || doNetDel || doNetAddDel || doNetMov then
+                                netEdgeMaster inArgs inGS inData inGraphList
+
+                            -- genetic algorithm
+                            else if doGenAlg then
+                                geneticAlgorithmMaster inArgs inGS inData inGraphList
+
+                            else error "No refinement method specified"
 
 
 -- error "No refinement operation specified"
@@ -270,29 +273,25 @@ fuseGraphs inArgs inGS inData inGraphList
         -- process args for fuse placement
         (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) ← getFuseGraphParams inArgs
 
-        -- steepest off by default due to wanteing to check all addition points
-        let doSteepest' = any ((== "steepest") . fst) lcArgList
-        let doAll = any ((== "all") . fst) lcArgList
-
-        let doSteepest
-                | (not doSteepest' && not doAll) = True
-                | (doSteepest' && doAll) = True
-                | doAll = False
-                | otherwise = doSteepest'
+        
+        -- Default MultiTraverse off--need to rediagnose if set differnet from fuse option
+        let doMultiTraverse 
+                | any ((== "MultiTraverse") . fst) lcArgList = True
+                | otherwise = False
 
         -- readdition options, specified as swap types
         -- no alternate or nni for fuse--not really meaningful
-
         let swapType
                 | any ((== "tbr") . fst) lcArgList = TBR
                 | any ((== "spr") . fst) lcArgList = SPR
+                | any ((== "nni") . fst) lcArgList = SPR
                 | otherwise = NoSwap
 
         -- turn off union selection of rejoin--default to do both, union first
         let joinType
                 | any ((== "joinall") . fst) lcArgList = JoinAll
                 | any ((== "joinpruned") . fst) lcArgList = JoinPruned
-                | otherwise = JoinAlternate
+                | otherwise = JoinAll
 
         -- set implied alignment swapping
         let doIA' = any ((== "ia") . fst) lcArgList
@@ -308,13 +307,14 @@ fuseGraphs inArgs inGS inData inGraphList
                 | fusePairs == Just (maxBound ∷ Int) = Nothing
                 | otherwise = fusePairs
 
-        -- this for exchange or one dirction transfer of sub-graph--one half time for noreciprocal
+        -- this for exchange or one direction transfer of sub-graph--one half time for noreciprocal
+        -- not reciprocal default
         let reciprocal' = any ((== "reciprocal") . fst) lcArgList
         let notReciprocal = any ((== "notreciprocal") . fst) lcArgList
         let reciprocal
-                | not reciprocal' = False
+                | reciprocal' = True
                 | notReciprocal = False
-                | otherwise = True
+                | otherwise = False 
 
         -- populate SwapParams structure
         let swapParams withIA =
@@ -325,7 +325,7 @@ fuseGraphs inArgs inGS inData inGraphList
                     , atRandom = randomPairs -- really same as swapping at random not so important here
                     , keepNum = (fromJust keepNum)
                     , maxMoveEdgeDist = (2 * fromJust maxMoveEdgeDist)
-                    , steepest = doSteepest
+                    , steepest = False --want do all for rejoin if specify swapping
                     , joinAlternate = False -- join prune alternates--turned off for now
                     , sortEdgesSplitCost = True -- sort edges based on split cost-- greatest delta first
                     , splitParallel = True -- when splittting graph--do spliots in parallel or sequenctial
@@ -343,12 +343,36 @@ fuseGraphs inArgs inGS inData inGraphList
 
         withIA ← getDoIA
 
+        -- set up parallel for potential rediagnose
+        --diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
+        -- let diagnoseAction = T.MultiTraverseFullyLabelGraphReduced inGS inData False False Nothing
+        let diagnoseSingleAction = T.multiTraverseFullyLabelGraphReduced (inGS {multiTraverseCharacters = False}) inData False False Nothing
+        let diagnoseMultiAction = T.multiTraverseFullyLabelGraphReduced (inGS {multiTraverseCharacters = True}) inData False False Nothing
+
+        -- if MultiTraverse is true coming in and isn't during fuse--need to rediagnose current best graphs
+        -- to single traverse or may not find better sue to that alone.
+        inGraphList' <- if (multiTraverseCharacters inGS) == doMultiTraverse then
+                                pure inGraphList
+                        else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
+                                do -- multtraverse in is True but False during fuse
+                                    {-Rediagnoses-}
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> False\n"
+                                    diagnoseSingleActionPar <- getParallelChunkTraverse
+                                    diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 inGraphList)
+                        else -- if (not $ MultiTraverseCharacters inGS) && (doMultiTraverse) then
+                                do -- MultiTraverse in is False but True during fuse
+                                    {-Rediagnoses-}
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> True\n"
+                                    diagnoseMultiActionPar <- getParallelChunkTraverse
+                                    diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 inGraphList)
+
+
         -- perform graph fuse operations
         -- sets graphsSteepest to 1 to reduce memory footprintt
         (newGraphList, counterFuse) ←
             F.fuseAllGraphs
                 (swapParams withIA)
-                inGS -- (inGS{graphsSteepest = 1})
+                inGS {multiTraverseCharacters = doMultiTraverse}
                 inData
                 0
                 returnBest
@@ -357,19 +381,36 @@ fuseGraphs inArgs inGS inData inGraphList
                 fusePairs'
                 randomPairs
                 reciprocal
-                inGraphList
+                inGraphList'
+
+        -- if multiTravers on Globally and single traverse done in fuse then rediagnose
+        rediagnoseGraphList <- if (multiTraverseCharacters inGS) == doMultiTraverse then
+                                    pure newGraphList
+                               else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
+                                     do -- MultiTraverse in is Fasle but True during fuse
+                                    {-Rediagnoses-}
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> True\n"
+                                    diagnoseMultiActionPar <- getParallelChunkTraverse
+                                    diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 newGraphList)
+                               else -- if (not $ MultiTraverseCharacters inGS) && (doMultiTraverse) then
+                                    do -- multtraverse in is True but False during fuse
+                                    {-Rediagnoses-}
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> False\n"
+                                    diagnoseSingleActionPar <- getParallelChunkTraverse
+                                    diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 newGraphList)
+
 
         logWith LogMore $
             unwords
                 [ "\tAfter fusing:"
-                , show $ length newGraphList
+                , show $ length rediagnoseGraphList
                 , "resulting graphs with minimum cost"
-                , show . minimum $ fmap snd5 newGraphList
+                , show . minimum $ fmap snd5 rediagnoseGraphList
                 , " after fuse rounds (total): "
                 , show counterFuse
                 , "\n"
                 ]
-        pure newGraphList
+        pure rediagnoseGraphList
 
 
 -- | getFuseGraphParams returns fuse parameters from arglist
@@ -692,7 +733,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                 pTraverse insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList1
-                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
+                                        GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else pure (inGraphList, 0)
 
                     (newGraphList', counterDelete) ←
@@ -713,7 +754,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                 pTraverse deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList2
-                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
+                                        GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else -- )
                                 pure (newGraphList, 0)
 
@@ -731,7 +772,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                         pTraverse moveAction . zip newSimAnnealParamList $ pure <$> newGraphList'
 
                                 let (graphListList, counterList) = unzip graphPairList3
-                                GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
+                                GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else pure (newGraphList', 0)
 
                     (newGraphList''', counterAddDelete) ←
@@ -754,12 +795,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                 pTraverse addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
 
                                         let (graphListList, counterList) = unzip graphPairList4
-                                        GO.selectGraphs Unique (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
+                                        GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
                             else pure (newGraphList'', 0)
 
                     resultGraphList ← case newGraphList''' of
                         [] → pure inGraphList
-                        _ → GO.selectGraphs Unique (fromJust keepNum) 0 newGraphList'''
+                        _ → GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 newGraphList'''
 
                     logWith
                         LogInfo

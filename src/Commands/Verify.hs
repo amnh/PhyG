@@ -136,15 +136,17 @@ buildArgList =
 -- | fuseArgList arguments
 fuseArgList ∷ [String]
 fuseArgList =
-    [ "all"
-    , "atrandom"
+    [ --"all"
+      "atrandom"
     , "best"
     , "keep"
+    , "multitraverse"
     , "once"
     , "pairs"
+    , "nni"
     , "none"
     , "spr"
-    , "steepest"
+    --, "steepest"
     , "tbr"
     , "unique"
     , "reciprocal"
@@ -226,10 +228,10 @@ reconcileArgList ∷ [String]
 reconcileArgList = 
     [ "compare"
     , "connect"
-    , "edgelabel"
+    --, "edgelabel"
     , "method"
     , "threshold"
-    , "vertexlabel"
+    --, "vertexlabel"
     ] -- "outfile"
 
 
@@ -539,7 +541,8 @@ verifyCommands inCommandList inFilesToRead inFilesToWrite =
                                                                                                                 checkReconcile2 = checkCommandArgs "reconcile" (fmap fst thresholdreconcileModPairList) reconcileArgList
                                                                                                                 checkReconcile3 =
                                                                                                                     checkCommandArgs
-                                                                                                                        "reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"
+                                                                                                                        --"reconcile modifier (method, compare, outformat, connect, edgelabel, vertexlabel)"
+                                                                                                                        "reconcile modifier (method, compare, connect)"
                                                                                                                         (fmap snd nonThresholdreconcileModPairList)
                                                                                                                         reconcileOptionsList
                                                                                                                 checkReconcile4 = L.foldl1' (&&) $ True : (fmap isInt (filter (/= []) (fmap snd thresholdreconcileModPairList)))

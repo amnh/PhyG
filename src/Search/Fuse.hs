@@ -28,7 +28,6 @@ import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
-import Search.Swap qualified as S
 import Search.SwapV2 qualified as SV2
 import Types.Types
 import Utilities.LocalGraph qualified as LG
@@ -86,6 +85,8 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         pure (selectedGraphs, " randomized")
                     Just index → pure (takeNth index graphPairList', "")
 
+                --logWith LogInfo $ "FAG pairs: " <> (show $ length graphPairList)
+                                                
                 newGraphList ←
                     getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
                         fold <$> pTraverse action graphPairList
@@ -116,7 +117,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                     else
                         if returnUnique
                             then do
-                                uniqueList ← GO.selectGraphs Unique (keepNum swapParams) 0 $ inGraphList <> newGraphList
+                                uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0 $ inGraphList <> newGraphList
                                 if fuseBest < curBest -- trace ("\t->" <> (show fuseBest)) --  <> "\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph $ thd5 $ head bestSwapGraphList))
                                     then
                                         fuseAllGraphs
@@ -136,12 +137,12 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                             -- only do one round of fusing
 
                                 if singleRound
-                                    then GO.selectGraphs Best (keepNum swapParams) 0.0 (inGraphList <> newGraphList) <&> \x → (x, counter + 1)
+                                    then GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0.0 (inGraphList <> newGraphList) <&> \x → (x, counter + 1)
                                     else -- recursive rounds
                                     do
                                         -- need unique list to keep going
 
-                                        allBestList ← GO.selectGraphs Unique (keepNum swapParams) 0 $ inGraphList <> newGraphList
+                                        allBestList ← GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0 $ inGraphList <> newGraphList
                                         -- found better
                                         if fuseBest < curBest
                                             then do
@@ -167,7 +168,7 @@ to parMapping at once creating a large memory footprint
 needs to be refactored (left right are same)
 
 -- this logic is wrong and needs to be fixed
--}
+
 fusePairRecursive
     ∷ SwapParams
     → GlobalSettings
@@ -198,11 +199,11 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
 
                     bestResultList ←
                         if graphType inGS == Tree
-                            then GO.selectGraphs Best (keepNum swapParams) 0 fusePairResult
+                            then GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0 fusePairResult
                             else do
                                 -- check didn't make weird network
                                 goodGraphList ← filterM (LG.isPhylogeneticGraph . fst5) fusePairResult
-                                GO.selectGraphs Best (keepNum swapParams) 0 goodGraphList
+                                GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0 goodGraphList
 
                     let pairScore =
                             if (not . null) bestResultList
@@ -229,7 +230,7 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
                                 else []
 
                     pure bestResultList''
-
+-}
 
 -- bestResultList' <> fusePairRecursive swapParams inGS inData numLeaves netPenalty newCurBestScore reciprocal resultList (tail leftRightList)
 
@@ -274,7 +275,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                 else filter ((/= rightRootIndex) . fst3) $ LG.getEdgeSplitList rightDecoratedGraph
 
                         -- parallel stuff
-                        -- splitLeftAction :: (Show b) => Gr a b -> LEdge b -> (Gr a b, Node, Node, Node, LEdge b, [Edge])
+                        --splitLeftAction :: (Show b) => LG.Gr a b -> LG.LEdge b -> (LG.Gr a b, LG.Node, LG.Node, LG.Node, LG.LEdge b, [LG.Edge])
                         splitLeftAction = LG.splitGraphOnEdge' leftDecoratedGraph
 
                         -- splitRightAction :: (Show b) => Gr a b -> LEdge b -> (Gr a b, Node, Node, Node, LEdge b, [Edge])
@@ -285,14 +286,12 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                             → (DecoratedGraph, Int, Int, Int, Int)
                         exchangeAction = exchangePrunedGraphs numLeaves
 
-                        {- Issues with the new reoptimize--made tpoo many assumptions and need to revisit.
-                        reoptimizeActionNew ∷ (PhylogeneticGraph, DecoratedGraph, LG.Node, LG.Node) → PhyG (DecoratedGraph, VertexCost)
-                        reoptimizeActionNew = SV2.reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData False (U.getNumberSequenceCharacters $ thd3 inData) netPenalty
-                        -}
+                        --Issues with the new reoptimize--made too many assumptions and need to revisit.
+                        --reoptimizeActionNew ∷ (PhylogeneticGraph, DecoratedGraph, LG.Node, LG.Node) → PhyG (DecoratedGraph, VertexCost)
+                        --reoptimizeActionNew = SV2.reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData False (U.getNumberSequenceCharacters $ thd3 inData) netPenalty
 
                         reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
-                        reoptimizeAction = S.reoptimizeSplitGraphFromVertexTuple inGS inData False netPenalty
-
+                        reoptimizeAction = SV2.reoptimizeSplitGraphFromVertexTupleFuse inGS inData False netPenalty
                         
                     in  do
                             splitLeftPar ← getParallelChunkMap
@@ -328,7 +327,8 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                     -- returns reindexed list of base graph root, pruned component root,  parent of pruned component root, original graph break edge
 
                                     -- leftRight first then rightLeft if reciprocal
-
+                                    -- logWith LogInfo $ "Doing left right"
+                                                
                                     exchangeLeftPar ← getParallelChunkMap
                                     let exchangeLeftResult = exchangeLeftPar exchangeAction (zip3 leftValidTupleList rightValidTupleList leftOriginalConnectionOfPrunedList)
                                     let ( leftBaseRightPrunedSplitGraphList
@@ -340,9 +340,10 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                                 L.unzip5 exchangeLeftResult
 
                                     leftRightOptimizedSplitGraphCostList ←
-                                        getParallelChunkTraverse >>= \pTraverse →
+                                        getParallelChunkTraverseBy U.strict2of2 >>= \pTraverse →
                                             -- need to revisit to make a better incremental optimization here
-                                            -- pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                            --pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                            --pTraverse reoptimizeActionPO $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
                                             pTraverse reoptimizeAction $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
                                     let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
@@ -393,6 +394,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                         if not reciprocal
                                             then pure []
                                             else do
+                                                -- logWith LogInfo $ "Doing right left "
                                                 exchangeRightPar ← getParallelChunkMap
                                                 let exchangeRightResult = exchangeRightPar exchangeAction (zip3 rightValidTupleList leftValidTupleList rightOriginalConnectionOfPrunedList)
                                                 let ( rightBaseLeftPrunedSplitGraphList
@@ -404,7 +406,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                                             L.unzip5 exchangeRightResult
 
                                                 rightLeftOptimizedSplitGraphCostList ←
-                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                    getParallelChunkTraverseBy U.strict2of2 >>= \pTraverse →
                                                     -- need to revisit to make a better incremental optimization here
                                                     -- pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length rightBaseLeftPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph rightGraph) rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
                                                     pTraverse reoptimizeAction $ L.zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
@@ -440,7 +442,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                                     rightOriginalEdgeList
 
                                     -- get "best" fused graphs from leftRight and rightLeft
-                                    bestFusedGraphs ← GO.selectGraphs Best (keepNum swapParams) 0 $ leftRightFusedGraphList <> rightLeftFusedGraphList
+                                    bestFusedGraphs ← GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0 $ leftRightFusedGraphList <> rightLeftFusedGraphList
 
                                     pure bestFusedGraphs
     where
@@ -506,9 +508,10 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                     action
                         ∷ (DecoratedGraph, SimpleGraph, VertexCost, LG.Node, LG.Node, LG.Node, [LG.LEdge EdgeInfo], [LG.LEdge EdgeInfo], VertexCost)
                         → PhyG [ReducedPhylogeneticGraph]
-                    action = S.rejoinGraphTuple swapParams inGS inData overallBestCost [] inSimAnnealParams
+                    action = SV2.rejoinGraphTuple swapParams inGS inData overallBestCost [] inSimAnnealParams
                 in  -- alternate -- rejoinGraphTupleRecursive swapParams inGS inData curBetterCost overallBestCost inSimAnnealParams graphDataList
                     do
+                        --logWith LogInfo $ "RC: " <> (show $ length graphDataList)
                         -- do "all additions" -
                         recombinedGraphList' ← getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse → pTraverse action graphDataList
                         let recombinedGraphList = concat recombinedGraphList'
@@ -522,11 +525,11 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                             then pure []
                             else
                                 if bestFuseCost <= curBetterCost
-                                    then GO.selectGraphs Best (keepNum swapParams) 0 recombinedGraphList
+                                    then GO.selectGraphs Best (outgroupIndex inGS) (keepNum swapParams) 0 recombinedGraphList
                                     else pure []
 
 
-{- | rejoinGraphTupleRecursive is a wrapper for S.rejoinGraphTuple that recursively goes through list as opposd to parMapping
+{- | rejoinGraphTupleRecursive is a wrapper for SV2.rejoinGraphTuple that recursively goes through list as opposd to parMapping
 this to save on memory footprint since there would be many calls generated
 the rejoin operation is parallelized itself
 recursive best cost so can keep all better than input but can have progress info
@@ -549,13 +552,6 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
                 -- using best cost for differentiate since there was no single graph to get original deltas
                 -- add randomize edges option?
 
-                {- Turned off join prune option here
-                 charInfoVV = fmap thd3 $ thd3 inData
-                 (splitGraphDec, splitGraphSimple, splitCost, baseGraphRootIndex, prunedGraphRootIndex, prunedParent~RootIndex, _, edgesInPrunedList, netPenaltyFactor) = firstGraphData
-                 prunedToRejoinUnionData = vertData $ fromJust $ LG.lab splitGraphDec prunedGraphRootIndex
-                 unionEdgeList <- S.getUnionRejoinEdgeList inGS splitGraphDec charInfoVV [baseGraphRootIndex] (curBestCost - splitCost) prunedToRejoinUnionData []
-                -}
-
                 firstGraphData' = firstGraphData
             in  {-Turned off for now since doesn't alternate
                 if joinType swapParams /= JoinAll then
@@ -565,7 +561,7 @@ rejoinGraphTupleRecursive swapParams inGS inData curBestCost recursiveBestCost i
 
                 -- Unconditional printing, conditional output payload.
                 do
-                    firstRejoinResult ← S.rejoinGraphTuple swapParams inGS inData curBestCost [] inSimAnnealParams firstGraphData'
+                    firstRejoinResult ← SV2.rejoinGraphTuple swapParams inGS inData curBestCost [] inSimAnnealParams firstGraphData'
                     let firstBestCost =
                             if (not . null) firstRejoinResult
                                 then minimum $ fmap snd5 firstRejoinResult
