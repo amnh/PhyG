@@ -356,15 +356,20 @@ fuseGraphs inArgs inGS inData inGraphList
                         else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
                                 do -- multtraverse in is True but False during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> False\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:False -> "
                                     diagnoseSingleActionPar <- getParallelChunkTraverse
-                                    diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 inGraphList)
+                                    newGraphs <- diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 inGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
+
                         else -- if (not $ MultiTraverseCharacters inGS) && (doMultiTraverse) then
                                 do -- MultiTraverse in is False but True during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> True\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:True -> "
                                     diagnoseMultiActionPar <- getParallelChunkTraverse
-                                    diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 inGraphList)
+                                    newGraphs <- diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 inGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
 
 
         -- perform graph fuse operations
@@ -389,15 +394,20 @@ fuseGraphs inArgs inGS inData inGraphList
                                else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
                                      do -- MultiTraverse in is Fasle but True during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> True\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:True -> "
                                     diagnoseMultiActionPar <- getParallelChunkTraverse
-                                    diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 newGraphList)
+                                    newGraphs <- diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 newGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
+
                                else -- if (not $ MultiTraverseCharacters inGS) && (doMultiTraverse) then
                                     do -- multtraverse in is True but False during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> False\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:False -> "
                                     diagnoseSingleActionPar <- getParallelChunkTraverse
-                                    diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 newGraphList)
+                                    newGraphs <- diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 newGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
 
 
         logWith LogMore $

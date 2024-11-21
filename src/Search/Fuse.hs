@@ -33,8 +33,7 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
-
--- In general, needs simplification and refactoring
+--import Debug.Trace
 
 {- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 later--could limit by options making random choices for fusing
@@ -76,6 +75,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                 let action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
                     action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
 
+                -- logWith LogInfo $ "FuAG: " <> (show (fusePairs, randomPairs))
                 -- get fuse pairs
                 let graphPairList' = getListPairs inGraphList
                 (graphPairList, randString) ← case fusePairs of
@@ -84,17 +84,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         selectedGraphs ← take count <$> shuffleList graphPairList'
                         pure (selectedGraphs, " randomized")
                     Just index → pure (takeNth index graphPairList', "")
-
-                --logWith LogInfo $ "FAG pairs: " <> (show $ length graphPairList)
-                                                
-                newGraphList ←
-                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
-                        fold <$> pTraverse action graphPairList
-
-                let fuseBest =
-                        if not (null newGraphList)
-                            then minimum $ fmap snd5 newGraphList
-                            else infinity
 
                 let swapTypeString =
                         if swapType swapParams == NoSwap
@@ -109,12 +98,23 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         <> " graph pairs with"
                         <> swapTypeString
                         <> " swapping at minimum cost "
-                        <> (show $ min fuseBest curBest)
+                        <> (show curBest)
                         <> "\n"
                     )
+                                                
+                newGraphList ←
+                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
+                        fold <$> pTraverse action graphPairList
+
+                let fuseBest =
+                        if not (null newGraphList)
+                            then minimum $ fmap snd5 newGraphList
+                            else infinity
+
                 if null newGraphList
                     then return (inGraphList, counter + 1)
-                    else
+                    else do
+                        logWith LogInfo "\n"
                         if returnUnique
                             then do
                                 uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0 $ inGraphList <> newGraphList

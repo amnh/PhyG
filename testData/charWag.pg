@@ -89,7 +89,7 @@ build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
 
 transform(multiTraverse:True)
 --fuse(noreciprocal)
-fuse(spr,pairs:10)
+fuse(spr,pairs:25)
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
