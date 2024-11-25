@@ -11,6 +11,7 @@ module Input.ReadInputFiles (
 import Commands.Verify qualified as V
 import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Random.Class
 import Data.Char
 import Data.Char qualified as C
 import Data.Foldable
@@ -29,6 +30,7 @@ import PHANE.Evaluation
 import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
+import System.Directory
 import System.IO
 import System.Path.Glob qualified as SPG
 import Text.Read
@@ -143,6 +145,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                         if ',' `notElem` firstFile
                             then openFile firstFile ReadMode
                             else return (stdin ∷ Handle)
+
                 canBeReadFrom ← liftIO $ hIsReadable fileHandle
                 if not canBeReadFrom
                     then do failWithPhase Inputting ("\n\n'Read' error: file " <> firstFile <> " cannot be read")
@@ -152,28 +155,26 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                             else do logWith LogInfo ("Reading " <> firstFile <> " with no options" <> "\n")
 
                 -- this is awkward but need to use dot utilities
+                -- added split, write, read hack for multiple input graphs in single file
                 if firstOption == "dot"
                     then do
-                        dotGraph ← liftIO $ LG.hGetDotLocal fileHandle
-                        let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
-                        let hasLoops = B.hasLoop inputDot
-                        if hasLoops
-                            then do failWithPhase Parsing ("Input graph in " <> firstFile <> "  has loops/self-edges" <> "\n")
-                            else do logWith LogInfo ""
-                        let hasCycles = GFU.cyclic inputDot
-                        if hasCycles
-                            then do failWithPhase Parsing ("Input graph in " <> firstFile <> " has at least one cycle" <> "\n")
-                            else
-                                executeReadCommands'
-                                    curData
-                                    (inputDot : curGraphs)
-                                    curTerminals
-                                    curExcludeList
-                                    curRenamePairs
-                                    curReBlockPairs
-                                    isPrealigned'
-                                    tcmPair
-                                    (tail argList)
+                        fileContents ← liftIO $ TIO.hGetContents fileHandle
+                        let splitGraphsText = splitDotGraphs fileContents
+                        -- logWith LogInfo $ (concat $ fmap T.unpack splitGraphsText)
+
+                        inputDotList <- mapM (processDotFile firstFile) splitGraphsText
+
+                        executeReadCommands'
+                            curData
+                            (inputDotList <> curGraphs)
+                            curTerminals
+                            curExcludeList
+                            curRenamePairs
+                            curReBlockPairs
+                            isPrealigned'
+                            tcmPair
+                            (tail argList)
+
                     else -- not "dot" files
                     do
                         -- logWith LogInfo ("FC1: " <> firstFile)
@@ -595,16 +596,76 @@ getReadArgs fullCommand argList =
                                                             return $ (firstPart, init $ tail secondPart) : restPart
 
 
--- )
-
-{-  Not used when migrated to Text input from String
-
--- | getFENewickGraph takes graph contents and returns local graph format
--- could be mulitple input graphs
-getFENewickGraph :: String -> [LG.Gr T.Text Double]
-getFENewickGraph fileString =
-    getFENewickGraphText (T.pack fileString)
+{- | processDotFile Function for preocessing dot files to allow for multiple graphs
 -}
+processDotFile :: String -> T.Text -> PhyG SimpleGraph
+processDotFile fileName inGraphText = 
+    if T.null inGraphText then pure LG.empty
+    else do
+        -- create temp file name
+        randomInt <- getRandom
+        let tempFileName = fileName <> (show $ abs (randomInt :: Int)) <> ".tmp" 
+        tempHandle <- liftIO $ openFile tempFileName WriteMode
+        liftIO $ hPutStr tempHandle (T.unpack inGraphText)
+        liftIO $ hClose tempHandle
+        tempHandle' <- liftIO $ openFile tempFileName ReadMode
+        
+        -- create dot graph format from temp file                
+        dotGraph ← liftIO $ LG.hGetDotLocal tempHandle' -- fileHandle
+        liftIO $ hClose tempHandle'
+        
+        -- delete temp file
+        liftIO $ liftIO $  removeFile tempFileName
+
+        let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
+        let hasLoops = B.hasLoop inputDot
+        if hasLoops
+                then do failWithPhase Parsing ("Input graph in " <> fileName <> "  has loops/self-edges" <> "\n")
+                else do logWith LogInfo ""
+        let hasCycles = GFU.cyclic inputDot
+        if hasCycles
+                then do failWithPhase Parsing ("Input graph in " <> fileName <> " has at least one cycle" <> "\n")
+                else pure inputDot
+
+
+
+
+{- | splitDotGraphs splits dot graph input into a list of dot format graphs
+    based around '{' and '}'
+-}
+splitDotGraphs :: T.Text -> [T.Text]
+splitDotGraphs inText =
+    if T.null inText then []
+    else 
+        let linesList = T.lines inText
+            graphList = splitTextGraphLines [] $ filter notCommentLine linesList
+        in
+        graphList 
+
+    where notCommentLine a = if T.null a then False
+                             else if (T.head a == '/') && (T.head (T.tail a) == '/') then False
+                             else True
+
+{- | splitTextGraphLines takes line of Txt (list) and splits on lines with '}'
+-}
+splitTextGraphLines :: [T.Text] -> [T.Text] -> [T.Text]
+splitTextGraphLines curGraphs inLines =
+    if null inLines then curGraphs
+    -- Terminal comment
+    else if length inLines == 1 then curGraphs
+    else 
+        let firstGraphLines' = L.takeWhile ('}' `textNotElem`) inLines
+            restLines' = L.dropWhile ('}' `textNotElem`) inLines
+            (firstGraphLines, restLines) = if (not . null) restLines' then
+                                                (firstGraphLines' <> [head restLines'], tail restLines')
+                                            else error ("Error parsing multiple graphs in dot file:" <> (concat $ fmap T.unpack inLines))
+
+            firstGraph = T.unlines firstGraphLines
+        in
+        splitTextGraphLines (firstGraph : curGraphs) restLines
+
+    where textNotElem a b = if a `T.elem` b then False
+                            else True
 
 {- | getFENewickGraphText takes graph contents and returns local graph format
 could be mulitple input graphs
