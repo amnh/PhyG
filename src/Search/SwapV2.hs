@@ -395,11 +395,9 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
             charInfoVV = fmap thd3 $ thd3 inData
 
-            -- check for fuse edges input.  Only use if NoSwap which contains the initial fuse edge
-            -- take 3 for NoSwap to do a litle more work
-            (_, edgesInBaseGraph) = if isNothing fuseEdgesToJoin then                                
-                                        LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
-                                    else ([], fromJust fuseEdgesToJoin)
+            -- Base graph edges for readdition
+            (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
+                                    
 
             -- Functions for edge data and rejoin function
             (makeEdgeDataFunction, edgeJoinFunction) =
@@ -447,7 +445,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 edgesInBaseGraph' <- -- edges fuse 
                                      if (isJust fuseEdgesToJoin) && (swapType swapParams == NoSwap) then 
                                         -- for fuse--first is fuse connection w/o swap
-                                        pure $ take 3 edgesInBaseGraph
+                                        pure $ take 3 $ fromJust fuseEdgesToJoin
 
                                      -- network
                                      else if graphType inGS /= Tree then 

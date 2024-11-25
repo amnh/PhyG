@@ -290,7 +290,7 @@ fuseGraphs inArgs inGS inData inGraphList
         -- turn off union selection of rejoin--default to do both, union first
         let joinType
                 | any ((== "joinall") . fst) lcArgList = JoinAll
-                | any ((== "joinpruned") . fst) lcArgList = JoinPruned
+                -- | any ((== "joinpruned") . fst) lcArgList = JoinPruned
                 | otherwise = JoinAll
 
         -- set implied alignment swapping
