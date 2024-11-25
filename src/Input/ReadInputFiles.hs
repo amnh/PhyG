@@ -160,7 +160,6 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                     then do
                         fileContents ← liftIO $ TIO.hGetContents fileHandle
                         let splitGraphsText = splitDotGraphs fileContents
-                        -- logWith LogInfo $ (concat $ fmap T.unpack splitGraphsText)
 
                         inputDotList <- mapM (processDotFile firstFile) splitGraphsText
 
@@ -218,6 +217,26 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                             -- destroys lazyness but allows closing right away
                                                             -- this so don't have huge numbers of open files for large data sets
                                                             fileHandle2 ← liftIO $ openFile firstFile ReadMode
+                                                            fileContents2 ← liftIO $ TIO.hGetContents fileHandle2
+                                                            let splitGraphsText = splitDotGraphs fileContents2
+                                                            
+                                                            inputDotList <- mapM (processDotFile firstFile) splitGraphsText
+                                                            -- logWith LogInfo $ "Reading dot with " <> (show $ length inputDotList) <> " graphs"
+                                                            liftIO $ hClose fileHandle2
+                                                            
+                                                            executeReadCommands'
+                                                                curData
+                                                                (inputDotList <> curGraphs)
+                                                                curTerminals
+                                                                curExcludeList
+                                                                curRenamePairs
+                                                                curReBlockPairs
+                                                                isPrealigned'
+                                                                tcmPair
+                                                                (tail argList)
+
+                                                            {-
+                                                            fileHandle2 ← liftIO $ openFile firstFile ReadMode
                                                             dotGraph ← liftIO $ LG.hGetDotLocal fileHandle2
                                                             liftIO $ hClose fileHandle2
                                                             let inputDot = GFU.relabelFGL $ LG.dotToGraph dotGraph
@@ -239,6 +258,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                         isPrealigned'
                                                                         tcmPair
                                                                         (tail argList)
+                                                            -}
                                                         else
                                                             if (toLower firstChar == '<') || (toLower firstChar == '(')
                                                                 then
