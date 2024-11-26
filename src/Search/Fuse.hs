@@ -52,9 +52,10 @@ fuseAllGraphs
     → Maybe Int
     → Bool
     → Bool
+    → Bool
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList = case inGraphList of
+fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal maximizeParallel inGraphList = case inGraphList of
     [] → return ([], counter)
     [x] → return (inGraphList, counter)
     _ →
@@ -101,10 +102,15 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         <> (show curBest)
                         <> "\n"
                     )
-                                                
-                newGraphList ←
-                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
-                        fold <$> pTraverse action graphPairList
+                      
+                -- Option maximizeParallel will utilize more paralle but at cost of memory footprint
+                -- defualt is False so uses mapM version                          
+                newGraphList ←  if maximizeParallel then 
+                                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
+                                        fold <$> pTraverse action graphPairList
+                                else do
+                                    result <- mapM (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
+                                    pure $ concat result
 
                 let fuseBest =
                         if not (null newGraphList)
@@ -131,6 +137,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                             fusePairs
                                             randomPairs
                                             reciprocal
+                                            maximizeParallel
                                             uniqueList
                                     else pure (uniqueList, counter + 1)
                             else -- return best
@@ -158,6 +165,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                                     fusePairs
                                                     randomPairs
                                                     reciprocal
+                                                    maximizeParallel
                                                     allBestList
                                             else -- equal or worse cost just return--could keep finding equal
                                                 return (allBestList, counter + 1)

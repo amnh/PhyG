@@ -274,7 +274,14 @@ fuseGraphs inArgs inGS inData inGraphList
         (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) ← getFuseGraphParams inArgs
 
         
-        -- Default MultiTraverse off--need to rediagnose if set differnet from fuse option
+        -- Default maximumParallel False, this to reduce memory footprint
+        -- if on will use more parallel but at memory footprint cost
+        -- hence off for search iterations as well.
+        let maximizeParallel  
+                | any ((== "maxparallel") . fst) lcArgList = True
+                | otherwise = False
+
+                -- Default MultiTraverse off--need to rediagnose if set differnet from fuse option
         let doMultiTraverse 
                 | any ((== "MultiTraverse") . fst) lcArgList = True
                 | otherwise = False
@@ -386,6 +393,7 @@ fuseGraphs inArgs inGS inData inGraphList
                 fusePairs'
                 randomPairs
                 reciprocal
+                maximizeParallel
                 inGraphList'
 
         -- if multiTravers on Globally and single traverse done in fuse then rediagnose

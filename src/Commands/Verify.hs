@@ -140,17 +140,18 @@ fuseArgList =
       "atrandom"
     , "best"
     , "keep"
+    , "maxparallel"
     , "multitraverse"
-    , "once"
-    , "pairs"
     , "nni"
     , "none"
+    , "noreciprocal"
+    , "once"
+    , "pairs"
+    , "reciprocal"
     , "spr"
     --, "steepest"
     , "tbr"
     , "unique"
-    , "reciprocal"
-    , "noreciprocal"
     ]
 
 
