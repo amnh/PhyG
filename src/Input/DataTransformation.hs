@@ -221,7 +221,8 @@ renameData newNamePairList inData =
             in  if null terminalData
                     then inData
                     else
-                        let newTerminalData = fmap (relabelterminalData newNamePairList) terminalData
+                        let newTerminalData = fmap (relabelterminalDataWildCards newNamePairList) terminalData
+                        --let newTerminalData = fmap (relabelterminalData newNamePairList) terminalData
                         in  (newTerminalData, snd inData)
 
 
@@ -240,6 +241,40 @@ relabelterminalData namePairList terminalData@(leafName, leafData) =
                     else -- trace ("Renaming " <> (T.unpack leafName) <> " to " <> (T.unpack $ fst $ fromJust foundName))
                         (fst $ fromJust foundName, leafData)
 
+{- | relabelterminalDataWildCards takes a list of Text pairs and the terminals with the
+    second name in the pairs is changed to the first
+    allows wildcards in name match
+-}
+relabelterminalDataWildCards ∷ [(T.Text, T.Text)] → TermData → TermData
+relabelterminalDataWildCards namePairList terminalData@(leafName, leafData) =
+    if null namePairList
+        then terminalData
+        else
+            -- let foundName = find ((== leafName) . snd) namePairList
+            let foundName = findWildCards leafName namePairList
+            in  if isNothing foundName
+                    then --trace ("Not renaming " <> (T.unpack leafName)) --  <> " " <> show namePairList)
+                        terminalData
+                    else --trace ("Renaming " <> (T.unpack leafName) <> " to " <> (T.unpack $ fst $ fromJust foundName))
+                        (fst $ fromJust foundName, leafData)
+
+
+{- | findWildCards looks for the first Text in a second list of newNames and Text but
+    allowing wildCards in second (renaming list) for match
+-}
+findWildCards :: T.Text -> [(T.Text, T.Text)] → Maybe (T.Text, T.Text)
+findWildCards nameToCheck renamePairList =
+    let checkList = L.uncons renamePairList
+    in
+    if isNothing checkList then Nothing
+    else 
+        let (firstPair@(_, nameToRename), restNamePairs) = fromJust checkList
+            isMatch = textMatchWildcards nameToCheck nameToRename
+        in
+        --trace ("FWC: " <> (show (nameToCheck, firstPair, isMatch))) $
+        if isMatch then (Just firstPair)
+        else 
+            findWildCards nameToCheck restNamePairs
 
 {- | getDataTerminalNames takes all input data and gets full terminal list
 and adds missing data for terminals not in input files
