@@ -447,6 +447,10 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                         -- for fuse--first is fuse connection w/o swap
                                         pure $ take 3 $ fromJust fuseEdgesToJoin
 
+                                     -- to test if fuse splits are OK in general--saves replication of effort in split graph optimization
+                                     else if  (isJust fuseEdgesToJoin) then
+                                        pure $ fromJust fuseEdgesToJoin
+
                                      -- network
                                      else if graphType inGS /= Tree then 
                                         pure edgesInBaseGraph
@@ -469,6 +473,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
 
                 -- reorder/shuffle edge list if desired
+                -- breaks sorted by split cost in swapNaive
                 rejoinEdges <-  if isJust fuseEdgesToJoin then 
                                     pure edgesInBaseGraph'
 
