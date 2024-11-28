@@ -283,7 +283,7 @@ fuseGraphs inArgs inGS inData inGraphList
 
                 -- Default MultiTraverse off--need to rediagnose if set differnet from fuse option
         let doMultiTraverse 
-                | any ((== "MultiTraverse") . fst) lcArgList = True
+                | any ((== "multitraverse") . fst) lcArgList = True
                 | otherwise = False
 
         -- readdition options, specified as swap types
@@ -418,17 +418,20 @@ fuseGraphs inArgs inGS inData inGraphList
                                     pure newGraphs
 
 
+        -- This in case found worse (using single traverse) or more but same cost
+        listToReturn <- GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 $ inGraphList <> rediagnoseGraphList
+
         logWith LogMore $
             unwords
                 [ "\tAfter fusing:"
-                , show $ length rediagnoseGraphList
+                , show $ length listToReturn
                 , "resulting graphs with minimum cost"
-                , show . minimum $ fmap snd5 rediagnoseGraphList
+                , show . minimum $ fmap snd5 listToReturn
                 , " after fuse rounds (total): "
                 , show counterFuse
                 , "\n"
                 ]
-        pure rediagnoseGraphList
+        pure listToReturn
 
 
 -- | getFuseGraphParams returns fuse parameters from arglist
