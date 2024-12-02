@@ -90,7 +90,7 @@ read("chel-build-5.dot")
 
 transform(multiTraverse:True)
 --fuse(noreciprocal)
-fuse(spr,pairs:25, maxParallel)
+fuse(spr,pairs:25)
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
