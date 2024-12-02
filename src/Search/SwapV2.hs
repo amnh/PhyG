@@ -448,11 +448,17 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                         pure $ take 3 $ fromJust fuseEdgesToJoin
 
                                      {-
+                                     There should be special case for fuse split reoptimization only for NoSwap
+                                     IE--no need to reoptimize since do it in teh swap area
+                                        Did a quick try and din't get it right--skipped all spr fuses so must ber a logic or zip issue
                                      -- to test if fuse splits are OK in general--saves replication of effort in split graph optimization
+                                        either splits are finer yeild smae results (in differnent orders)
+                                     
                                      else if  (isJust fuseEdgesToJoin) then
                                         pure $ fromJust fuseEdgesToJoin
                                      -}
                                      
+
                                      -- network
                                      else if graphType inGS /= Tree then 
                                         pure edgesInBaseGraph
