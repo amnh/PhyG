@@ -457,7 +457,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                      else if  (isJust fuseEdgesToJoin) then
                                         pure $ fromJust fuseEdgesToJoin
                                      -}
-                                     
+
 
                                      -- network
                                      else if graphType inGS /= Tree then 
@@ -1421,11 +1421,14 @@ reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData doIA nonExactChara
 reoptimizeSplitGraphFromVertexTupleFuse
     ∷ GlobalSettings
     → ProcessedData
+    -> SwapType
     → Bool
     → VertexCost
     → (DecoratedGraph, Int, Int)
     → PhyG (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertexTupleFuse inGS inData doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+reoptimizeSplitGraphFromVertexTupleFuse inGS inData swapToDo doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+    --if swapToDo /= NoSwap then pure (LG.empty, infinity)
+    --else 
     reoptimizeSplitGraphFromVertexFuse inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
 
 {- The functions below do more work (hence less efficent--no incremetal e.g.) but are used by fuse when swapping is added.
