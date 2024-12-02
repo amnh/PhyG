@@ -913,6 +913,10 @@ dummyEdge =
         , edgeType = TreeEdge
         }
 
+-- | trivialDecoratedGraph for convenience
+trivialDecoratedGraph :: DecoratedGraph
+trivialDecoratedGraph = 
+    LG.mkGraph [dummyNode] []
 
 -- emptyCharInfo for convenience
 emptyCharInfo ∷ (MonadIO m) ⇒ m CharInfo
