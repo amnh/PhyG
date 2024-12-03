@@ -852,6 +852,8 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                             , ("pairs", fusePairs)
                             , ("keep", show fuseKeep)
                             , ("noreciprocal", "")
+                            , ("multitraverse", show $ multiTraverseCharacters inGS)
+                            , ("maxparallel", "false")
                             ]
                     -- perform search
                     R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
@@ -866,6 +868,8 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                             , ("pairs", fusePairs)
                             , ("keep", show fuseKeep)
                             , ("noreciprocal", "")
+                            , ("multitraverse", show $ multiTraverseCharacters inGS)
+                            , ("maxparallel", "false")
                             ]
                     -- perform search
                     R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))
@@ -880,6 +884,8 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                             , ("pairs", fusePairs)
                             , ("keep", show fuseKeep)
                             , ("noreciprocal", "")
+                            , ("multitraverse", show $ multiTraverseCharacters inGS)
+                            , ("maxparallel", "false")
                             ]
                     -- perform search
                     R.fuseGraphs fuseArgs inGS inData inGraphList <&> (\x → (x, fuseArgs))

@@ -91,7 +91,7 @@ read("chel-build-5.dot")
 transform(multiTraverse:True)
 --fuse(noreciprocal)
 
-fuse(pairs:25)
+--fuse(pairs:25)
 --fuse(spr,pairs:25)
 
 
@@ -111,7 +111,7 @@ fuse(pairs:25)
 --refine(netadd, atrandom, maxnetedges:5)
 --refine(netdelete, atrandom, maxnetedges:5)
 
---search(hours:0, minutes:30, instances:5, Thompson:1, linear, maxnetedges:5)
+search(hours:0, minutes:5, instances:5, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
 --swap(NNI, bestAll)
@@ -134,7 +134,7 @@ select(best)
 
 --report("test0-data.csv", data, overwrite)
 
---report("test0-search.csv", search, overwrite)
+report("test0-search.csv", search, overwrite)
 --report("test0-wag.txt", overwrite, graphs, ascii)
 --report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse, color)
 --report("test0-wag-complexity.dot", overwrite, complexity, dotpdf, nocollapse, color)
