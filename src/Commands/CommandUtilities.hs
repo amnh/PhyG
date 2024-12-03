@@ -115,7 +115,7 @@ processSearchInstance inString =
                 searchBanditProbsList' = fmap (getBanditProbs . tail . (dropWhile (/= '['))) iterationList
 
                 -- add columns between graph and search bandits
-                searchBanditList = (take 3 searchBanditList') <> [" "] <> (drop 3 searchBanditList')
+                searchBanditList = (take 3 (drop 1 searchBanditList')) <> [" "] <> (drop 3 searchBanditList')
                 searchBanditProbsList = fmap (addColumn 3) searchBanditProbsList'
 
                 processedSearchList = L.zipWith4 concat4 iterationCounterList preArgStringList searchBanditProbsList searchArgStringList

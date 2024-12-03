@@ -268,8 +268,12 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                         then minimum $ fmap snd5 $ fst output
                         else infinity
             let finalTimeString = ",Final Values,," <> (show bestCost) <> "," <> (show $ toSeconds outTotalSeconds)
+
             case snd output of
-                [] → pure output
+                -- [] → pure output
+                [] ->   do
+                        let thetaString = L.intercalate "," . fmap (showRealValue . snd) $ totalThetaList
+                        pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) 
                 x : xs → do
                     -- passing time as CPU time not wall clock so parallel timings change to elapsedSeconds for wall clock
                     (updatedThetaList, newStopCount) ←
@@ -315,7 +319,8 @@ searchForDuration inGS inData pairwiseDistances keepNum thompsonSample mFactor m
                             ]
 
                     if (toPicoseconds remainingTime) == 0 || newStopCount >= stopNum || (null $ snd output)
-                        then pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) -- output with strings correctly added together
+                        -- output with strings correctly added together
+                        then pure (fst output, infoStringList <> (snd output) <> [finalTimeString <> "," <> thetaString <> "," <> "*"]) 
                         else
                             searchForDuration
                                 inGS
@@ -722,6 +727,8 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                 attach = flip (,)
             let selectUniqueGraphs = GO.selectGraphs Unique (outgroupIndex inGS) (maxBound ∷ Int) 0.0
 
+            --logWith LogInfo $ "\nSearch setting (multitraverse, SttaicApprox) to " <> (show $ (multiTraverseCharacters inGS, transformToStaticApproximation)) <> "\n"
+
             -- bandit list with search arguments set
             -- primes (') for build to start with untransformed data
             (searchGraphs, searchArgs) ← case searchBandit of
@@ -961,6 +968,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                         <> (L.intercalate "," $ fmap showArg searchArgs)
                         <> transformString
                         <> transString
+
             pure (uniqueGraphs, [searchString <> thompsonString])
 
 
