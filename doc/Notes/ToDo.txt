@@ -1,20 +1,3 @@
-2) Create MatrixApproxSmall, MatrixApproxLarge
-	Prealigned chars
-	Add to test.pg
-
-4) Set graph complexity for hard-wired ans soft-wired graphs differnetly
-	Hard-wired--as in complexity code now--just edges and vertices
-	Soft-wired--account for the display tree set
-		extra edges?, "switching" cost among diaplay trees? log2 2^n?
-		so regular graph + n bits? or somehting related to grahs specification
-		etc so miuch larger--toal complexity of entire dispolay tree set.
-		Can be generated in code so see what it is?  To add recursive generation
-		of display trees. YThat is prob the way to do it. And also add in swtitch 
-		tree cost (log2 2^n)  
-
-6) Transform 
-	Matrix <-> ApproxMatrix
-
 7) Newick parsing very slow
 
 8) select command for taxa/chars/blocks
@@ -27,86 +10,25 @@
 	to hold teh multiple sequenxe states like with static characters.
 	Same for Matrix/Sankoff
 
-10) General sequence characters--thread hashMap through traversal--or any tree cost determination
-	Need to return it with tree to update CharInfo to incude updated hashMap
-	Would need to add to the CharacterData type to hold hashMap, 
-	empty in leaves so use the initial charInfo hashMap, then take childrens HashMaps, 
-	if they are unequal in length, union them, and update through DO
-	returning updated hashMap at end with cost to potentially (if length increases) 
-	update the charInfo hashMap field
-	THis would be obviated with Alex and Callan's code if it can be migrated in.
-	But basically--anyhting that returns a tree will have to return potentially updated
-	CharInfo wrt hashMap
-
 32) Add affine cost option
 	modify charInfo field for affine cost
 	first arg in generateDenseTransitionCostMatrix
 	0 /= 0
 
-33) Test ladderize
-	look may fail if indegree 1 outdegree 1 vertex
-
-41) For output diagnosis
-	rediagnose graph(s) wiht Naive data for more legible output
-
 42) Add function to map bitvector back to alphabet states (including ambiguities)
-
-46) need to remove blank lines from newick nbefore parse
-
-47)  Output alphabets incorrect;ly formated--should be single string, same for TCM
 
 48) Hartigan 1973 preorder optimization
 
 52) Node clusters--Goloboff 1996,1999
 
-53) Graph comparison hash, 
-	Could be hash of edges wth min 0 filtered out
-
-57) Add sum line and column to crossrefernces
-
-58) reverse cross ref loci ?
-
 71) latex structure and all that stuff on how it works + haddock functions
 
 72) stylish and hlint source code
+	hlint, stylish-haskell, remove warnings
 
 83) Parallelize data processing
 
-86) Fix alphabet outout in diagnose to be single column
-
-84) Fix diag output wrt sequences (IUPAC ambiguities for DNA)
-	had to replace Alex code in report do to empty list issues
-
-85) Check reroot best graph stuff with exact characters
-
-87) Test matrix characters optimization and costs
-
-88) add logic instead of multiplication for weight factor in graph cost
-
-90) Change partition names/character names for cross-references output
-
 91) Text reorganiztion with matrix characters wiht different matrices
-
-92) add functinoality (basicaly for missing data) for multiple non-exact characters
-	
-	This will be nnecessary with "block" set issues or can be delayed iuntil block manupulations are implemented
-
-	in a single block--eg linguistic, autosomal
-	The current issue is that when using lists (from Vectors) missing seqeunce characters are stored as [].
-	This causes problems adding lists togething when extracting the "column" of teh charater that would be 
-	prepended (and later reversed) to the next sequence charcater in that block etc.  One posible soluiotn might be to 
-	del with them as vectors.  Also cons and snoc are less efficient--but still likeli have the issue of 
-	V.empty for missin and consing two of them still gets you a singel V.empty--and similar problems with
-	taxa that have a mix of observed and missing characters.  Perhpas change type of missing from [] to "missing charcater"
-	Character record type or Maybe Character, or a field in Character, or tuples or somehting.  Should not
-	be a problem for exact charcaters since there is an explicit value for missing for add/non-add/matrix
-
-96) set vertex info with union of vertices for later heuristics?
-	Would have to have somehting akin to vertData (VertexBlockData = V.Vector (V.Vector CharacterData)) 
-	and access to CharInfo--all in phylogenetic graph
-	But might be a problem with rearrangements, with edges and vertices coming and going.  Maybe not.
-
-97) Whidden eta l 2009 2010 for fast SPR tre distance FPT
 
 107) Graphical profiling
 
@@ -120,24 +42,14 @@
 	if null data could just return distance costs
 	used for image data as well--as with other chracter types.
 
-116) refactor command checking code at begining of commands 
-
-121) Verify unique graph output for same length
-
-122) get branch lengths on preorder pass for collapsing later
-	also--perhaps edge vertex states?
-
 123) add single assignment and singal assignment edge weights
 	Can be added later if needed for outpu display or lengths
 	or could use average of min and max as a placeholder for now
 
-130) Return Bridge set 
+130) Return Bridge set Tarjan linear 
 	GraphAlgorithmBook.pdf
 	https://www.geeksforgeeks.org/bridge-in-a-graph/
-
-
-142) At some point keep equally costly traversals so
-        add another vector dimension to  traversal trees in Phylogenetic graph
+	Popcount for size subtree
 
 143) Check optimization for input forest
 	issues with rootindex
@@ -148,326 +60,53 @@
 
 144) Check optimization for multirooted components
 
-146) Bridge Tarjan
-	Popcount for size subtree
-
-155) Document compress resolutions
-
-156) In=out=1 contract for newick output
-
-158) resolution vector stuff has alot of list <-> vector intercoversions
-	Prob could be cleaned up a faitr amount
-
-160) Split tree, soft-wired, functtions.  
-	Make common traversal functions separate file (ie pre-order stuff)
-	
-161) Incremental pot-order traceback for soft-wired
-	during rerooting
-
 166) make forest a final set deleting edges?
-
-173) rename reroot functions to make more sense
-
-174) Abstract rectify graph functions
-	Maybe a tuple with two kinds of graphs and branch WRT node update
 
 177) remove calls to getRoots  must be O(n)
 
 180) Check size of (number of) resolutions, that its not blowing up
 	-- put limit
 
-183) Fix fenewick for degenerate (no edges) tree
-	Convert to forest then fmap
-
-184) sort edges for swap 
-	by length (perhaps better for net edges)
-	by closness to deleted edge (good for swpping smaller edits first)
-	
 186) Graph distance matrix output RF, SPR, TBR, net+SPR/TBR
 
 187) create incremental postorder pass for use in wagern and swapping
 	add damping if possible
 
-195) Hadock
-
-196) prelim/fimal states rendered using alphabet library
-
-200) Tasty and quickcheck for tests
-
-207) Incremental optimization with delta for cost at root--need to update other node costs
-	past convergance?  Prob yes
-
-210) preorder to deal with multiple roots
-
-211) Swap preorder on base graph, add back nodes from pruned on original, then preorder
-
-213) musl for static binaries
-
-216) static branch lengths wrong
-
-217) check swap delta cost for matrix charcaters
-
-218) Use postorder for cost--then preorder after
-
 219) remove all the parent child stuff from vertex--never used, rely on grpah functions
-
-220) Migrate outputs to alphabet functions for ambiguity
-
-221) Outputs with char changes in positions apolist type
-
-223) Is sorting edges oni length ofr steepest effective?
-
-231) change tree delta calcualtion--to edge calculation wag style--missing good graphs
-
-233) Check through <= delta in swap and wagner build
-
-236) Check order or branche readdition confirm sequence in closest order
-
-239) IA swapping for network--perhoaps not due to non-uniquwe aspwect of resolutions
-	skip parent in in1 out 1 veritces for IA  creation
-
-241) For forest output, check edges versus additional root cost and filter
-
-243) IA outpout as fasta
-
-244) make more sensible command processing with file of allowable commands and their options
-	as a pair of lists etc.
-
-245) for multiple blocks--make sure actually taking best block for network--costs look like 0
-
-246) more compact vertex info graph part of softwired
-
-247) net add del steepest
-	with # and atRandom
-
-248) net move net edge (add/delete 1)
-
-249) net/tree recombine using spr/tbr split add functions
-
-250) ia for net swapping and final
-
-252) Check final assingment output for display trees and networks due to "hack" at traversal traceback line 677
-
-256) For recombination
-	use split on edge as in swapping, check pruned graph root BV
-	exchange and proceed as for swapping--in making new grahs etc
-	Must use DO--not same IA o;timization
-
-258) graph factor making assumptions about graphtype
-	needs to be fixed--especialy for delta--there is the main issue
-
-259) set versus transform options set all at beginning, transform change later
 
 261) change fmap blah $ fmap beh to fmap (blah . bleh)
 
-262) turn off IA for non-Trees  is a tree thing anyway.
-	can generate IA if desired at end with display trees
-	perhaps change to grandparent not parent if paren in1out1
-
-266) Tarjan for bridghes no O(n^2)
-
-269) move generat graph functions
-	ie those qwith Gr a b interfaces to LocalGraphs
-
-270) IA for softwired based on display trees
-	logic gor in1 out 1 with Alex
-
-271) Restructure code
-	IA stuff in module
-	Tree/SoftWired/HArdWired as well 
-
 272) net move--no need to reoptimize everyhting in delete step
-
-272) check default numb to keep 1/2 etc
-
-273) for edges--don't use as split edge if "sister" edge incident on network node
-	-- or sister node is network node
-
-278) Check order of edges--make sure break/readd in reasonable order for SA
-
-279) Unions after split
-	unions of final stares of HTUs (OTU's too?)
-	For dynamic--use preorder IA fields--union on that
-	1.17
-
-280) Check TBR doing reroots of pruned tree properly
-
-282) SA params to Maybe record record
 
 283) Try adding in reroot traversal for hardwired
 	--currently disabled
 
-284) steepest edge add with randomization (perhaps same with move and delete)
-
-292) Add unions
-
-293) Check static only parallel swap (and optimizatiopn--ie no reroots)
-
-295)  use splitGraphOnEdge' in swap--save looking for edges later all over
-
-296) output better graph if found in GB
-
-298) transform
-	to tree, to hardwrired, to softwired all doable now
-		to tree with some resoltoin options
-	to static Approx--for serches on new dats
-		will have two sets of data in command--original and"current" could bew transformed
-			may help with GPU later
-
-299) Output phastwinclad file (tnt) ia fasta files
-
-			
-300) Check add/continuous characters for correctness after merging characters
-	should be merged with same weight--if not then need to fix
-
-303) Check traverse if mix static and dynamic--make sure all charcters ar optimized--the 0 cost thing 
-	for choosing best may be issue 
-
-305) Check min max edge cost WRT reordering with gap first versus last
-
-308) Test union-like rejoin criterion in swap steepes/rejoin steepest
-
-309) TNT ouput single charcters always?  010101 or can be 0 1 0 1 0 etc?
-	V.fromList $ fmap show [0..9,a..z.A..Z] 
-	use indices for conversion for non-additive
-
-
-311) move swapMaster back into refinement
-
-312) check prealigned with unequal tax
-	and IA output
-
-313) Checkl prealigned and static in TNT
-
-316) hlint, stylish-haskell, remove warnings
-
-318) write small adjunct program to filter out constant charaters fomr simple tnt files.
-
-319) for image characters crop to same (smallesy) pixel size based on center of images
-
-320) Verify on do remove constant from SA new chars
-     Verify only do bitPacking on new charcters--prob OK--since only on BV characters,
-     	but will check high alphabet non-additives
-
-     	make remove constant-> prealignedConstant only
-     		apply at all data and trasnform SA
-     		same with bit packing
-
-321) Bit packed max distance--need to use masks to calculte did a shim job
-
-322) bit packed sub sample support--samples entire packed character
-	that's an issue for small numbers of non-additive characters
-
+318) write small adjunct program to filter out constant/uninformative charaters fomr simple tnt files.
 
 323) Rationalize V.fromList and V.toList in bitpacking
 	prob unncesesary back and forth
      	
-
 325) efficiently parallleize bitpacking 
-
-
-331) Diagnosis Outputs:
-	HTU reconstructions--suitable for entry into file wrt ambiguies etc
-	Change list -- marked required/possibke
-
-333) Issue with set final ia in hugeSequence
-	per order logic with single 0 state?
-
-334) zero does not work with BVlittleendian corretly 
-	chaneg to popCount == 0 Bits 
-
-
-336)  add gap, subs, ledgin gap options and make own tcm for fasta and fastc
-
-338) all--resolve graphs earlier to reduce memory footprint
-
-339) display trees as pecentages on reconiliation at and
-	to look at whichngenes go where
-
-
-340) Note--if bit packing results in all max states---then check missing value calculation for bits
-	'missing' codes to determine states present has been evolving 
+	paralleize bitpacking-- with option to turn off for memory saving
 
 344) Should probably make packedData unboxed
 
-
 347) maybe have a size limit for parallel bitpacking--as in over 100k (tax * chars) or something
-
-348) More fuse progress info
-
-349) CHeck weights and tcms for prealigned/sequence for PMDL
-
-353) Output continuous from recoded non-add binary
-	convert back or something
-
-355) add sub argument processing for transform weight etc
+	e.g. genomes
 
 356) make processing data sequential for big data sets as option?
 	combining and packing
 
-358) Make all "read" "readMaybe" and check to catch failures
-
-360) add no changed field to bitpacked and non-add (maybe add too?, matrix?) chars
-
-361) filter weight 0 characters
-
-362) change naked '-' in additive to 0 as innaplicable length
-	make doc change to note this.
-	new character '=' perhaps?
-
-363) verify local root cost and swap and fuse thing--perhaps not add if in there
-	can be subtracted if double counted (inGS etc)
-
-364) bit no bits stuff for ML versius PMDL
-
-366) Move root cost and model cost to final output--otherwise confusing
-	to swap and fuse
-
-367) write collapse graph zero egde
-	use in unique graph/ nubGraph
-
-369) integrate collapse for graph compare
-	add 7th field?
-	options to report graph--collapse:True|False
-	default for graphic is true, for newick/dot is false (so can get resolved graph back)
-
-370) select unique--collapse and save but return rseolved (optimizable) graphs
-
-371) Fix parsing errro newick single '
-	Uto-Aztecan
-
 372) Boostrap/Jackknife output--collapse < 50%
-
-374) Add select best (1) for block build
-
-375) Check wagner build character in prallel--seems slow
-
-376) Sofwired/hardwired
-	1) only reroot on bridges
-		get bridge list from graph and pass to reroot to check if valid place to reroot
-
-	2) resolve display trees and reroot those
-		Better--cleaner--but slower
-		
-
-377) Various parallel steepest--do the numbe ron parallel at once then check
-	for better use of parallel
-
-379) NOte for docs--for best tree analsyis use single block
 
 380) heursitic add/delete deltas need to be completely rethought--always negative
 	removed for now
-
 
 381) extractDisplayTrees seems to be caled multiple times in softwired for given graph
 
 383) remove recursiveRerootList'
 
-384) rationalize paralle calls
-
 385) Clean up reroot code to remove (or mothball) rerooting graphs
-
-386) generalize new reroot code to trees as well
 
 388) Idenitify cause of dup edges
 	-- bad edge insert?
@@ -476,163 +115,35 @@
 	
 389) Remove duplicate /cylic checking outside of creation of display trees and charcaters trees
 
-391) Net "move" not doing enyhting--not sure if bad graph state yeielding infiniites (probabaly) or 
-	not finding anyhting better via that mechanism
-
-393) add conditions for available netowrk add stuff 
-	like check for phylogenetic graph
-
 395) Remove cycle check from convertGeneralGraphToPhylogeneticGraph when ok
-
-396) For distance build-- when missing comparison for a block or character--add the average distance value among all non
-	missing.   Then really not dispositive except for  the parts where non-missing
-	
-
-397) Add options to bias in favor of data, graph, or trajectory parallelism
-
-399) Reverse/randomize order of move when repeating moves so not revisiting same edge move
-
-400) Make Sure Sim Aneal stuff in new swap
-
-401) IN swap--check that net penalty factor is correct for softwired and in differnt cost optimality criteria
-
-402) Check wagner v POY seems longer PhyG
 
 403) Clean up max distance thing --may set in types.h becasue of 2x distance
 
-406) Add paralleism for tree median calculations
-
-407) Add pre-order paralleism for tree and softwired/harwired
-
-408) add paralleize bitpacking-- with option to turn off for memory saving
-
-414) swap unions
-
 415) IA seems to be underestimating graph costs--could be that the cost matrix not being tracked in transform? sg2t1.mat in charWag.pg?
-
-416) Search terminate after so many zero imporvements? (or time)
-
-417) Static approx costs when not 1:1 (add chars)
-
-418) graph number control in search/GA
-	swappinglarge numbers of graphs somtimes
-
-422) Chase down origin of duplicate edges in HArd and softwired edges
-	prob in rearrangement in swap of networks
-
 
 424) Make surea affine works for slim
 
-
-425) For PMDL/MAPA
-	add weight field to read (already there in TNT stuff) so can create integer tcm and weight for MAPA/PMDL
-	preprocess script file to create new tcm, weight and read for MAP/PMDL
-	set with options in parens ie gamma:(classes, alpha)
-	pass field to readInput files for homogeneous tcms to create new TCMs and weights
-		if tcm specified done ahead
-	will also allow for parsing PMDL files before reading data
-		in this case have alphabets
-
+425) Add 3, 6-7 state bit pack 
 428) Check presligned hard-wired 3-way in makeIAFinalCharacter
 
 429) Sectorial based on final states?
-
-430) Output collapsed graphs for pdf only as option
 
 434) Check static approx for hugeseqs cost going down initially when it shoudl stay the same
 
 435) Warning irrelevant options
 
-436) Check packed costs versus unpacked versus POY
-
-437) Fix unions stuff
-
-438) loop end ot Thompson/Search
-
 439) Check if duplicate edges check is still needed PostOrderSoftWiredFunctions.hs l 272
-
-440) Post order traceback issue on unequal numbers of nodes in charcter trees
-		PostOrderSoftWiredFunctionsNew.hs l 850
-
-441) traceBackBlock PostOrderSoftWiredFunctionsNew.hs l 701
-	resolution index too large
-
-442) search timing on cputime
-
-443) test report writability (folders etc)
 
 444) Make sure support fully parallelized
 
 445) check for malfomed networks in support and LG.nodesAndEdgesAfter  check on split graph
 
-446) Check character wag build seems awful compared to distance
-
-447) Add in hits on saerch output iterations
-
-448) Randomize Thompsons settings option
-
-451) TNT newick file--no labels, no lengths., no commas (spaces in stead)
-
 452) Affine and IP for slim
 
 453) Make tnt char weight work with negative wqeights-- or perhaps add "\" for negative weights (versus "/")"
 
-454) Static approx for wide/huge waaay off
-
-455) Check duynamicEpsilon references
-
-456) Check "<-" stricness-- move coputaiotns into logic
-
-457) numThreads <- liftIO $ getNumCapabilities 
-
-458) PHANE-Evaluation
-	alterenvironment (global)
-	Control.Monad.MonadReader MondaReder Type classs  "local"  for local case, ask to get global
-	reader 
-	gs <- ask (then can send to pure function)
-	good for abrtacting out inGS
-	
-459) Fix double processing stuff in commandExecution
-
-460) fix/ disable static approx for wide/huge
-
-471) split post order (cost only) and preorder to help with strict calls to
-	multi traverse?  Maybe check on profiling to see if its a drag
-
-472) new random seeds
-	if atRandom swapParams
-                                {-
-                                NOTE: Optional Syntax
-                                f x y = undefined
-                                z = f x y
-                                z = x `f` y -- Infix notation
-                                Could use infix notation for this randomness call:
-                                then (`permuteList` rejoinEdges') <$> getRandom
-                                -}
-                                then (\randVal -> permuteList randVal rejoinEdges') <$> getRandom
-                                else pure rejoinEdges'
-
 473) Add Moilannen recombination.  Different and intersting method (Moilanen 1999, fig 1.)
 
-474) Change fuse to recombine, drift to SA
-
-475) Fix refactor issues in:
-	TNT parsing
-	IA errors + length
-	Diagnosis non-dequence states and differences in IA alignment states
-	
-476) Report diagnois--does it work for :
-	Multi character states -- it fastc?
-	MultiCharacter blocks (ie after reblock)?
-
-477) Parallelize diagnosis over edges
-
-478) Check strictness in heuasritics for swap and network edits
-
-479) IMporve tree identity testing--check 1k example in phastSimulations
-
-481) Check parallelize over blocks and characters
-
-482) affine and 3D IP
-
 483) Look into branch lengths at root--suspiciously long
+
+484) Branch-delete forest (PMDL)
