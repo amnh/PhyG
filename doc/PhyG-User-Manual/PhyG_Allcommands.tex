@@ -187,7 +187,7 @@
 		are exchanged between graphs and the results evaluated. This process of exchange 
 		and evaluation continues until no new graphs are found. This can be used in concert 
 		with other options to perform a Genetic Algorithm refinement \citep{Holland1975}. The 
-		behavior of \texttt{fuse} can be modified by the use of options specifying SPR and 
+		behavior of \texttt{fuse} can be modified by the use of options specifying SPR- and 
 		TBR-like rearrangement of the combination process.}
 		
 	\end{phygdescription}
@@ -203,6 +203,17 @@
 		graphs found during fuse operations.		
 		
 		\item [keep:INT] Limits the number of returned graphs to the integer value specified. 
+		
+		\item[maxParallel[:BOOL]] Specifies the amount of parallelization during \texttt{fuse}. 
+		By default (\texttt{FALSE}), \texttt{fuse} reduces the amount of parallelization. When 
+		Set to \texttt{TRUE}, parallelization is maximized at the cost of memory. This reduces 
+		the memory footprint of the analysis.
+		
+		\item[multitraverse[:BOOL ]] Specifies the optimization procedure for graphs during 
+		\texttt{fuse}. By default (\texttt{FALSE}), \texttt{fuse} uses a single traverse for its graph 
+		cost heuristic. While faster, the result is more approximate. Set to \texttt{TRUE}, a more 
+		exhaustive heuristic optimization strategy is used during exploration of the graph space. 
+		This will obtain better heuristic graph costs, but will take longer to complete.
 		
 		\item [none] No branch swapping is performed during the fuse. This is the default.
 		
@@ -242,8 +253,9 @@
 	\end{description}	
 	
 	\subsubsection{Defaults}
-		\texttt{fuse(best, none, reciprocal)} By default, \phyg keeps all the best graphs found, 
-		and continues fusing until no new graphs are found. No branch swapping style rearrangements 
+		\texttt{fuse(best, none, reciprocal, multitraverse(FALSE))} By default, \phyg keeps all the best 
+		graphs found, and continues fusing until no new graphs are found. A single traverse is 
+		used for its graph cost heuristic. No branch swapping style rearrangements 
 		are performed. The exchange and evaluation of graphs occurs in a reciprocal manner. 
 			
 	\begin{example}
@@ -409,15 +421,16 @@
 		modifying the original data file. The file contains a series of lines, each of which contains at 
 		least two strings---these strings equate to synonyms separated by spaces. The first string 
 		(input taxon name) will replace the second and all subsequent strings (taxon names) on 
-		that line. The \texttt{rename} function can also be specified as a command, see \texttt{rename}
-		(Section \ref{subsec:Rename}) for more detail and examples.
+		that line. Wildcard expressions (‘*’ and ‘?’) can be used in these strings. The \texttt{rename} 
+		function can also be specified as a command, see \texttt{rename}
+		(Section \ref{subsec:Rename}) for more detail and examples.\\
 					 
 		\item[STRING] Reads the file specified in the path included in the string argument. A path 
 		can be absolute or relative to the current working directory. The file type is recognized
 		automatically, but as mentioned previously, this should be confirmed.
 		
-		\item [tcm:(Int, Int)] This refers to setting indel and substitution costs as two integers
-		seprated by a comma.  The first value is the indel cost and the second the substitution cost
+		\item [tcm:(INT, INT)] This refers to setting indel and substitution costs as two integers
+		seprated by a comma. The first value is the indel cost and the second the substitution cost
 		for any alphabet type and size.\\
 		
 		Specifying tcm:(X,Y) for a sequence with four elements alpha, beta, gamma and delta would be
