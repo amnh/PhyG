@@ -86,7 +86,7 @@ set(seed:1701287416)
 --build(distance, rdwag, replicates:50, best:50)
 
 --build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
-read("chel-build-5.dot")
+--read("chel-build-5.dot")
 
 --fuse(noreciprocal)
 

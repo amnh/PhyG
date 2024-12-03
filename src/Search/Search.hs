@@ -135,7 +135,7 @@ search inArgs inGS inData inGraphList' =
 
             logWith
                 LogInfo
-                ( "Randomized seach for "
+                ( "Randomized search for "
                     <> (show searchTime)
                     <> " seconds with "
                     <> (show instances)
@@ -656,7 +656,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
     in  do
             searchBandit ← getSearchBandit
             -- unless fuse or genetic algorithm, only operate on "best" input graphs
-            -- this to reduce memory footrpint when have multiple iterations
+            -- this to reduce memory footprint when have multiple iterations
             inGraphList'' ←
                 if searchBandit `elem` ["fuse", "fuseSPR", "fuseTBR", "geneticAlgorithm"]
                     then pure inGraphList'
