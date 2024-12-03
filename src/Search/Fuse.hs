@@ -299,7 +299,7 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                         --reoptimizeActionNew = SV2.reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData False (U.getNumberSequenceCharacters $ thd3 inData) netPenalty
 
                         reoptimizeAction ∷ (DecoratedGraph, Int, Int) → PhyG (DecoratedGraph, VertexCost)
-                        reoptimizeAction = SV2.reoptimizeSplitGraphFromVertexTupleFuse inGS inData (swapType swapParams) False netPenalty
+                        reoptimizeAction = SV2.reoptimizeSplitGraphFromVertexTupleFuse inGS inData False netPenalty
                         
                     in  do
                             splitLeftPar ← getParallelChunkMap
@@ -350,8 +350,6 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                     leftRightOptimizedSplitGraphCostList ←
                                         getParallelChunkTraverseBy U.strict2of2 >>= \pTraverse →
                                             -- need to revisit to make a better incremental optimization here
-                                            --pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
-                                            --pTraverse reoptimizeActionPO $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
                                             pTraverse reoptimizeAction $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
                                     let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True

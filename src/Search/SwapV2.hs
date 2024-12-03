@@ -446,18 +446,12 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                      if (isJust fuseEdgesToJoin) && (swapType swapParams == NoSwap) then 
                                         -- for fuse--first is fuse connection w/o swap
                                         pure $ take 3 $ fromJust fuseEdgesToJoin
-
                                      {-
-                                     There should be special case for fuse split reoptimization only for NoSwap
-                                     IE--no need to reoptimize since do it in teh swap area
-                                        Did a quick try and din't get it right--skipped all spr fuses so must ber a logic or zip issue
-                                     -- to test if fuse splits are OK in general--saves replication of effort in split graph optimization
-                                        either splits are finer yeild smae results (in differnent orders)
-                                     
+                                        This really dosn't matter--since fuse passes split tree optimization anyway
+                                        both sets yeild same result
                                      else if  (isJust fuseEdgesToJoin) then
                                         pure $ fromJust fuseEdgesToJoin
                                      -}
-
 
                                      -- network
                                      else if graphType inGS /= Tree then 
@@ -1421,12 +1415,11 @@ reoptimizeSplitGraphFromVertexTupleNew swapParams inGS inData doIA nonExactChara
 reoptimizeSplitGraphFromVertexTupleFuse
     ∷ GlobalSettings
     → ProcessedData
-    -> SwapType
     → Bool
     → VertexCost
     → (DecoratedGraph, Int, Int)
     → PhyG (DecoratedGraph, VertexCost)
-reoptimizeSplitGraphFromVertexTupleFuse inGS inData swapToDo doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
+reoptimizeSplitGraphFromVertexTupleFuse inGS inData doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
     reoptimizeSplitGraphFromVertexFuse inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
 
 {- The functions below do more work (hence less efficent--no incremetal e.g.) but are used by fuse when swapping is added.
