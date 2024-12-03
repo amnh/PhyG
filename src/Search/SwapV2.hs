@@ -1427,9 +1427,7 @@ reoptimizeSplitGraphFromVertexTupleFuse
     → (DecoratedGraph, Int, Int)
     → PhyG (DecoratedGraph, VertexCost)
 reoptimizeSplitGraphFromVertexTupleFuse inGS inData swapToDo doIA netPenaltyFactor (inSplitGraph, startVertex, prunedSubGraphRootVertex) =
-    --if swapToDo /= NoSwap then pure (trivialDecoratedGraph, 0.0)
-    --else 
-        reoptimizeSplitGraphFromVertexFuse inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
+    reoptimizeSplitGraphFromVertexFuse inGS inData doIA netPenaltyFactor inSplitGraph startVertex prunedSubGraphRootVertex
 
 {- The functions below do more work (hence less efficent--no incremetal e.g.) but are used by fuse when swapping is added.
     They are used (and here) because the fusing of two graphs has unexpected vertex indices which are difficult to track
