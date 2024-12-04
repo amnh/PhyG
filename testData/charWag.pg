@@ -116,13 +116,11 @@ read("chel-build-5.dot")
 --swap(NNI, bestAll)
 --swap(alternate, betterN)
 
-select()
-
-transform(multitraverse:True)
+--transform(multitraverse:True)
 --swap()
 --swap(level:3)
 --transform(multitraverse:True)
-swap(multiTraverse:True)
+swap()
 
 --swap(replicates:5, drift, maxChanges:5)
 --swap(replicates:5)

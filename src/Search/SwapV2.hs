@@ -188,7 +188,7 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList =
         let curBestCost = minimum $ fmap snd5 graphsToSwap
         in do
             (sprGraphResult, sprCount) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter 0 curBestGraphList curBestGraphList Nothing
-            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBR}) inGS inData sprCount 0 sprGraphResult sprGraphResult Nothing
+            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBROnly}) inGS inData sprCount 0 sprGraphResult sprGraphResult Nothing
             
             let sprBestCost = minimum $ fmap snd5 sprGraphResult
             let tbrBestCost = minimum $ fmap snd5 tbrOnlyResult
