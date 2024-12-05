@@ -7,13 +7,13 @@ read("Metazoa80.fas")
 --build(distance, replicates:10, rdwag, dwag,wpgma,nj, best:10)
 
 --select(best:1)
---transform(multitraverse:false)
+transform(multitraverse:false)
 
 read("Metazoa80-dist-spr.dot")
 
 --swap(tbr, betterN, sortSplit)
 --swap(alternate, betterN, sortSplit)
-swap(joinPruned)
+swap()
 
 transform(multitraverse:True)
 

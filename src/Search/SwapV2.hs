@@ -171,6 +171,7 @@ swapByType swapParams inGS inData inCounter curBestGraphList saParams =
 
 {- | swapAlternate uses SPR and TBROnly to sear where if TBROnly finds a new solution, it 
     returns to SPR on new graph and does this untill TBROnly finds no new solutions.
+    TBRONly shortcuts back to call starting with SPR when finds better
 
     No SAPArams since not used in drift/SA
 -}
@@ -197,8 +198,9 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList =
             if tbrBestCost < sprBestCost then
                 swapAlternate swapParams inGS inData sprCount tbrOnlyResult tbrOnlyResult 
 
-            else 
-                pure (tbrOnlyResult, sprCount)
+            else pure (tbrOnlyResult, sprCount)
+
+            
         
 {- | Naive swap functions to create reference for later algorithmic improvements 
     1) Take first graph
