@@ -798,11 +798,12 @@
 	to reflect taxonomic changes. It also allows for merging multiple datasets without 
 	modifying the original data file. The command arguments are (minimally) two 
 	strings---these strings equate to synonyms separated by spaces. The first string 
-	will replace the second and all subsequent strings (taxon names) on 	that line. In the 
+	will replace the second and all subsequent strings (taxon names) on that line. In the 
 	example given in Figure \ref{renamefile} the taxon Hydrus\_granulatus will be renamed 
 	as Acrochordus\_granulatus, the taxa Gloydius\_boehmei and Gloydius\_mogoi will be 
-	renamed as Gloydius\_halys and the taxa Crotalus\_mutus, Scytale\_catenatus and 
-	Coluber\_crotalinus will be renamed as Lachesis\_muta. Irrespective of where this 
+	renamed as Gloydius\_halys, and the taxa Crotalus\_mutus, Scytale\_catenatus and 
+	Coluber\_crotalinus will be renamed as Lachesis\_muta. The taxa with the wildcard 
+	expressions Coleonyx* and Coleonix* 	will be renamed as Coleonyx\_sp. Irrespective of where this 
 	command appears in the script file, \phyg will execute this command prior to importing 
 	the data files. Compare with the argument \texttt{rename} of the command \texttt{read} 
 	(Section \ref{subsec:read}).
@@ -1814,27 +1815,32 @@
 		\item[keep:INT] Specifies the number of equally costly graphs to be retained, as
 		determined by the integer value.		
 		
-		\item[level:INT] Specifies a series of heuristic intensities (and execution times) from 0 (all preferences 
-		and heuristics off) 
-		to 3 (all preferences and heuristics on) used during swapping.  Levels 2 and 3 perform an additional level 1 
-		swap after completion.  Graphs are rediagnosed (if necessary) to the global 
-		\texttt{multiTraverse} state.
+		\item[level:INT] Specifies a series of heuristic intensities (and execution times) from 0 (all 
+		preferences and heuristics off) to 3 (all preferences and heuristics on) used during swapping.  
+		Levels 2 and 3 perform an additional level 1 swap after completion.  Graphs are rediagnosed 
+		(if necessary) to the global \texttt{multiTraverse} state.
 		
 		\begin{description}
 			
-			\item[level:0] Equivalent to options \texttt{bestAll, joinAll, multiTraverse:True}. This level is extremely 
-			time consuming  since it uses bestAll (TBR at $O(n4)$) may be prohibitive for even moderately 
-			sized data sets. Its main utility resides in analytical and
+			\item[level:0] Equivalent to options \texttt{bestAll, joinAll, multiTraverse:True}. This 
+			level is extremely time consuming  since it uses bestAll (TBR at $O(n4)$) may be 
+			prohibitive for even moderately 	sized data sets. Its main utility resides in analytical and
 			heuristic testing.
 			
 			\item[level:1] Equivalent to options \texttt{betterN, joinAll, multiTraverse:False}.
 			
 			\item[level:2] Equivalent to options \texttt{betterN, joinPruned, multiTraverse:False}. 
 			
-			\item[level:3] Equivalent to options \texttt{bestOnly, joinPruned, multiTraverse:False}. This level 
-			will be the fastest, but most approximate search.
+			\item[level:3] Equivalent to options \texttt{bestOnly, joinPruned, multiTraverse:False}. 
+			This level will be the fastest, but most approximate search.
 			
 		\end{description}  
+		
+		\item[multitraverse[:BOOL ]] Specifies the optimization procedure for graphs during 
+		\texttt{swap}. By default (\texttt{FALSE}), \texttt{swap} uses a single traverse for its graph 
+		cost heuristic. While faster, the result is more approximate. Set to \texttt{TRUE}, a more 
+		exhaustive heuristic optimization strategy is used during exploration of the graph space. 
+		This will obtain better heuristic graph costs, but will take longer to complete.
 		
 		\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} 
 		is performed.
