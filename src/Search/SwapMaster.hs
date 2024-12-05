@@ -20,7 +20,7 @@ import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import Search.SwapV2 qualified as SV2
 import Text.Read
 import Types.Types
-
+-- import Debug.Trace
 
 {- | swapMaster processes and spawns the swap functions
 the 2 x maxMoveDist since distance either side to list 2* dist on sorted edges
@@ -56,6 +56,21 @@ swapMaster inArgs inGS inData inGraphListInput =
                     , lcArgList
                     ) = getSwapParams inArgs
 
+                -- local multiTraverse control option
+                -- Default MultiTraverse global setting--need to rediagnose if set differnet from swap or global option
+                multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
+                doMultiTraverse'  
+                    | length multiTraverseValue > 1 =
+                                errorWithoutStackTrace ("Multiple multiTraverse specifications in swap--can have only one: " <> show inArgs)
+                    | null multiTraverseValue = Just $ fmap toLower $ show (multiTraverseCharacters inGS)
+                    | null (snd $ head multiTraverseValue) = errorWithoutStackTrace ("1-MultiTraverse swap option must be 'True' or 'False'" <> show inArgs)
+                    | otherwise = readMaybe (show $ snd $ head multiTraverseValue) ∷ Maybe String
+                
+                doMultiTraverse = if isNothing doMultiTraverse' then errorWithoutStackTrace ("2-MultiTraverse swap option must be 'True' or 'False'" <> show inArgs)
+                                  else if fromJust doMultiTraverse'  == "true" then True
+                                  else if fromJust doMultiTraverse'  == "false" then False
+                                  else errorWithoutStackTrace ("3-MultiTraverse swap option must be 'True' or 'False'" <> show inArgs)
+
                 swapType
                     | any ((== "nni") . fst) lcArgList = NNI
                     | any ((== "spr") . fst) lcArgList = SPR
@@ -68,8 +83,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         then 2
                         else fromJust maxMoveEdgeDist'
 
-                -- randomized orders of split and join-- not implemented
-                -- doRandomized = any ((=="randomized").fst) lcArgList
+                
 
                 -- set implied alignment swapping
                 doIA' = any ((== "ia") . fst) lcArgList
@@ -101,14 +115,14 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- | any ((== "joinalternate") . fst) lcArgList = JoinPruned
                     | otherwise = JoinAll
 
-                -- randomize split graph and rejoin edges, defualt to randomize
+                -- randomize split graph and rejoin edges, default to inOrder (due to sotSplit below)
                 atRandom
                     | any ((== "atrandom") . fst) lcArgList = True
                     | doAnnealing || doDrift = True
                     | any ((== "inOrder") . fst) lcArgList = False
                     | any ((== "sortsplit") . fst) lcArgList = False
                     | swapType == NNI = False
-                    | otherwise = True
+                    | otherwise = False
 
                 -- split edge order based on greartest diffenrece in costr when graph is split
                     -- does all of them before sorting
@@ -157,7 +171,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                 -- levels may have > 1 swap pass
                 -- and different values 
                 (localSwapParams, localMultiTraverse) = if swapLevel == (-1) then
-                                                            (standardSwap, multiTraverseCharacters inGS) 
+                                                            (standardSwap, doMultiTraverse) 
 
                                                         -- Basicall zero heuristics (adds factor of n)
                                                         else if swapLevel == 0 then
@@ -258,7 +272,13 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     -- Rediagnose with MultiTraverse on if that is the setting
                     inGraphList' <- if swapLevel == (-1) then
-                                            pure inGraphList
+                                            if (localMultiTraverse == multiTraverseCharacters inGS) then 
+                                                pure inGraphList
+                                            else do
+                                                logWith LogInfo $ "\tMultiTraverse to " <> (show localMultiTraverse)  <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = localMultiTraverse}) inData False False Nothing . fst5) inGraphList
 
                                     -- swap level 0 uses MultiTraverse
                                     else if swapLevel == 0  && (not $ multiTraverseCharacters inGS) then do
@@ -339,7 +359,14 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     -- add in second round for higher swap levels
                     if swapLevel == (-1) then 
-                        pure finalGraphList
+                        if (localMultiTraverse == multiTraverseCharacters inGS) then 
+                            pure finalGraphList
+                        else 
+                            do
+                                logWith LogInfo $ "\tMultiTraverse to " <> (show $ multiTraverseCharacters inGS)  <> "\n"
+                                getParallelChunkTraverse >>= \pTraverse →
+                                            pTraverse
+                                                    (reoptimizeAction inGS inData False False Nothing . fst5) finalGraphList
                     else if swapLevel == 0 then
                         if multiTraverseCharacters inGS then 
                             pure finalGraphList
@@ -394,7 +421,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                                                         pure reDiagGraphs
 
 
-                        (newGraphListLevel, counterLevel) ← GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 reoptimizedGraphList <&> \x → (x, sum counterListLevel)
+                        (newGraphListLevel, _) ← GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 reoptimizedGraphList <&> \x → (x, sum counterListLevel)
 
                         let finalGraphListLevel = case newGraphListLevel of
                                 [] → finalGraphList

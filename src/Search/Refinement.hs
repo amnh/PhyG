@@ -281,13 +281,13 @@ fuseGraphs inArgs inGS inData inGraphList
                 | length maxParallelValue > 1 =
                             errorWithoutStackTrace ("Multiple maxParallel specifications in fuse--can have only one: " <> show inArgs)
                 | null maxParallelValue = Just "false"
-                | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("maxParallel option must be 'True' or 'False'" <> show inArgs)
+                | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
                 | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
         --logWith LogInfo $ "MAxParallel->: " <> (show (maxParallelValue, maximizeParallel')) <> "\n"
-        let maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("maxParallel option must be 'True' or 'False'" <> show inArgs)
+        let maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
                                else if fromJust maximizeParallel'  == "true" then True
                                else if fromJust maximizeParallel'  == "false" then False
-                               else errorWithoutStackTrace ("maxParallel option must be 'True' or 'False'" <> show inArgs)
+                               else errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
 
         -- Default MultiTraverse off--need to rediagnose if set differnet from fuse option
         let multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
@@ -295,13 +295,13 @@ fuseGraphs inArgs inGS inData inGraphList
                 | length multiTraverseValue > 1 =
                             errorWithoutStackTrace ("Multiple multiTraverse specifications in fuse--can have only one: " <> show inArgs)
                 | null multiTraverseValue = Just "false"
-                | null (snd $ head multiTraverseValue) = errorWithoutStackTrace ("1-multiTraverse option must be 'True' or 'False'" <> show inArgs)
+                | null (snd $ head multiTraverseValue) = errorWithoutStackTrace ("MultiTraverse fuseoption must be 'True' or 'False'" <> show inArgs)
                 | otherwise = readMaybe (show $ snd $ head multiTraverseValue) ∷ Maybe String
         --logWith LogInfo $ "MultiTraverse->: " <> (show (multiTraverseValue, snd $ head multiTraverseValue, doMultiTraverse')) <> "\n"
-        let doMultiTraverse = if isNothing doMultiTraverse' then errorWithoutStackTrace ("2-multiTraverse option must be 'True' or 'False'" <> show inArgs)
+        let doMultiTraverse = if isNothing doMultiTraverse' then errorWithoutStackTrace ("MultiTraverse fuse option must be 'True' or 'False'" <> show inArgs)
                               else if fromJust doMultiTraverse'  == "true" then True
                               else if fromJust doMultiTraverse'  == "false" then False
-                              else errorWithoutStackTrace ("3-multiTraverse option must be 'True' or 'False'" <> show inArgs)
+                              else errorWithoutStackTrace ("MultiTraverse fuse option must be 'True' or 'False'" <> show inArgs)
 
         -- readdition options, specified as swap types
         -- no alternate or nni for fuse--not really meaningful
