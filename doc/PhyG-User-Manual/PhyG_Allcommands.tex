@@ -878,6 +878,19 @@
 		lengths follow the terminal labels. This is the default. Compare with 
 		\texttt{nobranchlengths}. 
 		
+			\begin{description}
+			
+			\item[max] Outputs the maximum possible branch length given ambiguities
+			in HTU character assignments.
+			
+			\item[mid] Outputs the average possible branch length given ambiguities
+			in HTU character assignments. This is the default.
+			
+			\item[min] Outputs the minimum possible branch length given ambiguities
+			in HTU character assignments. 
+			
+			\end{description}
+		
 		\item[color] For GraphViz or \texttt{dot} output, \phyg will write the edges of 
 		the graph in color. These colors are based on the value of the edge and are
 		attributed to RBG colors. There are 11 colors in total, ranging from violet (the 
@@ -1080,12 +1093,6 @@
 				default value is $0$.
 				
 			\end{description}
-		
-			\item [EdgeLabel:BOOL] Specifies the output graph have edges 
-			labeled with their frequency in input graphs. The default value is TRUE.			
-			
-			\item [VertexLabel:BOOL] Specifies the output graph have vertices 
-			labeled with their subtree leaf set. The default value is FALSE.	
 				
 		\end{description}	
 				
@@ -1393,7 +1400,7 @@
 		
 %		\item[compressResolutions:True|False] 
 %		Determines whether softwired graph resolutions are ``compressed'' if multiple 
-%		vertex assignments in alternate display trees are equal in subtree leaf set, only 
+%		{reconcile}x assignments in alternate display trees are equal in subtree leaf set, only 
 %		the first lowest cost resolution is retained. This option can significantly reduce 
 %		the time to evaluate softwired graphs, but can increase the optimality score of 
 %		the graph. This can be used in combination with \texttt{transform(compressResolutions:True)} 
