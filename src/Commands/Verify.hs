@@ -347,7 +347,7 @@ setArgList =
     , "multitraverse"
     , "outgroup"
     , "partitioncharacter"
-    , "reportnaive"
+    , "reportnaivedata"
     , "rootcost"
     , "seed"
     , "softwiredmethod"
