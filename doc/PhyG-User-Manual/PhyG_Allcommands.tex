@@ -1523,10 +1523,10 @@
 						
 		\end{description}
 			
-		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in \citealp{VaronandWheeler2013}) 
-		during SPR and TBR
-		branch swapping. The default value is 1.17. Higher values will allow more heuristic graph
-		rejoins, resulting in potentially better solutions at the cost of greater execution times.
+		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in 
+		\citealp{VaronandWheeler2013}) during SPR and TBR branch swapping. The 
+		default value is 1.17. Higher values will allow more heuristic graph rejoins, 
+		resulting in potentially better solutions at the cost of greater execution times.
 
 %		\item[lazyparstrat] Only internal---used for testing purposes.
 
@@ -1563,7 +1563,13 @@
 		individual character. When partitioning the data in this way, the number of partitions 
 		must be the same across homologous sequences. The default is `\textbf{\#}'.
 
-%		\item[reportnaive] Only internal---used for testing purposes.
+		\item[reportNaiveData] Specifies the legibility of reported data and diagnosis.		
+		By default set to \texttt{True}, and diagnosis will report data as input.  Memory 
+		footprint for large data sets can be reduced by setting reportNaiveData to False. 
+		When False, diagnosis will be based on recoded characters that may be inscrutable.  
+		To report more legible diagnoses, graphs can be individually rediagnosed with 
+		reportNaiveData:True.  This should consume much less memory that the
+		graph search.
 
 		\item[rootCost:] Sets the root cost for a graph. 	
 				
