@@ -7,7 +7,7 @@ module Support.Support (
 
 import Commands.Verify qualified as VER
 import Control.Monad (when)
-import Control.Monad.IO.Class (MonadIO (..))
+-- import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Random.Class
 import Data.Char
 import Data.List qualified as L
@@ -20,18 +20,18 @@ import GeneralUtilities
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
-import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
+-- import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
-import PHANE.Evaluation.Verbosity (Verbosity (..))
+-- import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Reconciliation.ReconcileGraphs qualified as REC
 import Search.Build qualified as B
 import Search.NetworkAddDelete qualified as N
 import Search.Refinement qualified as R
 import Text.Read
 import Types.Types
-import Utilities.Distances qualified as DD
+-- import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
-
+--import Debug.Trace
 
 -- | driver for overall support
 supportGraph ∷ [Argument] → GlobalSettings → ProcessedData → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
@@ -93,7 +93,9 @@ supportGraph inArgs inGS inData inGraphList =
                                         ("Multiple Goodman-Bremer sample specifications in support command--can have only one (e.g. gbsample:1000): " <> show inArgs)
                                 | null goodBremSampleList = Just (maxBound ∷ Int)
                                 | otherwise = readMaybe (snd $ head goodBremSampleList) ∷ Maybe Int
-                        in  if isNothing jackFreq'
+                        in  
+                            --trace ("SG: " <> (show supportMeasure) <> " " <> (show lcArgList)) $
+                            if isNothing jackFreq'
                                 then errorWithoutStackTrace ("Jacknife frequency not a float (e.g. jackknife:0.5) in support: " <> show (snd $ head jackList))
                                 else
                                     if isNothing replicates'
@@ -108,11 +110,11 @@ supportGraph inArgs inGS inData inGraphList =
                                                         ("Goodman-Bremer sample specification not an integer (e.g. gbsample:1000) in support: " <> show (snd $ head goodBremSampleList))
                                                 else
                                                     let thisMethod
-                                                            | (supportMeasure == Bootstrap) && ((not . null) jackList && null goodBremList) =
+                                                            | (supportMeasure == Bootstrap) && ((not . null) jackList) && (null goodBremList) =
                                                                 -- trace
                                                                 --    "Bootstrap and Jackknife specified--defaulting to Jackknife"
                                                                 Jackknife
-                                                            | (supportMeasure == Bootstrap) || ((not . null) jackList && (not . null) goodBremList) =
+                                                            | ((supportMeasure == Bootstrap) || ((not . null) jackList)) && ((not . null) goodBremList) =
                                                                 -- trace
                                                                 --    "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer"
                                                                 GoodmanBremer
@@ -155,8 +157,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                                                 then " with delete fraction  " <> show (1 - jackFreq)
                                                                                 else ""
                                                                     in  do
-                                                                            g ← getResampleGraph inGS inData thisMethod replicates buildOptions swapOptions jackFreq
-                                                                            logWith LogTech $
+                                                                            logWith LogInfo $
                                                                                 unwords
                                                                                     [ "Generating"
                                                                                     , show thisMethod
@@ -165,6 +166,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                                                     , "replicates"
                                                                                     , extraString
                                                                                     ]
+                                                                            g ← getResampleGraph inGS inData thisMethod replicates buildOptions swapOptions jackFreq
                                                                             pure [g]
                                                                 else
                                                                     let neighborhood =
@@ -179,14 +181,14 @@ supportGraph inArgs inGS inData inGraphList =
                                                                                 then " using " <> neighborhood <> " based on " <> show (fromJust gbSampleSize) <> " samples at random"
                                                                                 else " using " <> neighborhood
                                                                     in  do
-                                                                            logWith LogTech $ "Generating Goodman-Bremer support" <> extraString <> "\n"
+                                                                            logWith LogInfo $ "Generating Goodman-Bremer support" <> extraString <> "\n"
                                                                             -- TODO
                                                                             mapM (getGoodBremGraphs inGS inData neighborhood gbSampleSize gbRandomSample) inGraphList
                                                     in  do
                                                             -- Option warnings
-                                                            when ((supportMeasure == Bootstrap) && ((not . null) jackList && null goodBremList)) $
+                                                            when ((supportMeasure == Bootstrap) && ((not . null) jackList) && (null goodBremList)) $
                                                                 logWith LogWarn "Bootstrap and Jackknife specified--defaulting to Jackknife"
-                                                            when ((supportMeasure == Bootstrap) || ((not . null) jackList && (not . null) goodBremList)) $
+                                                            when (((supportMeasure == Bootstrap) || ((not . null) jackList)) && ((not . null) goodBremList)) $
                                                                 logWith LogWarn "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer"
                                                             when (fromJust replicates' < 0) $
                                                                 logWith LogWarn "Negative replicates number--defaulting to 100"
@@ -241,7 +243,7 @@ getResampleGraph inGS inData resampleType replicates buildOptions swapOptions ja
             let (_, reconciledGraph) = recResult
 
             -- generate resampled graph
-            -- can't really relabel  easily wihtout bv and maybe not necessary anyway--node numebrs inconsistent
+            -- can't really relabel  easily without bv and maybe not necessary anyway--node numbers inconsistent
             pure (reconciledGraph, infinity, LG.empty, V.empty, V.empty)
 
 
@@ -273,19 +275,23 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
             buildGraphs ← B.buildGraph buildOptions inGS newData
             bestBuildGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0.0 buildGraphs
 
-            edgeGraphList ← R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
-            let netGraphList = case graphType inGS of
-                    Tree → bestBuildGraphList
-                    _ → edgeGraphList
-            swapGraphs ← R.swapMaster swapOptions inGS newData netGraphList
-            let swapGraphList
-                    | null swapOptions = netGraphList
-                    | otherwise = swapGraphs
+            -- Do net edges if not tree
+            netGraphList <- if Tree == graphType inGS then
+                                    pure bestBuildGraphList
+                            else do
+                                    R.netEdgeMaster netAddArgs inGS newData bestBuildGraphList
+
+            -- Do swap if specified
+            swapGraphList <- if null swapOptions then
+                                pure netGraphList
+                             else do
+                                R.swapMaster swapOptions inGS newData netGraphList
+
             pure $ head swapGraphList
 
 
 {- | resampleData perfoms a single randomized data resampling
-based on either with replacement (bootstrp) or without (jackknife)
+based on either with replacement (bootstrap) or without (jackknife)
 jackknife moves through processed data and creates a new data set
    based on simple prob
 Bootstrap draws chars from input directly copying--currently disabled
@@ -362,6 +368,7 @@ subSampleStatic inCharData inCharInfo =
             | inCharType == Add = V.length a2
             | inCharType == NonAdd = V.length na2
             | inCharType == Matrix = V.length m1
+            | inCharType `elem` packedNonAddTypes = UV.length pa2
             | otherwise = error ("Dynamic character in subSampleStatic: " <> show inCharType)
     in  do
             -- get character indices based on number "subcharacters"
@@ -581,6 +588,9 @@ resampleBlockJackknife sampleFreq inData@(nameText, charDataVV, charInfoV) =
             (newCharDataVV, newCharInfoVV) ← jackknifeSampling
             let newCharInfoV ∷ V.Vector CharInfo
                 newCharInfoV = V.head newCharInfoVV
+
+            logWith LogInfo $ "Jacknife sample size: " <> (show $ V.length charInfoV) <> " -> " <> (show $ V.length newCharInfoV)
+
             case V.length newCharInfoV of
                 0 → resampleBlockJackknife sampleFreq inData
                 _ → pure (nameText, newCharDataVV, newCharInfoV)
