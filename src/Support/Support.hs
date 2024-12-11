@@ -589,7 +589,7 @@ resampleBlockJackknife sampleFreq inData@(nameText, charDataVV, charInfoV) =
             let newCharInfoV ∷ V.Vector CharInfo
                 newCharInfoV = V.head newCharInfoVV
 
-            logWith LogInfo $ "Jacknife sample size: " <> (show $ V.length charInfoV) <> " -> " <> (show $ V.length newCharInfoV)
+            --logWith LogInfo $ "Jacknife sample size: " <> (show $ V.length charInfoV) <> " -> " <> (show $ V.length newCharInfoV)
 
             case V.length newCharInfoV of
                 0 → resampleBlockJackknife sampleFreq inData
