@@ -180,7 +180,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                                                     , "replicates"
                                                                                     , extraString
                                                                                     ]
-                                                                            g ← getResampleGraph inGS inData thisMethod replicates buildOptions swapOptions jackFreq
+                                                                            g ← getResampleGraph inGS inData maximizeParallel thisMethod replicates buildOptions swapOptions jackFreq
                                                                             pure [g]
                                                                 else
                                                                     let neighborhood =
@@ -216,13 +216,14 @@ supportGraph inArgs inGS inData inGraphList =
 getResampleGraph
     ∷ GlobalSettings
     → ProcessedData
+    -> Bool
     → SupportMethod
     → Int
     → [(String, String)]
     → [(String, String)]
     → Double
     → PhyG ReducedPhylogeneticGraph
-getResampleGraph inGS inData resampleType replicates buildOptions swapOptions jackFreq =
+getResampleGraph inGS inData maximizeParallel resampleType replicates buildOptions swapOptions jackFreq =
     let -- create appropriate support graph >50% ?
         -- need to add args
         reconcileArgs = case graphType inGS of
@@ -244,15 +245,21 @@ getResampleGraph inGS inData resampleType replicates buildOptions swapOptions ja
                 , ("threshold", "51")
                 --, ("outformat", "dot")
                 ]
+        (numSets, leftOver) = divMod replicates (graphsSteepest inGS)
         -- parallel stuff
         action ∷ PhyG ReducedPhylogeneticGraph
         action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq
     in  -- majority ruke consensus if no args
         do
             -- the replicate to performs number replicates
-            resampledGraphList ←
-                getParallelChunkTraverse >>= \pTraverse →
-                    const action `pTraverse` replicate replicates ()
+            resampledGraphList ← if maximizeParallel then
+                                    getParallelChunkTraverse >>= \pTraverse →
+                                        const action `pTraverse` replicate replicates ()
+                                 else do
+                                    firstSetList <- mapM (makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq (graphsSteepest inGS)) [0 .. numSets - 1]
+                                    remainderSetList <- makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq leftOver 0
+                                    pure  $ remainderSetList <> (concat firstSetList)
+
             recResult ← REC.makeReconcileGraph VER.reconcileArgList reconcileArgs $ fst5 <$> resampledGraphList
             let (_, reconciledGraph) = recResult
 
@@ -260,6 +267,27 @@ getResampleGraph inGS inData resampleType replicates buildOptions swapOptions ja
             -- can't really relabel  easily without bv and maybe not necessary anyway--node numbers inconsistent
             pure (reconciledGraph, infinity, LG.empty, V.empty, V.empty)
 
+{- | makeDataGraphReplicates is a wrapper around makeResampledDataAndGraph
+    To allow for finner control of parallel execution-- ie reduce amount of prallelism due
+    to memory footprint issues.
+-}
+makeDataGraphReplicates 
+    ∷ GlobalSettings
+    → ProcessedData
+    → SupportMethod 
+    → [(String, String)]
+    → [(String, String)]
+    → Double
+    -> Int
+    -> Int 
+    -> PhyG [ReducedPhylogeneticGraph]
+makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq replicates _ =
+    let -- parallel stuff
+        action ∷ PhyG ReducedPhylogeneticGraph
+        action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq
+    in do
+         getParallelChunkTraverse >>= \pTraverse →
+                const action `pTraverse` replicate replicates ()
 
 {- | makeResampledDataAndGraph takes paramters, resmaples data and find a graph based on search parameters
 returning the resampled graph
