@@ -754,14 +754,18 @@
 		
 		\item[steepest] Specifies that refinement follows a greedy path, abandoning the 
 		neighborhood of the current graph when a better (lower cost) graph is found. 
-		Compare with \texttt{all}.
+		This is the default. Compare with \texttt{all}.
 		
 	\end{description}
 
 	\subsubsection{Defaults}
 		\texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, 
 	  	  \phyg will perform Genetic Algorithm refinement, with its associated default options, 
-		   if no other arguments are specified.} 
+		   if no other arguments are specified.}\\
+		   
+		\noindent \texttt{refine(netadd | netdel | netadddel | netmove, steepest, atrandom)} By default, 
+	  	  during network edit operations, \phyg will follow a greedy path and traverse network 
+		  edit neighborhoods in a randomized order.} 
 	
 	\begin{example}
 	
