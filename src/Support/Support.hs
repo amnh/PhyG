@@ -17,6 +17,7 @@ import Data.Vector.Generic qualified as GV
 import Data.Vector.Primitive (convert)
 import Data.Vector.Unboxed qualified as UV
 import GeneralUtilities
+import GraphOptimization.PostOrderSoftWiredFunctions qualified as POSW
 import GraphOptimization.Traversals qualified as T
 import Graphs.GraphOperations qualified as GO
 import PHANE.Evaluation
@@ -31,6 +32,7 @@ import Text.Read
 import Types.Types
 -- import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
+import Utilities.Utilities qualified as U
 --import Debug.Trace
 
 -- | driver for overall support
@@ -927,20 +929,46 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
 
             resultWithoutSampling =
                 let newGraph = LG.joinGraphOnEdge splitGraph edgeToInvade eBreak
-                    pruneEdges = False
-                    warnPruneEdges = False
+                    --pruneEdges = False
+                    --warnPruneEdges = False
 
                     startVertex ∷ ∀ {a}. Maybe a
                     startVertex = Nothing
 
+                    nonExactCharacters = U.getNumberSequenceCharacters (thd3 inData)
+
+                    leafGraph = if graphType inGS /= SoftWired then
+                                    GO.makeLeafGraph inData
+                                else POSW.makeLeafGraphSoftWired inGS inData
+
+                    {-
                     generatedResult = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
 
                     generaterNewGraph
                         | graphType inGS == Tree || LG.isTree newGraph || ((not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph) =
                             generatedResult
                         | otherwise = pure emptyReducedPhylogeneticGraph
+                    -}
                 in  do
-                        newPhylogeneticGraph ← generaterNewGraph
+                        --let generatedResult = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
+
+                        generatedResult <- T.generalizedGraphPostOrderTraversal 
+                                            inGS
+                                            nonExactCharacters
+                                            inData
+                                            Nothing
+                                            leafGraph
+                                            False
+                                            startVertex
+                                            newGraph
+
+                        let newPhylogeneticGraph 
+                                | graphType inGS == Tree || LG.isTree newGraph || ((not . LG.cyclic) newGraph && (not . LG.parentInChain) newGraph) =
+                                    GO.convertPhylogeneticGraph2Reduced $ fst generatedResult
+                                | otherwise = emptyReducedPhylogeneticGraph
+
+                        -- newPhylogeneticGraph ← pure generaterNewGraph
+                        
                         let tupleList
                                 | newPhylogeneticGraph == emptyReducedPhylogeneticGraph = inTupleList
                                 -- update tuple list based on new graph
