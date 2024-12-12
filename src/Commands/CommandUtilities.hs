@@ -232,10 +232,10 @@ printGraphVizDot graphDotString dotFile =
             myHandle ← liftIO $ openFile dotFile WriteMode
             if os /= "darwin"
                 then do logWith LogInfo ("\tOutputting graphviz to " <> dotFile <> ".pdf.\n")
-                else do logWith LogInfo ("\tOutputting graphviz to " <> dotFile <> ".eps.\n")
+                else do logWith LogInfo ("\tOutputting graphviz to " <> dotFile <> ".pdf.\n")
             let outputType =
                     if os == "darwin"
-                        then "-Teps"
+                        then "-Tpdf"
                         else "-Tpdf"
             -- hPutStrLn myHandle "digraph G {"
             -- hPutStrLn myHandle "\trankdir = LR;"
@@ -258,7 +258,7 @@ printGraphVizDot graphDotString dotFile =
                 else
                     logWith
                         LogInfo
-                        "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download\n"
+                        "\tGraphviz call failed (not installed or found).  Dot file still created. Dot can be obtained from https://graphviz.org/download.\nCairo is required by Graphiz to render pdfs and must be installed separately on MacOS via Homebrew or MacPorts (https://www.cairographics.org)\n"
 
 
 {- | showSearchFields creates a String list for SearchData Fields
