@@ -93,6 +93,20 @@ supportGraph inArgs inGS inData inGraphList =
                                         ("Multiple Goodman-Bremer sample specifications in support command--can have only one (e.g. gbsample:1000): " <> show inArgs)
                                 | null goodBremSampleList = Just (maxBound ∷ Int)
                                 | otherwise = readMaybe (snd $ head goodBremSampleList) ∷ Maybe Int
+
+                            maxParallelValue = filter ((== "maxparallel") . fst) lcArgList
+                            maximizeParallel'  
+                                | length maxParallelValue > 1 =
+                                            errorWithoutStackTrace ("Multiple maxParallel specifications in support--can have only one: " <> show inArgs)
+                                | null maxParallelValue = Just "false"
+                                | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel support option must be 'True' or 'False'" <> show inArgs)
+                                | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
+
+                            maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
+                                               else if fromJust maximizeParallel'  == "true" then True
+                                               else if fromJust maximizeParallel'  == "false" then False
+                                               else errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
+
                         in  
                             --trace ("SG: " <> (show supportMeasure) <> " " <> (show lcArgList)) $
                             if isNothing jackFreq'
@@ -183,7 +197,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                                     in  do
                                                                             logWith LogInfo $ "Generating Goodman-Bremer support" <> extraString <> "\n"
                                                                             -- TODO
-                                                                            mapM (getGoodBremGraphs inGS inData neighborhood gbSampleSize gbRandomSample) inGraphList
+                                                                            mapM (getGoodBremGraphs inGS inData maximizeParallel neighborhood gbSampleSize gbRandomSample) inGraphList
                                                     in  do
                                                             -- Option warnings
                                                             when ((supportMeasure == Bootstrap) && ((not . null) jackList) && (null goodBremList)) $
@@ -604,8 +618,15 @@ this will only examine bridge edges for networks, networkedge values willl be do
 MAPs for each graph?
 -}
 getGoodBremGraphs
-    ∷ GlobalSettings → ProcessedData → String → Maybe Int → Bool → ReducedPhylogeneticGraph → PhyG ReducedPhylogeneticGraph
-getGoodBremGraphs inGS inData swapType sampleSize sampleAtRandom inGraph =
+    ∷ GlobalSettings 
+    → ProcessedData 
+    → Bool 
+    -> String 
+    → Maybe Int 
+    → Bool 
+    → ReducedPhylogeneticGraph 
+    → PhyG ReducedPhylogeneticGraph
+getGoodBremGraphs inGS inData maximizeParallel swapType sampleSize sampleAtRandom inGraph =
     if LG.isEmpty (fst5 inGraph)
         then error "Null graph in getGoodBremGraphs" -- maybe should be error?
         else do
@@ -615,7 +636,7 @@ getGoodBremGraphs inGS inData swapType sampleSize sampleAtRandom inGraph =
             let tupleList = getGraphTupleList inGraph
 
             -- traverse neighborhood (and net edge removal) keeping min cost without edges
-            supportEdgeTupleList ← getGBTuples inGS inData swapType sampleSize sampleAtRandom tupleList inGraph
+            supportEdgeTupleList ← getGBTuples inGS inData maximizeParallel swapType sampleSize sampleAtRandom tupleList inGraph
 
             let simpleGBGraph = LG.mkGraph (LG.labNodes $ fst5 inGraph) (fmap (tupleToSimpleEdge (snd5 inGraph)) supportEdgeTupleList)
             -- trace ("GGBG: " <> (show $ length tupleList) <> " -> " <> (show $ length supportEdgeTupleList))
@@ -661,15 +682,16 @@ first does this via swap--for network does edge net edge in turn by removing usi
 getGBTuples
     ∷ GlobalSettings
     → ProcessedData
+    -> Bool 
     → String
     → Maybe Int
     → Bool
     → [(Int, Int, NameBV, NameBV, VertexCost)]
     → ReducedPhylogeneticGraph
     → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
-getGBTuples inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph = do
+getGBTuples inGS inData maximizeParallel swapType sampleSize sampleAtRandom inTupleList inGraph = do
     -- traverse swap (SPR/TBR) neighborhood optimizing each graph fully
-    swapTuples ← performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
+    swapTuples ← performGBSwap inGS inData maximizeParallel swapType sampleSize sampleAtRandom inTupleList inGraph
     case graphType inGS of
         -- swap only for Tree-do nothing
         Tree → pure swapTuples
@@ -747,13 +769,14 @@ optimality support
 performGBSwap
     ∷ GlobalSettings
     → ProcessedData
+    -> Bool
     → String
     → Maybe Int
     → Bool
     → [(Int, Int, NameBV, NameBV, VertexCost)]
     → ReducedPhylogeneticGraph
     → PhyG [(Int, Int, NameBV, NameBV, VertexCost)]
-performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
+performGBSwap inGS inData maximizeParallel swapType sampleSize sampleAtRandom inTupleList inGraph
     | LG.isEmpty (fst5 inGraph) = error "Null graph in performGBSwap"
     | otherwise =
         let -- work with simple graph
@@ -781,9 +804,10 @@ performGBSwap inGS inData swapType sampleSize sampleAtRandom inTupleList inGraph
                 let splitRejoinAction = splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList
 
                 -- generate tuple lists for each break edge parallelized at this level
-                tupleListList ←
-                    getParallelChunkTraverse >>= \pTraverse →
-                        splitRejoinAction `pTraverse` breakEdgeList
+                tupleListList ← if maximizeParallel then
+                                    getParallelChunkTraverse >>= \pTraverse →
+                                        splitRejoinAction `pTraverse` breakEdgeList
+                                else mapM splitRejoinAction breakEdgeList
 
                 -- merge tuple lists--should all be in same order
                 let newTupleList = mergeTupleLists (filter (not . null) tupleListList) []
