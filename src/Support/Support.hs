@@ -56,7 +56,7 @@ supportGraph inArgs inGS inData inGraphList =
                                 | otherwise = GoodmanBremer
 
                             useSPR = any ((== "spr") . fst) lcArgList
-                            useTBR = any ((== "spr") . fst) lcArgList
+                            useTBR = any ((== "tbr") . fst) lcArgList
 
                             onlyBuild = any ((== "buildonly") . fst) lcArgList
 
@@ -109,6 +109,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                else if fromJust maximizeParallel'  == "false" then False
                                                else errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
 
+                            -- set level of swap heristric intensity
                             levelList = filter ((== "level") . fst) lcArgList
                             levelNumber
                                 | length levelList > 1 =
@@ -116,13 +117,30 @@ supportGraph inArgs inGS inData inGraphList =
                                 | null levelList = Just 2
                                 | otherwise = readMaybe (snd $ head levelList) ∷ Maybe Int
 
+                            swapLevel
+                                | all ((/= "level") . fst) lcArgList = (-1)
+                                | fromJust levelNumber < 0 = 0
+                                | fromJust levelNumber > 3 = 3
+                                | otherwise = fromJust levelNumber
 
-                                                                        
+                            levelParams 
+                                | swapLevel == (-1) = [("joinall", ""), ("bettern",""), ("multitraverse","false")] --defaut really level 1
+                                | swapLevel == (0) = [("joinall", ""), ("bestall",""), ("multitraverse","true")]
+                                | swapLevel == (1) = [("joinall", ""), ("bettern",""), ("multitraverse","false")] 
+                                | swapLevel == (2) = [("joinpruned", ""), ("bettern",""), ("multitraverse","false")] 
+                                | swapLevel == (3) = [("joinpruned", ""), ("bestonly",""), ("multitraverse","false")] 
+                                | otherwise = [("joinall", ""), ("bettern",""), ("multitraverse","false")] -- level 1
 
+                            swapParams 
+                                | useSPR = [("spr", "")]
+                                | useTBR = [("tbr", "")]
+                                | onlyBuild = []
+                                | otherwise = [("tbr", "")] --default to TBR
+                                                                                    
                         in  
                             --trace ("SG: " <> (show supportMeasure) <> " " <> (show lcArgList)) $
                             if isNothing levelNumber 
-                                then errorWithoutStackTrace ("Support 'level' specification not an integer (e.g. level:2): " <> show (snd $ head replicatesList))
+                                then errorWithoutStackTrace ("Support 'level' specification not an integer (e.g. level:2): " <> show (snd $ head jackList))
                             else if isNothing jackFreq'
                                 then errorWithoutStackTrace ("Jacknife frequency not a float (e.g. jackknife:0.5) in support: " <> show (snd $ head jackList))
                                 else
@@ -176,7 +194,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                         swapOptions =
                                                             if onlyBuild
                                                                 then []
-                                                                else [("tbr", ""), ("steepest", ""), ("keep", show (1 ∷ Int))]
+                                                                else swapParams <> levelParams <> [("support", ""), ("steepest", ""), ("keep", show (1 ∷ Int))]
                                                         supportGraphList =
                                                             if thisMethod == Bootstrap || thisMethod == Jackknife
                                                                 then

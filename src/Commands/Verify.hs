@@ -407,6 +407,7 @@ swapArgList =
     , "splitsequential"
     , "steepest"
     , "steps"
+    , "support"
     , "tbr"
     ]
 

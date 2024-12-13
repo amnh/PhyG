@@ -83,7 +83,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         then 2
                         else fromJust maxMoveEdgeDist'
 
-                
+                inSupport = any ((== "support") . fst) lcArgList
 
                 -- set implied alignment swapping
                 doIA' = any ((== "ia") . fst) lcArgList
@@ -271,7 +271,10 @@ swapMaster inArgs inGS inData inGraphListInput =
                     logWith LogInfo progressString
 
                     -- Rediagnose with MultiTraverse on if that is the setting
-                    inGraphList' <- if swapLevel == (-1) then
+                        -- don't bother to if in support--only care about topology for jacknife and bootstrap
+                    inGraphList' <- if inSupport then
+                                        pure inGraphList
+                                    else if swapLevel == (-1) then
                                             if (localMultiTraverse == multiTraverseCharacters inGS) then 
                                                 pure inGraphList
                                             else do
@@ -357,8 +360,10 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     logWith LogInfo (endString <> fullBuffWarning <> "\n")
 
-                    -- add in second round for higher swap levels
-                    if swapLevel == (-1) then 
+                    -- add in second round for higher swap levels, but not if inSupport (jackknife and bootstrap)
+                    if inSupport then 
+                         pure finalGraphList
+                    else if swapLevel == (-1) then 
                         if (localMultiTraverse == multiTraverseCharacters inGS) then 
                             pure finalGraphList
                         else 
