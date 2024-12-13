@@ -368,6 +368,7 @@ supportArgList =
     , "goodmanbremer"
     , "jackknife"
     , "replicates"
+    , "level"
     , "maxparallel"
     , "spr"
     , "tbr"

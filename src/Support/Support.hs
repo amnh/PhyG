@@ -109,9 +109,21 @@ supportGraph inArgs inGS inData inGraphList =
                                                else if fromJust maximizeParallel'  == "false" then False
                                                else errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
 
+                            levelList = filter ((== "level") . fst) lcArgList
+                            levelNumber
+                                | length levelList > 1 =
+                                    errorWithoutStackTrace ("Multiple 'level' number specifications in swap command--can have only one: " <> show inArgs)
+                                | null levelList = Just 2
+                                | otherwise = readMaybe (snd $ head levelList) ∷ Maybe Int
+
+
+                                                                        
+
                         in  
                             --trace ("SG: " <> (show supportMeasure) <> " " <> (show lcArgList)) $
-                            if isNothing jackFreq'
+                            if isNothing levelNumber 
+                                then errorWithoutStackTrace ("Support 'level' specification not an integer (e.g. level:2): " <> show (snd $ head replicatesList))
+                            else if isNothing jackFreq'
                                 then errorWithoutStackTrace ("Jacknife frequency not a float (e.g. jackknife:0.5) in support: " <> show (snd $ head jackList))
                                 else
                                     if isNothing replicates'
