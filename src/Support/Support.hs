@@ -123,12 +123,13 @@ supportGraph inArgs inGS inData inGraphList =
                                 | fromJust levelNumber > 3 = 3
                                 | otherwise = fromJust levelNumber
 
+                            -- not exactly same as swp levels but sme idea
                             levelParams 
                                 | swapLevel == (-1) = [("joinall", ""), ("bettern",""), ("multitraverse","false")] --defaut really level 1
                                 | swapLevel == (0) = [("joinall", ""), ("bestall",""), ("multitraverse","true")]
                                 | swapLevel == (1) = [("joinall", ""), ("bettern",""), ("multitraverse","false")] 
-                                | swapLevel == (2) = [("joinpruned", ""), ("bettern",""), ("multitraverse","false")] 
-                                | swapLevel == (3) = [("joinpruned", ""), ("bestonly",""), ("multitraverse","false")] 
+                                | swapLevel == (2) = [("joinall", ""), ("better",""), ("multitraverse","false")] 
+                                | swapLevel == (3) = [("joinall", ""), ("bestonly",""), ("multitraverse","false")] 
                                 | otherwise = [("joinall", ""), ("bettern",""), ("multitraverse","false")] -- level 1
 
                             swapParams 

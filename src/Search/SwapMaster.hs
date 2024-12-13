@@ -322,7 +322,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                             _ → newGraphList
 
                     let fullBuffWarning =
-                            if length newGraphList >= (fromJust keepNum)
+                            if (length newGraphList >= (fromJust keepNum)) && (not inSupport)
                                 then
                                     "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
                                 else ""

@@ -153,7 +153,7 @@ report("test0.tre", graphs, newick, overwrite,color, nobraNCHLENGTHS, noHTULabel
 --report("test0-metadata.csv", metaData, overwrite)
 --report("test0-paramEst.csv", parameterEstimation, overwrite)
 
-support(gb, maxparallel:True, gbsample:4000)
+support(jackknife, replicates:20, tbr, level:1)
 
 report("test0-supp.dot", support,dotPDF, overwrite)
 --report("test-ia.fas", impliedalignment, includeMissing, overwrite)
