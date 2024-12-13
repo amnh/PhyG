@@ -389,7 +389,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                             else 
                                 pure reDiagGraphs
 
-                    -- swap levels 2 and 3 are followed by a 2
+                    -- swap levels 2 and 3 are followed by a 1
                     else do
                         logWith LogInfo $ "\tSecond round level swap " <> "\n"
                         
