@@ -957,7 +957,8 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
                                             GO.makeLeafGraph inData
                                         else POSW.makeLeafGraphSoftWired inGS inData
 
-                            {-
+                            {- Moved to monadic part so could use postoder function
+
                             generatedResult = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
 
                             generaterNewGraph
@@ -966,9 +967,6 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
                                 | otherwise = pure emptyReducedPhylogeneticGraph
                             -}
                         in  do
-                                -- logWith LogInfo "+ "
-                                --let generatedResult = T.multiTraverseFullyLabelGraphReduced inGS inData pruneEdges warnPruneEdges startVertex newGraph
-
                                 generatedResult <- T.generalizedGraphPostOrderTraversal 
                                                     inGS
                                                     nonExactCharacters
@@ -992,8 +990,8 @@ rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList ori
                                         | otherwise = getLowerGBEdgeCost inTupleList newPhylogeneticGraph -- ((2 * numTaxa) -1)
                                 rejoinUsingTuples tupleList
                 in  do
+                        -- there were issues with this logic and rVal above
                         --shouldSampleRandomly ← proceedWithSampling
-                        -- logWith LogInfo $ "RGB: " <> (show shouldSampleRandomly)
                         --if shouldSampleRandomly
                         --    then resultOfSampling
                         --    else resultWithoutSampling
