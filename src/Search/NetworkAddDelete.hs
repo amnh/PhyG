@@ -1874,7 +1874,7 @@ isAncDescEdge inGraph (a, _, _) (b, _, _) =
                             then True
                             else False
 
-{- These heuristics do not seem tom work well at all-}
+{- These heuristics do not seem to work well at all-}
 
 {- | heuristic add delta' based on new display tree and delta from existing costs by block--assumming < 0
 original edges subtree1 ((u,l),(u,v)) and subtree2 ((u',v'),(u',l')) create a directed edge from
