@@ -54,7 +54,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     , replicateNumber
                     , levelNumber
                     , lcArgList
-                    ) = getSwapParams inArgs
+                    ) = getSwapParams inGS inArgs
 
                 -- local multiTraverse control option
                 -- Default MultiTraverse global setting--need to rediagnose if set differnet from swap or global option
@@ -499,7 +499,8 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
 getSwapParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → ( Maybe Int
       , Maybe Int
       , Maybe Int
@@ -514,7 +515,7 @@ getSwapParams
       , Maybe Int
       , [(String, String)]
       )
-getSwapParams inArgs =
+getSwapParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -527,7 +528,7 @@ getSwapParams inArgs =
                     keepNum
                         | length keepList > 1 =
                             errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " <> show inArgs)
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS 
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     moveLimitList = filter (not . null) (snd <$> filter ((`elem` ["alternate", "spr", "tbr", "nni"]) . fst) lcArgList)

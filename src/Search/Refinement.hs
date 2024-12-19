@@ -123,7 +123,7 @@ geneticAlgorithmMaster inArgs inGS inData inGraphList
                 ]
 
         -- process args
-        let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
+        let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inGS inArgs
 
         (newGraphList, generationCounter) ←
             GA.geneticAlgorithm
@@ -161,9 +161,10 @@ geneticAlgorithmMaster inArgs inGS inData inGraphList
 
 -- | getGeneticAlgParams returns paramlist from arglist
 getGeneticAlgParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int, Maybe Int, Int)
-getGeneticAlgParams inArgs =
+getGeneticAlgParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -177,7 +178,7 @@ getGeneticAlgParams inArgs =
                         | length keepList > 1 =
                             errorWithoutStackTrace
                                 ("Multiple 'keep' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     popSizeList = filter ((== "popsize") . fst) lcArgList
@@ -271,7 +272,7 @@ fuseGraphs inArgs inGS inData inGraphList
     -- \| graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
     | otherwise = do
         -- process args for fuse placement
-        (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) ← getFuseGraphParams inArgs
+        (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) ← getFuseGraphParams inGS inArgs
 
         -- Default maximumParallel False, this to reduce memory footprint
         -- if on will use more parallel but at memory footprint cost
@@ -453,9 +454,10 @@ fuseGraphs inArgs inGS inData inGraphList
 
 -- | getFuseGraphParams returns fuse parameters from arglist
 getFuseGraphParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → PhyG (Maybe Int, Maybe Int, Maybe Int, [(String, String)])
-getFuseGraphParams inArgs =
+getFuseGraphParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -466,7 +468,7 @@ getFuseGraphParams inArgs =
             else
                 let keepList = filter ((== "keep") . fst) lcArgList
                     keepNum
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     -- this is awkward syntax but works to check fpor multiple swapping limit commands
@@ -533,7 +535,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                     , maxNetEdges
                     , lcArgList
                     , maxRounds
-                    ) = getNetEdgeParams inArgs
+                    ) = getNetEdgeParams inGS inArgs
                 doNetAdd = any ((== "netadd") . fst) lcArgList
                 doNetDelete = any ((== "netdel") . fst) lcArgList || any ((== "netdelete") . fst) lcArgList
                 doAddDelete = any ((== "netadddel") . fst) lcArgList || any ((== "netadddelete") . fst) lcArgList
@@ -862,9 +864,10 @@ netEdgeMaster inArgs inGS inData inGraphList
 
 -- | getNetEdgeParams returns net edge cparameters from argument list
 getNetEdgeParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int)
-getNetEdgeParams inArgs =
+getNetEdgeParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -877,7 +880,7 @@ getNetEdgeParams inArgs =
                     keepNum
                         | length keepList > 1 =
                             errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " <> show inArgs)
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     -- simulated anealing options

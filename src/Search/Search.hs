@@ -110,7 +110,7 @@ search inArgs inGS inData inGraphList' =
 
         totalFlatTheta = flatGraphBanditList <> flatThetaList
     in  do
-            (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) ← getSearchParams inArgs
+            (searchTime, keepNum, instances, thompsonSample, mFactor, mFunction, maxNetEdges, stopNum) ← getSearchParams inGS inArgs
 
             let threshold = fromSeconds . fromIntegral $ (100 * searchTime) `div` 100
             let initialSeconds = fromSeconds . fromIntegral $ (0 ∷ Int)
@@ -975,8 +975,8 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
 {- |
 'getSearchParams' takes arguments and returns search params.
 -}
-getSearchParams ∷ [Argument] → PhyG (Int, Int, Int, Bool, Int, String, Int, Int)
-getSearchParams inArgs =
+getSearchParams ∷ GlobalSettings -> [Argument] → PhyG (Int, Int, Int, Bool, Int, String, Int, Int)
+getSearchParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -996,7 +996,7 @@ getSearchParams inArgs =
                     keepNum
                         | length keepList > 1 =
                             errorWithoutStackTrace ("Multiple 'keep' number specifications in search command--can have only one: " <> show inArgs)
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     daysList = filter ((== "days") . fst) lcArgList
