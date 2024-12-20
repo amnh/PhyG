@@ -822,7 +822,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
                                         pure (newGraphList'', 0)
                                     else do
-                                        logWith LogInfo ( "Network edge delete on "
+                                        logWith LogInfo ( "Network edge AddDelete on "
                                                     <> show (length inGraphList)
                                                     <> " input graph(s) with minimum cost "
                                                     <> show (minimum $ fmap snd5 inGraphList)
