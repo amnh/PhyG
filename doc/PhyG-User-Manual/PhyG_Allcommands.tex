@@ -623,15 +623,20 @@
 		\texttt{refine([argument list])}
 		
 	\begin{phygdescription}
-		{Performs Genetic Algorithm \citep{Holland1975} for any graph type. In addition, 
+		{This command implements a number of algorithms involved in ....
+		It can performs Genetic Algorithm \citep{Holland1975} for any graph type. In addition, 
 		it performs edit operations (addition, deletion, and move) on network edges that 
 		only applies to softwired and hardwired graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
-		
-	\begin{description}
+
+	\textbf{Genetic Algorithm} Implements a heuristic search algorithm on a population of
+	graphs that mimics the evolutionary process. It includes three components---mutations, 
+	recombination and selection.
 	
+	\begin{description}
+		
 		\item[acceptEqual[:FLOAT]] Specifies that equal cost graphs are accepted with the
 		probability as set by the FLOAT value. This argument can be applied to \texttt{drift}
 		and \texttt{annealing}.

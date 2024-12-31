@@ -32,14 +32,16 @@
 
 \setlength\itemindent{0.25cm}
 
+%Argument Specifications
 \newcommand{\phyg}{\texttt{PhyG} }
 \newcommand{\atsymbol}{@}
 \newenvironment{phygdescription}{\subsubsection{Description}}{}
 \newenvironment{example}{\subsubsection{Examples} \begin{itemize}}{\end{itemize}}
 \newenvironment{argument}{\subsection{Arguments}\begin{itemize}}{\end{itemize}}
+\newenvironment{argumentgroup}[2]{\paragraph{#1} #2}{ \finishdescription }
 %\item [ ]
 
-\begin{document}
+\begin{document}x
 	%\firstpage{1}
 	
 	\title{PhylogeneticGraph\\User Manual\\Version 1.1}
