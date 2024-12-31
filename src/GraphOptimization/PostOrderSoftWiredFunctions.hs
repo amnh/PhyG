@@ -118,7 +118,7 @@ naivePostOrderSoftWiredTraversal inGS inData@(_, _, blockDataVect) leafGraph sta
             -- create postorder Phylgenetic graph
             let postOrderPhyloGraph = (inSimpleGraph, graphCost, newCononicalGraph, fmap (: []) displayTreeVect, charTreeVectVect, (fmap thd3 blockDataVect))
 
-            -- trace ("NPOSW: " <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes newCononicalGraph) <> "\nDisplay :" <> (show $ fmap bvLabel $ fmap snd $  LG.labNodes $ V.head displayTreeVect))
+            -- logWith LogInfo ("NPOSW: " <> (show $ graphCost) <> " from " <> (show blockCostList) <> " => " <> (show $ snd6 postOrderPhyloGraph))
             pure postOrderPhyloGraph
 
 
@@ -341,7 +341,7 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a, b, d
                     then
                         let (displayTrees, charTrees) = divideDecoratedGraphByBlockAndCharacterTree decGraph
                         in  pure (a, b, decGraph, displayTrees, charTrees, f)
-                    else updateAndFinalizePostOrderSoftWired (Just rootIndex) rootIndex inPhyloGraph
+                    else updateAndFinalizePostOrderSoftWired inGS (Just rootIndex) rootIndex inPhyloGraph
 
             -- purge double edges from display and character graphs
             -- this should not be happening--issue with postorder network resolutions data
@@ -665,9 +665,10 @@ makeBlockNodeLabels blockIndex inVertexInfo =
 {- | updateAndFinalizePostOrderSoftWired performs the pre-order traceback on the resolutions of a softwired graph to create the correct vertex states,
 ports the post order assignments to the display trees, and creates the character trees from the block trees
 -}
-updateAndFinalizePostOrderSoftWired ∷ Maybe Int → Int → PhylogeneticGraph → PhyG PhylogeneticGraph
-updateAndFinalizePostOrderSoftWired startVertexMaybe startVertex inGraph =
-    if isNothing startVertexMaybe
+updateAndFinalizePostOrderSoftWired ∷ GlobalSettings -> Maybe Int → Int → PhylogeneticGraph → PhyG PhylogeneticGraph
+updateAndFinalizePostOrderSoftWired inGS startVertexMaybe startVertex inGraph =
+    if softWiredMethod inGS == Naive then pure inGraph
+    else if isNothing startVertexMaybe
         then NEW.softWiredPostOrderTraceBack startVertex inGraph
         else NEW.softWiredPostOrderTraceBack (fromJust startVertexMaybe) inGraph
 

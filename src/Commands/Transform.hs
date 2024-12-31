@@ -498,14 +498,13 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                                                             then "ResolutionCache"
                                                                                                                                                                             else "Exhaustive"
                                                                                                                                                                 in  do
-                                                                                                                                                                        newPhylogeneticGraphList ←
-                                                                                                                                                                            getParallelChunkTraverse >>= \pTraverse →
-                                                                                                                                                                                pTraverse
-                                                                                                                                                                                    (reoptimizeAction (inGS{softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5)
-                                                                                                                                                                                    inGraphList
-
                                                                                                                                                                         if newMethod /= softWiredMethod inGS
                                                                                                                                                                             then do
+                                                                                                                                                                                newPhylogeneticGraphList ←
+                                                                                                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                                                                        pTraverse
+                                                                                                                                                                                            (reoptimizeAction (inGS{softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5)
+                                                                                                                                                                                            inGraphList
                                                                                                                                                                                 logWith LogInfo ("Changing softwired optimization method to " <> newMethodString <> "\n")
                                                                                                                                                                                 pure (inGS{softWiredMethod = newMethod}, origData, inData, newPhylogeneticGraphList)
                                                                                                                                                                             else do
