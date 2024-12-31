@@ -302,6 +302,7 @@ data GlobalSettings = GlobalSettings
     , graphType ∷ GraphType
     , graphFactor ∷ GraphFactor -- net penalty/graph complexity
     , lazyParStrat ∷ ParallelStrategy -- default parallel strategy to WHNF
+    , keepGraphs ∷ Int -- maximum number equally costly solutions to keep
     , missingThreshold ∷ Int -- default threshold of maximum missing data to keep in data set 100 (keep all, 0 would be no missing data)
     , modelComplexity ∷ Double -- model cost for PMDL, 0.0 for other criteria
     , multiTraverseCharacters ∷ Bool -- If true "reroot" charcter trees to get best cost for (only affects) dynamic characters, if False then no
@@ -724,7 +725,7 @@ data SwapParams = SwapParams
     , doIA ∷ Bool -- use Implied alignment fields for rearragement costs
     , joinAlternate ∷ Bool -- in alternate swapping for TBR
     , joinType ∷ JoinType -- Union pruning on or off
-    , keepNum ∷ Int -- number equally costly solutoins to keep
+    , keepNum ∷ Int -- number equally costly solutions to keep
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
     , returnMutated ∷ Bool -- return changed graphs for simlated annealing, genetic algorithm
     , sortEdgesSplitCost :: Bool -- sort edges based on split cost-- greatest delta first
@@ -776,6 +777,7 @@ emptyGlobalSettings =
         , rootCost = NoRootCost
         , rootComplexity = 0.0
         , graphComplexityList = IL.repeat (0.0, 0.0)
+        , keepGraphs = 10
         , modelComplexity = 0.0
         , seed = 0
         , searchData = []

@@ -1247,7 +1247,8 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u, v, _), (u', v', _)) =
                 -- full two-pass optimization
                 leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
             in  do
-                    newPhyloGraph ← T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+                    -- since strict moved down into logic
+                    --newPhyloGraph ← T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
 
                     -- calculates heursitic graph delta
                     -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
@@ -1265,11 +1266,13 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u, v, _), (u', v', _)) =
                     if not isPhyloGraph
                         then do
                             pure emptyReducedPhylogeneticGraph
-                        else
+                        else 
                             if metHeuristicThreshold
-                                then -- if (GO.parentsInChainGraph . thd5) newPhyloGraph then emptyPhylogeneticGraph
+                                then do -- if (GO.parentsInChainGraph . thd5) newPhyloGraph then emptyPhylogeneticGraph
                                 -- else
-
+                                    newPhyloGraph ← T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+                            
+                            
                                     if (snd5 newPhyloGraph <= snd5 inPhyloGraph)
                                         then do
                                             pure newPhyloGraph
@@ -1874,7 +1877,7 @@ isAncDescEdge inGraph (a, _, _) (b, _, _) =
                             then True
                             else False
 
-{- These heuristics do not seem tom work well at all-}
+{- These heuristics do not seem to work well at all-}
 
 {- | heuristic add delta' based on new display tree and delta from existing costs by block--assumming < 0
 original edges subtree1 ((u,l),(u,v)) and subtree2 ((u',v'),(u',l')) create a directed edge from
@@ -2401,7 +2404,7 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
                                 if (graphType inGS == HardWired)
                                     then T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
                                     else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
-                    -- check if deletino modified graph
+                    -- check if deletion modified graph
                     if not wasModified
                         then do
                             pure inPhyloGraph

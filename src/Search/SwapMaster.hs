@@ -54,7 +54,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     , replicateNumber
                     , levelNumber
                     , lcArgList
-                    ) = getSwapParams inArgs
+                    ) = getSwapParams inGS inArgs
 
                 -- local multiTraverse control option
                 -- Default MultiTraverse global setting--need to rediagnose if set differnet from swap or global option
@@ -83,7 +83,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         then 2
                         else fromJust maxMoveEdgeDist'
 
-                
+                inSupport = any ((== "support") . fst) lcArgList
 
                 -- set implied alignment swapping
                 doIA' = any ((== "ia") . fst) lcArgList
@@ -271,7 +271,10 @@ swapMaster inArgs inGS inData inGraphListInput =
                     logWith LogInfo progressString
 
                     -- Rediagnose with MultiTraverse on if that is the setting
-                    inGraphList' <- if swapLevel == (-1) then
+                        -- don't bother to if in support--only care about topology for jacknife and bootstrap
+                    inGraphList' <- if inSupport then
+                                        pure inGraphList
+                                    else if swapLevel == (-1) then
                                             if (localMultiTraverse == multiTraverseCharacters inGS) then 
                                                 pure inGraphList
                                             else do
@@ -319,7 +322,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                             _ → newGraphList
 
                     let fullBuffWarning =
-                            if length newGraphList >= (fromJust keepNum)
+                            if (length newGraphList >= (fromJust keepNum)) && (not inSupport)
                                 then
                                     "\n\tWarning--Swap returned as many minimum cost graphs as the 'keep' number.  \n\tThis may have limited the effectiveness of the swap. \n\tConsider increasing the 'keep' value or adding an additional swap."
                                 else ""
@@ -357,8 +360,10 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     logWith LogInfo (endString <> fullBuffWarning <> "\n")
 
-                    -- add in second round for higher swap levels
-                    if swapLevel == (-1) then 
+                    -- add in second round for higher swap levels, but not if inSupport (jackknife and bootstrap)
+                    if inSupport then 
+                         pure finalGraphList
+                    else if swapLevel == (-1) then 
                         if (localMultiTraverse == multiTraverseCharacters inGS) then 
                             pure finalGraphList
                         else 
@@ -389,7 +394,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                             else 
                                 pure reDiagGraphs
 
-                    -- swap levels 2 and 3 are followed by a 2
+                    -- swap levels 2 and 3 are followed by a 1
                     else do
                         logWith LogInfo $ "\tSecond round level swap " <> "\n"
                         
@@ -494,7 +499,8 @@ getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acce
 
 -- | getSwapParams takes areg list and preocesses returning parameter values
 getSwapParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → ( Maybe Int
       , Maybe Int
       , Maybe Int
@@ -509,7 +515,7 @@ getSwapParams
       , Maybe Int
       , [(String, String)]
       )
-getSwapParams inArgs =
+getSwapParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -522,7 +528,7 @@ getSwapParams inArgs =
                     keepNum
                         | length keepList > 1 =
                             errorWithoutStackTrace ("Multiple 'keep' number specifications in swap command--can have only one: " <> show inArgs)
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS 
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     moveLimitList = filter (not . null) (snd <$> filter ((`elem` ["alternate", "spr", "tbr", "nni"]) . fst) lcArgList)

@@ -93,6 +93,9 @@ read("chel-build-5.dot")
 --fuse(pairs:25)
 --fuse(spr,pairs:25)
 
+set(keep:20)
+
+transform(keep:15)
 
 --build(distance,rdwag, replicates:100, best:100)
 --build(rdwag, replicates:100)
@@ -117,7 +120,7 @@ read("chel-build-5.dot")
 --swap(alternate, betterN)
 
 --transform(multitraverse:True)
---swap()
+swap(keep:10)
 --swap(level:3)
 --transform(multitraverse:True)
 --swap(inOrder)
@@ -153,9 +156,9 @@ report("test0.tre", graphs, newick, overwrite,color, nobraNCHLENGTHS, noHTULabel
 --report("test0-metadata.csv", metaData, overwrite)
 --report("test0-paramEst.csv", parameterEstimation, overwrite)
 
-support(gb, maxParallel:True, gbsample:100)
+--support(jackknife, replicates:20, tbr, level:1)
 
-report("test0-supp.dot", support,dotPDF, overwrite)
+--report("test0-supp.dot", support,dotPDF, overwrite)
 --report("test-ia.fas", impliedalignment, includeMissing, overwrite)
 --report("test-ia-concat.fas", impliedalignment, concatenate,  overwrite)
 --report("test-tnt.txt", TNT, overwrite)
