@@ -237,7 +237,7 @@ reconcileBlockTrees blockTrees numDisplayTrees returnTrees returnGraph returnRan
                         , show numNetNodes
                         , " network nodes hence up to 2^"
                         , show numNetNodes
-                        , " display trees"
+                        , " display trees\n"
                         ]
 
             when (LG.isEmpty reconciledGraph && not returnTrees) $
