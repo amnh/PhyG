@@ -623,17 +623,19 @@
 		\texttt{refine([argument list])}
 		
 	\begin{phygdescription}
-		{This command implements a number of algorithms involved in ....
-		It can performs Genetic Algorithm \citep{Holland1975} for any graph type. In addition, 
-		it performs edit operations (addition, deletion, and move) on network edges that 
-		only applies to softwired and hardwired graphs.}
+		{This command implements a number of algorithms involved in the refinement of 
+		graphs. Full Simulated Annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985}
+		and Genetic Algorithm \citep{Holland1975, moilanen1999} are implemented for 
+		any graph type. In addition, it performs edit operations (addition, deletion, and move) 
+		on network edges that only applies to softwired and hardwired graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
 
-	\textbf{Genetic Algorithm} Implements a heuristic search algorithm on a population of
-	graphs that mimics the evolutionary process. It includes three components---mutations, 
-	recombination and selection.
+	\textbf{Genetic Algorithm} Implements a heuristic algorithm on a population of graphs 
+	that mimics the evolutionary process (mutations, recombination and selection)
+	to search for more optimal graphs. The following arguments will mimic this evolutionary 
+	process. 
 	
 	\begin{description}
 		
@@ -645,11 +647,6 @@
 		probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost of the candidate graph, $c_b$ 
 		is the cost of the current best graph, and $wf$ is the values as specified by the float 
 		(default 1.0). This argument can be applied to \texttt{drift} 	and \texttt{annealing}.
-	
-		\item[all] Turns off all preference strategies to make network edits, by simply trying 
-		all possible edits to the graph. This is a memory intensive refinement.
-		The refinement examines the entire rearrangement neighborhood of the current graph 
-		before retaining the best (lowest cost) solutions. Compare with \texttt{steepest}.
 
 		\item[annealing[:INT]] Specifies the number of rounds (as specified by the integer 
 		value) of simulated annealing optimization \citep{Metropolisetal1953, 
@@ -661,17 +658,11 @@
 		steps (set by the \texttt{steps:INT}, default 10).
 
 		\begin{description}
-			
 			\item[steps:INT] Specifies the number of temperature steps performed 
 			during simulated annealing (as specified by the \texttt{annealing}) option.
 			The default is 10.
-			
 		\end{description}
-			
-		\item[atRandom] Network edit neighborhoods are traversed in a randomized order (compare 
-		with \texttt{inorder}). 	This will result in different trajectories of the network edit space being 
-		explored.
-
+		
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
 		annealing optimization \citep{goloboff1999} that are performed. This is done in concert 
 		with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance of candidate 
@@ -720,6 +711,29 @@
 			
 		\end{description}
 		
+		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
+		integer value. 
+		
+	\end{description}
+		
+		\bigskip
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		\noindent \textbf{Network Edits} Implements a series of operations specific to networks, 
+		including addition, deletion and movement of network edges.
+	
+	\begin{description}
+		
+		\item[all] Turns off all preference strategies to make network edits, by simply trying 
+		all possible edits to the graph. This is a memory intensive refinement and should only
+		be used with small datasets. The refinement examines the entire rearrangement 
+		neighborhood of the current graph before retaining the best (lowest cost) solutions. 
+		Compare with \texttt{steepest}.
+			
+		\item[atRandom] Network edit neighborhoods are traversed in a randomized order (compare 
+		with \texttt{inorder}). 	This will result in different trajectories of the network edit space being 
+		explored. This is the default.
+
 		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always traversed 
 		in the same undefined, but consistent order.
 
@@ -741,10 +755,8 @@
 		input graphs until certain conditions are met.
 			
 		\begin{description}
-			
 			\item[rounds:INT]  Specifies the number of combine network add and delete
 			edit operations.
-			
 		\end{description}
 			
 		\item[netdel] Synonym of \texttt{netdelete}.
@@ -1253,7 +1265,8 @@
 		
 		\item[instances:INT] Specifies the number of (potentially parallel) simultaneous
 		searches (instances), as indicated by the integer value. The overall search will 
-		terminate only when all instances have completed.
+		terminate only when all instances have completed. \hl{Employing this argument is
+		recommended when multiple computer processors are available to the user.}
 		
 		\item[maxNetEdges:INT] Limits the maximum number of network edges to that
 		specified by the integer value. This should only to be used if \texttt{graphtype}
@@ -1663,10 +1676,16 @@
 		\texttt{support([argument list])}
 		
 	\begin{phygdescription}
-		{Generates graph supports via resampling \citep{Farrisetal1996} and Goodman-Bremer  
-		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing, Bootstrapping and 
-		Goodman-Bremer supports are the resampling methods that are implemented. If
-		the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
+		{Calculates the requested support values. \phyg implements support estimation based on 
+		resampling methods (Jackknife ~\cite{Farrisetal1996} and Bootstrap~\cite{Felsenstein1985})
+		and Goodman-Bremer support~\cite{Goodmanetal1982, Bremer1988}.  The calculation of 
+		support measures based on resampling, is done at the fragment or ``block'' level, rather
+		than at the nucleotide level. For this reason, these data need to be collated into a block
+		with the command \texttt{reblock} (see Section \ref{subsec:reblock}). Goodman-Bremer
+		calculations are optimality-based measure based on the cost of the tree, and are not 
+		affected by this behavior. 
+
+		If the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
 		for Goodman-Bremer are log likelihood ratios.}
 	\end{phygdescription}
 		
