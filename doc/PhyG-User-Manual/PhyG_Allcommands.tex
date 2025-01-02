@@ -187,7 +187,7 @@
 		are exchanged between graphs and the results evaluated. This process of exchange 
 		and evaluation continues until no new graphs are found. This can be used in concert 
 		with other options to perform a Genetic Algorithm refinement \citep{Holland1975}. The 
-		behavior of \texttt{fuse} can be modified by the use of options specifying SPR and 
+		behavior of \texttt{fuse} can be modified by the use of options specifying SPR- and 
 		TBR-like rearrangement of the combination process.}
 		
 	\end{phygdescription}
@@ -196,13 +196,24 @@
 	
 	\begin{description}
 	
-		\item [all]  During branch swapping-type operations, all rearrangements are tried before 
-		choosing a new graph. 
+%		\item [all]  During branch swapping-type operations, all rearrangements are tried before 
+%		choosing a new graph. 
 		
 		\item [best] Specifies the method for tree selection, which in this case returns the best 
 		graphs found during fuse operations.		
 		
 		\item [keep:INT] Limits the number of returned graphs to the integer value specified. 
+		
+		\item[maxParallel[:BOOL]] Specifies the amount of parallelization during \texttt{fuse}. 
+		By default (\texttt{FALSE}), \texttt{fuse} reduces the amount of parallelization. When 
+		Set to \texttt{TRUE}, parallelization is maximized at the cost of memory. This reduces 
+		the memory footprint of the analysis.
+		
+		\item[multitraverse[:BOOL ]] Specifies the optimization procedure for graphs during 
+		\texttt{fuse}. By default (\texttt{FALSE}), \texttt{fuse} uses a single traverse for its graph 
+		cost heuristic. While faster, the result is more approximate. Set to \texttt{TRUE}, a more 
+		exhaustive heuristic optimization strategy is used during exploration of the graph space. 
+		This will obtain better heuristic graph costs, but will take longer to complete.
 		
 		\item [none] No branch swapping is performed during the fuse. This is the default.
 		
@@ -229,8 +240,8 @@
 		\item [spr[:INT]] Causes the exchanged subgraphs to be tried at multiple positions (up to 
 		$n$ edges away from their initial positions, where $n$ equals the integer value).
 		
-		\item [steepest] During branch swapping-type operations, if a better graph is found, swapping 
-		shifts greedily to that graph. This is the default if swapping is specified.
+%		\item [steepest] During branch swapping-type operations, if a better graph is found, swapping 
+%		shifts greedily to that graph. This is the default if swapping is specified.
 		
 		\item [tbr[:INT]] Causes the exchanged subgraphs to be tried at multiple positions (up to 
 		$n$ edges away from their initial positions) where $n$ equals the integer value. TBR-style 
@@ -242,8 +253,9 @@
 	\end{description}	
 	
 	\subsubsection{Defaults}
-		\texttt{fuse(best, none, reciprocal)} By default, \phyg keeps all the best graphs found, 
-		and continues fusing until no new graphs are found. No branch swapping style rearrangements 
+		\texttt{fuse(best, none, reciprocal, multitraverse(FALSE))} By default, \phyg keeps all the best 
+		graphs found, and continues fusing until no new graphs are found. A single traverse is 
+		used for its graph cost heuristic. No branch swapping style rearrangements 
 		are performed. The exchange and evaluation of graphs occurs in a reciprocal manner. 
 			
 	\begin{example}
@@ -409,15 +421,16 @@
 		modifying the original data file. The file contains a series of lines, each of which contains at 
 		least two strings---these strings equate to synonyms separated by spaces. The first string 
 		(input taxon name) will replace the second and all subsequent strings (taxon names) on 
-		that line. The \texttt{rename} function can also be specified as a command, see \texttt{rename}
-		(Section \ref{subsec:Rename}) for more detail and examples.
+		that line. Wildcard expressions (‘*’ and ‘?’) can be used in these strings. The \texttt{rename} 
+		function can also be specified as a command, see \texttt{rename}
+		(Section \ref{subsec:Rename}) for more detail and examples.\\
 					 
 		\item[STRING] Reads the file specified in the path included in the string argument. A path 
 		can be absolute or relative to the current working directory. The file type is recognized
 		automatically, but as mentioned previously, this should be confirmed.
 		
-		\item [tcm:(Int, Int)] This refers to setting indel and substitution costs as two integers
-		seprated by a comma.  The first value is the indel cost and the second the substitution cost
+		\item [tcm:(INT, INT)] This refers to setting indel and substitution costs as two integers
+		seprated by a comma. The first value is the indel cost and the second the substitution cost
 		for any alphabet type and size.\\
 		
 		Specifying tcm:(X,Y) for a sequence with four elements alpha, beta, gamma and delta would be
@@ -610,15 +623,22 @@
 		\texttt{refine([argument list])}
 		
 	\begin{phygdescription}
-		{Performs Genetic Algorithm \citep{Holland1975} for any graph type. In addition, 
-		it performs edit operations (addition, deletion, and move) on network edges that 
-		only applies to softwired and hardwired graphs.}
+		{This command implements a number of algorithms involved in the refinement of 
+		graphs. Full Simulated Annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985}
+		and Genetic Algorithm \citep{Holland1975, moilanen1999} are implemented for 
+		any graph type. In addition, it performs edit operations (addition, deletion, and move) 
+		on network edges that only applies to softwired and hardwired graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
-		
-	\begin{description}
+
+	\textbf{Genetic Algorithm} Implements a heuristic algorithm on a population of graphs 
+	that mimics the evolutionary process (mutations, recombination and selection)
+	to search for more optimal graphs. The following arguments will mimic this evolutionary 
+	process. 
 	
+	\begin{description}
+		
 		\item[acceptEqual[:FLOAT]] Specifies that equal cost graphs are accepted with the
 		probability as set by the FLOAT value. This argument can be applied to \texttt{drift}
 		and \texttt{annealing}.
@@ -627,11 +647,6 @@
 		probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost of the candidate graph, $c_b$ 
 		is the cost of the current best graph, and $wf$ is the values as specified by the float 
 		(default 1.0). This argument can be applied to \texttt{drift} 	and \texttt{annealing}.
-	
-		\item[all] Turns off all preference strategies to make network edits, by simply trying 
-		all possible edits to the graph. This is a memory intensive refinement.
-		The refinement examines the entire rearrangement neighborhood of the current graph 
-		before retaining the best (lowest cost) solutions.
 
 		\item[annealing[:INT]] Specifies the number of rounds (as specified by the integer 
 		value) of simulated annealing optimization \citep{Metropolisetal1953, 
@@ -643,17 +658,11 @@
 		steps (set by the \texttt{steps:INT}, default 10).
 
 		\begin{description}
-			
 			\item[steps:INT] Specifies the number of temperature steps performed 
 			during simulated annealing (as specified by the \texttt{annealing}) option.
 			The default is 10.
-			
 		\end{description}
-			
-		\item[atRandom] Network edit neighborhoods are traversed in a randomized order (compare 
-		with \texttt{inorder}). 	This will result in different trajectories of the network edit space being 
-		explored.
-
+		
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
 		annealing optimization \citep{goloboff1999} that are performed. This is done in concert 
 		with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance of candidate 
@@ -702,6 +711,29 @@
 			
 		\end{description}
 		
+		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
+		integer value. 
+		
+	\end{description}
+		
+		\bigskip
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		\noindent \textbf{Network Edits} Implements a series of operations specific to networks, 
+		including addition, deletion and movement of network edges.
+	
+	\begin{description}
+		
+		\item[all] Turns off all preference strategies to make network edits, by simply trying 
+		all possible edits to the graph. This is a memory intensive refinement and should only
+		be used with small datasets. The refinement examines the entire rearrangement 
+		neighborhood of the current graph before retaining the best (lowest cost) solutions. 
+		Compare with \texttt{steepest}.
+			
+		\item[atRandom] Network edit neighborhoods are traversed in a randomized order (compare 
+		with \texttt{inorder}). 	This will result in different trajectories of the network edit space being 
+		explored. This is the default.
+
 		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always traversed 
 		in the same undefined, but consistent order.
 
@@ -723,10 +755,8 @@
 		input graphs until certain conditions are met.
 			
 		\begin{description}
-			
 			\item[rounds:INT]  Specifies the number of combine network add and delete
 			edit operations.
-			
 		\end{description}
 			
 		\item[netdel] Synonym of \texttt{netdelete}.
@@ -741,13 +771,18 @@
 		
 		\item[steepest] Specifies that refinement follows a greedy path, abandoning the 
 		neighborhood of the current graph when a better (lower cost) graph is found. 
+		This is the default. Compare with \texttt{all}.
 		
 	\end{description}
 
 	\subsubsection{Defaults}
 		\texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, 
 	  	  \phyg will perform Genetic Algorithm refinement, with its associated default options, 
-		   if no other arguments are specified.} 
+		   if no other arguments are specified.}\\
+		   
+		\noindent \texttt{refine(netadd | netdel | netadddel | netmove, steepest, atrandom)} By default, 
+	  	  during network edit operations, \phyg will follow a greedy path and traverse network 
+		  edit neighborhoods in a randomized order.} 
 	
 	\begin{example}
 	
@@ -785,11 +820,12 @@
 	to reflect taxonomic changes. It also allows for merging multiple datasets without 
 	modifying the original data file. The command arguments are (minimally) two 
 	strings---these strings equate to synonyms separated by spaces. The first string 
-	will replace the second and all subsequent strings (taxon names) on 	that line. In the 
+	will replace the second and all subsequent strings (taxon names) on that line. In the 
 	example given in Figure \ref{renamefile} the taxon Hydrus\_granulatus will be renamed 
 	as Acrochordus\_granulatus, the taxa Gloydius\_boehmei and Gloydius\_mogoi will be 
-	renamed as Gloydius\_halys and the taxa Crotalus\_mutus, Scytale\_catenatus and 
-	Coluber\_crotalinus will be renamed as Lachesis\_muta. Irrespective of where this 
+	renamed as Gloydius\_halys, and the taxa Crotalus\_mutus, Scytale\_catenatus and 
+	Coluber\_crotalinus will be renamed as Lachesis\_muta. The taxa with the wildcard 
+	expressions Coleonyx* and Coleonix* 	will be renamed as Coleonyx\_sp. Irrespective of where this 
 	command appears in the script file, \phyg will execute this command prior to importing 
 	the data files. Compare with the argument \texttt{rename} of the command \texttt{read} 
 	(Section \ref{subsec:read}).
@@ -863,6 +899,19 @@
 		branch lengths appear above the branches. In ASCII and dot files, branch 
 		lengths follow the terminal labels. This is the default. Compare with 
 		\texttt{nobranchlengths}. 
+		
+			\begin{description}
+			
+			\item[max] Outputs the maximum possible branch length given ambiguities
+			in HTU character assignments.
+			
+			\item[mid] Outputs the average possible branch length given ambiguities
+			in HTU character assignments. This is the default.
+			
+			\item[min] Outputs the minimum possible branch length given ambiguities
+			in HTU character assignments. 
+			
+			\end{description}
 		
 		\item[color] For GraphViz or \texttt{dot} output, \phyg will write the edges of 
 		the graph in color. These colors are based on the value of the edge and are
@@ -989,8 +1038,7 @@
 		branches are not collapsed by default. In contrast, if a dotpdf graph is 
 		specified, the zero-length branches are collapsed. Note: by specifying 
 		a dotpdf file, this will by default also output a dot file---in both these files 
-		zero length branches are collapsed. Compare with the \texttt{collapse} 
-		argument. 
+		zero length branches are collapsed. Compare with \texttt{collapse}. 
 				
 		\item[nohtulabels] Labels of the HTUs are not included in the output files. 
 		This option can not be applied to eNewick graph. Compare with the argument 
@@ -1066,12 +1114,6 @@
 				default value is $0$.
 				
 			\end{description}
-		
-			\item [EdgeLabel:BOOL] Specifies the output graph have edges 
-			labeled with their frequency in input graphs. The default value is TRUE.			
-			
-			\item [VertexLabel:BOOL] Specifies the output graph have vertices 
-			labeled with their subtree leaf set. The default value is FALSE.	
 				
 		\end{description}	
 				
@@ -1223,7 +1265,8 @@
 		
 		\item[instances:INT] Specifies the number of (potentially parallel) simultaneous
 		searches (instances), as indicated by the integer value. The overall search will 
-		terminate only when all instances have completed.
+		terminate only when all instances have completed. \hl{Employing this argument is
+		recommended when multiple computer processors are available to the user.}
 		
 		\item[maxNetEdges:INT] Limits the maximum number of network edges to that
 		specified by the integer value. This should only to be used if \texttt{graphtype}
@@ -1379,7 +1422,7 @@
 		
 %		\item[compressResolutions:True|False] 
 %		Determines whether softwired graph resolutions are ``compressed'' if multiple 
-%		vertex assignments in alternate display trees are equal in subtree leaf set, only 
+%		{reconcile}x assignments in alternate display trees are equal in subtree leaf set, only 
 %		the first lowest cost resolution is retained. This option can significantly reduce 
 %		the time to evaluate softwired graphs, but can increase the optimality score of 
 %		the graph. This can be used in combination with \texttt{transform(compressResolutions:True)} 
@@ -1502,10 +1545,10 @@
 						
 		\end{description}
 			
-		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in \citealp{VaronandWheeler2013}) 
-		during SPR and TBR
-		branch swapping. The default value is 1.17. Higher values will allow more heuristic graph
-		rejoins, resulting in potentially better solutions at the cost of greater execution times.
+		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in 
+		\citealp{VaronandWheeler2013}) during SPR and TBR branch swapping. The 
+		default value is 1.17. Higher values will allow more heuristic graph rejoins, 
+		resulting in potentially better solutions at the cost of greater execution times.
 
 %		\item[lazyparstrat] Only internal---used for testing purposes.
 
@@ -1542,8 +1585,14 @@
 		individual character. When partitioning the data in this way, the number of partitions 
 		must be the same across homologous sequences. The default is `\textbf{\#}'.
 
-%		\item[reportnaive] Only internal---used for testing purposes.
-
+%		\item[reportNaiveData] Sets the data output and diagnosis.		
+%		By default set to \texttt{True}, and diagnosis will report data as input.  Memory 
+%		footprint for large data sets can be reduced by setting reportNaiveData to False. 
+%		When False, diagnosis will be based on recoded characters that may be inscrutable.  
+%		To report more legible diagnoses, graphs can be individually rediagnosed with 
+%		reportNaiveData:True.  This should consume much less memory that the
+%		graph search.
+%prealigned or qualitative 
 		\item[rootCost:] Sets the root cost for a graph. 	
 				
 		\begin{description}
@@ -1627,10 +1676,16 @@
 		\texttt{support([argument list])}
 		
 	\begin{phygdescription}
-		{Generates graph supports via resampling \citep{Farrisetal1996} and Goodman-Bremer  
-		\citep{Goodmanetal1982, bremer1994}. Currently, Jackknifing, Bootstrapping and 
-		Goodman-Bremer supports are the resampling methods that are implemented. If
-		the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
+		{Calculates the requested support values. \phyg implements support estimation based on 
+		resampling methods (Jackknife ~\cite{Farrisetal1996} and Bootstrap~\cite{Felsenstein1985})
+		and Goodman-Bremer support~\cite{Goodmanetal1982, Bremer1988}.  The calculation of 
+		support measures based on resampling, is done at the fragment or ``block'' level, rather
+		than at the nucleotide level. For this reason, these data need to be collated into a block
+		with the command \texttt{reblock} (see Section \ref{subsec:reblock}). Goodman-Bremer
+		calculations are optimality-based measure based on the cost of the tree, and are not 
+		affected by this behavior. 
+
+		If the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
 		for Goodman-Bremer are log likelihood ratios.}
 	\end{phygdescription}
 		
@@ -1801,27 +1856,32 @@
 		\item[keep:INT] Specifies the number of equally costly graphs to be retained, as
 		determined by the integer value.		
 		
-		\item[level:INT] Specifies a series of heuristic intensities (and execution times) from 0 (all preferences 
-		and heuristics off) 
-		to 3 (all preferences and heuristics on) used during swapping.  Levels 2 and 3 perform an additional level 1 
-		swap after completion.  Graphs are rediagnosed (if necessary) to the global 
-		\texttt{multiTraverse} state.
+		\item[level:INT] Specifies a series of heuristic intensities (and execution times) from 0 (all 
+		preferences and heuristics off) to 3 (all preferences and heuristics on) used during swapping.  
+		Levels 2 and 3 perform an additional level 1 swap after completion.  Graphs are rediagnosed 
+		(if necessary) to the global \texttt{multiTraverse} state.
 		
 		\begin{description}
 			
-			\item[level:0] Equivalent to options \texttt{bestAll, joinAll, multiTraverse:True}. This level is extremely 
-			time consuming  since it uses bestAll (TBR at $O(n4)$) may be prohibitive for even moderately 
-			sized data sets. Its main utility resides in analytical and
+			\item[level:0] Equivalent to options \texttt{bestAll, joinAll, multiTraverse:True}. This 
+			level is extremely time consuming  since it uses bestAll (TBR at $O(n4)$) may be 
+			prohibitive for even moderately 	sized data sets. Its main utility resides in analytical and
 			heuristic testing.
 			
 			\item[level:1] Equivalent to options \texttt{betterN, joinAll, multiTraverse:False}.
 			
 			\item[level:2] Equivalent to options \texttt{betterN, joinPruned, multiTraverse:False}. 
 			
-			\item[level:3] Equivalent to options \texttt{bestOnly, joinPruned, multiTraverse:False}. This level 
-			will be the fastest, but most approximate search.
+			\item[level:3] Equivalent to options \texttt{bestOnly, joinPruned, multiTraverse:False}. 
+			This level will be the fastest, but most approximate search.
 			
 		\end{description}  
+		
+		\item[multitraverse[:BOOL ]] Specifies the optimization procedure for graphs during 
+		\texttt{swap}. By default (\texttt{FALSE}), \texttt{swap} uses a single traverse for its graph 
+		cost heuristic. While faster, the result is more approximate. Set to \texttt{TRUE}, a more 
+		exhaustive heuristic optimization strategy is used during exploration of the graph space. 
+		This will obtain better heuristic graph costs, but will take longer to complete.
 		
 		\item[nni] Specifies that NNI refinement \citep{CaminandSokal1965, Robinson1971} 
 		is performed.

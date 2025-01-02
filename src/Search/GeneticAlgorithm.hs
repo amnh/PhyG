@@ -102,6 +102,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                             let fusePairs = Just recombinations
                             let randomPairs = True
                             let reciprocal = False
+                            let maximizeParallel = False
 
                             -- populate SwapParams structure
                             let swapParams =
@@ -132,6 +133,7 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                                     fusePairs
                                     randomPairs
                                     reciprocal
+                                    maximizeParallel
                                     uniqueMutatedGraphList
 
                             -- selection of graphs population

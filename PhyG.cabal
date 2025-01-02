@@ -1,6 +1,6 @@
 Cabal-Version: 3.12
 Name:          PhyG
-Version:       1.1
+Version:       1.2
 Stability:     Alpha
 Build-Type:    Simple
 Tested-With:
@@ -9,6 +9,7 @@ Tested-With:
   GHC == 9.6.3
   GHC == 9.8.1
   GHC == 9.10.1
+  GHC == 9.12.1
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     © 2015 Ward Wheeler and The American Museum of Natural History
@@ -164,8 +165,9 @@ Common ffi-build-info
 
 -- This is required as compile option to make static binaries on Linux at least
 -- need to haev llvm-(verions) tools installed to link properly
--- enable-executable-static -fpic (no idea why but changing case seems to mater on 
--- commandline)--sometimes have to run twice to get link correct (with differnet case for PIC)
+-- enable-executable-static -fpic -fPIC (multiple times--no idea why but including both cases seems to mater on 
+-- commandline)--sometimes have to run twice or more to get link correct (with differnet case for PIC)
+-- seems inconsistent with 9.12.1
 
 -- Global build directives
 Common build-defaults

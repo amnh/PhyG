@@ -881,6 +881,28 @@ changeVertexEdgeLabels keepVertexLabel keepEdgeLabel inGraph =
             if head b /= 'H'
                 then (a, "HTU" <> show a)
                 else (a, b)
+                
+{- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leaves to the graphs and re-indexes
+the nodes and edges of the input graphs consistently
+String as oposed to Text due to re-use of code in Eun.c
+-}
+makeProcessedGraph ∷ [LG.LNode T.Text] → SimpleGraph → PhyG SimpleGraph
+makeProcessedGraph leafTextList inGraph
+    | null leafTextList = error "Null leaf list in makeFullLeafSetGraph"
+    | LG.isEmpty inGraph = error "Empty graph in makeFullLeafSetGraph"
+    | otherwise =
+        let (_, graphleafTextList, _, _) = LG.splitVertexList inGraph
+            leafStringList = fmap nodeToString leafTextList
+            graphLeafStringList = fmap nodeToString graphleafTextList
+        in  do
+                reIndexedGraph ← reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
+                let textNodes = (nodeToText <$> LG.labNodes reIndexedGraph)
+                let doubleEdges = (edgeToDouble <$> LG.labEdges reIndexedGraph)
+                pure $ LG.mkGraph textNodes doubleEdges
+    where
+        nodeToString (a, b) = (a, T.unpack b)
+        nodeToText (a, b) = (a, T.pack b)
+        edgeToDouble (a, b, c) = (a, b, read c ∷ Double)
 
 
 -- | reconcile is the overall function to drive all methods
@@ -1024,24 +1046,3 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
                                 else errorWithoutStackTrace ("Graph combination method " <> localMethod <> " is not implemented")
 
 
-{- | makeProcessedGraph takes a set of graphs and a leaf set and adds teh missing leafws to teh graphs and reindexes
-the nodes and edges of the input graphs consistenly
-String as oposed to Text due tyo reuse of code in Eun.c
--}
-makeProcessedGraph ∷ [LG.LNode T.Text] → SimpleGraph → PhyG SimpleGraph
-makeProcessedGraph leafTextList inGraph
-    | null leafTextList = error "Null leaf list in makeFullLeafSetGraph"
-    | LG.isEmpty inGraph = error "Empty graph in makeFullLeafSetGraph"
-    | otherwise =
-        let (_, graphleafTextList, _, _) = LG.splitVertexList inGraph
-            leafStringList = fmap nodeToString leafTextList
-            graphLeafStringList = fmap nodeToString graphleafTextList
-        in  do
-                reIndexedGraph ← reIndexAndAddLeavesEdges leafStringList (graphLeafStringList, inGraph)
-                let textNodes = (nodeToText <$> LG.labNodes reIndexedGraph)
-                let doubleEdges = (edgeToDouble <$> LG.labEdges reIndexedGraph)
-                pure $ LG.mkGraph textNodes doubleEdges
-    where
-        nodeToString (a, b) = (a, T.unpack b)
-        nodeToText (a, b) = (a, T.pack b)
-        edgeToDouble (a, b, c) = (a, b, read c ∷ Double)

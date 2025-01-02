@@ -123,7 +123,7 @@ geneticAlgorithmMaster inArgs inGS inData inGraphList
                 ]
 
         -- process args
-        let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inArgs
+        let (doElitist, keepNum, popSize, generations, severity, recombinations, maxNetEdges, stopNum) = getGeneticAlgParams inGS inArgs
 
         (newGraphList, generationCounter) ←
             GA.geneticAlgorithm
@@ -161,9 +161,10 @@ geneticAlgorithmMaster inArgs inGS inData inGraphList
 
 -- | getGeneticAlgParams returns paramlist from arglist
 getGeneticAlgParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → (Bool, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Int, Maybe Int, Int)
-getGeneticAlgParams inArgs =
+getGeneticAlgParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -177,7 +178,7 @@ getGeneticAlgParams inArgs =
                         | length keepList > 1 =
                             errorWithoutStackTrace
                                 ("Multiple 'keep' number specifications in genetic algorithm command--can have only one: " <> show inArgs)
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     popSizeList = filter ((== "popsize") . fst) lcArgList
@@ -271,13 +272,37 @@ fuseGraphs inArgs inGS inData inGraphList
     -- \| graphType inGS == HardWired = trace "Fusing hardwired graphs is currenty not implemented" inGraphList
     | otherwise = do
         -- process args for fuse placement
-        (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) ← getFuseGraphParams inArgs
+        (keepNum, maxMoveEdgeDist, fusePairs, lcArgList) ← getFuseGraphParams inGS inArgs
 
-        
+        -- Default maximumParallel False, this to reduce memory footprint
+        -- if on will use more parallel but at memory footprint cost
+        -- hence off for search iterations as well.
+        let maxParallelValue = filter ((== "maxparallel") . fst) lcArgList
+        let maximizeParallel'  
+                | length maxParallelValue > 1 =
+                            errorWithoutStackTrace ("Multiple maxParallel specifications in fuse--can have only one: " <> show inArgs)
+                | null maxParallelValue = Just "false"
+                | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
+                | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
+        --logWith LogInfo $ "MAxParallel->: " <> (show (maxParallelValue, maximizeParallel')) <> "\n"
+        let maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
+                               else if fromJust maximizeParallel'  == "true" then True
+                               else if fromJust maximizeParallel'  == "false" then False
+                               else errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
+
         -- Default MultiTraverse off--need to rediagnose if set differnet from fuse option
-        let doMultiTraverse 
-                | any ((== "MultiTraverse") . fst) lcArgList = True
-                | otherwise = False
+        let multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
+        let doMultiTraverse'  
+                | length multiTraverseValue > 1 =
+                            errorWithoutStackTrace ("Multiple multiTraverse specifications in fuse--can have only one: " <> show inArgs)
+                | null multiTraverseValue = Just "false"
+                | null (snd $ head multiTraverseValue) = errorWithoutStackTrace ("MultiTraverse fuseoption must be 'True' or 'False'" <> show inArgs)
+                | otherwise = readMaybe (show $ snd $ head multiTraverseValue) ∷ Maybe String
+        --logWith LogInfo $ "MultiTraverse->: " <> (show (multiTraverseValue, snd $ head multiTraverseValue, doMultiTraverse')) <> "\n"
+        let doMultiTraverse = if isNothing doMultiTraverse' then errorWithoutStackTrace ("MultiTraverse fuse option must be 'True' or 'False'" <> show inArgs)
+                              else if fromJust doMultiTraverse'  == "true" then True
+                              else if fromJust doMultiTraverse'  == "false" then False
+                              else errorWithoutStackTrace ("MultiTraverse fuse option must be 'True' or 'False'" <> show inArgs)
 
         -- readdition options, specified as swap types
         -- no alternate or nni for fuse--not really meaningful
@@ -290,7 +315,7 @@ fuseGraphs inArgs inGS inData inGraphList
         -- turn off union selection of rejoin--default to do both, union first
         let joinType
                 | any ((== "joinall") . fst) lcArgList = JoinAll
-                | any ((== "joinpruned") . fst) lcArgList = JoinPruned
+                -- | any ((== "joinpruned") . fst) lcArgList = JoinPruned
                 | otherwise = JoinAll
 
         -- set implied alignment swapping
@@ -356,15 +381,20 @@ fuseGraphs inArgs inGS inData inGraphList
                         else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
                                 do -- multtraverse in is True but False during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> False\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:False -> "
                                     diagnoseSingleActionPar <- getParallelChunkTraverse
-                                    diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 inGraphList)
+                                    newGraphs <- diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 inGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
+
                         else -- if (not $ MultiTraverseCharacters inGS) && (doMultiTraverse) then
                                 do -- MultiTraverse in is False but True during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> True\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:True -> "
                                     diagnoseMultiActionPar <- getParallelChunkTraverse
-                                    diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 inGraphList)
+                                    newGraphs <- diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 inGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
 
 
         -- perform graph fuse operations
@@ -381,6 +411,7 @@ fuseGraphs inArgs inGS inData inGraphList
                 fusePairs'
                 randomPairs
                 reciprocal
+                maximizeParallel
                 inGraphList'
 
         -- if multiTravers on Globally and single traverse done in fuse then rediagnose
@@ -389,35 +420,44 @@ fuseGraphs inArgs inGS inData inGraphList
                                else if (multiTraverseCharacters inGS) && (not doMultiTraverse) then
                                      do -- MultiTraverse in is Fasle but True during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> True\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:True -> "
                                     diagnoseMultiActionPar <- getParallelChunkTraverse
-                                    diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 newGraphList)
+                                    newGraphs <- diagnoseMultiActionPar diagnoseMultiAction (fmap fst5 newGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
+
                                else -- if (not $ MultiTraverseCharacters inGS) && (doMultiTraverse) then
                                     do -- multtraverse in is True but False during fuse
                                     {-Rediagnoses-}
-                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse -> False\n"
+                                    logWith LogInfo $ "\tRediagnosing to MultiTraverse:False -> "
                                     diagnoseSingleActionPar <- getParallelChunkTraverse
-                                    diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 newGraphList)
+                                    newGraphs <- diagnoseSingleActionPar diagnoseSingleAction (fmap fst5 newGraphList)
+                                    logWith LogInfo $ (show $ minimum $ fmap snd5 newGraphs) <> "\n"
+                                    pure newGraphs
 
+
+        -- This in case found worse (using single traverse) or more but same cost
+        listToReturn <- GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 $ inGraphList <> rediagnoseGraphList
 
         logWith LogMore $
             unwords
                 [ "\tAfter fusing:"
-                , show $ length rediagnoseGraphList
+                , show $ length listToReturn
                 , "resulting graphs with minimum cost"
-                , show . minimum $ fmap snd5 rediagnoseGraphList
+                , show . minimum $ fmap snd5 listToReturn
                 , " after fuse rounds (total): "
                 , show counterFuse
                 , "\n"
                 ]
-        pure rediagnoseGraphList
+        pure listToReturn
 
 
 -- | getFuseGraphParams returns fuse parameters from arglist
 getFuseGraphParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → PhyG (Maybe Int, Maybe Int, Maybe Int, [(String, String)])
-getFuseGraphParams inArgs =
+getFuseGraphParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -428,11 +468,11 @@ getFuseGraphParams inArgs =
             else
                 let keepList = filter ((== "keep") . fst) lcArgList
                     keepNum
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     -- this is awkward syntax but works to check fpor multiple swapping limit commands
-                    moveLimitList = filter (not . null) (snd <$> filter ((`notElem` ["keep", "pairs"]) . fst) lcArgList)
+                    moveLimitList = filter (not . null) (snd <$> filter ((`notElem` ["multitraverse", "maxparallel","keep", "pairs"]) . fst) lcArgList)
                     maxMoveEdgeDist
                         | null moveLimitList = Just ((maxBound ∷ Int) `div` 3)
                         | otherwise = readMaybe (head moveLimitList) ∷ Maybe Int
@@ -495,7 +535,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                     , maxNetEdges
                     , lcArgList
                     , maxRounds
-                    ) = getNetEdgeParams inArgs
+                    ) = getNetEdgeParams inGS inArgs
                 doNetAdd = any ((== "netadd") . fst) lcArgList
                 doNetDelete = any ((== "netdel") . fst) lcArgList || any ((== "netdelete") . fst) lcArgList
                 doAddDelete = any ((== "netadddel") . fst) lcArgList || any ((== "netadddelete") . fst) lcArgList
@@ -782,7 +822,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     then -- logWith LogInfo "Adding and Deleting edges to/from hardwired graphs will trivially remove all network edges to a tree, skipping"
                                         pure (newGraphList'', 0)
                                     else do
-                                        logWith LogInfo ( "Network edge delete on "
+                                        logWith LogInfo ( "Network edge AddDelete on "
                                                     <> show (length inGraphList)
                                                     <> " input graph(s) with minimum cost "
                                                     <> show (minimum $ fmap snd5 inGraphList)
@@ -824,9 +864,10 @@ netEdgeMaster inArgs inGS inData inGraphList
 
 -- | getNetEdgeParams returns net edge cparameters from argument list
 getNetEdgeParams
-    ∷ [Argument]
+    ∷ GlobalSettings
+    -> [Argument]
     → (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int)
-getNetEdgeParams inArgs =
+getNetEdgeParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
@@ -839,7 +880,7 @@ getNetEdgeParams inArgs =
                     keepNum
                         | length keepList > 1 =
                             errorWithoutStackTrace ("Multiple 'keep' number specifications in netEdge command--can have only one: " <> show inArgs)
-                        | null keepList = Just 10
+                        | null keepList = Just $ keepGraphs inGS
                         | otherwise = readMaybe (snd $ head keepList) ∷ Maybe Int
 
                     -- simulated anealing options

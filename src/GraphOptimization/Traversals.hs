@@ -241,13 +241,14 @@ generalizedGraphPostOrderTraversal inGS sequenceChars inData incrementalInfo lea
             
             staticOnlyGraph ←
                 if (graphType inGS) == SoftWired
-                    then POSW.updateAndFinalizePostOrderSoftWired startVertex (head startVertexList) outgroupRooted
+                    then POSW.updateAndFinalizePostOrderSoftWired inGS startVertex (head startVertexList) outgroupRooted
                     else pure outgroupRooted
             
             let staticOnlyGraph' =
                     if startVertex == Nothing
                         then updatePhylogeneticGraphCost staticOnlyGraph (rootAndModelCost + penaltyFactor + (snd6 staticOnlyGraph))
                         else updatePhylogeneticGraphCost staticOnlyGraph (rootAndModelCost + penaltyFactor + (snd6 staticOnlyGraph))
+            -- logWith LogInfo $ "GPOT: " <> (show $ snd6 outgroupRooted) <> " " <> (show $ snd6 staticOnlyGraph) <> " " <> (show $ snd6 staticOnlyGraph')
             pure (staticOnlyGraph', head startVertexList)
         else do
             recursiveRerootList ←

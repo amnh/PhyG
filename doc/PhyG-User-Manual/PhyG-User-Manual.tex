@@ -32,19 +32,28 @@
 
 \setlength\itemindent{0.25cm}
 
+%Argument Specifications
 \newcommand{\phyg}{\texttt{PhyG} }
 \newcommand{\atsymbol}{@}
 \newenvironment{phygdescription}{\subsubsection{Description}}{}
 \newenvironment{example}{\subsubsection{Examples} \begin{itemize}}{\end{itemize}}
 \newenvironment{argument}{\subsection{Arguments}\begin{itemize}}{\end{itemize}}
+\newenvironment{argumentgroup}[2]{\paragraph{#1} #2}{ \finishdescription }
 %\item [ ]
+
+% We need to choose properly if we need to open a description or not inside
+% an argument or argument group environment. We will use these two variables
+% to keep the proper value to be used on each point.
+\def\opendescription{\begin{description}}
+\def\closedescription{}
+
 
 \begin{document}
 	%\firstpage{1}
 	
 	\title{PhylogeneticGraph\\User Manual\\Version 1.1}
 	
-	\maketitle
+	\maketitle 
 	
 	\newpage
 
@@ -558,7 +567,7 @@
 	
 	%\newpage
 	%\bibliography{big-refs-3.bib}
-	%\bibliography{/Users/louise/DropboxAMNH/big-refs-3.bib}
+	\bibliography{/Users/louise/DropboxAMNH/big-refs-3.bib}
 	%\bibliography{/home/ward/Dropbox/Work_stuff/manus/big-refs-3.bib}
-	\bibliography{/users/ward/Dropbox/work_stuff/manus/big-refs-3.bib}
+	%\bibliography{/users/ward/Dropbox/work_stuff/manus/big-refs-3.bib}
  \end{document}

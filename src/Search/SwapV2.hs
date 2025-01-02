@@ -102,7 +102,7 @@ swapV2 swapParams inGS inData inCounter curBestGraphList saParams =
                 
 
 {- | Controls the simulated annealing/drift swapping phases
-    1) swap potentially accepting worse cost graphs according to SA?Drif
+    1) swap potentially accepting worse cost graphs according to SA/Drif
     2) swapping back (normally) if graph cost > input best
 
     This should really be operating only on a single graph
@@ -171,6 +171,7 @@ swapByType swapParams inGS inData inCounter curBestGraphList saParams =
 
 {- | swapAlternate uses SPR and TBROnly to sear where if TBROnly finds a new solution, it 
     returns to SPR on new graph and does this untill TBROnly finds no new solutions.
+    TBRONly shortcuts back to call starting with SPR when finds better
 
     No SAPArams since not used in drift/SA
 -}
@@ -188,7 +189,7 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList =
         let curBestCost = minimum $ fmap snd5 graphsToSwap
         in do
             (sprGraphResult, sprCount) <- swapNaive (swapParams {swapType = SPR}) inGS inData inCounter 0 curBestGraphList curBestGraphList Nothing
-            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBR}) inGS inData sprCount 0 sprGraphResult sprGraphResult Nothing
+            (tbrOnlyResult, _) <- swapNaive (swapParams {swapType = TBROnly}) inGS inData sprCount 0 sprGraphResult sprGraphResult Nothing
             
             let sprBestCost = minimum $ fmap snd5 sprGraphResult
             let tbrBestCost = minimum $ fmap snd5 tbrOnlyResult
@@ -197,8 +198,9 @@ swapAlternate swapParams inGS inData inCounter graphsToSwap curBestGraphList =
             if tbrBestCost < sprBestCost then
                 swapAlternate swapParams inGS inData sprCount tbrOnlyResult tbrOnlyResult 
 
-            else 
-                pure (tbrOnlyResult, sprCount)
+            else pure (tbrOnlyResult, sprCount)
+
+            
         
 {- | Naive swap functions to create reference for later algorithmic improvements 
     1) Take first graph
@@ -395,11 +397,9 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
             charInfoVV = fmap thd3 $ thd3 inData
 
-            -- check for fuse edges input.  Only use if NoSwap which contains the initial fuse edge
-            -- take 3 for NoSwap to do a litle more work
-            (_, edgesInBaseGraph) = if isNothing fuseEdgesToJoin then                                
-                                        LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
-                                    else ([], fromJust fuseEdgesToJoin)
+            -- Base graph edges for readdition
+            (_, edgesInBaseGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(graphRoot, fromJust $ LG.lab splitGraphOptimized graphRoot)]
+                                    
 
             -- Functions for edge data and rejoin function
             (makeEdgeDataFunction, edgeJoinFunction) =
@@ -447,7 +447,13 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 edgesInBaseGraph' <- -- edges fuse 
                                      if (isJust fuseEdgesToJoin) && (swapType swapParams == NoSwap) then 
                                         -- for fuse--first is fuse connection w/o swap
-                                        pure $ take 3 edgesInBaseGraph
+                                        pure $ take 3 $ fromJust fuseEdgesToJoin
+                                     {-
+                                        This really dosn't matter--since fuse passes split tree optimization anyway
+                                        both sets yeild same result
+                                     else if  (isJust fuseEdgesToJoin) then
+                                        pure $ fromJust fuseEdgesToJoin
+                                     -}
 
                                      -- network
                                      else if graphType inGS /= Tree then 
@@ -471,6 +477,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 let maxMoveEdgeDistance = min (maxMoveEdgeDist swapParams) (maxBound ∷ Int)
 
                 -- reorder/shuffle edge list if desired
+                -- breaks sorted by split cost in swapNaive
                 rejoinEdges <-  if isJust fuseEdgesToJoin then 
                                     pure edgesInBaseGraph'
 

@@ -85,6 +85,7 @@ transform inArgs inGS origData inData inGraphList =
                     changeEpsilon = any ((== "dynamicepsilon") . fst) lcArgList
                     reRoot = any ((== "outgroup") . fst) lcArgList
                     changeGraphsSteepest = any ((== "graphssteepest") . fst) lcArgList
+                    changeKeepGraphs = any ((== "keep") . fst) lcArgList
                     changeSoftwiredMethod = any ((== "softwiredmethod") . fst) lcArgList
                     changeGraphFactor = any ((== "graphfactor") . fst) lcArgList
                     changeCompressionResolutions = any ((== "compressresolutions") . fst) lcArgList
@@ -130,6 +131,14 @@ transform inArgs inGS origData inData inGraphList =
                         | null changeGraphsSteepestBlock = Just $ graphsSteepest inGS
                         | null (snd $ head changeGraphsSteepestBlock) = Just $ graphsSteepest inGS
                         | otherwise = readMaybe (snd $ head changeGraphsSteepestBlock) ∷ Maybe Int
+
+                    changeKeepGraphsBlock = filter ((== "keep") . fst) lcArgList
+                    newKeepGraphs
+                        | length changeKeepGraphsBlock > 1 =
+                            errorWithoutStackTrace ("Multiple keep specifications in transform--can have only one: " <> show inArgs)
+                        | null changeKeepGraphsBlock = Just $ keepGraphs inGS
+                        | null (snd $ head changeKeepGraphsBlock) = Just $ keepGraphs inGS
+                        | otherwise = readMaybe (snd $ head changeKeepGraphsBlock) ∷ Maybe Int
 
                     changeMultiTraverseBlock = filter ((== "multitraverse") . fst) lcArgList
                     multiTraverseValue
@@ -407,6 +416,18 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                             else do
                                                                                                                                                 logWith LogInfo ("Changing GraphsSteepest factor to " <> (show $ fromJust newGraphsSteepest) <> "\n")
                                                                                                                                                 pure (inGS{graphsSteepest = fromJust newGraphsSteepest}, origData, inData, inGraphList)
+
+                                                                                                                                else if changeKeepGraphs
+                                                                                                                                    then
+                                                                                                                                        if isNothing newKeepGraphs
+                                                                                                                                            then
+                                                                                                                                                errorWithoutStackTrace
+                                                                                                                                                    ( "Keep value is not specified correcty. Must be an Integer (e.g. 5): " <> (show (snd $ head changeGraphsSteepestBlock))
+                                                                                                                                                    )
+                                                                                                                                            else do
+                                                                                                                                                logWith LogInfo ("Changing maximium graphs (keep) to " <> (show $ fromJust newKeepGraphs) <> "\n")
+                                                                                                                                                pure (inGS{keepGraphs = fromJust newKeepGraphs}, origData, inData, inGraphList)
+
                                                                                                                                     else -- changes the multiTraverse behavior for all graphs
 
                                                                                                                                         if changeMultiTraverse
@@ -477,14 +498,13 @@ transform inArgs inGS origData inData inGraphList =
                                                                                                                                                                             then "ResolutionCache"
                                                                                                                                                                             else "Exhaustive"
                                                                                                                                                                 in  do
-                                                                                                                                                                        newPhylogeneticGraphList ←
-                                                                                                                                                                            getParallelChunkTraverse >>= \pTraverse →
-                                                                                                                                                                                pTraverse
-                                                                                                                                                                                    (reoptimizeAction (inGS{softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5)
-                                                                                                                                                                                    inGraphList
-
                                                                                                                                                                         if newMethod /= softWiredMethod inGS
                                                                                                                                                                             then do
+                                                                                                                                                                                newPhylogeneticGraphList ←
+                                                                                                                                                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                                                                        pTraverse
+                                                                                                                                                                                            (reoptimizeAction (inGS{softWiredMethod = newMethod}) origData pruneEdges warnPruneEdges startVertex . fst5)
+                                                                                                                                                                                            inGraphList
                                                                                                                                                                                 logWith LogInfo ("Changing softwired optimization method to " <> newMethodString <> "\n")
                                                                                                                                                                                 pure (inGS{softWiredMethod = newMethod}, origData, inData, newPhylogeneticGraphList)
                                                                                                                                                                             else do

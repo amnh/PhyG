@@ -33,8 +33,7 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities as U
 
-
--- In general, needs simplification and refactoring
+--import Debug.Trace
 
 {- | fuseAllGraphs takes a list of phylogenetic graphs and performs all pairwise fuses
 later--could limit by options making random choices for fusing
@@ -53,9 +52,10 @@ fuseAllGraphs
     → Maybe Int
     → Bool
     → Bool
+    → Bool
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal inGraphList = case inGraphList of
+fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound fusePairs randomPairs reciprocal maximizeParallel inGraphList = case inGraphList of
     [] → return ([], counter)
     [x] → return (inGraphList, counter)
     _ →
@@ -76,6 +76,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                 let action ∷ (ReducedPhylogeneticGraph, ReducedPhylogeneticGraph) → PhyG [ReducedPhylogeneticGraph]
                     action = fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal
 
+                -- logWith LogInfo $ "FuAG: " <> (show (fusePairs, randomPairs))
                 -- get fuse pairs
                 let graphPairList' = getListPairs inGraphList
                 (graphPairList, randString) ← case fusePairs of
@@ -84,17 +85,6 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         selectedGraphs ← take count <$> shuffleList graphPairList'
                         pure (selectedGraphs, " randomized")
                     Just index → pure (takeNth index graphPairList', "")
-
-                --logWith LogInfo $ "FAG pairs: " <> (show $ length graphPairList)
-                                                
-                newGraphList ←
-                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
-                        fold <$> pTraverse action graphPairList
-
-                let fuseBest =
-                        if not (null newGraphList)
-                            then minimum $ fmap snd5 newGraphList
-                            else infinity
 
                 let swapTypeString =
                         if swapType swapParams == NoSwap
@@ -109,12 +99,28 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                         <> " graph pairs with"
                         <> swapTypeString
                         <> " swapping at minimum cost "
-                        <> (show $ min fuseBest curBest)
+                        <> (show curBest)
                         <> "\n"
                     )
+                      
+                -- Option maximizeParallel will utilize more paralle but at cost of memory footprint
+                -- defualt is False so uses mapM version                          
+                newGraphList ←  if maximizeParallel then 
+                                    getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
+                                        fold <$> pTraverse action graphPairList
+                                else do
+                                    result <- mapM (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
+                                    pure $ concat result
+
+                let fuseBest =
+                        if not (null newGraphList)
+                            then minimum $ fmap snd5 newGraphList
+                            else infinity
+
                 if null newGraphList
                     then return (inGraphList, counter + 1)
-                    else
+                    else do
+                        logWith LogInfo "\n"
                         if returnUnique
                             then do
                                 uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (keepNum swapParams) 0 $ inGraphList <> newGraphList
@@ -131,6 +137,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                             fusePairs
                                             randomPairs
                                             reciprocal
+                                            maximizeParallel
                                             uniqueList
                                     else pure (uniqueList, counter + 1)
                             else -- return best
@@ -158,6 +165,7 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                                                     fusePairs
                                                     randomPairs
                                                     reciprocal
+                                                    maximizeParallel
                                                     allBestList
                                             else -- equal or worse cost just return--could keep finding equal
                                                 return (allBestList, counter + 1)
@@ -342,8 +350,6 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                     leftRightOptimizedSplitGraphCostList ←
                                         getParallelChunkTraverseBy U.strict2of2 >>= \pTraverse →
                                             -- need to revisit to make a better incremental optimization here
-                                            --pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length leftBaseRightPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph leftGraph) leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
-                                            --pTraverse reoptimizeActionPO $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
                                             pTraverse reoptimizeAction $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
 
                                     let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True

@@ -880,6 +880,15 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
 
                             pure (settingResult, processedData)
 
+                        "keep" -> case readMaybe (firstOption) ∷ Maybe Int of
+                            Nothing →
+                                failWithPhase Parsing $
+                                    "Set option 'keep' must be set to a integer value (e.g. keep:20): " <> firstOption
+                            Just localValue → do
+                                logWith LogInfo $ "Maximum number of graphs (keep) set to " <> firstOption <> "\n"
+                                pure (globalSettings{keepGraphs = localValue}, processedData)
+
+
                         -- In first to do stuff above also
                         "missingthreshold" → case readMaybe (firstOption) ∷ Maybe Int of
                             Nothing →
