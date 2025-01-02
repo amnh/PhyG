@@ -291,14 +291,21 @@ performSearch initialSeed inputFilePath = do
             else pure emptyProcessedData
 
     -- Check if no dynamic charcters--if so--then set multitraverse to False
+    {-
     let (multiTraverseSetting, softWiredMethodSetting) = if 0 /= (U.getNumberNonExactCharacters $ thd3 reBlockedNaiveData)
                                                                 then (multiTraverseCharacters defaultGlobalSettings, softWiredMethod defaultGlobalSettings)
                                                          else (False, ResolutionCache) 
+    -}
+    let multiTraverseSetting = if 0 /= (U.getNumberNonExactCharacters $ thd3 reBlockedNaiveData)
+                                                                then multiTraverseCharacters defaultGlobalSettings
+                               else False
+
+    --logWith LogInfo $ "New Vals: " <> (show $ (False, ResolutionCache))
 
     -- This rather awkward syntax makes sure global settings (outgroup, criterion etc) are in place for initial input graph diagnosis
     (_, initialGlobalSettings, _) ←
         CE.executeCommands
-            (defaultGlobalSettings {multiTraverseCharacters = multiTraverseSetting, softWiredMethod = softWiredMethodSetting})
+            (defaultGlobalSettings {multiTraverseCharacters = multiTraverseSetting}) -- , softWiredMethod = softWiredMethodSetting})
             (terminalsToExclude, renameFilePairs)
             numInputFiles
             crossReferenceString
