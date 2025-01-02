@@ -102,7 +102,7 @@ swapV2 swapParams inGS inData inCounter curBestGraphList saParams =
                 
 
 {- | Controls the simulated annealing/drift swapping phases
-    1) swap potentially accepting worse cost graphs according to SA?Drif
+    1) swap potentially accepting worse cost graphs according to SA/Drif
     2) swapping back (normally) if graph cost > input best
 
     This should really be operating only on a single graph
