@@ -591,7 +591,11 @@
 		as `softwired' networks. By default, each input data file is assigned its own block with 
 		the name of the input file. The command \texttt{read(block)} (see Section \ref{subsec:read}) 
 		is used to reassign these data to new, combined blocks. Spaces are not allowed in 
-		block names and will produce `unrecognized block name' errors.} 
+		block names and will produce `unrecognized block name' errors.
+		
+		The calculation of support measures based on resampling, is done at the fragment 
+		or ``block'' level, rather than at the nucleotide level. For this reason, these data need
+		to be collated into a block with \texttt{reblock} (see Section \ref{subsec:support}).} 
 	\end{phygdescription}
 	
 	\subsubsection{Arguments}
@@ -624,7 +628,7 @@
 		
 	\begin{phygdescription}
 		{This command implements a number of algorithms involved in the refinement of 
-		graphs. Full Simulated Annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985}
+		trees and graphs. Full Simulated Annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985}
 		and Genetic Algorithm \citep{Holland1975, moilanen1999} are implemented for 
 		any graph type. In addition, it performs edit operations (addition, deletion, and move) 
 		on network edges that only applies to softwired and hardwired graphs.}
@@ -650,12 +654,11 @@
 
 		\item[annealing[:INT]] Specifies the number of rounds (as specified by the integer 
 		value) of simulated annealing optimization \citep{Metropolisetal1953, 
-		Kirkpatricketal1983, Cerny1985}. This is performed in concert with \texttt{netAdd}, 
-		\texttt{netDel}, and \texttt{netMove}. The acceptance of candidate graphs is 
-		determined by the probability\\ $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
+		Kirkpatricketal1983, Cerny1985}. The acceptance of candidate graphs is 
+		determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
 		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current 
 		best graph, $k$ is the step number, and $k_{max}$ is the maximum number of 
-		steps (set by the \texttt{steps:INT}, default 10).
+		\texttt{steps}.
 
 		\begin{description}
 			\item[steps:INT] Specifies the number of temperature steps performed 
@@ -664,13 +667,12 @@
 		\end{description}
 		
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
-		annealing optimization \citep{goloboff1999} that are performed. This is done in concert 
-		with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance of candidate 
-		graphs is determined by the probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost 
-		of the candidate graph, $c_b$ is the cost of the current best graph, and $wf$ is the 
-		\texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, default 1.0) option. Equal 
-		cost graphs are accepted with probability set by the \texttt{acceptEqual} option. 
-		\texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps to modify 
+		annealing optimization \citep{goloboff1999} that are performed. The acceptance of 
+		candidate graphs is determined by the probability $1/ (wf + c_c - c_b)$, where $c_c$ 
+		is the cost of the candidate graph, $c_b$ is the cost of the current best graph, and $wf$ 
+		is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, default 1.0) option. 
+		Equal cost graphs are accepted with probability set by the \texttt{acceptEqual} option. 
+		\texttt{drift} differs from \texttt{annealing} in that there are no cooling steps to modify 
 		acceptance probabilities. The maximum number of graph changes is set by 
 		\texttt{maxChanges}.
 				
@@ -730,10 +732,36 @@
 		neighborhood of the current graph before retaining the best (lowest cost) solutions. 
 		Compare with \texttt{steepest}.
 			
-		\item[atRandom] Network edit neighborhoods are traversed in a randomized order (compare 
-		with \texttt{inorder}). 	This will result in different trajectories of the network edit space being 
-		explored. This is the default.
+		\item[annealing[:INT]] Specifies the number of rounds (as specified by the integer 
+		value) of simulated annealing optimization \citep{Metropolisetal1953, 
+		Kirkpatricketal1983, Cerny1985}. This is performed in concert with \texttt{netAdd}, 
+		\texttt{netDel}, and \texttt{netMove}. The acceptance of candidate graphs is 
+		determined by the probability\\ $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
+		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current 
+		best graph, $k$ is the step number, and $k_{max}$ is the maximum number of 
+		steps (set by \texttt{steps:INT}, default 10).
 
+		\begin{description}
+			\item[steps:INT] Specifies the number of temperature steps performed 
+			during simulated annealing (as specified by the \texttt{annealing}) option.
+			The default is 10.
+		\end{description}
+		
+		\item[atRandom] Network edit neighborhoods are traversed in a randomized order 
+		(compare with \texttt{inorder}). This will result in different trajectories of the network 
+		edit space being explored. This is the default.
+
+		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
+		annealing optimization \citep{goloboff1999} that are performed. This is done in 
+		concert with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance 
+		of candidate graphs is determined by the probability $1/ (wf + c_c - c_b)$, where 
+		$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, 
+		and $wf$ is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, default 
+		1.0) option. Equal cost graphs are accepted with probability set by the \texttt{acceptEqual} 
+		option. \texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps 
+		to modify acceptance probabilities. The maximum number of graph changes is set by 
+		\texttt{maxChanges}.
+		
 		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always traversed 
 		in the same undefined, but consistent order.
 
@@ -746,7 +774,7 @@
 		by these edit operations are limited by the number as specified by the integer value.
 		Note: when deciding this value, the user should be aware that the addition of network 
 		edges exponentially increases the time taken to optimize the graph 
-		\cite{WheelerandWashburn2023}.
+		\cite{WheelerandWashburn2023}. This argument is also used in conjunction with \texttt{geneticAlgorithm}.
 				
 		\item[netadd] Adds network edges to existing input graphs at all possible positions 
 		until no better cost graph is found.
@@ -776,7 +804,7 @@
 	\end{description}
 
 	\subsubsection{Defaults}
-		\texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, 
+		\noindent \texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, 
 	  	  \phyg will perform Genetic Algorithm refinement, with its associated default options, 
 		   if no other arguments are specified.}\\
 		   
@@ -786,6 +814,14 @@
 	
 	\begin{example}
 	
+		\item{\texttt{refine(geneticalgorithm, population:5, generations:100, maxnetedges:5, 
+		recombinations:20, annealing:5)} \phyg will perform Genetic Algorithm 
+		refinement, with its associated default options, if no other arguments are specified.}\\
+		   
+		\item{\texttt{refine(ga, generations:100, maxnetedges:5, recombinations:20, annealing:5)} By default, 
+	  	 \phyg will perform Genetic Algorithm refinement, with its associated default options, 
+		  if no other arguments are specified.}\\
+		   
 		\item{\texttt{refine(netadddel, rounds:3, maxnetedges:5)}\\
 		 Consecutively adds and then deletes network edges from input graphs until 
 		 either no improvement (graph cost) is found in a round or until the number of 
