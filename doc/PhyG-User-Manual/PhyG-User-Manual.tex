@@ -133,7 +133,7 @@
 
 	\subsubsection{Installing from the binaries}
 		Download the \phyg binary from the \href{https://github.com/amnh/PhyGraph}{GitHub} 
-		website. Binaries are available for MacOS computers with either Intel or M family 
+		website. Binaries are available for macOS computers with either Intel or M family 
 		processors, and Linux machines (see information relating to Windows machines below). 
 		The user can go directly to the website, navigate to 
 		\href{https://github.com/amnh/PhyGraph/releases}{Releases} and click on the appropriate 
@@ -156,8 +156,8 @@
 		
 		\phyg is largely 	written in Haskell. In order to compile \phyg from the source, the user 
 		must first install the Haskell compiler and Cabal (a command-line program for downloading 
-		and building software written in Haskell (GHC)). More information on its installation can be found  
-		\href{https://www.schoolofhaskell.com/user/simonmichael/how-to-cabal-install}{here}.
+		and building software written in Haskell (GHC)). More information on its installation can be 
+		found  \href{https://www.schoolofhaskell.com/user/simonmichael/how-to-cabal-install}{here}.
 		
 		The `README.md' file on the GitHub website provides instructions for compiling an 
 		optimized version of \texttt{PhyG}. Open a \textit{Terminal} window (located in your 
@@ -364,9 +364,9 @@
 	file, along with a pdf file that can be viewed in a vector graphics program. The dot file can 
 	be viewed (and modified) in \textit{Graphviz}. In order to output pdf files the application 
 	\textit{dot} must be installed from the \href{https://graphviz.org/download/}{Graphviz} website. 
-	In MacOS systems, the user must also install the \textit{Cairo} renderer. Both \textit{Graphviz} 
+	In macOS systems, the user must also install the \textit{Cairo} renderer. Both \textit{Graphviz} 
 	and \textit{Cairo} are available in \href{https://brew.sh/}{Homebrew}, the package manager 
-	for MacOS.\\
+	for macOS.\\
 
 	\noindent PDFs can also be generated directly from dot files. In a \textit{Terminal}, 
 	type the following: 
@@ -382,16 +382,7 @@
 	\begin{quote}
 	dot -Tpdf -O myDotFile.dot
 	\end{quote}
-		
-	\noindent In MacOS the `pdf' option does not currently seem to work. In this case, 
-	type the following:
 
-	\begin{quote}
-	dot -Tps2 myDotFile.dot > myDotFile.ps
-	\end{quote}
-	
-	\noindent `-Tps2' will generate a postscript file that \textit{Preview} can read and 
-	convert to pdf.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %COMMANDS

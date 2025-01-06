@@ -206,7 +206,7 @@
 		
 		\item[maxParallel[:BOOL]] Specifies the amount of parallelization during \texttt{fuse}. 
 		By default (\texttt{FALSE}), \texttt{fuse} reduces the amount of parallelization. When 
-		Set to \texttt{TRUE}, parallelization is maximized at the cost of memory. This reduces 
+		set to \texttt{TRUE}, parallelization is maximized at the cost of memory. This reduces 
 		the memory footprint of the analysis.
 		
 		\item[multitraverse[:BOOL ]] Specifies the optimization procedure for graphs during 
@@ -628,10 +628,11 @@
 		
 	\begin{phygdescription}
 		{This command implements a number of algorithms involved in the refinement of 
-		trees and graphs. Full Simulated Annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985}
-		and Genetic Algorithm \citep{Holland1975, moilanen1999} are implemented for 
-		any graph type. In addition, it performs edit operations (addition, deletion, and move) 
-		on network edges that only applies to softwired and hardwired graphs.}
+		trees and graphs. Genetic Algorithm \citep{Holland1975, moilanen1999} and full 
+		Simulated Annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985} 
+		are implemented for any graph type. In addition, it performs edit operations (addition, 
+		deletion, and move) on network edges that only applies to softwired and hardwired 
+		graphs.}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
@@ -640,6 +641,65 @@
 	that mimics the evolutionary process (mutations, recombination and selection)
 	to search for more optimal graphs. The following arguments will mimic this evolutionary 
 	process. 
+	
+	\begin{description}
+				
+		\item[ga] Synonym of GeneticAlgorithm.
+		
+		\item[geneticAlgorithm] Performs Genetic Algorithm \citep{Holland1975} refinement in 
+		concert with the following options.
+					
+		\begin{description}
+			
+%			\item[elitist] Not yet implemented.
+			
+			\item[generations:[INT]] Specifies the number of generations (sequential iterations) 
+			for \texttt{ga}. The default is 10.
+			
+			\begin{description}
+			
+				\item[stop:INT] Causes the \texttt{ga} to terminate after the number of 
+				generations as specified by the integer value without improvement in graph 
+				cost.  By default, this procedure will only terminate when the number of specified 
+				generations has been completed. This integer value should be less than that as
+				specified in \texttt{generations}.
+			
+			\end{description}
+			
+			\item[maxnetedges:INT] Specifies the maximum number of network edges in the 
+			graphs to be produced. The number of network edges in the graphs produced 
+			by these edit operations are limited by the number as specified by the integer 
+			value. Note: when deciding this value, the user should be aware that the addition 
+			of network edges exponentially increases the time taken to optimize the graph 
+			\cite{WheelerandWashburn2023}. The user must specify a \texttt{softwired} or 
+			\texttt{hardwired} graph type for this option to be performed (see Section \ref{subsec:set}). 
+			This argument is also used in conjunction with the network edit 	operations \texttt{netadd} 
+			and \texttt{netadddel}. 
+
+			\item[popsize:[INT]] Specifies the population size for \texttt{ga}. \phyg will include the 
+			best graphs in this pool and populate it with other graphs in the buffer, or generate
+			other graphs. The default is 20.
+			
+			\item[recombinations:[INT]] Specifies the number of recombination (fusing) events for 
+			\texttt{ga}. The default is 100.
+			
+%			\item[severity:[FLOAT]] Specifies the severity of selection against 
+%			sub-optimal graph solutions events for \texttt{ga}. The higher the value, the less severe 
+%			the penalty. The default is 1.0. Not yet implemented.
+			
+		\end{description}
+		
+		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
+		integer value. The default is 10.
+		
+	\end{description}
+		
+		\bigskip
+		
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+		\noindent \textbf{Network Edits} Implements a series of operations specific to networks, 
+		including addition, deletion and movement of network edges.
 	
 	\begin{description}
 		
@@ -651,80 +711,6 @@
 		probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost of the candidate graph, $c_b$ 
 		is the cost of the current best graph, and $wf$ is the values as specified by the float 
 		(default 1.0). This argument can be applied to \texttt{drift} 	and \texttt{annealing}.
-
-		\item[annealing[:INT]] Specifies the number of rounds (as specified by the integer 
-		value) of simulated annealing optimization \citep{Metropolisetal1953, 
-		Kirkpatricketal1983, Cerny1985}. The acceptance of candidate graphs is 
-		determined by the probability $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
-		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current 
-		best graph, $k$ is the step number, and $k_{max}$ is the maximum number of 
-		\texttt{steps}.
-
-		\begin{description}
-			\item[steps:INT] Specifies the number of temperature steps performed 
-			during simulated annealing (as specified by the \texttt{annealing}) option.
-			The default is 10.
-		\end{description}
-		
-		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
-		annealing optimization \citep{goloboff1999} that are performed. The acceptance of 
-		candidate graphs is determined by the probability $1/ (wf + c_c - c_b)$, where $c_c$ 
-		is the cost of the candidate graph, $c_b$ is the cost of the current best graph, and $wf$ 
-		is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, default 1.0) option. 
-		Equal cost graphs are accepted with probability set by the \texttt{acceptEqual} option. 
-		\texttt{drift} differs from \texttt{annealing} in that there are no cooling steps to modify 
-		acceptance probabilities. The maximum number of graph changes is set by 
-		\texttt{maxChanges}.
-				
-		\item[ga] Synonym of GeneticAlgorithm.
-		
-		\item[geneticAlgorithm] Performs Genetic Algorithm \citep{Holland1975} refinement in 
-		concert with the following options.
-					
-		\begin{description}
-			
-%			\item[elitist] Not yet implemented.
-			
-			\item[generations:[INT]] Specifies the number of generations (sequential iterations) for 
-			\texttt{ga}. The default is 10.
-			
-			\item[maxnetedges:INT] Specifies the maximum number of network edges in the graphs 
-			to be produced. The number of network edges in the graphs produced 
-			by these edit operations are limited by the number as specified by the integer value.
-			Note: when deciding this value, the user should be aware that the addition of network 
-			edges exponentially increases the time taken to optimize the graph 
-			\cite{WheelerandWashburn2023}. This argument is also used in conjunction with the 
-			network edit operations \texttt{netadd} and \texttt{netadddel}. 
-
-			\item[popsize:[INT]] Specifies the population size for \texttt{ga}. The default is 
-			20.
-			
-			\item[recombinations:[INT]] Specifies the number of recombination (fusing) events for 
-			\texttt{ga}. The default is 100.
-			
-%			\item[severity:[FLOAT]] Specifies the severity of selection against 
-%			sub-optimal graph solutions events for \texttt{ga}. The higher the value, the less severe 
-%			the penalty. The default is 1.0. Not yet implemented.
-			
-			\item[stop:INT] Causes the \texttt{ga} to terminate after the number of 
-			generations as specified by the integer value without improvement in graph 
-			cost.  By default, this procedure will only terminate when the number of specified 
-			generations has been completed.
-			
-		\end{description}
-		
-		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
-		integer value. 
-		
-	\end{description}
-		
-		\bigskip
-		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		
-		\noindent \textbf{Network Edits} Implements a series of operations specific to networks, 
-		including addition, deletion and movement of network edges.
-	
-	\begin{description}
 		
 		\item[all] Turns off all preference strategies to make network edits, by simply trying 
 		all possible edits to the graph. This is a memory intensive refinement and should only
@@ -758,23 +744,25 @@
 		$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, 
 		and $wf$ is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, default 
 		1.0) option. Equal cost graphs are accepted with probability set by the \texttt{acceptEqual} 
-		option. \texttt{Drift} differs from \texttt{annealing} in that there are no cooling steps 
+		option. \texttt{drift} differs from \texttt{annealing} in that there are no cooling steps 
 		to modify acceptance probabilities. The maximum number of graph changes is set by 
 		\texttt{maxChanges}.
 		
-		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always traversed 
-		in the same undefined, but consistent order.
+		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always 
+		traversed in the same undefined, but consistent order.
 
 		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
-		integer value. 
+		integer value. The default is 10.
 		
-		\item[maxnetedges:INT] Specifies the maximum number of network edges in the graphs 
-		to be produced. This argument is used in conjunction with the network edit operations 
-		\texttt{netadd} and \texttt{netadddel}. The number of network edges in the graphs produced 
-		by these edit operations are limited by the number as specified by the integer value.
-		Note: when deciding this value, the user should be aware that the addition of network 
-		edges exponentially increases the time taken to optimize the graph 
-		\cite{WheelerandWashburn2023}. This argument is also used in conjunction with \texttt{geneticAlgorithm}.
+		\item[maxnetedges:INT] Specifies the maximum number of network edges in the 
+		graphs to be produced. This argument is used in conjunction with the network edit 
+		operations \texttt{netadd} and \texttt{netadddel}. The number of network edges in 
+		the graphs produced by these edit operations are limited by the number as specified 
+		by the integer value. Note: when deciding this value, the user should be aware that 
+		the addition of network edges exponentially increases the time taken to optimize the 
+		graph \cite{WheelerandWashburn2023}. The user must specify \texttt{softwired} or 
+		\texttt{hardwired} \texttt{graphtype} for this option to be performed (see Section 
+		\ref{subsec:set}). This argument is also used in conjunction with \texttt{geneticAlgorithm}.
 				
 		\item[netadd] Adds network edges to existing input graphs at all possible positions 
 		until no better cost graph is found.
@@ -804,41 +792,52 @@
 	\end{description}
 
 	\subsubsection{Defaults}
-		\noindent \texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By default, 
-	  	  \phyg will perform Genetic Algorithm refinement, with its associated default options, 
-		   if no other arguments are specified.}\\
+		\noindent \texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By 
+		default, \phyg will perform Genetic Algorithm refinement, with its associated default 
+		options, if no other arguments are specified.}\\
 		   
-		\noindent \texttt{refine(netadd | netdel | netadddel | netmove, steepest, atrandom)} By default, 
-	  	  during network edit operations, \phyg will follow a greedy path and traverse network 
-		  edit neighborhoods in a randomized order.} 
+		\noindent \texttt{refine(netadd | netdel | netadddel | netmove, steepest, atrandom)} 
+		By default, during network edit operations, \phyg will follow a greedy path and 
+		traverse network edit neighborhoods in a randomized order.} 
 	
 	\begin{example}
 	
-		\item{\texttt{refine(geneticalgorithm, population:5, generations:100, maxnetedges:5, 
-		recombinations:20, annealing:5)} \phyg will perform Genetic Algorithm 
-		refinement, with its associated default options, if no other arguments are specified.}\\
+		\item{\texttt{refine(geneticalgorithm, generations:100, stop:20, recombinations:200)}\\ 
+		Performs Genetic Algorithm refinement for 100 sequential iterations, stopping after 
+		20 iterations if no improvement in graph cost has been achieved. The Genetic 
+		Algorithm will be performed on a population of 20 graphs, 	the default. 200
+		recombination (fusing) events will be performed.}\\
 		   
-		\item{\texttt{refine(ga, generations:100, maxnetedges:5, recombinations:20, annealing:5)} By default, 
-	  	 \phyg will perform Genetic Algorithm refinement, with its associated default options, 
-		  if no other arguments are specified.}\\
+		\item{\texttt{refine(ga, maxnetedges:5, keep:10)} \\Performs Genetic Algorithm 
+		refinement, with its associated default options \texttt{(generations:10, popsize:20, 
+		recombinations:100)}. The maximum number of edges to be produced within
+		each round is set to 5. The number of returned graphs is limited to 10.}\\
 		   
-		\item{\texttt{refine(netadddel, rounds:3, maxnetedges:5)}\\
-		 Consecutively adds and then deletes network edges from input graphs until 
-		 either no improvement (graph cost) is found in a round or until the number of 
-		 rounds of addition and deletions (as indicated by \texttt{rounds:INT}) is reached. 
-		 The maximum number of edges is still specified by \texttt{maxnetedges:INT} 
-		 within each round.}
+		\item{\texttt{refine(netadddel, rounds:3, maxnetedges:5)}\\ Consecutively adds 
+		and then deletes network edges from input graphs until either no improvement 
+		(graph cost) is found in a round or until the number of rounds of addition and 
+		deletions (as indicated by \texttt{rounds:INT}) is reached. The maximum number 
+		of edges is specified by \texttt{maxnetedges:INT} within each round. By default,  
+		during network edit operations, \phyg will follow a greedy path and traverse network 
+		edit neighborhoods in a randomized order.}
 		
-		\item{\texttt{refine(netmove, atrandom, steepest)} \\ Moves existing network 
+		\item{\texttt{refine(netmove, inorder, steepest)} \\ Moves existing network 
 		edges in input graphs one at a time to new positions until there are no more 
-		improvements in the cost of the graph. This edit operation follows a greedy 
-		path, abandoning the neighborhood of the current graph when a better graph
-		of lower cost is found. During this operation, the network edit neighborhoods
-		are traversed at random. }
+		improvements in the cost of the graph. During this edit operation, the network 
+		edit neighborhoods are traversed in the same undefined, but consistent order.
+		This follows a greedy path, abandoning the neighborhood of the current 
+		graph when a better graph of lower cost is found.}
 		
-		%\item {\texttt{refine(netmove, atrandom, steepest)}\\
+		\item{\texttt{refine(netadd, annealing:10, steps:5, acceptWorse:0.5)} \\ 
+		Consecutively adds network edges from input graphs until no better cost
+		graph is found. XXX. 10 rounds of simulated annealing optimization will be 
+		performed, limiting the number of temperature steps to 5. During each round, 
+		all graphs XXX will be accepted.}
 		
-		%add ga and drift examples.
+		\item{\texttt{refine(netdel, drift, acceptEqual:2.0)} \\ 
+		Consecutively deletes network edges from input graphs until no better cost
+		graph is found. XXX  rounds of drifting will be performed. During each round, 
+		all graphs XXX will be accepted.}
 		
 	\end{example}
 	
@@ -861,10 +860,10 @@
 	as Acrochordus\_granulatus, the taxa Gloydius\_boehmei and Gloydius\_mogoi will be 
 	renamed as Gloydius\_halys, and the taxa Crotalus\_mutus, Scytale\_catenatus and 
 	Coluber\_crotalinus will be renamed as Lachesis\_muta. The taxa with the wildcard 
-	expressions Coleonyx* and Coleonix* 	will be renamed as Coleonyx\_sp. Irrespective of where this 
-	command appears in the script file, \phyg will execute this command prior to importing 
-	the data files. Compare with the argument \texttt{rename} of the command \texttt{read} 
-	(Section \ref{subsec:read}).
+	expressions Coleonyx* and Coleonix* will be renamed as Coleonyx\_sp. Irrespective 
+	of where this command appears in the script file, \phyg will execute this command prior 
+	to importing the data files. Compare with the argument \texttt{rename} of the command 
+	\texttt{read} (Section \ref{subsec:read}).
 	
 		\begin{figure}[H]
 		\centering
@@ -931,8 +930,8 @@
 		
 		\item[branchlengths] When reporting graphs, \phyg will report the branch 
 		lengths of these graphs. In Newick and eNewick files, branch lengths 
-		follow the terminal names, separated by a colon. In eps and pdf files, 
-		branch lengths appear above the branches. In ASCII and dot files, branch 
+		follow the terminal names, separated by a colon. In pdf files, branch 
+		lengths appear above the branches. In ASCII and dot files, branch 
 		lengths follow the terminal labels. This is the default. Compare with 
 		\texttt{nobranchlengths}. 
 		
@@ -1017,14 +1016,18 @@
 		representation---a dot file will only be reported if no other graph type is specified. 
 		
 		\item[dotpdf] Outputs two files---a graph file in dot format, along with either
-		an eps (on MacOS) or pdf (on Linux) (see also \texttt{dot}). The eps and pdf 
-		files can be read in \textit{Adobe Illustrator}, \textit{Apple Preview} or any 
-		vectorial image edition program.  By default, when \texttt{dotpdf} is specified,
+		a pdf (see also \texttt{dot}). The pdf files can be read in \textit{Adobe Illustrator}, 
+		\textit{Apple Preview} or any vectorial image edition program. In order to output 
+		pdf files the application \textit{dot} must be installed from the
+		\href{https://graphviz.org/download/}{Graphviz} website. In macOS systems, the 
+		user must also install the \textit{Cairo} renderer. Both \textit{Graphviz} and 
+		\textit{Cairo} are available in \href{https://brew.sh/}{Homebrew}, the package 
+		manager for macOS. By default, when \texttt{dotpdf} is specified,
 		edges are collapsed (contracted) if they have a minimum weight (length) of 0.
 		
 		\item[graphs] Outputs a graph in the format specified by the other arguments 
 		in the command. These are either Newick, eNewick, ASCII, dot, and dotpdf, 
-		which will output a graph in eps (on MacOS) or pdf (on Linux) format.
+		which will output a pdf.
 		
 		\item[htulabels] Labels the HTUs in the output files. This is the default. Compare 
 		with \texttt{nohtulabels}.
@@ -1063,8 +1066,8 @@
 		
 		\item[nobranchlengths] When reporting graphs, \phyg will by default 
 		report the branch lengths of these graphs. In Newick and eNewick files, 
-		branch lengths follow the terminal names, separated by a colon. In eps 
-		and pdf files, branch lengths appear above the branches. In ASCII and 
+		branch lengths follow the terminal names, separated by a colon. In pdf 
+		files, branch lengths appear above the branches. In ASCII and 
 		dot files, branch lengths follow the terminal labels. The argument
 		\texttt{nobranchlengths} will override this default and branch lengths 
 		of graphs are not reported.
@@ -1108,9 +1111,9 @@
 				\item[combinable] Group comparison are made by identical match 
 				[(A,(B,C))$\neq$(A,B,C)]. This is the default.	
 								
-				\item[identity] Group comparison are made by combinable components sensu 
-				     \cite{Nelson1979} [(A,(B,C)) consistent with (A,B,C)]. This option can be used 
-				     to specify `semi-strict' consensus \citep{Bremer1990}.
+				\item[identity] Group comparison are made by combinable components 
+				sensu \cite{Nelson1979} [(A,(B,C)) consistent with (A,B,C)]. This option 
+				can be used to specify `semi-strict' consensus \citep{Bremer1990}.
 				     
 			\end{description}
 			
@@ -1140,9 +1143,9 @@
 				be the Majority-Rule Consensus \citep{MargushandMcMorris1981}. This
 				argument is used in conjunction with \texttt{threshold}.
 
-				\item[strict] This option requires all vertices are present to be included in the final 
-				graph. If all inputs are graphs with the same leaf set this will be the Strict Consensus 
-				\citep{Schuhandpolhemus1980}. 
+				\item[strict] This option requires all vertices are present to be included in the 
+				final graph. If all inputs are graphs with the same leaf set this will be the Strict 
+				Consensus \citep{Schuhandpolhemus1980}. 
 				
 				\item [Threshold:INT] Specifies the threshold frequency (between 0 and 100) 
 				of vertex or edge occurrence in input graphs to be included in the output graph. 
@@ -1159,10 +1162,9 @@
 			
 		\item [STRING] Specifies the name of the file to which all types of report 
 		outputs, designated by additional arguments, are printed. If no additional 
-		arguments are specified, a graph in dot format, along with an eps or pdf 
-		file (depending on the operating system) will be reported to a file named 
-		`\textbf{defaultGraph}'. By default, files are appended to the report, rather 
-		than overwritten (see \texttt{overwrite}).
+		arguments are specified, a graph in dot format, along with a pdf file will be 
+		reported to a file named `\textbf{defaultGraph}'. By default, files are 
+		appended to the report, rather than overwritten (see \texttt{overwrite}).
 				
 		\item[support] Outputs support graphs (see Section \ref{subsec:support})
 		that have been previously calculated by the command \texttt{support}. 
@@ -1170,8 +1172,7 @@
 		while Goodman-Bremer graphs \citep{Goodmanetal1982, bremer1994} are 
 		based on current graphs. Graphs can be output in multiple formats with the
 		use of the options \texttt{ascii}, \texttt{newick}, \texttt{enewick}, \texttt{dot}, 
-		and depending on your operating system, \texttt{dotpdf} for pdf (Linux) or 
-		eps (MacOS). See Section \ref{sec:outputgraphs} for information relating to 
+		and \texttt{dotpdf}. See Section \ref{sec:outputgraphs} for information relating to 
 		viewing and installation requirements. Should you fail to choose one of 
 		these reporting formats, \phyg will issue a warning in the output display 
 		of the \textit{Terminal} window, and output a `dot' file that can be processed 
@@ -1210,10 +1211,9 @@
 		file ``\textbf{outFile}', appending to any existing information in the file.}
 		
 		\item{\texttt{report("outFile\_supports", support, dotpdf)}\\ Outputs a graph file in 
-		dot format, along with either an eps (on MacOS) or pdf (on Linux) (see also dot). 
-		Support values appear above branches in the eps or pdf graphs, and are \hl{...}.
+		dot and pdf format. Support values appear above branches in the pdf graphs.
 		Support values are generated in the script using the command \texttt{support}
-		will appear above the branch in the eps or pdf files.}
+		will appear above the branch in the pdf files.}
 		
 	\end{example}
 		
@@ -1301,8 +1301,12 @@
 		
 		\item[instances:INT] Specifies the number of (potentially parallel) simultaneous
 		searches (instances), as indicated by the integer value. The overall search will 
-		terminate only when all instances have completed. \hl{Employing this argument is
-		recommended when multiple computer processors are available to the user.}
+		terminate only when all instances have completed. Employing this argument is
+		recommended when multiple computer processors are available to the user.
+		
+		\item[keep:[INT]] Sets the maximum number of graphs to be kept. The default 
+		is 10.
+
 		
 		\item[maxNetEdges:INT] Limits the maximum number of network edges to that
 		specified by the integer value. This should only to be used if \texttt{graphtype}
@@ -1324,13 +1328,14 @@
 		completed.
 		
 		\item[Thompson:INT] Specifies that the randomized choice of search option (e.g. 
-		Wagner Build, SPR, Genetic Algorithm) employs Thompson sampling \citep{Thompson1933}. 
-		This form of sampling uses machine learning techniques to guide the randomized option 
-		selection of the search \citep{WheelerThompson}. This sampling method is a heuristic for 
-		timed search decision making. The integer value specifies the memory value for the Thompson 
-		sampling. The lower the value (down to 0), the shorter the memory allowing for more rapid 
-		adjustment of search strategy probabilities. This parameter is applied to both the \texttt{linear} 
-		and \texttt{exponential} arguments of \texttt{Thompson}.
+		Wagner Build, SPR, Genetic Algorithm) employs Thompson sampling 
+		\citep{Thompson1933}. This form of sampling uses machine learning techniques 
+		to guide the randomized option selection of the search \citep{WheelerThompson}. 
+		This sampling method is a heuristic for timed search decision making. The integer 
+		value specifies the memory value for the Thompson sampling. The lower the value 
+		(down to 0), the shorter the memory allowing for more rapid adjustment of search 
+		strategy probabilities. This parameter is applied to both the \texttt{linear} and 
+		\texttt{exponential} arguments of \texttt{Thompson}.
 			
 		\begin{description}
 		
@@ -1352,20 +1357,21 @@
 	\end{description}		
 	
 	\subsubsection{Defaults}
-		\texttt{search(instances:1, seconds:30)} Under the default parameters, \phyg will perform 1 
-		instance of a search for at most 30 seconds.
+		\texttt{search(instances:1, seconds:30)} Under the default parameters, \phyg will 
+		perform 1 instance of a search for at most 30 seconds.
 		
 	\begin{example}
 	
-		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 searches (instances) for 10 hours 
-		each. These searches will be performed simultaneously if the computer capacity allows.}
+		\item{\texttt{search(hours:10, instances:2)}\\ Performs 2 searches (instances) for 
+		10 hours each. These searches will be performed simultaneously if the computer 
+		capacity allows.}
 				
-		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance (the default) 
-		for 10 hours and 30 minutes.}
+		\item{\texttt{search(hours:10, minutes:30)}\\ Performs a single search instance 
+		(the default) for 10 hours and 30 minutes.}
 		
-		\item{\texttt{search(days:1, thompson:2, linear)}\\ Employs Thompson sampling to guide the 
-		randomized option selection of the search. The Thompson memory value is a linear function 
-		of the parameter 2. This search is performed for 1 day.}
+		\item{\texttt{search(days:1, thompson:2, linear)}\\ Employs Thompson sampling 
+		to guide the randomized option selection of the search. The Thompson memory 
+		value is a linear function of the parameter 2. This search is performed for 1 day.}
 		
 	\end{example}
 	
@@ -1443,18 +1449,30 @@
 			
 	\subsubsection{Arguments}
 	\begin{description}
+			
+		\item[bc2:(FLOAT, FLOAT)] Sets the bit cost for binary characters.  The first value 
+		is the cost of a character transformation and the second for character stasis 
+		(change or no change).
 		
-%		\item[bc2] Related to Information Theory. Not implemented yet.
+		\item[bc4:(FLOAT, FLOAT)] Sets the bit cost for four-state non-additive characters.  
+		The first value is the cost of a character transformation and the second for character 
+		stasis (change or no change).
 		
-%		\item[bc4] Related to Information Theory. Not implemented yet.
-	
-%		\item[bc5] Related to Information Theory. Not implemented yet.
+		\item[bc5:(FLOAT, FLOAT)] Sets the bit cost for five-state non-additive characters.  
+		The first value is the cost of a character transformation and the second for character 
+		stasis (change or no change).
 		
-%		\item[bc8] Related to Information Theory. Not implemented yet.
+		\item[bc8:(FLOAT, FLOAT)] Sets the bit cost for eight-state non-additive characters.  
+		The first value is the cost of a character transformation and the second for character 
+		stasis (change or no change).
 		
-%		\item[bc64] Related to Information Theory. Not implemented yet.
+		\item[bc64:(FLOAT, FLOAT)] Sets the bit cost for 64-state non-additive characters.  
+		The first value is the cost of a character transformation and the second for character 
+		stasis (change or no change).
 		
-%		\item[bcgt64] Related to Information Theory. Not implemented yet.
+		\item[bcgt64:(FLOAT, FLOAT)] Sets the bit cost for greater than 64 state non-additive 
+		characters. The first value is the cost of a character transformation and the second for 
+		character stasis (change or no change).
 		
 %		\item[compressResolutions:True|False] 
 %		Determines whether softwired graph resolutions are ``compressed'' if multiple 
@@ -1464,31 +1482,13 @@
 %		the graph. This can be used in combination with \texttt{transform(compressResolutions:True)} 
 %		or \texttt{transform(softwiredMethod:\\Exhaustive)} 
 %		at a later stage to improve graph score. Not implemented yet.
-			
-		\item[bc2:(FLOAT, FLOAT)] Sets the bit cost for binary characters.  The first value 
-		is the cost of a character transformation and the second for character stasis.
-		
-		\item[bc4:(FLOAT, FLOAT)] Sets the bit cost for four-state non-additive characters.  The first value 
-		is the cost of a character transformation and the second for character stasis.
-		
-		\item[bc5:(FLOAT, FLOAT)] Sets the bit cost for five-state non-additive characters.  The first value 
-		is the cost of a character transformation and the second for character stasis.
-		
-		\item[bc8:(FLOAT, FLOAT)] Sets the bit cost for eight-state non-additive characters.  The first value 
-		is the cost of a character transformation and the second for character stasis.
-		
-		\item[bc64:(FLOAT, FLOAT)] Sets the bit cost for 64-state non-additive characters.  The first value 
-		is the cost of a character transformation and the second for character stasis.
-		
-		\item[bcgt64:(FLOAT, FLOAT)] Sets the bit cost for greater than 64 state non-additive characters.  The first value 
-		is the cost of a character transformation and the second for character stasis.
-		
+
 		\item[criterion:] Sets the optimality criterion for graph search.
 			
 		\begin{description}
 			
-			\item[mapa] Graph costs are determined by the Maximum A Posteriori Assignment (MAPA)
-			integrated likelihood method of \citep{Wheeler2014}. 
+			\item[mapa] Graph costs are determined by the Maximum A Posteriori 
+			Assignment (MAPA) integrated likelihood method of \citep{Wheeler2014}. 
 			Graph costs are reported in $- \log_{10}$ units (dits).
 			
 			\item[ncm] Graph costs are determined by the No-Common-Mechanism 
@@ -1500,15 +1500,18 @@
 			that is the minimum sum of transformation events multiplied by their weights. 
 			This is the default.
 			
-			\item[pmdl] Graph costs are determined by the Phylogenetic Minimum Description Length criterion, 
-			of \citep{WheelerandVaron2025}.  This command option is used in conjunction with 
-			\texttt{modelComplexity}. Any network costs are specified by the criterion and other network
-			penalty options are ignored.  Graph costs are reported in $\log_{2}$ units (bits).
+			\item[pmdl] Graph costs are determined by the Phylogenetic Minimum 
+			Description Length criterion, of \citep{WheelerandVaron2025}.  This 
+			command option is used in conjunction with \texttt{modelComplexity}. 
+			Any network costs are specified by the criterion and other network
+			penalty options are ignored. Graph costs are reported in $\log_{2}$ 
+			units (bits).
 			
-			\item[si] Graph costs are determined by the Self-Information (a form of maximum likelihood) criterion
-			of \citep{WheelerandVaron2025}.  This command option ignores. 
-			\texttt{modelComplexity}. Any network costs are specified by the criterion and other network
-			penalty options are ignored.   Graph costs are reported in $\log_{2}$ units (bits).
+			\item[si] Graph costs are determined by the Self-Information (a form 
+			of maximum likelihood) criterion of \citep{WheelerandVaron2025}.  
+			This command option ignores. \texttt{modelComplexity}. Any network 
+			costs are specified by the criterion and other network penalty options 
+			are ignored. Graph costs are reported in $\log_{2}$ units (bits).
 			
 			
 		\end{description}
@@ -1588,16 +1591,20 @@
 
 %		\item[lazyparstrat] Only internal---used for testing purposes.
 
-		\item[missingThreshold:[INT]] Sets the maximum percentage of missing data in a 
-		terminal. The default setting is 100, leaving all terminals in the data set. Terminal taxa
-		with more than the missing fraction are deleted.  The \texttt{missingThreshold} value is 
-		determined by the number of input blocks (files). Hence, a taxon with all missing values 
-		in a TNT file will be counted as not missing for this purpose.   
+		\item[keep:[INT]] Sets the maximum number of graphs to be kept.
+		The default is 10.
+
+		\item[missingThreshold:[INT]] Sets the maximum percentage of missing data 
+		in a terminal. The default setting is 100, leaving all terminals in the data set. 
+		Terminal taxa with more than the missing fraction are deleted. The 
+		\texttt{missingThreshold} value is determined by the number of input blocks 
+		(files). Hence, a taxon with all missing values in a TNT file will be counted 
+		as not missing for this purpose.   
 		
-		\item[modelComplexity] The model complexity for use with the PMDL optimality criterion
-		of \citep{WheelerandVaron2025}.
-		These values can be generated using \texttt{phyloComplexity} 
-		\href{https://github.com/amnh/PhyAlgInfo}{phyloAlgInfo}
+		\item[modelComplexity] The model complexity for use with the PMDL 
+		optimality criterion of \citep{WheelerandVaron2025}. These values can be 
+		generated using \texttt{phyloComplexity}. See \href{https://github.com/amnh/PhyAlgInfo}
+		{phyloAlgInfo}.
 		
 		\item[multiTraverse:[BOOL]] Controls the multi-traverse character optimization 
 		option. If \texttt{True}, character trees are traversed from each edge as in 
@@ -1605,8 +1612,9 @@
 		individually for each dynamic character. This is the default and yields better 
 		(lower) optimality scores at the cost of added execution time. This is the default.
 		If \texttt{False}, only outgroup-based traversals are performed as in 
-		\citep{Wheeler1996, POY2, POY3}.  When \texttt{multiTraverse} is set to \texttt{False}
-		graphs may rediagnose (e.g upon input) to a different cost than when previously reported.  
+		\citep{Wheeler1996, POY2, POY3}.  When \texttt{multiTraverse} is set to 
+		\texttt{False} graphs may rediagnose (e.g upon input) to a different cost than 
+		when previously reported.  
 					
 		\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 		This name must appear in double quotes. If the outgroup is not set, the 
@@ -1628,12 +1636,14 @@
 %		To report more legible diagnoses, graphs can be individually rediagnosed with 
 %		reportNaiveData:True.  This should consume much less memory that the
 %		graph search.
-%prealigned or qualitative 
+%		prealigned or qualitative 
+
 		\item[rootCost:] Sets the root cost for a graph. 	
 				
 		\begin{description}
 			
-			\item[noRootCost]  No cost is ascribed to the root. This is the default for parsimony searches.
+			\item[noRootCost]  No cost is ascribed to the root. This is the default for parsimony 
+			searches.
 			
 			\item[w15] Sets a cost at $\frac{1}{2}$ the cost of `inserting' the root character 
 			assignments. The W15 root cost is based on the same rationale as the parsimony 
@@ -1699,7 +1709,8 @@
 		\item{\texttt{set(partitioncharacter:@)}\\Sets the partition character in the input dataset 
 		to the at sign `@'.}
 		
-%		\item{\texttt{set(compressResolutions:False)}\\Turns off softwired graph resolution compression.}
+%		\item{\texttt{set(compressResolutions:False)}\\Turns off softwired graph resolution 
+%		compression.}
 
 	\end{example}
 
@@ -1712,14 +1723,14 @@
 		\texttt{support([argument list])}
 		
 	\begin{phygdescription}
-		{Calculates the requested support values. \phyg implements support estimation based on 
-		resampling methods (Jackknife ~\cite{Farrisetal1996} and Bootstrap~\cite{Felsenstein1985})
-		and Goodman-Bremer support~\cite{Goodmanetal1982, Bremer1988}.  The calculation of 
-		support measures based on resampling, is done at the fragment or ``block'' level, rather
-		than at the nucleotide level. For this reason, these data need to be collated into a block
-		with the command \texttt{reblock} (see Section \ref{subsec:reblock}). Goodman-Bremer
-		calculations are optimality-based measure based on the cost of the tree, and are not 
-		affected by this behavior. 
+		{Calculates the requested support values. \phyg implements support estimation 
+		based on resampling methods (Jackknife ~\cite{Farrisetal1996} and Bootstrap
+		~\cite{Felsenstein1985}) and calculations of optimality-based measures (Goodman
+		-Bremer support ~\cite{Goodmanetal1982, Bremer1988}). The calculation of support 
+		measures based on resampling is done at the fragment or ``block'' rather than at the 
+		nucleotide level. For this reason, these data need to be collated into a block with the 
+		command \texttt{reblock} (see Section \ref{subsec:reblock}). Goodman-Bremer 
+		calculations are not affected by this behavior. 
 
 		If the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
 		for Goodman-Bremer are log likelihood ratios.}
@@ -1757,8 +1768,9 @@
 			the NP-hard values.
 			
 			\item[tbr] Traverses the TBR neighborhood 
-			as optionally specified (TBR as default) to determine an upper bound on the NP-hard 
-			values (this is the method used in POY v2; \citealp{POY2} \textit{et seq.}).
+			as optionally specified (TBR as default) to determine an upper bound on the 
+			     NP-hard values (this is the method used in POY v2; \citealp{POY2} 
+			     \textit{et seq.}).
 			
 		\end{description}
 		
@@ -1769,9 +1781,21 @@
 		and TBR branch swapping on the best distance tree. If the graph type is softwired 
 		or hardwired, \texttt{netadd}, \texttt{maxnetedges:5}, \texttt{atrandom} are added. 
 		
-		\item[replicates:[INT]] Specifies the number of resampling replicates, as indicated by the 
-		integer value, that are performed in resampling support for Jackknife and bootstrap methods. 
-		The default is 100.
+		   \item[level:INT] Specifies a series of heuristic intensities (and execution times) from 
+		   0 (all preferences and heuristics off) to 3 (all preferences and heuristics on) used 
+		   during the swap phase of \texttt{jackknife} and \texttt{bootstrap} support value 
+		   calculations. Levels 2 and 3 perform an additional level 1 swap after completion.  
+		   Graphs are rediagnosed (if necessary) to the global \texttt{multiTraverse} state
+		   (see \ref{subsec:swap}).
+		
+		   \item[maxParallel[:BOOL]] Specifies the amount of parallelization during the 
+		   calculation of support values. By default (\texttt{FALSE}), the amount of 
+		   parallelization is reduced. When set to \texttt{TRUE}, parallelization is maximized 
+		   at the cost of memory. This reduces the memory footprint of the analysis.
+		
+		\item[replicates:[INT]] Specifies the number of resampling replicates, as indicated 
+	          by the integer value, that are performed in resampling support for Jackknife and 
+	          bootstrap methods. The default is 100.
 		
 	\end{description}	
 		
@@ -1882,10 +1906,11 @@
 		\item[joinAll] Turns off all preference strategies to make a join, simply trying all possible 
 		join positions for each pair of clades generated after a break. 
 
-		\item[joinPruned] Enables heuristic preferences for graph rejoinstrategies in SPR and TBR (as described
-		in \citep{VaronandWheeler2013}, and used in \citep{Wheeler1991-1998}, \cite{Goloboffetal2008}, and \cite{Varonetal2010, Wheeleretal2015}). This option can reduce execution time, but at the cost
-		of a less eﬀective search. The default threshold value is 1.17, which can be modified with
-		joinThreshold.
+		\item[joinPruned] Enables heuristic preferences for graph rejoinstrategies in SPR 
+		and TBR (as described in \citep{VaronandWheeler2013}, and used in 
+		\citep{Wheeler1991-1998}, \cite{Goloboffetal2008}, and \cite{Varonetal2010, Wheeleretal2015}). 
+		This option can reduce execution time, but at the cost of a less eﬀective search. 
+		The default threshold value is 1.17, which can be modified with joinThreshold.
 		
 %		\item[joinAlternate] Only internal---used for testing purposes.
 				
