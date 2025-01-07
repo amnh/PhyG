@@ -595,7 +595,8 @@
 		
 		The calculation of support measures based on resampling, is done at the fragment 
 		or ``block'' level, rather than at the nucleotide level. For this reason, these data need
-		to be collated into a block with \texttt{reblock} (see Section \ref{subsec:support}).} 
+		to be collated into a block with \texttt{reblock} (see \texttt{support} in Section 
+		\ref{subsec:support}).} 
 	\end{phygdescription}
 	
 	\subsubsection{Arguments}
@@ -631,15 +632,15 @@
 		trees and graphs. Genetic Algorithm \citep{Holland1975, moilanen1999} and full 
 		Simulated Annealing \citep{Metropolisetal1953, Kirkpatricketal1983, Cerny1985} 
 		are implemented for any graph type. In addition, it performs edit operations (addition, 
-		deletion, and move) on network edges that only applies to softwired and hardwired 
-		graphs.}
+		deletion, and move) on network edges (this only applies to softwired and hardwired 
+		graphs).}
 	\end{phygdescription}
 
 	\subsubsection{Arguments}
 
 	\textbf{Genetic Algorithm} Implements a heuristic algorithm on a population of graphs 
 	that mimics the evolutionary process (mutations, recombination and selection)
-	to search for more optimal graphs. The following arguments will mimic this evolutionary 
+	when searching for optimal graphs. The following arguments will mimic this evolutionary 
 	process. 
 	
 	\begin{description}
@@ -660,25 +661,25 @@
 			
 				\item[stop:INT] Causes the \texttt{ga} to terminate after the number of 
 				generations as specified by the integer value without improvement in graph 
-				cost.  By default, this procedure will only terminate when the number of specified 
-				generations has been completed. This integer value should be less than that as
-				specified in \texttt{generations}.
+				cost.  By default, this procedure will only terminate when the number of 
+				specified generations has been completed. This integer value should be less 
+				than that as specified in \texttt{generations}.
 			
 			\end{description}
 			
-			\item[maxnetedges:INT] Specifies the maximum number of network edges in the 
-			graphs to be produced. The number of network edges in the graphs produced 
-			by these edit operations are limited by the number as specified by the integer 
-			value. Note: when deciding this value, the user should be aware that the addition 
-			of network edges exponentially increases the time taken to optimize the graph 
-			\cite{WheelerandWashburn2023}. The user must specify a \texttt{softwired} or 
-			\texttt{hardwired} graph type for this option to be performed (see Section \ref{subsec:set}). 
-			This argument is also used in conjunction with the network edit 	operations \texttt{netadd} 
-			and \texttt{netadddel}. 
+			\item[maxnetedges:[INT]] Specifies the maximum number of network edges in the 
+			graphs that can be produced (default 5). The number of network edges in the graphs 
+			produced by these edit operations are limited by the number as specified by the 
+			integer value. Note: when deciding this value, the user should be aware that the 
+			addition of network edges exponentially increases the time taken to optimize the 
+			graph \cite{WheelerandWashburn2023}. The user must specify a \texttt{softwired} or 
+			\texttt{hardwired} graph type for this option to be performed (see Section 
+			\ref{subsec:set}). This argument is also used in conjunction with the network edit 	
+			operations \texttt{netadd} and \texttt{netadddel}. 
 
 			\item[popsize:[INT]] Specifies the population size for \texttt{ga}. \phyg will include the 
 			best graphs in this pool and populate it with other graphs in the buffer, or generate
-			other graphs. The default is 20.
+			additional graphs. The default is 20.
 			
 			\item[recombinations:[INT]] Specifies the number of recombination (fusing) events for 
 			\texttt{ga}. The default is 100.
@@ -699,18 +700,12 @@
 		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
 		\noindent \textbf{Network Edits} Implements a series of operations specific to networks, 
-		including addition, deletion and movement of network edges.
+		including addition, deletion and movement of network edges. The user must specify
+		\texttt{softwired} or \texttt[hardwired} graph types for the following operations to 
+		be implemented (see Section \ref{subsec:set}).
 	
 	\begin{description}
 		
-		\item[acceptEqual[:FLOAT]] Specifies that equal cost graphs are accepted with the
-		probability as set by the FLOAT value. This argument can be applied to \texttt{drift}
-		and \texttt{annealing}.
-			
-		\item[acceptWorse[:FLOAT]] The acceptance of candidate graphs is determined by the 
-		probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost of the candidate graph, $c_b$ 
-		is the cost of the current best graph, and $wf$ is the values as specified by the float 
-		(default 1.0). This argument can be applied to \texttt{drift} 	and \texttt{annealing}.
 		
 		\item[all] Turns off all preference strategies to make network edits, by simply trying 
 		all possible edits to the graph. This is a memory intensive refinement and should only
@@ -720,12 +715,12 @@
 			
 		\item[annealing[:INT]] Specifies the number of rounds (as specified by the integer 
 		value) of simulated annealing optimization \citep{Metropolisetal1953, 
-		Kirkpatricketal1983, Cerny1985}. This is performed in concert with \texttt{netAdd}, 
-		\texttt{netDel}, and \texttt{netMove}. The acceptance of candidate graphs is 
-		determined by the probability\\ $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ k_{max})}$, 
-		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current 
-		best graph, $k$ is the step number, and $k_{max}$ is the maximum number of 
-		steps (set by \texttt{steps:INT}, default 10).
+		Kirkpatricketal1983, Cerny1985} (default 1). This is performed in concert with 
+		\texttt{netAdd}, 	\texttt{netDel}, and \texttt{netMove}. The acceptance of candidate 
+		graphs is determined by the probability\\ $e ^ {- (c_c - c_b)/ (c_b * (k_{max} -k)/ 
+		k_{max})}$, where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of 
+		the current best graph, $k$ is the step number, and $k_{max}$ is the maximum 
+		number of steps (set by \texttt{steps:INT}, default 10).
 
 		\begin{description}
 			\item[steps:INT] Specifies the number of temperature steps performed 
@@ -738,41 +733,58 @@
 		edit space being explored. This is the default.
 
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
-		annealing optimization \citep{goloboff1999} that are performed. This is done in 
-		concert with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The acceptance 
-		of candidate graphs is determined by the probability $1/ (wf + c_c - c_b)$, where 
-		$c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current best graph, 
-		and $wf$ is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, default 
-		1.0) option. Equal cost graphs are accepted with probability set by the \texttt{acceptEqual} 
-		option. \texttt{drift} differs from \texttt{annealing} in that there are no cooling steps 
-		to modify acceptance probabilities. The maximum number of graph changes is set by 
-		\texttt{maxChanges}.
+		annealing optimization \citep{goloboff1999} that are performed (default 1). This is 
+		done in concert with \texttt{netAdd}, \texttt{netDel}, and \texttt{netMove}. The 
+		acceptance of candidate graphs is determined by the probability $1/ (wf + c_c - c_b)$, 
+		where $c_c$ is the cost of the candidate graph, $c_b$ is the cost of the current 
+		best graph, and $wf$ is the \texttt{acceptWorse} (set by the \texttt{acceptWorse:FLOAT}, 
+		default 1.0) option. Equal cost graphs are accepted with probability set by the 
+		\texttt{acceptEqual} option. \texttt{drift} differs from \texttt{annealing} in that there are 
+		no cooling steps to modify acceptance probabilities. The maximum number of graph 
+		changes is set by \texttt{maxChanges}.
+		
+		\begin{description}
+		
+			\item[acceptEqual[:FLOAT]] Specifies that equal cost graphs are accepted with the
+			probability as set by the FLOAT value. The default is 0.5.
+			
+			\item[acceptWorse[:FLOAT]] The acceptance of candidate graphs is determined by the 
+			probability $1/ (wf + c_c - c_b)$, where $c_c$ is the cost of the candidate graph, $c_b$ 
+			is the cost of the current best graph, and $wf$ is the value as specified by the float 
+			(default 1.0).
+			
+			\item[maxChanges:[INT]] Specifies that drifting graph changes are limited to the 
+			value as specified by the integer (default 15).
+
+		\end{description}
 		
 		\item[inorder] Contra \texttt{atRandom}, network edit neighborhoods are always 
-		traversed in the same undefined, but consistent order.
+		traversed in the same unspecified, but consistent order.
 
 		\item[keep:INT] Limits the number of returned graphs to that as specified by the 
 		integer value. The default is 10.
 		
-		\item[maxnetedges:INT] Specifies the maximum number of network edges in the 
-		graphs to be produced. This argument is used in conjunction with the network edit 
-		operations \texttt{netadd} and \texttt{netadddel}. The number of network edges in 
-		the graphs produced by these edit operations are limited by the number as specified 
-		by the integer value. Note: when deciding this value, the user should be aware that 
-		the addition of network edges exponentially increases the time taken to optimize the 
-		graph \cite{WheelerandWashburn2023}. The user must specify \texttt{softwired} or 
-		\texttt{hardwired} \texttt{graphtype} for this option to be performed (see Section 
-		\ref{subsec:set}). This argument is also used in conjunction with \texttt{geneticAlgorithm}.
+		\item[maxnetedges:[INT]] Specifies the maximum number of network edges in the 
+		graphs that can be produced (default 5). This argument is used in conjunction with the 
+		network edit operations \texttt{netadd} and \texttt{netadddel}. The number of network 
+		edges in the graphs produced by these edit operations are limited by the number as 
+		specified by the integer value. Note: when deciding this value, the user should be 
+		aware that the addition of network edges exponentially increases the time taken to 
+		optimize the graph \cite{WheelerandWashburn2023}. The user must specify 
+		\texttt{softwired} or \texttt{hardwired} \texttt{graphtype} for this option to be performed 
+		(see Section \ref{subsec:set}). This argument is also used in conjunction with 
+		\texttt{geneticAlgorithm}.
 				
 		\item[netadd] Adds network edges to existing input graphs at all possible positions 
 		until no better cost graph is found.
 		
 		\item[netadddelete] Consecutively adds and then deletes network edges from 
-		input graphs until certain conditions are met.
+		input graphs until certain conditions are met, i.e.  until no better cost 	graph is found.
 			
 		\begin{description}
-			\item[rounds:INT]  Specifies the number of combine network add and delete
-			edit operations.
+			\item[rounds:[INT]]  Specifies the number of combined network add and delete
+			edit operations. Irrespective of the number of rounds specified, this will not
+			exceed the number of \texttt{maxnetedges}. The default is 1.
 		\end{description}
 			
 		\item[netdel] Synonym of \texttt{netdelete}.
@@ -792,13 +804,14 @@
 	\end{description}
 
 	\subsubsection{Defaults}
-		\noindent \texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By 
-		default, \phyg will perform Genetic Algorithm refinement, with its associated default 
-		options, if no other arguments are specified.}\\
+		\texttt{refine(ga, generations:10, popsize:20, recombinations:100)} By 
+		default, \phyg will perform Genetic Algorithm refinement, with its associated
+		  default options, if no other arguments are specified.\\
 		   
-		\noindent \texttt{refine(netadd | netdel | netadddel | netmove, steepest, atrandom)} 
-		By default, during network edit operations, \phyg will follow a greedy path and 
-		traverse network edit neighborhoods in a randomized order.} 
+		\noindent \texttt{refine(netadd | netdel | netadddel | netmove, maxnetedges:5, 
+		   steepest, atrandom)} By default, during network edit operations, a maximum of
+		5 network edges can be present in the graphs. \phyg will follow a greedy path and 
+		   traverse network edit neighborhoods in a randomized order.
 	
 	\begin{example}
 	
@@ -813,31 +826,40 @@
 		recombinations:100)}. The maximum number of edges to be produced within
 		each round is set to 5. The number of returned graphs is limited to 10.}\\
 		   
-		\item{\texttt{refine(netadddel, rounds:3, maxnetedges:5)}\\ Consecutively adds 
+		\item{\texttt{refine(netadddel, rounds:3, maxnetedges:4)}\\ Consecutively adds 
 		and then deletes network edges from input graphs until either no improvement 
 		(graph cost) is found in a round or until the number of rounds of addition and 
 		deletions (as indicated by \texttt{rounds:INT}) is reached. The maximum number 
 		of edges is specified by \texttt{maxnetedges:INT} within each round. By default,  
-		during network edit operations, \phyg will follow a greedy path and traverse network 
-		edit neighborhoods in a randomized order.}
+		during network edit operations, \phyg will follow a greedy path and traverse 
+		network edit neighborhoods in a randomized order.}
 		
 		\item{\texttt{refine(netmove, inorder, steepest)} \\ Moves existing network 
 		edges in input graphs one at a time to new positions until there are no more 
 		improvements in the cost of the graph. During this edit operation, the network 
-		edit neighborhoods are traversed in the same undefined, but consistent order.
+		edit neighborhoods are traversed in the same unspecified, but consistent order.
 		This follows a greedy path, abandoning the neighborhood of the current 
 		graph when a better graph of lower cost is found.}
 		
-		\item{\texttt{refine(netadd, annealing:10, steps:5, acceptWorse:0.5)} \\ 
+		\item{\texttt{refine(netadd, annealing:10, steps:5)} \\ 
 		Consecutively adds network edges from input graphs until no better cost
-		graph is found. XXX. 10 rounds of simulated annealing optimization will be 
-		performed, limiting the number of temperature steps to 5. During each round, 
-		all graphs XXX will be accepted.}
+		graph is found or until the maximum number of network edges is hit (in
+		this case 5). This operation will follow the default conditions 
+		\texttt{(maxnetedges:5, steepest, atrandom)}. 10 rounds of simulated 
+		annealing optimization will be performed, setting the number of temperature 
+		steps to 5.}
 		
-		\item{\texttt{refine(netdel, drift, acceptEqual:2.0)} \\ 
+		\item{\texttt{refine(netdel, drift, acceptEqual:0.2)} \\ 
 		Consecutively deletes network edges from input graphs until no better cost
-		graph is found. XXX  rounds of drifting will be performed. During each round, 
-		all graphs XXX will be accepted.}
+		graph is found or until all network edges are removed. 1 round of drifting 
+		will be performed. If a graph of equal cost is found it has a 20\% chance 
+		of being accepted.}
+		
+		\item{\texttt{refine(netadddel, drift:3, acceptWorse:0.3)} \\ 
+		Consecutively deletes network edges from input graphs until no better cost
+		graph is found. 3 rounds of drifting will be performed. If a graph of worse
+		cost is found it has a probability of $1/ (wf + c_c - c_b)$ (with $wf$ equal to 
+		   0.3) of being accepted.}
 		
 	\end{example}
 	
@@ -1302,7 +1324,7 @@
 		\item[instances:INT] Specifies the number of (potentially parallel) simultaneous
 		searches (instances), as indicated by the integer value. The overall search will 
 		terminate only when all instances have completed. Employing this argument is
-		recommended when multiple computer processors are available to the user.
+		recommended when multiple cores are available to the user.
 		
 		\item[keep:[INT]] Sets the maximum number of graphs to be kept. The default 
 		is 10.
@@ -1402,7 +1424,7 @@
 		of returned graphs can be specified by the integer value. If no integer value is 
 		specified, all of the graphs of best optimality value will be returned. If the number 
 		of optimal graphs exceeds the value of best, the subset of optimal graphs are 
-		chosen in an undefined but consistent order.
+		chosen in an unspecified but consistent order.
 							
 		\item[threshold:FLOAT] Keeps all the best (shortest) graphs and all the unique 
 		graphs up to the fraction longer than shortest graph. This fraction is specified by 
@@ -1545,8 +1567,8 @@
 		a network analysis, a penalty can be specified, so that ‘softwired’ phylogenetic networks 
 		can compete equally with phylogenetic trees on a parsimony optimality basis. A network 
 		penalty takes into account the change in cost as edges are added to the graph. Hardwired 
-		graphs are automatically set to \texttt{NoPenalty}.  If the optimality criterion is set to PMDL or SI,
-		the network penalty is determined as part of the criterion.
+		graphs are automatically set to \texttt{NoPenalty}.  If the optimality criterion is set to PMDL 
+		or SI, the network penalty is determined as part of the criterion.
 			
 		\begin{description}
 			
@@ -1591,8 +1613,11 @@
 
 %		\item[lazyparstrat] Only internal---used for testing purposes.
 
-		\item[keep:[INT]] Sets the maximum number of graphs to be kept.
-		The default is 10.
+		\item[keep:[INT]] Globally sets the maximum number of graphs to be kept.
+		The default is 10. This can be 
+		
+		This argument will overrule any other \texttt{keep} commands
+		set within \texttt{transform}, \texttt{geneticAlgorithm} and \texttt{search}.
 
 		\item[missingThreshold:[INT]] Sets the maximum percentage of missing data 
 		in a terminal. The default setting is 100, leaving all terminals in the data set. 
@@ -1725,12 +1750,14 @@
 	\begin{phygdescription}
 		{Calculates the requested support values. \phyg implements support estimation 
 		based on resampling methods (Jackknife ~\cite{Farrisetal1996} and Bootstrap
-		~\cite{Felsenstein1985}) and calculations of optimality-based measures (Goodman
-		-Bremer support ~\cite{Goodmanetal1982, Bremer1988}). The calculation of support 
-		measures based on resampling is done at the fragment or ``block'' rather than at the 
-		nucleotide level. For this reason, these data need to be collated into a block with the 
-		command \texttt{reblock} (see Section \ref{subsec:reblock}). Goodman-Bremer 
-		calculations are not affected by this behavior. 
+		~\cite{Felsenstein1985}) and calculations of optimality-based measures 
+		(Goodman-Bremer support ~\cite{Goodmanetal1982, Bremer1988}). By default, 
+		the calculation of support measures based on resampling is done at the fragment 
+		or ``block'' rather than at the nucleotide level. For this reason, these data need to 
+		be collated into a block with the command \texttt{reblock} (see Section 
+		\ref{subsec:reblock}). Resampling can be done at the nucleotide level by 
+		transforming to an implied alignment (see \texttt{transform} \ref{subsec:transform}). 
+		Goodman-Bremer calculations are not affected by this behavior. 
 
 		If the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
 		for Goodman-Bremer are log likelihood ratios.}
@@ -1826,7 +1853,8 @@
 		group of algorithms referred to as branch swapping, that proceed by clipping
 		parts of the given tree and attaching them in different positions. These algorithms 
 		include `NNI' \citep{CaminandSokal1965, Robinson1971}, `SPR' \citep{Dayhoff1969}, 
-		and `TBR' \citep{Farris1988, swofford1990a} refinement.  %Default swapping trajectories are randomized.
+		and `TBR' \citep{Farris1988, swofford1990a} refinement.  
+		%Default swapping trajectories are randomized.
 		}
 	\end{phygdescription}
 		
@@ -1891,7 +1919,7 @@
 			is the cost of the current best graph, and $wf$ is the values as specified by the float 
 			(default 1.0). 	
 			
-			\item[maxChanges:INT] Specifies that drifting graph changes are limited to the 
+			\item[maxChanges:[INT]] Specifies that drifting graph changes are limited to the 
 			value as specified by the integer (default 15).
 			
 		\end{description}
@@ -1901,7 +1929,7 @@
 		graph type is \texttt{tree}.
 		
 		\item[inOrder] Contra \texttt{atRandom}, swap neighborhoods are always traversed 
-		in the same undefined, but consistent order.
+		in the same unspecified, but consistent order.
 		
 		\item[joinAll] Turns off all preference strategies to make a join, simply trying all possible 
 		join positions for each pair of clades generated after a break. 
@@ -2000,11 +2028,10 @@
 			
 	\begin{phygdescription}
 		{Transforms the properties of the imported characters, graphs, or general values 
-		from one value or type to another. It 
-		modifies the global settings during program execution (as opposed to \texttt{set}, 
-		which operates at the start of the analysis). This includes changes of graph type
-		(e.g. tree to softwired Network) and data types (e.g. dynamic to static 
-		approximation), among other operations.}
+		from one value or type to another. It modifies the global settings during program 
+		execution (as opposed to \texttt{set}, which operates at the start of the analysis). 
+		This includes changes of graph type (e.g. tree to softwired network) and data types 
+		(e.g. dynamic to static approximation), among other operations.}
 	\end{phygdescription}
 			
 	\subsubsection{Arguments}
@@ -2017,23 +2044,6 @@
 %		softwired graphs, but can increase the optimality score of the graph.  Can be used in 
 %		combination with \texttt{transform(compressResolutions:True)} or 
 %		\texttt{transform(softwiredMethod:Exhaustive)} at a later stage to improve graph score.
-			
-		\item[displayTrees:[INT]] Specifies the number output of display trees for each graph. 
-		When \texttt{toTree} is specified. The number of returned display trees is limited by this
-		integer value, or by the default value (10). Used in concert with \texttt{toTree}.
-		
-		\begin{description}
-			
-			\item[atRandom] Returns the number of display trees as specified by the integer in 
-			 \texttt{displayTrees}, where trees are produced by 
-			resolving network nodes uniformly at random. Compare with the \texttt{first} option, 
-			which takes the `first' number of display trees resolved in an arbitrary, but consistent, 
-			order.
-
-			\item[first:INT] Specifies that the first number of displays tree resolutions, as 
-			specified by the integer value, are chosen for each input graph. 
-			
-		\end{description}
 			
 		\item[dynamic] Reverts data type to the default `dynamic' for all dynamic homology 
 		\citep{Wheeler2001} character types (e.g. DNA sequences). After this command, 
@@ -2057,8 +2067,7 @@
 			\item[w15] Employs the parsimony network penalty of \cite{Wheeler2015}.	
 		
 			\item[w23] Sets the parsimony network penalty of \cite{WheelerandWashburn2023}, 
-			which is more severe
-			but has a lower time complexity than W15.
+			which is more severe but has a lower time complexity than W15.
 			
 		\end{description}
 			
@@ -2068,19 +2077,19 @@
 		of parallel thread numbers.  Higher numbers will consume more memory and lower, less.
 		The default value is 10.  
 		
-		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in \citealp{VaronandWheeler2013}) 
-		during SPR and TBR
-		branch swapping. The default value is 1.17. Higher values will allow more heuristic graph
-		rejoins, resulting in potentially better solutions at the cost of greater execution times.
+		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in 
+		\citealp{VaronandWheeler2013}) during SPR and TBR branch swapping (default 1.17). 
+		Higher values will allow more heuristic graph rejoins, resulting in potentially better 
+		solutions at the cost of greater execution times.
 		
 		\item[multiTraverse:BOOL] Controls the multi-traverse character optimization option. 
 		If \texttt{True}, character trees are traversed from each edge as in 
 		\citep{VaronandWheeler2012,VaronandWheeler2013, POY4, POY5}, but individually 
 		for each dynamic character. This is the default and yields better (lower) optimality 
-		scores at the cost of added execution time. This is the default.
-		If \texttt{False}, only outgroup-based traversals are performed as in 
-		\citep{Wheeler1996, POY2, POY3}. When \texttt{multiTraverse} is set to \texttt{False}
-		graphs may rediagnose (e.g upon input) to a different cost than when previously reported.  
+		scores at the cost of added execution time. This is the default. If \texttt{False}, only 
+		outgroup-based traversals are performed as in \citep{Wheeler1996, POY2, POY3}. 
+		When \texttt{multiTraverse} is set to \texttt{False} graphs may rediagnose (e.g upon 
+		input) to a different cost than when previously reported.  
 		
 %		\item[name] Not implemented yet.
 			
@@ -2114,11 +2123,32 @@
 			
 		\item[toSoftwired] Converts exiting graphs to softwired network graphs.
 			
-		\item[toTree] Converts exiting graphs to trees. For both Softwired and Hardwired graphs 
-		this proceeds via graph resolution of network nodes into ``display'' trees. Since there are up to 
-		$2^n$ display trees for a graph with $n$ network nodes, this number can be quite large. 
-		The number of display trees produced for each graph is controlled via the options 
+		\item[toTree] Converts exiting graphs to trees. For both softwired and hardwired graphs 
+		this proceeds via graph resolution of network nodes into ``display'' trees. Since there are 
+		up to $2^n$ display trees for a graph with $n$ network nodes, this number can be quite 
+		large. The number of display trees produced for each graph is controlled via the options 
 		\texttt{displayTrees:n}, \texttt{atRandom}, and \texttt{first}. 
+		
+					
+		\begin{description}
+			\item[displayTrees:[INT]] Specifies the number output of display trees for each graph. 
+			When \texttt{toTree} is specified. The number of returned display trees is limited by 
+			this integer value, or by the default value (10).
+		
+			\begin{description}
+			
+				\item[atRandom] Returns the number of display trees as specified by the integer 
+				as specified in \texttt{displayTrees}, where trees are produced by resolving 
+				network nodes uniformly at random. Compare with the \texttt{first} option, which 
+				takes the `first' number of display trees resolved in an arbitrary, but consistent, 
+				order.
+
+				\item[first:INT] Specifies that the first number of displays tree resolutions, as 
+				specified by the integer value, are chosen for each input graph. 
+			
+			\end{description}
+					
+		\end{description}
 		
 %		\item[type] Not implemented yet.
 		
