@@ -512,7 +512,7 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                 -- changed this to keep list of all not better for BestOnly and SA/Drift
                 -- BestOnly now gets best evein if not better than current cost
                 let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
-                let minHeuristicCostSPR =   if (null $ fmap fst heuristicResultList) then infinity
+                let minHeuristicCostSPR =   if (null $ concat $ fmap fst heuristicResultList) then infinity
                                             else minimum $ fmap snd $ concat $ fmap fst heuristicResultList -- bettterHeuristicEdgesSPR
 
                 let tbrPart = concat $ fmap snd heuristicResultList
@@ -747,7 +747,7 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                                     -- changed this to keep list of all not better for BestOnly and SA/Drift
                                     -- BestOnly now gets best evein if not better than current cost
                                     let bettterHeuristicEdgesSPR = filter ((< curBestCost) . snd) $ concat $ fmap fst heuristicResultList
-                                    let minHeuristicCostSPR =   if (null $ fmap fst heuristicResultList) then infinity
+                                    let minHeuristicCostSPR =   if (null $ concat $ fmap fst heuristicResultList) then infinity
                                                                 else minimum $ fmap snd $ concat $ fmap fst heuristicResultList -- bettterHeuristicEdgesSPR
 
                                     let tbrPart = concat $ fmap snd heuristicResultList
