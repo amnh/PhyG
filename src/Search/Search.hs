@@ -46,6 +46,9 @@ import Utilities.Utilities qualified as U
 treeBanditList ∷ [String]
 treeBanditList =
     [ "buildCharacter"
+    , "buildSPR"        -- uses quickest options so other swaps should be more exhaustinve
+    , "buildTBR"        -- uses quickest options so other swaps should be more exhaustinve
+    , "buildAlternate"  -- uses quickest options so other swaps should be more exhaustinve
     , "swapSPR"
     , "swapTBR"
     , "swapAlternate"
@@ -57,7 +60,7 @@ treeBanditList =
     , "annealSPR"
     , "annealTBR"
     , "geneticAlgorithm"
-    -- , "buildDistance" -- "buildSPR", "buildTBR", "buildAlternate", distance only up front to reduce memory footprint
+    -- , "buildDistance" -- distance only up front to reduce memory footprint
     ]
 
 
@@ -608,9 +611,9 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
         -- common swap arguments
         getSwapKeep = min keepNum <$> sampleRandomChoices [(1, 0.50), (2, 0.33), (4, 0.17)]
         genSwapOpts = do
-            -- this commented becasue of multitraverse randomization below
+            -- this commented because of multitraverse randomization below
             -- getSwapMultiTraverse <- sampleRandomChoices [("true", 0.33), ("false", 0.67)]
-            getSwapCheck <- sampleRandomChoices [("bestonly", 0.25),("better", 0.25),("bettern", 0.50)]
+            getSwapCheck <- sampleRandomChoices [("bestonly", 0.2),("better", 0.2),("bettern", 0.60)]
             getSwapJoin <- sampleRandomChoices [("joinall", 0.50), ("joinpruned", 0.50)]
             pure [(getSwapCheck, ""), (getSwapJoin, "")]
 
@@ -692,6 +695,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                     | transformMultiTraverse = (newDataMTF, ",MultiTraverse:False")
                     | otherwise = ((inGS', inData', inData', inGraphList''), "")
 
+            -- only doing build character now in search due to memory footprint of distnce matrix
             buildType ← case searchBandit of
                 "buildCharacter" → pure "character"
                 "buildDistance" → pure "distance"
@@ -746,12 +750,15 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
                 "buildCharacter" →
                     let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
                     in  attach buildArgs <$> builder buildArgs
+
+                {- this not used in searh due to memory footprint of ditance matrix
                 "buildDistance" →
                     -- search for dist builds 1000, keeps 10 best distance then selects 10 best after rediagnosis
                     -- this line in here to allow for returning lots of rediagnosed distance trees, then
                     -- reducing to unique best cost trees--but is a memory pig
                     let buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
                     in  attach buildArgs <$> builder buildArgs
+                -}
                 "buildSPR" →
                     let -- build part
                         buildArgs = [(buildType, "")] <> wagnerOptions <> blockOptions
