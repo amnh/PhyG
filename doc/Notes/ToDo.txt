@@ -147,3 +147,7 @@
 483) Look into branch lengths at root--suspiciously long
 
 484) Branch-delete forest (PMDL)
+
+485) Interaction of include taxa and missing values--now missing level has no affect
+
+486) Option to do multitraverse onm all chars at onece--faster, but much larger memory footprint.

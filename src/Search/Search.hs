@@ -48,7 +48,6 @@ treeBanditList =
     [ "buildCharacter"
     , "buildSPR"        -- uses quickest options so other swaps should be more exhaustinve
     , "buildTBR"        -- uses quickest options so other swaps should be more exhaustinve
-    , "buildAlternate"  -- uses quickest options so other swaps should be more exhaustinve
     , "swapSPR"
     , "swapTBR"
     , "swapAlternate"
@@ -618,7 +617,7 @@ performSearch inGS' inData' _pairwiseDistances keepNum totalThetaList maxNetEdge
             pure [(getSwapCheck, ""), (getSwapJoin, "")]
 
         swapGeneralOpt = pure [("steepest", ""),("atrandom", ""), ("splitsequential", "")]
-        fastSwapOpts = swapGeneralOpt <> pure [("bestonly",""), ("multitraverse","false"), ("joinpruned","")]
+        fastSwapOpts = swapGeneralOpt <> pure [("bestonly",""), ("multitraverse","false")] -- , ("joinpruned","")]
         regSwapOpts = swapGeneralOpt <> genSwapOpts
 
         -- common drift arguments
