@@ -291,7 +291,7 @@ reportArgList =
     , "support"
     , "tnt"
     ]
-        <> reconcileArgList
+        <> reconcileArgList <> reconcileOptionsList
 
 
 -- | search arguments
