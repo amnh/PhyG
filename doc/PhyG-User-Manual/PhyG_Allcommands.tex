@@ -2046,9 +2046,10 @@
 %		\texttt{transform(softwiredMethod:Exhaustive)} at a later stage to improve graph score.
 			
 		\item[dynamic] Reverts data type to the default `dynamic' for all dynamic homology 
-		\citep{Wheeler2001} character types (e.g. DNA sequences). After this command, 
+		\citep{Wheeler2001} character types (e.g. DNA sequences). This can be employed 
+		if the user transformed the data using \texttt{staticApprox}. After this command, 
 		graph optimization proceeds in the default manner with sequence characters treated 
-		in their non-aligned (`dynamic') condition.
+		in their non-aligned (`dynamic') condition. Compare with \texttt{staticApprox}.
 			
 		\item[dynamicEpsilon] Sets the level at which heuristic graph costs are verified by full 
 		(and time consuming) traversal. Candidate graphs with costs within \texttt{dynamicEpsilon}
@@ -2117,6 +2118,7 @@
 			
 		\item[staticApprox] Converts non-aligned (`dynamic') sequence characters to their 
 		implied alignment \citep{Wheeler2003, WashburnandWheeler2020} condition.
+		Compare with \texttt{dynamic}.
 			
 		\item[toHardwired] Converts exiting graphs to hardwired network graphs and graphfactor 
 		to `NoNetPenalty'.

@@ -1,5 +1,0 @@
--- Test command file
-read ("blah") -- readfile
--- Next line
-build (bleh, blog, bleg)
-read ()
