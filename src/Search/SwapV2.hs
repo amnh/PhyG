@@ -47,12 +47,14 @@ swapDriver
     → GlobalSettings
     → ProcessedData
     → Int
-    → [ReducedPhylogeneticGraph]
+    -- → [ReducedPhylogeneticGraph]
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams = 
+swapDriver swapParams inGS inData inCounter inSimAnnealParams = 
     let saList = L.uncons inSimAnnealParams
+        curBestGraphList = fmap snd inSimAnnealParams
     in
+    
     if isNothing saList then
     -- swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
         swapV2  swapParams inGS inData inCounter curBestGraphList Nothing 

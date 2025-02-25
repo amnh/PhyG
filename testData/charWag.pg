@@ -113,13 +113,14 @@ transform(keep:15)
 --refine(netadd, atrandom, maxnetedges:5)
 --refine(netdelete, atrandom, maxnetedges:5)
 
-search(hours:10, minutes:0, instances:5, Thompson:1, linear, maxnetedges:5)
+--search(hours:10, minutes:0, instances:5, Thompson:1, linear, maxnetedges:5)
 -- transform(dynamic)
 
 --swap(NNI, bestAll)
 --swap(alternate, betterN)
 
 --transform(multitraverse:True)
+swap()
 --swap(keep:10)
 --swap(level:3)
 --transform(multitraverse:True)
