@@ -1,0 +1,169 @@
+
+--set(criterion:PMDL)
+--set(graphfactor:nopenalty)
+--set(modelComplexity:3512)
+--set(graphtype:softwired)
+set(outgroup:"Artemia")
+
+
+--read(fasta:"metazoa-aa-1.fas")
+read(fasta:"chel.fas")
+--read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
+--read(fasta:"chel.fas", tcm:"test-1-Ney5.bit.tcm")
+--read(fasta:"chel-16.fas")
+
+
+--read(prefasta:"chel-prealigned.fas")
+--read(prefasta:"chel-prealigned-16.fas")
+--read(prefasta:"chel-prealigned.fas")
+
+-- this line can cause seg fault--not sure why
+--read(prefasta:"chel-prealigned.fas")
+
+--read(prefasta:"chel-prealigned.fas", tcm:"sg2t1.mat")
+--read(fasta:"chel.fas", tcm:"bitDNA.tcm")
+--read(fasta:"chel.fas", tcm:"neyman5.bit.tcm")
+--read(fasta:"chel.fas", tcm:"sg2t1.mat")
+--read(fasta:"chel.fas", tcm:(755360,1))
+
+--read(fasta:"chel.fas", tcm:"sg2t2.mat", gapOpening:10)
+
+--read(fasta:"chel-16.fas", tcm:"sg2t1.mat")
+--read("chel.ss")
+--read("chel-ques.ss")
+--read("chel-3.ss")
+--transform(weight:0.01, name:"chel.fas#0*")
+
+set(seed:1701287416)
+--set(reportNaive:False)
+--set(missingThreshold:10)
+
+--report("test0-data.csv", data, overwrite)
+
+--read("chel-334.dot")
+
+--set(partitionCharacter:%)
+--set(finalassignment:ia)
+--set(bc2:(0.1,1.1))
+--set(bc4:(0.2, 1.2))
+--set(bc5:(0.3, 1.3))
+--set(bc8:(0.4, 1.4))
+--set(bc64:(0.5,1.5))
+--set(bcgt64:(0.6,1.6))
+
+--set(dynamicEpsilon:0.0)
+
+--set(useIA:False)
+
+-- For network testing
+--set (outgroup:"one")
+--set(graphtype:hardwired)
+--set(graphtype:softwired)
+--Set(Compressresolutions:True)
+--set(graphFactor:NoPenalty)
+--set(rootcost:ml)
+--set(criterion:ml)
+
+--set(multitraverse:false)
+
+--fuse(tbr)
+
+--transform(staticApprox)
+
+--search(minutes:1)
+--build(replicates:10)
+--fuse(tbr)
+--swap()
+
+--build(distance, wpgma)
+
+--transform(staticApprox)
+
+--read("chel-335.tre")
+
+--build(dwag, distance)
+--build(character, replicates:50)
+--build(distance, rdwag, replicates:50, best:50)
+
+--build(distance, rdwag, dwag, wpgma,nj, replicates:100, best:5)
+read("chel-build-5.dot")
+
+--fuse(noreciprocal)
+
+--fuse(pairs:25)
+--fuse(spr,pairs:25)
+
+set(keep:20)
+
+transform(keep:15)
+
+--build(distance,rdwag, replicates:100, best:100)
+--build(rdwag, replicates:100)
+--build(distance, rdwag, replicates:20, best:5)
+--search(hours:0, minutes:1, instances:4, Thompson:1, linear, maxnetedges:5)
+--search(minutes:5, instances:1, Thompson:1, simple)
+
+--search(minutes:5, instances:4, stop:50,Thompson:2)
+
+
+
+--select(unique:10)
+--select()
+
+--refine(netadd, atrandom, maxnetedges:5)
+--refine(netdelete, atrandom, maxnetedges:5)
+
+--search(hours:10, minutes:0, instances:5, Thompson:1, linear, maxnetedges:5)
+-- transform(dynamic)
+
+--swap(NNI, bestAll)
+--swap(alternate, betterN)
+
+--transform(multitraverse:True)
+swap()
+--swap(keep:10)
+--swap(level:3)
+--transform(multitraverse:True)
+--swap(inOrder)
+
+--swap(replicates:5, drift, maxChanges:5)
+--swap(replicates:5)
+
+--fuse()
+
+--refine (ga)
+
+-- transform(dynamic)
+
+--select(unique)
+select(best)
+--transform (staticApprox)
+
+--report("test0-data.csv", data, overwrite)
+
+--report("test0-search.csv", search, overwrite)
+--report("test0-wag.txt", overwrite, graphs, ascii)
+--report("test0-wag.dot", overwrite, graphs, dotpdf, nocollapse, color)
+--report("test0-wag-complexity.dot", overwrite, complexity, dotpdf, nocollapse, color)
+--report("test0-nc.dot", graphs, dotpdf, overwrite, branchlengths:mid, overwrite)
+report("test0.dot", graphs, dotpdf, overwrite,color, branchlengths:mid, overwrite)
+report("test0.tre", graphs, newick, overwrite,color, nobraNCHLENGTHS, noHTULabels)
+
+--report("test0-wag.tre", overwrite, graphs, newick, nobraNCHLENGTHS, noHTULabels, collapse)
+--report("test0-wag.tre", overwrite, graphs, newick)
+--report("test0-dist-mat.csv", pairdist, overwrite)
+--report("test0-diag.csv", diagnosis, overwrite)
+
+--report("test0-metadata.csv", metaData, overwrite)
+--report("test0-paramEst.csv", parameterEstimation, overwrite)
+
+--support(jackknife, replicates:20, tbr, level:1)
+
+--report("test0-supp.dot", support,dotPDF, overwrite)
+--report("test-ia.fas", impliedalignment, includeMissing, overwrite)
+--report("test-ia-concat.fas", impliedalignment, concatenate,  overwrite)
+--report("test-tnt.txt", TNT, overwrite)
+--report("test0-reconcile-strict.tre", reconcile, method:strict, newick, threshold:51, overwrite)
+--report("test0-reconcile-adams.dot", reconcile, graphs, method:adams, dotpdf, nobranchlengths, overwrite)
+--report("test0-reconcile.dot", reconcile)
+report("test0-reconcile-majority.dot", reconcile, method:majority, dotpdf, threshold:51, overwrite, nobranchlengths, nohtulabels)
