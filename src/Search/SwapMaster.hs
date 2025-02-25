@@ -228,8 +228,6 @@ swapMaster inArgs inGS inData inGraphListInput =
                     -- Nothing if not SA
                     let newSimAnnealParamList = replicate numGraphs simAnnealParams
 
-                    logWith LogInfo (show newSimAnnealParamList)
-
                     let progressString
                             | (not doAnnealing && not doDrift) =
                                 ( "Swapping "
