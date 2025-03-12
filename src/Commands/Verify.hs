@@ -360,7 +360,7 @@ setArgList =
     ]
 
 
--- | refinement arguments
+-- | support arguments
 supportArgList ∷ [String]
 supportArgList = 
     [ "atrandom"

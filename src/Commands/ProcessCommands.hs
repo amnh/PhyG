@@ -107,7 +107,7 @@ splitCommandLine inLine =
 -- | checkFileNames checks if first and last element of String are double quotes and removes them
 checkFileNames ∷ String → PhyG String
 checkFileNames inName
-    | null inName = do failWithPhase Parsing "Error: Null file name"
+    | null inName = do failWithPhase Parsing "Error: Null file name (prehaps missing double quotes)"
     | head inName /= '"' = do failWithPhase Parsing ("Error: File name must be in double quotes (b): " <> inName <> "\n")
     | last inName /= '"' = do failWithPhase Parsing ("Error: File name must be in double quotes (e): " <> inName <> "\n")
     | otherwise = return $ init $ tail inName

@@ -1039,15 +1039,16 @@ nubGraph outgroupIndex curList inList =
                 rerootGraph = LG.rerootTree outgroupIndex $ fst6 firstGraphNC
                 graphRoot = head $ LG.parents rerootGraph outgroupIndex
 
-                              -- already rooted properly or is not a tree so dangerous to reroot
-                firstString = if isOutGroupRooted || (not $ LG.isTree (fst6 firstGraphNC)) then 
+                              -- is not a tree so dangerous to reroot
+                firstString = --if (not $ LG.isTree (fst6 firstGraphNC)) then 
+                              if isOutGroupRooted || (not $ LG.isTree (fst6 firstGraphNC)) then 
                                      makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
 
-                              -- tried to reoot but not properly rooted--eg tried to reroot on a network edge
+                              -- tried to reroot but not properly rooted--eg tried to reroot on a network edge
                               else if (null (LG.parents rerootGraph outgroupIndex)) then 
                                     makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
 
-                              -- not in correct root but ok rerooted--ie tree
+                              -- not in correct root but ok to be rerooted--ie tree
                               else
                                     makeNewickList False False False graphRoot [rerootGraph] costList
                 
@@ -1056,6 +1057,7 @@ nubGraph outgroupIndex curList inList =
                 isMatch = filter (== firstString) (fmap thd3 curList)
 
             in  
+                --trace (firstString <> "\n" <> (concatMap thd3 curList)) $ 
                 if null curList
                     then nubGraph outgroupIndex [(firstGraphNC, firstGraphC, firstString)] (tail inList)
                     else

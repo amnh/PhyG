@@ -257,7 +257,7 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
             else do
                 let curBestCost = minimum $ fmap snd5 graphsToSwap
 
-                -- do not shortcicuit here based on cost -- need for SA/Drift
+                -- do not short circuit here based on cost -- need for SA/Drift
 
                 let fullFirstGraph = GO.convertReduced2PhylogeneticGraph firstGraph
                 inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing fullFirstGraph
@@ -280,8 +280,8 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
                 rejoinResult' <- if (splitParallel swapParams) && (isNothing saParams) then do
                                 -- splitAction ::  LG.LEdge EdgeInfo → PhyG (DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)
                                     let splitAction = doASplit swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor fullFirstGraph
-                                    spltActionPar <- (getParallelChunkTraverseBy snd5)
-                                    resultListP <- spltActionPar splitAction edgeList
+                                    splitActionPar <- (getParallelChunkTraverseBy snd5)
+                                    resultListP <- splitActionPar splitAction edgeList
 
                                     -- this filter for malformed graphs from split graph
                                     -- can happen with networks when there are lots of network edges
@@ -646,8 +646,8 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                             -- get root in base (for readdition) and edges in pruned section for rerooting during readdition
                             let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(originalConnectionOfPruned, fromJust $ LG.lab splitGraphOptimized originalConnectionOfPruned)]
 
-                                -- Filter for bridge edges and desendents of root of pruned graph -- for TBR when needed
-                                -- remeber to add in root of pruned graph data for TBR edge data so SPR is subset TBR
+                                -- Filter for bridge edges and decendents of root of pruned graph -- for TBR when needed
+                                -- remember to add in root of pruned graph data for TBR edge data so SPR is subset TBR
                                 tbrRerootEdges
                                     | swapType swapParams /= TBR = []
                                     | (graphType inGS == Tree) || LG.isTree splitGraphOptimized = edgesInPrunedGraph L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))
