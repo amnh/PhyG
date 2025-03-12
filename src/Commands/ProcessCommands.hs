@@ -204,7 +204,12 @@ parseCommand = \case
                 -- this does not allow recursive multi-option arguments
                 -- NEED TO FIX
                 -- make in to a more sophisticated split outside of parens
-                argList ← argumentSplitter inLine $ init $ tail $ dropWhile (/= '(') $ filter (/= ' ') firstString
+                let modString = dropWhile (/= '(') $ filter (/= ' ') firstString
+                argList ← if (not $ null modString) then argumentSplitter inLine $ init $ tail modString
+                          else do 
+                            failWithPhase Parsing $
+                                fold
+                                    ["Error: command not properly formatted--" <> firstString <> " " <> restString]
 
                 localInstruction ← getInstruction instructionString V.allowedCommandList
                 processedArg ← parseCommandArg firstString localInstruction argList
