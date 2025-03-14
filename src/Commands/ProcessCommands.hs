@@ -209,7 +209,7 @@ parseCommand = \case
                           else do 
                             failWithPhase Parsing $
                                 fold
-                                    ["Error: command not properly formatted--" <> firstString <> " " <> restString]
+                                    ["Error: command not properly formatted: '" <> firstString <> " " <> restString <> "'"]
 
                 localInstruction ← getInstruction instructionString V.allowedCommandList
                 processedArg ← parseCommandArg firstString localInstruction argList
