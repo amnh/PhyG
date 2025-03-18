@@ -10,6 +10,7 @@ Tested-With:
   GHC == 9.8.1
   GHC == 9.10.1
   GHC == 9.12.1
+  GHC == 9.12.2
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     © 2015 Ward Wheeler and The American Museum of Natural History
