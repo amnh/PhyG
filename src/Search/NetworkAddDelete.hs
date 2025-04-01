@@ -1247,32 +1247,40 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u, v, _), (u', v', _)) =
                 -- full two-pass optimization
                 leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
             in  do
-                    -- since strict moved down into logic
-                    --newPhyloGraph ← T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
-
-                    -- calculates heursitic graph delta
-                    -- (heuristicDelta, _, _, _, _)  = heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
-                    heuristicDelta' <- heuristicAddDelta' inGS inPhyloGraph edgePair
-
-                    let edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
-
-                    let heuristicFactor = (heuristicDelta' + edgeAddDelta) / edgeAddDelta
-
-                    -- use or not Net add heuristics
-                    let metHeuristicThreshold = not (useNetAddHeuristic inGS) || heuristicFactor < (2 / 3)
-
                     -- remove these checks when working
                     isPhyloGraph ← LG.isPhylogeneticGraph newSimple
+                    
+                    -- unfortiunetely need this when ther are network edges present
                     if not isPhyloGraph
                         then do
+                            -- logWith LogInfo ("Net add graph is phyloGraph: " <> (show isPhyloGraph))
                             pure emptyReducedPhylogeneticGraph
-                        else 
+                        else do
+                            -- since strict moved down into logic
+                            --newPhyloGraph ← T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
+
+                            -- calculates heursitic graph delta
+                            --(heuristicDelta', _, _, _, _) <-  heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
+
+                            heuristicDelta <- if useNetAddHeuristic inGS then
+                                                    --pure heuristicDelta'
+                                                    heuristicAddDelta' inGS inPhyloGraph edgePair
+                                               else pure infinity
+
+                            let edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
+
+                            -- use or not Net add heuristics
+                            let metHeuristicThreshold = heuristicDelta + edgeAddDelta < 0.0 
+
+                            -- logWith LogInfo ("In graph: " <> (show $ snd5 inPhyloGraph) <> " heuristicAdd : " <> (show $ heuristicDelta + edgeAddDelta))
+                            
                             if metHeuristicThreshold
                                 then do -- if (GO.parentsInChainGraph . thd5) newPhyloGraph then emptyPhylogeneticGraph
                                 -- else
                                     newPhyloGraph ← T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex newSimple
-                            
-                            
+                                    
+                                    logWith LogInfo ("\nIn graph: " <> (show $ snd5 inPhyloGraph) <> " heuristicAdd : " <> (show $ heuristicDelta + edgeAddDelta) <> " NewGraph : " <> (show $ snd5 newPhyloGraph) <> "\n") 
+                                
                                     if (snd5 newPhyloGraph <= snd5 inPhyloGraph)
                                         then do
                                             pure newPhyloGraph
