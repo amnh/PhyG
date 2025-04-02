@@ -708,7 +708,8 @@ postProcessNetworkAdd inGS inData netParams counter (curBestGraphList, _) (newGr
                 | (netSteepest netParams) = newGraphList
                 | otherwise = take (netKeepNum netParams) $ newGraphList <> inPhyloGraphList
         in  do
-                logWith LogInfo ("\t-> " <> show newGraphCost)
+                -- prob do this if steepest, "all" does in middle for more frequent output
+                -- logWith LogInfo ("\t-> " <> show newGraphCost)
                 insertAllNetEdges'
                     inGS
                     inData
@@ -781,7 +782,7 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
 
                     logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
 
-                    {-
+                    {-This is srict so doubled work 
                     inNetEdRList ←
                         insertNetEdgeRecursive
                             inGS
@@ -1122,6 +1123,9 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u, v, _), (u', v', _)) =
                                 
                                     if (snd5 newPhyloGraph <= snd5 inPhyloGraph)
                                         then do
+                                            if (snd5 newPhyloGraph < snd5 inPhyloGraph) then 
+                                                logWith LogInfo ("\t-> " <> (show $ snd5 newPhyloGraph))
+                                            else logWith LogInfo ("")
                                             pure newPhyloGraph
                                         else do
                                             pure emptyReducedPhylogeneticGraph
