@@ -1104,27 +1104,19 @@ insertNetEdge inGS inData inPhyloGraph _ edgePair@((u, v, _), (u', v', _)) =
 deleteAllNetEdges
     ∷ GlobalSettings
     → ProcessedData
+    -> NetParams
     → Int
-    → Int
-    → Int
-    → Bool
-    → Bool
-    → Bool
     → ([ReducedPhylogeneticGraph], VertexCost)
     → (Maybe SAParams, [ReducedPhylogeneticGraph])
     → PhyG ([ReducedPhylogeneticGraph], Int)
-deleteAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
+deleteAllNetEdges inGS inData netParams counter (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
     if isNothing inSimAnnealParams
         then
             deleteAllNetEdges'
                 inGS
                 inData
-                maxNetEdges
-                numToKeep
+                netParams
                 counter
-                returnMutated
-                doSteepest
-                doRandomOrder
                 (curBestGraphList, curBestGraphCost)
                 inSimAnnealParams
                 inPhyloGraphList
@@ -1139,12 +1131,8 @@ deleteAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doStee
                     deleteAllNetEdges''
                         inGS
                         inData
-                        maxNetEdges
-                        numToKeep
+                        netParams
                         counter
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         (curBestGraphList, curBestGraphCost)
             in  do
                     deleteResult ←
@@ -1159,25 +1147,16 @@ deleteAllNetEdges inGS inData maxNetEdges numToKeep counter returnMutated doStee
 deleteAllNetEdges''
     ∷ GlobalSettings
     → ProcessedData
+    -> NetParams
     → Int
-    → Int
-    → Int
-    → Bool
-    → Bool
-    → Bool
     → ([ReducedPhylogeneticGraph], VertexCost)
     → (Maybe SAParams, [ReducedPhylogeneticGraph])
     → PhyG ([ReducedPhylogeneticGraph], Int)
-deleteAllNetEdges'' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
+deleteAllNetEdges'' inGS inData netParams counter (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
     deleteAllNetEdges'
         inGS
         inData
-        maxNetEdges
-        numToKeep
-        counter
-        returnMutated
-        doSteepest
-        doRandomOrder
+        netParams
         (curBestGraphList, curBestGraphCost)
         inSimAnnealParams
         inPhyloGraphList
@@ -1190,29 +1169,21 @@ call with ([], infinity) [single input graph]
 deleteAllNetEdges'
     ∷ GlobalSettings
     → ProcessedData
+    -> NetParams
     → Int
-    → Int
-    → Int
-    → Bool
-    → Bool
-    → Bool
     → ([ReducedPhylogeneticGraph], VertexCost)
     → Maybe SAParams
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams = \case
+deleteAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams = \case
     [] → pure (take numToKeep curBestGraphList, counter)
     firstPhyloGraph : otherPhyloGraphs
         | LG.isEmpty $ fst5 firstPhyloGraph →
             deleteAllNetEdges'
                 inGS
                 inData
-                maxNetEdges
-                numToKeep
+                netParams
                 counter
-                returnMutated
-                doSteepest
-                doRandomOrder
                 (curBestGraphList, curBestGraphCost)
                 inSimAnnealParams
                 otherPhyloGraphs
@@ -1223,10 +1194,7 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
             deleteEachNetEdge
                 inGS
                 inData
-                numToKeep
-                doSteepest
-                doRandomOrder
-                False
+                netParams {netReturnMutated = False}
                 inSimAnnealParams
                 firstPhyloGraph
 
@@ -1242,12 +1210,8 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                 deleteAllNetEdges'
                     inGS
                     inData
-                    maxNetEdges
-                    numToKeep
+                    netParams
                     (counter + 1)
-                    returnMutated
-                    doSteepest
-                    doRandomOrder
                     (firstPhyloGraph : curBestGraphList, currentCost)
                     inSimAnnealParams
                     otherPhyloGraphs
@@ -1261,12 +1225,8 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                         postProcessNetworkDelete
                             inGS
                             inData
-                            maxNetEdges
-                            numToKeep
+                            netParams
                             counter
-                            returnMutated
-                            doSteepest
-                            doRandomOrder
                             (curBestGraphList, curBestGraphCost)
                             inSimAnnealParams
                             inputPhyloGraphs
@@ -1279,12 +1239,8 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                             postProcessNetworkDeleteSA
                                 inGS
                                 inData
-                                maxNetEdges
-                                numToKeep
+                                netParams
                                 counter
-                                returnMutated
-                                doSteepest
-                                doRandomOrder
                                 (curBestGraphList, curBestGraphCost)
                                 newSAParams
                                 inputPhyloGraphs
@@ -1303,12 +1259,8 @@ deleteAllNetEdges' inGS inData maxNetEdges numToKeep counter returnMutated doSte
                                     insertAllNetEdges'
                                         inGS
                                         inData
-                                        maxNetEdges
-                                        numToKeep
+                                        netParams {netReturnMutated = False}
                                         saCounter
-                                        False
-                                        doSteepest
-                                        doRandomOrder
                                         (saGraphs, annealBestCost)
                                         Nothing
                                         saGraphs
@@ -1324,12 +1276,8 @@ assumes SAParams are updated during return of graph list above
 postProcessNetworkDeleteSA
     ∷ GlobalSettings
     → ProcessedData
+    -> NetParams
     → Int
-    → Int
-    → Int
-    → Bool
-    → Bool
-    → Bool
     → ([ReducedPhylogeneticGraph], VertexCost)
     → Maybe SAParams
     → [ReducedPhylogeneticGraph]
@@ -1337,7 +1285,7 @@ postProcessNetworkDeleteSA
     → VertexCost
     → VertexCost
     → PhyG ([ReducedPhylogeneticGraph], Int)
-postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
+postProcessNetworkDeleteSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
     -- this to deal with empty list issues if nothing found
     let (nextNewGraphList, firstNewGraphList) = case newGraphList of
             [] → ([], [])
@@ -1353,12 +1301,8 @@ postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutat
                 deleteAllNetEdges'
                     inGS
                     inData
-                    maxNetEdges
-                    numToKeep
+                    netParams
                     (counter + 1)
-                    returnMutated
-                    doSteepest
-                    doRandomOrder
                     (newGraphList, newGraphCost)
                     inSimAnnealParams
                     graphsToDelete
@@ -1374,12 +1318,8 @@ postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutat
                                 deleteAllNetEdges'
                                     inGS
                                     inData
-                                    maxNetEdges
-                                    numToKeep
+                                    netParams
                                     (counter + 1)
-                                    returnMutated
-                                    doSteepest
-                                    doRandomOrder
                                     (firstNewGraphList <> curBestGraphList, annealBestCost)
                                     inSimAnnealParams
                                     (nextNewGraphList <> inPhyloGraphList)
@@ -1389,12 +1329,8 @@ postProcessNetworkDeleteSA inGS inData maxNetEdges numToKeep counter returnMutat
 postProcessNetworkDelete
     ∷ GlobalSettings
     → ProcessedData
+    -> NetParams
     → Int
-    → Int
-    → Int
-    → Bool
-    → Bool
-    → Bool
     → ([ReducedPhylogeneticGraph], VertexCost)
     → Maybe SAParams
     → [ReducedPhylogeneticGraph]
@@ -1402,19 +1338,15 @@ postProcessNetworkDelete
     → VertexCost
     → VertexCost
     → PhyG ([ReducedPhylogeneticGraph], Int)
-postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated doSteepest doRandomOrder (curBestGraphList, _) inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
+postProcessNetworkDelete inGS inData netParams counter (curBestGraphList, _) inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
     -- worse graphs found--go on
     if newGraphCost > currentCost
         then do
             deleteAllNetEdges'
                 inGS
                 inData
-                maxNetEdges
-                numToKeep
+                netParams
                 (counter + 1)
-                returnMutated
-                doSteepest
-                doRandomOrder
                 ((head inPhyloGraphList) : curBestGraphList, currentCost)
                 inSimAnnealParams
                 (tail inPhyloGraphList)
@@ -1428,12 +1360,8 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
                             deleteAllNetEdges'
                                 inGS
                                 inData
-                                maxNetEdges
-                                numToKeep
+                                netParams
                                 (counter + 1)
-                                returnMutated
-                                doSteepest
-                                doRandomOrder
                                 (newGraphList, newGraphCost)
                                 inSimAnnealParams
                                 newGraphList
@@ -1441,12 +1369,8 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
                             deleteAllNetEdges'
                                 inGS
                                 inData
-                                maxNetEdges
-                                numToKeep
+                                netParams
                                 (counter + 1)
-                                returnMutated
-                                doSteepest
-                                doRandomOrder
                                 (newGraphList, newGraphCost)
                                 inSimAnnealParams
                                 (newGraphList <> (tail inPhyloGraphList))
@@ -1459,12 +1383,8 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
                     deleteAllNetEdges'
                         inGS
                         inData
-                        maxNetEdges
-                        numToKeep
+                        netParams
                         (counter + 1)
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         (newCurSameBestList, currentCost)
                         inSimAnnealParams
                         (tail inPhyloGraphList)
@@ -1474,15 +1394,12 @@ postProcessNetworkDelete inGS inData maxNetEdges numToKeep counter returnMutated
 deleteOneNetAddAll'
     ∷ GlobalSettings
     → ProcessedData
-    → Int
-    → Int
-    → Bool
-    → Bool
+    -> NetParams
     → ReducedPhylogeneticGraph
     → Maybe SAParams
     → LG.Edge
     → PhyG [ReducedPhylogeneticGraph]
-deleteOneNetAddAll' inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph inSimAnnealParams edgeToDelete =
+deleteOneNetAddAll' inGS inData netParams inPhyloGraph inSimAnnealParams edgeToDelete =
     deleteOneNetAddAll
         inGS
         inData
@@ -1502,15 +1419,12 @@ unlike deleteOneNetAddAll' only deals with single edge deletion at a time
 deleteOneNetAddAll
     ∷ GlobalSettings
     → ProcessedData
-    → Int
-    → Int
-    → Bool
-    → Bool
+    -> NetParams
     → ReducedPhylogeneticGraph
     → [LG.Edge]
     → Maybe SAParams
     → PhyG [ReducedPhylogeneticGraph]
-deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder inPhyloGraph edgeToDeleteList inSimAnnealParams =
+deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnnealParams =
     if null edgeToDeleteList
         then do
             -- trace ("\tGraph has no edges to move---skipping")
@@ -1535,10 +1449,7 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
                             deleteOneNetAddAll
                                 inGS
                                 inData
-                                maxNetEdges
-                                numToKeep
-                                doSteepest
-                                doRandomOrder
+                                netParams
                                 inPhyloGraph
                                 (tail edgeToDeleteList)
                                 inSimAnnealParams
@@ -1560,10 +1471,8 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
                                         insertEachNetEdge
                                             inGS
                                             inData
+                                            netParams
                                             (curNumNetNodes + 1)
-                                            numToKeep
-                                            doSteepest
-                                            doRandomOrder
                                             Nothing
                                             inSimAnnealParams
                                             graphToInsert'
@@ -1581,10 +1490,7 @@ deleteOneNetAddAll inGS inData maxNetEdges numToKeep doSteepest doRandomOrder in
                                             deleteOneNetAddAll
                                                 inGS
                                                 inData
-                                                maxNetEdges
-                                                numToKeep
-                                                doSteepest
-                                                doRandomOrder
+                                                netParams
                                                 inPhyloGraph
                                                 (tail edgeToDeleteList)
                                                 inSimAnnealParams
@@ -1929,14 +1835,12 @@ if equal returns unique graph list
 deleteEachNetEdge
     ∷ GlobalSettings
     → ProcessedData
-    → Int
-    → Bool
-    → Bool
+    -> NetParams
     → Bool
     → Maybe SAParams
     → ReducedPhylogeneticGraph
     → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
-deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force inSimAnnealParams inPhyloGraph =
+deleteEachNetEdge inGS inData netParams  force inSimAnnealParams inPhyloGraph =
     -- trace ("DENE start") (
     if LG.isEmpty $ thd5 inPhyloGraph
         then do
@@ -2034,14 +1938,12 @@ replicate
 deleteEachNetEdge'
     ∷ GlobalSettings
     → ProcessedData
-    → Int
-    → Bool
-    → Bool
+    -> NetParams
     → Bool
     → (Maybe SAParams, ReducedPhylogeneticGraph)
     → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
-deleteEachNetEdge' inGS inData numToKeep doSteepest doRandomOrder force (inSimAnnealParams, inPhyloGraph) =
-    deleteEachNetEdge inGS inData numToKeep doSteepest doRandomOrder force inSimAnnealParams inPhyloGraph
+deleteEachNetEdge' inGS inData netParams force (inSimAnnealParams, inPhyloGraph) =
+    deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph
 
 
 {- | deleteNetEdgeRecursive like deleteEdge, deletes an edge (checking if network) and rediagnoses graph
