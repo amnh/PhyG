@@ -258,7 +258,7 @@ data SwapType = NoSwap | NNI | SPR | TBR | Alternate |TBROnly
 
 
 -- | JoinType types for join methods
-data JoinType = JoinPruned | JoinAll -- | JoinAlternate
+data JoinType = JoinPruned | JoinAll -- (| JoinAlternate)
     deriving stock (Show, Eq)
 
 
@@ -737,6 +737,26 @@ data SwapParams = SwapParams
 
 
 instance NFData SwapParams where rnf x = seq x ()
+
+-- | NetEditType type for network edits
+data NetEditType = NetAdd | NetDelete | NetAddDelete | NetMove | NetNothing
+    deriving stock (Show, Eq)
+
+
+-- | netParam type for net edit parameers
+data NetParams = NetParams
+    { netRandom ∷ Bool -- randomized splitting and rejoining
+    , netCheckHeuristic :: HeuristicCheck -- for reoptimizing graphs after heuristic costs
+    , netMaxEdges ∷ Int -- maximum number of networkNodes/Edges (edges 2x nodes, but add nodes)
+    , netKeepNum ∷ Int -- number equally costly solutions to keep
+    , netReturnMutated ∷ Bool -- return changed graphs for simlated annealing, genetic algorithm
+    , netSteepest ∷ Bool -- steepest descent versus "all"
+    , netEditType ∷ NetEditType -- NNI/SPR/TBR/Alternate
+    }
+    deriving stock (Show, Eq)
+
+
+instance NFData NetParams where rnf x = seq x ()
 
 
 -- | empty structures for convenient use

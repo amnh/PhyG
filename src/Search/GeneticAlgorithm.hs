@@ -237,6 +237,22 @@ mutateGraph inGS inData maxNetEdges inGraph
                         , checkHeuristic = valCheckHeuristic
                         }
 
+            -- randomize network edit parameters
+            getRandomNetParams = do
+                editType <- getRandomFrom [NetAdd, NetDelete, NetMove]
+                let doRandomOrder = True
+                -- populate NetParams structure
+                pure $
+                    NetParams
+                        {   netRandom = doRandomOrder
+                            , netCheckHeuristic = valCheckHeuristic
+                            , netMaxEdges = maxNetEdges
+                            , netKeepNum = valNumToKeep
+                            , netReturnMutated = valReturnMutated
+                            , netSteepest = valSteepest
+                            , netEditType = editType
+                        }
+
             firstOrOldIfNoneExists =
                 pure . \case
                     ([], _) → inGraph
@@ -288,17 +304,14 @@ mutateGraph inGS inData maxNetEdges inGraph
                 rMaxRounds ← getRandomFrom [1 .. 5]
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
+                rtNetParams <- getRandomNetParams
                 firstOrOldIfNoneExists
                     =<< N.insertAllNetEdges
                         inGS
                         inData
-                        maxNetEdges
-                        valNumToKeep
+                        rtNetParams
                         rMaxRounds
                         0
-                        valReturnMutated
-                        valSteepest
-                        valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
 

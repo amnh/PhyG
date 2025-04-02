@@ -525,7 +525,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                     "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n"
         -- process args for netEdgeMaster
         _ →
-            let ( keepNum
+            let (   keepNum
                     , steps'
                     , annealingRounds'
                     , driftRounds'
@@ -535,7 +535,9 @@ netEdgeMaster inArgs inGS inData inGraphList
                     , maxNetEdges
                     , lcArgList
                     , maxRounds
+                    , levelNumber
                     ) = getNetEdgeParams inGS inArgs
+
                 doNetAdd = any ((== "netadd") . fst) lcArgList
                 doNetDelete = any ((== "netdel") . fst) lcArgList || any ((== "netdelete") . fst) lcArgList
                 doAddDelete = any ((== "netadddel") . fst) lcArgList || any ((== "netadddelete") . fst) lcArgList
@@ -543,7 +545,13 @@ netEdgeMaster inArgs inGS inData inGraphList
                 doSteepest' = any ((== "steepest") . fst) lcArgList
                 doAll = any ((== "all") . fst) lcArgList
 
-                -- do steepest default
+                netEditOption = if doNetAdd then NetAdd
+                                else if doNetDelete then NetDelete
+                                else if doAddDelete then NetAddDelete
+                                else if doMove then NetMove
+                                else NetNothing
+
+                -- do steepest default                           
                 doSteepest
                     | (not doSteepest' && not doAll) = True
                     | doSteepest' && doAll = True
@@ -555,6 +563,21 @@ netEdgeMaster inArgs inGS inData inGraphList
                     | any ((== "inorder") . fst) lcArgList = False
                     | otherwise = True
 
+                -- checking of heuristic graph costs
+                heuristicCheck 
+                    | any ((== "bestonly") . fst) lcArgList = BestOnly
+                    | any ((== "better") . fst) lcArgList = Better
+                    | any ((== "bettern") . fst) lcArgList = BetterN
+                    | any ((== "bestall") . fst) lcArgList = BestAll
+                    | otherwise = BetterN
+
+                -- set level of swap heuristic intensity
+                heuristicLevel
+                    | all ((/= "level") . fst) lcArgList = (-1)
+                    | fromJust levelNumber < 0 = 0
+                    | fromJust levelNumber > 3 = 3
+                    | otherwise = fromJust levelNumber
+
                 -- simulated annealing parameters
                 -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
                 doAnnealing = any ((== "annealing") . fst) lcArgList
@@ -565,6 +588,17 @@ netEdgeMaster inArgs inGS inData inGraphList
                 doRandomOrder = doRandomOrder' || doDrift || doAnnealing
 
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
+
+                -- put options in NetParams
+                netParams = NetParams
+                            { netRandom = doRandomOrder
+                            , netCheckHeuristic = heuristicCheck
+                            , netMaxEdges = fromJust maxNetEdges
+                            , netKeepNum = fromJust keepNum
+                            , netReturnMutated = returnMutated
+                            , netSteepest = doSteepest
+                            , netEditType = netEditOption
+                            }
 
                 getSimAnnealParams
                     | not doAnnealing && not doDrift = Nothing
@@ -612,13 +646,9 @@ netEdgeMaster inArgs inGS inData inGraphList
                     N.insertAllNetEdges
                         inGS
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         (fromJust maxRounds)
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
 
                 deleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
@@ -626,12 +656,8 @@ netEdgeMaster inArgs inGS inData inGraphList
                     N.deleteAllNetEdges
                         inGS
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
 
                 moveAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
@@ -639,12 +665,8 @@ netEdgeMaster inArgs inGS inData inGraphList
                     N.moveAllNetEdges
                         inGS
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
 
                 addDeleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
@@ -652,13 +674,9 @@ netEdgeMaster inArgs inGS inData inGraphList
                     N.addDeleteNetEdges
                         inGS
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         (fromJust maxRounds)
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
 
                 simAnnealParams = getSimAnnealParams
@@ -666,77 +684,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                 newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
             in  do
                     -- perform add/delete/move operations
-                    {-
-                                        bannerText
-                                            | isJust simAnnealParams =
-                                                let editString
-                                                        | doNetAdd = " add) "
-                                                        | doNetDelete = " delete) "
-                                                        | doAddDelete = " add/delete) "
-                                                        | otherwise = " move "
-                                                in  if method (fromJust simAnnealParams) == SimAnneal
-                                                        then
-                                                            "Simulated Annealing (Network edge"
-                                                                <> editString
-                                                                <> show (rounds $ fromJust simAnnealParams)
-                                                                <> " rounds "
-                                                                <> show (length inGraphList)
-                                                                <> " with "
-                                                                <> show (numberSteps $ fromJust simAnnealParams)
-                                                                <> " cooling steps "
-                                                                <> show (length inGraphList)
-                                                                <> " input graph(s) at minimum cost "
-                                                                <> show (minimum $ fmap snd5 inGraphList)
-                                                                <> " keeping maximum of "
-                                                                <> show (fromJust keepNum)
-                                                                <> " graphs"
-                                                        else
-                                                            "Drifting (Network edge"
-                                                                <> editString
-                                                                <> show (rounds $ fromJust simAnnealParams)
-                                                                <> " rounds "
-                                                                <> show (length inGraphList)
-                                                                <> " with "
-                                                                <> show (numberSteps $ fromJust simAnnealParams)
-                                                                <> " cooling steps "
-                                                                <> show (length inGraphList)
-                                                                <> " input graph(s) at minimum cost "
-                                                                <> show (minimum $ fmap snd5 inGraphList)
-                                                                <> " keeping maximum of "
-                                                                <> show (fromJust keepNum)
-                                                                <> " graphs"
-                                            | doNetDelete =
-                                                ( "Network edge delete on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                )
-                                            | doNetAdd =
-                                                ( "Network edge add on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                    <> " and maximum "
-                                                    <> show (fromJust maxRounds)
-                                                    <> " rounds"
-                                                )
-                                            | doAddDelete =
-                                                ( "Network edge add/delete on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                    <> " and maximum "
-                                                    <> show (fromJust maxRounds)
-                                                    <> " rounds"
-                                                )
-                                            | doMove =
-                                                ( "Network edge move on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                )
-                                            | otherwise = ""
-                    -}
+                    
                     when (doDrift && doAnnealing) $
                         logWith
                             LogWarn
@@ -866,7 +814,7 @@ netEdgeMaster inArgs inGS inData inGraphList
 getNetEdgeParams
     ∷ GlobalSettings
     -> [Argument]
-    → (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int)
+    → (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int, Maybe Int)
 getNetEdgeParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
@@ -942,6 +890,14 @@ getNetEdgeParams inGS inArgs =
                             errorWithoutStackTrace ("Multiple 'rounds' number specifications in netEdge command--can have only one: " <> show inArgs)
                         | null maxRoundsList = Just 1
                         | otherwise = readMaybe (snd $ head maxRoundsList) ∷ Maybe Int
+
+                    levelList = filter ((== "level") . fst) lcArgList
+                    levelNumber
+                        | length levelList > 1 =
+                            errorWithoutStackTrace ("Multiple 'level' number specifications in refine network command--can have only one: " <> show inArgs)
+                        | null levelList = Just 2
+                        | otherwise = readMaybe (snd $ head levelList) ∷ Maybe Int
+
                 in  -- check inputs
                     if isNothing keepNum
                         then errorWithoutStackTrace ("Keep specification not an integer in netEdge: " <> show (head keepList))
@@ -973,6 +929,10 @@ getNetEdgeParams inGS inArgs =
                                                                         then
                                                                             errorWithoutStackTrace
                                                                                 ("Network edit 'rounds' specification not an integer (e.g. rounds:10): " <> show (snd $ head maxRoundsList))
+                                                                        else if isNothing levelNumber
+                                                                        then
+                                                                            errorWithoutStackTrace
+                                                                                ("Refine network 'level' specification not an integer (e.g. level:2): " <> show (snd $ head levelList))
                                                                         else
                                                                             ( keepNum
                                                                             , steps'
@@ -984,4 +944,5 @@ getNetEdgeParams inGS inArgs =
                                                                             , maxNetEdges
                                                                             , lcArgList
                                                                             , maxRounds
+                                                                            , levelNumber
                                                                             )
