@@ -555,6 +555,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                 doSteepest
                     | (not doSteepest' && not doAll) = True
                     | doSteepest' && doAll = True
+                    | doAll = False
                     | otherwise = doSteepest'
 
                 -- randomized order default

@@ -552,7 +552,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
             -- check for max net edges
             (_, _, _, netNodes) = LG.splitVertexList $ thd5 firstPhyloGraph
         in  do
-                logWith LogInfo ("\t\tNumber of network edges: " <> (show $ length netNodes) <> "\n")
+                logWith LogInfo ("\n\t\tNumber of network edges: " <> (show $ length netNodes) <> "\n")
 
                 (newGraphList, _, newSAParams) ←
                     insertEachNetEdge
@@ -573,7 +573,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                 case length netNodes `compare` (netMaxEdges netParams) of
                     LT → case newGraphList of
                         [] → do
-                            logWith LogInfo $ unwords ["\t\tNumber of network edges:", show $ length netNodes, "\n"]
+                            logWith LogInfo $ unwords ["\n\t\tNumber of network edges:", show $ length netNodes, "\n"]
                             pure (take (netKeepNum netParams) curBestGraphList, counter)
                         -- regular insert keeping best
                         g : gs → case inSimAnnealParams of
@@ -627,7 +627,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                         pure (take (netKeepNum netParams) curBestGraphList, counter)
 
 
-{- | postProcessNetworkAddSA processes simaneal/drift
+{- | postProcessNetworkAddSA processes simAnneal/drift
 assumes SAParams are updated during return of graph list above
 -}
 postProcessNetworkAddSA
@@ -779,6 +779,9 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
                             then shuffleList candidateNetworkEdgeList'
                             else pure candidateNetworkEdgeList'
 
+                    logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
+
+                    {-
                     inNetEdRList ←
                         insertNetEdgeRecursive
                             inGS
@@ -792,36 +795,62 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
                     inNetEdRListMAP ←
                         getParallelChunkTraverse >>= \pTraverse →
                             action `pTraverse` candidateNetworkEdgeList
+                    -}
 
-                    let (newGraphList, newSAParams) =
+                    (newGraphList, newSAParams) <-
                             if not (netSteepest netParams)
                                 then
                                     let genNewSimAnnealParams =
                                             if isNothing inSimAnnealParams
                                                 then Nothing
                                                 else U.incrementSimAnnealParams inSimAnnealParams
-                                    in  -- TODO
-                                        (filter (/= emptyReducedPhylogeneticGraph) inNetEdRListMAP, genNewSimAnnealParams)
-                                else inNetEdRList
+                                    in do
+                                        inNetEdRListMAP ←
+                                            getParallelChunkTraverse >>= \pTraverse →
+                                                action `pTraverse` candidateNetworkEdgeList
+
+                                        pure (filter (/= emptyReducedPhylogeneticGraph) inNetEdRListMAP, genNewSimAnnealParams)
+                                else do
+                                    insertNetEdgeRecursive
+                                        inGS
+                                        inData
+                                        netParams
+                                        inPhyloGraph
+                                        preDeleteCost
+                                        inSimAnnealParams
+                                        candidateNetworkEdgeList
+                                    --pure inNetEdRList
                     let minCost =
                             if null candidateNetworkEdgeList || null newGraphList
                                 then infinity
                                 else minimum $ fmap snd5 newGraphList
 
-                    logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
+                    {-
+                    if minCost < (snd5 inPhyloGraph) then 
+                        logWith LogInfo (" -> " <> (show minCost) <> "\n")
+                    else logWith LogInfo ("\n")
+                    -}
 
                     -- no network edges to insert
                     -- trace ("IENE: " <> (show minCost)) (
                     if (length netNodes >= (netMaxEdges netParams))
                         then do
                             logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
-                            pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
-                        else -- no edges to add
+                            if minCost < (snd5 inPhyloGraph) then do
+                                newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                                pure (newBestGraphList, snd5 inPhyloGraph, inSimAnnealParams)
+                            else do
+                                pure ([inPhyloGraph], minCost, inSimAnnealParams)
+                        else -- no edges to add or doALL
 
-                            if null candidateNetworkEdgeList
+                            if null candidateNetworkEdgeList || not (netSteepest netParams)
                                 then do
-                                    -- trace ("IENE num cand edges:" <> (show $ length candidateNetworkEdgeList))
-                                    pure ([inPhyloGraph], currentCost, newSAParams)
+                                    if minCost < (snd5 inPhyloGraph) then do
+                                        newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                                        pure (newBestGraphList, snd5 inPhyloGraph, inSimAnnealParams)
+                                    else do
+                                        pure ([inPhyloGraph], minCost, inSimAnnealParams)
+
                                 else -- single if steepest so no need to unique
 
                                     if (netSteepest netParams)
@@ -849,8 +878,9 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
 
                                                                 pure (allMinCostGraphs, allMinCost, U.incrementSimAnnealParams $ head allSAParamList)
                                                             else GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList <&> \x → (x, minCost, newSAParams)
-                                                else -- SA anneal/Drift
-
+                                                
+                                                -- SA anneal/Drift
+                                                else 
                                                 -- always take better
 
                                                     if minCost < currentCost
