@@ -847,7 +847,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                             
                             
                             -- hit max network edges to insert
-                            if (length netNodes >= (netMaxEdges netParams))
+                            if (1 + length netNodes >= (netMaxEdges netParams))
                                 then do
                                     logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
                                     if minCost < (snd5 inPhyloGraph) then do
