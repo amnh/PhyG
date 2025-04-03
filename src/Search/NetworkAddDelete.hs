@@ -815,7 +815,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                         pure ([inPhyloGraph], currentCost, inSimAnnealParams)
 
                     else do
-                            logWith LogInfo ("\nEvaluating " <> (show $ length graphsToBeEvaluated) <> " candidate graphs" <> " of " <> (show $ length candidatePairList) <> "\n")
+                            -- logWith LogInfo ("\nEvaluating " <> (show $ length graphsToBeEvaluated) <> " candidate graphs" <> " of " <> (show $ length candidatePairList) <> "\n")
                             -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
                             diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                             checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
@@ -842,7 +842,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
 
                             
                             if minCost < (snd5 inPhyloGraph) then 
-                                logWith LogInfo (" -> " <> (show minCost) <> "\n")
+                                logWith LogInfo ("\t\t -> " <> (show minCost) <> "\n")
                             else logWith LogInfo ("\n")
                             
                             
