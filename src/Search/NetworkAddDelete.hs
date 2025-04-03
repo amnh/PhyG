@@ -25,6 +25,7 @@ import Data.Bits
 import Data.Foldable (fold)
 import Data.Functor ((<&>))
 import Data.InfList qualified as IL
+import Data.List qualified as L
 import Data.Maybe
 import Data.Text.Lazy qualified as TL
 import Data.Vector qualified as V
@@ -743,6 +744,193 @@ postProcessNetworkAdd inGS inData netParams counter (curBestGraphList, _) (newGr
             inSimAnnealParams
             inPhyloGraphList
 
+{- | insertEachNetEdgeHeuristicGather takes a phylogenetic graph and inserts all permissible network edges all
+in parallel and returns unique list of new Phylogenetic Graphs and cost
+if equal returns unique graph list
+
+Operates by first perfomring heuriastic cost estimate for all possibilities,
+then fully evaluates the best (ie. lowest delta number) graphs based on
+HeursticCheck option.
+-}
+insertEachNetEdgeHeuristicGather
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Maybe VertexCost
+    → Maybe SAParams
+    → ReducedPhylogeneticGraph
+    → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnnealParams inPhyloGraph =
+    if LG.isEmpty $ fst5 inPhyloGraph
+        then error "Empty input insertEachNetEdge graph in deleteAllNetEdges"
+        else
+            let currentCost =
+                    if isNothing preDeleteCost
+                        then snd5 inPhyloGraph
+                        else fromJust preDeleteCost
+
+                (_, _, _, netNodes) = LG.splitVertexList (thd5 inPhyloGraph)
+
+                -- parallel stuff
+                heuristicAction ∷ (LG.LEdge b, LG.LEdge b) → PhyG (VertexCost, SimpleGraph)
+                heuristicAction = insertNetEdgeHeuristic inGS inData inPhyloGraph
+
+                -- this needs to start with root hence Nothing
+                diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
+                diagnoseAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
+
+            in  do
+                    candidateNetworkEdgeList' ← getPermissibleEdgePairs inGS (thd5 inPhyloGraph)
+
+                    -- radomize pair list--not needed if doing all (as in here).
+                    candidateNetworkEdgeList ←
+                        if (netRandom netParams)
+                            then shuffleList candidateNetworkEdgeList'
+                            else pure candidateNetworkEdgeList'
+
+                    logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
+
+                    -- get heuristic costs and simple graphs
+                    heurCostSimpleGraphPairList <- 
+                        getParallelChunkTraverse >>= \pTraverse →
+                            heuristicAction `pTraverse` candidateNetworkEdgeList
+
+                    -- filter out non-phylo graphs and sort on heuristic cost
+                    let candidatePairList = L.sortOn fst $ filter ((/= infinity) .fst) heurCostSimpleGraphPairList
+
+                    let graphsToBeEvaluated = 
+                                if (netCheckHeuristic netParams) == BestOnly then
+                                    fmap snd $ take 1 candidatePairList
+
+                                else if (netCheckHeuristic netParams) == Better then
+                                    fmap snd $ filter ((< 0) . fst) candidatePairList
+
+                                else if (netCheckHeuristic netParams) == BetterN then 
+                                    fmap snd $ take (graphsSteepest inGS) candidatePairList
+
+                                else --BestAll
+                                    fmap snd candidatePairList
+
+                    if null graphsToBeEvaluated then 
+                        pure ([inPhyloGraph], currentCost, inSimAnnealParams)
+
+                    else do
+                            logWith LogInfo ("\nEvaluating " <> (show $ length graphsToBeEvaluated) <> " candidate graphs" <> " of " <> (show $ length candidatePairList) <> "\n")
+                            -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
+                            diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
+                            checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
+
+
+                            --pure ([inPhyloGraph], currentCost, inSimAnnealParams)
+
+
+                            
+                            (newGraphList, newSAParams) <-
+                                    -- do all in prallel
+                                   let genNewSimAnnealParams =
+                                        if isNothing inSimAnnealParams
+                                            then Nothing
+                                            else U.incrementSimAnnealParams inSimAnnealParams
+                                   in do
+                                        pure (checkedGraphCosts, genNewSimAnnealParams)
+
+                                   
+                            let minCost =
+                                    if null graphsToBeEvaluated || null newGraphList
+                                        then infinity
+                                        else minimum $ fmap snd5 newGraphList
+
+                            
+                            if minCost < (snd5 inPhyloGraph) then 
+                                logWith LogInfo (" -> " <> (show minCost) <> "\n")
+                            else logWith LogInfo ("\n")
+                            
+                            
+                            -- hit max network edges to insert
+                            if (length netNodes >= (netMaxEdges netParams))
+                                then do
+                                    logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
+                                    if minCost < (snd5 inPhyloGraph) then do
+                                        newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                                        pure (newBestGraphList, currentCost, inSimAnnealParams)
+                                    else do
+                                        newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (inPhyloGraph : newGraphList)
+                                        pure (newBestGraphList, min minCost (snd5 inPhyloGraph), inSimAnnealParams)
+
+                            -- not reached max netedges if found better recurse, if not then return input graph
+                            else 
+                                if minCost < (snd5 inPhyloGraph) then
+                                    let genNewSimAnnealParams =
+                                            if isNothing inSimAnnealParams
+                                                then Nothing
+                                                else U.incrementSimAnnealParams inSimAnnealParams
+                                    in do
+                                    newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                                    -- pure (newBestGraphList, snd5 inPhyloGraph, genNewSimAnnealParams)
+                                    insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnnealParams (head newBestGraphList) 
+                                else do
+                                    pure ([inPhyloGraph], minCost, inSimAnnealParams)
+                            
+
+                                
+
+{- | insertNetEdgeHeuristic inserts an edge between two other edges, creating 2 new nodes 
+contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
+does not check any edge reasonable-ness properties
+new edge directed from first to second edge
+naive for now
+predeletecost of edge move
+
+returns heuristic cost and simple graph. No rediagnosis
+If simpleGraph is not PhylogenticGraph then infinity and emptyGraph
+-}
+insertNetEdgeHeuristic
+    ∷ GlobalSettings
+    → ProcessedData
+    → ReducedPhylogeneticGraph
+    → (LG.LEdge b, LG.LEdge b)
+    → PhyG (VertexCost, SimpleGraph)
+insertNetEdgeHeuristic inGS inData inPhyloGraph edgePair@((u, v, _), (u', v', _)) =
+    if LG.isEmpty $ thd5 inPhyloGraph
+        then error "Empty input phylogenetic graph in insertNetEdgeHeuristic"
+        else
+            let inSimple = fst5 inPhyloGraph
+
+                -- get children of u' to make sure no net children--moved to permissiable edges
+                -- u'ChildrenNetNodes = filter (== True) $ fmap (LG.isNetworkNode inSimple) $ LG.descendants inSimple u'
+
+                numNodes = length $ LG.nodes inSimple
+                newNodeOne = (numNodes, TL.pack ("HTU" <> (show numNodes)))
+                newNodeTwo = (numNodes + 1, TL.pack ("HTU" <> (show $ numNodes + 1)))
+                newEdgeList =
+                    [ (u, fst newNodeOne, 0.0)
+                    , (fst newNodeOne, v, 0.0)
+                    , (u', fst newNodeTwo, 0.0)
+                    , (fst newNodeTwo, v', 0.0)
+                    , (fst newNodeOne, fst newNodeTwo, 0.0)
+                    ]
+                edgesToDelete = [(u, v), (u', v')]
+                newSimple = LG.delEdges edgesToDelete $ LG.insEdges newEdgeList $ LG.insNodes [newNodeOne, newNodeTwo] inSimple
+
+            in  do
+                    -- remove these checks when working-
+                    isPhyloGraph ← LG.isPhylogeneticGraph newSimple
+                    
+                    -- unfortunetely need this when there are network edges present before add
+                    if not isPhyloGraph
+                        then do
+                            pure (infinity, LG.empty) -- emptyReducedPhylogeneticGraph
+                        else do
+                            -- calculates heursitic graph delta
+                            --(heuristicDelta', _, _, _, _) <-  heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
+
+                            heuristicDelta <- heuristicAddDelta' inGS inPhyloGraph edgePair
+                                              
+                            let edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
+
+                            -- return heuristic cost and simple graph
+                            pure (heuristicDelta + edgeAddDelta,  newSimple) 
+
 
 {- | insertEachNetEdge takes a phylogenetic graph and inserts all permissible network edges one at time
 and returns unique list of new Phylogenetic Graphs and cost
@@ -758,6 +946,9 @@ insertEachNetEdge
     → ReducedPhylogeneticGraph
     → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
 insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloGraph =
+    insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnnealParams inPhyloGraph
+
+    {-
     if LG.isEmpty $ fst5 inPhyloGraph
         then error "Empty input insertEachNetEdge graph in deleteAllNetEdges"
         else
@@ -771,6 +962,7 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
                 -- parallel stuff
                 action ∷ (LG.LEdge b, LG.LEdge b) → PhyG ReducedPhylogeneticGraph
                 action = insertNetEdge inGS inData inPhyloGraph preDeleteCost
+
             in  do
                     candidateNetworkEdgeList' ← getPermissibleEdgePairs inGS (thd5 inPhyloGraph)
 
@@ -782,23 +974,8 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
 
                     logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
 
-                    {-This is srict so doubled work 
-                    inNetEdRList ←
-                        insertNetEdgeRecursive
-                            inGS
-                            inData
-                            netParams
-                            inPhyloGraph
-                            preDeleteCost
-                            inSimAnnealParams
-                            candidateNetworkEdgeList
-
-                    inNetEdRListMAP ←
-                        getParallelChunkTraverse >>= \pTraverse →
-                            action `pTraverse` candidateNetworkEdgeList
-                    -}
-
                     (newGraphList, newSAParams) <-
+                            -- do all in prallel
                             if not (netSteepest netParams)
                                 then
                                     let genNewSimAnnealParams =
@@ -811,6 +988,8 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
                                                 action `pTraverse` candidateNetworkEdgeList
 
                                         pure (filter (/= emptyReducedPhylogeneticGraph) inNetEdRListMAP, genNewSimAnnealParams)
+
+                            -- do in groups less efficient
                                 else do
                                     insertNetEdgeRecursive
                                         inGS
@@ -907,6 +1086,7 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
                                                                                 preDeleteCost
                                                                                 nextSAParams
                                                                                 inPhyloGraph
+    -}
 
 
 -- | insertEachNetEdge' is a wrapper around insertEachNetEdge to allow for parmapping with multiple parameters
