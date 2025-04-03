@@ -866,8 +866,8 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                                 else U.incrementSimAnnealParams inSimAnnealParams
                                     in do
                                     newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                                    -- pure (newBestGraphList, snd5 inPhyloGraph, genNewSimAnnealParams)
-                                    insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnnealParams (head newBestGraphList) 
+                                    pure (newBestGraphList, snd5 inPhyloGraph, genNewSimAnnealParams)
+                                    -- insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnnealParams (head newBestGraphList) 
                                 else do
                                     pure ([inPhyloGraph], minCost, inSimAnnealParams)
                             
