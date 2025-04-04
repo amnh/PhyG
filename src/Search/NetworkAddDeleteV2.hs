@@ -94,7 +94,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
             -- check for max net edges
             netNodes = fth4 $ LG.splitVertexList $ thd5 firstPhyloGraph
         in  do
-                logWith LogInfo ("\n\tNumber of graphs: " <> (show $ length inPhyloGraphList) <> " Number of network edges: " <> (show $ length netNodes) <> "\n")
+                logWith LogInfo ("\n\tNumber of network edges: " <> (show $ length netNodes) <> " Number of graphs: " <> (show $ length inPhyloGraphList) <> "\n")
 
                 if length netNodes >= (netMaxEdges netParams) then do
                     logWith LogInfo $ unwords ["Maximum number of network edges reached:", show $ length netNodes, "\n"]
