@@ -116,7 +116,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                             [] → infinity
                             (_, c, _, _, _) : _ → c
 
-                    
+                    -- this will recurse back if required
                     postProcessNetworkAdd
                             inGS
                             inData
@@ -266,11 +266,6 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                 diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                                 checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
 
-
-                                --pure ([inPhyloGraph], currentCost, inSimAnnealParams)
-
-
-                                
                                 (newGraphList, newSAParams) <-
                                         -- do all in prallel
                                        let genNewSimAnnealParams =
@@ -279,47 +274,27 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                                 else U.incrementSimAnnealParams inSimAnnealParams
                                        in do
                                             pure (checkedGraphCosts, genNewSimAnnealParams)
-
                                        
                                 let minCost =
                                         if null graphsToBeEvaluated || null newGraphList
                                             then infinity
                                             else minimum $ fmap snd5 newGraphList
-
                                 
                                 if minCost < (snd5 inPhyloGraph) then 
                                     logWith LogInfo ("\t\t -> " <> (show minCost) <> "\n")
                                 else logWith LogInfo ("")
                                 
-                                
-                                -- hit max network edges to insert
-                                if (length netNodes >= (netMaxEdges netParams))
-                                    then do
-                                        logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
-                                        if minCost < (snd5 inPhyloGraph) then do
-                                            newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                                            pure (newBestGraphList, currentCost, inSimAnnealParams)
-                                        else do
-                                            newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (inPhyloGraph : newGraphList)
-                                            pure (newBestGraphList, min minCost (snd5 inPhyloGraph), inSimAnnealParams)
-
-                                -- not reached max netedges if found better recurse, if not then return input graph
-                                else 
-                                    -- retunr if better or equal empty if not--sorted upon return
-                                    if minCost <= (snd5 inPhyloGraph) then
-                                        let genNewSimAnnealParams =
-                                                if isNothing inSimAnnealParams
-                                                    then Nothing
-                                                    else U.incrementSimAnnealParams inSimAnnealParams
-                                        in do
-                                        newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                                        pure (newBestGraphList, snd5 inPhyloGraph, genNewSimAnnealParams)
-                                        
-
-                                    else do
-                                        pure ([], minCost, inSimAnnealParams)
-                                
-
+                                if minCost <= (snd5 inPhyloGraph) then
+                                    let genNewSimAnnealParams =
+                                            if isNothing inSimAnnealParams
+                                                then Nothing
+                                                else U.incrementSimAnnealParams inSimAnnealParams
+                                    in do
+                                    newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                                    pure (newBestGraphList, snd5 inPhyloGraph, genNewSimAnnealParams)
+                                    
+                                else do
+                                    pure ([], minCost, inSimAnnealParams)
                                 
 
 {- | insertNetEdgeHeuristic inserts an edge between two other edges, creating 2 new nodes 
