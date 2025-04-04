@@ -642,8 +642,8 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     }
 
                 -- parallel stuff
-                insertAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
-                insertAction =
+                addAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                addAction =
                     N.insertAllNetEdges
                         inGS
                         inData
@@ -719,7 +719,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                 )
                                         graphPairList1 ←
                                             getParallelChunkTraverse >>= \pTraverse →
-                                                pTraverse insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
+                                                pTraverse addAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList1
                                         GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)

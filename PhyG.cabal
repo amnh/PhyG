@@ -450,6 +450,7 @@ Executable phyg
     Search.Fuse
     Search.GeneticAlgorithm
     Search.NetworkAddDelete
+    Search.NetworkAddDeleteV2
     Search.Refinement
     Search.Search
     -- Search.Swap
