@@ -305,7 +305,8 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
 
                                 -- not reached max netedges if found better recurse, if not then return input graph
                                 else 
-                                    if minCost < (snd5 inPhyloGraph) then
+                                    -- retunr if better or equal empty if not--sorted upon return
+                                    if minCost <= (snd5 inPhyloGraph) then
                                         let genNewSimAnnealParams =
                                                 if isNothing inSimAnnealParams
                                                     then Nothing
@@ -313,9 +314,10 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                         in do
                                         newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
                                         pure (newBestGraphList, snd5 inPhyloGraph, genNewSimAnnealParams)
-                                        -- insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnnealParams (head newBestGraphList) 
+                                        
+
                                     else do
-                                        pure ([inPhyloGraph], minCost, inSimAnnealParams)
+                                        pure ([], minCost, inSimAnnealParams)
                                 
 
                                 
