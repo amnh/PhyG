@@ -807,7 +807,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                             <> " Move, "
                             <> show counterAddDelete
                             <> " AddDelete"
-                            <> "\n"
+                            <> "\n\n"
                         )
                     pure resultGraphList
 

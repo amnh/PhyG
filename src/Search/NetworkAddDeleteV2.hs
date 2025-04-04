@@ -85,9 +85,10 @@ deleteAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
     else 
         let firstPhyloGraph : otherPhyloGraphs = inPhyloGraphList
             currentCost = min curBestGraphCost $ snd5 firstPhyloGraph
+            netNodes = fth4 $ LG.splitVertexList $ thd5 firstPhyloGraph
         in
         -- if a tree then no edges to delete and recurse
-        if LG.isTree $ fst5 firstPhyloGraph then do
+        if length netNodes == 0 then do
             logWith LogInfo "\tGraph in delete network edges is tree--skipping\n"
             deleteAllNetEdges'
                 inGS
@@ -99,6 +100,7 @@ deleteAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                 otherPhyloGraphs
 
         else do 
+                logWith LogInfo $ "\tNumber of network edges: " <> (show $ length netNodes) <> " Number of graphs: " <> (show $ length inPhyloGraphList) <> "\n"
                 (newGraphList', _, newSAParams) ←
                     deleteEachNetEdge
                         inGS
@@ -169,13 +171,14 @@ deleteEachNetEdge inGS inData netParams  force inSimAnnealParams inPhyloGraph =
 
                     let (newGraphList, newSAParams) =  (delNetEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
 
-                    bestCostGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                    bestCostGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (inPhyloGraph : newGraphList)
                     let minCost =
                             if null bestCostGraphList
                                 then infinity
                                 else minimum $ fmap snd5 bestCostGraphList
 
-                    pure (newGraphList, minCost, newSAParams)
+                    --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
+                    pure (bestCostGraphList, minCost, newSAParams)
                     
 {- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 contacts in=out=1 edgfes and removes node, reindexing nodes and edges
@@ -220,31 +223,29 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
                     let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
 
                     newPhyloGraph ←
-                        if (graphType inGS == SoftWired)
+                        -- check if deletion modified graph
+                        if not wasModified then 
+                            pure emptyReducedPhylogeneticGraph
+
+                        else if (graphType inGS == SoftWired)
                             then T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
                             else
                                 if (graphType inGS == HardWired)
                                     then T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
                                     else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
-                    -- check if deletion modified graph
-                    if not wasModified
-                        then do
-                            pure inPhyloGraph
-                        else -- else if force || (graphType inGS) == HardWired then
 
-                            if force
-                                then do
-                                    -- trace ("DNE forced")
-                                    pure newPhyloGraph
-                                else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
-
-                                    if (snd5 newPhyloGraph) < (snd5 inPhyloGraph)
-                                        then do
-                                            -- trace ("DNE Better: " <> (show $ snd5 newPhyloGraph))
-                                            pure newPhyloGraph
-                                        else do
-                                            -- trace ("DNE Not Better: " <> (show $ snd5 newPhyloGraph))
-                                            pure inPhyloGraph
+                    if force
+                            then do
+                                -- trace ("DNE forced")
+                                pure newPhyloGraph
+                            else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
+                                if (snd5 newPhyloGraph) <= (snd5 inPhyloGraph)
+                                    then do
+                                        -- trace ("DNE Better: " <> (show $ snd5 newPhyloGraph))
+                                        pure newPhyloGraph
+                                    else do
+                                        -- Allows for mutation
+                                        pure newPhyloGraph
 
 
 {- | deleteEachNetEdge' is a wrapper around deleteEachNetEdge to allow for zipping new random seeds for each
@@ -757,6 +758,13 @@ isEdgePairPermissible inGraph constraintList (edge1@(u, v, _), edge2@(u', v', _)
                                                                 then False
                                                                 else True
     where
+        removeNodeLabels :: forall {f1 :: * -> *} {f2 :: * -> *}
+                                   {f3 :: * -> *} {f4 :: * -> *} {a1} {a2} {a3} {a4} {a5} {a6}.
+                            (Functor f1, Functor f2, Functor f3, Functor f4) =>
+                            (LG.LNode a1, LG.LNode a2, f1 (LG.LNode a3), f2 (LG.LNode a4),
+                             f3 (LG.LNode a5), f4 (LG.LNode a6))
+                            -> (LG.Node, LG.Node, f1 LG.Node, f2 LG.Node, f3 LG.Node,
+                                f4 LG.Node)
         removeNodeLabels (a, b, c, d, e, f) = (LG.toNode a, LG.toNode b, fmap LG.toNode c, fmap LG.toNode d, fmap LG.toNode e, fmap LG.toNode f)
 
 
