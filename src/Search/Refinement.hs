@@ -655,7 +655,7 @@ netEdgeMaster inArgs inGS inData inGraphList
 
                 deleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 deleteAction =
-                    N.deleteAllNetEdges
+                    N2.deleteAllNetEdges
                         inGS
                         inData
                         netParams

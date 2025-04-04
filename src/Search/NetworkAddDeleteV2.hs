@@ -2,7 +2,7 @@
 Module specifying graph egde adding and deleting functions
 -}
 module Search.NetworkAddDeleteV2 (
-    --deleteAllNetEdges,
+    deleteAllNetEdges,
     insertAllNetEdges,
     --moveAllNetEdges,
     deltaPenaltyAdjustment,
@@ -44,6 +44,334 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
+-- | deleteAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
+deleteAllNetEdges
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → (Maybe SAParams, [ReducedPhylogeneticGraph])
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+deleteAllNetEdges inGS inData netParams counter (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
+    
+    deleteAllNetEdges'
+                inGS
+                inData
+                netParams
+                counter
+                (curBestGraphList, curBestGraphCost)
+                inSimAnnealParams
+                inPhyloGraphList
+
+
+{- | deleteAllNetEdges deletes network edges one each each round until no better or additional
+graphs are found
+call with ([], infinity) [single input graph]
+-}
+deleteAllNetEdges'
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → Maybe SAParams
+    → [ReducedPhylogeneticGraph]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+deleteAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
+    if null inPhyloGraphList then 
+        pure (take (netKeepNum netParams) curBestGraphList, counter)
+
+    else 
+        let firstPhyloGraph : otherPhyloGraphs = inPhyloGraphList
+            currentCost = min curBestGraphCost $ snd5 firstPhyloGraph
+        in
+        -- if a tree then no edges to delete and recurse
+        if LG.isTree $ fst5 firstPhyloGraph then do
+            logWith LogInfo "\tGraph in delete network edges is tree--skipping\n"
+            deleteAllNetEdges'
+                inGS
+                inData
+                netParams
+                (counter + 1)
+                (firstPhyloGraph : curBestGraphList, currentCost)
+                inSimAnnealParams
+                otherPhyloGraphs
+
+        else do 
+                (newGraphList', _, newSAParams) ←
+                    deleteEachNetEdge
+                        inGS
+                        inData
+                        netParams 
+                        False
+                        inSimAnnealParams
+                        firstPhyloGraph
+
+                newGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList'
+                let newGraphCost = case newGraphList of
+                        [] → infinity
+                        (_, c, _, _, _) : _ → c
+
+                if null newGraphList then
+                    pure (take (netKeepNum netParams) curBestGraphList, counter + 1)
+
+                else 
+                    postProcessNetworkDelete
+                            inGS
+                            inData
+                            netParams
+                            counter
+                            (curBestGraphList, curBestGraphCost)
+                            inSimAnnealParams
+                            inPhyloGraphList
+                            newGraphList
+                            newGraphCost
+                            currentCost
+
+{- | deleteEachNetEdge takes a phylogenetic graph and deletes all network edges one at time
+and returns best list of new Phylogenetic Graphs and cost
+even if worse--could be used for simulated annealing later
+if equal returns unique graph list
+-}
+deleteEachNetEdge
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Bool
+    → Maybe SAParams
+    → ReducedPhylogeneticGraph
+    → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+deleteEachNetEdge inGS inData netParams  force inSimAnnealParams inPhyloGraph =
+    
+    if LG.isEmpty $ thd5 inPhyloGraph
+        then do
+            pure ([], infinity, inSimAnnealParams) -- error "Empty input phylogenetic graph in deleteAllNetEdges"
+        else
+            let currentCost = snd5 inPhyloGraph
+
+                -- potentially randomize order of list
+                networkEdgeList = LG.netEdges $ thd5 inPhyloGraph
+
+                --- parallel
+                action ∷ LG.Edge → PhyG ReducedPhylogeneticGraph
+                action = deleteNetEdge inGS inData inPhyloGraph force
+            in  do
+                if null networkEdgeList
+                    then do
+                        logWith LogInfo ("\tNo network edges to delete" <> "\n")
+                        pure ([], infinity, inSimAnnealParams)
+                else do
+                    --could shuffle edge list if not doain all at once--but are now
+                    delNetEdgeList ←
+                        getParallelChunkTraverse >>= \pTraverse →
+                            action `pTraverse` networkEdgeList
+
+                    let (newGraphList, newSAParams) =  (delNetEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
+
+                    bestCostGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                    let minCost =
+                            if null bestCostGraphList
+                                then infinity
+                                else minimum $ fmap snd5 bestCostGraphList
+
+                    pure (newGraphList, minCost, newSAParams)
+                    
+{- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
+contacts in=out=1 edgfes and removes node, reindexing nodes and edges
+naive for now
+force requires reoptimization no matter what--used for net move
+skipping heuristics for now--awful
+calls deleteNetworkEdge that has various graph checks
+-}
+deleteNetEdge
+    ∷ GlobalSettings
+    → ProcessedData
+    → ReducedPhylogeneticGraph
+    → Bool
+    → LG.Edge
+    → PhyG ReducedPhylogeneticGraph
+deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
+    if LG.isEmpty $ thd5 inPhyloGraph
+        then error "Empty input phylogenetic graph in deleteNetEdge"
+        else
+            if not (LG.isNetworkEdge (fst5 inPhyloGraph) edgeToDelete)
+                then error ("Edge to delete: " <> (show edgeToDelete) <> " not in graph:\n" <> (LG.prettify $ fst5 inPhyloGraph))
+                else do
+                    -- trace ("DNE: " <> (show edgeToDelete)) (
+                    (delSimple, wasModified) ← deleteNetworkEdge (fst5 inPhyloGraph) edgeToDelete
+
+                    -- delSimple = GO.contractIn1Out1EdgesRename $ LG.delEdge edgeToDelete $ fst5 inPhyloGraph
+
+                    -- prune other edges if now unused
+                    let pruneEdges = False
+
+                    -- don't warn that edges are being pruned
+                    let warnPruneEdges = False
+
+                    -- graph optimization from root
+                    let startVertex = Nothing
+
+                    -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
+
+                    -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+
+                    -- full two-pass optimization--cycles checked in edge deletion function
+                    let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
+
+                    newPhyloGraph ←
+                        if (graphType inGS == SoftWired)
+                            then T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
+                            else
+                                if (graphType inGS == HardWired)
+                                    then T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
+                                    else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
+                    -- check if deletion modified graph
+                    if not wasModified
+                        then do
+                            pure inPhyloGraph
+                        else -- else if force || (graphType inGS) == HardWired then
+
+                            if force
+                                then do
+                                    -- trace ("DNE forced")
+                                    pure newPhyloGraph
+                                else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
+
+                                    if (snd5 newPhyloGraph) < (snd5 inPhyloGraph)
+                                        then do
+                                            -- trace ("DNE Better: " <> (show $ snd5 newPhyloGraph))
+                                            pure newPhyloGraph
+                                        else do
+                                            -- trace ("DNE Not Better: " <> (show $ snd5 newPhyloGraph))
+                                            pure inPhyloGraph
+
+
+{- | deleteEachNetEdge' is a wrapper around deleteEachNetEdge to allow for zipping new random seeds for each
+replicate
+-}
+deleteEachNetEdge'
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Bool
+    → (Maybe SAParams, ReducedPhylogeneticGraph)
+    → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+deleteEachNetEdge' inGS inData netParams force (inSimAnnealParams, inPhyloGraph) =
+    deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph
+
+{- | deleteNetworkEdge deletes a network edges from a simple graph
+retuns newGraph if can be modified or input graph with Boolean to tell if modified
+and contracts, reindexes/names internaledges/veritices around deletion
+can't raise to general graph level due to vertex info
+in edges (b,a) (c,a) (a,d), deleting (a,b) deletes node a, inserts edge (b,d)
+contacts node c since  now in1out1 vertex
+checks for chained network edges--can be created by progressive deletion
+checks for cycles now
+shouldn't need for check for creating a node with children that are both network nodes
+since that would require that condition coming in and shodl be there--ie checked earlier in addition and input
+-}
+deleteNetworkEdge ∷ SimpleGraph → LG.Edge → PhyG (SimpleGraph, Bool)
+deleteNetworkEdge inGraph inEdge@(p1, nodeToDelete) =
+    if LG.isEmpty inGraph
+        then error ("Cannot delete edge from empty graph")
+        else
+            let childrenNodeToDelete = LG.descendants inGraph nodeToDelete
+                parentsNodeToDelete = LG.parents inGraph nodeToDelete
+                newGraph = LG.delEdge inEdge inGraph
+
+                -- conversion as if input--see if affects length
+                newGraph'' = GO.contractIn1Out1EdgesRename newGraph
+
+            in  -- error conditions and creation of chained network edges (forbidden in phylogenetic graph--causes resolution cache issues)
+                if length childrenNodeToDelete /= 1
+                    then error ("Cannot delete non-network edge in deleteNetworkEdge: (1)" <> (show inEdge) <> "\n" <> (LG.prettyIndices inGraph))
+                    else
+                        if length parentsNodeToDelete /= 2
+                            then error ("Cannot delete non-network edge in deleteNetworkEdge (2): " <> (show inEdge) <> "\n" <> (LG.prettyIndices inGraph))
+                            else -- warning if chained on input, skip if chained net edges in output
+
+                                if (LG.isNetworkNode inGraph p1)
+                                    then do
+                                        logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion" <> "\n")
+                                        pure (LG.empty, False)
+                                    else
+                                        if LG.hasChainedNetworkNodes newGraph''
+                                            then do
+                                                logWith LogWarn ("\tWarning: Chained network nodes in deleteNetworkEdge skipping deletion (2)" <> "\n")
+                                                pure (LG.empty, False)
+                                            else
+                                                if LG.isEmpty newGraph''
+                                                    then do
+                                                        pure (LG.empty, False)
+                                                    else do
+                                                        pure (newGraph'', True)
+
+
+
+-- | postProcessNetworkDelete postprocesses results from delete actions for "regular" ie non-annealing/Drift network delete operations
+postProcessNetworkDelete
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → Maybe SAParams
+    → [ReducedPhylogeneticGraph]
+    → [ReducedPhylogeneticGraph]
+    → VertexCost
+    → VertexCost
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+postProcessNetworkDelete inGS inData netParams counter (curBestGraphList, _) inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
+    -- worse graphs found--go on
+    if newGraphCost > currentCost
+        then do
+            deleteAllNetEdges'
+                inGS
+                inData
+                netParams
+                (counter + 1)
+                ((head inPhyloGraphList) : curBestGraphList, currentCost)
+                inSimAnnealParams
+                (tail inPhyloGraphList)
+        else -- "steepest style descent" abandons existing list if better cost found
+
+            if newGraphCost < currentCost
+                then do
+                    logWith LogInfo ("\t-> " <> (show newGraphCost))
+                    if netSteepest netParams
+                        then do
+                            deleteAllNetEdges'
+                                inGS
+                                inData
+                                netParams
+                                (counter + 1)
+                                (newGraphList, newGraphCost)
+                                inSimAnnealParams
+                                newGraphList
+                        else do
+                            deleteAllNetEdges'
+                                inGS
+                                inData
+                                netParams
+                                (counter + 1)
+                                (newGraphList, newGraphCost)
+                                inSimAnnealParams
+                                (newGraphList <> (tail inPhyloGraphList))
+                else -- equal cost
+                -- new graph list contains the input graph if equal and filtered unique already in deleteEachNetEdge
+                do
+                    newCurSameBestList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ curBestGraphList <> newGraphList
+                    deleteAllNetEdges'
+                        inGS
+                        inData
+                        netParams
+                        (counter + 1)
+                        (newCurSameBestList, currentCost)
+                        inSimAnnealParams
+                        (tail inPhyloGraphList)
+
+                        
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 insertAllNetEdges
     ∷ GlobalSettings
@@ -64,8 +392,6 @@ insertAllNetEdges inGS inData netParams maxRounds counter (curBestGraphList, cur
         (curBestGraphList, curBestGraphCost)
         inSimAnnealParams
         inPhyloGraphList
-            
-
 
 {- | insertAllNetEdges' adds network edges one each each round until no better or additional
 graphs are found
