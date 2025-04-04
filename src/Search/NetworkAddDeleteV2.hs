@@ -94,14 +94,14 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
             -- check for max net edges
             netNodes = fth4 $ LG.splitVertexList $ thd5 firstPhyloGraph
         in  do
-                logWith LogInfo ("\n\t\tNumber of graphs: " <> (show $ length inPhyloGraphList) <> " Number of network edges: " <> (show $ length netNodes) <> "\n")
+                logWith LogInfo ("\n\tNumber of graphs: " <> (show $ length inPhyloGraphList) <> " Number of network edges: " <> (show $ length netNodes) <> "\n")
 
                 if length netNodes >= (netMaxEdges netParams) then do
                     logWith LogInfo $ unwords ["Maximum number of network edges reached:", show $ length netNodes, "\n"]
                     pure (take (netKeepNum netParams) curBestGraphList, counter)
 
                 else do
-
+                    -- this examines all possible net adds via heursitc first then verifies
                     (newGraphList, _, newSAParams) ←
                         insertEachNetEdgeHeuristicGather 
                             inGS
@@ -234,7 +234,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                 then shuffleList candidateNetworkEdgeList'
                                 else pure candidateNetworkEdgeList'
 
-                        logWith LogInfo ("\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
+                        logWith LogInfo ("\t\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
 
                         -- get heuristic costs and simple graphs
                         heurCostSimpleGraphPairList <- 
@@ -289,7 +289,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                 
                                 if minCost < (snd5 inPhyloGraph) then 
                                     logWith LogInfo ("\t\t -> " <> (show minCost) <> "\n")
-                                else logWith LogInfo ("\n")
+                                else logWith LogInfo ("")
                                 
                                 
                                 -- hit max network edges to insert
@@ -368,9 +368,9 @@ insertNetEdgeHeuristic inGS inData inPhyloGraph edgePair@((u, v, _), (u', v', _)
                             pure (infinity, LG.empty) -- emptyReducedPhylogeneticGraph
                         else do
                             -- calculates heursitic graph delta
-                            --(heuristicDelta', _, _, _, _) <-  heuristicAddDelta inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
+                            --(heuristicDelta', _, _, _, _) <-  heuristicAddDelta' inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
 
-                            heuristicDelta <- heuristicAddDelta' inGS inPhyloGraph edgePair
+                            heuristicDelta <- heuristicAddDelta inGS inPhyloGraph edgePair
                                               
                             let edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
@@ -408,12 +408,9 @@ getPermissibleEdgePairs inGS inGraph =
 
                     edgePar ← getParallelChunkMap
                     let edgeTestList = edgePar edgeAction edgePairs
-                    -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (isEdgePairPermissible inGraph coevalNodeConstraintList') edgePairs -- `using`  PU.myParListChunkRDS
-
+                    
                     let pairList = fmap fst $ filter ((== True) . snd) $ zip edgePairs edgeTestList
 
-                    -- trace ("Edge Pair list :" <> (show $ fmap f pairList) <> "\n"
-                    --  <> "GPEP\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inGraph))
                     pure pairList
 
 
@@ -485,7 +482,7 @@ isAncDescEdge inGraph (a, _, _) (b, _, _) =
 
 {- These heuristics do not seem to work well at all-}
 
-{- | heuristic add delta' based on new display tree and delta from existing costs by block--assumming < 0
+{- | heuristic add delta based on new display tree and delta from existing costs by block--assumming < 0
 original edges subtree1 ((u,l),(u,v)) and subtree2 ((u',v'),(u',l')) create a directed edge from
 subtree 1 to subtree 2 via
 1) Add node x and y, delete edges (u,v) and (u'v') and create edges (u,x), (x,v), (u',y), and (y,v')
@@ -499,8 +496,8 @@ subtree 1 to subtree 2 via
    Compare to real delta to check behavior
 original subtrees u -> (a,v) and u' -> (v',b)
 -}
-heuristicAddDelta' ∷ GlobalSettings → ReducedPhylogeneticGraph → (LG.LEdge b, LG.LEdge b) → PhyG VertexCost
-heuristicAddDelta' _ inPhyloGraph ((u, v, _), (u', v', _)) =
+heuristicAddDelta ∷ GlobalSettings → ReducedPhylogeneticGraph → (LG.LEdge b, LG.LEdge b) → PhyG VertexCost
+heuristicAddDelta _ inPhyloGraph ((u, v, _), (u', v', _)) =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicAddDelta"
         else
@@ -579,25 +576,23 @@ getCharacterDelta (_, v, _, v', a, b) (inCharTree, charInfo) =
         (dVV' + dAX, dAV + dV'B)
 
 
--- if dUnionUVV' - dU'V' < dU'V' then dUnionUVV' - dU'V'
--- else 0.0
--- )
+{- This seems worse than heuristicAddDelta above-}
 
-{- | heuristicAddDelta takes the existing graph, edge pair, and new nodes to create and makes
+{- | heuristicAddDelta' takes the existing graph, edge pair, and new nodes to create and makes
 the new nodes and reoptimizes starting nodes of two edges.  Returns cost delta based on
 previous and new node resolution caches
 returns cost delta and the reoptimized nodes for use in incremental optimization
 original edges (to be deleted) (u,v) and (u',v'), n1 inserted in (u,v) and n2 inserted into (u',v')
 creates (n1, n2), (u,n1), (n1,v), (u',n2), (n2, v')
 -}
-heuristicAddDelta
+heuristicAddDelta'
     ∷ GlobalSettings
     → ReducedPhylogeneticGraph
     → (LG.LEdge b, LG.LEdge b)
     → LG.Node
     → LG.Node
     → PhyG (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo)
-heuristicAddDelta inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
+heuristicAddDelta' inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicAddDelta"
         else
