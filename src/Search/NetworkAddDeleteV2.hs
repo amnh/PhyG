@@ -44,8 +44,6 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
-
-
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 insertAllNetEdges
     ∷ GlobalSettings
@@ -127,9 +125,6 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                             inSimAnnealParams
                             currentCost
                             otherPhyloGraphs
-                    
-
-
 
 -- | postProcessNetworkAdd prcesses non-simanneal/drift--so no updating of SAParams
 postProcessNetworkAdd
@@ -678,6 +673,4 @@ deltaPenaltyAdjustment inGS inGraph modification =
                                         (snd5 inGraph) / (fromIntegral $ 2 * ((2 * numLeaves) - 2) + (2 * (length networkNodeList)))
                                     else error ("Network edge cost model not yet implemented: " <> (show edgeCostModel))
 
-
--- )
 
