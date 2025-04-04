@@ -31,6 +31,7 @@ import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import Search.Fuse qualified as F
 import Search.GeneticAlgorithm qualified as GA
 import Search.NetworkAddDelete qualified as N
+import Search.NetworkAddDeleteV2 qualified as N2
 import Search.SwapMaster qualified as SM
 import Text.Read
 import Types.Types
@@ -644,7 +645,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                 -- parallel stuff
                 addAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 addAction =
-                    N.insertAllNetEdges
+                    N2.insertAllNetEdges
                         inGS
                         inData
                         netParams
