@@ -8,7 +8,7 @@ module Search.NetworkAddDeleteV2 (
     deltaPenaltyAdjustment,
     --deleteNetEdge,
     --deleteOneNetAddAll,
-    --addDeleteNetEdges,
+    addDeleteNetEdges,
     getCharacterDelta,
     getBlockDelta,
     -- these are not used but to quiet warnings
@@ -43,6 +43,151 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+
+{- |
+'addDeleteNetEdges is a wrapper for 'addDeleteNetEdges'' allowing for multiple simulated annealing rounds.
+-}
+addDeleteNetEdges
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → (Maybe SAParams, [ReducedPhylogeneticGraph])
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+addDeleteNetEdges inGS inData netParams maxRounds counter (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) = case inSimAnnealParams of
+    Nothing →
+        addDeleteNetEdges'
+            inGS
+            inData
+            netParams
+            maxRounds
+            counter
+            (curBestGraphList, curBestGraphCost)
+            Nothing
+            inPhyloGraphList
+    Just simAnneal →
+        let -- create list of params with unique list of random values for rounds of annealing
+            annealingRounds = rounds simAnneal
+            saParamList = replicate annealingRounds inSimAnnealParams
+
+            -- parallel setup
+            action ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+            action =
+                addDeleteNetEdges''
+                    inGS
+                    inData
+                    netParams 
+                    maxRounds
+                    counter
+                    (curBestGraphList, curBestGraphCost)
+        in  do
+                addDeleteResult ←
+                    getParallelChunkTraverse >>= \pTraverse →
+                        pTraverse action . zip saParamList $ replicate annealingRounds inPhyloGraphList
+                let (annealRoundsList, counterList) = unzip addDeleteResult
+                GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (fold annealRoundsList) <&> \x → (x, sum counterList)
+
+
+-- | addDeleteNetEdges'' is wrapper around addDeleteNetEdges' to use parallel above
+addDeleteNetEdges''
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → (Maybe SAParams, [ReducedPhylogeneticGraph])
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+addDeleteNetEdges'' inGS inData netParams maxRounds counter (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
+    addDeleteNetEdges'
+        inGS
+        inData
+        netParams
+        maxRounds
+        counter
+        (curBestGraphList, curBestGraphCost)
+        inSimAnnealParams
+        inPhyloGraphList
+
+
+{- | addDeleteNetEdges' alternates addition and deletion of network edges
+until no better or additional graphs are found (or max rounds met)
+call with ([], infinity) [single input graph]
+-}
+addDeleteNetEdges'
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → Maybe SAParams
+    → [ReducedPhylogeneticGraph]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+addDeleteNetEdges' inGS inData netParams maxRounds counter (curBestGraphList, curBestGraphCost) inSimAnnealParams = \case
+    [] → pure (take (netKeepNum netParams) curBestGraphList, counter)
+    -- if hit maxmimum rounds then return
+    inPhyloGraphList → case counter `compare` maxRounds of
+        EQ → pure (take (netKeepNum netParams) curBestGraphList, counter)
+        -- other wise add/delete
+        _ → do
+            -- insert edges first
+            (insertGraphList, _) ←
+                insertAllNetEdges'
+                    inGS
+                    inData
+                    netParams
+                    counter
+                    (curBestGraphList, curBestGraphCost)
+                    inSimAnnealParams
+                    inPhyloGraphList
+
+            -- this to update randlists in SAPArams for subsequent calls
+            let updatedSAParamList = case inSimAnnealParams of
+                    Nothing → [Nothing, Nothing]
+                    _ → replicate 2 inSimAnnealParams
+
+            -- if no better--take input for delte phase
+            (insertGraphList', insertGraphCost, toDeleteList) ← case insertGraphList of
+                [] → pure (curBestGraphList, curBestGraphCost, inPhyloGraphList)
+                gs → do
+                    newList ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0 gs
+                    pure (newList, snd5 $ head newList, newList)
+
+            -- delete edges
+            (deleteGraphList, _) ←
+                deleteAllNetEdges'
+                    inGS
+                    inData
+                    netParams
+                    counter
+                    (insertGraphList', insertGraphCost)
+                    (head updatedSAParamList)
+                    toDeleteList
+
+            -- gather beter if any
+            (newBestGraphList, newBestGraphCost, graphsToDoNext) ← case deleteGraphList of
+                [] → pure (curBestGraphList, curBestGraphCost, inPhyloGraphList)
+                gs → do
+                    newDeleteGraphs ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0 gs
+                    pure (newDeleteGraphs, snd5 $ head newDeleteGraphs, newDeleteGraphs)
+
+            -- check is same then return
+            case newBestGraphCost `compare` curBestGraphCost of
+                EQ → pure (take (netKeepNum netParams) curBestGraphList, counter)
+                -- if better (or nothing) keep going
+                _ →
+                    addDeleteNetEdges'
+                        inGS
+                        inData
+                        netParams
+                        maxRounds
+                        (counter + 1)
+                        (newBestGraphList, newBestGraphCost)
+                        (last updatedSAParamList)
+                        graphsToDoNext
 
 -- | deleteAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 deleteAllNetEdges
