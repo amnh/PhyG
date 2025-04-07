@@ -4,7 +4,7 @@ Module specifying graph egde adding and deleting functions
 module Search.NetworkAddDeleteV2 (
     deleteAllNetEdges,
     insertAllNetEdges,
-    --moveAllNetEdges,
+    moveAllNetEdges,
     deltaPenaltyAdjustment,
     --deleteNetEdge,
     --deleteOneNetAddAll,
@@ -43,6 +43,315 @@ import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
+
+-- | moveAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
+moveAllNetEdges
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → (Maybe SAParams, [ReducedPhylogeneticGraph])
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+moveAllNetEdges inGS inData netParams counter (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) = case inSimAnnealParams of
+    Nothing →
+        moveAllNetEdges'
+            inGS
+            inData
+            netParams 
+            counter
+            (curBestGraphList, curBestGraphCost)
+            Nothing
+            inPhyloGraphList
+    Just simAnneal →
+        let -- create list of params with unique list of random values for rounds of annealing
+            annealingRounds = rounds simAnneal
+            saParamList = replicate annealingRounds inSimAnnealParams
+
+            -- parallel setup
+            action ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+            action =
+                moveAllNetEdges''
+                    inGS
+                    inData
+                    netParams
+                    counter
+                    (curBestGraphList, curBestGraphCost)
+        in  do
+                moveResult ←
+                    getParallelChunkTraverse >>= \pTraverse →
+                        pTraverse action . zip saParamList $ replicate annealingRounds inPhyloGraphList
+                let (annealRoundsList, counterList) = unzip moveResult
+                GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (fold annealRoundsList) <&> \x → (x, sum counterList)
+
+-- | moveAllNetEdges'' is wrapper around moveAllNetEdges' to use parmap
+moveAllNetEdges''
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → (Maybe SAParams, [ReducedPhylogeneticGraph])
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+moveAllNetEdges'' inGS inData netParams counter (curBestGraphList, curBestGraphCost) (inSimAnnealParams, inPhyloGraphList) =
+    moveAllNetEdges'
+        inGS
+        inData
+        netParams
+        counter
+        (curBestGraphList, curBestGraphCost)
+        inSimAnnealParams
+        inPhyloGraphList
+
+
+{- | moveAllNetEdges' removes each edge and adds an edge to all possible places (or steepest) each round
+until no better or additional graphs are found
+call with ([], infinity) [single input graph]
+-}
+moveAllNetEdges'
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → Maybe SAParams
+    → [ReducedPhylogeneticGraph]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+moveAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams = \case
+    [] → pure (take (netKeepNum netParams) curBestGraphList, counter)
+    firstPhyloGraph : otherPhyloGraphs
+        | LG.isEmpty $ fst5 firstPhyloGraph →
+            moveAllNetEdges'
+                inGS
+                inData
+                netParams
+                counter
+                (curBestGraphList, curBestGraphCost)
+                inSimAnnealParams
+                otherPhyloGraphs
+    firstPhyloGraph : otherPhyloGraphs →
+        let currentCost = min curBestGraphCost $ snd5 firstPhyloGraph
+            -- parallel setup
+            action ∷ LG.Edge → PhyG [ReducedPhylogeneticGraph]
+            action = deleteOneNetAddAll' inGS inData netParams firstPhyloGraph inSimAnnealParams
+        in  do
+                -- randomize order of edges to try moving
+                netEdgeList ←
+                    let edges = LG.labNetEdges $ thd5 firstPhyloGraph
+                        permutationOf
+                            | (netRandom netParams) = shuffleList
+                            | otherwise = pure
+                     in permutationOf edges
+
+                deleteResult ←
+                    getParallelChunkTraverse >>= \pTraverse →
+                        pTraverse (action . LG.toEdge) netEdgeList
+
+                let newGraphList' = fold deleteResult
+                newGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList'
+                let newGraphCost = case newGraphList' of
+                        [] → infinity
+                        (_, c, _, _, _) : _ → c
+
+                -- if graph is a tree no edges to delete
+                case netEdgeList of
+                    [] → (firstPhyloGraph : otherPhyloGraphs, counter) <$ logWith LogInfo "\t\tGraph in move has no network edges to move--skipping\n"
+                    e : es → case inSimAnnealParams of
+                        Nothing → case newGraphCost `compare` currentCost of
+                            GT →
+                                moveAllNetEdges'
+                                    inGS
+                                    inData
+                                    netParams
+                                    (counter + 1)
+                                    (firstPhyloGraph : curBestGraphList, currentCost)
+                                    inSimAnnealParams
+                                    otherPhyloGraphs
+                            LT
+                                | (netSteepest netParams) →
+                                    moveAllNetEdges'
+                                        inGS
+                                        inData
+                                        netParams
+                                        (counter + 1)
+                                        (newGraphList, newGraphCost)
+                                        inSimAnnealParams
+                                        newGraphList
+                            LT →
+                                moveAllNetEdges'
+                                    inGS
+                                    inData
+                                    netParams
+                                    (counter + 1)
+                                    (newGraphList, newGraphCost)
+                                    inSimAnnealParams
+                                    (newGraphList <> otherPhyloGraphs)
+                            EQ → do
+                                -- new graph list contains the input graph if equal and filterd unique already in moveAllNetEdges
+                                newCurSameBestList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0 $ curBestGraphList <> newGraphList
+                                moveAllNetEdges'
+                                    inGS
+                                    inData
+                                    netParams
+                                    (counter + 1)
+                                    (newCurSameBestList, currentCost)
+                                    inSimAnnealParams
+                                    otherPhyloGraphs
+
+                        -- sim anneal choice
+                        Just simAnneal →
+                            -- not sure why this was here--seems to work
+                            let -- abstract stopping criterion to continue
+                                (numDone, numMax) = case method simAnneal of
+                                    SimAnneal → currentStep &&& numberSteps $ simAnneal
+                                    _ → driftChanges &&& driftMaxChanges $ simAnneal
+                            in  do
+                                    uniqueGraphList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList'
+
+                                    let (annealBestCost, nextUniqueList) = case uniqueGraphList of
+                                            [] → (curBestGraphCost, [])
+                                            (_, cost, _, _, _) : more → (min curBestGraphCost cost, more)
+
+                                    (acceptFirstGraph, newSAParams) ← case uniqueGraphList of
+                                        [] → pure (False, U.incrementSimAnnealParams inSimAnnealParams)
+                                        (_, c, _, _, _) : _ → U.simAnnealAccept inSimAnnealParams annealBestCost c
+
+                                    case numDone `compare` numMax of
+                                        LT | acceptFirstGraph → do
+                                            moveAllNetEdges'
+                                                inGS
+                                                inData
+                                                netParams
+                                                (counter + 1)
+                                                ((head uniqueGraphList) : curBestGraphList, annealBestCost)
+                                                newSAParams
+                                                (nextUniqueList <> otherPhyloGraphs)
+                                        LT → do
+                                            moveAllNetEdges'
+                                                inGS
+                                                inData
+                                                netParams
+                                                (counter + 1)
+                                                (curBestGraphList, annealBestCost)
+                                                newSAParams
+                                                (nextUniqueList <> otherPhyloGraphs)
+
+                                        -- if want non-optimized list for GA or whatever
+                                        _ | (netReturnMutated netParams)  → pure (take (netKeepNum netParams) curBestGraphList, counter)
+                                        -- optimize list and return
+                                        _ → do
+                                            (bestMoveList', counter') ←
+                                                moveAllNetEdges'
+                                                    inGS
+                                                    inData
+                                                    netParams {netReturnMutated = False}
+                                                    (counter + 1)
+                                                    ([], annealBestCost)
+                                                    Nothing
+                                                    $ take (netKeepNum netParams) curBestGraphList
+                                            bestMoveList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 bestMoveList'
+                                            pure (take (netKeepNum netParams) bestMoveList, counter')
+
+-- | deleteOneNetAddAll' wrapper on deleteOneNetAddAll to allow for parmap
+deleteOneNetAddAll'
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → ReducedPhylogeneticGraph
+    → Maybe SAParams
+    → LG.Edge
+    → PhyG [ReducedPhylogeneticGraph]
+deleteOneNetAddAll' inGS inData netParams inPhyloGraph inSimAnnealParams edgeToDelete =
+    deleteOneNetAddAll
+        inGS
+        inData
+        netParams
+        inPhyloGraph
+        [edgeToDelete]
+        inSimAnnealParams
+
+{- | deleteOneNetAddAll version deletes net edges in turn and reAdds-based on original cost
+but this cost in graph (really not correct) but allows logic of insert edge to function better
+unlike deleteOneNetAddAll' only deals with single edge deletion at a time
+-}
+deleteOneNetAddAll
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → ReducedPhylogeneticGraph
+    → [LG.Edge]
+    → Maybe SAParams
+    → PhyG [ReducedPhylogeneticGraph]
+deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnnealParams =
+    if null edgeToDeleteList
+        then do
+            -- trace ("\tGraph has no edges to move---skipping")
+            pure [inPhyloGraph]
+        else
+            if LG.isEmpty $ thd5 inPhyloGraph
+                then error "Empty graph in deleteOneNetAddAll"
+                else do
+                    -- trace ("DONAA-New: " <> (show $ snd5 inPhyloGraph) <> " Steepest:" <> (show doSteepest)) (
+                    logWith
+                        LogInfo
+                        ("Moving " <> (show $ length edgeToDeleteList) <> " network edges, current best cost: " <> (show $ snd5 inPhyloGraph) <> "\n")
+                    -- start with initial graph cost
+                    let inGraphCost = snd5 inPhyloGraph
+
+                    -- get deleted simple graphs and bool for changed
+                    delGraphBoolPair ← deleteNetworkEdge (fst5 inPhyloGraph) (head edgeToDeleteList)
+
+                    -- no change in network structure
+                    if snd delGraphBoolPair == False
+                        then do
+                            deleteOneNetAddAll
+                                inGS
+                                inData
+                                netParams
+                                inPhyloGraph
+                                (tail edgeToDeleteList)
+                                inSimAnnealParams
+                        else
+                            let simpleGraphToInsert = fst delGraphBoolPair
+
+                                (_, _, _, curNetNodes) = LG.splitVertexList simpleGraphToInsert
+                                curNumNetNodes = length curNetNodes
+
+                                -- optimize deleted graph and update cost with input cost
+                                leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
+                            in  do
+                                    graphToInsert ← T.multiTraverseFullyLabelSoftWiredReduced inGS inData False False leafGraph Nothing simpleGraphToInsert -- `using` PU.myParListChunkRDS
+
+                                    -- keep same cost and just keep better--check if better than original later
+                                    let graphToInsert' = T.updatePhylogeneticGraphCostReduced graphToInsert inGraphCost
+
+                                    insertedGraphTripleList ←
+                                        insertEachNetEdgeHeuristicGather --insertEachNetEdge
+                                            inGS
+                                            inData
+                                            netParams {netMaxEdges = curNumNetNodes + 1}
+                                            (Just inGraphCost)  -- Nothing
+                                            inSimAnnealParams
+                                            graphToInsert'
+
+                                    let newMinimumCost = snd3 insertedGraphTripleList
+
+                                    let newBestGraphs = filter ((== newMinimumCost) . snd5) $ fst3 insertedGraphTripleList
+
+                                    -- trace ("DONAA-New: " <> (show (inGraphCost, fmap snd5 graphsToInsert, fmap snd5 graphsToInsert', newMinimumCost))) (
+                                    if newMinimumCost < inGraphCost
+                                        then do
+                                            -- trace ("DONA-> ")
+                                            pure newBestGraphs
+                                        else do
+                                            deleteOneNetAddAll
+                                                inGS
+                                                inData
+                                                netParams
+                                                inPhyloGraph
+                                                (tail edgeToDeleteList)
+                                                inSimAnnealParams
+
 
 {- |
 'addDeleteNetEdges is a wrapper for 'addDeleteNetEdges'' allowing for multiple simulated annealing rounds.

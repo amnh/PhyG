@@ -664,7 +664,7 @@ netEdgeMaster inArgs inGS inData inGraphList
 
                 moveAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 moveAction =
-                    N.moveAllNetEdges
+                    N2.moveAllNetEdges
                         inGS
                         inData
                         netParams
