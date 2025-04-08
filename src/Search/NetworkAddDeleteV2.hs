@@ -826,7 +826,7 @@ postProcessNetworkDelete inGS inData netParams counter (curBestGraphList, _) inS
                         inSimAnnealParams
                         (tail inPhyloGraphList)
 
-                        
+                    
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 insertAllNetEdges
     ∷ GlobalSettings
@@ -880,33 +880,61 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                     pure (take (netKeepNum netParams) curBestGraphList, counter)
 
                 else do
-                    -- this examines all possible net adds via heursitc first then verifies
-                    (newGraphList, _, newSAParams) ←
-                        insertEachNetEdgeHeuristicGather 
-                            inGS
-                            inData
-                            netParams
-                            Nothing
-                            inSimAnnealParams
-                            firstPhyloGraph
+                    if isNothing inSimAnnealParams then do
 
-                    bestNewGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                    let newGraphCost = case bestNewGraphList of
-                            [] → infinity
-                            (_, c, _, _, _) : _ → c
+                        -- this examines all possible net adds via heursitc first then verifies
+                        (newGraphList, _, newSAParams) ←
+                            insertEachNetEdgeHeuristicGather 
+                                inGS
+                                inData
+                                netParams
+                                Nothing
+                                inSimAnnealParams
+                                firstPhyloGraph
 
-                    --logWith LogInfo ("IANE: " <> (show $ fmap snd5 newGraphList) <> " " <> (show newGraphCost))
-                    -- this will recurse back if required
-                    postProcessNetworkAdd
-                            inGS
-                            inData
-                            netParams
-                            counter
-                            (curBestGraphList, curBestGraphCost)
-                            (bestNewGraphList, newGraphCost)
-                            inSimAnnealParams
-                            currentCost
-                            otherPhyloGraphs
+                    
+                        bestNewGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                        let newGraphCost = case bestNewGraphList of
+                                [] → infinity
+                                (_, c, _, _, _) : _ → c
+
+
+                        --logWith LogInfo ("IANE: " <> (show $ fmap snd5 newGraphList) <> " " <> (show newGraphCost))
+                        -- this will recurse back if required
+                        postProcessNetworkAdd
+                                inGS
+                                inData
+                                netParams
+                                counter
+                                (curBestGraphList, curBestGraphCost)
+                                (bestNewGraphList, newGraphCost)
+                                inSimAnnealParams
+                                currentCost
+                                otherPhyloGraphs
+
+                    -- SA/Drift stuff--need to have rounds option here and 
+                    -- return mutated for GA
+                    else 
+                        -- do in parallel multiple rounds of insertion each time choosing first of 
+                        -- randomly ordered verified results--with postProcessNetworkAdd
+                        -- perform a delete on all final to get rid of extraneous edges for "best" result
+                        -- choose random graph to SA/Drift if more than 1
+                        insertAllNetEdgesSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
+
+{- | insertAllNetEdgesSA adds network edges one each each round using Simulated Annealing/Drift
+-}
+insertAllNetEdgesSA
+    ∷ GlobalSettings
+    → ProcessedData
+    → NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → Maybe SAParams
+    → [ReducedPhylogeneticGraph]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+insertAllNetEdgesSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
+    pure ([], counter)
+                
 
 -- | postProcessNetworkAdd prcesses non-simanneal/drift--so no updating of SAParams
 postProcessNetworkAdd
@@ -967,9 +995,11 @@ postProcessNetworkAdd inGS inData netParams counter (curBestGraphList, _) (newGr
 in parallel and returns unique list of new Phylogenetic Graphs and cost
 if equal returns unique graph list
 
-Operates by first perfomring heuriastic cost estimate for all possibilities,
+Operates by first performing heuristic cost estimate for all possibilities,
 then fully evaluates the best (ie. lowest delta number) graphs based on
 HeursticCheck option.
+
+For SA/Drift just returns all best afte verify whether better or not 
 -}
 insertEachNetEdgeHeuristicGather
     ∷ GlobalSettings
@@ -1003,13 +1033,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                             logWith LogInfo ("Maximum number of network edges reached: " <> (show $ length netNodes) <> "\n")
                             pure ([inPhyloGraph], currentCost, inSimAnnealParams)
                     else do
-                        candidateNetworkEdgeList' ← getPermissibleEdgePairs inGS (thd5 inPhyloGraph)
-
-                        -- radomize pair list--not needed if doing all (as in here).
-                        candidateNetworkEdgeList ←
-                            if (netRandom netParams)
-                                then shuffleList candidateNetworkEdgeList'
-                                else pure candidateNetworkEdgeList'
+                        candidateNetworkEdgeList ← getPermissibleEdgePairs inGS (thd5 inPhyloGraph)
 
                         logWith LogInfo ("\t\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
 
@@ -1019,7 +1043,8 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                 heuristicAction `pTraverse` candidateNetworkEdgeList
 
                         -- filter out non-phylo graphs and sort on heuristic cost
-                        let candidatePairList = L.sortOn fst $ filter ((/= infinity) .fst) heurCostSimpleGraphPairList
+                        let nonInfinitePairList = filter ((/= infinity) .fst) heurCostSimpleGraphPairList
+                        let candidatePairList = L.sortOn fst nonInfinitePairList
 
                         let graphsToBeEvaluated = 
                                     if (netCheckHeuristic netParams) == BestOnly then
@@ -1034,11 +1059,21 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                     else --BestAll
                                         fmap snd candidatePairList
 
+                        -- this to make sure have some randomization and a number of graphs to consider
+                        randomizedList <- if isJust inSimAnnealParams
+                                                then shuffleList nonInfinitePairList
+                                                else pure []
+
+                        let graphsToBeEvaluated' = if isNothing inSimAnnealParams then
+                                                        graphsToBeEvaluated
+                                                   else 
+                                                        fmap snd $ take (graphsSteepest inGS) randomizedList
+
                         if null graphsToBeEvaluated then 
                             pure ([inPhyloGraph], currentCost, inSimAnnealParams)
 
+
                         else do
-                                -- logWith LogInfo ("\nEvaluating " <> (show $ length graphsToBeEvaluated) <> " candidate graphs" <> " of " <> (show $ length candidatePairList) <> "\n")
                                 -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
                                 diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                                 checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
@@ -1061,20 +1096,25 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                     logWith LogInfo ("\t\t-> " <> (show minCost) <> "\n")
                                 else logWith LogInfo ("")
 
+                                let genNewSimAnnealParams =
+                                        if isNothing inSimAnnealParams
+                                            then Nothing
+                                        else U.incrementSimAnnealParams inSimAnnealParams
                                     
-                                if minCost <= (snd5 inPhyloGraph) then
-                                    let genNewSimAnnealParams =
-                                            if isNothing inSimAnnealParams
-                                                then Nothing
-                                                else U.incrementSimAnnealParams inSimAnnealParams
-                                    in do
+                                -- always return if better in any conditions
+                                if minCost <= (snd5 inPhyloGraph) then do
                                     --logWith LogInfo ("IENEHG: " <> (show (minCost, (snd5 inPhyloGraph) )))
                                 
                                     newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
                                     pure (newBestGraphList, minCost, genNewSimAnnealParams)
-                                    
+                                
+                                -- return if worse for SA/Drift
                                 else do
-                                    pure ([], minCost, inSimAnnealParams)
+                                    if isNothing inSimAnnealParams then 
+                                        pure ([], minCost, inSimAnnealParams)
+                                    else do
+                                        newRandGraphList <- GO.selectGraphs AtRandom (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                                        pure (newRandGraphList, minCost, genNewSimAnnealParams)
                                 
 
 {- | insertNetEdgeHeuristic inserts an edge between two other edges, creating 2 new nodes 

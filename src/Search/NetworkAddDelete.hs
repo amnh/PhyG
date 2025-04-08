@@ -46,7 +46,7 @@ import Utilities.Utilities qualified as U
 
 
 {- |
-'addDeleteNetEdges' is a wrapper for 'addDeleteNetEdges'' allowing for multiple simulated annealing rounds.
+'addDeleteNetEdges is a wrapper for 'addDeleteNetEdges'' allowing for multiple simulated annealing rounds.
 -}
 addDeleteNetEdges
     ∷ GlobalSettings
@@ -499,7 +499,7 @@ insertAllNetEdgesRand inGS inData netParams counter (curBestGraphList, curBestGr
         inPhyloGraphList
 
 
--- | insertAllNetEdges'' is a wrapper around insertAllNetEdges' to allow for seqParMap
+-- | insertAllNetEdges'' is a wrapper around insertAllNetEdges' to allow for parallelism
 insertAllNetEdges''
     ∷ GlobalSettings
     → ProcessedData
@@ -950,9 +950,7 @@ insertEachNetEdge
     → ReducedPhylogeneticGraph
     → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
 insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloGraph =
-    insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnnealParams inPhyloGraph
-
-    {-
+    
     if LG.isEmpty $ fst5 inPhyloGraph
         then error "Empty input insertEachNetEdge graph in deleteAllNetEdges"
         else
@@ -1090,7 +1088,7 @@ insertEachNetEdge inGS inData netParams preDeleteCost inSimAnnealParams inPhyloG
                                                                                 preDeleteCost
                                                                                 nextSAParams
                                                                                 inPhyloGraph
-    -}
+    
 
 
 -- | insertEachNetEdge' is a wrapper around insertEachNetEdge to allow for parmapping with multiple parameters
