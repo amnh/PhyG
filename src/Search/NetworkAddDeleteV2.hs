@@ -153,6 +153,7 @@ moveAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraphCo
                         [] → infinity
                         (_, c, _, _, _) : _ → c
 
+                --logWith LogInfo (" MoveAll': " <> (show newGraphCost) <> " from " <> (show $ fmap snd5 $ concat deleteResult) <>"\n")
                 -- if graph is a tree no edges to delete
                 case netEdgeList of
                     [] → (firstPhyloGraph : otherPhyloGraphs, counter) <$ logWith LogInfo "\t\tGraph in move has no network edges to move--skipping\n"
@@ -285,7 +286,7 @@ deleteOneNetAddAll
 deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnnealParams =
     if null edgeToDeleteList
         then do
-            -- trace ("\tGraph has no edges to move---skipping")
+            --logWith LogInfo ("\tGraph has no edges to move---skipping")
             pure [inPhyloGraph]
         else
             if LG.isEmpty $ thd5 inPhyloGraph
@@ -330,18 +331,17 @@ deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnne
                                             inGS
                                             inData
                                             netParams {netMaxEdges = curNumNetNodes + 1}
-                                            (Just inGraphCost)  -- Nothing
+                                            Nothing
                                             inSimAnnealParams
                                             graphToInsert'
 
                                     let newMinimumCost = snd3 insertedGraphTripleList
-
                                     let newBestGraphs = filter ((== newMinimumCost) . snd5) $ fst3 insertedGraphTripleList
 
-                                    -- trace ("DONAA-New: " <> (show (inGraphCost, fmap snd5 graphsToInsert, fmap snd5 graphsToInsert', newMinimumCost))) (
+                                    --logWith LogInfo  ("DONAA-New: " <> (show (inGraphCost, snd5 graphToInsert, fmap snd5 $ fst3 insertedGraphTripleList, newMinimumCost)))
                                     if newMinimumCost < inGraphCost
                                         then do
-                                            -- trace ("DONA-> ")
+                                            --logWith LogInfo ("DONA=> " <> (show newMinimumCost))
                                             pure newBestGraphs
                                         else do
                                             deleteOneNetAddAll
@@ -895,6 +895,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                             [] → infinity
                             (_, c, _, _, _) : _ → c
 
+                    --logWith LogInfo ("IANE: " <> (show $ fmap snd5 newGraphList) <> " " <> (show newGraphCost))
                     -- this will recurse back if required
                     postProcessNetworkAdd
                             inGS
@@ -1057,17 +1058,20 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                             else minimum $ fmap snd5 newGraphList
                                 
                                 if minCost < (snd5 inPhyloGraph) then 
-                                    logWith LogInfo ("\t\t -> " <> (show minCost) <> "\n")
+                                    logWith LogInfo ("\t\t-> " <> (show minCost) <> "\n")
                                 else logWith LogInfo ("")
-                                
+
+                                    
                                 if minCost <= (snd5 inPhyloGraph) then
                                     let genNewSimAnnealParams =
                                             if isNothing inSimAnnealParams
                                                 then Nothing
                                                 else U.incrementSimAnnealParams inSimAnnealParams
                                     in do
+                                    --logWith LogInfo ("IENEHG: " <> (show (minCost, (snd5 inPhyloGraph) )))
+                                
                                     newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                                    pure (newBestGraphList, snd5 inPhyloGraph, genNewSimAnnealParams)
+                                    pure (newBestGraphList, minCost, genNewSimAnnealParams)
                                     
                                 else do
                                     pure ([], minCost, inSimAnnealParams)
