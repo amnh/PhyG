@@ -918,8 +918,11 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                         -- do in parallel multiple rounds of insertion each time choosing first of 
                         -- randomly ordered verified results--with postProcessNetworkAdd
                         -- perform a delete on all final to get rid of extraneous edges for "best" result
-                        -- choose random graph to SA/Drift if more than 1
-                        insertAllNetEdgesSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
+                        let -- create list of params with unique list of random values for rounds of annealing
+                            annealingRounds = rounds $ fromJust inSimAnnealParams
+                            annealParamGraphList = replicate annealingRounds inSimAnnealParams
+                        in  do
+                            insertAllNetEdgesSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
 
 {- | insertAllNetEdgesSA adds network edges one each each round using Simulated Annealing/Drift
 -}
