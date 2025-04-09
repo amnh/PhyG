@@ -356,9 +356,9 @@ deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnne
                                                 (tail edgeToDeleteList)
                                                 inSimAnnealParams
 
-{-----------------------------------
+{---------------------------------------
     Add-Delete network edge functions
-------------------------------------}
+----------------------------------------}
 
 {- |
 'addDeleteNetEdges is a wrapper for 'addDeleteNetEdges'' allowing for multiple simulated annealing rounds.
