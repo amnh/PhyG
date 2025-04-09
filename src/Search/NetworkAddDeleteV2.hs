@@ -943,8 +943,6 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
 
         deleteAction :: ReducedPhylogeneticGraph -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
         deleteAction = deleteEachNetEdge inGS inData netParams False Nothing
-
-
         
     in do
         graphsToAnneal <- if length inPhyloGraphList == 1 then 
@@ -956,20 +954,29 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
         addActionPar <- getParallelChunkTraverse 
         newGraphTripleList <- addActionPar addAction (zip annealParamList graphsToAnneal)
 
+        uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 (concat $ fmap fst newGraphTripleList)
+
         -- return mutated for GA
         if netReturnMutated netParams then do
-            finalList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 (concat $ fmap fst newGraphTripleList)
-            pure (finalList, counter + annealingRounds)
+           pure (uniqueList, counter + annealingRounds)
 
         else do
+            logWith LogInfo "\t\tDeleting extraneous edges after network addition drifting\n"
             -- delete edges to get back to "best" edge lists
-            delActionPar <- getParallelChunkTraverse
-            deletedTripleList <- delActionPar deleteAction (concat $ fmap fst newGraphTripleList)
+            --delActionPar <- getParallelChunkTraverse
+            --deletedTripleList <- delActionPar deleteAction uniqueList
 
-            --check resulting graphs not all same for testing
+            (deletedGraphList, _)  <- deleteAllNetEdges' inGS inData netParams counter (uniqueList, minimum $ fmap snd5 uniqueList) Nothing uniqueList 
 
             -- return better and equal including inputs
-            finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> (concat $ fmap fst3 deletedTripleList)
+            finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> deletedGraphList -- (concat $ fmap fst3 deletedTripleList)
+
+            let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+
+            if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
+                logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
+            else 
+                logWith LogInfo ""
 
             pure (finalList, counter + annealingRounds)
 
@@ -1007,7 +1014,7 @@ insertAllNetEdgesSA inGS inData netParams counter curBestCost (inSimAnnealParams
                         inSimAnnealParams
                         inPhyloGraph
 
-                logWith LogInfo ("SA/Drif graph return: " <> (show $ fmap snd5 newGraphList) <> " " <> (show newCost))
+                --logWith LogInfo ("SA/Drift graph return: " <> (show $ fmap snd5 newGraphList) <> " " <> (show newCost))
                 bestNewGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
 
                 -- terminate if not getting any new graphs (could happen if lots of edges already)
@@ -1164,7 +1171,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                             fmap snd candidatePairList
 
                             
-                            logWith LogInfo ("GTBE: " <> (show $ fmap fst candidatePairList))
+                            --logWith LogInfo ("GTBE: " <> (show $ fmap fst candidatePairList))
 
                             if null graphsToBeEvaluated then
                                     pure ([inPhyloGraph], currentCost, inSimAnnealParams)
