@@ -44,6 +44,10 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
+{-----------------------------------
+    Move network edge functinos
+------------------------------------}
+
 -- | moveAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 moveAllNetEdges
     ∷ GlobalSettings
@@ -352,6 +356,9 @@ deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnne
                                                 (tail edgeToDeleteList)
                                                 inSimAnnealParams
 
+{-----------------------------------
+    Add-Delete network edge functinos
+------------------------------------}\
 
 {- |
 'addDeleteNetEdges is a wrapper for 'addDeleteNetEdges'' allowing for multiple simulated annealing rounds.
@@ -497,6 +504,11 @@ addDeleteNetEdges' inGS inData netParams maxRounds counter (curBestGraphList, cu
                         (newBestGraphList, newBestGraphCost)
                         (last updatedSAParamList)
                         graphsToDoNext
+
+
+{-----------------------------------
+    Delete network edge functinos
+------------------------------------}
 
 -- | deleteAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 deleteAllNetEdges
@@ -826,7 +838,11 @@ postProcessNetworkDelete inGS inData netParams counter (curBestGraphList, _) inS
                         inSimAnnealParams
                         (tail inPhyloGraphList)
 
-                    
+
+{-----------------------------------
+    Insert network edge functinos
+------------------------------------}
+
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
 insertAllNetEdges
     ∷ GlobalSettings
@@ -961,7 +977,7 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
            pure (uniqueList, counter + annealingRounds)
 
         else do
-            logWith LogInfo "\t\tDeleting extraneous edges after network addition drifting\n"
+            logWith LogInfo "\t\tDeleting extraneous edges after network addition Aimulated Annealing/Drifing\n"
             -- delete edges to get back to "best" edge lists
             --delActionPar <- getParallelChunkTraverse
             --deletedTripleList <- delActionPar deleteAction uniqueList
