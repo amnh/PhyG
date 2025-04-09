@@ -966,18 +966,20 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
             --delActionPar <- getParallelChunkTraverse
             --deletedTripleList <- delActionPar deleteAction uniqueList
 
-            (deletedGraphList, _)  <- deleteAllNetEdges' inGS inData netParams counter (uniqueList, minimum $ fmap snd5 uniqueList) Nothing uniqueList 
+            -- set steapest to false so tries all resulting graphs
+            (deletedGraphList, _)  <- deleteAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, minimum $ fmap snd5 uniqueList) Nothing uniqueList 
 
             -- return better and equal including inputs
             finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> deletedGraphList -- (concat $ fmap fst3 deletedTripleList)
 
             let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
 
+            {-
             if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
                 logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
             else 
                 logWith LogInfo ""
-
+            -}
             pure (finalList, counter + annealingRounds)
 
 {- insertaAllNetEdgesSA performes a single SA/Drift Add trajectory 
