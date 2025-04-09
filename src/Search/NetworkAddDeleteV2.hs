@@ -939,7 +939,7 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
 
         -- set up parallel
         addAction :: (Maybe SAParams, ReducedPhylogeneticGraph)→ PhyG ([ReducedPhylogeneticGraph], Int)
-        addAction = insertAllNetEdgesSA inGS inData netParams counter curBestGraphCost Nothing 
+        addAction = insertAllNetEdgesSA inGS inData netParams counter curBestGraphCost 
 
         deleteAction :: ReducedPhylogeneticGraph -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
         deleteAction = deleteEachNetEdge inGS inData netParams False Nothing
@@ -958,7 +958,7 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
 
         -- delete edges to get back to "best" edge lists
         delActionPar <- getParallelChunkTraverse
-        deletedTripleList <- delActionPar deleteAction (concat $ fmap fst3 newGraphTripleList)
+        deletedTripleList <- delActionPar deleteAction (concat $ fmap fst newGraphTripleList)
 
         --check resulting graphs not all same for testing
 
@@ -974,10 +974,9 @@ insertAllNetEdgesSA
     → NetParams
     → Int
     → VertexCost
-    → Maybe SAParams
-    → ReducedPhylogeneticGraph
+    → (Maybe SAParams, ReducedPhylogeneticGraph)
     → PhyG ([ReducedPhylogeneticGraph], Int)
-insertAllNetEdgesSA inGS inData netParams counter curBestCost inSimAnnealParams inPhyloGraph =
+insertAllNetEdgesSA inGS inData netParams counter curBestCost (inSimAnnealParams, inPhyloGraph) =
     pure ([inPhyloGraph], counter)               
 
 -- | postProcessNetworkAdd prcesses non-simanneal/drift--so no updating of SAParams
