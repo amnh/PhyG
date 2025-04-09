@@ -565,7 +565,8 @@ deleteAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                 inSimAnnealParams
                 otherPhyloGraphs
 
-        else do 
+        else if isNothing inSimAnnealParams then 
+            do 
                 logWith LogInfo $ "\tNumber of network edges: " <> (show $ length netNodes) <> " Number of graphs: " <> (show $ length inPhyloGraphList) <> "\n"
                 (newGraphList', _, newSAParams) ←
                     deleteEachNetEdge
@@ -596,6 +597,10 @@ deleteAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                             newGraphList
                             newGraphCost
                             currentCost
+
+        -- SA/Drift
+        else 
+            error "Not implemented'"
 
 {- | deleteEachNetEdge takes a phylogenetic graph and deletes all network edges one at time
 and returns best list of new Phylogenetic Graphs and cost
@@ -635,16 +640,31 @@ deleteEachNetEdge inGS inData netParams  force inSimAnnealParams inPhyloGraph =
                         getParallelChunkTraverse >>= \pTraverse →
                             action `pTraverse` networkEdgeList
 
-                    let (newGraphList, newSAParams) =  (delNetEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
-
-                    bestCostGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (inPhyloGraph : newGraphList)
                     let minCost =
-                            if null bestCostGraphList
-                                then infinity
-                                else minimum $ fmap snd5 bestCostGraphList
+                                if null delNetEdgeList
+                                    then infinity
+                                    else minimum $ fmap snd5 delNetEdgeList
 
-                    --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
-                    pure (bestCostGraphList, minCost, newSAParams)
+                    let (newGraphList, newSAParams) =  (delNetEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
+                        
+                    -- Always return best if better
+                    if isNothing inSimAnnealParams || minCost < (snd5 inPhyloGraph) then do
+
+                        bestCostGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (inPhyloGraph : newGraphList)
+                        
+
+                        --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
+                        pure (bestCostGraphList, minCost, newSAParams)
+
+                    -- SA/Drift
+                    else 
+                        do
+                            newGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs AtRandom (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                        
+                            --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
+                            pure (newGraphList, minCost, inSimAnnealParams)
+
+                    
                     
 {- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
 contacts in=out=1 edgfes and removes node, reindexing nodes and edges
