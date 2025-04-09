@@ -968,14 +968,14 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
 
             --check resulting graphs not all same for testing
 
-            -- return optimal if better
+            -- return better and equal including inputs
             finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> (concat $ fmap fst3 deletedTripleList)
 
             pure (finalList, counter + annealingRounds)
 
 {- insertaAllNetEdgesSA performes a single SA/Drift Add trajectory 
     Will continue adding edges if selected by SA/Drift until
-    no selection of new graph, edges hit maximum number, or SA/Drift 
+    edges hit maximum number, or SA/Drift 
     steps end
 -}
 insertAllNetEdgesSA
@@ -987,8 +987,47 @@ insertAllNetEdgesSA
     → (Maybe SAParams, ReducedPhylogeneticGraph)
     → PhyG ([ReducedPhylogeneticGraph], Int)
 insertAllNetEdgesSA inGS inData netParams counter curBestCost (inSimAnnealParams, inPhyloGraph) =
+    if U.isSimAnnealTerminated inSimAnnealParams then
+        pure ([inPhyloGraph], counter)  
+    else 
+        let netNodes = fth4 $ LG.splitVertexList $ thd5 inPhyloGraph
+        in
+        if length netNodes >= (netMaxEdges netParams) then do
+                logWith LogInfo $ unwords ["Maximum number of network edges reached:", show $ length netNodes, "\n"]
+                pure ([inPhyloGraph], counter)  
+        else 
+            do
+                -- generate graphs with randomization on heuristic costs
+                (newGraphList, newCost, newSAParams) ←
+                    insertEachNetEdgeHeuristicGather 
+                        inGS
+                        inData
+                        netParams
+                        Nothing
+                        inSimAnnealParams
+                        inPhyloGraph
 
-    pure ([inPhyloGraph], counter)               
+                logWith LogInfo ("SA/Drif graph return: " <> (show $ fmap snd5 newGraphList) <> " " <> (show newCost))
+                bestNewGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+
+                -- terminate if not getting any new graphs (could happen if lots of edges already)
+                if null bestNewGraphList then
+                        pure ([inPhyloGraph], counter + 1)
+
+                -- check if accept based on SA/Drift
+                 else do
+                        let bestNewGraph = head bestNewGraphList
+                        (acceptGraph, newSAParams) <- U.simAnnealAccept inSimAnnealParams curBestCost newCost
+
+                        let newCurBestCost = min curBestCost newCost
+
+                        if acceptGraph then 
+                            insertAllNetEdgesSA inGS inData netParams (counter + 1) newCurBestCost (newSAParams, bestNewGraph) 
+
+                        else 
+                            insertAllNetEdgesSA inGS inData netParams (counter + 1) newCurBestCost (newSAParams, inPhyloGraph)
+
+                                    
 
 -- | postProcessNetworkAdd prcesses non-simanneal/drift--so no updating of SAParams
 postProcessNetworkAdd
@@ -1091,17 +1130,28 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
 
                         logWith LogInfo ("\t\tExamining at most " <> (show $ length candidateNetworkEdgeList) <> " candidate edge pairs" <> "\n")
 
+                        -- only take some smaller sample for SA/Drift
+                        candidateNetworkEdgeList' <- if isNothing inSimAnnealParams then 
+                                                        pure candidateNetworkEdgeList
+                                                     else do
+                                                        shuffledList <- shuffleList candidateNetworkEdgeList
+                                                        pure $ take ((graphsSteepest inGS) * (graphsSteepest inGS)) shuffledList
+
                         -- get heuristic costs and simple graphs
                         heurCostSimpleGraphPairList <- 
                             getParallelChunkTraverse >>= \pTraverse →
-                                heuristicAction `pTraverse` candidateNetworkEdgeList
+                                heuristicAction `pTraverse` candidateNetworkEdgeList'
 
                         -- filter out non-phylo graphs and sort on heuristic cost
                         let nonInfinitePairList = filter ((/= infinity) .fst) heurCostSimpleGraphPairList
                         let candidatePairList = L.sortOn fst nonInfinitePairList
 
                         let graphsToBeEvaluated = 
-                                    if (netCheckHeuristic netParams) == BestOnly then
+                                    -- make sure take some number of SA/Drif
+                                    if isJust inSimAnnealParams then
+                                         fmap snd $ take (graphsSteepest inGS) candidatePairList
+
+                                    else if (netCheckHeuristic netParams) == BestOnly then
                                         fmap snd $ take 1 candidatePairList
 
                                     else if (netCheckHeuristic netParams) == Better then
@@ -1113,15 +1163,8 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                     else --BestAll
                                         fmap snd candidatePairList
 
-                        -- this to make sure have some randomization and a number of graphs to consider
-                        randomizedList <- if isJust inSimAnnealParams
-                                                then shuffleList nonInfinitePairList
-                                                else pure []
-
-                        let graphsToBeEvaluated' = if isNothing inSimAnnealParams then
-                                                        graphsToBeEvaluated
-                                                   else 
-                                                        fmap snd $ take (graphsSteepest inGS) randomizedList
+                        
+                        logWith LogInfo ("GTBE: " <> (show $ fmap fst candidatePairList)
 
                         if null graphsToBeEvaluated then 
                             pure ([inPhyloGraph], currentCost, inSimAnnealParams)
@@ -1133,12 +1176,11 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                 checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
 
                                 (newGraphList, newSAParams) <-
-                                        -- do all in prallel
-                                       let genNewSimAnnealParams =
-                                            if isNothing inSimAnnealParams
-                                                then Nothing
-                                                else U.incrementSimAnnealParams inSimAnnealParams
-                                       in do
+                                            -- do all in prallel
+                                            let genNewSimAnnealParams =
+                                                if isNothing inSimAnnealParams
+                                                    then Nothing
+                                                    else U.incrementSimAnnealParams inSimAnnealParams
                                             pure (checkedGraphCosts, genNewSimAnnealParams)
                                        
                                 let minCost =

@@ -16,7 +16,8 @@ import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Fuse qualified as F
-import Search.NetworkAddDelete qualified as N
+--import Search.NetworkAddDelete qualified as N
+import Search.NetworkAddDeleteV2 qualified as N
 import Search.SwapV2 qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
