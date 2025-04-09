@@ -883,6 +883,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                     if isNothing inSimAnnealParams then do
 
                         -- this examines all possible net adds via heursitc first then verifies
+                        -- could get cost here in second tuple place but need to get best anyway later
                         (newGraphList, _, newSAParams) ←
                             insertEachNetEdgeHeuristicGather 
                                 inGS
@@ -915,18 +916,14 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                     -- SA/Drift stuff--need to have rounds option here and 
                     -- return mutated for GA
                     else 
-                        -- do in parallel multiple rounds of insertion each time choosing first of 
-                        -- randomly ordered verified results--with postProcessNetworkAdd
-                        -- perform a delete on all final to get rid of extraneous edges for "best" result
-                        let -- create list of params with unique list of random values for rounds of annealing
-                            annealingRounds = rounds $ fromJust inSimAnnealParams
-                            annealParamGraphList = replicate annealingRounds inSimAnnealParams
-                        in  do
-                            insertAllNetEdgesSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
+                        insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
 
 {- | insertAllNetEdgesSA adds network edges one each each round using Simulated Annealing/Drift
+
+    Randomizes graphs to examine in insertEachNetEdgeHeuristicGather so can do multiple rounds there
+    After SA insert can return mutated or do a delete to get back to "optimal" edges
 -}
-insertAllNetEdgesSA
+insertRoundsSA
     ∷ GlobalSettings
     → ProcessedData
     → NetParams
@@ -935,9 +932,53 @@ insertAllNetEdgesSA
     → Maybe SAParams
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-insertAllNetEdgesSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
-    pure ([], counter)
-                
+insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
+    let -- create list of params with unique list of random values for rounds of annealing
+        annealingRounds = rounds $ fromJust inSimAnnealParams
+        annealParamList = replicate annealingRounds inSimAnnealParams
+
+        -- set up parallel
+        addAction :: (Maybe SAParams, ReducedPhylogeneticGraph)→ PhyG ([ReducedPhylogeneticGraph], Int)
+        addAction = insertAllNetEdgesSA inGS inData netParams counter curBestGraphCost Nothing 
+
+        deleteAction :: ReducedPhylogeneticGraph -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+        deleteAction = deleteEachNetEdge inGS inData netParams False Nothing
+
+
+        
+    in do
+        graphsToAnneal <- if length inPhyloGraphList == 1 then 
+                                pure $ replicate annealingRounds $ head  inPhyloGraphList
+                          else do
+                                shuffledLists <- mapM shuffleList $ replicate annealingRounds inPhyloGraphList
+                                pure $ fmap head shuffledLists
+
+        addActionPar <- getParallelChunkTraverse 
+        newGraphTripleList <- addActionPar addAction (zip annealParamList graphsToAnneal)
+
+        -- delete edges to get back to "best" edge lists
+        delActionPar <- getParallelChunkTraverse
+        deletedTripleList <- delActionPar deleteAction (concat $ fmap fst3 newGraphTripleList)
+
+        --check resulting graphs not all same for testing
+
+        -- return optimal if better
+        finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> (concat $ fmap fst3 deletedTripleList)
+
+        pure (finalList, counter + annealingRounds)
+
+{- insertaAllNetEdgesSA performes a single  SA/Drift trajectory -}
+insertAllNetEdgesSA
+    ∷ GlobalSettings
+    → ProcessedData
+    → NetParams
+    → Int
+    → VertexCost
+    → Maybe SAParams
+    → ReducedPhylogeneticGraph
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+insertAllNetEdgesSA inGS inData netParams counter curBestCost inSimAnnealParams inPhyloGraph =
+    pure ([inPhyloGraph], counter)               
 
 -- | postProcessNetworkAdd prcesses non-simanneal/drift--so no updating of SAParams
 postProcessNetworkAdd
