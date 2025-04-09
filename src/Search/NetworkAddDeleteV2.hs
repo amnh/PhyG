@@ -880,6 +880,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                     pure (take (netKeepNum netParams) curBestGraphList, counter)
 
                 else do
+                    -- this recurses until max net edges or no new edges reached
                     if isNothing inSimAnnealParams then do
 
                         -- this examines all possible net adds via heursitc first then verifies
@@ -913,8 +914,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                                 currentCost
                                 otherPhyloGraphs
 
-                    -- SA/Drift stuff--need to have rounds option here and 
-                    -- return mutated for GA
+                    -- SA/Drift stuff--single call recurses within insertRoundsSA
                     else 
                         insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
 
@@ -956,18 +956,28 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
         addActionPar <- getParallelChunkTraverse 
         newGraphTripleList <- addActionPar addAction (zip annealParamList graphsToAnneal)
 
-        -- delete edges to get back to "best" edge lists
-        delActionPar <- getParallelChunkTraverse
-        deletedTripleList <- delActionPar deleteAction (concat $ fmap fst newGraphTripleList)
+        -- return mutated for GA
+        if netReturnMutated netParams then do
+            finalList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 (concat $ fmap fst newGraphTripleList)
+            pure (finalList, counter + annealingRounds)
 
-        --check resulting graphs not all same for testing
+        else do
+            -- delete edges to get back to "best" edge lists
+            delActionPar <- getParallelChunkTraverse
+            deletedTripleList <- delActionPar deleteAction (concat $ fmap fst newGraphTripleList)
 
-        -- return optimal if better
-        finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> (concat $ fmap fst3 deletedTripleList)
+            --check resulting graphs not all same for testing
 
-        pure (finalList, counter + annealingRounds)
+            -- return optimal if better
+            finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> (concat $ fmap fst3 deletedTripleList)
 
-{- insertaAllNetEdgesSA performes a single  SA/Drift trajectory -}
+            pure (finalList, counter + annealingRounds)
+
+{- insertaAllNetEdgesSA performes a single SA/Drift Add trajectory 
+    Will continue adding edges if selected by SA/Drift until
+    no selection of new graph, edges hit maximum number, or SA/Drift 
+    steps end
+-}
 insertAllNetEdgesSA
     ∷ GlobalSettings
     → ProcessedData
@@ -977,6 +987,7 @@ insertAllNetEdgesSA
     → (Maybe SAParams, ReducedPhylogeneticGraph)
     → PhyG ([ReducedPhylogeneticGraph], Int)
 insertAllNetEdgesSA inGS inData netParams counter curBestCost (inSimAnnealParams, inPhyloGraph) =
+
     pure ([inPhyloGraph], counter)               
 
 -- | postProcessNetworkAdd prcesses non-simanneal/drift--so no updating of SAParams
