@@ -45,7 +45,7 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
 {-----------------------------------
-    Move network edge functinos
+    Move network edge functions
 ------------------------------------}
 
 -- | moveAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
@@ -357,8 +357,8 @@ deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnne
                                                 inSimAnnealParams
 
 {-----------------------------------
-    Add-Delete network edge functinos
-------------------------------------}\
+    Add-Delete network edge functions
+------------------------------------}
 
 {- |
 'addDeleteNetEdges is a wrapper for 'addDeleteNetEdges'' allowing for multiple simulated annealing rounds.
@@ -507,7 +507,7 @@ addDeleteNetEdges' inGS inData netParams maxRounds counter (curBestGraphList, cu
 
 
 {-----------------------------------
-    Delete network edge functinos
+    Delete network edge functions
 ------------------------------------}
 
 -- | deleteAllNetEdges is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
@@ -840,7 +840,7 @@ postProcessNetworkDelete inGS inData netParams counter (curBestGraphList, _) inS
 
 
 {-----------------------------------
-    Insert network edge functinos
+    Insert network edge functions
 ------------------------------------}
 
 -- | (curBestGraphList, annealBestCost) is a wrapper for moveAllNetEdges' allowing for multiple simulated annealing rounds
