@@ -600,7 +600,81 @@ deleteAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
 
         -- SA/Drift
         else 
-            error "Not implemented'"
+            deleteRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
+
+{- | deleteRoundsSA deletes network edges one each each round using Simulated Annealing/Drift
+
+    Randomizes graphs to examine in deleteEdge so can do multiple rounds there
+    After SA delete can return mutated or do a addEdges to get back to "optimal" edges
+-}
+deleteRoundsSA
+    ∷ GlobalSettings
+    → ProcessedData
+    → NetParams
+    → Int
+    → ([ReducedPhylogeneticGraph], VertexCost)
+    → Maybe SAParams
+    → [ReducedPhylogeneticGraph]
+    → PhyG ([ReducedPhylogeneticGraph], Int)
+deleteRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
+    let -- create list of params with unique list of random values for rounds of annealing
+        annealingRounds = rounds $ fromJust inSimAnnealParams
+        annealParamList = replicate annealingRounds inSimAnnealParams
+
+        -- set up parallel
+        deleteAction :: (Maybe SAParams, ReducedPhylogeneticGraph) -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+        deleteAction = deleteEachNetEdge' inGS inData netParams False
+        
+    in do
+        graphsToAnneal <- if length inPhyloGraphList == 1 then 
+                                pure $ replicate annealingRounds $ head  inPhyloGraphList
+                          else do
+                                shuffledLists <- mapM shuffleList $ replicate annealingRounds inPhyloGraphList
+                                pure $ fmap head shuffledLists
+
+        deleteActionPar <- getParallelChunkTraverse 
+        newGraphTripleList <- deleteActionPar deleteAction (zip annealParamList graphsToAnneal)
+
+        uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 (concat $ fmap fst3 newGraphTripleList)
+
+        -- return mutated for GA
+        if netReturnMutated netParams then do
+           pure (uniqueList, counter + annealingRounds)
+
+        else do
+            logWith LogInfo "\t\tAdding edges after network deletion Simulated Annealing/Drifing\n"
+            -- delete edges to get back to "best" edge lists
+            --delActionPar <- getParallelChunkTraverse
+            --deletedTripleList <- delActionPar deleteAction uniqueList
+
+            -- set steapest to false so tries all resulting graphs
+            (insertedGraphList, _)  <- insertAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, minimum $ fmap snd5 uniqueList) Nothing uniqueList 
+
+            -- return better and equal including inputs
+            finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> insertedGraphList -- (concat $ fmap fst3 deletedTripleList)
+
+            let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+
+            
+            if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
+                logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
+            else 
+                logWith LogInfo ""
+            
+            pure (finalList, counter + annealingRounds)
+
+{- | deleteEachNetEdge' is a wrapper around deleteEachNetEdge to allow for zipping new simAnneal params for each
+replicate
+-}
+deleteEachNetEdge'
+    ∷ GlobalSettings
+    → ProcessedData
+    -> NetParams
+    → Bool
+    → (Maybe SAParams, ReducedPhylogeneticGraph)
+    → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+deleteEachNetEdge' inGS inData netParams force (inSimAnnealParams, inPhyloGraph) =
+    deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph
 
 {- | deleteEachNetEdge takes a phylogenetic graph and deletes all network edges one at time
 and returns best list of new Phylogenetic Graphs and cost
@@ -615,7 +689,7 @@ deleteEachNetEdge
     → Maybe SAParams
     → ReducedPhylogeneticGraph
     → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
-deleteEachNetEdge inGS inData netParams  force inSimAnnealParams inPhyloGraph =
+deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
     
     if LG.isEmpty $ thd5 inPhyloGraph
         then do
@@ -733,19 +807,6 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
                                         -- Allows for mutation
                                         pure newPhyloGraph
 
-
-{- | deleteEachNetEdge' is a wrapper around deleteEachNetEdge to allow for zipping new random seeds for each
-replicate
--}
-deleteEachNetEdge'
-    ∷ GlobalSettings
-    → ProcessedData
-    -> NetParams
-    → Bool
-    → (Maybe SAParams, ReducedPhylogeneticGraph)
-    → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
-deleteEachNetEdge' inGS inData netParams force (inSimAnnealParams, inPhyloGraph) =
-    deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph
 
 {- | deleteNetworkEdge deletes a network edges from a simple graph
 retuns newGraph if can be modified or input graph with Boolean to tell if modified
@@ -954,7 +1015,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
                     else 
                         insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
 
-{- | insertAllNetEdgesSA adds network edges one each each round using Simulated Annealing/Drift
+{- | insertRoundsSA adds network edges one each each round using Simulated Annealing/Drift
 
     Randomizes graphs to examine in insertEachNetEdgeHeuristicGather so can do multiple rounds there
     After SA insert can return mutated or do a delete to get back to "optimal" edges
@@ -997,7 +1058,7 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
            pure (uniqueList, counter + annealingRounds)
 
         else do
-            logWith LogInfo "\t\tDeleting extraneous edges after network addition Aimulated Annealing/Drifing\n"
+            logWith LogInfo "\t\tDeleting extraneous edges after network addition Simulated Annealing/Drifing\n"
             -- delete edges to get back to "best" edge lists
             --delActionPar <- getParallelChunkTraverse
             --deletedTripleList <- delActionPar deleteAction uniqueList
