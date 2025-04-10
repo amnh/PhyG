@@ -678,7 +678,7 @@ deleteEachNetEdge' inGS inData netParams force (inSimAnnealParams, inPhyloGraph)
 
 {- | deleteEachNetEdge takes a phylogenetic graph and deletes all network edges one at time
 and returns best list of new Phylogenetic Graphs and cost
-even if worse--could be used for simulated annealing later
+even if worse--used for simulated annealing later
 if equal returns unique graph list
 -}
 deleteEachNetEdge
@@ -690,11 +690,19 @@ deleteEachNetEdge
     → ReducedPhylogeneticGraph
     → PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
 deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
-    
-    if LG.isEmpty $ thd5 inPhyloGraph
-        then do
-            pure ([], infinity, inSimAnnealParams) -- error "Empty input phylogenetic graph in deleteAllNetEdges"
-        else
+    let currentCost = snd5 inPhyloGraph
+    in
+
+    -- empty graph
+    if LG.isEmpty $ thd5 inPhyloGraph then
+        pure ([], infinity, inSimAnnealParams) -- error "Empty input phylogenetic graph in deleteAllNetEdges"
+
+    -- SA/Drif and done all steps
+    else if isJust inSimAnnealParams && U.isSimAnnealTerminated inSimAnnealParams then 
+        pure ([inPhyloGraph], currentCost, inSimAnnealParams)
+
+    -- stuff to do
+    else
             let currentCost = snd5 inPhyloGraph
 
                 -- potentially randomize order of list
@@ -714,6 +722,7 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                         getParallelChunkTraverse >>= \pTraverse →
                             action `pTraverse` networkEdgeList
 
+                    -- list shoul;d always have graphs since deleting always yields a valid graph
                     let minCost =
                                 if null delNetEdgeList
                                     then infinity
@@ -730,14 +739,21 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                         --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
                         pure (bestCostGraphList, minCost, newSAParams)
 
-                    -- SA/Drift
+                    -- SA/Drift and Worse or equal
                     else 
                         do
                             newGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs AtRandom (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                        
-                            --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
-                            pure (newGraphList, minCost, inSimAnnealParams)
 
+                            let bestNewGraph = head newGraphList
+
+                            (acceptGraph, newSAParams) <- U.simAnnealAccept inSimAnnealParams currentCost minCost
+
+                            if acceptGraph then
+                                deleteEachNetEdge inGS inData netParams force newSAParams bestNewGraph
+
+                            else  
+                                deleteEachNetEdge inGS inData netParams force newSAParams inPhyloGraph
+                        
                     
                     
 {- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
