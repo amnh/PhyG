@@ -648,20 +648,32 @@ deleteRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
             --deletedTripleList <- delActionPar deleteAction uniqueList
 
             -- set steapest to false so tries all resulting graphs
-            (insertedGraphList, _)  <- insertAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, minimum $ fmap snd5 uniqueList) Nothing uniqueList 
+            let uniqueCost = if (not .null) uniqueList then
+                                minimum $ fmap snd5 uniqueList
+                          else infinity
 
-            -- return better and equal including inputs
-            finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> insertedGraphList -- (concat $ fmap fst3 deletedTripleList)
+            -- if found nothing
+            if null uniqueList then 
+                pure (inPhyloGraphList, counter)
 
-            let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+            else do
+                (insertedGraphList, _)  <- insertAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
 
-            
-            if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
-                logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
-            else 
-                logWith LogInfo ""
-            
-            pure (finalList, counter + annealingRounds)
+                -- return better and equal including inputs
+                finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> insertedGraphList -- (concat $ fmap fst3 deletedTripleList)
+
+                let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+
+                let finalCost = if (not .null) finalList then
+                                    minimum $ fmap snd5 finalList
+                              else infinity            
+
+                if finalCost < uniqueCost then
+                    logWith LogInfo ("\t\t-> " <> (show $ min finalCost uniqueCost) <> " with " <> (show netNodesList) <> " netWork nodes\n")
+                else 
+                    logWith LogInfo ""
+                
+                pure (finalList, counter + annealingRounds)
 
 {- | deleteEachNetEdge' is a wrapper around deleteEachNetEdge to allow for zipping new simAnneal params for each
 replicate
@@ -714,9 +726,14 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
             in  do
                 if null networkEdgeList
                     then do
-                        logWith LogInfo ("\tNo network edges to delete" <> "\n")
-                        pure ([], infinity, inSimAnnealParams)
+                        -- for SA/Drift if deletes all
+                        if (isJust inSimAnnealParams) then
+                            pure ([inPhyloGraph], snd5 inPhyloGraph, inSimAnnealParams)
+                        else do
+                            logWith LogInfo ("\tNo network edges to delete" <> "\n")
+                            pure ([], infinity, inSimAnnealParams)
                 else do
+                    logWith LogInfo ("\tNetwork edges to delete: " <> (show $ length networkEdgeList) <> "\n")
                     --could shuffle edge list if not doain all at once--but are now
                     delNetEdgeList ←
                         getParallelChunkTraverse >>= \pTraverse →
@@ -1080,7 +1097,11 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
             --deletedTripleList <- delActionPar deleteAction uniqueList
 
             -- set steapest to false so tries all resulting graphs
-            (deletedGraphList, _)  <- deleteAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, minimum $ fmap snd5 uniqueList) Nothing uniqueList 
+            let uniqueCost = if (not .null) uniqueList then
+                                minimum $ fmap snd5 uniqueList
+                             else infinity
+
+            (deletedGraphList, _)  <- deleteAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
 
             -- return better and equal including inputs
             finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> deletedGraphList -- (concat $ fmap fst3 deletedTripleList)
@@ -1088,6 +1109,9 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
             let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
 
             {-
+            let finalCost = if (not .null) finalList then
+                                minimum $ fmap snd5 finalList
+                            else infinity     
             if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
                 logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
             else 
