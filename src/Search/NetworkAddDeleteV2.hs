@@ -330,31 +330,42 @@ deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnne
                                     -- keep same cost and just keep better--check if better than original later
                                     let graphToInsert' = T.updatePhylogeneticGraphCostReduced graphToInsert inGraphCost
 
-                                    insertedGraphTripleList ←
-                                        insertEachNetEdgeHeuristicGather --insertEachNetEdge
-                                            inGS
-                                            inData
-                                            netParams {netMaxEdges = curNumNetNodes + 1}
-                                            Nothing
-                                            inSimAnnealParams
-                                            graphToInsert'
+                                    if isNothing inSimAnnealParams then 
+                                        do
 
-                                    let newMinimumCost = snd3 insertedGraphTripleList
-                                    let newBestGraphs = filter ((== newMinimumCost) . snd5) $ fst3 insertedGraphTripleList
-
-                                    --logWith LogInfo  ("DONAA-New: " <> (show (inGraphCost, snd5 graphToInsert, fmap snd5 $ fst3 insertedGraphTripleList, newMinimumCost)))
-                                    if newMinimumCost < inGraphCost
-                                        then do
-                                            --logWith LogInfo ("DONA=> " <> (show newMinimumCost))
-                                            pure newBestGraphs
-                                        else do
-                                            deleteOneNetAddAll
+                                        insertedGraphTripleList ←
+                                            insertEachNetEdgeHeuristicGather --insertEachNetEdge
                                                 inGS
                                                 inData
-                                                netParams
-                                                inPhyloGraph
-                                                (tail edgeToDeleteList)
+                                                netParams {netMaxEdges = curNumNetNodes + 1}
+                                                Nothing
                                                 inSimAnnealParams
+                                                graphToInsert'
+
+                                        let newMinimumCost = snd3 insertedGraphTripleList
+                                        let newBestGraphs = filter ((== newMinimumCost) . snd5) $ fst3 insertedGraphTripleList
+
+                                        --logWith LogInfo  ("DONAA-New: " <> (show (inGraphCost, snd5 graphToInsert, fmap snd5 $ fst3 insertedGraphTripleList, newMinimumCost)))
+                                        if newMinimumCost < inGraphCost
+                                            then do
+                                                --logWith LogInfo ("DONA=> " <> (show newMinimumCost))
+                                                pure newBestGraphs
+                                            else do
+                                                deleteOneNetAddAll
+                                                    inGS
+                                                    inData
+                                                    netParams
+                                                    inPhyloGraph
+                                                    (tail edgeToDeleteList)
+                                                    inSimAnnealParams
+
+                                    -- SA/Drift stuff--single call recurses within insertRoundsSA
+                                    else do
+                                        (saGraphList, _) <- insertRoundsSA inGS inData (netParams {netEditType = NetMove}) 0 ([inPhyloGraph], snd5 inPhyloGraph) inSimAnnealParams  [graphToInsert']
+                                        pure saGraphList
+                                         
+
+
 
 {---------------------------------------
     Add-Delete network edge functions
@@ -1046,7 +1057,7 @@ insertAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraph
 
                     -- SA/Drift stuff--single call recurses within insertRoundsSA
                     else 
-                        insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
+                        insertRoundsSA inGS inData (netParams {netEditType = NetAdd}) counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList
 
 {- | insertRoundsSA adds network edges one each each round using Simulated Annealing/Drift
 
@@ -1086,38 +1097,63 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
 
         uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 (concat $ fmap fst newGraphTripleList)
 
+        let uniqueCost = if (not .null) uniqueList then
+                                minimum $ fmap snd5 uniqueList
+                         else infinity
+
         -- return mutated for GA
         if netReturnMutated netParams then do
            pure (uniqueList, counter + annealingRounds)
 
+        
         else do
-            logWith LogInfo "\t\tDeleting extraneous edges after network addition Simulated Annealing/Drifing\n"
-            -- delete edges to get back to "best" edge lists
-            --delActionPar <- getParallelChunkTraverse
-            --deletedTripleList <- delActionPar deleteAction uniqueList
+            -- netADD SA
+            if netEditType netParams /= NetMove then do
+                logWith LogInfo "\t\tDeleting extraneous edges after network addition Simulated Annealing/Drifing\n"
+                -- delete edges to get back to "best" edge lists
+                
+                (deletedGraphList, _) <- deleteAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
 
-            -- set steapest to false so tries all resulting graphs
-            let uniqueCost = if (not .null) uniqueList then
-                                minimum $ fmap snd5 uniqueList
-                             else infinity
+                -- return better and equal including inputs
+                finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> deletedGraphList -- (concat $ fmap fst3 deletedTripleList)
 
-            (deletedGraphList, _)  <- deleteAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
+                let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
 
-            -- return better and equal including inputs
-            finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> deletedGraphList -- (concat $ fmap fst3 deletedTripleList)
+                {-
+                let finalCost = if (not .null) finalList then
+                                    minimum $ fmap snd5 finalList
+                                else infinity     
+                if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
+                    logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
+                else 
+                    logWith LogInfo ""
+                -}
+                pure (finalList, counter + annealingRounds)
 
-            let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+            -- netMOve so regular Move back asfter SA
+            else do
+                logWith LogInfo "\t\tMoving edges after network addition Simulated Annealing/Drifing\n"
+                -- delete edges to get back to "best" edge lists
+                
+                (movedGraphList, _) <- moveAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
 
-            {-
-            let finalCost = if (not .null) finalList then
-                                minimum $ fmap snd5 finalList
-                            else infinity     
-            if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
-                logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
-            else 
-                logWith LogInfo ""
-            -}
-            pure (finalList, counter + annealingRounds)
+                -- return better and equal including inputs
+                finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> movedGraphList -- (concat $ fmap fst3 deletedTripleList)
+
+                {-
+                let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+
+                
+                let finalCost = if (not .null) finalList then
+                                    minimum $ fmap snd5 finalList
+                                else infinity     
+                if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
+                    logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
+                else 
+                    logWith LogInfo ""
+                -}
+                pure (finalList, counter + 1)
+
 
 {- insertaAllNetEdgesSA performes a single SA/Drift Add trajectory 
     Will continue adding edges if selected by SA/Drift until
