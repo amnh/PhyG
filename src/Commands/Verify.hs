@@ -187,6 +187,7 @@ netEdgeArgList =
     , "inorder"
     , "keep"
     , "level"
+    , "maxchanges"
     , "maxnetedges"
     , "multitraverse"
     , "netadd"
