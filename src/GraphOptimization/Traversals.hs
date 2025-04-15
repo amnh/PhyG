@@ -78,7 +78,7 @@ multiTraverseFullyLabelGraph inGS inData pruneEdges warnPruneEdges startVertex i
                             logWith LogFail $
                                 unlines
                                     [ "Input graph is not a tree, but graph type has been specified (perhaps by default) as Tree."
-                                    , "Modify input graph or use 'set()' command to specify network type."
+                                    , "Modify input graph or use 'set()' command to specify network type (e.g. SoftWired)."
                                     , "\tNon-tree vertices (in degree=2 or indegree=outdegree=1) : " <> show (fst <$> networkVertexList)
                                     , LG.prettify inGraph
                                     ]
