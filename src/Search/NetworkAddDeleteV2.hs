@@ -9,8 +9,8 @@ module Search.NetworkAddDeleteV2 (
     --deleteNetEdge,
     --deleteOneNetAddAll,
     addDeleteNetEdges,
-    getCharacterDelta,
-    getBlockDelta,
+    getCharacterAddDelta,
+    getBlockDeltaAdd,
     -- these are not used but to quiet warnings
     --heuristicDeleteDelta,
     heuristicAddDelta,
@@ -1538,6 +1538,7 @@ isEdgePairPermissible inGraph constraintList (edge1@(u, v, _), edge2@(u', v', _)
                                                                 then False
                                                                 else True
     where
+        {-
         removeNodeLabels :: forall {f1 :: * -> *} {f2 :: * -> *}
                                    {f3 :: * -> *} {f4 :: * -> *} {a1} {a2} {a3} {a4} {a5} {a6}.
                             (Functor f1, Functor f2, Functor f3, Functor f4) =>
@@ -1545,6 +1546,7 @@ isEdgePairPermissible inGraph constraintList (edge1@(u, v, _), edge2@(u', v', _)
                              f3 (LG.LNode a5), f4 (LG.LNode a6))
                             -> (LG.Node, LG.Node, f1 LG.Node, f2 LG.Node, f3 LG.Node,
                                 f4 LG.Node)
+        -}
         removeNodeLabels (a, b, c, d, e, f) = (LG.toNode a, LG.toNode b, fmap LG.toNode c, fmap LG.toNode d, fmap LG.toNode e, fmap LG.toNode f)
 
 
@@ -1566,11 +1568,74 @@ isAncDescEdge inGraph (a, _, _) (b, _, _) =
                             then True
                             else False
 
-{- These heuristics do not seem to work well at all-}
+{- These heuristics do not seem to work very well--high variance with reoptimized costs-}
+
+{- Reverse of heuristicAdd Delta
+
+Start with edges (u',b), (u', y), (y, v'), (u,a), (u, x), (x, y), (x,v)
+(x,y) is the edge to delete resulting in subtrees U' -> b and v'; u -> v and a
+existing cost for graph fragment would be preliminary cost (full subtree) 
+would be cost u'  + cost u.  Cost of new fragment is cost (full subtree)
+of new u and u' wiich would be cost of (v" + b) and (v + a)
+
+This estimate should be better (less variance) than add.
+Does include the benefit of deleting a network edge
+-}
+
+heuristicDeleteDelta ∷ GlobalSettings → ReducedPhylogeneticGraph → LG.LEdge b → PhyG VertexCost
+heuristicDeleteDelta inGS inPhyloGraph (x,y,_) =
+    if LG.isEmpty (fst5 inPhyloGraph)
+        then error "Empty graph in heuristicDeleteDelta"
+        else
+            let -- base vertices of graph fragment
+                u' = head $ LG.parents (fst5 inPhyloGraph) y
+                u  = head $ LG.parents (fst5 inPhyloGraph) x
+                
+                -- single child
+                v' = head $ LG.descendants (fst5 inPhyloGraph) y
+                v  = head $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) x
+                a  = head $ filter (/= x) $ LG.descendants (fst5 inPhyloGraph) u
+                b  = head $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) u'
+
+                -- use minimia of resolution data for each block/character
+
+                --uResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u
+                --u'ResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u'
+
+                aVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) a
+                bVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) b
+
+                --aResolutionData = vertexResolutionData aVertexInfo 
+                --bResolutionData = vertexResolutionData bVertexInfo
+
+                vVertexInfo  = fromJust $ LG.lab (thd5 inPhyloGraph) v
+                v'VertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) v'
+                
+                --vResolutionData  = vertexResolutionData  vVertexInfo 
+                --v'ResolutionData = vertexResolutionData  v'VertexInfo 
+
+
+                -- get best resolution cost dor each character and block
+
+                costSubGraphU  = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u
+                costSubGraphU' = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u'
+
+            in do
+                newDataU  <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (v, vVertexInfo) (a, aVertexInfo) (thd5 inPhyloGraph)
+                newDataU' <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (v', v'VertexInfo) (b, bVertexInfo) (thd5 inPhyloGraph)
+
+                let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
+                let costSubGraphNewU' = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
+                
+                logWith LogInfo $ "HDD: " <> (show costSubGraphU) <> " " <> (show costSubGraphU') <> "\n"
+
+                -- new should be higher or equal cost than existing
+                pure $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')
+
 
 {- | heuristic add delta based on new display tree and delta from existing costs by block--assumming < 0
 original edges subtree1 ((u,l),(u,v)) and subtree2 ((u',v'),(u',l')) create a directed edge from
-subtree 1 to subtree 2 via
+subtree 1 to subtree 2 via (x -> y)
 1) Add node x and y, delete edges (u,v) and (u'v') and create edges (u,x), (x,v), (u',y), and (y,v')
 2) real cost is the sum of block costs that are lower for new graph versus older
 3) heuristic is when new subtree is lower than existing block by block
@@ -1595,25 +1660,25 @@ heuristicAddDelta _ inPhyloGraph ((u, v, _), (u', v', _)) =
                             V.zip (fth5 inPhyloGraph) $
                                 V.fromList [0 .. (V.length (fft5 inPhyloGraph) - 1)]
                 action :: (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG VertexCost
-                action = getBlockDelta (u, v, u', v', a, b)
+                action = getBlockDeltaAdd (u, v, u', v', a, b)
             in do
                 actionPar <- getParallelChunkTraverse 
-                -- blockDeltaV <- V.zipWith (getBlockDelta (u, v, u', v', a, b)) (zip blockTrees (fft5 inPhyloGraph))
+                -- blockDeltaV <- V.zipWith (getBlockDeltaAdd (u, v, u', v', a, b)) (zip blockTrees (fft5 inPhyloGraph))
                 blockDeltaL <- actionPar action (V.toList $ V.zip blockTrees (fft5 inPhyloGraph))
                 pure $ sum blockDeltaL
 
 
-{- | getBlockDelta determines the network add delta for each block (vector of characters)
+{- | getBlockDeltaAdd determines the network add delta for each block (vector of characters)
 if existing is lower then zero, else (existing - new)
 -}
-getBlockDelta
+getBlockDeltaAdd
     ∷ (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) → (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG VertexCost
-getBlockDelta (u, v, u', v', a, b) (inCharV, charInfoV) =
+getBlockDeltaAdd (u, v, u', v', a, b) (inCharV, charInfoV) =
     if V.null inCharV
-        then error "Empty charcter tree vector in getBlockDelta"
+        then error "Empty charcter tree vector in getBlockDeltaAdd"
         else
             let action :: (DecoratedGraph, CharInfo) → (VertexCost, VertexCost)
-                action = getCharacterDelta (u, v, u', v', a, b)
+                action = getCharacterAddDelta (u, v, u', v', a, b)
             in do
                  actionPar ← getParallelChunkMap
                  let result = actionPar action (V.toList $ V.zip inCharV charInfoV)
@@ -1624,17 +1689,17 @@ getBlockDelta (u, v, u', v', a, b) (inCharV, charInfoV) =
                     then pure $ newCost - existingCost
                     else pure $ 0.0
 
-{- | getCharacterDelta determines the network add delta for each block (vector of characters)
+{- | getCharacterAddDelta determines the network add delta for each block (vector of characters)
 if existing is lower then zero, else (existing - new)
  calculate d(u,v) + d(u',v') [existing display tree cost estimate] compared to
  d((union u,v), v') - d(u'.v')
 need to use final assignemnts--so set prelim to final first
-Since a distance--no need for No chanage cost adjustment
+Since a distance--no need for No change cost adjustment
 -}
-getCharacterDelta
+getCharacterAddDelta
     ∷ (LG.Node, LG.Node, LG.Node, LG.Node, LG.Node, LG.Node) → (DecoratedGraph, CharInfo) → (VertexCost, VertexCost)
-getCharacterDelta (_, v, _, v', a, b) (inCharTree, charInfo) =
-    -- getCharacterDelta (u,v,u',v',a,b) inCharTree charInfo =
+getCharacterAddDelta (_, v, _, v', a, b) (inCharTree, charInfo) =
+    -- getCharacterAddDelta (u,v,u',v',a,b) inCharTree charInfo =
     let doIA = False
         noChangeCostAdjust = False --this since want a distance not a median
         -- filterGaps = True
@@ -1721,6 +1786,14 @@ heuristicAddDelta' inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
                                     if (length $ LG.descendants (thd5 inPhyloGraph) u) < 2 || (length $ LG.descendants (thd5 inPhyloGraph) u') < 2
                                         then error ("Outdegree 1 nodes in heuristicAddDelta")
                                         else pure (addNetDelta, (u, uLabAfter), (u', uPrimeLabAfter), (n1, n1Lab), (n2, n2Lab))
+
+
+{-
+-- | insertNetEdgeBothDirections calls insertNetEdge for both u -> v and v -> u new edge orientations
+insertNetEdgeBothDirections :: GlobalSettings -> ProcessedData -> ReducedPhylogeneticGraph ->  Maybe VertexCost -> (LG.LEdge b, LG.LEdge b) -> [ReducedPhylogeneticGraph]
+insertNetEdgeBothDirections inGS inData inPhyloGraph preDeleteCost (u,v) = fmap (insertNetEdge inGS inData inPhyloGraph preDeleteCost) [(u,v), (v,u)]
+-}
+
 
 
 {- | deltaPenaltyAdjustment takes number of leaves and Phylogenetic graph and returns a heuristic graph penalty for adding a single network edge

@@ -23,6 +23,7 @@ module Graphs.GraphOperations (
     getNodeType,
     getTopoUniqPhylogeneticGraph,
     getUniqueGraphs,
+    getSoftWiredNodeSubGraphCost,
     graphCostFromNodes,
     hasNetNodeAncestorViolation,
     isNovelGraph,
@@ -35,6 +36,7 @@ module Graphs.GraphOperations (
     makeLeafGraph,
     makeNewickList,
     makeSimpleLeafGraph,
+    minBlockResolutionCost,
     parentsInChainGraph,
     phylogeneticGraphListMinus,
     reducedphylogeneticGraphListMinus,
@@ -78,8 +80,37 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 import Debug.Trace
 
+-- | getSoftWiredNodeSubGraphCost  takes a softwired graph and returns the sub graph cost 
+-- for that node based on minimium of resolutoncache costs--so underestimate likely
+
+-- Blocks
+-- vertexResolutionData ∷ V.Vector ResolutionBlockData 
+
+-- Characters within Blocks
+-- ResolutionBlockData = V.Vector ResolutionData
+
+getSoftWiredNodeSubGraphCost :: ReducedPhylogeneticGraph -> Int -> VertexCost
+getSoftWiredNodeSubGraphCost inPhyloGraph vertex =
+    if LG.isEmpty $ thd5 inPhyloGraph then infinity
+    else
+        let labelDataMaybe = LG.lab (thd5 inPhyloGraph) vertex
+        in
+        if isNothing labelDataMaybe then error ("Vertex not in graph: " <> (show vertex))
+        else 
+            let resData = vertexResolutionData $ fromJust labelDataMaybe
+            in
+            V.sum $ fmap minBlockResolutionCost resData
+
+-- | minBlockkResolutionCost returns the minimum cost subgraph resolutoin cost of a character
+minBlockResolutionCost :: ResolutionBlockData -> VertexCost
+minBlockResolutionCost inBlockResData = V.minimum $ fmap minCharResolutionCost inBlockResData
+
+-- | minCharResolutionCost returns the minimum cost subgraph resolutoin cost of a character
+minCharResolutionCost :: ResolutionData -> VertexCost
+minCharResolutionCost inResData = displayCost inResData
 
 
+ 
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
 convertPhylogeneticGraph2Reduced ∷ PhylogeneticGraph → ReducedPhylogeneticGraph
 convertPhylogeneticGraph2Reduced inPhyloGraph@(a, b, c, displayTreeV, _, f) =
@@ -111,7 +142,7 @@ convertReduced2PhylogeneticGraph inReducedPhyloGraph@(a, b, canonicalGraph, disp
 
 
 {- | getCharacterTree takes an input Decotate disply tree list and returns a vectopr of character trees
-based on teh first display tree in list
+based on the first display tree in list
 -}
 getCharacterTree ∷ (DecoratedGraph, Int) → V.Vector DecoratedGraph
 getCharacterTree (inDisplayTree, numCharTrees) =
@@ -298,7 +329,7 @@ parentsInChainVertex inGraph inNode =
                                 False
 
 
-{- | ReducedphylogeneticGraphListMinus subtracts teh secoind argiument list from first
+{- | ReducedphylogeneticGraphListMinus subtracts the secoind argiument list from first
 if an element is multiple times in firt list each will be removed
 equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
 does not take cost into account--or edge weight--only topology.
@@ -316,7 +347,7 @@ reducedphylogeneticGraphListMinus minuendList subtrahendList
         in  differenceList
 
 
-{- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
+{- | phylogeneticGraphListMinus subtracts the secoind argiument list from first
 if an element is multiple times in firt list each will be removed
 equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
 does not take cost into account--or edge weight--only topology.
@@ -1360,9 +1391,8 @@ selectGraphStochastic number factor inGraphList
 
                 pure $ selectedGraphs <> suffixPad
 
-
-{- | getDisplayTreeCostList returns a list of teh "block" costs of display trees
-in a piar with any graph 'penalty' cost
+{- | getDisplayTreeCostList returns a list of the "block" costs of display trees
+in a pair with any graph 'penalty' cost
 -}
 getDisplayTreeCostList ∷ PhylogeneticGraph → ([VertexCost], VertexCost)
 getDisplayTreeCostList inGraph =
