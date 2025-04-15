@@ -154,7 +154,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                     | not collapse = curGraphs
                     | otherwise = U.collapseReducedGraph <$> curGraphs
 
-            -- use 'temp' updated graphs s don't repeatedly add model and root complexityies
+            -- use 'temp' updated graphs s don't repeatedly add model and root complexities
             -- reporting collapsed
             -- reverse sorting graphs by cost
             let rediagnoseWithReportingData = optimalityCriterion globalSettings == NCM && U.has4864PackedChars (thd3 processedData)
