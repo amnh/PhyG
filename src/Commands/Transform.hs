@@ -61,6 +61,8 @@ transform inArgs inGS origData inData inGraphList =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
         lcArgList = zip fstArgList sndArgList
+        -- this for case sensitive args like outgroup name
+        ucArgList = zip fstArgList (fmap snd inArgs)
         checkCommandList = checkCommandArgs "transform" fstArgList VER.transformArgList
     in  -- check for valid command options
         if not checkCommandList
@@ -156,7 +158,8 @@ transform inArgs inGS origData inData inGraphList =
                         | null (snd $ head changeSoftwiredMethodBlock) = Just $ fmap toLower $ show $ softWiredMethod inGS
                         | otherwise = readMaybe (show $ snd $ head changeSoftwiredMethodBlock) ∷ Maybe String
 
-                    reRootBlock = filter ((== "outgroup") . fst) lcArgList
+                    -- use ucArglist so doesn't change capitalization of outTaxon name
+                    reRootBlock = filter ((== "outgroup") . fst) ucArgList
                     outgroupValue
                         | length reRootBlock > 1 =
                             errorWithoutStackTrace ("Multiple outgroup specifications in transform--can have only one: " <> show inArgs)

@@ -1080,7 +1080,7 @@ insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost
 
         -- set up parallel
         addAction :: (Maybe SAParams, ReducedPhylogeneticGraph)→ PhyG ([ReducedPhylogeneticGraph], Int)
-        addAction = insertAllNetEdgesSA inGS inData netParams counter curBestGraphCost 
+        addAction = insertAllNetEdgesSA inGS inData  (netParams {netKeepNum = 1}) counter curBestGraphCost 
 
         deleteAction :: ReducedPhylogeneticGraph -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
         deleteAction = deleteEachNetEdge inGS inData netParams False Nothing
