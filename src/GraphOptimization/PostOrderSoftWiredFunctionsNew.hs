@@ -152,8 +152,20 @@ postDecorateSoftWired inGS incrementalInfo simpleGraph curDecGraph blockCharInfo
                                                             , midRangeLength = 0.0
                                                             , edgeType = TreeEdge
                                                             }
+                                                    action :: (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo) → PhyG ResolutionBlockData
+                                                    action = createBlockResolutions'
+                                                                inGS
+                                                                (compressResolutions inGS)
+                                                                curNode
+                                                                leftChild'
+                                                                rightChild'
+                                                                leftChildNodeType
+                                                                rightChildNodeType
+                                                                (GO.getNodeType simpleGraph curNode)
                                                 in  do
+                                                        {-
                                                         resolutionBlockVL ←
+                                                        -- Parallelize?
                                                             mapM
                                                                 ( createBlockResolutions'
                                                                     inGS
@@ -166,6 +178,12 @@ postDecorateSoftWired inGS incrementalInfo simpleGraph curDecGraph blockCharInfo
                                                                     (GO.getNodeType simpleGraph curNode)
                                                                 )
                                                                 (V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo)
+                                                        -}
+
+                                                        actionPar <- getParallelChunkTraverse 
+                                                        resolutionBlockVL ← actionPar action (V.zip3 (vertexResolutionData leftChildLabel) (vertexResolutionData rightChildLabel) blockCharInfo)
+              
+
 
                                                         -- create canonical Decorated Graph vertex
                                                         -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions
@@ -340,8 +358,20 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
         -- create resolution caches for blocks
         leftChildNodeType = nodeType leftChildLabel'
         rightChildNodeType = nodeType rightChildLabel'
+
+        action :: (ResolutionBlockData, ResolutionBlockData, V.Vector CharInfo) → PhyG ResolutionBlockData
+        action = createBlockResolutions'
+                        inGS
+                        (compressResolutions inGS)
+                        curNodeIndex
+                        leftChild'
+                        rightChild'
+                        leftChildNodeType
+                        rightChildNodeType
+                        TreeNode
     in  do
             -- TODO PArallelize? its parallel in lower call
+            {-
             resolutionBlockVL ←
                 mapM
                     ( createBlockResolutions'
@@ -355,6 +385,10 @@ getOutDegree2VertexSoftWired inGS charInfoVectVect curNodeIndex leftChild@(leftC
                         TreeNode
                     )
                     (V.zip3 (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect)
+            -}
+            actionPar <- getParallelChunkTraverse 
+            resolutionBlockVL ← actionPar action (V.zip3 (vertexResolutionData leftChildLabel') (vertexResolutionData rightChildLabel') charInfoVectVect)
+              
 
             -- create canonical Decorated Graph vertex
             -- 0 cost becasue can't know cosrt until hit root and get best valid resolutions

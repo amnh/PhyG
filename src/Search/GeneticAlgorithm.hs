@@ -16,7 +16,8 @@ import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Search.Fuse qualified as F
-import Search.NetworkAddDelete qualified as N
+--import Search.NetworkAddDelete qualified as N
+import Search.NetworkAddDeleteV2 qualified as N
 import Search.SwapV2 qualified as S
 import Types.Types
 import Utilities.LocalGraph qualified as LG
@@ -237,6 +238,22 @@ mutateGraph inGS inData maxNetEdges inGraph
                         , checkHeuristic = valCheckHeuristic
                         }
 
+            -- randomize network edit parameters
+            getRandomNetParams = do
+                editType <- getRandomFrom [NetAdd, NetDelete, NetMove]
+                let doRandomOrder = True
+                -- populate NetParams structure
+                pure $
+                    NetParams
+                        {   netRandom = doRandomOrder
+                            , netCheckHeuristic = valCheckHeuristic
+                            , netMaxEdges = maxNetEdges
+                            , netKeepNum = valNumToKeep
+                            , netReturnMutated = valReturnMutated
+                            , netSteepest = valSteepest
+                            , netEditType = editType
+                        }
+
             firstOrOldIfNoneExists =
                 pure . \case
                     ([], _) → inGraph
@@ -255,32 +272,26 @@ mutateGraph inGS inData maxNetEdges inGraph
             mutateOption3 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
+                rtNetParams <- getRandomNetParams
                 firstOrOldIfNoneExists
                     =<< N.moveAllNetEdges
                         inGS
                         inData
-                        maxNetEdges
-                        valNumToKeep
+                        rtNetParams
                         0
-                        valReturnMutated
-                        valSteepest
-                        valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
 
             mutateOption4 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
+                rtNetParams <- getRandomNetParams
                 firstOrOldIfNoneExists
                     =<< N.moveAllNetEdges
                         inGS
                         inData
-                        maxNetEdges
-                        valNumToKeep
+                        rtNetParams
                         0
-                        valReturnMutated
-                        valSteepest
-                        valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
 
@@ -288,17 +299,14 @@ mutateGraph inGS inData maxNetEdges inGraph
                 rMaxRounds ← getRandomFrom [1 .. 5]
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
+                rtNetParams <- getRandomNetParams
                 firstOrOldIfNoneExists
                     =<< N.insertAllNetEdges
                         inGS
                         inData
-                        maxNetEdges
-                        valNumToKeep
+                        rtNetParams
                         rMaxRounds
                         0
-                        valReturnMutated
-                        valSteepest
-                        valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
 
@@ -306,33 +314,27 @@ mutateGraph inGS inData maxNetEdges inGraph
                 rMaxRounds ← getRandomFrom [1 .. 5]
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
+                rtNetParams <- getRandomNetParams
                 firstOrOldIfNoneExists
                     =<< N.addDeleteNetEdges
                         inGS
                         inData
-                        maxNetEdges
-                        valNumToKeep
+                        rtNetParams
                         rMaxRounds
                         0
-                        valReturnMutated
-                        valSteepest
-                        valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
 
             mutateOption7 = do
                 rSAParams ← getRandomSAParams
                 rSwapParams ← getRandomSwapParams
+                rtNetParams <- getRandomNetParams
                 firstOrOldIfNoneExists
                     =<< N.deleteAllNetEdges
                         inGS
                         inData
-                        maxNetEdges
-                        valNumToKeep
+                        rtNetParams
                         0
-                        valReturnMutated
-                        valSteepest
-                        valDoRandomOrder
                         ([], infinity)
                         (rSAParams, [inGraph])
         in  do

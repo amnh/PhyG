@@ -1999,7 +1999,8 @@ getTNTString inGS inData (inGraph, graphNumber) =
                                 -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
                                 -- length information for cc code extents
-                                let charLengthList = concat $ V.toList $ V.zipWith getBlockLength (head leafDataList) charInfoVV
+                                -- True foir useIA
+                                let charLengthList = concat $ V.toList $ V.zipWith (getBlockLength True) (head leafDataList) charInfoVV
 
                                 -- Block/Character names for use in comment to show sources of new characters
                                 let charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
@@ -2145,7 +2146,8 @@ createDisplayTreeTNT inGS inData inGraph =
             -- nameCharStringList = concat $ zipWith (<>) leafNameList taxonCharacterStringList
 
             -- length information for cc code extents
-            let charLengthList = concat $ V.toList $ V.zipWith getBlockLength (V.head leafDataList) mergedCharInfoVV
+            -- True for useIA
+            let charLengthList = concat $ V.toList $ V.zipWith (getBlockLength True) (V.head leafDataList) mergedCharInfoVV
 
             -- Block/Character names for use in comment to show sources of new characters
             let charNameList = concat $ V.toList $ fmap getBlockNames charInfoVV
@@ -2291,7 +2293,9 @@ mergeCharInfoCharLength codeList lengthList charIndex =
                         then []
                         else "costs " <> scope <> " = " <> costsString <> ";\n"
                 ccCodeString' = "cc " <> ccCodeString <> " " <> scope <> ";\n"
-            in  (ccCodeString' <> weightString' <> costsString')
+            in  
+            --trace("MGIL: " <> (show charIndex) <> " " <> (show charLength) <> " " <> (show $ charIndex + charLength - 1) <> " " <> (show lengthList)) $
+            (ccCodeString' <> weightString' <> costsString')
                     <> mergeCharInfoCharLength (tail codeList) (tail lengthList) (charIndex + charLength)
 
 
@@ -2335,7 +2339,7 @@ getCharCodeInfo inCharInfo =
                         if costMatrixType == "nonAdd"
                             then ("-", "", charWeightString)
                             else ("(", matrixString, charWeightString)
-                _ → error ("Un-implemented data type " <> show inCharType)
+                _ → error ("Non-implemented data type " <> show inCharType)
         in  codeTriple
 
 
@@ -2374,11 +2378,11 @@ makeCostString namePairList costList =
 
 
 -- | getBlockLength returns a list of the lengths of all characters in a blocks
-getBlockLength ∷ V.Vector CharacterData → V.Vector CharInfo → [Int]
-getBlockLength inCharDataV inCharInfoV =
+getBlockLength ∷ Bool -> V.Vector CharacterData → V.Vector CharInfo → [Int]
+getBlockLength useIA inCharDataV inCharInfoV =
     -- trace ("GBL:" <> (show $ V.zipWith U.getCharacterLength inCharDataV inCharInfoV))
     -- False so not use IA field
-    V.toList $ V.zipWith (U.getCharacterLength False) inCharDataV inCharInfoV
+    V.toList $ V.zipWith (U.getCharacterLength useIA) inCharDataV inCharInfoV
 
 
 -- | getBlockNames returns a list of the lengths of all characters in a blocks
