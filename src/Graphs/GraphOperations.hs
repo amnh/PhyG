@@ -101,11 +101,15 @@ getSoftWiredNodeSubGraphCost inPhyloGraph vertex =
             in
             V.sum $ fmap minBlockResolutionCost resData
 
--- | minBlockkResolutionCost returns the minimum cost subgraph resolutoin cost of a character
+-- | minBlockkResolutionCost returns the average cost subgraph resolutoin cost of a character
 minBlockResolutionCost :: ResolutionBlockData -> VertexCost
-minBlockResolutionCost inBlockResData = V.minimum $ fmap minCharResolutionCost inBlockResData
+minBlockResolutionCost inBlockResData = 
+    -- 0.5 *  (V.minimum $ fmap minCharResolutionCost inBlockResData) + (V.maximum $ fmap minCharResolutionCost inBlockResData) 
+    let sumAll = V.sum $ fmap minCharResolutionCost inBlockResData
+    in
+    sumAll / (fromIntegral $ V.length inBlockResData)
 
--- | minCharResolutionCost returns the minimum cost subgraph resolutoin cost of a character
+-- | minCharResolutionCost returns the minimum cost subgraph resolution cost of a character
 minCharResolutionCost :: ResolutionData -> VertexCost
 minCharResolutionCost inResData = displayCost inResData
 

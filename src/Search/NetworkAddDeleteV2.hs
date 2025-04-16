@@ -733,7 +733,7 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
 
                 --- parallel
                 action ∷ LG.Edge → PhyG ReducedPhylogeneticGraph
-                action = deleteNetEdge inGS inData inPhyloGraph force
+                action = deleteNetEdge inGS inData inPhyloGraph force inSimAnnealParams
             in  do
                 if null networkEdgeList
                     then do
@@ -796,9 +796,10 @@ deleteNetEdge
     → ProcessedData
     → ReducedPhylogeneticGraph
     → Bool
+    -> Maybe SAParams
     → LG.Edge
     → PhyG ReducedPhylogeneticGraph
-deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
+deleteNetEdge inGS inData inPhyloGraph force inSimAnnealParams edgeToDelete =
     if LG.isEmpty $ thd5 inPhyloGraph
         then error "Empty input phylogenetic graph in deleteNetEdge"
         else
@@ -819,13 +820,16 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
                     -- graph optimization from root
                     let startVertex = Nothing
 
-                    -- (heuristicDelta, _, _) = heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
+                    heuristicDelta <- heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
 
-                    -- edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+                    let edgeDeleteDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+
+                    let totalHeuristicCost = (snd5 inPhyloGraph) + heuristicDelta - edgeDeleteDelta
 
                     -- full two-pass optimization--cycles checked in edge deletion function
                     let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
 
+                    {-
                     newPhyloGraph ←
                         -- check if deletion modified graph
                         if not wasModified then 
@@ -837,19 +841,38 @@ deleteNetEdge inGS inData inPhyloGraph force edgeToDelete =
                                 if (graphType inGS == HardWired)
                                     then T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
                                     else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
+                    -}
 
-                    if force
-                            then do
-                                -- trace ("DNE forced")
+                    -- check heuristic
+                    --logWith LogInfo $ "DNE: " <> -- (show (heuristicDelta, edgeDeleteDelta, heuristicDelta - edgeDeleteDelta)) <> " -> " <>
+                    --    (show totalHeuristicCost) <> " vs " <> (show $ (snd5 newPhyloGraph))
+
+                    if force || totalHeuristicCost < (snd5 inPhyloGraph) || isJust inSimAnnealParams then 
+                        do
+                            newPhyloGraph ←
+                                -- check if deletion modified graph
+                                if not wasModified then 
+                                    pure emptyReducedPhylogeneticGraph
+
+                                else if (graphType inGS == SoftWired)
+                                    then T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
+                                    else
+                                        if (graphType inGS == HardWired)
+                                            then T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
+                                            else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
+                                        -- trace ("DNE forced")
+                            if (snd5 newPhyloGraph) <= (snd5 inPhyloGraph) then
                                 pure newPhyloGraph
-                            else -- if (heuristicDelta / (dynamicEpsilon inGS)) - edgeAddDelta < 0 then newPhyloGraph
-                                if (snd5 newPhyloGraph) <= (snd5 inPhyloGraph)
-                                    then do
-                                        -- trace ("DNE Better: " <> (show $ snd5 newPhyloGraph))
-                                        pure newPhyloGraph
-                                    else do
-                                        -- Allows for mutation
-                                        pure newPhyloGraph
+
+                            -- mutation or moving
+                            else if force || isJust inSimAnnealParams then 
+                                pure newPhyloGraph
+
+                            else 
+                                pure emptyReducedPhylogeneticGraph
+
+                    else 
+                        pure emptyReducedPhylogeneticGraph
 
 
 {- | deleteNetworkEdge deletes a network edges from a simple graph
@@ -1582,8 +1605,8 @@ This estimate should be better (less variance) than add.
 Does include the benefit of deleting a network edge
 -}
 
-heuristicDeleteDelta ∷ GlobalSettings → ReducedPhylogeneticGraph → LG.LEdge b → PhyG VertexCost
-heuristicDeleteDelta inGS inPhyloGraph (x,y,_) =
+heuristicDeleteDelta ∷ GlobalSettings → ReducedPhylogeneticGraph → LG.Edge → PhyG VertexCost
+heuristicDeleteDelta inGS inPhyloGraph (x,y) =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicDeleteDelta"
         else
@@ -1627,10 +1650,13 @@ heuristicDeleteDelta inGS inPhyloGraph (x,y,_) =
                 let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
                 let costSubGraphNewU' = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
                 
-                logWith LogInfo $ "HDD: " <> (show costSubGraphU) <> " " <> (show costSubGraphU') <> "\n"
+                logWith LogInfo $ "HDD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')) <> "\n"
 
                 -- new should be higher or equal cost than existing
-                pure $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')
+                if (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU') < 0.0 then 
+                    pure 0.0
+                else 
+                    pure $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')
 
 
 {- | heuristic add delta based on new display tree and delta from existing costs by block--assumming < 0
