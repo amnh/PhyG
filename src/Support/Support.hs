@@ -100,7 +100,7 @@ supportGraph inArgs inGS inData inGraphList =
                             maximizeParallel'  
                                 | length maxParallelValue > 1 =
                                             errorWithoutStackTrace ("Multiple maxParallel specifications in support--can have only one: " <> show inArgs)
-                                | null maxParallelValue = Just "false"
+                                | null maxParallelValue = Just "true"
                                 | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel support option must be 'True' or 'False'" <> show inArgs)
                                 | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
 
