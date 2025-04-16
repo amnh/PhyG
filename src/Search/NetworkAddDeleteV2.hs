@@ -847,7 +847,7 @@ deleteNetEdge inGS inData inPhyloGraph force inSimAnnealParams edgeToDelete =
                     --logWith LogInfo $ "DNE: " <> -- (show (heuristicDelta, edgeDeleteDelta, heuristicDelta - edgeDeleteDelta)) <> " -> " <>
                     --    (show totalHeuristicCost) <> " vs " <> (show $ (snd5 newPhyloGraph))
 
-                    if True || totalHeuristicCost < (snd5 inPhyloGraph) || isJust inSimAnnealParams then 
+                    if force || totalHeuristicCost < (snd5 inPhyloGraph) || isJust inSimAnnealParams then 
                         do
                             newPhyloGraph ←
                                 -- check if deletion modified graph
