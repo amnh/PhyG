@@ -167,7 +167,8 @@ Common ffi-build-info
 -- This is required as compile option to make static binaries on Linux at least
 -- need to haev llvm-(verions) tools installed to link properly
 -- enable-executable-static -fpic -fPIC (multiple times--no idea why but including both cases seems to mater on 
--- currently (4/7/25) seems best to use -fPIC first then -fpic 3x each PIC first then pic repeatedly till compiles
+-- currently (4/17/25) seems best to use -fPIC first then -fpic 3x each PIC first then pic repeatedly till compiles
+-- took 4 complete 3x PIC 3x pic then 2 more PIC
 -- commandline)--sometimes have to run twice or more to get link correct (with differnet case for PIC)
 -- seems inconsistent with 9.12.1
 
