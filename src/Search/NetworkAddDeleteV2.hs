@@ -44,6 +44,13 @@ import Types.Types
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 
+{- For "rounds" in Simulated Annealing and Drfit in MOve and AddDelete
+    the rounds for add and elete funtions are set to 1
+    so get proper number pre round otherwise get rounds^2 actions
+
+    this is checked in top level add and delete functions via "netEditType"
+-}
+
 {-----------------------------------
     Move network edge functions
 ------------------------------------}
@@ -629,7 +636,8 @@ deleteRoundsSA
     → PhyG ([ReducedPhylogeneticGraph], Int)
 deleteRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
     let -- create list of params with unique list of random values for rounds of annealing
-        annealingRounds = rounds $ fromJust inSimAnnealParams
+        annealingRounds = if (netEditType netParams) `elem` [NetMove, NetAddDelete] then 1
+                          else rounds $ fromJust inSimAnnealParams
         annealParamList = replicate annealingRounds inSimAnnealParams
 
         -- set up parallel
@@ -1098,7 +1106,8 @@ insertRoundsSA
     → PhyG ([ReducedPhylogeneticGraph], Int)
 insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
     let -- create list of params with unique list of random values for rounds of annealing
-        annealingRounds = rounds $ fromJust inSimAnnealParams
+        annealingRounds = if (netEditType netParams) `elem` [NetMove, NetAddDelete] then 1
+                          else rounds $ fromJust inSimAnnealParams
         annealParamList = replicate annealingRounds inSimAnnealParams
 
         -- set up parallel
