@@ -24,6 +24,7 @@ module Graphs.GraphOperations (
     getTopoUniqPhylogeneticGraph,
     getUniqueGraphs,
     getSoftWiredNodeSubGraphCost,
+    getSoftWiredNodeSubGraphCostWithVertex,
     graphCostFromNodes,
     hasNetNodeAncestorViolation,
     isNovelGraph,
@@ -89,7 +90,7 @@ import Debug.Trace
 -- Characters within Blocks
 -- ResolutionBlockData = V.Vector ResolutionData
 
-getSoftWiredNodeSubGraphCost :: ReducedPhylogeneticGraph -> Int -> VertexCost
+getSoftWiredNodeSubGraphCost:: ReducedPhylogeneticGraph -> Int -> VertexCost
 getSoftWiredNodeSubGraphCost inPhyloGraph vertex =
     if LG.isEmpty $ thd5 inPhyloGraph then infinity
     else
@@ -99,20 +100,77 @@ getSoftWiredNodeSubGraphCost inPhyloGraph vertex =
         else 
             let resData = vertexResolutionData $ fromJust labelDataMaybe
             in
-            V.sum $ fmap minBlockResolutionCost resData
+            V.sum $ fmap minBlockResolutionCost resData 
 
 -- | minBlockkResolutionCost returns the average cost subgraph resolutoin cost of a character
 minBlockResolutionCost :: ResolutionBlockData -> VertexCost
 minBlockResolutionCost inBlockResData = 
     -- 0.5 *  (V.minimum $ fmap minCharResolutionCost inBlockResData) + (V.maximum $ fmap minCharResolutionCost inBlockResData) 
-    let sumAll = V.sum $ fmap minCharResolutionCost inBlockResData
+    let sumAll = V.sum $ fmap displayCost inBlockResData
+        {-
+        trimmedList = if V.length inBlockResData >3 then
+                        let first = L.take (V.length inBlockResData -1) $ L.sort $ V.toList $ fmap displayCost inBlockResData
+                        in
+                        L.drop 1 first
+                      else if V.length inBlockResData == 3 then
+                         L.drop 1 $ L.sort $ V.toList $ fmap displayCost inBlockResData
+                      else V.toList $ fmap displayCost inBlockResData
+        sumAll' = L.sum trimmedList 
+        -}
     in
+    --sumAll' / (fromIntegral $ L.length trimmedList)
     sumAll / (fromIntegral $ V.length inBlockResData)
 
--- | minCharResolutionCost returns the minimum cost subgraph resolution cost of a character
-minCharResolutionCost :: ResolutionData -> VertexCost
-minCharResolutionCost inResData = displayCost inResData
 
+{-
+These functions try to look at complementary resolution costs
+to get heuristic but was a large overestimate of delta
+-}
+
+-- | getSoftWiredNodeSubGraphCostWithVertex  takes a softwired graph and returns the sub graph cost 
+-- for that node based on minimium of resolutoncache costs--so underestimate likely
+
+-- Blocks
+-- vertexResolutionData ∷ V.Vector ResolutionBlockData 
+
+-- Characters within Blocks
+-- ResolutionBlockData = V.Vector ResolutionData
+
+getSoftWiredNodeSubGraphCostWithVertex:: ReducedPhylogeneticGraph -> Int -> Int -> (VertexCost, VertexCost)
+getSoftWiredNodeSubGraphCostWithVertex inPhyloGraph netVertex vertex =
+    if LG.isEmpty $ thd5 inPhyloGraph then (infinity, infinity)
+    else
+        let labelDataMaybe = LG.lab (thd5 inPhyloGraph) vertex
+        in
+        if isNothing labelDataMaybe then error ("Vertex not in graph: " <> (show vertex))
+        else 
+            let resData = vertexResolutionData $ fromJust labelDataMaybe
+                (hasNetVertexList, noNetVertexList) =  V.unzip $ fmap (minBlockResolutionCostWithVertex netVertex) resData 
+            in
+            (V.sum hasNetVertexList, V.sum noNetVertexList)
+
+-- | minBlockResolutionCostWithVertex returns the average cost subgraph resolutoin cost of a character
+minBlockResolutionCostWithVertex :: Int -> ResolutionBlockData -> (VertexCost, VertexCost)
+minBlockResolutionCostWithVertex netVertex inBlockResData  = 
+    -- 0.5 *  (V.minimum $ fmap minCharResolutionCost inBlockResData) + (V.maximum $ fmap minCharResolutionCost inBlockResData) 
+    let (withVertexList, noVertexList) = V.unzip $ fmap (minCharResolutionCostWithVertex netVertex) inBlockResData
+        sumHasVertex = V.sum withVertexList
+        sumNoVertex  = V.sum noVertexList
+    in
+    (V.minimum withVertexList, V.minimum noVertexList)
+    --(sumHasVertex / (fromIntegral $ V.length withVertexList), sumNoVertex / (fromIntegral $ V.length noVertexList))
+
+-- | minCharResolutionCostWithVertex returns the minimum cost subgraph resolution cost of a character
+minCharResolutionCostWithVertex :: Int -> ResolutionData -> (VertexCost, VertexCost)
+minCharResolutionCostWithVertex netVertex inResData = 
+    let subgraphNodes = getNodeIndices $ displaySubGraph inResData
+        hasNetVertex = netVertex `elem` subgraphNodes
+    in
+    if hasNetVertex then
+        (displayCost inResData, 0.0)
+    else 
+        (0.0, displayCost inResData)
+    where getNodeIndices (a,_) = fmap fst a
 
  
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
