@@ -837,7 +837,7 @@ deleteNetEdge inGS inData inPhyloGraph force inSimAnnealParams edgeToDelete =
                     -- full two-pass optimization--cycles checked in edge deletion function
                     let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
 
-                    {-_Delete after done testing heuristic-}
+                    {-_Delete after done testing heuristic
                     testPhyloGraph ←
                         -- check if deletion modified graph
                         if not wasModified then 
@@ -849,11 +849,11 @@ deleteNetEdge inGS inData inPhyloGraph force inSimAnnealParams edgeToDelete =
                                 if (graphType inGS == HardWired)
                                     then T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
                                     else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
-                    
+                    -}
 
                     -- check heuristic
-                    logWith LogInfo $ "DNE: " <>  (show (heuristicDelta, edgeDeleteDelta, heuristicDelta - edgeDeleteDelta)) <> " -> " <>
-                        (show totalHeuristicCost) <> " vs " <> (show $ (snd5 testPhyloGraph)) <> "\n"
+                    --logWith LogInfo $ "DNE: " <>  (show (heuristicDelta, edgeDeleteDelta, heuristicDelta - edgeDeleteDelta)) <> " -> " <>
+                    --    (show totalHeuristicCost) <> " vs " <> (show $ (snd5 testPhyloGraph)) <> "\n"
 
                     if force || totalHeuristicCost < (snd5 inPhyloGraph) || isJust inSimAnnealParams then 
                         do
