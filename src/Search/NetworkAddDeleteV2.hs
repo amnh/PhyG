@@ -15,6 +15,7 @@ module Search.NetworkAddDeleteV2 (
     --heuristicDeleteDelta,
     heuristicAddDelta,
     heuristicAddDelta',
+    heuristicAddDelta'',
 ) where
 
 import Control.Arrow ((&&&))
@@ -306,7 +307,7 @@ deleteOneNetAddAll inGS inData netParams inPhyloGraph edgeToDeleteList inSimAnne
                     -- trace ("DONAA-New: " <> (show $ snd5 inPhyloGraph) <> " Steepest:" <> (show doSteepest)) (
                     logWith
                         LogInfo
-                        ("Moving " <> (show $ length edgeToDeleteList) <> " network edges, current best cost: " <> (show $ snd5 inPhyloGraph) <> "\n")
+                        ("\tMoving " <> (show $ length edgeToDeleteList) <> " network edges, current best cost: " <> (show $ snd5 inPhyloGraph) <> "\n")
                     -- start with initial graph cost
                     let inGraphCost = snd5 inPhyloGraph
 
@@ -740,8 +741,16 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                 networkEdgeList = LG.netEdges $ thd5 inPhyloGraph
 
                 --- parallel
-                action ∷ LG.Edge → PhyG ReducedPhylogeneticGraph
-                action = deleteNetEdge inGS inData inPhyloGraph force inSimAnnealParams
+                --action ∷ LG.Edge → PhyG ReducedPhylogeneticGraph
+                --action = deleteNetEdge inGS inData inPhyloGraph force inSimAnnealParams
+
+                heuristicAction :: LG.Edge → PhyG (VertexCost, SimpleGraph)
+                heuristicAction = deleteNetworkEdgeHeuristic inGS inData inPhyloGraph force 
+
+                -- this needs to start with root hence Nothing
+                diagnoseAction :: SimpleGraph → PhyG ReducedPhylogeneticGraph
+                diagnoseAction = T.multiTraverseFullyLabelGraphReduced inGS inData False False Nothing
+
             in  do
                 if null networkEdgeList
                     then do
@@ -753,46 +762,129 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                             pure ([], infinity, inSimAnnealParams)
                 else do
                     logWith LogInfo ("\tNetwork edges to delete: " <> (show $ length networkEdgeList) <> "\n")
+                    
                     --could shuffle edge list if not doain all at once--but are now
-                    delNetEdgeList ←
+                    heuristicGraphPairList <- 
                         getParallelChunkTraverse >>= \pTraverse →
-                            action `pTraverse` networkEdgeList
+                            heuristicAction `pTraverse` networkEdgeList
 
-                    -- list shoul;d always have graphs since deleting always yields a valid graph
-                    let minCost =
-                                if null delNetEdgeList
+                    -- filter out non-phylo graphs and sort on heuristic cost
+                    let nonInfinitePairList = filter ((/= infinity) .fst) heuristicGraphPairList
+                    let candidatePairList = L.sortOn fst nonInfinitePairList
+
+                    let graphsToBeEvaluated = 
+                            -- make sure take some number of SA/Drif
+                            if isJust inSimAnnealParams then
+                                 fmap snd $ take (graphsSteepest inGS) candidatePairList
+
+                            else if (netCheckHeuristic netParams) == BestOnly then
+                                fmap snd $ take 1 candidatePairList
+
+                            else if (netCheckHeuristic netParams) == Better then
+                                fmap snd $ filter ((> currentCost) . fst) candidatePairList
+
+                            else if (netCheckHeuristic netParams) == BetterN then 
+                                fmap snd $ take (graphsSteepest inGS) candidatePairList
+
+                            else --BestAll
+                                fmap snd candidatePairList
+
+
+                    if null graphsToBeEvaluated then
+                        pure ([inPhyloGraph], currentCost, inSimAnnealParams)
+
+                    else do
+                        -- list should always have graphs since deleting always yields a valid graph
+                        -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
+                        diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
+                        checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
+
+                        (newGraphList, newSAParams) <-
+                                let genNewSimAnnealParams =
+                                        if isNothing inSimAnnealParams then
+                                            Nothing
+                                        else 
+                                            U.incrementSimAnnealParams inSimAnnealParams
+                                in
+                                pure (checkedGraphCosts, genNewSimAnnealParams)
+                                           
+                        let minCost =
+                                if null graphsToBeEvaluated || null newGraphList
                                     then infinity
-                                    else minimum $ fmap snd5 delNetEdgeList
+                                else minimum $ fmap snd5 newGraphList
 
-                    let (newGraphList, newSAParams) =  (delNetEdgeList, U.incrementSimAnnealParams inSimAnnealParams)
+                        {-
+                        if minCost < (snd5 inPhyloGraph) then 
+                            logWith LogInfo ("\t\t*-> " <> (show minCost) <> "\n")
+                        else 
+                        -}
                         
-                    -- Always return best if better
-                    if isNothing inSimAnnealParams || minCost < (snd5 inPhyloGraph) then do
-
-                        bestCostGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (inPhyloGraph : newGraphList)
+                        if isJust inSimAnnealParams then
+                            logWith LogInfo ("\t\t-> " <> (show minCost) <> "\n")
+                        else 
+                            logWith LogInfo ("")
                         
+                                       
+                        -- Always return best if better
+                        if isNothing inSimAnnealParams || minCost < (snd5 inPhyloGraph) then do
 
-                        --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
-                        pure (bestCostGraphList, minCost, newSAParams)
+                            bestCostGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (inPhyloGraph : newGraphList)
+                            
+                            --logWith LogInfo ("\tNew costs:" <> (show $ fmap snd5 newGraphList) <>"\n")
+                            pure (bestCostGraphList, minCost, newSAParams)
 
-                    -- SA/Drift and Worse or equal
+                        -- SA/Drift and Worse or equal
+                        else 
+                            do
+                                newGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs AtRandom (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+
+                                let bestNewGraph = head newGraphList
+
+                                (acceptGraph, _) <- U.simAnnealAccept inSimAnnealParams currentCost minCost
+
+                                if acceptGraph then
+                                    deleteEachNetEdge inGS inData netParams force newSAParams bestNewGraph
+
+                                else  
+                                    deleteEachNetEdge inGS inData netParams force newSAParams inPhyloGraph
+                            
+
+{- | deleteNetworkEdgeHeuristic deletes an edge (checking if network)
+and returns heuristic cost esimate for deleted edge graph
+-}
+deleteNetworkEdgeHeuristic
+    ∷ GlobalSettings
+    → ProcessedData
+    → ReducedPhylogeneticGraph
+    → Bool
+    → LG.Edge
+    → PhyG (VertexCost, SimpleGraph)
+deleteNetworkEdgeHeuristic inGS inData inPhyloGraph force edgeToDelete =
+    if LG.isEmpty $ thd5 inPhyloGraph
+        then error "Empty input phylogenetic graph in deleteNetEdge"
+        else
+            if not (LG.isNetworkEdge (fst5 inPhyloGraph) edgeToDelete)
+                then error ("Edge to delete: " <> (show edgeToDelete) <> " not in graph:\n" <> (LG.prettify $ fst5 inPhyloGraph))
+                else do
+                    -- trace ("DNE: " <> (show edgeToDelete)) (
+                    (delSimple, wasModified) ← deleteNetworkEdge (fst5 inPhyloGraph) edgeToDelete
+
+                    heuristicDelta <- heuristicDeleteDelta inGS inPhyloGraph edgeToDelete
+
+                    let edgeDeleteDelta = deltaPenaltyAdjustment inGS inPhyloGraph "delete"
+
+                    -- total heuristic cost
+                    -- returns ininity of not modified by removal of edge
+                    if not wasModified then 
+                        pure (infinity, LG.empty)
                     else 
-                        do
-                            newGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs AtRandom (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
+                        pure ((snd5 inPhyloGraph) + heuristicDelta - edgeDeleteDelta, delSimple)
 
-                            let bestNewGraph = head newGraphList
+                    
 
-                            (acceptGraph, newSAParams) <- U.simAnnealAccept inSimAnnealParams currentCost minCost
-
-                            if acceptGraph then
-                                deleteEachNetEdge inGS inData netParams force newSAParams bestNewGraph
-
-                            else  
-                                deleteEachNetEdge inGS inData netParams force newSAParams inPhyloGraph
-                        
                     
                     
-{- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
+{- | deleteNetEdge deletes an edge (checking if network) and rediagnoses graph
 contacts in=out=1 edgfes and removes node, reindexing nodes and edges
 naive for now
 force requires reoptimization no matter what--used for net move
@@ -961,7 +1053,7 @@ postProcessNetworkDelete inGS inData netParams counter (curBestGraphList, _) inS
 
             if newGraphCost < currentCost
                 then do
-                    logWith LogInfo ("\t-> " <> (show newGraphCost))
+                    logWith LogInfo ("\t\t-> " <> (show newGraphCost) <> "\n") -- extra tab and new line due to getther behavior
                     if netSteepest netParams
                         then do
                             deleteAllNetEdges'
@@ -1409,19 +1501,13 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                     else 
                                         logWith LogInfo ("")
 
-                                    let genNewSimAnnealParams =
-                                            if isNothing inSimAnnealParams then 
-                                                Nothing
-                                            else 
-                                                U.incrementSimAnnealParams inSimAnnealParams
-                                        
-                                    
+                                                                    
                                     -- always return if better in any conditions
                                     if minCost <= (snd5 inPhyloGraph) then
                                         --logWith LogInfo ("IENEHG: " <> (show (minCost, (snd5 inPhyloGraph) )))
                                         do
                                             newBestGraphList <- GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                                            pure (newBestGraphList, minCost, genNewSimAnnealParams)
+                                            pure (newBestGraphList, minCost, newSAParams)
                                     
                                     -- return if worse for SA/Drift
                                     else do
@@ -1429,7 +1515,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                             pure ([], minCost, inSimAnnealParams)
                                         else do
                                             newRandGraphList <- GO.selectGraphs AtRandom (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
-                                            pure (newRandGraphList, minCost, genNewSimAnnealParams)
+                                            pure (newRandGraphList, minCost, newSAParams)
                                 
 {- | insertNetEdgeHeuristic inserts an edge between two other edges, creating 2 new nodes 
 contacts deletes 2 orginal edges and adds 2 nodes and 5 new edges
@@ -1479,9 +1565,12 @@ insertNetEdgeHeuristic inGS inData inPhyloGraph edgePair@((u, v, _), (u', v', _)
                             pure (infinity, LG.empty) -- emptyReducedPhylogeneticGraph
                         else do
                             -- calculates heursitic graph delta
-                            --(heuristicDelta', _, _, _, _) <-  heuristicAddDelta' inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
+                            --(heuristicDelta', _, _, _, _) <-  heuristicAddDelta'' inGS inPhyloGraph edgePair (fst newNodeOne) (fst newNodeTwo)
 
                             heuristicDelta <- heuristicAddDelta inGS inPhyloGraph edgePair
+                            
+                            --heuristicDelta' <- heuristicAddDelta' inGS inPhyloGraph edgePair
+                            --logWith LogInfo $ "INEH: " <> (show (heuristicDelta, heuristicDelta'))
                                               
                             let edgeAddDelta = deltaPenaltyAdjustment inGS inPhyloGraph "add"
 
@@ -1668,7 +1757,7 @@ heuristicDeleteDelta inGS inPhyloGraph (x,y) =
                 let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
                 let costSubGraphNewU' = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
                 
-                logWith LogInfo $ "HDD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')) <> "\n"
+                --logWith LogInfo $ "HDD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')) <> "\n"
 
                 --logWith LogInfo $ "HDD: " <> (show (hasYCostSubGraphU , noYCostSubGraphU, hasYCostSubGraphU', noYCostSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - netCost) <> "\n"
 
@@ -1677,6 +1766,73 @@ heuristicDeleteDelta inGS inPhyloGraph (x,y) =
                     pure 0.0
                 else 
                     pure $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')
+
+
+{- | heuristicAddDelta' Reverse of heuristicDelete Delta
+
+Start with edges (u,v) and (u',v') and create new nodes y (in u',v') 
+and x in (u,v) and new edge (x,y) directed x -> y.
+exitign edges (u,a) and (u',b) are not affected
+
+Compare existing costs of u and u' with new costs after new edge insertion for delta.
+
+Should be less than or equal to previous cost.  Edge penalty calcuted externally.
+
+Does not work well--alwasy negative whihc sholdn't happen/
+-}
+
+heuristicAddDelta' ∷ GlobalSettings → ReducedPhylogeneticGraph →  (LG.LEdge b, LG.LEdge b) → PhyG VertexCost
+heuristicAddDelta' inGS inPhyloGraph ((u, v, _), (u', v', _)) =
+    if LG.isEmpty (fst5 inPhyloGraph)
+        then error "Empty graph in heuristicDeleteDelta"
+        else
+            let -- descendents pof u and u' vertices of graph fragment
+                a  = head $ filter (/= v) $ LG.descendants (fst5 inPhyloGraph) u
+                b  = head $ filter (/= v') $ LG.descendants (fst5 inPhyloGraph) u'
+
+                y = -2
+                x = -3
+
+                -- use averages of resolution cost data for each block/character
+
+                --uResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u
+                --u'ResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u'
+
+                aVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) a
+                bVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) b
+
+                --aResolutionData = vertexResolutionData aVertexInfo 
+                --bResolutionData = vertexResolutionData bVertexInfo
+
+                vVertexInfo  = fromJust $ LG.lab (thd5 inPhyloGraph) v
+                v'VertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) v'
+                
+                --vResolutionData  = vertexResolutionData  vVertexInfo 
+                --v'ResolutionData = vertexResolutionData  v'VertexInfo 
+                
+                costSubGraphU  = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u
+                costSubGraphU' = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u'
+
+            in do
+                let newDataY = v'VertexInfo -- NEW.getOutDegree1VertexSoftWired (-1) v'VertexInfo (fst5 inPhyloGraph) [v'] 
+                newDataX <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (y, newDataY) (v, vVertexInfo) (thd5 inPhyloGraph)
+
+                newDataU  <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (x, newDataX) (a, aVertexInfo) (thd5 inPhyloGraph)
+                newDataU' <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (y, newDataY) (b, bVertexInfo) (thd5 inPhyloGraph)
+
+                let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
+                let costSubGraphNewU' = costSubGraphU' -- V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
+                
+                logWith LogInfo $ "HAD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU')) <> "\n"
+
+                
+                -- new should be lower or equal cost than existing
+                if  (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU')   < 0.0 then 
+                    pure 0.0
+                else 
+                    pure $ (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU') 
+
+
 
 
 {- | heuristic add delta based on new display tree and delta from existing costs by block--assumming < 0
@@ -1773,23 +1929,25 @@ getCharacterAddDelta (_, v, _, v', a, b) (inCharTree, charInfo) =
         (dVV' + dAX, dAV + dV'B)
 
 
+
+
 {- This seems worse than heuristicAddDelta above-}
 
-{- | heuristicAddDelta' takes the existing graph, edge pair, and new nodes to create and makes
+{- | heuristicAddDelta'' takes the existing graph, edge pair, and new nodes to create and makes
 the new nodes and reoptimizes starting nodes of two edges.  Returns cost delta based on
 previous and new node resolution caches
 returns cost delta and the reoptimized nodes for use in incremental optimization
 original edges (to be deleted) (u,v) and (u',v'), n1 inserted in (u,v) and n2 inserted into (u',v')
 creates (n1, n2), (u,n1), (n1,v), (u',n2), (n2, v')
 -}
-heuristicAddDelta'
+heuristicAddDelta''
     ∷ GlobalSettings
     → ReducedPhylogeneticGraph
     → (LG.LEdge b, LG.LEdge b)
     → LG.Node
     → LG.Node
     → PhyG (VertexCost, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo, LG.LNode VertexInfo)
-heuristicAddDelta' inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
+heuristicAddDelta'' inGS inPhyloGraph ((u, v, _), (u', v', _)) n1 n2 =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicAddDelta"
         else
