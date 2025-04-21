@@ -516,17 +516,19 @@ netEdgeMaster
     → ProcessedData
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-netEdgeMaster inArgs inGS inData inGraphList
-    | null inGraphList = [] <$ logWith LogInfo "No graphs to edit network edges\n"
+netEdgeMaster inArgs inGS inData inGraphList'
+    | null inGraphList' = [] <$ logWith LogInfo "No graphs to edit network edges\n"
     | otherwise = case graphType inGS of
         Tree →
-            inGraphList
+            inGraphList'
                 <$ logWith
                     LogWarn
                     "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n"
         -- process args for netEdgeMaster
         _ →
-            let (   keepNum
+            let inputBestCost = minimum $ fmap snd5 inGraphList'
+            
+                (   keepNum
                     , steps'
                     , annealingRounds'
                     , driftRounds'
@@ -545,6 +547,21 @@ netEdgeMaster inArgs inGS inData inGraphList
                 doMove = any ((== "netmove") . fst) lcArgList
                 doSteepest' = any ((== "steepest") . fst) lcArgList
                 doAll = any ((== "all") . fst) lcArgList
+
+                inSupport = any ((== "support") . fst) lcArgList
+
+                multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
+                doMultiTraverse'  
+                    | length multiTraverseValue > 1 =
+                                errorWithoutStackTrace ("Multiple multiTraverse specifications in network--can have only one: " <> show inArgs)
+                    | null multiTraverseValue = Just $ fmap toLower $ show (multiTraverseCharacters inGS)
+                    | null (snd $ head multiTraverseValue) = errorWithoutStackTrace ("MultiTraverse network option must be 'True' or 'False'" <> show inArgs)
+                    | otherwise = readMaybe (show $ snd $ head multiTraverseValue) ∷ Maybe String
+                
+                doMultiTraverse = if isNothing doMultiTraverse' then errorWithoutStackTrace ("MultiTraverse network option must be 'True' or 'False'" <> show inArgs)
+                                  else if fromJust doMultiTraverse'  == "true" then True
+                                  else if fromJust doMultiTraverse'  == "false" then False
+                                  else errorWithoutStackTrace ("MultiTraverse network option must be 'True' or 'False'" <> show inArgs)
 
                 netEditOption = if doNetAdd then NetAdd
                                 else if doNetDelete then NetDelete
@@ -580,6 +597,28 @@ netEdgeMaster inArgs inGS inData inGraphList
                     | fromJust levelNumber > 3 = 3
                     | otherwise = fromJust levelNumber
 
+                -- levels may have > 1 swap pass
+                -- and different values 
+                (checkHeuristicNet, localMultiTraverse) = if heuristicLevel == (-1) then
+                                                            (heuristicCheck, doMultiTraverse) 
+
+                                                        -- Basicall zero heuristics (adds factor of n)
+                                                        else if heuristicLevel == 0 then
+                                                            (BestAll, True)
+
+                                                        -- Other heuristics from 1 (slowest) -> 3 (fastest)
+                                                        -- will make a call to reoptimize using MultiTraverse after swap
+                                                        else if heuristicLevel == 1 then
+                                                            (BetterN, False)
+
+                                                        -- This is default behavior
+                                                        else if heuristicLevel == 2 then
+                                                            (BetterN, False)
+
+                                                        -- Fastest least effective
+                                                        else if heuristicLevel == 3 then
+                                                            (BestOnly, False)
+                                                        else error ("Unimplemented network edit level: " <> (show heuristicLevel))
                 -- simulated annealing parameters
                 -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
                 doAnnealing = any ((== "annealing") . fst) lcArgList
@@ -594,7 +633,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                 -- put options in NetParams
                 netParams = NetParams
                             { netRandom = doRandomOrder
-                            , netCheckHeuristic = heuristicCheck
+                            , netCheckHeuristic = checkHeuristicNet
                             , netMaxEdges = fromJust maxNetEdges
                             , netKeepNum = fromJust keepNum
                             , netReturnMutated = returnMutated
@@ -642,11 +681,12 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     , driftChanges = 0
                                     }
 
+                
                 -- parallel stuff
                 addAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 addAction =
                     N2.insertAllNetEdges
-                        inGS
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
                         netParams
                         (fromJust maxRounds)
@@ -656,7 +696,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                 deleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 deleteAction =
                     N2.deleteAllNetEdges
-                        inGS
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
                         netParams
                         0
@@ -665,7 +705,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                 moveAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 moveAction =
                     N2.moveAllNetEdges
-                        inGS
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
                         netParams
                         0
@@ -674,17 +714,56 @@ netEdgeMaster inArgs inGS inData inGraphList
                 addDeleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 addDeleteAction =
                     N2.addDeleteNetEdges
-                        inGS
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
                         netParams
                         (fromJust maxRounds)
                         0
                         ([], infinity)
 
+
+                reoptimizeAction ∷ GlobalSettings → ProcessedData → Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
+                reoptimizeAction = T.multiTraverseFullyLabelGraphReduced
+
                 simAnnealParams = getSimAnnealParams
                 -- create simulated annealing random lists uniquely for each fmap
-                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
+                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList') simAnnealParams
             in  do
+                    -- Rediagnose graph cost etc if local multitraverse is set
+                    -- don't bother to if in support--only care about topology for jacknife and bootstrap
+                    inGraphList <- if inSupport then
+                                        pure inGraphList'
+
+                                    else if heuristicLevel == (-1) then
+                                            if (localMultiTraverse == multiTraverseCharacters inGS) then 
+                                                pure inGraphList'
+
+                                            else do
+                                                logWith LogInfo $ "\tMultiTraverse to " <> (show localMultiTraverse)  <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = localMultiTraverse}) inData False False Nothing . fst5) inGraphList'
+
+                                        -- swap level 0 uses MultiTraverse
+                                    else if heuristicLevel == 0  && (not $ multiTraverseCharacters inGS) then do
+                                                logWith LogInfo $ "\tMultiTraverse to True for network edit level 0 " <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) inGraphList'
+
+                                        else if heuristicLevel == 0 then 
+                                                pure inGraphList'
+                                        -- already not MultiTraverse and swap levels (1-3) that do not use it
+
+                                    else if (not $ multiTraverseCharacters inGS) then do
+                                                pure inGraphList'
+                                        -- is MultiTraverse and swap levels 1-3, need to reoptimize to false
+
+                                    else do
+                                                logWith LogInfo $ "\tMultiTraverse to False for network heuristic level " <> (show heuristicLevel) <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) inGraphList'
                     -- perform add/delete/move operations
                     
                     when (doDrift && doAnnealing) $
@@ -792,12 +871,51 @@ netEdgeMaster inArgs inGS inData inGraphList
                         [] → pure inGraphList
                         _ → GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 newGraphList'''
 
+
+                    -- Rediagnose do deal with local multitraverse, but not if inSupport (jackknife and bootstrap)
+                    resultGraphList' ←  if inSupport then 
+                                             pure resultGraphList
+                                        else if heuristicLevel == (-1) then 
+                                            if (localMultiTraverse == multiTraverseCharacters inGS) then 
+                                                pure resultGraphList
+                                            else 
+                                                do
+                                                    logWith LogInfo $ "\tMultiTraverse to " <> (show $ multiTraverseCharacters inGS)  <> "\n"
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                pTraverse
+                                                                        (reoptimizeAction inGS inData False False Nothing . fst5) resultGraphList
+                                        else if heuristicLevel == 0 then
+                                            if multiTraverseCharacters inGS then 
+                                                pure resultGraphList
+
+                                            else do
+                                                    logWith LogInfo  "\tMultiTraverse to False\n"
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                    pTraverse
+                                                                        (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) resultGraphList
+
+                                         -- Unlike swap levels 2 and 3 are not followed by a 1 (but could be manually)
+                                        else -- if heuristicLevel == 1 then
+                                            if not $ multiTraverseCharacters inGS then 
+                                                pure resultGraphList
+                                            else do
+                                                logWith LogInfo  "\tMultiTraverse to True\n"
+                                                reDiagGraphs <- getParallelChunkTraverse >>= \pTraverse →
+                                                                    pTraverse
+                                                                        (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) resultGraphList
+                                                if inputBestCost < (minimum $ fmap snd5 reDiagGraphs) then 
+                                                    pure resultGraphList
+                                                else 
+                                                    pure reDiagGraphs
+
+                   
+
                     logWith
                         LogInfo
                         ( "\tAfter network edge add/delete/move: "
                             <> show (length resultGraphList)
                             <> " resulting graphs at cost "
-                            <> show (minimum $ fmap snd5 resultGraphList)
+                            <> show (minimum $ fmap snd5 resultGraphList')
                             <> " with add/delete/move rounds (total): "
                             <> show counterAdd
                             <> " Add, "
@@ -809,7 +927,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                             <> " AddDelete"
                             <> "\n\n"
                         )
-                    pure resultGraphList
+                    pure resultGraphList'
 
 
 -- | getNetEdgeParams returns net edge cparameters from argument list
