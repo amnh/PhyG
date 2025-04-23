@@ -838,7 +838,9 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                             do
                                 newGraphList ← filter ((/= infinity) . snd5) <$> GO.selectGraphs AtRandom (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList
 
-                                let bestNewGraph = head newGraphList
+                                let bestNewGraph = if (not . null) newGraphList then
+                                                        head newGraphList
+                                                   else inPhyloGraph
 
                                 (acceptGraph, _) <- U.simAnnealAccept inSimAnnealParams currentCost minCost
 
@@ -1038,8 +1040,11 @@ postProcessNetworkDelete
     → VertexCost
     → PhyG ([ReducedPhylogeneticGraph], Int)
 postProcessNetworkDelete inGS inData netParams counter (curBestGraphList, _) inSimAnnealParams inPhyloGraphList newGraphList newGraphCost currentCost =
+    if null inPhyloGraphList then
+        error "This should not be reached for null graph list in postProcessNetworkDelete"
+
     -- worse graphs found--go on
-    if newGraphCost > currentCost
+    else if newGraphCost > currentCost
         then do
             deleteAllNetEdges'
                 inGS
@@ -1197,86 +1202,89 @@ insertRoundsSA
     → [ReducedPhylogeneticGraph]
     → PhyG ([ReducedPhylogeneticGraph], Int)
 insertRoundsSA inGS inData netParams counter (curBestGraphList, curBestGraphCost) inSimAnnealParams inPhyloGraphList = 
-    let -- create list of params with unique list of random values for rounds of annealing
-        annealingRounds = if (netEditType netParams) `elem` [NetMove, NetAddDelete] then 1
-                          else rounds $ fromJust inSimAnnealParams
-        annealParamList = replicate annealingRounds inSimAnnealParams
+    if null inPhyloGraphList then
+        pure (curBestGraphList, counter)
+    else 
+        let -- create list of params with unique list of random values for rounds of annealing
+            annealingRounds = if (netEditType netParams) `elem` [NetMove, NetAddDelete] then 1
+                              else rounds $ fromJust inSimAnnealParams
+            annealParamList = replicate annealingRounds inSimAnnealParams
 
-        -- set up parallel
-        addAction :: (Maybe SAParams, ReducedPhylogeneticGraph)→ PhyG ([ReducedPhylogeneticGraph], Int)
-        addAction = insertAllNetEdgesSA inGS inData netParams counter curBestGraphCost 
+            -- set up parallel
+            addAction :: (Maybe SAParams, ReducedPhylogeneticGraph)→ PhyG ([ReducedPhylogeneticGraph], Int)
+            addAction = insertAllNetEdgesSA inGS inData netParams counter curBestGraphCost 
 
-        deleteAction :: ReducedPhylogeneticGraph -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
-        deleteAction = deleteEachNetEdge inGS inData netParams False Nothing
-        
-    in do
-        graphsToAnneal <- if length inPhyloGraphList == 1 then 
-                                pure $ replicate annealingRounds $ head  inPhyloGraphList
-                          else do
-                                shuffledLists <- mapM shuffleList $ replicate annealingRounds inPhyloGraphList
-                                pure $ fmap head shuffledLists
+            deleteAction :: ReducedPhylogeneticGraph -> PhyG ([ReducedPhylogeneticGraph], VertexCost, Maybe SAParams)
+            deleteAction = deleteEachNetEdge inGS inData netParams False Nothing
+            
+        in do
+            graphsToAnneal <- if length inPhyloGraphList == 1 then 
+                                    pure $ replicate annealingRounds $ head  inPhyloGraphList
+                              else do
+                                    shuffledLists <- mapM shuffleList $ replicate annealingRounds inPhyloGraphList
+                                    pure $ fmap head shuffledLists
 
-        addActionPar <- getParallelChunkTraverse 
-        newGraphTripleList <- addActionPar addAction (zip annealParamList graphsToAnneal)
+            addActionPar <- getParallelChunkTraverse 
+            newGraphTripleList <- addActionPar addAction (zip annealParamList graphsToAnneal)
 
-        uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 (concat $ fmap fst newGraphTripleList)
+            uniqueList ← GO.selectGraphs Unique (outgroupIndex inGS) (netKeepNum netParams) 0.0 (concat $ fmap fst newGraphTripleList)
 
-        let uniqueCost = if (not .null) uniqueList then
-                                minimum $ fmap snd5 uniqueList
-                         else infinity
+            let uniqueCost = if (not .null) uniqueList then
+                                    minimum $ fmap snd5 uniqueList
+                             else infinity
 
-        -- return mutated for GA
-        if netReturnMutated netParams then do
-           pure (uniqueList, counter + annealingRounds)
+            -- return mutated for GA
+            if netReturnMutated netParams then do
+               pure (uniqueList, counter)
 
-        
-        else do
-            -- netADD SA
-            if netEditType netParams /= NetMove then do
-                logWith LogInfo "\t\tDeleting extraneous edges after network addition Simulated Annealing/Drifing\n"
-                -- delete edges to get back to "best" edge lists
-                
-                (deletedGraphList, _) <- deleteAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
-
-                -- return better and equal including inputs
-                finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> deletedGraphList -- (concat $ fmap fst3 deletedTripleList)
-
-                let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
-
-                {-
-                let finalCost = if (not .null) finalList then
-                                    minimum $ fmap snd5 finalList
-                                else infinity     
-                if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
-                    logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
-                else 
-                    logWith LogInfo ""
-                -}
-                pure (finalList, counter + annealingRounds)
-
-            -- netMOve so regular Move back asfter SA
+            
             else do
-                logWith LogInfo "\t\tMoving edges after network addition Simulated Annealing/Drifing\n"
-                -- delete edges to get back to "best" edge lists
-                
-                (movedGraphList, _) <- moveAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
+                -- netADD SA
+                if netEditType netParams /= NetMove then do
+                    logWith LogInfo "\t\tDeleting extraneous edges after network addition Simulated Annealing/Drifing\n"
+                    -- delete edges to get back to "best" edge lists
+                    
+                    (deletedGraphList, _) <- deleteAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
 
-                -- return better and equal including inputs
-                finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> movedGraphList -- (concat $ fmap fst3 deletedTripleList)
+                    -- return better and equal including inputs
+                    finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> deletedGraphList -- (concat $ fmap fst3 deletedTripleList)
 
-                {-
-                let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+                    let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
 
-                
-                let finalCost = if (not .null) finalList then
-                                    minimum $ fmap snd5 finalList
-                                else infinity     
-                if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
-                    logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
-                else 
-                    logWith LogInfo ""
-                -}
-                pure (finalList, counter + 1)
+                    {-
+                    let finalCost = if (not .null) finalList then
+                                        minimum $ fmap snd5 finalList
+                                    else infinity     
+                    if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
+                        logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
+                    else 
+                        logWith LogInfo ""
+                    -}
+                    pure (finalList, counter + annealingRounds)
+
+                -- netMOve so regular Move back asfter SA
+                else do
+                    logWith LogInfo "\t\tMoving edges after network addition Simulated Annealing/Drifing\n"
+                    -- delete edges to get back to "best" edge lists
+                    
+                    (movedGraphList, _) <- moveAllNetEdges' inGS inData (netParams {netSteepest = False}) counter (uniqueList, uniqueCost) Nothing uniqueList 
+
+                    -- return better and equal including inputs
+                    finalList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0.0 $ inPhyloGraphList <> movedGraphList -- (concat $ fmap fst3 deletedTripleList)
+
+                    {-
+                    let netNodesList = fmap length $ fmap (fth4 . LG.splitVertexList . thd5) finalList
+
+                    
+                    let finalCost = if (not .null) finalList then
+                                        minimum $ fmap snd5 finalList
+                                    else infinity     
+                    if (minimum $ fmap snd5 finalList) < (minimum $ fmap snd5 uniqueList) then
+                        logWith LogInfo ("\t\t-> " <> (show $ min (minimum $ fmap snd5 finalList) (minimum $ fmap snd5 uniqueList)) <> " with " <> (show netNodesList) <> " netWork nodes\n")
+                    else 
+                        logWith LogInfo ""
+                    -}
+                    pure (finalList, counter + 1)
 
 
 {- insertaAllNetEdgesSA performes a single SA/Drift Add trajectory 
@@ -1708,64 +1716,75 @@ heuristicDeleteDelta inGS inPhyloGraph (x,y) =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicDeleteDelta"
         else
-            let -- base vertices of graph fragment
-                u' = head $ LG.parents (fst5 inPhyloGraph) y
-                u  = head $ LG.parents (fst5 inPhyloGraph) x
-                
-                -- single child
-                v' = head $ LG.descendants (fst5 inPhyloGraph) y
-                v  = head $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) x
-                a  = head $ filter (/= x) $ LG.descendants (fst5 inPhyloGraph) u
-                b  = head $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) u'
-
-                -- use minimia of resolution data for each block/character
-
-                --uResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u
-                --u'ResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u'
-
-                aVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) a
-                bVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) b
-
-                --aResolutionData = vertexResolutionData aVertexInfo 
-                --bResolutionData = vertexResolutionData bVertexInfo
-
-                vVertexInfo  = fromJust $ LG.lab (thd5 inPhyloGraph) v
-                v'VertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) v'
-                
-                --vResolutionData  = vertexResolutionData  vVertexInfo 
-                --v'ResolutionData = vertexResolutionData  v'VertexInfo 
-
-
-                {-  This based on complementary resolutoins--yilds large over estimate
-                -- get complementary resolution cost dor each character and block
-
-                (hasYCostSubGraphU , noYCostSubGraphU)  = GO.getSoftWiredNodeSubGraphCostWithVertex inPhyloGraph y u
-                (hasYCostSubGraphU', noYCostSubGraphU') = GO.getSoftWiredNodeSubGraphCostWithVertex inPhyloGraph y u'
-
-                res1 = hasYCostSubGraphU  + noYCostSubGraphU'
-                res2 = hasYCostSubGraphU' + noYCostSubGraphU
-
-                netCost = min res1 res2
-                -}
-                costSubGraphU  = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u
-                costSubGraphU' = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u'
-
-            in do
-                newDataU  <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (v, vVertexInfo) (a, aVertexInfo) (thd5 inPhyloGraph)
-                newDataU' <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (v', v'VertexInfo) (b, bVertexInfo) (thd5 inPhyloGraph)
-
-                let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
-                let costSubGraphNewU' = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
-                
-                --logWith LogInfo $ "HDD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')) <> "\n"
-
-                --logWith LogInfo $ "HDD: " <> (show (hasYCostSubGraphU , noYCostSubGraphU, hasYCostSubGraphU', noYCostSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - netCost) <> "\n"
-
-                -- new should be higher or equal cost than existing
-                if  (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU') < 0.0 then 
+            -- check for heads if not return 0.0 for delete delta
+            if (null $ LG.parents (fst5 inPhyloGraph) y) || (null $ LG.parents (fst5 inPhyloGraph) x) then 
                     pure 0.0
-                else 
-                    pure $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')
+            else 
+                let -- base vertices of graph fragment
+                    u' = head $ LG.parents (fst5 inPhyloGraph) y
+                    u  = head $ LG.parents (fst5 inPhyloGraph) x
+                in
+                if (null $ LG.descendants (fst5 inPhyloGraph) y) || (null $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) x) 
+                        || (null  $ filter (/= x) $ LG.descendants (fst5 inPhyloGraph) u)  
+                        || (null $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) u') then
+                    pure 0.0
+
+                else
+                    let 
+                        -- single child
+                        v' = head $ LG.descendants (fst5 inPhyloGraph) y
+                        v  = head $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) x
+                        a  = head $ filter (/= x) $ LG.descendants (fst5 inPhyloGraph) u
+                        b  = head $ filter (/= y) $ LG.descendants (fst5 inPhyloGraph) u'
+
+                        -- use minimia of resolution data for each block/character
+
+                        --uResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u
+                        --u'ResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u'
+
+                        aVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) a
+                        bVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) b
+
+                        --aResolutionData = vertexResolutionData aVertexInfo 
+                        --bResolutionData = vertexResolutionData bVertexInfo
+
+                        vVertexInfo  = fromJust $ LG.lab (thd5 inPhyloGraph) v
+                        v'VertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) v'
+                        
+                        --vResolutionData  = vertexResolutionData  vVertexInfo 
+                        --v'ResolutionData = vertexResolutionData  v'VertexInfo 
+
+
+                        {-  This based on complementary resolutoins--yilds large over estimate
+                        -- get complementary resolution cost dor each character and block
+
+                        (hasYCostSubGraphU , noYCostSubGraphU)  = GO.getSoftWiredNodeSubGraphCostWithVertex inPhyloGraph y u
+                        (hasYCostSubGraphU', noYCostSubGraphU') = GO.getSoftWiredNodeSubGraphCostWithVertex inPhyloGraph y u'
+
+                        res1 = hasYCostSubGraphU  + noYCostSubGraphU'
+                        res2 = hasYCostSubGraphU' + noYCostSubGraphU
+
+                        netCost = min res1 res2
+                        -}
+                        costSubGraphU  = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u
+                        costSubGraphU' = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u'
+
+                    in do
+                        newDataU  <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (v, vVertexInfo) (a, aVertexInfo) (thd5 inPhyloGraph)
+                        newDataU' <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (v', v'VertexInfo) (b, bVertexInfo) (thd5 inPhyloGraph)
+
+                        let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
+                        let costSubGraphNewU' = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
+                        
+                        --logWith LogInfo $ "HDD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')) <> "\n"
+
+                        --logWith LogInfo $ "HDD: " <> (show (hasYCostSubGraphU , noYCostSubGraphU, hasYCostSubGraphU', noYCostSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphNewU +  costSubGraphNewU') - netCost) <> "\n"
+
+                        -- new should be higher or equal cost than existing
+                        if  (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU') < 0.0 then 
+                            pure 0.0
+                        else 
+                            pure $ (costSubGraphNewU +  costSubGraphNewU') - (costSubGraphU + costSubGraphU')
 
 
 {- | heuristicAddDelta' Reverse of heuristicDelete Delta
@@ -1786,51 +1805,55 @@ heuristicAddDelta' inGS inPhyloGraph ((u, v, _), (u', v', _)) =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicDeleteDelta"
         else
-            let -- descendents pof u and u' vertices of graph fragment
-                a  = head $ filter (/= v) $ LG.descendants (fst5 inPhyloGraph) u
-                b  = head $ filter (/= v') $ LG.descendants (fst5 inPhyloGraph) u'
+            -- check for null heads
+            if (null $ filter (/= v) $ LG.descendants (fst5 inPhyloGraph) u) || (null $ filter (/= v') $ LG.descendants (fst5 inPhyloGraph) u') then 
+                pure 0.0
+            else 
+                let -- descendents pof u and u' vertices of graph fragment
+                    a  = head $ filter (/= v) $ LG.descendants (fst5 inPhyloGraph) u
+                    b  = head $ filter (/= v') $ LG.descendants (fst5 inPhyloGraph) u'
 
-                y = -2
-                x = -3
+                    y = -2
+                    x = -3
 
-                -- use averages of resolution cost data for each block/character
+                    -- use averages of resolution cost data for each block/character
 
-                --uResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u
-                --u'ResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u'
+                    --uResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u
+                    --u'ResolutionData = vertexResolutionData $ fromJust $ LG.lab (thd5 inPhyloGraph) u'
 
-                aVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) a
-                bVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) b
+                    aVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) a
+                    bVertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) b
 
-                --aResolutionData = vertexResolutionData aVertexInfo 
-                --bResolutionData = vertexResolutionData bVertexInfo
+                    --aResolutionData = vertexResolutionData aVertexInfo 
+                    --bResolutionData = vertexResolutionData bVertexInfo
 
-                vVertexInfo  = fromJust $ LG.lab (thd5 inPhyloGraph) v
-                v'VertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) v'
-                
-                --vResolutionData  = vertexResolutionData  vVertexInfo 
-                --v'ResolutionData = vertexResolutionData  v'VertexInfo 
-                
-                costSubGraphU  = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u
-                costSubGraphU' = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u'
+                    vVertexInfo  = fromJust $ LG.lab (thd5 inPhyloGraph) v
+                    v'VertexInfo = fromJust $ LG.lab (thd5 inPhyloGraph) v'
+                    
+                    --vResolutionData  = vertexResolutionData  vVertexInfo 
+                    --v'ResolutionData = vertexResolutionData  v'VertexInfo 
+                    
+                    costSubGraphU  = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u
+                    costSubGraphU' = GO.getSoftWiredNodeSubGraphCost inPhyloGraph u'
 
-            in do
-                let newDataY = v'VertexInfo -- NEW.getOutDegree1VertexSoftWired (-1) v'VertexInfo (fst5 inPhyloGraph) [v'] 
-                newDataX <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (y, newDataY) (v, vVertexInfo) (thd5 inPhyloGraph)
+                in do
+                    let newDataY = v'VertexInfo -- NEW.getOutDegree1VertexSoftWired (-1) v'VertexInfo (fst5 inPhyloGraph) [v'] 
+                    newDataX <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (y, newDataY) (v, vVertexInfo) (thd5 inPhyloGraph)
 
-                newDataU  <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (x, newDataX) (a, aVertexInfo) (thd5 inPhyloGraph)
-                newDataU' <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (y, newDataY) (b, bVertexInfo) (thd5 inPhyloGraph)
+                    newDataU  <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (x, newDataX) (a, aVertexInfo) (thd5 inPhyloGraph)
+                    newDataU' <- NEW.getOutDegree2VertexSoftWired inGS (fft5 inPhyloGraph) (-1) (y, newDataY) (b, bVertexInfo) (thd5 inPhyloGraph)
 
-                let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
-                let costSubGraphNewU' = costSubGraphU' -- V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
-                
-                logWith LogInfo $ "HAD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU')) <> "\n"
+                    let costSubGraphNewU  = V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU)
+                    let costSubGraphNewU' = costSubGraphU' -- V.sum $ fmap GO.minBlockResolutionCost (vertexResolutionData newDataU')
+                    
+                    logWith LogInfo $ "HAD: " <> (show (costSubGraphU,costSubGraphU')) <> " to " <> (show (costSubGraphNewU, costSubGraphNewU')) <> " net " <> (show $ (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU')) <> "\n"
 
-                
-                -- new should be lower or equal cost than existing
-                if  (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU')   < 0.0 then 
-                    pure 0.0
-                else 
-                    pure $ (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU') 
+                    
+                    -- new should be lower or equal cost than existing
+                    if  (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU')   < 0.0 then 
+                        pure 0.0
+                    else 
+                        pure $ (costSubGraphU + costSubGraphU') - (costSubGraphNewU +  costSubGraphNewU') 
 
 
 
@@ -1854,20 +1877,24 @@ heuristicAddDelta _ inPhyloGraph ((u, v, _), (u', v', _)) =
     if LG.isEmpty (fst5 inPhyloGraph)
         then error "Empty graph in heuristicAddDelta"
         else
-            let a = head $ filter (/= v) $ LG.descendants (fst5 inPhyloGraph) u
-                b = head $ filter (/= v') $ LG.descendants (fst5 inPhyloGraph) u'
-                blockTrees =
-                    fmap V.fromList $
-                        fmap (GO.getDecoratedDisplayTreeList (thd5 inPhyloGraph)) $
-                            V.zip (fth5 inPhyloGraph) $
-                                V.fromList [0 .. (V.length (fft5 inPhyloGraph) - 1)]
-                action :: (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG VertexCost
-                action = getBlockDeltaAdd (u, v, u', v', a, b)
-            in do
-                actionPar <- getParallelChunkTraverse 
-                -- blockDeltaV <- V.zipWith (getBlockDeltaAdd (u, v, u', v', a, b)) (zip blockTrees (fft5 inPhyloGraph))
-                blockDeltaL <- actionPar action (V.toList $ V.zip blockTrees (fft5 inPhyloGraph))
-                pure $ sum blockDeltaL
+            -- check for null heads
+            if (null $ filter (/= v) $ LG.descendants (fst5 inPhyloGraph) u) || (null $ filter (/= v') $ LG.descendants (fst5 inPhyloGraph) u') then 
+                pure 0.0
+            else 
+                let a = head $ filter (/= v) $ LG.descendants (fst5 inPhyloGraph) u
+                    b = head $ filter (/= v') $ LG.descendants (fst5 inPhyloGraph) u'
+                    blockTrees =
+                        fmap V.fromList $
+                            fmap (GO.getDecoratedDisplayTreeList (thd5 inPhyloGraph)) $
+                                V.zip (fth5 inPhyloGraph) $
+                                    V.fromList [0 .. (V.length (fft5 inPhyloGraph) - 1)]
+                    action :: (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG VertexCost
+                    action = getBlockDeltaAdd (u, v, u', v', a, b)
+                in do
+                    actionPar <- getParallelChunkTraverse 
+                    -- blockDeltaV <- V.zipWith (getBlockDeltaAdd (u, v, u', v', a, b)) (zip blockTrees (fft5 inPhyloGraph))
+                    blockDeltaL <- actionPar action (V.toList $ V.zip blockTrees (fft5 inPhyloGraph))
+                    pure $ sum blockDeltaL
 
 
 {- | getBlockDeltaAdd determines the network add delta for each block (vector of characters)
