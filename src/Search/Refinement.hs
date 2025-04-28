@@ -527,7 +527,7 @@ netEdgeMaster inArgs inGS inData inGraphList'
         -- process args for netEdgeMaster
         _ →
             let inputBestCost = minimum $ fmap snd5 inGraphList'
-            
+
                 (   keepNum
                     , steps'
                     , annealingRounds'

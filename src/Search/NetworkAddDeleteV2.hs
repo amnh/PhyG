@@ -468,6 +468,7 @@ addDeleteNetEdges' inGS inData netParams maxRounds counter (curBestGraphList, cu
         EQ → pure (take (netKeepNum netParams) curBestGraphList, counter)
         -- other wise add/delete
         _ → do
+            logWith LogInfo $ "\n\tRound " <> (show counter) <> " of maximum " <> (show maxRounds) <> "\n"
             -- insert edges first
             (insertGraphList, _) ←
                 insertAllNetEdges'

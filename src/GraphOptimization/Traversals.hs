@@ -379,7 +379,7 @@ checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph inGra
                         in  if warnPruneEdges
                                 then do
                                     -- too lazy to thread PhyG logging throuhg everything
-                                    logWith LogWarn ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph")
+                                    logWith LogWarn ("Pruning " <> (show $ length unusedEdges) <> " unused edges and reoptimizing graph\n")
                                     multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
                                 else multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph Nothing contractedSimple
 
