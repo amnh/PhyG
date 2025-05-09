@@ -6,8 +6,8 @@ module Search.NetworkAddDeleteV2 (
     insertAllNetEdges,
     moveAllNetEdges,
     deltaPenaltyAdjustment,
-    --deleteNetEdge,
-    --deleteOneNetAddAll,
+    deleteNetEdgeSupport,
+    deleteOneNetAddAll,
     addDeleteNetEdges,
     getCharacterAddDelta,
     getBlockDeltaAdd,
@@ -850,8 +850,61 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
 
                                 else  
                                     deleteEachNetEdge inGS inData netParams force newSAParams inPhyloGraph
-                            
 
+{- 
+deleteNetEdgeSupport is used in support only
+-}
+                            
+{- | deleteEdge deletes an edge (checking if network) and rediagnoses graph
+contacts in=out=1 edgfes and removes node, reindexing nodes and edges
+naive for now
+force requires reoptimization no matter what--used for net move
+skipping heuristics for now--awful
+calls deleteNetworkEdge that has various graph checks
+-}
+deleteNetEdgeSupport
+    ∷ GlobalSettings
+    → ProcessedData
+    → ReducedPhylogeneticGraph
+    → Bool
+    → LG.Edge
+    → PhyG ReducedPhylogeneticGraph
+deleteNetEdgeSupport inGS inData inPhyloGraph force edgeToDelete =
+    if LG.isEmpty $ thd5 inPhyloGraph
+        then error "Empty input phylogenetic graph in deleteNetEdge"
+        else
+            if not (LG.isNetworkEdge (fst5 inPhyloGraph) edgeToDelete)
+                then error ("Edge to delete: " <> (show edgeToDelete) <> " not in graph:\n" <> (LG.prettify $ fst5 inPhyloGraph))
+                else do
+                    -- trace ("DNE: " <> (show edgeToDelete)) (
+                    (delSimple, wasModified) ← deleteNetworkEdge (fst5 inPhyloGraph) edgeToDelete
+
+                    -- prune other edges if now unused
+                    let pruneEdges = False
+
+                    -- don't warn that edges are being pruned
+                    let warnPruneEdges = False
+
+                    -- graph optimization from root
+                    let startVertex = Nothing
+  
+                     -- check if deletion modified graph
+                    if not wasModified then 
+                        pure inPhyloGraph
+
+                    else do
+                        -- full two-pass optimization--cycles checked in edge deletion function
+                        let leafGraph = LG.extractLeafGraph $ thd5 inPhyloGraph
+                        newPhyloGraph ←
+                            if (graphType inGS == SoftWired)
+                                then T.multiTraverseFullyLabelSoftWiredReduced inGS inData pruneEdges warnPruneEdges leafGraph startVertex delSimple
+                                else
+                                    if (graphType inGS == HardWired)
+                                        then T.multiTraverseFullyLabelHardWiredReduced inGS inData leafGraph startVertex delSimple
+                                        else error "Unsupported graph type in deleteNetEdge.  Must be soft or hard wired"
+
+                        pure newPhyloGraph
+                        
 {- | deleteNetworkEdgeHeuristic deletes an edge (checking if network)
 and returns heuristic cost esimate for deleted edge graph
 -}

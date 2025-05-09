@@ -450,7 +450,7 @@ Executable phyg
     Search.DistanceWagner
     Search.Fuse
     Search.GeneticAlgorithm
-    Search.NetworkAddDelete
+    --Search.NetworkAddDelete
     Search.NetworkAddDeleteV2
     Search.Refinement
     Search.Search
