@@ -1,0 +1,36 @@
+Version 1.2 Release Notes
+
+New Features:
+	Added global "keep" option for equally costly graphs (can be modified lcoally for search options e.g. swap) 
+	Swap options : level, multitraverse:True/False, 
+	Support options to swapping component of Jackknife and Bootstrap (level) similar to "swap"
+	Fuse and Support MaxParallel option to increase use of parallel resources, but reduces memory footprint by default
+	Added wildcards (*,?) to rename command
+	Fuse option: multitraverse:True/False
+
+
+
+Enhancements:
+	Reduced time complexity of network addition heuristics
+	Reduced time complexity of Goodman-Bremer support values
+	Improved behavior of swap(alternate)
+	Improved performance of fuse
+	Reduced default memory footprint of fuse
+
+
+Bug Fixes:
+	Fixed issue in naive/exhaustive soft-wired network optimization procedure
+	Fixed issue in Goodman-Bremer sample option
+	Fixed issue with pdf graph output on MacOS--requires installation of Cairo renderer and upgrade of Graphviz
+	Changed option "reportNaive" to "reportNaiveData"
+	Fixed issue in "report(search)"
+	Fixed issue in dot/graphviz file parseing that only read first graph if multiple present
+	Fixed issue in random fuse pair selection
+	Fixed issue in "select" where graphs were topologically identical but had distinct roots
+	
+
+
+
+
+
+
