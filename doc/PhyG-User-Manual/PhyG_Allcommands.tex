@@ -205,9 +205,8 @@
 		\item [keep:INT] Limits the number of returned graphs to the integer value specified. 
 		
 		\item[maxParallel[:BOOL]] Specifies the amount of parallelization during \texttt{fuse}. 
-		By default (\texttt{FALSE}), \texttt{fuse} reduces the amount of parallelization. When 
-		set to \texttt{TRUE}, parallelization is maximized at the cost of memory. This reduces 
-		the memory footprint of the analysis.
+		By default (\texttt{TRUE}), \texttt{fuse} maximizes the amount of parallelization, at the
+		cost of memory. When set to \texttt{FALSE}, the amount of parallelization is reduced. 
 		
 		\item[multitraverse[:BOOL ]] Specifies the optimization procedure for graphs during 
 		\texttt{fuse}. By default (\texttt{FALSE}), \texttt{fuse} uses a single traverse for its graph 
@@ -1691,7 +1690,8 @@
 			\item[Naive] Determines the score of a softwired network by evaluating all display 
 			trees (up to $2^m$ for $m$ network nodes) and summing the costs of the minimum 
 			cost display tree for each block of data. This can be extremely time consuming for 
-			graphs with large number of network nodes.
+			graphs with large number of network nodes. This method is intended for comparison
+			with the \texttt{ResolutionCache} algorithm.
 			
 			\item[ResolutionCache] Uses the method of \citep{WheelerandWashburn2023} to 
 			determine softwired network costs in greatly reduced time.  This is the default.
@@ -1816,10 +1816,10 @@
 		   (see \ref{subsec:swap}).
 		
 		   \item[maxParallel[:BOOL]] Specifies the amount of parallelization during the 
-		   calculation of support values. By default (\texttt{FALSE}), the amount of 
-		   parallelization is reduced. When set to \texttt{TRUE}, parallelization is maximized 
-		   at the cost of memory. This reduces the memory footprint of the analysis.
-		
+		   calculation of support values. By default (\texttt{TRUE}), \texttt{fuse} maximizes 
+		   	the amount of parallelization, at the cost of memory. When set to \texttt{FALSE}, 
+			the amount of parallelization is reduced. 
+
 		\item[replicates:[INT]] Specifies the number of resampling replicates, as indicated 
 	          by the integer value, that are performed in resampling support for Jackknife and 
 	          bootstrap methods. The default is 100.
