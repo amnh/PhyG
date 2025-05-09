@@ -23,6 +23,9 @@ Furthermore, PhyG can generate outputs in the form of implied alignments and gra
 What sets PhyG apart from other phylogenetic analysis programs, is the extension to broader classes of input data and phylogenetic graphs.
 The phylogenetic graph inputs and outputs of PhyG include trees, as well as softwired and hardwired networks.
 
+Please cite:
+  W. C. Wheeler, A. Washburn, and L. M. Crowley. PhylogeneticGraph (PhyG) a new phylogenetic graph search and optimization program. Cladistics, 40:97–105, 2024.
+
 
 ### [Funding provided by][GitHub-Funding]:
 
