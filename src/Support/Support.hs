@@ -28,7 +28,8 @@ import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 -- import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Reconciliation.ReconcileGraphs qualified as REC
 import Search.Build qualified as B
-import Search.NetworkAddDelete qualified as N
+--import Search.NetworkAddDelete qualified as N
+import Search.NetworkAddDeleteV2 qualified as N2
 import Search.Refinement qualified as R
 import Text.Read
 import Types.Types
@@ -819,7 +820,7 @@ updateDeleteTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                 pure inTuple
             else do
                 -- True to force full evalutation
-                deleteRedgeResults ← N.deleteNetEdge inGS inData inGraph True (inE, inV)
+                deleteRedgeResults ← N2.deleteNetEdgeSupport inGS inData inGraph True (inE, inV)
                 let deleteCost = snd5 deleteRedgeResults
                 pure (inE, inV, inEBV, inVBV, min inCost deleteCost)
 
@@ -857,7 +858,7 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                         }
                 in  do
                         deleteAddGraphs ←
-                            N.deleteOneNetAddAll inGS inData netParams inGraph [(inE, inV)] saParams
+                            N2.deleteOneNetAddAll inGS inData netParams inGraph [(inE, inV)] saParams
                         let moveCost = minimum (snd5 <$> deleteAddGraphs)
 
                         pure (inE, inV, inEBV, inVBV, min inCost moveCost)
