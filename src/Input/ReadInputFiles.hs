@@ -304,7 +304,7 @@ executeReadCommands' curData curGraphs curTerminals curExcludeList curRenamePair
                                                                                         if T.head (T.dropWhile (== ' ') fileContents') == '>'
                                                                                             then
                                                                                                 let secondLine = T.lines fileContents' !! 1
-                                                                                                    hasSpaces = T.find (== ' ') secondLine
+                                                                                                    hasSpaces = T.find (== ' ') $ T.init secondLine
                                                                                                 in  -- numWords = length $ words secondLine
 
                                                                                                     -- spaces between alphabet elements suggest fastc

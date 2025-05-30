@@ -1542,6 +1542,9 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                     diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                                     checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
 
+
+                                    {- This section to report heuristic and rediagnosed costs later for analyhsis--should be removed when not needed -}
+
                                     (newGraphList, newSAParams) <-
                                                 let genNewSimAnnealParams =
                                                         if isNothing inSimAnnealParams
