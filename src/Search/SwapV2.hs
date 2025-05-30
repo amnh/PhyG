@@ -572,8 +572,6 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                                         else fmap snd tbrPart
 
                     -- zip heuristc costs with fully diagnosed costs
-                    let evalPairs = zip (heuristicCostSPR <> heuristicCostTBR) (fmap snd5 checkedGraphCosts)
-
                     let heurCostsString = fmap show (heuristicCostSPR <> heuristicCostTBR)
                     let fullCostsString = fmap show (fmap snd5 checkedGraphCosts)
                     let heurCostsString'' = fmap (<>":") heurCostsString

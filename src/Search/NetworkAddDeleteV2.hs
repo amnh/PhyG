@@ -773,32 +773,49 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                     let nonInfinitePairList = filter ((/= infinity) .fst) heuristicGraphPairList
                     let candidatePairList = L.sortOn fst nonInfinitePairList
 
-                    let graphsToBeEvaluated = 
+                    let graphsToBeEvaluatedPair = 
                             -- make sure take some number of SA/Drif
                             if isJust inSimAnnealParams then
-                                 fmap snd $ take (graphsSteepest inGS) candidatePairList
+                                 take (graphsSteepest inGS) candidatePairList
 
                             else if (netCheckHeuristic netParams) == BestOnly then
-                                fmap snd $ take 1 candidatePairList
+                                take 1 candidatePairList
 
                             else if (netCheckHeuristic netParams) == Better then
-                                fmap snd $ filter ((> currentCost) . fst) candidatePairList
+                                filter ((> currentCost) . fst) candidatePairList
 
                             else if (netCheckHeuristic netParams) == BetterN then 
-                                fmap snd $ take (graphsSteepest inGS) candidatePairList
+                                take (graphsSteepest inGS) candidatePairList
 
                             else --BestAll
-                                fmap snd candidatePairList
+                                candidatePairList
 
 
-                    if null graphsToBeEvaluated then
+                    if null graphsToBeEvaluatedPair then
                         pure ([inPhyloGraph], currentCost, inSimAnnealParams)
 
                     else do
                         -- list should always have graphs since deleting always yields a valid graph
                         -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
                         diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-                        checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
+                        checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
+
+                        {- This section to report heuristic and rediagnosed costs later for analyhsis--should be removed when not needed -}
+                        if reportHeuristics inGS then do
+                            -- zip heuristc costs with fully diagnosed costs filtering out inifinities form bad graphs
+                            let checkList = filter ((/= infinity) .snd) $ zip (fmap fst graphsToBeEvaluatedPair) (fmap snd5 checkedGraphCosts)
+                            --let heurCostsString = fmap show (fmap (currentCost +) $ fmap ((-1.0) * ) $ fmap fst checkList)
+                            let heurCostsString = fmap show (fmap fst checkList)
+                            let fullCostsString = fmap show (fmap snd checkList)
+                            let heurCostsString'' = fmap (<>":") heurCostsString
+                            let heurCostsString' = fmap ("\nNetDelPairs:" <>) heurCostsString''
+                            let fullCostsString' = fmap (<>"\n") fullCostsString
+                            let costPairString = concat $ zipWith (<>) heurCostsString' fullCostsString'
+
+                            logWith LogInfo $ costPairString
+
+
+                        else logWith LogInfo ""
 
                         (newGraphList, newSAParams) <-
                                 let genNewSimAnnealParams =
@@ -810,7 +827,7 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                                 pure (checkedGraphCosts, genNewSimAnnealParams)
                                            
                         let minCost =
-                                if null graphsToBeEvaluated || null newGraphList
+                                if null graphsToBeEvaluatedPair || null newGraphList
                                     then infinity
                                 else minimum $ fmap snd5 newGraphList
 
@@ -1514,36 +1531,51 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                             let nonInfinitePairList = filter ((/= infinity) .fst) heurCostSimpleGraphPairList
                             let candidatePairList = L.sortOn fst nonInfinitePairList
 
-                            let graphsToBeEvaluated = 
+                            let graphsToBeEvaluatedPair = 
                                         -- make sure take some number of SA/Drif
                                         if isJust inSimAnnealParams then
-                                             fmap snd $ take (graphsSteepest inGS) candidatePairList
+                                             take (graphsSteepest inGS) candidatePairList
 
                                         else if (netCheckHeuristic netParams) == BestOnly then
-                                            fmap snd $ take 1 candidatePairList
+                                            take 1 candidatePairList
 
                                         else if (netCheckHeuristic netParams) == Better then
-                                            fmap snd $ filter ((< 0) . fst) candidatePairList
+                                            filter ((< 0) . fst) candidatePairList
 
                                         else if (netCheckHeuristic netParams) == BetterN then 
-                                            fmap snd $ take (graphsSteepest inGS) candidatePairList
+                                            take (graphsSteepest inGS) candidatePairList
 
                                         else --BestAll
-                                            fmap snd candidatePairList
+                                            candidatePairList
 
                             
                             --logWith LogInfo ("GTBE: " <> (show $ fmap fst candidatePairList))
 
-                            if null graphsToBeEvaluated then
+                            if null graphsToBeEvaluatedPair then
                                     pure ([inPhyloGraph], currentCost, inSimAnnealParams)
 
                             else do
                                     -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
                                     diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-                                    checkedGraphCosts <- diagnoseActionPar diagnoseAction graphsToBeEvaluated
+                                    checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
 
 
                                     {- This section to report heuristic and rediagnosed costs later for analyhsis--should be removed when not needed -}
+                                    if reportHeuristics inGS then do
+                                        -- zip heuristc costs with fully diagnosed costs filtering out inifinities form bad graphs
+                                        let checkList = filter ((/= infinity) .snd) $ zip (fmap fst graphsToBeEvaluatedPair) (fmap snd5 checkedGraphCosts)
+
+                                        let heurCostsString = fmap show (fmap (currentCost +) $ fmap ((-1.0) * ) $ fmap fst checkList)
+                                        let fullCostsString = fmap show (fmap snd checkList)
+                                        let heurCostsString'' = fmap (<>":") heurCostsString
+                                        let heurCostsString' = fmap ("\nNetAddPairs:" <>) heurCostsString''
+                                        let fullCostsString' = fmap (<>"\n") fullCostsString
+                                        let costPairString = concat $ zipWith (<>) heurCostsString' fullCostsString'
+
+                                        logWith LogInfo $ costPairString
+
+
+                                    else logWith LogInfo ""
 
                                     (newGraphList, newSAParams) <-
                                                 let genNewSimAnnealParams =
@@ -1554,7 +1586,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                                                 pure (checkedGraphCosts, genNewSimAnnealParams)
                                            
                                     let minCost =
-                                            if null graphsToBeEvaluated || null newGraphList
+                                            if null graphsToBeEvaluatedPair || null newGraphList
                                                 then infinity
                                                 else minimum $ fmap snd5 newGraphList
                                     
