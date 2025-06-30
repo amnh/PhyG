@@ -398,7 +398,7 @@ makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime commen
 
 {- | setCommand takes arguments to change globalSettings and multiple data aspects (e.g. 'blocks')
 needs to be abtracted--too long
-if seed list is empty [] then processes first set--confusing--shold be refactored
+if seed list is empty [] then processes first set--confusing--should be refactored
 -}
 setCommand ∷ [Argument] → GlobalSettings → ProcessedData → ProcessedData → Bool → PhyG (GlobalSettings, ProcessedData)
 setCommand argList globalSettings origProcessedData processedData isFirst =
@@ -410,7 +410,8 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
         checkCommandList = checkCommandArgs "set" commandList VER.setArgList
         leafNameVect = fst3 processedData
     in  case niceArgs of
-            [] → failWithPhase Computing "Attempting to process a non existant 'set' command"
+            [] → if (not $ null (fst $ head argList)) then failWithPhase Computing $ "Error processing 'set' command, requires second argument: " <> (fst $ head argList)
+                 else failWithPhase Computing $ "Attempting to process a non-existant 'set' command " <> (fst $ head argList)
             (firstCommand, firstOption) : _otherArgs → do
                 when (not checkCommandList) . failWithPhase Parsing $
                     "Unrecognized command in 'set': " <> show argList
@@ -934,11 +935,18 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                             val →
                                 failWithPhase Parsing $
                                     "Error in 'set' command. Partitioncharacter '" <> val <> "' must be a single character"
+                        "reportheuristics" → do
+                            localMethod ← case toLower <$> firstOption of
+                                "true" → pure True
+                                "false" → pure False
+                                val → failWithPhase Parsing $ "Error in 'set' command. ReportHeursitics  '" <> val <> "' is not 'True' or 'False'"
+                            logWith LogInfo $ "ReportHeursitics set to " <> show localMethod <> "\n"
+                            pure (globalSettings{reportHeuristics = localMethod}, processedData)
                         "reportnaivedata" → do
                             localMethod ← case toLower <$> firstOption of
                                 "true" → pure True
                                 "false" → pure False
-                                val → failWithPhase Parsing $ "Error in 'set' command. NeportNaive  '" <> val <> "' is not 'True' or 'False'"
+                                val → failWithPhase Parsing $ "Error in 'set' command. ReportNaive  '" <> val <> "' is not 'True' or 'False'"
                             logWith LogInfo $ "ReportNaiveData set to " <> show localMethod <> "\n"
                             pure (globalSettings{reportNaiveData = localMethod}, processedData)
                         "rootcost" → do

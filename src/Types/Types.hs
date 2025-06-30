@@ -311,6 +311,7 @@ data GlobalSettings = GlobalSettings
     , outgroupIndex ∷ Int -- Outgroup terminal index, default 0 (first input leaf)
     , outGroupName ∷ T.Text -- Outgroup name
     , partitionCharacter ∷ String -- 'character' for mparitioning seqeunce data into homologous sections'--checks for length == 1 later
+    , reportHeuristics :: Bool -- reports heuristic and fully diagnosed costs to stdout for check of heuristic quality (swap, netAdd, NetDel)
     , reportNaiveData ∷ Bool -- reports using Naive data so preserves character order and codings.  This comes at a cost in memory footprint.  If False,
     -- packed characters are reported--and are somewhat inscrutable. But perhaps 3% of data footprint--useful for large
     -- add/non add dat asets liker SNP genomic data
@@ -822,6 +823,7 @@ emptyGlobalSettings =
         , useNetAddHeuristic = True
         , useIA = True
         , missingThreshold = 100
+        , reportHeuristics = False
         }
 
 
