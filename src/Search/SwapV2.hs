@@ -541,6 +541,8 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                                     -- BestAll
                                                     else tbrPart
 
+
+                
                 makeTBRGraphPar <- getParallelChunkTraverse
                 toReoptimizeGraphsTBR <- makeTBRGraphPar makeTBRGraphAction (fmap fst toReoptimizeAndCheckCostTBR)
 
@@ -554,6 +556,31 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
                 let minimumCheckedCost = if (null checkedGraphCosts) then infinity
                                          else minimum $ fmap snd5 checkedGraphCosts
+
+
+                {- This section to report heuristic and rediagnosed costs later for analysis -}
+                if reportHeuristics inGS then do
+                    -- create lists of heuristic costs
+                    let heuristicCostSPR =   if (checkHeuristic swapParams == Better) then filter (< curBestCost) $ fmap snd bettterHeuristicEdgesSPR
+                                                        else if (checkHeuristic swapParams == BestOnly) then fmap snd $ filter ((== minHeuristicCost) . snd) $ concat $ fmap fst heuristicResultList
+                                                        else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ fmap snd $ L.sortOn snd $ concat $ fmap fst heuristicResultList
+                                                        else fmap snd $ concat $ fmap fst heuristicResultList
+
+                    let heuristicCostTBR =   if (checkHeuristic swapParams == Better) then fmap snd bettterHeuristicEdgesTBR
+                                                        else if (checkHeuristic swapParams == BestOnly) then filter (== minHeuristicCost) $ fmap snd tbrPart 
+                                                        else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sort $ fmap snd $ tbrPart
+                                                        else fmap snd tbrPart
+
+                    -- zip heuristc costs with fully diagnosed costs
+                    let heurCostsString = fmap show (heuristicCostSPR <> heuristicCostTBR)
+                    let fullCostsString = fmap show (fmap snd5 checkedGraphCosts)
+                    let heurCostsString'' = fmap (<>":") heurCostsString
+                    let heurCostsString' = fmap ("\nSwapPairs:" <>) heurCostsString''
+                    let fullCostsString' = fmap (<>"\n") fullCostsString
+                    let costPairString = concat $ zipWith (<>) heurCostsString' fullCostsString'
+
+                    logWith LogInfo $ costPairString
+                else logWith LogInfo ""
 
                 (newBestGraphs, newBestCost) <- if minimumCheckedCost < curBestCost then do
                                                     logWith LogInfo $ "\t-> " <> (show minimumCheckedCost)
