@@ -327,6 +327,17 @@
 		in the format of integers or floats. Moreover, they must be declared as ``additive'', 
 		otherwise, they will be treated as non-additive character states (see 
 		\href{http://phylo.wikidot.com/tnt-htm}{\textbf{TNT}} documentation).
+		
+		\begin{tcolorbox}[enhanced,fit to height=2.5cm,
+  		colback=JungleGreen!40!black!2!white,colframe=JungleGreen!70!black,title=Note,
+  		drop fuzzy shadow]
+  		For continuous characters, \phyg preserves the precision of floating point numbers.
+		As a result, processing and execution time can greatly increase with the number of 
+		significant digits. Therefore, the user is advised to use the smallest number of 
+		significant digits appropriate to the problem.
+		\end{tcolorbox}
+		
+	
 		The characters `-' and `?' can be used to indicate that characters or character 
 		states are missing or inapplicable. Only one set of ccode commands is allowed 
 		per line (e.g. to make everything additive: ccode +.;). Default values of step-matrix 
