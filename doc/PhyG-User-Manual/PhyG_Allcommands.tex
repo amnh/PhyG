@@ -2072,16 +2072,17 @@
 			
 		\end{description}
 			
-		\item[graphSteepest[:INT]] Changes the number or graphs simultaneously evaluated 
-		in a variety of procedures (e.g. swap, fuse, netmove) from the default (the larger of the 
-		number of parallel threads and INT).  This option can be used to exploit or limit use 
-		of parallel thread numbers.  Higher numbers will consume more memory and lower, less.
-		The default value is 10.  
+		\item[graphSteepest[:INT]] Changes the number of graphs that are simultaneously 
+		evaluated in a variety of algorithms (e.g. swap, fuse, netmove). By default, \phyg 
+		will evaluate 10 graphs. This option can be used to exploit or limit use of parallel 
+		thread numbers. Higher numbers will consume more memory, while lower numbers 
+		will consume less memory. 
 		
-		\item[jointhreshold] Sets graph rejoin heuristic threshold (as described in 
-		\citealp{VaronandWheeler2013}) during SPR and TBR branch swapping (default 1.17). 
-		Higher values will allow more heuristic graph rejoins, resulting in potentially better 
-		solutions at the cost of greater execution times.
+%		\item[jointhreshold] Only internal---used for testing purposes.
+%		Sets graph rejoin heuristic threshold (as described in 
+%		\citealp{VaronandWheeler2013}) during SPR and TBR branch swapping (default 1.17). 
+%		Higher values will allow more heuristic graph rejoins, resulting in potentially better 
+%		solutions at the cost of greater execution times.
 		
 		\item[multiTraverse:BOOL] Controls the multi-traverse character optimization option. 
 		If \texttt{True}, character trees are traversed from each edge as in 
