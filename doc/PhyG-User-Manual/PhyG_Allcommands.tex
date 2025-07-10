@@ -69,10 +69,10 @@
 		
 		\item [character] Performs random addition sequence Wagner \citep{Farris1970} builds 
 		($O(n^2)$) for tree construction. If the graphtype is specified as softwired or hardwired, 
-		the resulting trees are rediagnosed as softwired graphs. This is 
-		the default method for tree construction.  At each stage of OTU addition, multiple 
-		trees are evaluated in parallel.  This number is set by \texttt{graphsSteepest} with default value of 10.
-		Setting this number to a lower number will decrease execution time, but potentially result in
+		the resulting trees are rediagnosed as softwired graphs. This is the default method for 
+		tree construction. At each stage of OTU addition, multiple trees are evaluated in parallel. 
+		This number is set by \texttt{graphsSteepest} with default value of 10. Setting this number 
+		to a lower number will decrease execution time, but potentially result in
 		higher cost initial builds.
 		
 		\item [distance] Causes a pairwise distance matrix to be calculated ($O(n^2)$) and used 
@@ -85,8 +85,8 @@
 		\begin{description}
 		
 			\item[dWag] Performs distance Wagner build as in \citep{Farris1972} choosing the 
-			`best' taxon to 
-			add at each step, yielding a single tree. This method has a time complexity of $O(n^3)$.
+			`best' taxon to add at each step, yielding a single tree. This method has a time 
+			complexity of $O(n^3)$.
 
 			\item[nj] Performs Neighbor-Joining distance build \citep{Saitou1987}, yielding a single 
 			tree. This method has a time complexity of $O(n^3)$.
@@ -99,14 +99,14 @@
 			
 			\item[rdWag] Performs random addition sequence distance Wagner builds 
 			\citep{Farris1972,Wheeler2021}, yielding multiple trees determined by the 
-			argument \texttt{replicates}. This method has a time complexity of $O(m \times n^2)$
-			for $m$ replicates and $n$ taxa.
+			argument \texttt{replicates}. This method has a time complexity of $O(m 
+			\times n^2)$ for $m$ replicates and $n$ taxa.
 			
 			\begin{description}
 				
 				\item[best:INT] Applies only to \texttt{rdWag}. Specifies the number of trees 
 				retained after \texttt{rdWag} builds, selecting the best trees in terms of distance 
-				cost. The options can be used to reduce the number of trees retained.  
+				cost. The options can be used to reduce the number of trees retained. 
 				
 			\end{description}
 			
@@ -233,7 +233,7 @@
 		\end{description}
 		
 		\item [reciprocal] By default, fuse takes a subgraph of one graph in a pair and replaces the 
-		corresponding subgraph in the other.  This argument results in the exchange and evaluation 
+		corresponding subgraph in the other. This argument results in the exchange and evaluation 
 		of graphs in both directions---roughly doubling both the time and memory footprint.
 		
 		\item [spr[:INT]] Causes the exchanged subgraphs to be tried at multiple positions (up to 
@@ -357,7 +357,7 @@
 			
 		\item [fastc:STRING] Ensures that file contents are parsed in FASTC \citep{WheelerandWashburn2019}
 		format. This is used for multi-character sequences such as gene synteny, developmental, 
-		or linguistic data.   Sequence gaps are removed.
+		or linguistic data. Sequence gaps are removed.
 			
 %		\item [fenewick:STRING] Specifies that the file contains Forest Enhanced Newick format graph(s) 
 %		specified \href{https://www.github.com/wardwheeler/euncon}{here} \citep{Wheeler2022}.
@@ -592,9 +592,9 @@
 		is used to reassign these data to new, combined blocks. Spaces are not allowed in 
 		block names and will produce `unrecognized block name' errors.
 		
-		The calculation of support measures based on resampling, is done at the fragment 
-		or ``block'' level, rather than at the nucleotide level. For this reason, these data need
-		to be collated into a block with \texttt{reblock} (see \texttt{support} in Section 
+		By default, the calculation of support measures based on resampling are done at the 
+		fragment or ``block'' level, rather than at the nucleotide level. For this reason, these 
+		data need to be collated into a block with \texttt{reblock} (see \texttt{support} in Section 
 		\ref{subsec:support}).} 
 	\end{phygdescription}
 	
@@ -660,7 +660,7 @@
 			
 				\item[stop:INT] Causes the \texttt{ga} to terminate after the number of 
 				generations as specified by the integer value without improvement in graph 
-				cost.  By default, this procedure will only terminate when the number of 
+				cost. By default, this procedure will only terminate when the number of 
 				specified generations has been completed. This integer value should be less 
 				than that as specified in \texttt{generations}.
 			
@@ -778,7 +778,7 @@
 		until no better cost graph is found.
 		
 		\item[netadddelete] Consecutively adds and then deletes network edges from 
-		input graphs until certain conditions are met, i.e.  until no better cost 	graph is found.
+		input graphs until certain conditions are met, i.e. until no better cost 	graph is found.
 			
 		\begin{description}
 			\item[rounds:[INT]]  Specifies the number of combined network add and delete
@@ -978,7 +978,7 @@
 		\item[collapse] Specifies that zero length branches are collapsed. If a dotpdf 
 		graph is specified, the branches are collapsed by default. If ASCII, Newick, 
 		eNewick and dot are specified, the zero length branches are not collapsed by 
-		default. Compare with the \texttt{nocollapse} argument.  		
+		default. Compare with the \texttt{nocollapse} argument.	
 		
 		\item[crossrefs] Reports whether data are present or absent for each terminal 
 		in each of the imported data files. The argument will report a table with terminals 
@@ -986,7 +986,7 @@
 		data for a given terminal is present in the corresponding file; a minus sign (`--') 
 		indicates that it is absent. This provides a comprehensive visual overview of the 
 		completeness of the data. It will highlight missing data, as well as inconsistencies 
-		in the spelling of taxon names in different data files (see Figure \ref{crossrefs}).  
+		in the spelling of taxon names in different data files (see Figure \ref{crossrefs}). 
 		This information will be directed to a file, in csv format, if a file name (in quotes), 
 		followed by a comma, is included in the argument list of report. If no file name is 
 		specified, this information will be printed to the stderr.
@@ -1001,7 +1001,7 @@
 			
 		\item[data] Outputs a summary of the input data and terminals. Information relating 
 		to the input data (number of terminals, number of input files, number of character 
-		blocks and the total number of characters) is summariazed. It also provides
+		blocks and the total number of characters) is summarized. It also provides
 		information relating to the terminal taxa included in the analysis, including the 
 		names of the taxa, a list of the excluded taxa (if any), and whether any terminals 
 		were renamed. In this file you will also see information relating to ``Index'', ``Block'', 
@@ -1067,14 +1067,13 @@
 			for each block of input data, it will report a file with all the implied 
 			alignments concatenated into a single file.
 			
-			\item[includemissing] Outputs a FASTA or FASTC (depending on sequence type), 
-			including taxa that are missing data for that particular block of data in the implied 
-			alignment.
-			In this case, \phyg will print question mark characters (`?') for the missing taxon in 
-			this block of the implied alignment. This option interacts nicely with 
-			\texttt{concatenate} in creating prealigned FASTA (implied alignments) 
-			with all the terminals included for all the data. By default, taxa with 
-			missing data are not included.
+			\item[includemissing] Outputs a FASTA or FASTC (depending on sequence 
+			type), including taxa that are missing data for that particular block of data in 
+			the implied alignment. In this case, \phyg will print question mark characters 
+			(`?') for the missing taxon in this block of the implied alignment. This option 
+			interacts nicely with \texttt{concatenate} in creating prealigned FASTA 
+			(implied alignments) with all the terminals included for all the data. By default, 
+			taxa with missing data are not included.
 			
 		\end{description}
 				
@@ -1291,7 +1290,7 @@
 		instances of the \texttt{search}. Successive rounds of \texttt{search} gather any 
 		solutions from previous sequential or parallel rounds, as well as any input graphs. 
 		Since search methods may vary in how long they take, individual iterations may 
-		take longer than the specified duration.  By default, search strategies are chosen 
+		take longer than the specified duration. By default, search strategies are chosen 
 		uniformly at random, and if \texttt{Thompson} is specified, Thompson sampling 
 		\cite{Thompson1933,WheelerThompson} is used to modify the probabilities 
 		of search strategies over the search duration.
@@ -1369,7 +1368,7 @@
 			
 			\item[linear] Specifies that the Thompson memory is a linear function of $m$ (the 
 			\texttt{INT} value specified by \texttt{Thompson} above). Updating of search type, $\theta^k$, 
-			probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$.  
+			probability for iteration $n$ is $\frac{m}{m+1} \theta^k_{n-1} + \frac{1}{m+1} \theta^k_n$. 
 			Thompson success is a function of whether a search was successful in reducing the graph 
 			cost and how long that search took to complete.
 
@@ -1471,23 +1470,23 @@
 	\subsubsection{Arguments}
 	\begin{description}
 			
-		\item[bc2:(FLOAT, FLOAT)] Sets the bit cost for binary characters.  The first value 
+		\item[bc2:(FLOAT, FLOAT)] Sets the bit cost for binary characters. The first value 
 		is the cost of a character transformation and the second for character stasis 
 		(change or no change).
 		
-		\item[bc4:(FLOAT, FLOAT)] Sets the bit cost for four-state non-additive characters.  
+		\item[bc4:(FLOAT, FLOAT)] Sets the bit cost for four-state non-additive characters. 
 		The first value is the cost of a character transformation and the second for character 
 		stasis (change or no change).
 		
-		\item[bc5:(FLOAT, FLOAT)] Sets the bit cost for five-state non-additive characters.  
+		\item[bc5:(FLOAT, FLOAT)] Sets the bit cost for five-state non-additive characters. 
 		The first value is the cost of a character transformation and the second for character 
 		stasis (change or no change).
 		
-		\item[bc8:(FLOAT, FLOAT)] Sets the bit cost for eight-state non-additive characters.  
+		\item[bc8:(FLOAT, FLOAT)] Sets the bit cost for eight-state non-additive characters. 
 		The first value is the cost of a character transformation and the second for character 
 		stasis (change or no change).
 		
-		\item[bc64:(FLOAT, FLOAT)] Sets the bit cost for 64-state non-additive characters.  
+		\item[bc64:(FLOAT, FLOAT)] Sets the bit cost for 64-state non-additive characters. 
 		The first value is the cost of a character transformation and the second for character 
 		stasis (change or no change).
 		
@@ -1514,7 +1513,7 @@
 			
 			\item[ncm] Graph costs are determined by the No-Common-Mechanism 
 			likelihood model of \citep{TuffleyandSteel1997}. This is exact for trees, but 
-			for networks should be treated as a form of character weighting.  
+			for networks should be treated as a form of character weighting. 
 			Graph costs are reported in $- \log_{10}$ units (dits).
 			
 			\item[parsimony] Graph costs are determined by the parsimony criterion, 
@@ -1522,14 +1521,14 @@
 			This is the default.
 			
 			\item[pmdl] Graph costs are determined by the Phylogenetic Minimum 
-			Description Length criterion, of \citep{WheelerandVaron2025}.  This 
+			Description Length criterion, of \citep{WheelerandVaron2025}. This 
 			command option is used in conjunction with \texttt{modelComplexity}. 
 			Any network costs are specified by the criterion and other network
 			penalty options are ignored. Graph costs are reported in $\log_{2}$ 
 			units (bits).
 			
 			\item[si] Graph costs are determined by the Self-Information (a form 
-			of maximum likelihood) criterion of \citep{WheelerandVaron2025}.  
+			of maximum likelihood) criterion of \citep{WheelerandVaron2025}. 
 			This command option ignores. \texttt{modelComplexity}. Any network 
 			costs are specified by the criterion and other network penalty options 
 			are ignored. Graph costs are reported in $\log_{2}$ units (bits).
@@ -1566,7 +1565,7 @@
 		a network analysis, a penalty can be specified, so that ‘softwired’ phylogenetic networks 
 		can compete equally with phylogenetic trees on a parsimony optimality basis. A network 
 		penalty takes into account the change in cost as edges are added to the graph. Hardwired 
-		graphs are automatically set to \texttt{NoPenalty}.  If the optimality criterion is set to PMDL 
+		graphs are automatically set to \texttt{NoPenalty}. If the optimality criterion is set to PMDL 
 		or SI, the network penalty is determined as part of the criterion.
 			
 		\begin{description}
@@ -1584,7 +1583,7 @@
 		\item[graphsSteepest:[INT]] Sets the maximum number of graphs to be evaluated 
 		simultaneously during `steepest' descent in swapping and network addition and 
 		deletion operation. The number is the lower of the number of parallel threads 
-		and $n$ (default 10).  Setting this number to higher values can improve the use of 
+		and $n$ (default 10). Setting this number to higher values can improve the use of 
 		parallel resources, but at the cost of additional memory footprint. Accordingly, 
 		reduction in this value can reduce memory consumption.
 			
@@ -1623,7 +1622,7 @@
 		Terminal taxa with more than the missing fraction are deleted. The 
 		\texttt{missingThreshold} value is determined by the number of input blocks 
 		(files). Hence, a taxon with all missing values in a TNT file will be counted 
-		as not missing for this purpose.   
+		as not missing for this purpose. 
 		
 		\item[modelComplexity] The model complexity for use with the PMDL 
 		optimality criterion of \citep{WheelerandVaron2025}. These values can be 
@@ -1636,9 +1635,9 @@
 		individually for each dynamic character. This is the default and yields better 
 		(lower) optimality scores at the cost of added execution time. This is the default.
 		If \texttt{False}, only outgroup-based traversals are performed as in 
-		\citep{Wheeler1996, POY2, POY3}.  When \texttt{multiTraverse} is set to 
+		\citep{Wheeler1996, POY2, POY3}. When \texttt{multiTraverse} is set to 
 		\texttt{False} graphs may rediagnose (e.g upon input) to a different cost than 
-		when previously reported.  
+		when previously reported. 
 					
 		\item[outgroup:STRING] Specifies the terminal to root the output trees. 
 		This name must appear in double quotes. If the outgroup is not set, the 
@@ -1654,11 +1653,11 @@
 		must be the same across homologous sequences. The default is `\textbf{\#}'.
 
 %		\item[reportNaiveData] Sets the data output and diagnosis.		
-%		By default set to \texttt{True}, and diagnosis will report data as input.  Memory 
+%		By default set to \texttt{True}, and diagnosis will report data as input. Memory 
 %		footprint for large data sets can be reduced by setting reportNaiveData to False. 
-%		When False, diagnosis will be based on recoded characters that may be inscrutable.  
+%		When False, diagnosis will be based on recoded characters that may be inscrutable. 
 %		To report more legible diagnoses, graphs can be individually rediagnosed with 
-%		reportNaiveData:True.  This should consume much less memory that the
+%		reportNaiveData:True. This should consume much less memory that the
 %		graph search.
 %		prealigned or qualitative 
 
@@ -1666,12 +1665,12 @@
 				
 		\begin{description}
 			
-			\item[noRootCost]  No cost is ascribed to the root. This is the default for parsimony 
+			\item[noRootCost] No cost is ascribed to the root. This is the default for parsimony 
 			searches.
 			
 			\item[w15] Sets a cost at $\frac{1}{2}$ the cost of `inserting' the root character 
 			assignments. The W15 root cost is based on the same rationale as the parsimony 
-			network penalty of  \cite{Wheeler2015}.
+			network penalty of \cite{Wheeler2015}.
 
 		\end{description}
 			 
@@ -1694,7 +1693,7 @@
 			with the \texttt{ResolutionCache} algorithm.
 			
 			\item[ResolutionCache] Uses the method of \citep{WheelerandWashburn2023} to 
-			determine softwired network costs in greatly reduced time.  This is the default.
+			determine softwired network costs in greatly reduced time. This is the default.
 			
 		\end{description}
 		
@@ -1759,6 +1758,17 @@
 		transforming to an implied alignment (see \texttt{transform} \ref{subsec:transform}). 
 		Goodman-Bremer calculations are not affected by this behavior. 
 
+		\begin{tcolorbox}[enhanced,fit to height=3.0cm,
+  		colback=JungleGreen!40!black!2!white,colframe=JungleGreen!70!black,title=Note,
+  		drop fuzzy shadow]
+  		Even though support measures based on resampling methods are done at the 
+		fragment level, it is possible to do so at the nucleotide level. To do this, the user
+		should report a concatenated implied alignment (see Section \ref{subsec:report})
+		and use this to calculate resampling supports.
+		Support values calculated at the nucleotide level may be higher and likely faster.
+		
+		\end{tcolorbox}
+
 		If the criterion is set to \texttt{ncm} (see Section \ref{subsec:set}), the support values 
 		for Goodman-Bremer are log likelihood ratios.}
 	\end{phygdescription}
@@ -1787,7 +1797,7 @@
 		\begin{description}
 			
 			\item[gbsample:[INT]] Specifies the number of alternate graphs to be examined 
-			(i.e. limited). The graphs are chosen uniformly at random.  This is used to reduce 
+			(i.e. limited). The graphs are chosen uniformly at random. This is used to reduce 
 			execution time of the Goodman-Bremer support at a cost of potentially increased 
 			overestimates (higher upper bound values). 
 			
@@ -1796,8 +1806,7 @@
 			
 			\item[tbr] Traverses the TBR neighborhood 
 			as optionally specified (TBR as default) to determine an upper bound on the 
-			     NP-hard values (this is the method used in POY v2; \citealp{POY2} 
-			     \textit{et seq.}).
+			NP-hard values (this is the method used in POY v2; \citealp{POY2} \textit{et seq.}).
 			
 		\end{description}
 		
@@ -1811,7 +1820,7 @@
 		   \item[level:INT] Specifies a series of heuristic intensities (and execution times) from 
 		   0 (all preferences and heuristics off) to 3 (all preferences and heuristics on) used 
 		   during the swap phase of \texttt{jackknife} and \texttt{bootstrap} support value 
-		   calculations. Levels 2 and 3 perform an additional level 1 swap after completion.  
+		   calculations. Levels 2 and 3 perform an additional level 1 swap after completion. 
 		   Graphs are rediagnosed (if necessary) to the global \texttt{multiTraverse} state
 		   (see \ref{subsec:swap}).
 		
@@ -1853,7 +1862,7 @@
 		group of algorithms referred to as branch swapping, that proceed by clipping
 		parts of the given tree and attaching them in different positions. These algorithms 
 		include `NNI' \citep{CaminandSokal1965, Robinson1971}, `SPR' \citep{Dayhoff1969}, 
-		and `TBR' \citep{Farris1988, swofford1990a} refinement.  
+		and `TBR' \citep{Farris1988, swofford1990a} refinement. 
 		%Default swapping trajectories are randomized.
 		}
 	\end{phygdescription}
@@ -1890,7 +1899,7 @@
 		explored. % This is the default.
 		
 		\item[bestAll] Specifies that when evaluating heuristic costs, all heuristic costs are 
-		reevaluated.  This will add a factor of $n$ (number of terminals) to swapping time complexity
+		reevaluated. This will add a factor of $n$ (number of terminals) to swapping time complexity
 		(e.g. $O(n^4)$ for TBR as opposed to $O(n^3)$), dramatically increasing execution time.
 		
 		\item[bestOnly] Specifies that when evaluating heuristic costs, only the best heuristic cost is 
@@ -1900,7 +1909,7 @@
 		then the current best cost are reevaluated.
 		
 		\item[betterN] Specifies that when evaluating heuristic costs, the best $N$ heuristic costs are 
-		reevaluated where $N$ is set by \texttt{graphsSteepest}.  This is the default.
+		reevaluated where $N$ is set by \texttt{graphsSteepest}. This is the default.
 		
 		\item[drift[:INT]] Specifies the number of rounds of the `drifting' form of simulated 
 		annealing \citep{goloboff1999} optimization that are performed, as indicated by the integer 
@@ -1946,8 +1955,8 @@
 		determined by the integer value.		
 		
 		\item[level:INT] Specifies a series of heuristic intensities (and execution times) from 0 (all 
-		preferences and heuristics off) to 3 (all preferences and heuristics on) used during swapping.  
-		Levels 2 and 3 perform an additional level 1 swap after completion.  Graphs are rediagnosed 
+		preferences and heuristics off) to 3 (all preferences and heuristics on) used during swapping. 
+		Levels 2 and 3 perform an additional level 1 swap after completion. Graphs are rediagnosed 
 		(if necessary) to the global \texttt{multiTraverse} state.
 		
 		\begin{description}
@@ -1994,7 +2003,7 @@
 		edges of its original placement.
 		
 		\item[steepest] Specifies that refinement follows a greedy path, abandoning the 
-		neighborhood of the current graph when a better (lower cost) graph is found.  		
+		neighborhood of the current graph when a better (lower cost) graph is found. 		
 		
 		\item[tbr:[INT]] Specifies that TBR refinement \citep{Farris1988, swofford1990a} 
 		is performed. If an integer value is specified, the re-addition of pruned graphs 
@@ -2041,7 +2050,7 @@
 %		Determines whether softwired graph 	resolutions are ``compressed'' if multiple vertex 
 %		assignments in alternate display trees are equal in subtree leaf set, only the first lowest 
 %		cost resolution is retained. This option can significantly reduce the time to evaluate 
-%		softwired graphs, but can increase the optimality score of the graph.  Can be used in 
+%		softwired graphs, but can increase the optimality score of the graph. Can be used in 
 %		combination with \texttt{transform(compressResolutions:True)} or 
 %		\texttt{transform(softwiredMethod:Exhaustive)} at a later stage to improve graph score.
 			
@@ -2091,7 +2100,7 @@
 		scores at the cost of added execution time. This is the default. If \texttt{False}, only 
 		outgroup-based traversals are performed as in \citep{Wheeler1996, POY2, POY3}. 
 		When \texttt{multiTraverse} is set to \texttt{False} graphs may rediagnose (e.g upon 
-		input) to a different cost than when previously reported.  
+		input) to a different cost than when previously reported. 
 		
 %		\item[name] Not implemented yet.
 			
@@ -2113,7 +2122,7 @@
 			time consuming for graphs with large number of network nodes.
 					
 			\item[ResolutionCache] Uses the method of \citep{WheelerandWashburn2023} 
-			to determine softwired network costs in greatly reduced time.  This is the default.
+			to determine softwired network costs in greatly reduced time. This is the default.
 			
 		\end{description}
 			
