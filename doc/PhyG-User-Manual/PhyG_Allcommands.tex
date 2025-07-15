@@ -1463,7 +1463,7 @@
 		criterion. All \texttt{set} commands are executed at the start of a run, irrespective of
 		where they appear in the script. The command \texttt{transform} is used to modify 
 		global settings during a run (see \texttt{transform} Section \ref{subsec:transform}).
-		\texttt{set} arguments have to be indicated on separate lines of the script, otherwise
+		Each \texttt{set} argument has to be indicated on separate lines of the script, otherwise
 		\phyg will return an error.}
 	\end{phygdescription}
 			
@@ -1538,10 +1538,11 @@
 			
 %		\item[defparstrat] Only internal---used for testing purposes.
 
-		\item[dynamicepsilon:[FLOAT]] Alters the performance of the heuristic graph cost 
-		calculations to force a full graph evaluation more frequently. This will slow down the
-		search but has the potential to identify better solutions. The float indicates the additional 
-		cost factor in evaluating the graphs.
+%		\item[dynamicepsilon:[FLOAT]]  Only internal---used for testing purposes.
+%		Alters the performance of the heuristic graph cost 
+%		calculations to force a full graph evaluation more frequently. This will slow down the
+%		search but has the potential to identify better solutions. The float indicates the additional 
+%		cost factor in evaluating the graphs.
 			
 		\item[finalAssignment:] Sets the method of determining the `final' sequence states. 
 						
@@ -2060,9 +2061,10 @@
 		graph optimization proceeds in the default manner with sequence characters treated 
 		in their non-aligned (`dynamic') condition. Compare with \texttt{staticApprox}.
 			
-		\item[dynamicEpsilon] Sets the level at which heuristic graph costs are verified by full 
-		(and time consuming) traversal. Candidate graphs with costs within \texttt{dynamicEpsilon}
-		 of the current best graph are verified.
+%		\item[dynamicEpsilon] Only internal---used for testing purposes.
+%		Sets the level at which heuristic graph costs are verified by full 
+%		(and time consuming) traversal. Candidate graphs with costs within \texttt{dynamicEpsilon}
+%		 of the current best graph are verified.
 			
 		\item[graphFactor] Sets the network penalty for a softwired network. When conducting 
 		a network analysis, a penalty can be ascribed, so that ‘softwired’ phylogenetic networks 
@@ -2096,7 +2098,7 @@
 		\item[multiTraverse:BOOL] Controls the multi-traverse character optimization option. 
 		If \texttt{True}, character trees are traversed from each edge as in 
 		\citep{VaronandWheeler2012,VaronandWheeler2013, POY4, POY5}, but individually 
-		for each dynamic character. This is the default and yields better (lower) optimality 
+		for each dynamic character. This yields better (lower) optimality 
 		scores at the cost of added execution time. This is the default. If \texttt{False}, only 
 		outgroup-based traversals are performed as in \citep{Wheeler1996, POY2, POY3}. 
 		When \texttt{multiTraverse} is set to \texttt{False} graphs may rediagnose (e.g upon 
