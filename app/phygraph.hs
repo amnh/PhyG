@@ -183,7 +183,7 @@ performSearch initialSeed inputFilePath = do
             reduce memory footprint keeoing that stuff around.
             -}
             let dNames = x :| xs
-                crossReferenceString = CSV.genCsvFile $ CE.getDataListList renamedData dNames
+                -- crossReferenceString = CSV.genCsvFile $ CE.getDataListList renamedData dNames
                 -- Add in missing terminals to raw data where required
                 reconciledData' = DT.addMissingTerminalsToInput dNames [] <$> renamedData
                 reconciledGraphs = fmap (GFU.reIndexLeavesEdges dNames . GFU.checkGraphsAndData dNames) renamedGraphs
@@ -199,6 +199,13 @@ performSearch initialSeed inputFilePath = do
                     -- but not grouped by types, or packed (bit, sankoff, prealigned etc)
                     -- Need to check data for equal in character number
                     naiveData ← DT.createNaiveData partitionCharOptimalityGlobalSettings reconciledData leafBitVectorNames []
+                    let crossReferenceString = CSV.genCsvFile $ CE.getDataListList' renamedData naiveData
+
+                    {-  for debugging fiole names after partitions
+                    let bD = thd3  naiveData
+                    let bN = fmap (Text.unpack . fst3)  bD
+                    logWith LogInfo $ "NaivRecoded: " <> (concat bN)
+                    -}
 
                     -- get mix of static/dynamic characters to adjust dynmaicEpsilon
                     -- doing on naive data so no packing etc

@@ -526,12 +526,12 @@ makeAsciiList rootIndex graphList =
     concatMap LG.prettify (fmap (LG.rerootTree rootIndex) graphList)
 
 
-{- Older version wiht more data dependenncy
--- | getDataListList returns a list of lists of Strings for data output as csv
+{- Older version with more data dependenncy 
+-- | getDataListList' returns a list of lists of Strings for data output as csv
 -- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in
 -- input file
-getDataListList :: [RawData] -> ProcessedData -> [[String]]
-getDataListList inDataList processedData =
+getDataListList' :: [RawData] -> ProcessedData -> [[String]]
+getDataListList' inDataList processedData =
     if null inDataList then []
     else
         let fileNames = " " : fmap (takeWhile (/= ':')) (fmap T.unpack $ fmap name $ fmap head $ fmap snd inDataList)
@@ -542,6 +542,27 @@ getDataListList inDataList processedData =
         --trace (show fileNames)
         fileNames : fullMatrix
 -}
+
+{- Older version with more data dependenncy -}
+-- | getDataListList' returns a list of lists of Strings for data output as csv
+-- for row is source file names, suubsequent rows by taxon with +/- for present absent taxon in
+-- input file
+getDataListList' :: [RawData] -> ProcessedData -> [[String]]
+getDataListList' inDataList processedData =
+    if null inDataList then []
+    else
+        let bD = thd3  processedData
+            bN = fmap (T.unpack . fst3) (V.toList bD)
+            fileNames = " " : fmap (takeWhile (/= ':')) bN
+
+            fullTaxList = V.toList $ fst3  processedData
+            presenceAbsenceList = fmap (isThere inDataList) fullTaxList
+            fullMatrix = zipWith (:) (fmap T.unpack fullTaxList) presenceAbsenceList
+        in
+        --trace (show fileNames)
+        fileNames : fullMatrix
+
+
 
 {- | getDataListList returns a list of lists of Strings for data output as csv
 for row is source file names, subsequent rows by taxon with +/- for present absent taxon in

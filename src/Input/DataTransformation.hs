@@ -105,8 +105,8 @@ removeAllMissingCharacters inData@(termData, charData) =
     in  result
 
 
-{- | partitionSequences takes a character to split sequnces, usually '#'' as in POY, but can be changed
-and divides the seqeunces into corresponding partitions.  Replicate character info appending
+{- | partitionSequences takes a character to split sequnces, usually '#' as in POY, but can be changed
+and divides the sequences into corresponding partitions.  Replicate character info appending
 a number to character name
 assumes that input rawdata are a single character (as in form a single file) for sequence data
 -}
@@ -174,7 +174,7 @@ partitionSequences partChar inDataList =
 
 
 {- | removeTaxaWithNoData takes a single TermData list and removes taxa with empty data
-these can be created from paritioning sequences where there are no data in a
+these can be created from partitioning sequences where there are no data in a
 partitition.  This allows for data reconciliation/renaming later.
 -}
 removeTaxaWithNoData ∷ [TermData] → [TermData]
@@ -401,6 +401,7 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
                                 if not $ null curBlockData
                                     then fst3 $ head curBlockData
                                     else T.empty
+
                             thisBlockName' =
                                 if T.takeWhile (/= '#') previousBlockName /= T.takeWhile (/= '#') thisBlockName
                                     then thisBlockName
@@ -435,6 +436,7 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
 
                             (prealignedDataEqualLength, nameMinPairList, nameNonMinPairList) = checkPrealignedEqualLength (fmap fst leafBitVectorNames) thisBlockData
                         in  -- trace ("CND:" <> (show $ fmap length $ (fmap snd firstData))) (
+                            --trace ("CND: " <> (T.unpack $ T.takeWhile (/= '#') previousBlockName) <> " " <> (T.unpack $ T.takeWhile (/= '#') thisBlockName) <> " => " <> (T.unpack thisBlockName')) $
                             if not prealignedDataEqualLength
                                 then
                                     errorWithoutStackTrace
@@ -446,7 +448,7 @@ createNaiveData inGS inDataList leafBitVectorNames curBlockData =
                                             <> (show nameNonMinPairList)
                                         )
                                 else
-                                    logWith LogInfo ("Recoding input block: " <> T.unpack thisBlockName' <> "\n")
+                                    logWith LogInfo ("Recoding input block: " <> (T.unpack $ fst3 thisBlockData) <> "\n")
                                         *> createNaiveData inGS (tail inDataList) leafBitVectorNames (thisBlockData : curBlockData)
 
 

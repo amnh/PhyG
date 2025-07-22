@@ -7,6 +7,7 @@ module Commands.CommandExecution (
     executeCommands,
     executeRenameReblockCommands,
     getDataListList,
+    getDataListList',
 ) where
 
 import Commands.CommandUtilities
