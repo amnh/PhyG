@@ -1,7 +1,0 @@
--- Test command file
-read ("test1.ss")
-read("test1.tre")
-set(outgroup:"one")
-report("test1.csv",data)
-report("test1-diag.csv", diagnosis, overwrite) 
-report(graphs, newick, "test1-out.tre", overwrite)
