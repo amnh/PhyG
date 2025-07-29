@@ -1,9 +1,11 @@
 {- |
 Module containing support functions
 -}
+
 module Support.Support (
     supportGraph,
 ) where
+
 
 import Commands.Verify qualified as VER
 import Control.Monad (when)
@@ -26,7 +28,8 @@ import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 -- import PHANE.Evaluation.Verbosity (Verbosity (..))
 import Reconciliation.ReconcileGraphs qualified as REC
 import Search.Build qualified as B
-import Search.NetworkAddDelete qualified as N
+--import Search.NetworkAddDelete qualified as N
+import Search.NetworkAddDeleteV2 qualified as N2
 import Search.Refinement qualified as R
 import Text.Read
 import Types.Types
@@ -100,7 +103,7 @@ supportGraph inArgs inGS inData inGraphList =
                             maximizeParallel'  
                                 | length maxParallelValue > 1 =
                                             errorWithoutStackTrace ("Multiple maxParallel specifications in support--can have only one: " <> show inArgs)
-                                | null maxParallelValue = Just "false"
+                                | null maxParallelValue = Just "true"
                                 | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel support option must be 'True' or 'False'" <> show inArgs)
                                 | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
 
@@ -301,7 +304,7 @@ getResampleGraph inGS inData maximizeParallel resampleType replicates buildOptio
             pure (reconciledGraph, infinity, LG.empty, V.empty, V.empty)
 
 {- | makeDataGraphReplicates is a wrapper around makeResampledDataAndGraph
-    To allow for finner control of parallel execution-- ie reduce amount of prallelism due
+    To allow for finer control of parallel execution-- ie reduce amount of parallelism due
     to memory footprint issues.
 -}
 makeDataGraphReplicates 
@@ -387,11 +390,32 @@ resampleData resampleType sampleFreq (nameVect, nameBVVect, blockDataVect)
                 pure $ (nameVect, nameBVVect, newBlockDataVect)
 
 
+{- | resampleBlockBootstrap
+    Takes BlockData and a seed and creates a Bootstrap resampled BlockData
+    via mu;ltiple jacknife runs
+
+    A bit awkward but seems to work better than the resampleBlockBootstrap' function
+-}
+resampleBlockBootstrap ∷ BlockData → PhyG BlockData
+resampleBlockBootstrap inData@(nameText, charDataVV, charInfoV) = 
+    let repeatNumber = 3
+        keepFraction  = 1.0 / (fromIntegral repeatNumber) 
+        --newCharDataVV = V.force $ V.fromList $ (V.toList charDataVV) <> (V.toList charDataVV)
+        --newCharInfoV =  V.force $ V.fromList $ (V.toList charInfoV)  <> (V.toList charInfoV)
+    in do
+    -- resampleBlockJackknife keepFraction (nameText, newCharDataVV, newCharInfoV)
+        newDataList <- mapM (resampleBlockJackknife keepFraction)  $ L.replicate repeatNumber inData
+        let (_, newCharDataList, newCharInfoList) = unzip3 newDataList
+
+        -- logWith LogWarn $ "RBB: " <> (show $ V.length charInfoV) <> " " <> (show $  V.length $ V.concat newCharInfoList)
+
+        pure $ (nameText, U.transposeVector $ V.concat $ fmap U.transposeVector newCharDataList, V.concat newCharInfoList)
+
 {- |
 Takes BlockData and a seed and creates a Bootstrap resampled BlockData
 -}
-resampleBlockBootstrap ∷ BlockData → PhyG BlockData
-resampleBlockBootstrap (nameText, charDataVV, charInfoV) = do
+resampleBlockBootstrap' ∷ BlockData → PhyG BlockData
+resampleBlockBootstrap' (nameText, charDataVV, charInfoV) = do
     -- maps over taxa in data bLock
     (newCharDataVV, newCharInfoV) ← V.unzip <$> traverse (makeSampledPairVectBootstrap charInfoV) charDataVV
     pure (nameText, newCharDataVV, V.head newCharInfoV)
@@ -400,7 +424,7 @@ resampleBlockBootstrap (nameText, charDataVV, charInfoV) = do
 {- | makeSampledPairVectBootstrap takes a list of Int and a vectors of charinfo and char data
 and returns new vectors of chardata and charinfo based on randomly sampled character indices
 this to create a Bootstrap replicate of equal size
-this for a single taxon hecen pass teh random ints so same for each one
+this for a single taxon hence pass the random ints so same for each one
 -}
 makeSampledPairVectBootstrap
     ∷ V.Vector CharInfo → V.Vector CharacterData → PhyG (V.Vector CharacterData, V.Vector CharInfo)
@@ -418,6 +442,9 @@ makeSampledPairVectBootstrap inCharInfoVect inCharDataVect =
         numDynamicChars = V.length dynamicCharsV
     in  do
             dynCharIndices ← V.replicateM numDynamicChars $ getRandomR (0, numDynamicChars - 1)
+
+            logWith LogWarn $ "MSPVB: " <> (show numDynamicChars) <> " " <> (show dynCharIndices)
+
             let resampleDynamicChars = V.map (dynamicCharsV V.!) dynCharIndices
             let resampleDynamicCharInfo = V.map (dynamicCharsInfoV V.!) dynCharIndices
 
@@ -448,6 +475,9 @@ subSampleStatic inCharData inCharInfo =
     in  do
             -- get character indices based on number "subcharacters"
             staticCharIndices ← V.generateM charLength . const $ randIndex charLength <$> getRandom
+
+            logWith LogWarn $ "SSS: " <> (show charLength) <> " " <> (show staticCharIndices)
+
             let staticCharIndicesUV ∷ UV.Vector Int
                 staticCharIndicesUV = convert staticCharIndices
 
@@ -494,7 +524,7 @@ makeSampledVect boolList accumList inVect =
                 else makeSampledVect (tail boolList) accumList (GV.tail inVect)
 
 
-{- | makeSampledVect takes a list of Bool and avector and returns those values
+{- | makeSampledVect takes a list of Bool and a vector and returns those values
 with True as a vector (reversed--but shouldn't matter for resampling purposes)
 does not check if equal in length
 -}
@@ -639,6 +669,8 @@ makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList in
                                                                             (V.tail inCharInfoVect)
                                                                             (V.tail inCharDataVect)
                                                         else error ("Incorrect character type in makeSampledPairVect: " <> show firstCharType)
+
+
 
 
 -- | resampleBlockJackknife takes BlockData and a seed and creates a jackknife resampled BlockData
@@ -788,7 +820,7 @@ updateDeleteTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                 pure inTuple
             else do
                 -- True to force full evalutation
-                deleteRedgeResults ← N.deleteNetEdge inGS inData inGraph True (inE, inV)
+                deleteRedgeResults ← N2.deleteNetEdgeSupport inGS inData inGraph True (inE, inV)
                 let deleteCost = snd5 deleteRedgeResults
                 pure (inE, inV, inEBV, inVBV, min inCost deleteCost)
 
@@ -815,9 +847,18 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                     keepNum = 10 -- really could be one since sorted by cost, but just to make sure)Order
                     saParams ∷ ∀ {a}. Maybe a
                     saParams = Nothing
+                    netParams = NetParams
+                        { netRandom = randomOrder
+                          , netCheckHeuristic = BestAll
+                          , netMaxEdges = (maxBound ∷ Int)
+                          , netKeepNum = keepNum
+                          , netReturnMutated = False
+                          , netSteepest = steepest
+                          , netEditType = NetAddDelete
+                        }
                 in  do
                         deleteAddGraphs ←
-                            N.deleteOneNetAddAll inGS inData (maxBound ∷ Int) keepNum steepest randomOrder inGraph [(inE, inV)] saParams
+                            N2.deleteOneNetAddAll inGS inData netParams inGraph [(inE, inV)] saParams
                         let moveCost = minimum (snd5 <$> deleteAddGraphs)
 
                         pure (inE, inV, inEBV, inVBV, min inCost moveCost)

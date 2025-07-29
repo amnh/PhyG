@@ -915,6 +915,7 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
     in  -- intersectionAction :: G.LNode BV.BV -> [G.LEdge (BV.BV,BV.BV)]
         -- intersectionAction = getIntersectionEdges (fmap snd thresholdNodes) thresholdNodes
         do
+            --logWith LogInfo $ " Reconcile Method: " <> localMethod
             --logWith LogInfo $ " Reconcile: " <> (show ( edgeLabel, vertexLabel)) 
             -- Reformat graphs with appropriate annotations, BV.BVs, etc
             processedGraphs ←
@@ -941,21 +942,14 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
             let totallLeafString = L.foldl' L.union [] (fmap (fmap snd . getLeafListNewick) inputGraphList)
             let totallLeafSet = zip [0 .. (length totallLeafString - 1)] totallLeafString
 
-            {-
-            -- Create Adams II consensus
-            --
-            adamsII ← A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
-            -- adamsIIInfo = "There are " <> show (length $ G.nodes adamsII) <> " nodes present in Adams II consensus"
-            let adamsII' = changeVertexEdgeLabels vertexLabel edgeLabel adamsII
-            let adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII
-            let adamsIIOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph $ PhyP.relabelFGLEdgesDouble adamsII'] True True
-            -}
-
+           
             --
             -- Create thresholdMajority rule Consensus and dot string
             -- vertex-based CUN-> Majority rule ->Strict
-            --
-            let (thresholdNodes', nodeFreqs) = getThresholdNodes compareMethod threshold numLeaves (fmap (drop numLeaves . G.labNodes) processedGraphs)
+            -- conditional due to mondaic strictness
+            let (thresholdNodes', nodeFreqs) = if localMethod `elem` ["cun", "majority", "strict"] then
+                                                 getThresholdNodes compareMethod threshold numLeaves (fmap (drop numLeaves . G.labNodes) processedGraphs)
+                                               else ([],[])
             let thresholdNodes = leafNodes <> thresholdNodes'
 
             intersectionPar ← getParallelChunkMap
@@ -1006,13 +1000,17 @@ reconcile (localMethod, compareMethod, threshold, connectComponents, edgeLabel, 
                         else addUrRootAndEdges thresholdLabelledEUNGraph''
 
             -- Create EUN Dot String
-            let gvRelabelledEUNGraph = GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
+            let gvRelabelledEUNGraph = if localMethod == "eun" then 
+                                            GO.renameSimpleGraphNodesString $ LG.reindexGraph $ changeVertexEdgeLabels vertexLabel edgeLabel thresholdLabelledEUNGraph
+                                       else LG.empty
             let thresholdEUNOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams gvRelabelledEUNGraph -- eunGraph
             let thresholdEUNOutFENString = PhyP.fglList2ForestEnhancedNewickString [PhyP.stringGraph2TextGraph thresholdLabelledEUNGraph] edgeLabel vertexLabel
 
             -- Create Adams II consensus
-            --
-            adamsII ← A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
+            -- Consition since moadic is strict
+            adamsII ← if localMethod == "adams" then  
+                        A.makeAdamsII totallLeafSet (fmap PhyP.relabelFGLEdgesDouble inputGraphList)
+                      else pure LG.empty
             -- adamsIIInfo = "There are " <> show (length $ G.nodes adamsII) <> " nodes present in Adams II consensus"
             let adamsII' = changeVertexEdgeLabels vertexLabel False adamsII
             let adamsIIOutDotString = T.unpack $ renderDot $ toDot $ GV.graphToDot GV.quickParams adamsII'

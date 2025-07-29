@@ -112,7 +112,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     | any ((== "joinall") . fst) lcArgList = JoinAll
                     | doAnnealing || doDrift = JoinAll
                     | any ((== "joinpruned") . fst) lcArgList = JoinPruned
-                    -- | any ((== "joinalternate") . fst) lcArgList = JoinPruned
+                    -- {- | any ((== "joinalternate") . fst) lcArgList = JoinPruned -}
                     | otherwise = JoinAll
 
                 -- randomize split graph and rejoin edges, default to inOrder (due to sotSplit below)
@@ -144,7 +144,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                     | any ((== "splitsequential") . fst) lcArgList = False
                     | otherwise = True
 
-                -- set level of swap heristric intensity
+                -- set level of swap heuristic intensity
                 swapLevel
                     | all ((/= "level") . fst) lcArgList = (-1)
                     | fromJust levelNumber < 0 = 0
@@ -225,6 +225,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         getSimAnnealParams doAnnealing doDrift steps' annealingRounds' driftRounds' acceptEqualProb acceptWorseFactor maxChanges
 
                     -- create simulated annealing random lists uniquely for each fmap
+                    -- Nothing if not SA
                     let newSimAnnealParamList = replicate numGraphs simAnnealParams
 
                     let progressString
@@ -307,8 +308,9 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     -- parallel setup
                     --action ∷ [(Maybe SAParams, ReducedPhylogeneticGraph)] → PhyG ([ReducedPhylogeneticGraph], Int)
-                    let action = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver localSwapParams (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 inGraphList'
+                    let action = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver localSwapParams (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 
 
+                    -- this will zip Nothings to graphs, but need it to distribute graph list to execute in parallel
                     let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList'
                     graphPairList ←
                         getParallelChunkTraverse >>= \pTraverse →
@@ -401,8 +403,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                         let swapParamsLevel = standardSwap { joinType = JoinAll
                                                             , checkHeuristic = BetterN
                                                             }
-                        let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 finalGraphList
-
+                        let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 
                         let simAnnealListLevel = (: []) <$> zip newSimAnnealParamList finalGraphList
                         graphPairListLevel ←
                             getParallelChunkTraverse >>= \pTraverse →
@@ -635,7 +636,7 @@ getSwapParams inGS inArgs =
                                                                     else if isNothing levelNumber
                                                                         then
                                                                             errorWithoutStackTrace
-                                                                                ("Swap 'level' specification not an integer (e.g. level:2): " <> show (snd $ head replicatesList))
+                                                                                ("Swap 'level' specification not an integer (e.g. level:2): " <> show (snd $ head levelList))
                                                                         else -- trace ("GSP: " <> (show inArgs) <> " " <> (show )(keepNum, maxMoveEdgeDist', steps', annealingRounds', doDrift, driftRounds', acceptEqualProb, acceptWorseFactor, maxChanges, lcArgList))
 
                                                                             ( keepNum

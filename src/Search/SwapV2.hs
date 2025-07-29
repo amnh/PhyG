@@ -47,12 +47,14 @@ swapDriver
     → GlobalSettings
     → ProcessedData
     → Int
-    → [ReducedPhylogeneticGraph]
+    -- → [ReducedPhylogeneticGraph]
     → [(Maybe SAParams, ReducedPhylogeneticGraph)]
     → PhyG ([ReducedPhylogeneticGraph], Int)
-swapDriver swapParams inGS inData inCounter curBestGraphList inSimAnnealParams = 
+swapDriver swapParams inGS inData inCounter inSimAnnealParams = 
     let saList = L.uncons inSimAnnealParams
+        curBestGraphList = fmap snd inSimAnnealParams
     in
+    
     if isNothing saList then
     -- swapDriver' swapParams inGS inData inCounter curBestGraphList inSimAnnealParams 
         swapV2  swapParams inGS inData inCounter curBestGraphList Nothing 
@@ -255,7 +257,7 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
             else do
                 let curBestCost = minimum $ fmap snd5 graphsToSwap
 
-                -- do not shortcicuit here based on cost -- need for SA/Drift
+                -- do not short circuit here based on cost -- need for SA/Drift
 
                 let fullFirstGraph = GO.convertReduced2PhylogeneticGraph firstGraph
                 inGraphNetPenalty ← T.getPenaltyFactor inGS inData Nothing fullFirstGraph
@@ -278,8 +280,8 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
                 rejoinResult' <- if (splitParallel swapParams) && (isNothing saParams) then do
                                 -- splitAction ::  LG.LEdge EdgeInfo → PhyG (DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)
                                     let splitAction = doASplit swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor fullFirstGraph
-                                    spltActionPar <- (getParallelChunkTraverseBy snd5)
-                                    resultListP <- spltActionPar splitAction edgeList
+                                    splitActionPar <- (getParallelChunkTraverseBy snd5)
+                                    resultListP <- splitActionPar splitAction edgeList
 
                                     -- this filter for malformed graphs from split graph
                                     -- can happen with networks when there are lots of network edges
@@ -539,6 +541,8 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
                                                     -- BestAll
                                                     else tbrPart
 
+
+                
                 makeTBRGraphPar <- getParallelChunkTraverse
                 toReoptimizeGraphsTBR <- makeTBRGraphPar makeTBRGraphAction (fmap fst toReoptimizeAndCheckCostTBR)
 
@@ -552,6 +556,31 @@ rejoinFromOptSplitList swapParams inGS inData doIA inGraphNetPenaltyFactor curBe
 
                 let minimumCheckedCost = if (null checkedGraphCosts) then infinity
                                          else minimum $ fmap snd5 checkedGraphCosts
+
+
+                {- This section to report heuristic and rediagnosed costs later for analysis -}
+                if reportHeuristics inGS then do
+                    -- create lists of heuristic costs
+                    let heuristicCostSPR =   if (checkHeuristic swapParams == Better) then filter (< curBestCost) $ fmap snd bettterHeuristicEdgesSPR
+                                                        else if (checkHeuristic swapParams == BestOnly) then fmap snd $ filter ((== minHeuristicCost) . snd) $ concat $ fmap fst heuristicResultList
+                                                        else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ fmap snd $ L.sortOn snd $ concat $ fmap fst heuristicResultList
+                                                        else fmap snd $ concat $ fmap fst heuristicResultList
+
+                    let heuristicCostTBR =   if (checkHeuristic swapParams == Better) then fmap snd bettterHeuristicEdgesTBR
+                                                        else if (checkHeuristic swapParams == BestOnly) then filter (== minHeuristicCost) $ fmap snd tbrPart 
+                                                        else if (checkHeuristic swapParams == BetterN) then take (graphsSteepest inGS) $ L.sort $ fmap snd $ tbrPart
+                                                        else fmap snd tbrPart
+
+                    -- zip heuristc costs with fully diagnosed costs
+                    let heurCostsString = fmap show (heuristicCostSPR <> heuristicCostTBR)
+                    let fullCostsString = fmap show (fmap snd5 checkedGraphCosts)
+                    let heurCostsString'' = fmap (<>":") heurCostsString
+                    let heurCostsString' = fmap ("\nSwapPairs:" <>) heurCostsString''
+                    let fullCostsString' = fmap (<>"\n") fullCostsString
+                    let costPairString = concat $ zipWith (<>) heurCostsString' fullCostsString'
+
+                    logWith LogInfo $ costPairString
+                else logWith LogInfo ""
 
                 (newBestGraphs, newBestCost) <- if minimumCheckedCost < curBestCost then do
                                                     logWith LogInfo $ "\t-> " <> (show minimumCheckedCost)
@@ -644,8 +673,8 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
                             -- get root in base (for readdition) and edges in pruned section for rerooting during readdition
                             let (_, edgesInPrunedGraph) = LG.nodesAndEdgesAfter splitGraphOptimized [(originalConnectionOfPruned, fromJust $ LG.lab splitGraphOptimized originalConnectionOfPruned)]
 
-                                -- Filter for bridge edges and desendents of root of pruned graph -- for TBR when needed
-                                -- remeber to add in root of pruned graph data for TBR edge data so SPR is subset TBR
+                                -- Filter for bridge edges and decendents of root of pruned graph -- for TBR when needed
+                                -- remember to add in root of pruned graph data for TBR edge data so SPR is subset TBR
                                 tbrRerootEdges
                                     | swapType swapParams /= TBR = []
                                     | (graphType inGS == Tree) || LG.isTree splitGraphOptimized = edgesInPrunedGraph L.\\ ((LG.out splitGraphOptimized originalConnectionOfPruned) <> (LG.out splitGraphOptimized prunedGraphRootIndex))

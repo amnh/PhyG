@@ -30,7 +30,7 @@ import PHANE.Evaluation.ErrorPhase (ErrorPhase (..))
 import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import Search.Fuse qualified as F
 import Search.GeneticAlgorithm qualified as GA
-import Search.NetworkAddDelete qualified as N
+import Search.NetworkAddDeleteV2 qualified as N2
 import Search.SwapMaster qualified as SM
 import Text.Read
 import Types.Types
@@ -515,17 +515,19 @@ netEdgeMaster
     → ProcessedData
     → [ReducedPhylogeneticGraph]
     → PhyG [ReducedPhylogeneticGraph]
-netEdgeMaster inArgs inGS inData inGraphList
-    | null inGraphList = [] <$ logWith LogInfo "No graphs to edit network edges\n"
+netEdgeMaster inArgs inGS inData inGraphList'
+    | null inGraphList' = [] <$ logWith LogInfo "No graphs to edit network edges\n"
     | otherwise = case graphType inGS of
         Tree →
-            inGraphList
+            inGraphList'
                 <$ logWith
                     LogWarn
                     "\tCannot perform network edge operations on graphtype tree--set graphtype to SoftWired or HardWired\n"
         -- process args for netEdgeMaster
         _ →
-            let ( keepNum
+            let inputBestCost = minimum $ fmap snd5 inGraphList'
+
+                (   keepNum
                     , steps'
                     , annealingRounds'
                     , driftRounds'
@@ -535,7 +537,9 @@ netEdgeMaster inArgs inGS inData inGraphList
                     , maxNetEdges
                     , lcArgList
                     , maxRounds
+                    , levelNumber
                     ) = getNetEdgeParams inGS inArgs
+
                 doNetAdd = any ((== "netadd") . fst) lcArgList
                 doNetDelete = any ((== "netdel") . fst) lcArgList || any ((== "netdelete") . fst) lcArgList
                 doAddDelete = any ((== "netadddel") . fst) lcArgList || any ((== "netadddelete") . fst) lcArgList
@@ -543,10 +547,32 @@ netEdgeMaster inArgs inGS inData inGraphList
                 doSteepest' = any ((== "steepest") . fst) lcArgList
                 doAll = any ((== "all") . fst) lcArgList
 
-                -- do steepest default
+                inSupport = any ((== "support") . fst) lcArgList
+
+                multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
+                doMultiTraverse'  
+                    | length multiTraverseValue > 1 =
+                                errorWithoutStackTrace ("Multiple multiTraverse specifications in network--can have only one: " <> show inArgs)
+                    | null multiTraverseValue = Just $ fmap toLower $ show (multiTraverseCharacters inGS)
+                    | null (snd $ head multiTraverseValue) = errorWithoutStackTrace ("MultiTraverse network option must be 'True' or 'False'" <> show inArgs)
+                    | otherwise = readMaybe (show $ snd $ head multiTraverseValue) ∷ Maybe String
+                
+                doMultiTraverse = if isNothing doMultiTraverse' then errorWithoutStackTrace ("MultiTraverse network option must be 'True' or 'False'" <> show inArgs)
+                                  else if fromJust doMultiTraverse'  == "true" then True
+                                  else if fromJust doMultiTraverse'  == "false" then False
+                                  else errorWithoutStackTrace ("MultiTraverse network option must be 'True' or 'False'" <> show inArgs)
+
+                netEditOption = if doNetAdd then NetAdd
+                                else if doNetDelete then NetDelete
+                                else if doAddDelete then NetAddDelete
+                                else if doMove then NetMove
+                                else NetNothing
+
+                -- do steepest default                           
                 doSteepest
                     | (not doSteepest' && not doAll) = True
                     | doSteepest' && doAll = True
+                    | doAll = False
                     | otherwise = doSteepest'
 
                 -- randomized order default
@@ -555,6 +581,43 @@ netEdgeMaster inArgs inGS inData inGraphList
                     | any ((== "inorder") . fst) lcArgList = False
                     | otherwise = True
 
+                -- checking of heuristic graph costs
+                heuristicCheck 
+                    | any ((== "bestonly") . fst) lcArgList = BestOnly
+                    | any ((== "better") . fst) lcArgList = Better
+                    | any ((== "bettern") . fst) lcArgList = BetterN
+                    | any ((== "bestall") . fst) lcArgList = BestAll
+                    | otherwise = BetterN
+
+                -- set level of swap heuristic intensity
+                heuristicLevel
+                    | all ((/= "level") . fst) lcArgList = (-1)
+                    | fromJust levelNumber < 0 = 0
+                    | fromJust levelNumber > 3 = 3
+                    | otherwise = fromJust levelNumber
+
+                -- levels may have > 1 swap pass
+                -- and different values 
+                (checkHeuristicNet, localMultiTraverse) = if heuristicLevel == (-1) then
+                                                            (heuristicCheck, doMultiTraverse) 
+
+                                                        -- Basicall zero heuristics (adds factor of n)
+                                                        else if heuristicLevel == 0 then
+                                                            (BestAll, True)
+
+                                                        -- Other heuristics from 1 (slowest) -> 3 (fastest)
+                                                        -- will make a call to reoptimize using MultiTraverse after swap
+                                                        else if heuristicLevel == 1 then
+                                                            (BetterN, False)
+
+                                                        -- This is default behavior
+                                                        else if heuristicLevel == 2 then
+                                                            (BetterN, False)
+
+                                                        -- Fastest least effective
+                                                        else if heuristicLevel == 3 then
+                                                            (BestOnly, False)
+                                                        else error ("Unimplemented network edit level: " <> (show heuristicLevel))
                 -- simulated annealing parameters
                 -- returnMutated to return annealed Graphs before swapping fir use in Genetic Algorithm
                 doAnnealing = any ((== "annealing") . fst) lcArgList
@@ -565,6 +628,17 @@ netEdgeMaster inArgs inGS inData inGraphList
                 doRandomOrder = doRandomOrder' || doDrift || doAnnealing
 
                 returnMutated = any ((== "returnmutated") . fst) lcArgList
+
+                -- put options in NetParams
+                netParams = NetParams
+                            { netRandom = doRandomOrder
+                            , netCheckHeuristic = checkHeuristicNet
+                            , netMaxEdges = fromJust maxNetEdges
+                            , netKeepNum = fromJust keepNum
+                            , netReturnMutated = returnMutated
+                            , netSteepest = doSteepest
+                            , netEditType = netEditOption
+                            }
 
                 getSimAnnealParams
                     | not doAnnealing && not doDrift = Nothing
@@ -606,137 +680,91 @@ netEdgeMaster inArgs inGS inData inGraphList
                                     , driftChanges = 0
                                     }
 
+                
                 -- parallel stuff
-                insertAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
-                insertAction =
-                    N.insertAllNetEdges
-                        inGS
+                addAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
+                addAction =
+                    N2.insertAllNetEdges
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         (fromJust maxRounds)
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
 
                 deleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 deleteAction =
-                    N.deleteAllNetEdges
-                        inGS
+                    N2.deleteAllNetEdges
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
 
                 moveAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 moveAction =
-                    N.moveAllNetEdges
-                        inGS
+                    N2.moveAllNetEdges
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
 
                 addDeleteAction ∷ (Maybe SAParams, [ReducedPhylogeneticGraph]) → PhyG ([ReducedPhylogeneticGraph], Int)
                 addDeleteAction =
-                    N.addDeleteNetEdges
-                        inGS
+                    N2.addDeleteNetEdges
+                        (inGS {multiTraverseCharacters = localMultiTraverse})
                         inData
-                        (fromJust maxNetEdges)
-                        (fromJust keepNum)
+                        netParams
                         (fromJust maxRounds)
                         0
-                        returnMutated
-                        doSteepest
-                        doRandomOrder
                         ([], infinity)
+
+
+                reoptimizeAction ∷ GlobalSettings → ProcessedData → Bool → Bool → Maybe Int → SimpleGraph → PhyG ReducedPhylogeneticGraph
+                reoptimizeAction = T.multiTraverseFullyLabelGraphReduced
 
                 simAnnealParams = getSimAnnealParams
                 -- create simulated annealing random lists uniquely for each fmap
-                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList) simAnnealParams
+                newSimAnnealParamList = U.generateUniqueRandList (length inGraphList') simAnnealParams
             in  do
+                    -- Rediagnose graph cost etc if local multitraverse is set
+                    -- don't bother to if in support--only care about topology for jacknife and bootstrap
+                    inGraphList <- if inSupport then
+                                        pure inGraphList'
+
+                                    else if heuristicLevel == (-1) then
+                                            if (localMultiTraverse == multiTraverseCharacters inGS) then 
+                                                pure inGraphList'
+
+                                            else do
+                                                logWith LogInfo $ "\tMultiTraverse to " <> (show localMultiTraverse)  <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = localMultiTraverse}) inData False False Nothing . fst5) inGraphList'
+
+                                        -- swap level 0 uses MultiTraverse
+                                    else if heuristicLevel == 0  && (not $ multiTraverseCharacters inGS) then do
+                                                logWith LogInfo $ "\tMultiTraverse to True for network edit level 0 " <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) inGraphList'
+
+                                        else if heuristicLevel == 0 then 
+                                                pure inGraphList'
+                                        -- already not MultiTraverse and swap levels (1-3) that do not use it
+
+                                    else if (not $ multiTraverseCharacters inGS) then do
+                                                pure inGraphList'
+                                        -- is MultiTraverse and swap levels 1-3, need to reoptimize to false
+
+                                    else do
+                                                logWith LogInfo $ "\tMultiTraverse to False for network heuristic level " <> (show heuristicLevel) <> "\n"
+                                                getParallelChunkTraverse >>= \pTraverse →
+                                                    pTraverse
+                                                        (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) inGraphList'
                     -- perform add/delete/move operations
-                    {-
-                                        bannerText
-                                            | isJust simAnnealParams =
-                                                let editString
-                                                        | doNetAdd = " add) "
-                                                        | doNetDelete = " delete) "
-                                                        | doAddDelete = " add/delete) "
-                                                        | otherwise = " move "
-                                                in  if method (fromJust simAnnealParams) == SimAnneal
-                                                        then
-                                                            "Simulated Annealing (Network edge"
-                                                                <> editString
-                                                                <> show (rounds $ fromJust simAnnealParams)
-                                                                <> " rounds "
-                                                                <> show (length inGraphList)
-                                                                <> " with "
-                                                                <> show (numberSteps $ fromJust simAnnealParams)
-                                                                <> " cooling steps "
-                                                                <> show (length inGraphList)
-                                                                <> " input graph(s) at minimum cost "
-                                                                <> show (minimum $ fmap snd5 inGraphList)
-                                                                <> " keeping maximum of "
-                                                                <> show (fromJust keepNum)
-                                                                <> " graphs"
-                                                        else
-                                                            "Drifting (Network edge"
-                                                                <> editString
-                                                                <> show (rounds $ fromJust simAnnealParams)
-                                                                <> " rounds "
-                                                                <> show (length inGraphList)
-                                                                <> " with "
-                                                                <> show (numberSteps $ fromJust simAnnealParams)
-                                                                <> " cooling steps "
-                                                                <> show (length inGraphList)
-                                                                <> " input graph(s) at minimum cost "
-                                                                <> show (minimum $ fmap snd5 inGraphList)
-                                                                <> " keeping maximum of "
-                                                                <> show (fromJust keepNum)
-                                                                <> " graphs"
-                                            | doNetDelete =
-                                                ( "Network edge delete on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                )
-                                            | doNetAdd =
-                                                ( "Network edge add on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                    <> " and maximum "
-                                                    <> show (fromJust maxRounds)
-                                                    <> " rounds"
-                                                )
-                                            | doAddDelete =
-                                                ( "Network edge add/delete on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                    <> " and maximum "
-                                                    <> show (fromJust maxRounds)
-                                                    <> " rounds"
-                                                )
-                                            | doMove =
-                                                ( "Network edge move on "
-                                                    <> show (length inGraphList)
-                                                    <> " input graph(s) with minimum cost "
-                                                    <> show (minimum $ fmap snd5 inGraphList)
-                                                )
-                                            | otherwise = ""
-                    -}
+                    
                     when (doDrift && doAnnealing) $
                         logWith
                             LogWarn
@@ -770,7 +798,7 @@ netEdgeMaster inArgs inGS inData inGraphList
                                                 )
                                         graphPairList1 ←
                                             getParallelChunkTraverse >>= \pTraverse →
-                                                pTraverse insertAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
+                                                pTraverse addAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
 
                                         let (graphListList, counterList) = unzip graphPairList1
                                         GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
@@ -842,12 +870,51 @@ netEdgeMaster inArgs inGS inData inGraphList
                         [] → pure inGraphList
                         _ → GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 newGraphList'''
 
+
+                    -- Rediagnose do deal with local multitraverse, but not if inSupport (jackknife and bootstrap)
+                    resultGraphList' ←  if inSupport then 
+                                             pure resultGraphList
+                                        else if heuristicLevel == (-1) then 
+                                            if (localMultiTraverse == multiTraverseCharacters inGS) then 
+                                                pure resultGraphList
+                                            else 
+                                                do
+                                                    logWith LogInfo $ "\tMultiTraverse to " <> (show $ multiTraverseCharacters inGS)  <> "\n"
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                pTraverse
+                                                                        (reoptimizeAction inGS inData False False Nothing . fst5) resultGraphList
+                                        else if heuristicLevel == 0 then
+                                            if multiTraverseCharacters inGS then 
+                                                pure resultGraphList
+
+                                            else do
+                                                    logWith LogInfo  "\tMultiTraverse to False\n"
+                                                    getParallelChunkTraverse >>= \pTraverse →
+                                                                    pTraverse
+                                                                        (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) resultGraphList
+
+                                         -- Unlike swap levels 2 and 3 are not followed by a 1 (but could be manually)
+                                        else -- if heuristicLevel == 1 then
+                                            if not $ multiTraverseCharacters inGS then 
+                                                pure resultGraphList
+                                            else do
+                                                logWith LogInfo  "\tMultiTraverse to True\n"
+                                                reDiagGraphs <- getParallelChunkTraverse >>= \pTraverse →
+                                                                    pTraverse
+                                                                        (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) resultGraphList
+                                                if inputBestCost < (minimum $ fmap snd5 reDiagGraphs) then 
+                                                    pure resultGraphList
+                                                else 
+                                                    pure reDiagGraphs
+
+                   
+
                     logWith
                         LogInfo
                         ( "\tAfter network edge add/delete/move: "
                             <> show (length resultGraphList)
                             <> " resulting graphs at cost "
-                            <> show (minimum $ fmap snd5 resultGraphList)
+                            <> show (minimum $ fmap snd5 resultGraphList')
                             <> " with add/delete/move rounds (total): "
                             <> show counterAdd
                             <> " Add, "
@@ -857,16 +924,16 @@ netEdgeMaster inArgs inGS inData inGraphList
                             <> " Move, "
                             <> show counterAddDelete
                             <> " AddDelete"
-                            <> "\n"
+                            <> "\n\n"
                         )
-                    pure resultGraphList
+                    pure resultGraphList'
 
 
 -- | getNetEdgeParams returns net edge cparameters from argument list
 getNetEdgeParams
     ∷ GlobalSettings
     -> [Argument]
-    → (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int)
+    → (Maybe Int, Maybe Int, Maybe Int, Maybe Int, Maybe Double, Maybe Double, Maybe Int, Maybe Int, [(String, String)], Maybe Int, Maybe Int)
 getNetEdgeParams inGS inArgs =
     let fstArgList = fmap (fmap toLower . fst) inArgs
         sndArgList = fmap (fmap toLower . snd) inArgs
@@ -942,6 +1009,14 @@ getNetEdgeParams inGS inArgs =
                             errorWithoutStackTrace ("Multiple 'rounds' number specifications in netEdge command--can have only one: " <> show inArgs)
                         | null maxRoundsList = Just 1
                         | otherwise = readMaybe (snd $ head maxRoundsList) ∷ Maybe Int
+
+                    levelList = filter ((== "level") . fst) lcArgList
+                    levelNumber
+                        | length levelList > 1 =
+                            errorWithoutStackTrace ("Multiple 'level' number specifications in refine network command--can have only one: " <> show inArgs)
+                        | null levelList = Just 2
+                        | otherwise = readMaybe (snd $ head levelList) ∷ Maybe Int
+
                 in  -- check inputs
                     if isNothing keepNum
                         then errorWithoutStackTrace ("Keep specification not an integer in netEdge: " <> show (head keepList))
@@ -973,6 +1048,10 @@ getNetEdgeParams inGS inArgs =
                                                                         then
                                                                             errorWithoutStackTrace
                                                                                 ("Network edit 'rounds' specification not an integer (e.g. rounds:10): " <> show (snd $ head maxRoundsList))
+                                                                        else if isNothing levelNumber
+                                                                        then
+                                                                            errorWithoutStackTrace
+                                                                                ("Refine network 'level' specification not an integer (e.g. level:2): " <> show (snd $ head levelList))
                                                                         else
                                                                             ( keepNum
                                                                             , steps'
@@ -984,4 +1063,5 @@ getNetEdgeParams inGS inArgs =
                                                                             , maxNetEdges
                                                                             , lcArgList
                                                                             , maxRounds
+                                                                            , levelNumber
                                                                             )

@@ -63,6 +63,7 @@ manner.
 
 >>> fibM 10000
 -}
+
 {-# NOINLINE memoize #-}
 memoize ∷ ∀ a b m. (Hashable a, MonadIO m, NFData b) ⇒ (a → b) → m (a → b)
 memoize = Memo.memoize
@@ -116,4 +117,47 @@ fibM = f
     f 1 = 1
     f x = g (x-1) + g (x-2)
     g = memoize f
+-}
+
+{- | Original -}
+{-
+{-# NOINLINE memoize #-}
+memoize ∷ ∀ a b m. (Hashable a, MonadIO m, NFData b) ⇒ (a → b) → m (a → b)
+memoize = Memo.memoize
+
+
+{- |
+A memoizing combinator similar to 'memoize' except that it that acts on a
+function of two inputs rather than one.
+-}
+{-# NOINLINE memoize2 #-}
+memoize2 ∷ (Hashable a, Hashable b, MonadIO m, NFData c) ⇒ (a → b → c) → m (a → b → c)
+memoize2 f =
+    let f' = memoize (uncurry f)
+    in  curry <$> f'
+
+
+{- |
+A memoizing combinator similar to 'memoize' except that it that acts on a
+function of two inputs rather than one.
+-}
+{-# NOINLINE memoize3 #-}
+memoize3
+    ∷ ( Hashable a
+      , Hashable b
+      , Hashable c
+      , MonadIO m
+      , NFData d
+      )
+    ⇒ (a → b → c → d)
+    → m (a → b → c → d)
+memoize3 f =
+    let curry3 ∷ ((a, b, c) → t) → a → b → c → t
+        curry3 g x y z = g (x, y, z)
+
+        uncurry3 ∷ (t1 → t2 → t3 → t4) → (t1, t2, t3) → t4
+        uncurry3 g (x, y, z) = g x y z
+
+        f' = memoize (uncurry3 f)
+    in  curry3 <$> f'
 -}

@@ -23,6 +23,8 @@ module Graphs.GraphOperations (
     getNodeType,
     getTopoUniqPhylogeneticGraph,
     getUniqueGraphs,
+    getSoftWiredNodeSubGraphCost,
+    getSoftWiredNodeSubGraphCostWithVertex,
     graphCostFromNodes,
     hasNetNodeAncestorViolation,
     isNovelGraph,
@@ -35,6 +37,7 @@ module Graphs.GraphOperations (
     makeLeafGraph,
     makeNewickList,
     makeSimpleLeafGraph,
+    minBlockResolutionCost,
     parentsInChainGraph,
     phylogeneticGraphListMinus,
     reducedphylogeneticGraphListMinus,
@@ -78,8 +81,98 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 import Debug.Trace
 
+-- | getSoftWiredNodeSubGraphCost  takes a softwired graph and returns the sub graph cost 
+-- for that node based on minimium of resolutoncache costs--so underestimate likely
+
+-- Blocks
+-- vertexResolutionData ∷ V.Vector ResolutionBlockData 
+
+-- Characters within Blocks
+-- ResolutionBlockData = V.Vector ResolutionData
+
+getSoftWiredNodeSubGraphCost:: ReducedPhylogeneticGraph -> Int -> VertexCost
+getSoftWiredNodeSubGraphCost inPhyloGraph vertex =
+    if LG.isEmpty $ thd5 inPhyloGraph then infinity
+    else
+        let labelDataMaybe = LG.lab (thd5 inPhyloGraph) vertex
+        in
+        if isNothing labelDataMaybe then error ("Vertex not in graph: " <> (show vertex))
+        else 
+            let resData = vertexResolutionData $ fromJust labelDataMaybe
+            in
+            V.sum $ fmap minBlockResolutionCost resData 
+
+-- | minBlockkResolutionCost returns the average cost subgraph resolutoin cost of a character
+minBlockResolutionCost :: ResolutionBlockData -> VertexCost
+minBlockResolutionCost inBlockResData = 
+    -- 0.5 *  (V.minimum $ fmap minCharResolutionCost inBlockResData) + (V.maximum $ fmap minCharResolutionCost inBlockResData) 
+    let sumAll = V.sum $ fmap displayCost inBlockResData
+        {-
+        trimmedList = if V.length inBlockResData >3 then
+                        let first = L.take (V.length inBlockResData -1) $ L.sort $ V.toList $ fmap displayCost inBlockResData
+                        in
+                        L.drop 1 first
+                      else if V.length inBlockResData == 3 then
+                         L.drop 1 $ L.sort $ V.toList $ fmap displayCost inBlockResData
+                      else V.toList $ fmap displayCost inBlockResData
+        sumAll' = L.sum trimmedList 
+        -}
+    in
+    --sumAll' / (fromIntegral $ L.length trimmedList)
+    sumAll / (fromIntegral $ V.length inBlockResData)
 
 
+{-
+These functions try to look at complementary resolution costs
+to get heuristic but was a large overestimate of delta
+-}
+
+-- | getSoftWiredNodeSubGraphCostWithVertex  takes a softwired graph and returns the sub graph cost 
+-- for that node based on minimium of resolutoncache costs--so underestimate likely
+
+-- Blocks
+-- vertexResolutionData ∷ V.Vector ResolutionBlockData 
+
+-- Characters within Blocks
+-- ResolutionBlockData = V.Vector ResolutionData
+
+getSoftWiredNodeSubGraphCostWithVertex:: ReducedPhylogeneticGraph -> Int -> Int -> (VertexCost, VertexCost)
+getSoftWiredNodeSubGraphCostWithVertex inPhyloGraph netVertex vertex =
+    if LG.isEmpty $ thd5 inPhyloGraph then (infinity, infinity)
+    else
+        let labelDataMaybe = LG.lab (thd5 inPhyloGraph) vertex
+        in
+        if isNothing labelDataMaybe then error ("Vertex not in graph: " <> (show vertex))
+        else 
+            let resData = vertexResolutionData $ fromJust labelDataMaybe
+                (hasNetVertexList, noNetVertexList) =  V.unzip $ fmap (minBlockResolutionCostWithVertex netVertex) resData 
+            in
+            (V.sum hasNetVertexList, V.sum noNetVertexList)
+
+-- | minBlockResolutionCostWithVertex returns the average cost subgraph resolutoin cost of a character
+minBlockResolutionCostWithVertex :: Int -> ResolutionBlockData -> (VertexCost, VertexCost)
+minBlockResolutionCostWithVertex netVertex inBlockResData  = 
+    -- 0.5 *  (V.minimum $ fmap minCharResolutionCost inBlockResData) + (V.maximum $ fmap minCharResolutionCost inBlockResData) 
+    let (withVertexList, noVertexList) = V.unzip $ fmap (minCharResolutionCostWithVertex netVertex) inBlockResData
+        sumHasVertex = V.sum withVertexList
+        sumNoVertex  = V.sum noVertexList
+    in
+    (V.minimum withVertexList, V.minimum noVertexList)
+    --(sumHasVertex / (fromIntegral $ V.length withVertexList), sumNoVertex / (fromIntegral $ V.length noVertexList))
+
+-- | minCharResolutionCostWithVertex returns the minimum cost subgraph resolution cost of a character
+minCharResolutionCostWithVertex :: Int -> ResolutionData -> (VertexCost, VertexCost)
+minCharResolutionCostWithVertex netVertex inResData = 
+    let subgraphNodes = getNodeIndices $ displaySubGraph inResData
+        hasNetVertex = netVertex `elem` subgraphNodes
+    in
+    if hasNetVertex then
+        (displayCost inResData, 0.0)
+    else 
+        (0.0, displayCost inResData)
+    where getNodeIndices (a,_) = fmap fst a
+
+ 
 -- | convertPhylogeneticGraph2Reduced takes a Phylogenetic graph and returns a reduced phylogenetiv graph
 convertPhylogeneticGraph2Reduced ∷ PhylogeneticGraph → ReducedPhylogeneticGraph
 convertPhylogeneticGraph2Reduced inPhyloGraph@(a, b, c, displayTreeV, _, f) =
@@ -111,7 +204,7 @@ convertReduced2PhylogeneticGraph inReducedPhyloGraph@(a, b, canonicalGraph, disp
 
 
 {- | getCharacterTree takes an input Decotate disply tree list and returns a vectopr of character trees
-based on teh first display tree in list
+based on the first display tree in list
 -}
 getCharacterTree ∷ (DecoratedGraph, Int) → V.Vector DecoratedGraph
 getCharacterTree (inDisplayTree, numCharTrees) =
@@ -298,7 +391,7 @@ parentsInChainVertex inGraph inNode =
                                 False
 
 
-{- | ReducedphylogeneticGraphListMinus subtracts teh secoind argiument list from first
+{- | ReducedphylogeneticGraphListMinus subtracts the secoind argiument list from first
 if an element is multiple times in firt list each will be removed
 equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
 does not take cost into account--or edge weight--only topology.
@@ -316,7 +409,7 @@ reducedphylogeneticGraphListMinus minuendList subtrahendList
         in  differenceList
 
 
-{- | phylogeneticGraphListMinus subtracts teh secoind argiument list from first
+{- | phylogeneticGraphListMinus subtracts the secoind argiument list from first
 if an element is multiple times in firt list each will be removed
 equality comparison is based on String rep of graphs vertes and edges (prettyVertices)
 does not take cost into account--or edge weight--only topology.
@@ -1039,15 +1132,16 @@ nubGraph outgroupIndex curList inList =
                 rerootGraph = LG.rerootTree outgroupIndex $ fst6 firstGraphNC
                 graphRoot = head $ LG.parents rerootGraph outgroupIndex
 
-                              -- already rooted properly or is not a tree so dangerous to reroot
-                firstString = if isOutGroupRooted || (not $ LG.isTree (fst6 firstGraphNC)) then 
+                              -- is not a tree so dangerous to reroot
+                firstString = --if (not $ LG.isTree (fst6 firstGraphNC)) then 
+                              if isOutGroupRooted || (not $ LG.isTree (fst6 firstGraphNC)) then 
                                      makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
 
-                              -- tried to reoot but not properly rooted--eg tried to reroot on a network edge
+                              -- tried to reroot but not properly rooted--eg tried to reroot on a network edge
                               else if (null (LG.parents rerootGraph outgroupIndex)) then 
                                     makeNewickList False False False (fst $ head $ LG.getRoots $ fst6 firstGraphNC) [fst6 firstGraphNC] [snd6 firstGraphNC]
 
-                              -- not in correct root but ok rerooted--ie tree
+                              -- not in correct root but ok to be rerooted--ie tree
                               else
                                     makeNewickList False False False graphRoot [rerootGraph] costList
                 
@@ -1056,6 +1150,7 @@ nubGraph outgroupIndex curList inList =
                 isMatch = filter (== firstString) (fmap thd3 curList)
 
             in  
+                --trace (firstString <> "\n" <> (concatMap thd3 curList)) $ 
                 if null curList
                     then nubGraph outgroupIndex [(firstGraphNC, firstGraphC, firstString)] (tail inList)
                     else
@@ -1358,9 +1453,8 @@ selectGraphStochastic number factor inGraphList
 
                 pure $ selectedGraphs <> suffixPad
 
-
-{- | getDisplayTreeCostList returns a list of teh "block" costs of display trees
-in a piar with any graph 'penalty' cost
+{- | getDisplayTreeCostList returns a list of the "block" costs of display trees
+in a pair with any graph 'penalty' cost
 -}
 getDisplayTreeCostList ∷ PhylogeneticGraph → ([VertexCost], VertexCost)
 getDisplayTreeCostList inGraph =

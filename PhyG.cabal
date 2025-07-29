@@ -1,7 +1,7 @@
 Cabal-Version: 3.12
 Name:          PhyG
-Version:       1.2
-Stability:     Alpha
+Version:       1.3
+Stability:     Release
 Build-Type:    Simple
 Tested-With:
   GHC == 9.2.8
@@ -10,6 +10,7 @@ Tested-With:
   GHC == 9.8.1
   GHC == 9.10.1
   GHC == 9.12.1
+  GHC == 9.12.2
 
 Author:        Ward Wheeler <wheeler@amnh.org>
 Copyright:     © 2015 Ward Wheeler and The American Museum of Natural History
@@ -166,6 +167,9 @@ Common ffi-build-info
 -- This is required as compile option to make static binaries on Linux at least
 -- need to haev llvm-(verions) tools installed to link properly
 -- enable-executable-static -fpic -fPIC (multiple times--no idea why but including both cases seems to mater on 
+-- currently (4/17/25) seems best to use -fPIC first then -fpic 3x each PIC first then pic repeatedly till compiles
+-- 5/9/25  4x2 each (starting upper case) then 3 of each
+-- took 4 complete 3x PIC 3x pic then 2 more PIC
 -- commandline)--sometimes have to run twice or more to get link correct (with differnet case for PIC)
 -- seems inconsistent with 9.12.1
 
@@ -447,7 +451,8 @@ Executable phyg
     Search.DistanceWagner
     Search.Fuse
     Search.GeneticAlgorithm
-    Search.NetworkAddDelete
+    --Search.NetworkAddDelete
+    Search.NetworkAddDeleteV2
     Search.Refinement
     Search.Search
     -- Search.Swap

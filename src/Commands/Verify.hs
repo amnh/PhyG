@@ -179,10 +179,17 @@ netEdgeArgList =
     , "all"
     , "annealing"
     , "atrandom"
+    , "bestall"
+    , "bestonly"
+    , "better"
+    , "bettern"
     , "drift"
     , "inorder"
     , "keep"
+    , "level"
+    , "maxchanges"
     , "maxnetedges"
+    , "multitraverse"
     , "netadd"
     , "netadddel"
     , "netadddelete"
@@ -291,7 +298,7 @@ reportArgList =
     , "support"
     , "tnt"
     ]
-        <> reconcileArgList
+        <> reconcileArgList <> reconcileOptionsList
 
 
 -- | search arguments
@@ -350,6 +357,7 @@ setArgList =
     , "multitraverse"
     , "outgroup"
     , "partitioncharacter"
+    , "reportheuristics"
     , "reportnaivedata"
     , "rootcost"
     , "seed"
@@ -360,7 +368,7 @@ setArgList =
     ]
 
 
--- | refinement arguments
+-- | support arguments
 supportArgList ∷ [String]
 supportArgList = 
     [ "atrandom"
