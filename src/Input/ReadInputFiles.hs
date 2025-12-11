@@ -743,7 +743,7 @@ processTCMContents indelGap inContents fileName =
                             if numLines == (length localAlphabet) 
                                 then do
                                         let maxInputCost = scaleFactor * (fromIntegral $ maximum $ fmap maximum localCostMatrix)
-                                        logWith LogMore ("\nWarning: Adding '-' cost of " <> (show maxInputCost) <> "\n" <> "If sequences are prealigbned and gaps are to bre treated as missing, recode '-' as '?'\nIf this cost is not correct, edit the tcm file " <> fileName <> " to add an additional line and column with indel costs.\n")
+                                        logWith LogMore ("\nWarning: Adding '-' cost of " <> (show maxInputCost) <> "\n" <> "If sequences are prealigned and gaps are to be treated as missing, recode '-' as '?'\nIf this cost is not correct, edit the tcm file " <> fileName <> " to add an additional line and column with indel costs.\n")
                                         let maxInputCostString = show maxInputCost
                                         let modCostMatrixStrings = (fmap (<> [maxInputCostString]) (L.init costMatrixStrings)) <> [L.replicate numElements maxInputCostString]
                                         (modScaleFactor, modLocalCostMatrix) ← getCostMatrixAndScaleFactor fileName modCostMatrixStrings
