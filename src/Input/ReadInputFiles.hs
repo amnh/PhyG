@@ -737,7 +737,19 @@ processTCMContents indelGap inContents fileName =
                                 Parsing
                                 "\n\n'Read' 'tcm' file format error: '-' (InDel/Gap) should not be specified as an alphabet element.  It is added in automatically and assumed to be the last row and column of tcm matrix"
                         else
-                            if numLines /= numElements
+                            -- Add in case for prealigned sequences without '-' in tcm since treated as missing in 4-state modesl.  So add largeest input
+                            -- value for '-' that should never be used with warning to 
+                            -- replace '-' with '?'
+                            if numLines == (length localAlphabet) 
+                                then do
+                                        let maxInputCost = scaleFactor * (fromIntegral $ maximum $ fmap maximum localCostMatrix)
+                                        logWith LogMore ("\nWarning: Adding '-' cost of " <> (show maxInputCost) <> "\n" <> "If sequences are prealigbned and gaps are to bre treated as missing, recode '-' as '?'\nIf this cost is not correct, edit the tcm file " <> fileName <> " to add an additional line and column with indel costs.\n")
+                                        let maxInputCostString = show maxInputCost
+                                        let modCostMatrixStrings = (fmap (<> [maxInputCostString]) (L.init costMatrixStrings)) <> [L.replicate numElements maxInputCostString]
+                                        (modScaleFactor, modLocalCostMatrix) ← getCostMatrixAndScaleFactor fileName modCostMatrixStrings
+                                        return (localAlphabet <> [ST.singleton '-'], modLocalCostMatrix, modScaleFactor)
+
+                            else if numLines /= numElements
                                 then do
                                     failWithPhase
                                         Parsing
