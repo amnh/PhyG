@@ -130,7 +130,7 @@ median2M isMedian firstDataV secondDataV charInfoV =
 
 {- | median2NonExact takes the vectors of characters and applies median2NonExact to each
 character for parallel fmap over all then parallelized by type and sequences
-this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+this only reoptimized the nonexact characters (sequence characters for now, perhaps others later)
 and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 -}
 median2NonExact
@@ -140,7 +140,7 @@ median2NonExact isMedian = V.zipWith3 (median2SingleNonExact isMedian)
 
 {- | median2NonExactM  takes the vectors of characters and applies median2NonExact to each
 character in parallel 
-this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+this only reoptimized the nonexact characters (sequence characters for now, perhaps others later)
 and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 -}
 median2NonExactM ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
@@ -155,7 +155,7 @@ median2NonExactM isMedian firstDataV secondDataV charInfoV =
 
 {- | median2StaticIA takes the vectors of characters and applies median2SingleStaticIA to each
 character for parallel fmap over all then parallelized by type and sequences
-this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
+this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhaps others later)
 and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 -}
 median2StaticIA
@@ -164,7 +164,7 @@ median2StaticIA isMedian = V.zipWith3 (median2Single isMedian True)
 
 {- | median2StaticIAM takes the vectors of characters and applies median2SingleStaticIA to each
 character in parallel 
-this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhpas others later)
+this reoptimized only IA fields for the nonexact characters (sequence characters for now, perhaps others later)
 and takes the existing optimization for exact (Add, NonAdd, Matrix) for the others.
 -}
 median2StaticIAM ∷ Bool → V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost))
@@ -424,7 +424,7 @@ median2SingleNonExactTuple a (b,c,d) = median2SingleNonExact a b c d
 {- | median2SingleNonExact takes character data and returns median character and cost
 median2single assumes that the character vectors in the various states are the same length
 that is--all leaves (hencee other vertices later) have the same number of each type of character
-this only reoptimized the nonexact characters (sequence characters for now, perhpas otehrs later)
+this only reoptimized the nonexact characters (sequence characters for now, perhaps others later)
 and skips optimization placing a dummy value exact (Add, NonAdd, Matrix) for the others.
 -}
 median2SingleNonExact ∷ Bool → CharacterData → CharacterData → CharInfo → (CharacterData, VertexCost)
