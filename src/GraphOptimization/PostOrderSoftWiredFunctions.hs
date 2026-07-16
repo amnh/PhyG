@@ -1262,7 +1262,7 @@ createVertexDataOverBlocksStaticIA
 createVertexDataOverBlocksStaticIA inGS = generalCreateVertexDataOverBlocks (M.median2StaticIAM (U.needTwoEdgeNoCostAdjust inGS True))
 
 
-{- | generalCreateVertexDataOverBlocks is a genreal version for optimizing all (Add, NonAdd, Matrix)
+{- | generalCreateVertexDataOverBlocks is a general version for optimizing all (Add, NonAdd, Matrix)
 and only non-exact (basically sequence) characters based on the median function passed
 The function takes data in blocks and block vector of char info and
 extracts the triple for each block and creates new block data for parent node (usually)

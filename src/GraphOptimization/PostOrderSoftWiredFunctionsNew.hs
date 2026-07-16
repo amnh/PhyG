@@ -606,7 +606,7 @@ getMinCostList inList =
 
 
 {- | createNewResolution takes a pair of resolutions and creates the median resolution
-need to watch let/right (based on BV) for preorder stuff
+need to watch left/right (based on BV) for preorder stuff
 -}
 createNewResolution
     ∷ GlobalSettings

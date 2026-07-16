@@ -102,7 +102,7 @@ import Debug.Trace
 
 
 {- These top level function need to be parallel to evaluate a given graph in parallel
-    and also for heurstic costs in searches
+    and also for heuristic costs in searches
 -}
 
 {- | median2 takes the vectors of characters and applies median2Single to each
