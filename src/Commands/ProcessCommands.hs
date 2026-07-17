@@ -370,7 +370,7 @@ movePrealignedTCM inArgList =
                     else return $ firstPart <> secondPart <> restPart
 
 
-{- | moveSetOutgroupFirst reofers set command order such that set outgroup if first of set commands
+{- | moveSetOutgroupFirst reorders set command order such that set outgroup if first of set commands
     This seems to be requirted due some stricness issues with processing data
 -}
 moveSetOutgroupFirst :: [Command]  → [Command]

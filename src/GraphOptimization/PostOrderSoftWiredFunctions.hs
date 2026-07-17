@@ -1296,6 +1296,53 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
                     (V.tail blockCharInfoVect)
                     (firstBlockMedian : curBlockData)
 
+{- | generalCreateVertexDataOverBlocksParallel is a parallelized version on of generalCreateVertexDataOverBlocks
+    generalCreateVertexDataOverBlocks is recursive over block, this version parallel maps.
+
+    generalCreateVertexDataOverBlocks is a general version for optimizing all (Add, NonAdd, Matrix)
+and only non-exact (basically sequence) characters based on the median function passed
+The function takes data in blocks and block vector of char info and
+extracts the triple for each block and creates new block data for parent node (usually)
+not checking if vectors are equal in length
+-}
+generalCreateVertexDataOverBlocksParallel
+    ∷ (V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost)))
+    → VertexBlockData
+    → VertexBlockData
+    → V.Vector (V.Vector CharInfo)
+    → PhyG (V.Vector (V.Vector (CharacterData, VertexCost)))
+generalCreateVertexDataOverBlocksParallel medianFunction leftBlockData rightBlockData blockCharInfoVect =
+    let tripleDataList = V.toList $ V.zip3 leftBlockData rightBlockData blockCharInfoVect
+        medianAction :: (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo) -> PhyG (V.Vector (CharacterData, VertexCost))
+        medianAction = generalCreateVertexDataOverBlock medianFunction 
+    in 
+    do
+        resultPar <- getParallelChunkTraverse
+        result <- resultPar medianAction tripleDataList
+        pure $ V.fromList result
+
+
+{- | generalCreateVertexDataOverBlock applies median function to a single data block 
+    for use in parallel generalCreateVertexDataOverBlocksParallel
+-}
+generalCreateVertexDataOverBlock
+    ∷ (V.Vector CharacterData → V.Vector CharacterData → V.Vector CharInfo → PhyG (V.Vector (CharacterData, VertexCost)))
+    → (V.Vector CharacterData, V.Vector CharacterData, V.Vector CharInfo)
+    → PhyG (V.Vector (CharacterData, VertexCost))
+generalCreateVertexDataOverBlock medianFunction (leftBlockData, rightBlockData, blockCharInfoVect) =
+    let leftBlockLength = length leftBlockData
+        rightBlockLength = length rightBlockData
+                
+    in do
+       -- missing data cases first or zip defaults to zero length
+       firstBlockMedian <-
+           if (leftBlockLength == 0) then pure $ V.zip rightBlockData (V.replicate rightBlockLength 0)
+           else if (rightBlockLength == 0) then pure $ V.zip leftBlockData (V.replicate leftBlockLength 0)
+           else medianFunction leftBlockData rightBlockData blockCharInfoVect
+       pure firstBlockMedian
+
+
+
 
 {-_
 -- | getNetPenaltyReduced returns appropriate network penalty for a reduced graph
