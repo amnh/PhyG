@@ -1276,8 +1276,8 @@ generalCreateVertexDataOverBlocks
     → [V.Vector (CharacterData, VertexCost)]
     → PhyG (V.Vector (V.Vector (CharacterData, VertexCost)))
 generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
-    if V.null leftBlockData
-        then -- trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
+    generalCreateVertexDataOverBlocksParallel medianFunction leftBlockData rightBlockData blockCharInfoVect
+    {-    then -- trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
             pure $ V.fromList $ reverse curBlockData
         else
             let leftBlockLength = length $ V.head leftBlockData
@@ -1295,6 +1295,7 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
                     (V.tail rightBlockData)
                     (V.tail blockCharInfoVect)
                     (firstBlockMedian : curBlockData)
+        -}
 
 {- | generalCreateVertexDataOverBlocksParallel is a parallelized version on of generalCreateVertexDataOverBlocks
     generalCreateVertexDataOverBlocks is recursive over block, this version parallel maps.
