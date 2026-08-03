@@ -362,7 +362,11 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
         then pure emptyReducedPhylogeneticGraph
         else do
             -- build graphs
-            buildGraphs ← if useCurrentGraph && (emptyReducedPhylogeneticGraph /= inGraph) then pure [inGraph]
+            -- redignose input graph is used
+            buildGraphs ← if useCurrentGraph && (emptyReducedPhylogeneticGraph /= inGraph) then do
+                            --rediagnose graph with newData
+                            rediagnosedGraph <- T.multiTraverseFullyLabelGraphReduced inGS newData False False Nothing (fst5 inGraph)
+                            pure [rediagnosedGraph]
                           else B.buildGraph buildOptions inGS newData
             bestBuildGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0.0 buildGraphs
 
