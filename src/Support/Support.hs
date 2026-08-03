@@ -232,7 +232,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                                                 else " using " <> neighborhood
                                                                     in  do
                                                                             logWith LogInfo $ "Generating Goodman-Bremer support" <> extraString <> "\n"
-                                                                            -- TODO
+                                                                            -- TODO Shiould this be parallelized?  Or sequenctial over number of graphs to get support for
                                                                             mapM (getGoodBremGraphs inGS inData maximizeParallel neighborhood gbSampleSize gbRandomSample) inGraphList
                                                     in  do
                                                             -- Option warnings
