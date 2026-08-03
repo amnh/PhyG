@@ -383,6 +383,7 @@ supportArgList =
     , "maxparallel"
     , "spr"
     , "tbr"
+    , "usecurrentgraph"
     ]
 
 
