@@ -79,7 +79,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
         Run → error ("Run command should already have been processed: " <> show (firstOption, firstArgs))
         -- other commands
         Build → do
-            (elapsedSeconds, newGraphList') ←
+            !(elapsedSeconds, newGraphList') ←
                 timeOp . pure $
                     B.buildGraph firstArgs globalSettings processedData
             
