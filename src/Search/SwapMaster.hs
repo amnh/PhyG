@@ -273,9 +273,12 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     -- Rediagnose with MultiTraverse on if that is the setting
                         -- don't bother to if in support--only care about topology for jacknife and bootstrap
-                    inGraphList' <- if inSupport then
+                    inGraphList' <- {-
+                                    if inSupport then
                                         pure inGraphList
-                                    else if swapLevel == (-1) then
+                                    else 
+                                    -}
+                                    if swapLevel == (-1) then
                                             if (localMultiTraverse == multiTraverseCharacters inGS) then 
                                                 pure inGraphList
                                             else do
@@ -363,9 +366,12 @@ swapMaster inArgs inGS inData inGraphListInput =
                     logWith LogInfo (endString <> fullBuffWarning <> "\n")
 
                     -- add in second round for higher swap levels, but not if inSupport (jackknife and bootstrap)
+                    {-
                     if inSupport then 
                          pure finalGraphList
-                    else if swapLevel == (-1) then 
+                    else 
+                    -}
+                    if swapLevel == (-1) then 
                         if (localMultiTraverse == multiTraverseCharacters inGS) then 
                             pure finalGraphList
                         else 

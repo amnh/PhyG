@@ -730,10 +730,13 @@ netEdgeMaster inArgs inGS inData inGraphList'
             in  do
                     -- Rediagnose graph cost etc if local multitraverse is set
                     -- don't bother to if in support--only care about topology for jacknife and bootstrap
-                    inGraphList <- if inSupport then
+                    inGraphList <- {-
+                                    if inSupport then
                                         pure inGraphList'
 
-                                    else if heuristicLevel == (-1) then
+                                    else 
+                                        -}
+                                    if heuristicLevel == (-1) then
                                             if (localMultiTraverse == multiTraverseCharacters inGS) then 
                                                 pure inGraphList'
 
@@ -872,9 +875,12 @@ netEdgeMaster inArgs inGS inData inGraphList'
 
 
                     -- Rediagnose do deal with local multitraverse, but not if inSupport (jackknife and bootstrap)
-                    resultGraphList' ←  if inSupport then 
+                    resultGraphList' ←  {-
+                                        if inSupport then 
                                              pure resultGraphList
-                                        else if heuristicLevel == (-1) then 
+                                        else
+                                        -} 
+                                        if heuristicLevel == (-1) then 
                                             if (localMultiTraverse == multiTraverseCharacters inGS) then 
                                                 pure resultGraphList
                                             else 

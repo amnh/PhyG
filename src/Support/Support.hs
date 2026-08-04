@@ -61,8 +61,6 @@ supportGraph inArgs inGS inData inGraphList =
                             useSPR = any ((== "spr") . fst) lcArgList
                             useTBR = any ((== "tbr") . fst) lcArgList
 
-                            onlyBuild = any ((== "buildonly") . fst) lcArgList
-
                             jackList = filter ((== "jackknife") . fst) lcArgList
                             jackFreq'
                                 | length jackList > 1 =
@@ -107,11 +105,29 @@ supportGraph inArgs inGS inData inGraphList =
                                 | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel support option must be 'True' or 'False'" <> show inArgs)
                                 | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
 
-                            maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
+                            maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel support option must be 'True' or 'False'" <> show inArgs)
                                                else if fromJust maximizeParallel'  == "true" then True
                                                else if fromJust maximizeParallel'  == "false" then False
                                                else errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
 
+
+                            -- Uses current file (ie searched or input) for build component, only swaps so no "buildOnly"
+                            curGraphValue = filter ((== "usecurrentgraph") . fst) lcArgList
+                            useCurrentGraph'  
+                                | length curGraphValue > 1 =
+                                            errorWithoutStackTrace ("Multiple useCurrentGraph specifications in support--can have only one: " <> show inArgs)
+                                | null curGraphValue = Just "true"
+                                | null (snd $ head curGraphValue) = errorWithoutStackTrace ("UseCurrentGraph support option must be 'True' or 'False'" <> show inArgs)
+                                | otherwise = readMaybe (show $ snd $ head curGraphValue) ∷ Maybe String
+
+                            useCurrentGraph = if isNothing useCurrentGraph' then errorWithoutStackTrace ("UseCurrentGraph option must be 'True' or 'False'" <> show inArgs)
+                                               else if fromJust useCurrentGraph'  == "true" then True
+                                               else if fromJust useCurrentGraph'  == "false" then False
+                                               else errorWithoutStackTrace ("UseCurrentGraph fuse option must be 'True' or 'False'" <> show inArgs)
+
+                            onlyBuild = if useCurrentGraph then False 
+                                        else any ((== "buildonly") . fst) lcArgList
+                            
                             -- set level of swap heristric intensity
                             levelList = filter ((== "level") . fst) lcArgList
                             levelNumber
@@ -140,6 +156,8 @@ supportGraph inArgs inGS inData inGraphList =
                                 | useTBR = [("tbr", "")]
                                 | onlyBuild = []
                                 | otherwise = [("tbr", "")] --default to TBR
+
+
                                                                                     
                         in  
                             --trace ("SG: " <> (show supportMeasure) <> " " <> (show lcArgList)) $
@@ -198,14 +216,14 @@ supportGraph inArgs inGS inData inGraphList =
                                                         swapOptions =
                                                             if onlyBuild
                                                                 then []
-                                                                else swapParams <> levelParams <> [("support", ""), ("steepest", ""), ("keep", show (1 ∷ Int))]
+                                                                else swapParams <> levelParams <> [("support", ""), ("steepest", ""), ("keep", show (1 ∷ Int))] -- 
                                                         supportGraphList =
                                                             if thisMethod == Bootstrap || thisMethod == Jackknife
                                                                 then
                                                                     let extraString =
                                                                             if thisMethod == Jackknife
-                                                                                then " with delete fraction  " <> show (1 - jackFreq)
-                                                                                else ""
+                                                                                then " with delete fraction  " <> (show (1 - jackFreq)) <> "\n"
+                                                                                else "\n"
                                                                     in  do
                                                                             logWith LogInfo $
                                                                                 unwords
@@ -216,8 +234,9 @@ supportGraph inArgs inGS inData inGraphList =
                                                                                     , "replicates"
                                                                                     , extraString
                                                                                     ]
-                                                                            g ← getResampleGraph inGS inData maximizeParallel thisMethod replicates buildOptions swapOptions jackFreq
-                                                                            pure [g]
+                                                                            -- g ← getResampleGraph inGS inData maximizeParallel thisMethod replicates buildOptions swapOptions jackFreq
+                                                                            -- pure [g]
+                                                                            mapM (getResampleGraph inGS inData maximizeParallel thisMethod replicates buildOptions swapOptions jackFreq useCurrentGraph) inGraphList
                                                                 else
                                                                     let neighborhood =
                                                                             if useTBR
@@ -232,7 +251,8 @@ supportGraph inArgs inGS inData inGraphList =
                                                                                 else " using " <> neighborhood
                                                                     in  do
                                                                             logWith LogInfo $ "Generating Goodman-Bremer support" <> extraString <> "\n"
-                                                                            -- TODO Shiould this be parallelized?  Or sequenctial over number of graphs to get support for
+                                                                            
+                                                                            -- TODO Should probably be sequential but could check if want lots of parellism
                                                                             mapM (getGoodBremGraphs inGS inData maximizeParallel neighborhood gbSampleSize gbRandomSample) inGraphList
                                                     in  do
                                                             -- Option warnings
@@ -249,6 +269,7 @@ supportGraph inArgs inGS inData inGraphList =
 
 
 -- | getResampledGraphs performs resampling and search for Bootstrap and jackknife support
+-- if useCurrentGraph is set to True then skips build snd uses input as a starting point
 getResampleGraph
     ∷ GlobalSettings
     → ProcessedData
@@ -258,8 +279,10 @@ getResampleGraph
     → [(String, String)]
     → [(String, String)]
     → Double
+    -> Bool
+    -> ReducedPhylogeneticGraph
     → PhyG ReducedPhylogeneticGraph
-getResampleGraph inGS inData maximizeParallel resampleType replicates buildOptions swapOptions jackFreq =
+getResampleGraph inGS inData maximizeParallel resampleType replicates buildOptions swapOptions jackFreq useCurrentGraph inGraph =
     let -- create appropriate support graph >50% ?
         -- need to add args
         reconcileArgs = case graphType inGS of
@@ -284,7 +307,7 @@ getResampleGraph inGS inData maximizeParallel resampleType replicates buildOptio
         (numSets, leftOver) = divMod replicates (graphsSteepest inGS)
         -- parallel stuff
         action ∷ PhyG ReducedPhylogeneticGraph
-        action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq
+        action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph
     in  -- majority ruke consensus if no args
         do
             -- the replicate to performs number replicates
@@ -292,8 +315,8 @@ getResampleGraph inGS inData maximizeParallel resampleType replicates buildOptio
                                     getParallelChunkTraverse >>= \pTraverse →
                                         const action `pTraverse` replicate replicates ()
                                  else do
-                                    firstSetList <- mapM (makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq (graphsSteepest inGS)) [0 .. numSets - 1]
-                                    remainderSetList <- makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq leftOver 0
+                                    firstSetList <- mapM (makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph (graphsSteepest inGS)) [0 .. numSets - 1]
+                                    remainderSetList <- makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph leftOver 0
                                     pure  $ remainderSetList <> (concat firstSetList)
 
             recResult ← REC.makeReconcileGraph VER.reconcileArgList reconcileArgs $ fst5 <$> resampledGraphList
@@ -314,13 +337,15 @@ makeDataGraphReplicates
     → [(String, String)]
     → [(String, String)]
     → Double
+    -> Bool
+    -> ReducedPhylogeneticGraph
     -> Int
     -> Int 
     -> PhyG [ReducedPhylogeneticGraph]
-makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq replicates _ =
+makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph replicates _ =
     let -- parallel stuff
         action ∷ PhyG ReducedPhylogeneticGraph
-        action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq
+        action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph
     in do
          getParallelChunkTraverse >>= \pTraverse →
                 const action `pTraverse` replicate replicates ()
@@ -335,8 +360,10 @@ makeResampledDataAndGraph
     → [(String, String)]
     → [(String, String)]
     → Double
+    -> Bool
+    -> ReducedPhylogeneticGraph
     → PhyG ReducedPhylogeneticGraph
-makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq = do
+makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph = do
     newData ← resampleData resampleType jackFreq inData
     -- pairwise distances for distance analysis
     -- pairwiseDistances ← DD.getPairwiseDistances newData
@@ -350,7 +377,12 @@ makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jack
         then pure emptyReducedPhylogeneticGraph
         else do
             -- build graphs
-            buildGraphs ← B.buildGraph buildOptions inGS newData
+            -- redignose input graph is used
+            buildGraphs ← if useCurrentGraph && (emptyReducedPhylogeneticGraph /= inGraph) then do
+                            --rediagnose graph with newData
+                            rediagnosedGraph <- T.multiTraverseFullyLabelGraphReduced inGS newData False False Nothing (fst5 inGraph)
+                            pure [rediagnosedGraph]
+                          else B.buildGraph buildOptions inGS newData
             bestBuildGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (maxBound ∷ Int) 0.0 buildGraphs
 
             -- Do net edges if not tree
