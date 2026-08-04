@@ -202,7 +202,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                         swapOptions =
                                                             if onlyBuild
                                                                 then []
-                                                                else swapParams <> levelParams <> [("support", ""), ("steepest", ""), ("keep", show (1 ∷ Int))]
+                                                                else swapParams <> levelParams <> [("support", ""), ("steepest", ""), ("keep", show (1 ∷ Int))] -- 
                                                         supportGraphList =
                                                             if thisMethod == Bootstrap || thisMethod == Jackknife
                                                                 then
