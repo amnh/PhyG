@@ -1818,14 +1818,14 @@
 		and TBR branch swapping on the best distance tree. If the graph type is softwired 
 		or hardwired, \texttt{netadd}, \texttt{maxnetedges:5}, \texttt{atrandom} are added. 
 		
-		   \item[level:INT] Specifies a series of heuristic intensities (and execution times) from 
+		\item[level:INT] Specifies a series of heuristic intensities (and execution times) from 
 		   0 (all preferences and heuristics off) to 3 (all preferences and heuristics on) used 
 		   during the swap phase of \texttt{jackknife} and \texttt{bootstrap} support value 
 		   calculations. Levels 2 and 3 perform an additional level 1 swap after completion. 
 		   Graphs are rediagnosed (if necessary) to the global \texttt{multiTraverse} state
 		   (see \ref{subsec:swap}).
 		
-		   \item[maxParallel[:BOOL]] Specifies the amount of parallelization during the 
+		\item[maxParallel[:BOOL]] Specifies the amount of parallelization during the 
 		   calculation of support values. By default (\texttt{TRUE}), \texttt{fuse} maximizes 
 		   	the amount of parallelization, at the cost of memory. When set to \texttt{FALSE}, 
 			the amount of parallelization is reduced. 
@@ -1834,11 +1834,17 @@
 	          by the integer value, that are performed in resampling support for Jackknife and 
 	          bootstrap methods. The default is 100.
 		
+		\item[useCurrentGraph[:BOOL]] Specifies that the current graph(s) (e.g searched or input)
+			are used instead of building new graphs with the resampled data.  This option turns of
+			\texttt{buildOnly}. 
+		
 	\end{description}	
 		
 	\subsubsection{Defaults}
 		\texttt{support(goodmanBremer:TBR)} Calculates Goodman Bremer support values, 
 		via traversing the TBR neighborhood.
+		
+		%WCW useCurrentGraph:True is default for jackknife and bootstrap
 		
 		\begin{example}
 		
