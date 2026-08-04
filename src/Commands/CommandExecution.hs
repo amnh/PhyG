@@ -14,6 +14,8 @@ import Commands.CommandUtilities
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
 import Control.Arrow ((&&&))
+--import Control.DeepSeq (rnf)
+--import Control.Exception (evaluate)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Bifunctor (bimap)
@@ -80,6 +82,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
             (elapsedSeconds, newGraphList') ←
                 timeOp . pure $
                     B.buildGraph firstArgs globalSettings processedData
+            
             newGraphList ← newGraphList'
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
@@ -98,10 +101,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 isFirst
         Refine → do
             (elapsedSeconds, newGraphList') ←
-                timeOp . pure $
+                timeOp . pure $ 
                     REF.refineGraph firstArgs globalSettings processedData curGraphs
-
             newGraphList ← newGraphList'
+            
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
 
