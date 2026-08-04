@@ -324,7 +324,7 @@ data GlobalSettings = GlobalSettings
     , unionThreshold ∷ Double -- this is the edge union cost threshold for rejoing edges during SPR and TBR, and (perhas) character Wagner build
     -- as described by Varon and Wheeler (2013) and set to 1.17 experimentally
     , useIA ∷ Bool -- turn on/off IA everywhere can (mainly for internal testing)
-    , useNetAddHeuristic ∷ Bool -- Netowrk addition heuristic--very coarse currently
+    , useNetAddHeuristic ∷ Bool -- Network addition heuristic--very coarse currently
     }
     deriving stock (Show, Eq)
 
