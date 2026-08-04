@@ -61,10 +61,6 @@ supportGraph inArgs inGS inData inGraphList =
                             useSPR = any ((== "spr") . fst) lcArgList
                             useTBR = any ((== "tbr") . fst) lcArgList
 
-                            useCurrentGraph = any ((== "usecurrentgraph") . fst) lcArgList
-                            onlyBuild = if useCurrentGraph then False 
-                                        else any ((== "buildonly") . fst) lcArgList
-                            
                             jackList = filter ((== "jackknife") . fst) lcArgList
                             jackFreq'
                                 | length jackList > 1 =
@@ -109,11 +105,29 @@ supportGraph inArgs inGS inData inGraphList =
                                 | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel support option must be 'True' or 'False'" <> show inArgs)
                                 | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
 
-                            maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
+                            maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel support option must be 'True' or 'False'" <> show inArgs)
                                                else if fromJust maximizeParallel'  == "true" then True
                                                else if fromJust maximizeParallel'  == "false" then False
                                                else errorWithoutStackTrace ("MaxParallel fuse option must be 'True' or 'False'" <> show inArgs)
 
+
+                            -- Uses current file (ie searched or input) for build component, only swaps so no "buildOnly"
+                            curGraphValue = filter ((== "usecurrentgraph") . fst) lcArgList
+                            useCurrentGraph'  
+                                | length curGraphValue > 1 =
+                                            errorWithoutStackTrace ("Multiple useCurrentGraph specifications in support--can have only one: " <> show inArgs)
+                                | null curGraphValue = Just "true"
+                                | null (snd $ head curGraphValue) = errorWithoutStackTrace ("UseCurrentGraph support option must be 'True' or 'False'" <> show inArgs)
+                                | otherwise = readMaybe (show $ snd $ head curGraphValue) ∷ Maybe String
+
+                            useCurrentGraph = if isNothing useCurrentGraph' then errorWithoutStackTrace ("UseCurrentGraph option must be 'True' or 'False'" <> show inArgs)
+                                               else if fromJust useCurrentGraph'  == "true" then True
+                                               else if fromJust useCurrentGraph'  == "false" then False
+                                               else errorWithoutStackTrace ("UseCurrentGraph fuse option must be 'True' or 'False'" <> show inArgs)
+
+                            onlyBuild = if useCurrentGraph then False 
+                                        else any ((== "buildonly") . fst) lcArgList
+                            
                             -- set level of swap heristric intensity
                             levelList = filter ((== "level") . fst) lcArgList
                             levelNumber
@@ -208,8 +222,8 @@ supportGraph inArgs inGS inData inGraphList =
                                                                 then
                                                                     let extraString =
                                                                             if thisMethod == Jackknife
-                                                                                then " with delete fraction  " <> show (1 - jackFreq)
-                                                                                else ""
+                                                                                then " with delete fraction  " <> (show (1 - jackFreq)) <> "\n"
+                                                                                else "\n"
                                                                     in  do
                                                                             logWith LogInfo $
                                                                                 unwords
