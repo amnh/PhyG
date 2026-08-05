@@ -257,7 +257,7 @@ supportGraph inArgs inGS inData inGraphList =
                                                     in  do
                                                             -- Option warnings
                                                             when ((supportMeasure /= GoodmanBremer) && (1 < (V.length $ thd3 inData))) $
-                                                                logWith LogWarn "Bootstrap and Jackknife resampling are not advised (and may not work properly) for multi-block data.  Goodman-Bremer is recommended\n"
+                                                                logWith LogWarn "Bootstrap and Jackknife resampling are not advised for multi-block data. \nResampling methods may not function as expected for single character blocks. \nRecommend reblocking data to single block (if graph is not a network) or using Goodman-Bremer support.\n\n"
                                                             when ((supportMeasure == Bootstrap) && ((not . null) jackList) && (null goodBremList)) $
                                                                 logWith LogWarn "Bootstrap and Jackknife specified--defaulting to Jackknife\n"
                                                             when (((supportMeasure == Bootstrap) || ((not . null) jackList)) && ((not . null) goodBremList)) $
