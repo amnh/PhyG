@@ -36,7 +36,7 @@ import Types.Types
 -- import Utilities.Distances qualified as DD
 import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
---import Debug.Trace
+import Debug.Trace
 
 -- | driver for overall support
 supportGraph ∷ [Argument] → GlobalSettings → ProcessedData → [ReducedPhylogeneticGraph] → PhyG [ReducedPhylogeneticGraph]
@@ -256,14 +256,16 @@ supportGraph inArgs inGS inData inGraphList =
                                                                             mapM (getGoodBremGraphs inGS inData maximizeParallel neighborhood gbSampleSize gbRandomSample) inGraphList
                                                     in  do
                                                             -- Option warnings
+                                                            when ((supportMeasure /= GoodmanBremer) && (1 < (V.length $ thd3 inData))) $
+                                                                logWith LogWarn "Bootstrap and Jackknife resampling are not advised (and may not work properly) for multi-block data.  Goodman-Bremer is recommended\n"
                                                             when ((supportMeasure == Bootstrap) && ((not . null) jackList) && (null goodBremList)) $
-                                                                logWith LogWarn "Bootstrap and Jackknife specified--defaulting to Jackknife"
+                                                                logWith LogWarn "Bootstrap and Jackknife specified--defaulting to Jackknife\n"
                                                             when (((supportMeasure == Bootstrap) || ((not . null) jackList)) && ((not . null) goodBremList)) $
-                                                                logWith LogWarn "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer"
+                                                                logWith LogWarn "Resampling (Bootstrap or Jackknife) and Goodman-Bremer specified--defaulting to Goodman-Bremer\n"
                                                             when (fromJust replicates' < 0) $
-                                                                logWith LogWarn "Negative replicates number--defaulting to 100"
+                                                                logWith LogWarn "Negative replicates number--defaulting to 100\n"
                                                             when (fromJust jackFreq' <= 0 || fromJust jackFreq' >= 1.0) $
-                                                                logWith LogWarn "Jackknife frequency must be on (0.0, 1.0) defaulting to 0.6321"
+                                                                logWith LogWarn "Jackknife frequency must be on (0.0, 1.0) defaulting to 0.6321\n"
 
                                                             supportGraphList
 
@@ -569,6 +571,7 @@ makeSampledPairVect
     → V.Vector CharacterData
     → (V.Vector CharacterData, V.Vector CharInfo)
 makeSampledPairVect fullBoolList boolList accumCharDataList accumCharInfoList inCharInfoVect inCharDataVect =
+    --trace(show boolList) $
     if V.null inCharInfoVect
         then (V.fromList accumCharDataList, V.fromList accumCharInfoList)
         else
