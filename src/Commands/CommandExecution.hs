@@ -14,6 +14,8 @@ import Commands.CommandUtilities
 import Commands.Transform qualified as TRANS
 import Commands.Verify qualified as VER
 import Control.Arrow ((&&&))
+--import Control.DeepSeq (rnf)
+--import Control.Exception (evaluate)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Bifunctor (bimap)
@@ -77,10 +79,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
         Run → error ("Run command should already have been processed: " <> show (firstOption, firstArgs))
         -- other commands
         Build → do
-            (elapsedSeconds, newGraphList') ←
-                timeOp . pure $
+            (elapsedSeconds, newGraphList) ←
+                timeOp $
                     B.buildGraph firstArgs globalSettings processedData
-            newGraphList ← newGraphList'
+            
+            --newGraphList ← newGraphList'
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
 
@@ -97,11 +100,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         Refine → do
-            (elapsedSeconds, newGraphList') ←
-                timeOp . pure $
+            (elapsedSeconds, newGraphList) ←
+                timeOp $ 
                     REF.refineGraph firstArgs globalSettings processedData curGraphs
-
-            newGraphList ← newGraphList'
+            --newGraphList ← newGraphList'
+            
             let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
 
@@ -325,11 +328,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         Support → do
-            (elapsedSeconds, newSupportGraphList') ←
-                timeOp . pure $
+            (elapsedSeconds, newSupportGraphList) ←
+                timeOp $
                     SUP.supportGraph firstArgs globalSettings processedData curGraphs
 
-            newSupportGraphList ← newSupportGraphList'
+            --newSupportGraphList ← newSupportGraphList'
             let searchInfo =
                     makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
