@@ -72,14 +72,14 @@ preOrderTreeTraversal
     ∷ GlobalSettings → AssignmentMethod → Bool → Bool → Bool → Int → Bool → PhylogeneticGraph → PhyG PhylogeneticGraph
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     let -- parallel setup
-        doBlockAction ∷ (V.Vector CharInfo, V.Vector DecoratedGraph) → V.Vector DecoratedGraph
+        doBlockAction ∷ (V.Vector CharInfo, V.Vector DecoratedGraph) → PhyG (V.Vector DecoratedGraph)
         doBlockAction = doBlockTraversal' inGS finalMethod staticIA rootIndex
 
-        updateLeafAction ∷ Int → (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) → V.Vector DecoratedGraph
-        updateLeafAction = updateLeafIABlock'
+        updateLeafAction ∷ Int → (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG (V.Vector DecoratedGraph)
+        updateLeafAction = updateLeafIABlockPar --updateLeafIABlock'
 
-        makeIAAction ∷ (V.Vector DecoratedGraph, V.Vector CharInfo) → V.Vector DecoratedGraph
-        makeIAAction = makeIAUnionAssignments' finalMethod rootIndex
+        makeIAAction ∷ (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG (V.Vector DecoratedGraph)
+        makeIAAction = makeIAUnionAssignmentsPar finalMethod rootIndex -- makeIAUnionAssignments' finalMethod rootIndex
     in  if LG.isEmpty inDecorated
             then pure emptyPhylogeneticGraph -- error "Empty tree in preOrderTreeTraversal"
             else
@@ -88,8 +88,9 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                     else do
                         -- trace ("In PreOrder\n" <> "Simple:\n" <> (LG.prettify inSimple) <> "Decorated:\n" <> (LG.prettify $ GO.convertDecoratedToSimpleGraph inDecorated) <> "\n" <> (GFU.showGraph inDecorated)) (
                         -- mapped recursive call over blocks, later character
-                        blockPar ← getParallelChunkMap
-                        let preOrderBlockVect = V.fromList $ blockPar doBlockAction (V.toList $ V.zip inCharInfoVV blockCharacterDecoratedVV)
+                        blockPar ← getParallelChunkTraverse
+                        blockVal <- blockPar doBlockAction (V.toList $ V.zip inCharInfoVV blockCharacterDecoratedVV)
+                        let preOrderBlockVect = V.fromList blockVal -- $ blockPar doBlockAction (V.toList $ V.zip inCharInfoVV blockCharacterDecoratedVV)
 
                         -- if final non-exact states determined by IA then perform passes and assignments of final and final IA fields
                         -- always do IA pass if Tree--but only assign to final if finalMethod == ImpliedAlignment
@@ -104,12 +105,13 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                                         contractedBlockCharacterDecoratedVV = fmap (fmap LG.contractIn1Out1Edges) blockCharacterDecoratedVV
                                     in  do
                                             -- preform full passes on contracted graphs on blocks to create corrext IA fields for leaves
-                                            contractPar ← getParallelChunkMap
-                                            let contractedBlockVect = contractPar doBlockAction (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV))
+                                            contractPar ← getParallelChunkTraverse
+                                            contractedBlockVect <- contractPar doBlockAction (zip (V.toList inCharInfoVV) (V.toList contractedBlockCharacterDecoratedVV))
 
                                             -- update leaf IA fields with contracted IAs
                                             let maxLeafIndex = maximum $ filter (LG.isLeaf inSimple) $ LG.nodes inSimple
 
+                                            {-
                                             blockIAPar ← getParallelChunkMap
                                             let blockCharDecNewLeafIA =
                                                     V.fromList $
@@ -118,13 +120,18 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                                                                 V.zip3 preOrderBlockVect (V.fromList contractedBlockVect) inCharInfoVV
                                             -- holder for now
                                             pure blockCharDecNewLeafIA
+                                            -}
+                                            blockIAPar ← getParallelChunkTraverse
+                                            blockCharDecNewLeafIA <- blockIAPar  (updateLeafAction maxLeafIndex) (V.toList $ V.zip3 preOrderBlockVect (V.fromList contractedBlockVect) inCharInfoVV)
+                                            pure $ V.fromList blockCharDecNewLeafIA
 
                         preOrderBlockVect' ←
                             -- for networks this causes problems-- used in union pruning
                             if hasNonExact && (graphType inGS /= HardWired) && (graphType inGS /= SoftWired)
                                 then do
-                                    preOrderPar ← getParallelChunkMap
-                                    pure . V.fromList . preOrderPar makeIAAction . V.toList $ V.zip softwiredUpdatedLeafIA inCharInfoVV
+                                    preOrderPar ← getParallelChunkTraverse
+                                    result <- preOrderPar makeIAAction (V.toList $ V.zip softwiredUpdatedLeafIA inCharInfoVV)
+                                    pure $ V.fromList result
                                 else pure preOrderBlockVect
 
                         let fullyDecoratedGraph =
@@ -149,20 +156,47 @@ preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExa
                             else pure (inSimple, inCost, fullyDecoratedGraph, blockDisplayV, preOrderBlockVect, inCharInfoVV)
 
 
+-- | updateLeafIABlockPar is a parallel updateLeafIABlock'
+updateLeafIABlockPar ∷ Int → (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG (V.Vector DecoratedGraph)
+updateLeafIABlockPar maxLeafIndex (origCharV, newCharV, charInfoV) = 
+    let tripleVect = V.toList $ V.zip3 origCharV newCharV charInfoV
+        updateAction ∷ (DecoratedGraph, DecoratedGraph, CharInfo) -> DecoratedGraph
+        updateAction = updateLeafIACharTriple maxLeafIndex 
+    
+    in do
+        updatePar ← getParallelChunkMap
+        let updateResult = updatePar updateAction tripleVect
+        pure $ V.fromList updateResult
+    
+
+
+
 -- | updateLeafIABlock' is a  triple argument to allow for parMap
 updateLeafIABlock' ∷ Int → (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) → V.Vector DecoratedGraph
 updateLeafIABlock' maxLeafIndex (origCharV, newCharV, charInfoV) = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
 
 
 {- | updateLeafIABlock takes a graph, existing character info and updates IA fields in leaves
-for IA post and preorder passes on softwored graphs that may have indegree=outdegree=1 vertices
+for IA post and preorder passes on softwired graphs that may have indegree=outdegree=1 vertices
 these nodes screw up the implied alignment algorithm
 -}
 updateLeafIABlock ∷ Int → V.Vector DecoratedGraph → V.Vector DecoratedGraph → V.Vector CharInfo → V.Vector DecoratedGraph
 updateLeafIABlock maxLeafIndex origCharV newCharV charInfoV = V.zipWith3 (updateLeafIAChar maxLeafIndex) origCharV newCharV charInfoV
 
+{- | updates single charracter leaf IA assignments
+uses max net edge thing-0but using triple for parallelism
+-}
+updateLeafIACharTriple ∷ Int → (DecoratedGraph, DecoratedGraph, CharInfo) → DecoratedGraph
+updateLeafIACharTriple maxLeafIndex (origCharGraph, newCharGraph, charInfo) =
+    let origLeafVertexList = filter ((<= maxLeafIndex) . fst) $ LG.labNodes origCharGraph
+        originalNonLeafVertexList = filter ((> maxLeafIndex) . fst) $ LG.labNodes origCharGraph
+        newLeafVertexList = filter ((<= maxLeafIndex) . fst) $ LG.labNodes newCharGraph
+        updatedVertexList = zipWith (updateIAFields charInfo) origLeafVertexList newLeafVertexList
+        origEdgeList = LG.labEdges origCharGraph
+    in  LG.mkGraph (updatedVertexList <> originalNonLeafVertexList) origEdgeList
 
-{- | ujpdates single charracter leaf IA assignments
+
+{- | updates single charracter leaf IA assignments
 uses max net edge thing
 -}
 updateLeafIAChar ∷ Int → DecoratedGraph → DecoratedGraph → CharInfo → DecoratedGraph
@@ -200,6 +234,20 @@ updateIAFields charInfo origNode@(origIndex, origLabel) (_, newLabel) =
                 in  (origIndex, origLabel{vertData = V.singleton (V.singleton updatedChar)})
 
 
+
+-- | makeIAUnionAssignmentsPar version of makeIAUnionAssignments allowing tuple for parMap
+makeIAUnionAssignmentsPar ∷ AssignmentMethod → Int → (V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG (V.Vector DecoratedGraph)
+makeIAUnionAssignmentsPar finalMethod rootIndex (a, b) = 
+    let pairVect = V.zip a b
+        updateAction ∷ (DecoratedGraph, CharInfo) -> DecoratedGraph
+        updateAction = (makeCharacterIAUnionPair finalMethod rootIndex)
+    in do
+        updatePar <- getParallelChunkMap
+        let updateResult = updatePar updateAction (V.toList pairVect)
+        pure $ V.fromList updateResult
+
+    --fmap (makeCharacterIAUnionPair finalMethod rootIndex) pairVect
+
 -- | makeIAUnionAssignments' version of makeIAUnionAssignments allowing tuple for parMap
 makeIAUnionAssignments' ∷ AssignmentMethod → Int → (V.Vector DecoratedGraph, V.Vector CharInfo) → V.Vector DecoratedGraph
 makeIAUnionAssignments' finalMethod rootIndex (a, b) = V.zipWith (makeCharacterIAUnion finalMethod rootIndex) a b
@@ -212,6 +260,10 @@ assigns union for all types
 makeIAUnionAssignments ∷ AssignmentMethod → Int → V.Vector DecoratedGraph → V.Vector CharInfo → V.Vector DecoratedGraph
 makeIAUnionAssignments finalMethod rootIndex = V.zipWith (makeCharacterIAUnion finalMethod rootIndex)
 
+-- | makeCharacterIAUnionPair pair version of makeIAUnionAssignments
+makeCharacterIAUnionPair ∷ AssignmentMethod → Int → (DecoratedGraph, CharInfo) → DecoratedGraph
+makeCharacterIAUnionPair finalMethod rootIndex (inGraph, charInfo) =
+    makeCharacterIAUnion finalMethod rootIndex inGraph charInfo
 
 {- | makeCharacterIAUnion takes an individual character postorder tree and if perform post and preorder IA passes
 and assignment to final field in slim/wide/huge
@@ -413,9 +465,11 @@ preOrderIA inGraph rootIndex finalMethod charInfo inNodePairList =
 
 -- | doBlockTraversal' is a wrapper around doBlockTraversal fo seqParMap
 doBlockTraversal'
-    ∷ GlobalSettings → AssignmentMethod → Bool → Int → (V.Vector CharInfo, V.Vector DecoratedGraph) → V.Vector DecoratedGraph
+    ∷ GlobalSettings → AssignmentMethod → Bool → Int → (V.Vector CharInfo, V.Vector DecoratedGraph) → PhyG (V.Vector DecoratedGraph)
 doBlockTraversal' inGS finalMethod staticIA rootIndex (inCharInfoV, traversalDecoratedVect) =
-    doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecoratedVect
+    --doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecoratedVect
+    do
+        doBlockTraversalPar inGS finalMethod staticIA rootIndex (inCharInfoV, traversalDecoratedVect)
 
 
 {- | doBlockTraversal takes a block of postorder decorated character trees character info
@@ -426,6 +480,27 @@ doBlockTraversal
 doBlockTraversal inGS finalMethod staticIA rootIndex inCharInfoV traversalDecoratedVect =
     -- trace ("BlockT:" <> (show $ fmap charType inCharInfoV))
     V.zipWith (doCharacterTraversal inGS finalMethod staticIA rootIndex) inCharInfoV traversalDecoratedVect
+
+
+{- | doBlockTraversalPar takes a block of postorder decorated character trees character info in parallel
+could be moved up preOrderTreeTraversal, but like this for legibility
+-}
+doBlockTraversalPar
+    ∷ GlobalSettings → AssignmentMethod → Bool → Int → (V.Vector CharInfo, V.Vector DecoratedGraph) → PhyG (V.Vector DecoratedGraph)
+doBlockTraversalPar inGS finalMethod staticIA rootIndex (inCharInfoV, traversalDecoratedVect) =
+    let pairList = V.toList $ V.zip  inCharInfoV traversalDecoratedVect
+        blockAction :: (CharInfo, DecoratedGraph) → DecoratedGraph
+        blockAction = (doCharacterTraversalPair inGS finalMethod staticIA rootIndex) 
+    in do
+    --pure $ fmap (doCharacterTraversalPair inGS finalMethod staticIA rootIndex) pairList
+        blockPar ← getParallelChunkMap
+        let blockResult = blockPar blockAction pairList
+        pure $ V.fromList blockResult
+
+{- doCharacterTraversal with pair input -}    
+doCharacterTraversalPair ∷ GlobalSettings → AssignmentMethod → Bool → Int → (CharInfo, DecoratedGraph) → DecoratedGraph
+doCharacterTraversalPair inGS finalMethod staticIA rootIndex (inCharInfo, inGraph) = 
+    doCharacterTraversal inGS finalMethod staticIA rootIndex inCharInfo inGraph
 
 
 {- | doCharacterTraversal performs preorder traversal on single character tree
@@ -616,6 +691,7 @@ indeg2NotInNodeList inGraph checkNodeList (childNode@(childIndex, _), _, _)
     | childIndex `elem` fmap (fst . fst3) checkNodeList = False
     | otherwise = True
 
+-- HERE
 
 {- | assignPreorderStatesAndEdges takes a postorder decorated graph (should be but not required) and propagates
 preorder character states from individual character trees.  Exact characters (Add, nonAdd, matrix) postorder

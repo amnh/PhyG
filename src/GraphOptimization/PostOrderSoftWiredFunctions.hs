@@ -1176,7 +1176,7 @@ postDecorateTree inGS staticIA simpleGraph curDecGraph blockCharInfo rootIndex c
 
                                             -- this ensures that left/right choices are based on leaf BV for consistency and label invariance
                                             -- larger bitvector is Right, smaller or equal Left
-
+                                            --logWith LogInfo $ (show $ fmap V.length (vertData leftChildLabel)) <> " blocks\n"
                                             newCharData <-
                                                 if staticIA
                                                     then createVertexDataOverBlocksStaticIA inGS (vertData leftChildLabel) (vertData rightChildLabel) blockCharInfo []
@@ -1277,13 +1277,16 @@ generalCreateVertexDataOverBlocks
     → PhyG (V.Vector (V.Vector (CharacterData, VertexCost)))
 generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData blockCharInfoVect curBlockData =
     generalCreateVertexDataOverBlocksParallel medianFunction leftBlockData rightBlockData blockCharInfoVect
-    {-    then -- trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
+    {-
+    if V.null leftBlockData
+        then -- trace ("Blocks: " <> (show $ length curBlockData) <> " Chars  B0: " <> (show $ V.map snd $ head curBlockData))
             pure $ V.fromList $ reverse curBlockData
         else
             let leftBlockLength = length $ V.head leftBlockData
                 rightBlockLength = length $ V.head rightBlockData
                 -- firstBlock = V.zip3 (V.head leftBlockData) (V.head rightBlockData) (V.head blockCharInfoVect)
             in do
+                logWith LogInfo $ "\nIn generalCreateVertexDataOverBlocks length:" <> (show $ V.length leftBlockData) <> "\n"
                 -- missing data cases first or zip defaults to zero length
                 firstBlockMedian <-
                     if (leftBlockLength == 0) then pure $ V.zip (V.head rightBlockData) (V.replicate rightBlockLength 0)
@@ -1295,7 +1298,8 @@ generalCreateVertexDataOverBlocks medianFunction leftBlockData rightBlockData bl
                     (V.tail rightBlockData)
                     (V.tail blockCharInfoVect)
                     (firstBlockMedian : curBlockData)
-        -}
+    -}
+        
 
 {- | generalCreateVertexDataOverBlocksParallel is a parallelized version on of generalCreateVertexDataOverBlocks
     generalCreateVertexDataOverBlocks is recursive over block, this version parallel maps.
@@ -1318,6 +1322,7 @@ generalCreateVertexDataOverBlocksParallel medianFunction leftBlockData rightBloc
         medianAction = generalCreateVertexDataOverBlock medianFunction 
     in 
     do
+        --logWith LogInfo $ "\nIn generalCreateVertexDataOverBlocksParallel length:" <> (show $ length tripleDataList) <> "\n"
         resultPar <- getParallelChunkTraverse
         result <- resultPar medianAction tripleDataList
         pure $ V.fromList result
