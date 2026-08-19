@@ -274,6 +274,16 @@ performSearch initialSeed inputFilePath = do
     -- Execute any 'Block' change commands--make reBlockedNaiveData
     newBlockPairList ← liftIO $ CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
 
+    {- -- If tree only analysis reblock all data--much more parallel effecient
+        Need to check if graphtype is a network
+    let newBlockPairList = [(Text.pack "allData", Text.pack "*")]
+    -}
+
+    {-
+    logWith LogWarn "If the graphtype is restricted to 'Tree' (i.e. not Softwired or Hardwired or transforms to/from), reblock all data to a single block."
+    logWith LogWarn "\t'reblock (\"allData\", \"*\")' \tfor maximum parallel efficiency." 
+    -}
+
     reBlockedNaiveData ← R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
     let thingsToDoAfterReblock = filter ((/= Reblock) . fst) $ filter ((/= Rename) . fst) thingsToDoAfterReadRename
 
@@ -298,11 +308,6 @@ performSearch initialSeed inputFilePath = do
             else pure emptyProcessedData
 
     -- Check if no dynamic charcters--if so--then set multitraverse to False
-    {-
-    let (multiTraverseSetting, softWiredMethodSetting) = if 0 /= (U.getNumberNonExactCharacters $ thd3 reBlockedNaiveData)
-                                                                then (multiTraverseCharacters defaultGlobalSettings, softWiredMethod defaultGlobalSettings)
-                                                         else (False, ResolutionCache) 
-    -}
     let multiTraverseSetting = if 0 /= (U.getNumberNonExactCharacters $ thd3 reBlockedNaiveData)
                                                                 then multiTraverseCharacters defaultGlobalSettings
                                else False
