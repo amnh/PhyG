@@ -140,9 +140,10 @@ multiTraverseFullyLabelSoftWired inGS inData pruneEdges warnPruneEdges leafGraph
             let sequenceChars = U.getNumberSequenceCharacters (thd3 inData)
             (postOrderGraph, localStartVertex) ←
                 generalizedGraphPostOrderTraversal inGS sequenceChars inData Nothing leafGraph False startVertex inSimpleGraph
-            logWith LogInfo $ "\nSoftwired Post done--pre now\n\n"
+            logWith LogInfo $ "\nSoftwired Post done--pre now\n"
             fullyOptimizedGraph ←
                 PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
+            logWith LogInfo $ "\nSoftwired Pre Done\n\n"
             checkUnusedEdgesPruneInfty inGS inData pruneEdges warnPruneEdges leafGraph $
                 updatePhylogeneticGraphCost fullyOptimizedGraph (snd6 fullyOptimizedGraph)
 
@@ -165,7 +166,7 @@ multiTraverseFullyLabelTree inGS inData leafGraph startVertex inSimpleGraph =
             in  do
                     (postOrderGraph, localStartVertex) ←
                         generalizedGraphPostOrderTraversal inGS sequenceChars inData Nothing leafGraph staticIA startVertex inSimpleGraph
-                    logWith LogInfo $ "\nTree Post done--pre now\n\n"
+                    --logWith LogInfo $ "\nTree Post done--pre now\n\n"
                     PRE.preOrderTreeTraversal inGS (finalAssignment inGS) False True (sequenceChars > 0) localStartVertex False postOrderGraph
 
 

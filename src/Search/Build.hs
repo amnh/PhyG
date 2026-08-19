@@ -127,7 +127,9 @@ buildGraph inArgs inGS inData =
                                     in  do
                                             pairwiseDistances' ← D.getPairwiseDistances inData
                                             buildTreeList ← buildTree simpleTreeOnly inArgs treeGS inData pairwiseDistances'
-                                            -- logWith LogTech $ fold [ "BL:\t", show $ length buildTreeList, "\n" ]
+                                            if isNaN (snd5 $ head buildTreeList) then 
+                                                logWith LogWarn "Trees (likely PMDL distance-based) have a cost of NaN--please change tree build from Distance-based to Character-based\n"
+                                            else logWith LogInfo ""
                                             pure buildTreeList
                                 else do
                                     -- removing taxa with missing data for block
@@ -144,7 +146,13 @@ buildGraph inArgs inGS inData =
                                     returnGraphs ←
                                         reconcileBlockTrees blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
 
-                                    getParallelChunkTraverse >>= \pTraverse → traverseAction True True Nothing `pTraverse` returnGraphs
+                                    evalTrees <- getParallelChunkTraverse >>= \pTraverse → traverseAction True True Nothing `pTraverse` returnGraphs
+
+                                    if isNaN (snd5 $ head evalTrees) then 
+                                        logWith LogWarn "Trees (likely PMDL distance-based) have a cost of NaN--please change tree build from Distance-based to Character-based\n"
+                                    else logWith LogInfo ""
+
+                                    pure evalTrees
 
                         -- this to allow 'best' to return more trees then later 'returned' and contains memory by letting other graphs go out of scope
                         firstGraphs ← case buildBlock of
@@ -179,6 +187,20 @@ buildGraph inArgs inGS inData =
                                             logWith LogInfo $ unwords ["\tRediagnosing as", show $ graphType inGS, "\n"]
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse (traverseAction False False Nothing) $ fst5 <$> firstGraphs
+
+{- naN2InfinityRPG changes a graphs cost (2nd field) to Inifinity if its NaN.
+    This can occur with certyain complex cst matrices in distance tree builds.
+    Since any actual number < NaN will yeild FALSE, this will kill any search 
+    progress after the build.  Changing th ecost to Infinity will allow a searvch to proceed
+    and find better graphs.  Its a hack--but looks to be specific to complex (GTR-like) PMDL 
+    tcm matrices.
+
+    This doesn't seem to allow effective swapping results.  
+-}
+naN2InfinityRPG :: ReducedPhylogeneticGraph -> ReducedPhylogeneticGraph
+naN2InfinityRPG inGraph =
+    if (isNaN $ snd5 inGraph) then T.updatePhylogeneticGraphCostReduced inGraph infinity
+    else inGraph
 
 
 {- | reconcileBlockTrees takes a lists of trees (with potentially varying leave complement) and reconciled them
