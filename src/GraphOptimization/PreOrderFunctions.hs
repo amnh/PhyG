@@ -73,7 +73,7 @@ preOrderTreeTraversal
 preOrderTreeTraversal inGS finalMethod staticIA calculateBranchLengths hasNonExact rootIndex useMap (inSimple, inCost, inDecorated, blockDisplayV, blockCharacterDecoratedVV, inCharInfoVV) =
     let -- parallel setup
         doBlockAction ∷ (V.Vector CharInfo, V.Vector DecoratedGraph) → PhyG (V.Vector DecoratedGraph)
-        doBlockAction = doBlockTraversal' inGS finalMethod staticIA rootIndex
+        doBlockAction = doBlockTraversalPar inGS finalMethod staticIA rootIndex
 
         updateLeafAction ∷ Int → (V.Vector DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) → PhyG (V.Vector DecoratedGraph)
         updateLeafAction = updateLeafIABlockPar --updateLeafIABlock'
@@ -699,7 +699,7 @@ states should be based on the outgroup rooted tree.
 root should be median of finals of two descendets--for non-exact based on final 'alignments' field with gaps filtered
 postorder assignment and preorder will be out of whack--could change to update with correponding postorder
 but that would not allow use of base decorated graph for incremental optimization (which relies on postorder assignments) in other areas
-optyion code ikn there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
+option code in there to set root final to outgropu final--but makes thigs scewey in matrix character and some pre-order assumptions
 -}
 assignPreorderStatesAndEdges
     ∷ GlobalSettings
@@ -723,7 +723,7 @@ assignPreorderStatesAndEdges inGS finalMethd calculateBranchEdges rootIndex preO
                 -- update node labels
                 newNodeList = fmap (updateNodeWithPreorder preOrderBlockTreeVV inCharInfoVV) postOrderNodes
 
-                -- create a vector of vector of pair of nodes and edges for display x charcater trees
+                -- create a vector of vector of pair of nodes and edges for display x character trees
                 blockTreePairVV = fmap (fmap LG.makeNodeEdgePairVect) preOrderBlockTreeVV
 
                 -- update edge labels--for softwired need to account for not all edges in all block/display trees

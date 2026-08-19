@@ -59,6 +59,8 @@ optimizePrealignedData inGS inData@(_, _, blockDataVect) = case U.getNumberPreal
                 -- convert prealigned to nonadditive if all 1 tcms
                 let inData'' = convertPrealignedToNonAdditive inData'
 
+                --logWith LogInfo "\nBit-Packing data \n"
+
                 -- bit packing for non-additivecharacters
                 BP.packNonAdditiveData inGS inData''
 
