@@ -136,6 +136,7 @@ buildGraph inArgs inGS inData =
                                         if buildDistance
                                             then getParallelChunkTraverse >>= \pTraverse → pairwiseAction `pTraverse` processedDataList
                                             else pure $ replicate (length processedDataList) []
+
                                     blockList ←
                                         getParallelChunkTraverse >>= \pTraverse →
                                             buildAction `pTraverse` zip processedDataList distanceMatrixList

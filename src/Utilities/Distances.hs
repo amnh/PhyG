@@ -16,12 +16,12 @@ import PHANE.Evaluation.Logging (LogLevel (..), Logger (..))
 import SymMatrix qualified as S
 import Types.Types
 import Utilities.Utilities qualified as U
-
+import Debug.Trace
 
 {- |
 getPairwiseDistances takes Processed data
 and retuns a matrix (list of lists of Double) of pairwise
-distances among vertices in data set over blocks ans all character types
+distances among vertices in data set over blocks and all character types
 sums over blocks
 -}
 getPairwiseDistances ∷ ProcessedData → PhyG [[VertexCost]]
@@ -43,6 +43,8 @@ getPairwiseDistances (nameVect, _, blockDataVect)
             blockAction ∷ BlockData → PhyG (S.Matrix VertexCost)
             blockAction = getPairwiseBlockDistance (V.length nameVect)
         in  do
+                logWith LogInfo ("\tGenerating pairwise distances for " <> show (V.length blockDataVect) <> " character blocks\n")
+                
                 maxDistance ← U.getMaxNumberObservations blockDataVect
 
                 pTraverse ← getParallelChunkMap
@@ -68,9 +70,38 @@ getPairwiseDistances (nameVect, _, blockDataVect)
                 -- rescaled pairwsie distances
                 let rescaledDistanceMatrix = S.zipWith (*) factorMatrix summedBlock
 
-                -- trace ("Factor:" <> show maxDistance <> " : "  <> (show normFactorList))
-                logWith LogInfo ("\tGenerating pairwise distances for " <> show (V.length blockDataVect) <> " character blocks\n")
-                pure $ S.toFullLists rescaledDistanceMatrix -- summedBlock
+                -- logWith LogInfo  ("Factor:" <> show maxDistance <> " : "  <> (show normFactorList))
+                let fullMatrix = S.toFullLists rescaledDistanceMatrix
+                --logWith LogInfo (show $ setDiagonal2ZeroLL fullMatrix (length fullMatrix) 0 )
+                --pure $ setDiagonal2ZeroLL fullMatrix (length fullMatrix) 0  -- summedBlock
+                pure fullMatrix
+
+{- | setDiagonal2Zero sets diatnce matrix diagnoal to zero--non-zero numbers seem to screw up distance tree building
+-}
+setDiagonal2Zero :: S.Matrix Double ->  S.Matrix Double
+setDiagonal2Zero inMatrix =
+    if S.null inMatrix then S.empty
+    else 
+        let size = S.rows inMatrix
+            indicesList = [0.. (size - 1)]
+            diagTripleList = zip3 indicesList indicesList (replicate size 0.0)
+            newMatrix = S.unsafeUpdateMatrix inMatrix diagTripleList
+        in
+        --trace (show (size, diagTripleList, newMatrix)) $
+        newMatrix
+
+{- | setDiagonal2ZeroLL sets distance matrix (as list of list of vertex cost) diagnoal to zero--non-zero numbers seem to screw up distance tree building
+-}
+setDiagonal2ZeroLL :: [[VertexCost]] -> Int -> Int -> [[VertexCost]]
+setDiagonal2ZeroLL inMatrix numRows rowCounter =
+    if rowCounter == numRows then []
+    else 
+        let firstRow = head inMatrix
+            firstPart = take rowCounter firstRow
+            secondPart = drop (rowCounter + 1) firstRow
+            newRow = firstPart <> ((0.0 :: VertexCost) : secondPart)
+        in
+        newRow : setDiagonal2ZeroLL (tail inMatrix) numRows (rowCounter + 1)
 
 
 {- | getBlockDistance takes Block data and returns distance between
