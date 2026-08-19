@@ -190,7 +190,7 @@ buildGraph inArgs inGS inData =
 
 {- naN2InfinityRPG changes a graphs cost (2nd field) to Inifinity if its NaN.
     This can occur with certyain complex cst matrices in distance tree builds.
-    Since any actual number < NaN will yeild FALSE, this will kill any search 
+    Since any actual number < NaN will yield FALSE, this will kill any search 
     progress after the build.  Changing th ecost to Infinity will allow a searvch to proceed
     and find better graphs.  Its a hack--but looks to be specific to complex (GTR-like) PMDL 
     tcm matrices.
