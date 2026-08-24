@@ -22,6 +22,7 @@ import Data.Text.Builder.Linear (runBuilder)
 import Data.Text.Lazy qualified as Text
 import Data.Text.Short qualified as ST
 import Data.Time.Clock
+import Data.Vector qualified as Vect
 import GeneralUtilities
 import GraphFormatUtilities qualified as GFU
 import GraphOptimization.Traversals qualified as T
@@ -275,13 +276,9 @@ performSearch initialSeed inputFilePath = do
     newBlockPairList ← liftIO $ CE.executeRenameReblockCommands Reblock reBlockPairs thingsToDo
 
     {- -- If tree only analysis reblock all data--much more parallel effecient
+    Automatically?  need to make sure no transfomrs to networks
         Need to check if graphtype is a network
     let newBlockPairList = [(Text.pack "allData", Text.pack "*")]
-    -}
-
-    {-
-    logWith LogWarn "If the graphtype is restricted to 'Tree' (i.e. not Softwired or Hardwired or transforms to/from), reblock all data to a single block."
-    logWith LogWarn "\t'reblock (\"allData\", \"*\")' \tfor maximum parallel efficiency." 
     -}
 
     reBlockedNaiveData ← R.reBlockData newBlockPairList optimizedPrealignedData -- naiveData
@@ -328,6 +325,16 @@ performSearch initialSeed inputFilePath = do
             []
             initialSetCommands
             False
+
+    {- Block number warnings for tree and network -}
+    let numBlocks = Vect.length $ thd3 optimizedData
+
+    if numBlocks == 1 && ((graphType initialGlobalSettings) == SoftWired) then
+        logWith LogWarn $ "\nCannot perform softwired network analysis on a single data block.  There must be multiple data blocks to allow for potentially multiple display trees.\n"
+    else if numBlocks > 1 && ((graphType initialGlobalSettings) == Tree) then
+        logWith LogWarn "\nIf the graphtype is restricted to 'Tree' (i.e. not Softwired or Hardwired or transforms to/from), reblock all data to a single block for maximum parallel efficiency.\n"
+    else 
+        logWith LogInfo ""
 
     -- Get CPUTime so far ()data input and processing
     dataCPUTime ← liftIO getCPUTime

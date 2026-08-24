@@ -901,7 +901,7 @@ setCommand argList globalSettings origProcessedData processedData isFirst =
                                     "Set option 'missingThreshold' must be set to an integer value (e.g. missingThreshold:50): " <> firstOption
                             Just localValue | localValue == missingThreshold globalSettings → pure (globalSettings, processedData)
                             Just localValue → do
-                                logWith LogWarn $ "MissingThreshold set to " <> show localValue <> "\n"
+                                logWith LogInfo $ "MissingThreshold set to " <> show localValue <> "\n"
                                 pure (globalSettings{missingThreshold = localValue}, processedData)
                         "modelcomplexity" → case readMaybe (firstOption) ∷ Maybe Double of
                             Nothing →
