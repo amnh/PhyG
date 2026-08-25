@@ -283,16 +283,24 @@ swapMaster inArgs inGS inData inGraphListInput =
                                                 pure inGraphList
                                             else do
                                                 logWith LogInfo $ "\tMultiTraverse to " <> (show localMultiTraverse)  <> "\n"
+                                                reoptPar <- getParallelChunkTraverse
+                                                reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = localMultiTraverse}) inData False False Nothing . fst5) inGraphList
+                                                {-
                                                 getParallelChunkTraverse >>= \pTraverse →
                                                     pTraverse
                                                         (reoptimizeAction (inGS{multiTraverseCharacters = localMultiTraverse}) inData False False Nothing . fst5) inGraphList
+                                                -}
 
                                     -- swap level 0 uses MultiTraverse
                                     else if swapLevel == 0  && (not $ multiTraverseCharacters inGS) then do
                                                 logWith LogInfo $ "\tMultiTraverse to True for swap level 0 " <> "\n"
+                                                reoptPar <- getParallelChunkTraverse
+                                                reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) inGraphList
+                                                {-
                                                 getParallelChunkTraverse >>= \pTraverse →
                                                     pTraverse
                                                         (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) inGraphList
+                                                -}
 
                                     else if swapLevel == 0 then 
                                                 pure inGraphList
@@ -304,9 +312,13 @@ swapMaster inArgs inGS inData inGraphListInput =
                                     -- is MultiTraverse and swap levels 1-3, need to reoptimize to false
                                     else do
                                                 logWith LogInfo $ "\tMultiTraverse to False for swap level " <> (show swapLevel) <> "\n"
+                                                reoptPar <- getParallelChunkTraverse
+                                                reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) inGraphList
+                                                {-
                                                 getParallelChunkTraverse >>= \pTraverse →
                                                     pTraverse
                                                         (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) inGraphList
+                                                -}
                                         
 
                     -- parallel setup
@@ -315,9 +327,13 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                     -- this will zip Nothings to graphs, but need it to distribute graph list to execute in parallel
                     let simAnnealList = (: []) <$> zip newSimAnnealParamList inGraphList'
+                    pairPar <- getParallelChunkTraverse
+                    graphPairList <- pairPar action simAnnealList
+                    {-
                     graphPairList ←
                         getParallelChunkTraverse >>= \pTraverse →
                             action `pTraverse` simAnnealList
+                    -}
 
                     let (graphListList, counterList) = first fold $ unzip graphPairList
                     (newGraphList, counter) ← GO.selectGraphs Best (outgroupIndex inGS) (fromJust keepNum) 0 graphListList <&> \x → (x, sum counterList)
@@ -377,26 +393,38 @@ swapMaster inArgs inGS inData inGraphListInput =
                         else 
                             do
                                 logWith LogInfo $ "\tMultiTraverse to " <> (show $ multiTraverseCharacters inGS)  <> "\n"
+                                reoptPar <- getParallelChunkTraverse
+                                reoptPar (reoptimizeAction inGS inData False False Nothing . fst5) finalGraphList
+                                {-
                                 getParallelChunkTraverse >>= \pTraverse →
                                             pTraverse
                                                     (reoptimizeAction inGS inData False False Nothing . fst5) finalGraphList
+                                -}
                     else if swapLevel == 0 then
                         if multiTraverseCharacters inGS then 
                             pure finalGraphList
 
                         else do
                                 logWith LogInfo  "\tMultiTraverse to False\n"
+                                reoptPar <- getParallelChunkTraverse
+                                reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) finalGraphList
+                                {-
                                 getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse
                                                     (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) finalGraphList
+                                -}
                     else if swapLevel == 1 then
                         if not $ multiTraverseCharacters inGS then 
                             pure finalGraphList
                         else do
                             logWith LogInfo  "\tMultiTraverse to True\n"
+                            reoptPar <- getParallelChunkTraverse
+                            reDiagGraphs <- reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) finalGraphList
+                            {-
                             reDiagGraphs <- getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse
                                                     (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) finalGraphList
+                            -}
                             if inputBestCost < (minimum $ fmap snd5 reDiagGraphs) then 
                                 pure inGraphListInput
                             else 
@@ -411,9 +439,14 @@ swapMaster inArgs inGS inData inGraphListInput =
                                                             }
                         let actionLevel = {-# SCC swapMaster_action_swapSPRTBR #-} SV2.swapDriver swapParamsLevel (inGS {multiTraverseCharacters = localMultiTraverse}) inData 0 
                         let simAnnealListLevel = (: []) <$> zip newSimAnnealParamList finalGraphList
+
+                        gpairPar <- getParallelChunkTraverse
+                        graphPairListLevel <- gpairPar actionLevel simAnnealListLevel
+                        {-
                         graphPairListLevel ←
                             getParallelChunkTraverse >>= \pTraverse →
                                 actionLevel `pTraverse` simAnnealListLevel
+                        -}
 
                         let (graphListListLevel, counterListLevel) = first fold $ unzip graphPairListLevel
 
@@ -424,9 +457,15 @@ swapMaster inArgs inGS inData inGraphListInput =
 
                                                 else do
                                                     logWith LogInfo $ "\n\tMultiTraverse  to True\n"
+                                                    reoptPar <- getParallelChunkTraverse
+                                                    reDiagGraphs <- reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) graphListListLevel
+
+                                                    {-
                                                     reDiagGraphs <- getParallelChunkTraverse >>= \pTraverse →
                                                             pTraverse
                                                                 (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) graphListListLevel
+                                                    -}
+                                                    
                                                     if inputBestCost < (minimum $ fmap snd5 reDiagGraphs) then 
                                                         pure inGraphListInput
                                                     else 

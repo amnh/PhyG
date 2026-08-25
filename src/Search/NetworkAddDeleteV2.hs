@@ -90,9 +90,13 @@ moveAllNetEdges inGS inData netParams counter (curBestGraphList, curBestGraphCos
                     counter
                     (curBestGraphList, curBestGraphCost)
         in  do
+                movePar <- getParallelChunkTraverse
+                moveResult <- movePar action (zip saParamList $ replicate annealingRounds inPhyloGraphList)
+                {-
                 moveResult ←
                     getParallelChunkTraverse >>= \pTraverse →
                         pTraverse action . zip saParamList $ replicate annealingRounds inPhyloGraphList
+                -}
                 let (annealRoundsList, counterList) = unzip moveResult
                 GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (fold annealRoundsList) <&> \x → (x, sum counterList)
 
@@ -155,9 +159,13 @@ moveAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraphCo
                             | otherwise = pure
                      in permutationOf edges
 
+                deletePar <- getParallelChunkTraverse
+                deleteResult <- deletePar (action . LG.toEdge) netEdgeList
+                {-
                 deleteResult ←
                     getParallelChunkTraverse >>= \pTraverse →
                         pTraverse (action . LG.toEdge) netEdgeList
+                -}
 
                 let newGraphList' = fold deleteResult
                 newGraphList ← GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 newGraphList'
@@ -418,9 +426,13 @@ addDeleteNetEdges inGS inData netParams maxRounds counter (curBestGraphList, cur
                     counter
                     (curBestGraphList, curBestGraphCost)
         in  do
+                addDelPar <- getParallelChunkTraverse
+                addDeleteResult <- addDelPar action (zip saParamList $ replicate annealingRounds inPhyloGraphList)
+                {-
                 addDeleteResult ←
                     getParallelChunkTraverse >>= \pTraverse →
                         pTraverse action . zip saParamList $ replicate annealingRounds inPhyloGraphList
+                -}
                 let (annealRoundsList, counterList) = unzip addDeleteResult
                 GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (fold annealRoundsList) <&> \x → (x, sum counterList)
 
@@ -765,9 +777,13 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                     logWith LogInfo ("\tNetwork edges to delete: " <> (show $ length networkEdgeList) <> "\n")
                     
                     --could shuffle edge list if not doain all at once--but are now
+                    heurPar <- getParallelChunkTraverse
+                    heuristicGraphPairList <- heurPar heuristicAction networkEdgeList
+                    {-
                     heuristicGraphPairList <- 
                         getParallelChunkTraverse >>= \pTraverse →
                             heuristicAction `pTraverse` networkEdgeList
+                    -}
 
                     -- filter out non-phylo graphs and sort on heuristic cost
                     let nonInfinitePairList = filter ((/= infinity) .fst) heuristicGraphPairList
@@ -1523,9 +1539,13 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
 
 
                             -- get heuristic costs and simple graphs
+                            heurPar <- getParallelChunkTraverse
+                            heurCostSimpleGraphPairList <- heurPar heuristicAction candidateNetworkEdgeList'
+                            {-
                             heurCostSimpleGraphPairList <- 
                                 getParallelChunkTraverse >>= \pTraverse →
                                     heuristicAction `pTraverse` candidateNetworkEdgeList'
+                            -}
 
                             -- filter out non-phylo graphs and sort on heuristic cost
                             let nonInfinitePairList = filter ((/= infinity) .fst) heurCostSimpleGraphPairList
