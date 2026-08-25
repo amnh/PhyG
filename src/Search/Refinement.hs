@@ -20,7 +20,7 @@ import Commands.Verify qualified as VER
 import Control.Monad (when)
 import Data.Char
 import Data.Foldable (fold)
-import Data.Functor (($>), (<$), (<&>))
+import Data.Functor (($>), (<&>)) {- (<$),  -}
 import Data.Maybe
 import GeneralUtilities
 import Graphs.GraphOperations qualified as GO
@@ -315,7 +315,7 @@ fuseGraphs inArgs inGS inData inGraphList
         -- turn off union selection of rejoin--default to do both, union first
         let joinType
                 | any ((== "joinall") . fst) lcArgList = JoinAll
-                -- | any ((== "joinpruned") . fst) lcArgList = JoinPruned
+                {- -- | any ((== "joinpruned") . fst) lcArgList = JoinPruned -}
                 | otherwise = JoinAll
 
         -- set implied alignment swapping
@@ -547,7 +547,7 @@ netEdgeMaster inArgs inGS inData inGraphList'
                 doSteepest' = any ((== "steepest") . fst) lcArgList
                 doAll = any ((== "all") . fst) lcArgList
 
-                inSupport = any ((== "support") . fst) lcArgList
+                -- inSupport = any ((== "support") . fst) lcArgList
 
                 multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
                 doMultiTraverse'  
@@ -753,9 +753,14 @@ netEdgeMaster inArgs inGS inData inGraphList'
                                         -- swap level 0 uses MultiTraverse
                                     else if heuristicLevel == 0  && (not $ multiTraverseCharacters inGS) then do
                                                 logWith LogInfo $ "\tMultiTraverse to True for network edit level 0 " <> "\n"
+                                                reoptPar <- getParallelChunkTraverse
+                                                reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) inGraphList'
+
+                                                {-
                                                 getParallelChunkTraverse >>= \pTraverse →
                                                     pTraverse
                                                         (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) inGraphList'
+                                                -}
 
                                         else if heuristicLevel == 0 then 
                                                 pure inGraphList'
@@ -767,9 +772,14 @@ netEdgeMaster inArgs inGS inData inGraphList'
 
                                     else do
                                                 logWith LogInfo $ "\tMultiTraverse to False for network heuristic level " <> (show heuristicLevel) <> "\n"
+                                                reoptPar <- getParallelChunkTraverse
+                                                reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) inGraphList'
+
+                                                {-
                                                 getParallelChunkTraverse >>= \pTraverse →
                                                     pTraverse
                                                         (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) inGraphList'
+                                                -}
                     -- perform add/delete/move operations
                     
                     when (doDrift && doAnnealing) $
@@ -803,9 +813,13 @@ netEdgeMaster inArgs inGS inData inGraphList'
                                                     <> " rounds"
                                                     <> "\n"
                                                 )
+                                        pPAirPar <- getParallelChunkTraverse
+                                        graphPairList1 <- pPAirPar addAction $ zip newSimAnnealParamList $ (: []) <$> inGraphList
+                                        {-
                                         graphPairList1 ←
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse addAction . zip newSimAnnealParamList $ (: []) <$> inGraphList
+                                        -}
 
                                         let (graphListList, counterList) = unzip graphPairList1
                                         GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
@@ -824,9 +838,14 @@ netEdgeMaster inArgs inGS inData inGraphList'
                                                     <> show (minimum $ fmap snd5 inGraphList)
                                                     <> "\n"
                                                 )
+                                        pPAirPar <- getParallelChunkTraverse
+                                        graphPairList2 <- pPAirPar deleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList
+
+                                        {-
                                         graphPairList2 ←
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse deleteAction . zip newSimAnnealParamList $ (: []) <$> newGraphList
+                                        -}
 
                                         let (graphListList, counterList) = unzip graphPairList2
                                         GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
@@ -842,9 +861,13 @@ netEdgeMaster inArgs inGS inData inGraphList'
                                                     <> show (minimum $ fmap snd5 inGraphList)
                                                     <> "\n"
                                                 )
+                                pPAirPar <- getParallelChunkTraverse
+                                graphPairList3 <- pPAirPar moveAction $ zip newSimAnnealParamList $ pure <$> newGraphList'
+                                {-
                                 graphPairList3 ←
                                     getParallelChunkTraverse >>= \pTraverse →
                                         pTraverse moveAction . zip newSimAnnealParamList $ pure <$> newGraphList'
+                                -}
 
                                 let (graphListList, counterList) = unzip graphPairList3
                                 GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
@@ -865,9 +888,14 @@ netEdgeMaster inArgs inGS inData inGraphList'
                                                     <> show (fromJust maxNetEdges)
                                                     <> "\n"
                                                 )
+                                        pPAirPar <- getParallelChunkTraverse
+                                        graphPairList4 <- pPAirPar addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
+
+                                        {-
                                         graphPairList4 ←
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse addDeleteAction $ zip newSimAnnealParamList $ (: []) <$> newGraphList''
+                                        -}
 
                                         let (graphListList, counterList) = unzip graphPairList4
                                         GO.selectGraphs Unique (outgroupIndex inGS) (fromJust keepNum) 0 (fold graphListList) <&> \x → (x, sum counterList)
@@ -890,18 +918,28 @@ netEdgeMaster inArgs inGS inData inGraphList'
                                             else 
                                                 do
                                                     logWith LogInfo $ "\tMultiTraverse to " <> (show $ multiTraverseCharacters inGS)  <> "\n"
+                                                    reportPar <- getParallelChunkTraverse
+                                                    reportPar (reoptimizeAction inGS inData False False Nothing . fst5) resultGraphList
+                                                    {-
                                                     getParallelChunkTraverse >>= \pTraverse →
                                                                 pTraverse
                                                                         (reoptimizeAction inGS inData False False Nothing . fst5) resultGraphList
+                                                    -}
+
                                         else if heuristicLevel == 0 then
                                             if multiTraverseCharacters inGS then 
                                                 pure resultGraphList
 
                                             else do
                                                     logWith LogInfo  "\tMultiTraverse to False\n"
+                                                    reportPar <- getParallelChunkTraverse
+                                                    reportPar (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) resultGraphList
+                                                    
+                                                    {-
                                                     getParallelChunkTraverse >>= \pTraverse →
                                                                     pTraverse
                                                                         (reoptimizeAction (inGS{multiTraverseCharacters = False}) inData False False Nothing . fst5) resultGraphList
+                                                    -}
 
                                          -- Unlike swap levels 2 and 3 are not followed by a 1 (but could be manually)
                                         else -- if heuristicLevel == 1 then
@@ -909,9 +947,13 @@ netEdgeMaster inArgs inGS inData inGraphList'
                                                 pure resultGraphList
                                             else do
                                                 logWith LogInfo  "\tMultiTraverse to True\n"
+                                                reportPar <- getParallelChunkTraverse
+                                                reDiagGraphs <- reportPar (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) resultGraphList
+                                                {-
                                                 reDiagGraphs <- getParallelChunkTraverse >>= \pTraverse →
                                                                     pTraverse
                                                                         (reoptimizeAction (inGS{multiTraverseCharacters = True}) inData False False Nothing . fst5) resultGraphList
+                                                -}
                                                 if inputBestCost < (minimum $ fmap snd5 reDiagGraphs) then 
                                                     pure resultGraphList
                                                 else 
