@@ -742,9 +742,13 @@ netEdgeMaster inArgs inGS inData inGraphList'
 
                                             else do
                                                 logWith LogInfo $ "\tMultiTraverse to " <> (show localMultiTraverse)  <> "\n"
+                                                reoptPar <- getParallelChunkTraverse
+                                                reoptPar (reoptimizeAction (inGS{multiTraverseCharacters = localMultiTraverse}) inData False False Nothing . fst5) inGraphList'
+                                                {-
                                                 getParallelChunkTraverse >>= \pTraverse →
                                                     pTraverse
                                                         (reoptimizeAction (inGS{multiTraverseCharacters = localMultiTraverse}) inData False False Nothing . fst5) inGraphList'
+                                                -}
 
                                         -- swap level 0 uses MultiTraverse
                                     else if heuristicLevel == 0  && (not $ multiTraverseCharacters inGS) then do
