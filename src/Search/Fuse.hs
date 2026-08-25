@@ -105,9 +105,14 @@ fuseAllGraphs swapParams inGS inData counter returnBest returnUnique singleRound
                       
                 -- Option maximizeParallel will utilize more paralle but at cost of memory footprint
                 -- defualt is False so uses mapM version                          
-                newGraphList ←  if maximizeParallel then 
+                newGraphList ←  if maximizeParallel then do
+                                    actionPar <- getParallelChunkTraverseBy (fmap U.strict2of5)
+                                    result <- actionPar action graphPairList
+                                    pure $ concat result
+                                    {-
                                     getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse →
                                         fold <$> pTraverse action graphPairList
+                                    -}
                                 else do
                                     result <- mapM (fusePair swapParams inGS inData numLeaves inGraphNetPenaltyFactor curBest reciprocal) graphPairList
                                     pure $ concat result
@@ -246,7 +251,7 @@ fusePairRecursive swapParams inGS inData numLeaves netPenalty curBestScore recip
 this is done by coopting the split and readd functinos from the Swap.Swap functions and exchanging
 pruned subgraphs with the same leaf complement (as recorded by the subtree root node bit vector field)
 spr-like and tbr-like readds can be performed as with options
-needs simolification and refactoring
+an unholhy mess--needs simplification and refactoring
 -}
 fusePair
     ∷ SwapParams
@@ -347,10 +352,14 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                             ) =
                                                 L.unzip5 exchangeLeftResult
 
+                                    actionPar <- getParallelChunkTraverseBy U.strict2of2
+                                    leftRightOptimizedSplitGraphCostList <- actionPar reoptimizeAction $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                    {-
                                     leftRightOptimizedSplitGraphCostList ←
                                         getParallelChunkTraverseBy U.strict2of2 >>= \pTraverse →
                                             -- need to revisit to make a better incremental optimization here
                                             pTraverse reoptimizeAction $ L.zip3 leftBaseRightPrunedSplitGraphList leftRightGraphRootIndexList leftRightPrunedRootIndexList
+                                    -}
 
                                     let baseGraphDifferentList = L.replicate (length leftRightOptimizedSplitGraphCostList) True
 
@@ -411,11 +420,15 @@ fusePair swapParams inGS inData numLeaves netPenalty curBestScore reciprocal (le
                                                         ) =
                                                             L.unzip5 exchangeRightResult
 
+                                                actionPar <- getParallelChunkTraverseBy U.strict2of2
+                                                rightLeftOptimizedSplitGraphCostList <- actionPar reoptimizeAction $ L.zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+                                                {-
                                                 rightLeftOptimizedSplitGraphCostList ←
                                                     getParallelChunkTraverseBy U.strict2of2 >>= \pTraverse →
                                                     -- need to revisit to make a better incremental optimization here
                                                     -- pTraverse reoptimizeActionNew $ L.zip4 (L.replicate (length rightBaseLeftPrunedSplitGraphList) $ GO.convertReduced2PhylogeneticGraph rightGraph) rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
                                                     pTraverse reoptimizeAction $ L.zip3 rightBaseLeftPrunedSplitGraphList rightLeftGraphRootIndexList rightLeftPrunedRootIndexList
+                                                -}
 
                                                 let ( _
                                                         , rightLeftOptimizedSplitGraphCostList'
@@ -519,7 +532,12 @@ recombineComponents swapParams inGS inData curBetterCost overallBestCost inSplit
                     do
                         --logWith LogInfo $ "RC: " <> (show $ length graphDataList)
                         -- do "all additions" -
+                        actionPar <- getParallelChunkTraverseBy (fmap U.strict2of5)
+                        recombinedGraphList' <- actionPar action graphDataList
+                        {-
                         recombinedGraphList' ← getParallelChunkTraverseBy (fmap U.strict2of5) >>= \pTraverse → pTraverse action graphDataList
+                        -}
+
                         let recombinedGraphList = concat recombinedGraphList'
 
                         -- this based on heuristic deltas

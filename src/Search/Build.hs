@@ -134,19 +134,30 @@ buildGraph inArgs inGS inData =
                                 else do
                                     -- removing taxa with missing data for block
                                     -- trace ("Block building initial graph(s)") $
+                                    pairwisePar <- getParallelChunkTraverse
                                     distanceMatrixList ←
                                         if buildDistance
-                                            then getParallelChunkTraverse >>= \pTraverse → pairwiseAction `pTraverse` processedDataList
+                                            then pairwisePar pairwiseAction processedDataList 
+                                              -- getParallelChunkTraverse >>= \pTraverse → pairwiseAction `pTraverse` processedDataList
                                             else pure $ replicate (length processedDataList) []
+
+                                    buildPar <- getParallelChunkTraverse
+                                    blockList <- buildPar buildAction $ zip processedDataList distanceMatrixList
+                                    {-
                                     blockList ←
                                         getParallelChunkTraverse >>= \pTraverse →
                                             buildAction `pTraverse` zip processedDataList distanceMatrixList
+                                    -}
                                     let blockTrees = concat blockList
 
                                     returnGraphs ←
                                         reconcileBlockTrees blockTrees (fromJust numDisplayTrees) returnTrees returnGraph returnRandomDisplayTrees doEUN
 
+                                    traversePar <- getParallelChunkTraverse
+                                    evalTrees <- traversePar (traverseAction True True Nothing) returnGraphs
+                                    {-
                                     evalTrees <- getParallelChunkTraverse >>= \pTraverse → traverseAction True True Nothing `pTraverse` returnGraphs
+                                    -}
 
                                     if isNaN (snd5 $ head evalTrees) then 
                                         logWith LogWarn "Trees (likely PMDL distance-based) have a cost of NaN--please change tree build from Distance-based to Character-based\n"
@@ -185,8 +196,12 @@ buildGraph inArgs inGS inData =
                                         (_, x : xs) → logWith LogInfo (costString <> "\n") $> firstGraphs
                                         (_, []) → do
                                             logWith LogInfo $ unwords ["\tRediagnosing as", show $ graphType inGS, "\n"]
+                                            traversePar <- getParallelChunkTraverse
+                                            traversePar (traverseAction False False Nothing) (fmap fst5 firstGraphs)
+                                            {-
                                             getParallelChunkTraverse >>= \pTraverse →
                                                 pTraverse (traverseAction False False Nothing) $ fst5 <$> firstGraphs
+                                            -}
 
 {- naN2InfinityRPG changes a graphs cost (2nd field) to Inifinity if its NaN.
     This can occur with certyain complex cst matrices in distance tree builds.
@@ -247,9 +262,14 @@ reconcileBlockTrees blockTrees numDisplayTrees returnTrees returnGraph returnRan
 
             -- need this to fix up some graphs after other stuff changed
             -- displayGraphs <- mapM (GO.convertGeneralGraphToPhylogeneticGraph True) displayGraphs'
+            convertPar <- getParallelChunkTraverse
+            displayGraphs <- convertPar convertAction displayGraphs'
+
+            {-
             displayGraphs ←
                 getParallelChunkTraverse >>= \pTraverse →
                     convertAction `pTraverse` displayGraphs'
+            -}
 
             -- displayGraphs = fmap GO.ladderizeGraph $ fmap GO.renameSimpleGraphNodes displayGraphs'
             let numNetNodes = length $ fth4 (LG.splitVertexList reconciledGraph)
@@ -512,23 +532,43 @@ randomizedDistanceWagner simpleTreeOnly inGS inData leafNames distMatrix outgrou
             randomizedAdditionWagnerTreeList'' ∷ [TreeWithData] ← case refinement of
                 "none" → pure randomizedAdditionWagnerTreeList'
                 _ →
-                    getParallelChunkTraverse >>= \pTraverse →
-                        fmap fold $
-                            refineAction `pTraverse` randomizedAdditionWagnerTreeList'
+                    do
+                        refinePar <- getParallelChunkTraverse
+                        result <- refinePar refineAction randomizedAdditionWagnerTreeList'
+                        pure $ concat result
+                        {-
+                        getParallelChunkTraverse >>= \pTraverse →
+                            fmap fold $
+                                refineAction `pTraverse` randomizedAdditionWagnerTreeList'
+                        -}
 
             randomizedAdditionWagnerSimpleGraphList ←
-                getParallelChunkMap <&> \pMap →
-                    directedGraphAction `pMap` randomizedAdditionWagnerTreeList''
+                do
+                    directedPar <- getParallelChunkMap
+                    pure $ directedPar directedGraphAction randomizedAdditionWagnerTreeList''
+                    {-
+                    getParallelChunkMap <&> \pMap →
+                        directedGraphAction `pMap` randomizedAdditionWagnerTreeList''
+                    -}
 
             let resultingRandomizedGraphs
                     | not simpleTreeOnly =
-                        getParallelChunkTraverse >>= \pTraverse → traverseGraphAction `pTraverse` randomizedAdditionWagnerSimpleGraphList
+                        do
+                            traversePar <- getParallelChunkTraverse
+                            traversePar traverseGraphAction randomizedAdditionWagnerSimpleGraphList
+                            {- 
+                            getParallelChunkTraverse >>= \pTraverse → traverseGraphAction `pTraverse` randomizedAdditionWagnerSimpleGraphList
+                            -}
                     | otherwise =
                         let numTrees = length randomizedAdditionWagnerSimpleGraphList
                         in  do
+                                dicotPar <- getParallelChunkMap
+                                let simpleRDWagList = dicotPar dichotomizeAction randomizedAdditionWagnerSimpleGraphList
+                                {-
                                 simpleRDWagList ←
                                     getParallelChunkMap <&> \pMap →
                                         dichotomizeAction `pMap` randomizedAdditionWagnerSimpleGraphList
+                                -}
                                 pure $
                                     L.zip5
                                         simpleRDWagList
