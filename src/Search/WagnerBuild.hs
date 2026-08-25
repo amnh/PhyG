@@ -52,8 +52,14 @@ rasWagnerBuild inGS inData numReplicates =
             in  do
                     randomizedAdditionSequences ← replicateM numReplicates $ shuffleList leafIndexVec
                     logWith LogInfo ("\t\tBuilding " <> show numReplicates <> " character Wagner replicates" <> "\n")
+
+                    wagnerPar <- getParallelChunkTraverseBy U.strict2of5
+                    wagnerPar wagnerTreeAction $ zip randomizedAdditionSequences [0 .. numReplicates - 1]
+
+                    {-
                     getParallelChunkTraverseBy U.strict2of5 >>= \pTraverse →
                         pTraverse wagnerTreeAction $ zip randomizedAdditionSequences [0 .. numReplicates - 1]
+                    -}
 
 
 -- | wagnerTreeBuild' is a wrapper around wagnerTreeBuild to allow for better parallelization--(zipWith not doing so well?)
@@ -240,7 +246,7 @@ createSimpleAndDiagnose
     → LG.Node
     → (VertexCost, LG.LNode TL.Text, [LG.LEdge Double], LG.Edge)
     → PhyG PhylogeneticGraph
-createSimpleAndDiagnose inGS staticIA outgroupIndex inSimple leafDecGraph charInfoVV numLeaves inGraphEdits =
+createSimpleAndDiagnose inGS _ outgroupIndex inSimple leafDecGraph charInfoVV numLeaves inGraphEdits =
     let newSimpleGraph = createNewSimpleGraph outgroupIndex inSimple inGraphEdits
     in
     POSW.postDecorateTreeForList inGS False leafDecGraph charInfoVV numLeaves numLeaves newSimpleGraph

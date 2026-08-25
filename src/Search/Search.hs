@@ -166,9 +166,13 @@ search inArgs inGS inData inGraphList' =
                 threadInits = zip [1 ..] startGraphs
             -- If there are no input graphs--make some via distance
             -- resultList ← pooledMapConcurrently searchTimed threadInits
+            searchPar <- getParallelChunkTraverse
+            resultList <- searchPar searchTimed threadInits
+            {-
             resultList ←
                 getParallelChunkTraverse >>= \pTraverse →
                     searchTimed `pTraverse` threadInits
+            -}
             let (newGraphList, commentList) = unzip resultList
             let newCostList = L.group $ L.sort $ fmap getMinGraphListCost newGraphList
 

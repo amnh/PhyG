@@ -303,8 +303,8 @@ combineData (blockName, blockDataVV, charInfoV) =
         action ∷ V.Vector CharacterData → (V.Vector CharacterData, V.Vector CharInfo)
         action = combineBlockData charInfoV
     in  do
-            pTraverse ← getParallelChunkMap
-            let result = pTraverse action (V.toList blockDataVV)
+            actionPar ← getParallelChunkMap
+            let result = actionPar action (V.toList blockDataVV)
             let (newBlockDataLV, newCharInfoLV) = unzip result
             -- (newBlockDataLV, newCharInfoLV) = unzip (PU.seqParMap PU.myStrategyRDS (combineBlockData charInfoV) (V.toList blockDataVV)) -- `using` PU.myParListChunkRDS)
             pure (blockName, V.fromList newBlockDataLV, head newCharInfoLV)

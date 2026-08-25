@@ -1534,8 +1534,8 @@ getGraphCoevalConstraints inGraph =
                         let -- coevalAction ∷ (Eq a, Eq b, Show a) => LNode a -> ([LEdge b],[LEdge b])
                             coevalAction = getCoevalConstraintEdges inGraph
                         in  do
-                                pTraverse ← getParallelChunkMap
-                                let coevalResult = pTraverse coevalAction networkNodeList
+                                actionPar ← getParallelChunkMap
+                                let coevalResult = actionPar coevalAction networkNodeList
                                 pure coevalResult
 
 
@@ -1556,8 +1556,8 @@ getGraphCoevalConstraintsNodes inGraph =
                         let -- coevalAction ∷ (Eq a, Eq b, Show a) => LNode a -> ([LEdge b],[LEdge b])
                             coevalAction = getCoevalConstraintEdges inGraph
                         in  do
-                                pTraverse ← getParallelChunkMap
-                                let coevalResult = pTraverse coevalAction networkNodeList
+                                actionPar ← getParallelChunkMap
+                                let coevalResult = actionPar coevalAction networkNodeList
                                 let (edgeBeforeList, edgeAfterList) = unzip coevalResult
                                 -- let (edgeBeforeList, edgeAfterList) = unzip (PU.seqParMap PU.myStrategy   (getCoevalConstraintEdges inGraph) networkNodeList) --  `using`  PU.myParListChunkRDS)
                                 pure $ zip3 networkNodeList edgeBeforeList edgeAfterList
@@ -2270,8 +2270,13 @@ generateDisplayTreesRandom numDisplayTrees inGraph
     | otherwise =
         let clonedGraphs ∷ [Gr a b]
             clonedGraphs = replicate numDisplayTrees inGraph
-        in  getParallelChunkTraverse >>= \pTraverse →
+        in do 
+            clonePar <- getParallelChunkTraverse
+            clonePar randomlyResolveGraphToTree clonedGraphs
+            {-
+            getParallelChunkTraverse >>= \pTraverse →
                 randomlyResolveGraphToTree `pTraverse` clonedGraphs
+            -}
 
 
 {- |

@@ -45,8 +45,8 @@ getPairwiseDistances (nameVect, _, blockDataVect)
         in  do
                 maxDistance ← U.getMaxNumberObservations blockDataVect
 
-                pTraverse ← getParallelChunkMap
-                let pairListCosts = pTraverse pairwiseAction pairList
+                actionPar ← getParallelChunkMap
+                let pairListCosts = actionPar pairwiseAction pairList
 
                 let normFactorList = fmap (maxDistance /) $ fmap (max 1.0) pairListCosts
                 let initialFactorMatrix = S.fromLists $ replicate (V.length nameVect) $ replicate (V.length nameVect) 0.0
@@ -106,8 +106,8 @@ getPairwiseBlockDistance numVerts inData =
         action ∷ (Int, Int) → PhyG VertexCost
         action = getBlockDistance inData
     in  do
-            pTraverse ← getParallelChunkTraverse
-            pairListCosts <- pTraverse action pairList
+            actionPar ← getParallelChunkTraverse
+            pairListCosts <- actionPar action pairList
 
             let (iLst, jList) = unzip pairList
             let threeList = zip3 iLst jList pairListCosts

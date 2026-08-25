@@ -1965,10 +1965,14 @@ packNonAdditiveData inGS (nameVect, bvNameVect, blockDataVect) =
         action ∷ BlockData → PhyG BlockData
         action = recodeNonAddCharacters inGS
     in  do
+            {-
             newBlockDataList ←
                 getParallelChunkTraverse >>= \pTraverse →
                     action `pTraverse` V.toList blockDataVect
             -- PU.seqParMap (parStrategy $ strictParStrat inGS) (recodeNonAddCharacters inGS) (V.toList blockDataVect) --  could be an option to save memory etc
+            -}
+            actionPar <- getParallelChunkTraverse
+            newBlockDataList <- actionPar action (V.toList blockDataVect)
 
             pure (nameVect, bvNameVect, V.fromList newBlockDataList)
 
@@ -1989,9 +1993,13 @@ recodeNonAddCharacters inGS (nameBlock, charDataVV, charInfoV) =
         packAction = packNonAddPair inGS
     in  do
             -- bit pack the nonadd
+            packPar <- getParallelChunkTraverse 
+            result <- packPar packAction $ zip singleCharVectList (V.toList charInfoV)
+            {-
             result ←
                 getParallelChunkTraverse >>= \pTraverse →
                     packAction `pTraverse` zip singleCharVectList (V.toList charInfoV)
+            -}
             let (recodedSingleVecList, newCharInfoLL) = unzip result
             -- \$ zipWith (packNonAdd inGS) singleCharVectList (V.toList charInfoV)
 
@@ -2044,10 +2052,14 @@ packNonAdd inGS inCharDataV charInfo =
                     let (state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL) = binStateNumber stateNumDataPairList ([], [], [], [], [], [])
 
                     -- make new characters based on state size
+                    charPar <- getParallelChunkTraverse
+                    result <- charPar charAction $ zip [2, 4, 5, 8, 64, 128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]
+                    {-
                     result ←
                         getParallelChunkTraverse >>= \pTraverse →
                             charAction
                                 `pTraverse` zip [2, 4, 5, 8, 64, 128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]
+                    -}
                     let (newStateCharListList, newCharInfoList) = unzip result
                     -- (PU.seqParMap (parStrategy $ strictParStrat inGS)  (makeStateNCharacterTuple inGS charInfo) (zip [2,4,5,8,64,128] [state2CharL, state4CharL, state5CharL, state8CharL, state64CharL, state128CharL]))
 

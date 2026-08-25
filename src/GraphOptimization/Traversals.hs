@@ -406,9 +406,13 @@ updateGraphCostsComplexities inGS reportingData processedData rediagnoseWithRepo
                     if (reportingData == emptyProcessedData) || (not rediagnoseWithReportingData) || (not $ U.has4864PackedChars (thd3 processedData))
                         then -- trace ("\t\tCannot update cost with original data--skipping")
                             pure inGraphList
-                        else
+                        else do
+                            traversePar <- getParallelChunkTraverse
+                            traversePar (traverseAction . fst5) inGraphList
+                            {-
                             getParallelChunkTraverse >>= \pTraverse →
                                 (traverseAction . fst5) `pTraverse` inGraphList
+                            -}
 
                 logWith LogInfo ("\tFinalizing graph cost (updating NCM)" <> "\n")
                 pure updatedGraphList

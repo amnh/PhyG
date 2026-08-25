@@ -1247,8 +1247,16 @@ getMaxNumberObservations ∷ V.Vector BlockData → PhyG VertexCost
 getMaxNumberObservations blocKDataV
     | V.null blocKDataV = pure 0
     | otherwise =
+        let action :: BlockData → PhyG Int
+            action = getMaxBlockObs
+        in do
+            actionPar <- getParallelChunkTraverse
+            result <- actionPar getMaxBlockObs $ V.toList blocKDataV
+            pure $ sum $ fmap fromIntegral result
+        {-
         getParallelChunkTraverse >>= \pTraverse →
             fmap (fromIntegral . sum) . pTraverse getMaxBlockObs $ V.toList blocKDataV
+        -}
 
 
 -- | getMaxBlockObs gets the supremum over taxa number of characters in a block of data
@@ -1257,8 +1265,16 @@ getMaxBlockObs (_, charDataVV, _)
     | V.null charDataVV = pure 0
     | otherwise =
         let newListList = L.transpose $ V.toList $ fmap V.toList charDataVV
-        in  getParallelChunkTraverse >>= \pTraverse →
+            action :: [CharacterData] → PhyG Int
+            action = getSupCharLength
+        in do
+            actionPar <- getParallelChunkTraverse
+            result <- actionPar action newListList
+            pure $ sum result
+        {-
+        getParallelChunkTraverse >>= \pTraverse →
                 sum <$> pTraverse getSupCharLength newListList
+        -}
 
 
 {- | getMaxCharLength takes a vector of charcters and returns the supremum of observations for that character
@@ -1268,8 +1284,16 @@ getSupCharLength ∷ [CharacterData] → PhyG Int
 getSupCharLength charDataV
     | null charDataV = pure 0
     | otherwise =
+        let action :: CharacterData → Int
+            action = getMaxCharLength 
+        in do
+            actionPar <- getParallelChunkMap
+            let result = actionPar getMaxCharLength charDataV
+            pure $ maximum result
+        {-
         getParallelChunkMap <&> \pMap →
             maximum $ getMaxCharLength `pMap` charDataV
+        -}
 
 
 -- getFractionDynamic returns fraction (really of length) of dynamic charcters for adjustment to dynamicEpsilon

@@ -615,8 +615,8 @@ makeGraphTimeConsistent correct inGraph
             -- action :: (Show a,Eq a,Eq b) => (LG.LNode a, LG.LNode a) -> (LG.LNode a, LG.LNode a, [LG.LNode a], [LG.LNode a], [LG.LNode a], [LG.LNode a])
             action = LG.addBeforeAfterToPair inGraph
         in  do
-                pTraverse ← getParallelChunkMap
-                let coevalNodeConstraintList' = pTraverse action coevalNodeConstraintList
+                actionPar ← getParallelChunkMap
+                let coevalNodeConstraintList' = actionPar action coevalNodeConstraintList
                 -- PU.seqParMap PU.myStrategyRDS (LG.addBeforeAfterToPair inGraph) coevalNodeConstraintList -- `using`  PU.myParListChunkRDS
                 let coevalPairsToCompareList = getListPairs coevalNodeConstraintList'
                 let timeOffendingEdgeList = LG.getEdgesToRemoveForTime inGraph coevalPairsToCompareList
