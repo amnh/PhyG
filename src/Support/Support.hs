@@ -313,9 +313,13 @@ getResampleGraph inGS inData maximizeParallel resampleType replicates buildOptio
     in  -- majority ruke consensus if no args
         do
             -- the replicate to performs number replicates
-            resampledGraphList ← if maximizeParallel then
+            resampledGraphList ← if maximizeParallel then do
+                                    actionPar <- getParallelChunkTraverse
+                                    actionPar (const action) $ replicate replicates ()
+                                    {-
                                     getParallelChunkTraverse >>= \pTraverse →
                                         const action `pTraverse` replicate replicates ()
+                                    -}
                                  else do
                                     firstSetList <- mapM (makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph (graphsSteepest inGS)) [0 .. numSets - 1]
                                     remainderSetList <- makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph leftOver 0
@@ -349,8 +353,12 @@ makeDataGraphReplicates inGS inData resampleType buildOptions swapOptions jackFr
         action ∷ PhyG ReducedPhylogeneticGraph
         action = makeResampledDataAndGraph inGS inData resampleType buildOptions swapOptions jackFreq useCurrentGraph inGraph
     in do
+         actionPar <- getParallelChunkTraverse
+         actionPar (const action) $ replicate replicates ()
+         {-
          getParallelChunkTraverse >>= \pTraverse →
                 const action `pTraverse` replicate replicates ()
+        -}
 
 {- | makeResampledDataAndGraph takes paramters, resmaples data and find a graph based on search parameters
 returning the resampled graph
@@ -829,14 +837,24 @@ getGBTuples inGS inData maximizeParallel swapType sampleSize sampleAtRandom inTu
         SoftWired →
             let deleteAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
                 deleteAction = updateDeleteTuple inGS inData inGraph
-            in  getParallelChunkTraverse >>= \pTraverse →
+            in do
+                delPar <- getParallelChunkTraverse
+                delPar deleteAction swapTuples
+                {-
+                getParallelChunkTraverse >>= \pTraverse →
                     deleteAction `pTraverse` swapTuples
+                -}
         -- HardWired => move edge
         _ →
             let moveAction ∷ (Int, Int, NameBV, NameBV, VertexCost) → PhyG (Int, Int, NameBV, NameBV, VertexCost)
                 moveAction = updateMoveTuple inGS inData inGraph
-            in  getParallelChunkTraverse >>= \pTraverse →
+            in do
+                actionPar <- getParallelChunkTraverse
+                actionPar moveAction swapTuples
+                {-
+                getParallelChunkTraverse >>= \pTraverse →
                     moveAction `pTraverse` swapTuples
+                -}
 
 
 {- | updateDeleteTuple take a graph and and edge and delete a network edge (or retunrs tuple if not network)
@@ -942,9 +960,13 @@ performGBSwap inGS inData maximizeParallel swapType sampleSize sampleAtRandom in
                 let splitRejoinAction = splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inSimple breakEdgeList
 
                 -- generate tuple lists for each break edge parallelized at this level
-                tupleListList ← if maximizeParallel then
-                                    getParallelChunkTraverse >>= \pTraverse →
+                tupleListList ← if maximizeParallel then do
+                                    splitPar <- getParallelChunkTraverse
+                                    splitPar splitRejoinAction breakEdgeList
+
+                                    {-getParallelChunkTraverse >>= \pTraverse →
                                         splitRejoinAction `pTraverse` breakEdgeList
+                                    -}
                                 else mapM splitRejoinAction breakEdgeList
 
                 -- merge tuple lists--should all be in same order
@@ -993,9 +1015,13 @@ splitRejoinGB inGS inData swapType intProbAccept sampleAtRandom inTupleList inGr
         action = rejoinGB inGS inData intProbAccept sampleAtRandom inTupleList splitGraphList breakEdge
     in  do
             -- parallel at break level above
+            actionPar <- getParallelChunkTraverse
+            rejoinTupleListList <- actionPar action edgesToInvade
+            {-
             rejoinTupleListList ←
                 getParallelChunkTraverse >>= \pTraverse →
                     action `pTraverse` edgesToInvade
+            -}
 
             -- merge tuples
             pure $ mergeTupleLists rejoinTupleListList []
