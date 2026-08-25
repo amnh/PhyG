@@ -69,9 +69,13 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                             seedList ← getRandoms
                             -- mutate input graphs, produces number input, limited to popsize
                             let action = mutateGraph inGS inData maxNetEdges
+                            actionPar <- getParallelChunkTraverse
+                            mutatedGraphList' <- actionPar action (takeRandom (seedList !! 1) popSize inGraphList)
+                            {-
                             mutatedGraphList' ←
                                 getParallelChunkTraverse >>= \pTraverse →
                                     action `pTraverse` takeRandom (seedList !! 1) popSize inGraphList
+                            -}
 
                             let numShort = popSize - (length mutatedGraphList')
                             let randList = (randomIntList $ seedList !! 2)
@@ -80,9 +84,13 @@ geneticAlgorithm inGS inData doElitist maxNetEdges keepNum popSize generations g
                             -- adjust to correct populationsize if input number < popSize
                             mutatedGraphList ← case length mutatedGraphList' `compare` popSize of
                                 LT → do
+                                    actionPar <- getParallelChunkTraverse
+                                    additionalMutated <- actionPar action graphList
+                                    {-
                                     additionalMutated ←
                                         getParallelChunkTraverse >>= \pTraverse →
                                             action `pTraverse` graphList
+                                    -}
                                     pure $ mutatedGraphList' <> additionalMutated
                                 _ → pure mutatedGraphList'
 
