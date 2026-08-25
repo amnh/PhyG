@@ -1172,8 +1172,11 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                             else
                                                                 let action ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
                                                                     action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
-                                                                in  getParallelChunkTraverse >>= \pTraverse →
-                                                                        (action . fst5) `pTraverse` curGraphs
+                                                                in  do
+                                                                    actionPar <- getParallelChunkTraverse
+                                                                    actionPar (action . fst5) curGraphs
+                                                                    {-getParallelChunkTraverse >>= \pTraverse →
+                                                                        (action . fst5) `pTraverse` curGraphs-}
 
                                                     dataStringList <- 
                                                         let action :: (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
@@ -1266,8 +1269,11 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                             else
                                                                                                 let action ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
                                                                                                     action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
-                                                                                                in  getParallelChunkTraverse >>= \pTraverse →
-                                                                                                        (action . fst5) `pTraverse` curGraphs
+                                                                                                in  do
+                                                                                                    actionPar <- getParallelChunkTraverse
+                                                                                                    actionPar  (action . fst5) curGraphs
+                                                                                                    {-getParallelChunkTraverse >>= \pTraverse →
+                                                                                                        (action . fst5) `pTraverse` curGraphs-}
 
                                                                                     dataStringList <- 
                                                                                         let action :: (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
@@ -1302,8 +1308,11 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                     else
                                                                                                         let action ∷ SimpleGraph → PhyG ReducedPhylogeneticGraph
                                                                                                             action = TRAV.multiTraverseFullyLabelGraphReduced globalSettings processedData False False Nothing
-                                                                                                        in  getParallelChunkTraverse >>= \pTraverse →
-                                                                                                                (action . fst5) `pTraverse` curGraphs
+                                                                                                        in  do
+                                                                                                            actionPar <- getParallelChunkTraverse
+                                                                                                            actionPar (action . fst5) curGraphs
+                                                                                                            {-getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                (action . fst5) `pTraverse` curGraphs-}
 
                                                                                             dataStringList <- 
                                                                                                 let action :: (ReducedPhylogeneticGraph, Int) → PhyG [[String]]
@@ -1407,8 +1416,13 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                                                     else
                                                                                                                                         let action ∷ SimpleGraph → PhyG PhylogeneticGraph
                                                                                                                                             action = TRAV.multiTraverseFullyLabelGraph globalSettings processedData False False Nothing
-                                                                                                                                        in  getParallelChunkTraverse >>= \pTraverse →
+                                                                                                                                        in  do
+                                                                                                                                            actionPar <- getParallelChunkTraverse
+                                                                                                                                            actionPar (action . fst5) curGraphs
+                                                                                                                                            {-
+                                                                                                                                            getParallelChunkTraverse >>= \pTraverse →
                                                                                                                                                 pTraverse (action . fst5) curGraphs
+                                                                                                                                            -}
 
                                                                                                                             tntContentList' ← traverse (getTNTString globalSettings processedData) $ zip curGraphs' [0 .. length curGraphs' - 1]
                                                                                                                             let tntContentList = concat tntContentList'
