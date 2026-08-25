@@ -165,17 +165,28 @@ getBestDisplayCharBlockList inGS inData leafGraph rootIndex treeCounter currentB
                     -- PU.seqParMap (parStrategy $ lazyParStrat inGS) (postOrderTreeTraversal inGS inData leafGraph staticIA (Just rootIndex)) firstGraphList
 
                     -- do rerooting of character trees
-                    multiTraverseTreeList ←
+                    {-multiTraverseTreeList ←
                         getParallelChunkTraverse >>= \pTraverse →
                             displayAction `pTraverse` outgroupDiagnosedTreeList
+                    -}
+                    multiTraversePar <- getParallelChunkTraverse
+                    multiTraverseTreeList <- multiTraversePar displayAction outgroupDiagnosedTreeList
 
                     -- extract triple (relevent info)--sets if multitraverse (reroot characters) or not
+                    {-
                     multiTraverseTripleList ←
                         getParallelChunkMap <&> \pMap →
                             pMap tripleAction $
                                 if multiTraverseCharacters inGS
                                     then multiTraverseTreeList
                                     else outgroupDiagnosedTreeList
+                    -}
+                    let treeList = if multiTraverseCharacters inGS 
+                        then multiTraverseTreeList
+                        else outgroupDiagnosedTreeList
+
+                    triplePar <- getParallelChunkMap
+                    let multiTraverseTripleList = triplePar tripleAction treeList
 
                     -- choose better vs currentBestTriple
                     -- this can be folded for a list > 2
@@ -333,7 +344,10 @@ getDisplayBasedRerootSoftWired' ∷ GlobalSettings → GraphType → LG.Node →
 getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a, b, decGraph, _, _, f) =
     if LG.isEmpty (fst6 inPhyloGraph)
         then pure inPhyloGraph
-        else do
+        else 
+            let rerootAction :: (DecoratedGraph, V.Vector DecoratedGraph, V.Vector CharInfo) -> PhyG (DecoratedGraph, V.Vector DecoratedGraph, VertexCost)
+                rerootAction = rerootBlockCharTrees' inGS rootIndex
+            in do
             -- update with pass to retrieve vert data from resolution data
             -- Trfee allready has data in vertData field
             (inSimpleGraph, _, inDecGraph, inBlockGraphV', inBlockCharGraphVV', charInfoVV) ←
@@ -351,10 +365,14 @@ getDisplayBasedRerootSoftWired' inGS inGraphType rootIndex inPhyloGraph@(a, b, d
                         else (fmap (fmap LG.removeDuplicateEdges) inBlockGraphV', fmap (fmap LG.removeDuplicateEdges) inBlockCharGraphVV')
 
             -- reroot block character trees
+            {-
             rerootResult ←
                 getParallelChunkTraverse >>= \pTraverse →
                     pTraverse (rerootBlockCharTrees' inGS rootIndex) . zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) $
                         V.toList charInfoVV
+            -}
+            rerootPar <- getParallelChunkTraverse
+            rerootResult <- rerootPar rerootAction (zip3 (V.toList $ fmap head inBlockGraphV) (V.toList inBlockCharGraphVV) (V.toList charInfoVV))
 
             let (newBlockDisplayTreeVect, newBlockCharGraphVV, blockCostV) = unzip3 rerootResult
             let newCononicalGraph = NEW.backPortBlockTreeNodesToCanonicalGraph inDecGraph (V.fromList newBlockDisplayTreeVect)
@@ -1423,9 +1441,14 @@ getW15NetPenaltyFull blockInfo inGS inData@(nameVect, _, _) startVertex inGraph 
                                         -- getParallelChunk <&> \pMap →
                                         --    postOrderAction `pMap` blockTreeList
 
+                                    {-
                                     multiTraverseTreeList ←
                                         getParallelChunkTraverse >>= \pTraverse →
                                             displayAction `pTraverse` outgroupRootedList
+                                    -}
+                                    multiTraversePar <- getParallelChunkTraverse
+                                    multiTraverseTreeList <- multiTraversePar displayAction outgroupRootedList
+
 
                                     lowestCostDisplayTree ← head <$> GO.selectGraphsFull Best (outgroupIndex inGS) 1 0.0 multiTraverseTreeList
 

@@ -330,9 +330,9 @@ performSearch initialSeed inputFilePath = do
     let numBlocks = Vect.length $ thd3 optimizedData
 
     if numBlocks == 1 && ((graphType initialGlobalSettings) == SoftWired) then
-        logWith LogWarn $ "\nCannot perform softwired network analysis on a single data block.  There must be multiple data blocks to allow for potentially multiple display trees.\n"
+        logWith LogWarn $ "Cannot perform softwired network analysis on a single data block.  There must be multiple data blocks to allow for potentially multiple display trees.\n"
     else if numBlocks > 1 && ((graphType initialGlobalSettings) == Tree) then
-        logWith LogWarn "\nIf the graphtype is restricted to 'Tree' (i.e. not Softwired or Hardwired or transforms to/from), reblock all data to a single block for maximum parallel efficiency.\n"
+        logWith LogWarn "If the graphtype is restricted to 'Tree' (i.e. not Softwired or Hardwired or transforms to/from), reblock all data to a single block for maximum parallel efficiency.\n"
     else 
         logWith LogInfo ""
 

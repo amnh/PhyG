@@ -301,7 +301,8 @@ Executable phyg
     -- Hence we explicitly disable it and hope that it removes segfaults on some architechtures.
     -- -fno-polymorphic-specialisation
 
---  Ghc-Prof-Options: 
+    --  Ghc-Prof-Options: 
+    
 
   If flag(Use-LLVM)
     GHC-Options:
