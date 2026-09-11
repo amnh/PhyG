@@ -234,6 +234,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         supportGraphList
                         otherCommands
                         isFirst
+        
         Search → do
             (wallSec, elapsedSeconds, output) ←
                 timeOpCPUWall $
@@ -369,7 +370,6 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         val → error $ "Command " <> show val <> " not recognized/implemented"
-
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
 makeSearchRecord

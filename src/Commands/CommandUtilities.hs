@@ -51,7 +51,8 @@ import Utilities.LocalGraph qualified as LG
 import Utilities.Utilities qualified as U
 -- import Debug.Trace
 
-{- relabelEdgeComplexity relabels decorated graphs with edge complexity indices
+
+{- | relabelEdgeComplexity relabels decorated graphs with edge complexity indices
 -}
 relabelEdgeComplexity :: GlobalSettings -> ProcessedData -> DecoratedGraph -> DecoratedGraph
 relabelEdgeComplexity inGS inData inGraph =
