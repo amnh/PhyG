@@ -87,7 +87,7 @@ processSearchFields inStringListList =
             in  if head firstList /= "Search"
                     then firstList : processSearchFields (tail inStringListList)
                     else
-                        let newHeader = ["Iteration", "Search Type", "Delta", "Min Cost out", "CPU time (secs)"]
+                        let newHeader = ["Iteration", "Search Type", "Delta", "Min Cost out", "CPU time (secs)", "Wall time (secs)"]
                             instanceSplitList = LS.splitOn "*" (L.last firstList)
                             hitsMinimum = filter (/= '*') $ last $ LS.splitOn "," (L.last firstList)
                             (instanceStringListList, searchBanditListList) = unzip $ fmap processSearchInstance instanceSplitList -- (L.last firstList)
@@ -268,10 +268,10 @@ special processing for notACommand that contains info for initial data and graph
 showSearchFields ∷ SearchData → [String]
 showSearchFields sD =
     let inInstruction = instruction sD
-        (instructionString, durationString, commentString') =
+        (instructionString, durationString, durationWallString, commentString') =
             if inInstruction /= NotACommand
-                then (show $ instruction sD, show ((fromIntegral $ duration sD) / 1000 ∷ Double), commentString sD)
-                else (commentString sD, show ((fromIntegral $ duration sD) / 1000000000000 ∷ Double), "No Comment")
+                then (show $ instruction sD, show ((fromIntegral $ duration sD) / 1000 ∷ Double), show ((fromIntegral $ durationWall sD) / 1000 ∷ Double),commentString sD)
+                else (commentString sD, show ((fromIntegral $ duration sD) / 1000000000000 ∷ Double), show ((fromIntegral $ durationWall sD) / 1000000000000 ∷ Double), "No Comment")
     in  [ instructionString
         , unwords $ (showArg <$> arguments sD)
         , show $ minGraphCostIn sD
@@ -281,6 +281,7 @@ showSearchFields sD =
         , show $ maxGraphCostOut sD
         , show $ numGraphsOut sD
         , durationString
+        , durationWallString
         , commentString'
         ]
     where

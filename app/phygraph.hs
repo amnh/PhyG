@@ -338,6 +338,7 @@ performSearch initialSeed inputFilePath = do
 
     -- Get CPUTime so far ()data input and processing
     dataCPUTime ← liftIO getCPUTime
+    dataWallTime ← liftIO getCurrentTime
 
     -- Diagnose any input graphs
     let action = T.multiTraverseFullyLabelGraphReduced initialGlobalSettings optimizedData True True Nothing
@@ -352,17 +353,23 @@ performSearch initialSeed inputFilePath = do
     -}
 
     -- Get CPUTime for input graphs
-    afterGraphDiagnoseTCPUTime ← liftIO getCPUTime
-    let (inputGraphTime, inGraphNumber, minOutCost, maxOutCost) = case inputGraphList of
-            [] → (0, 0, infinity, infinity)
+    afterGraphDiagnoseCPUTime ← liftIO getCPUTime
+    afterGraphDiagnoseWallTime ← liftIO getCurrentTime
+    
+    let picoMagnitude = 1000000000000.0 ∷ Double
+
+    let (inputGraphTime, inputGraphWallTime, inGraphNumber, minOutCost, maxOutCost) = case inputGraphList of
+            [] → (0, 0, 0, infinity, infinity)
             _ →
-                ( fromIntegral afterGraphDiagnoseTCPUTime - fromIntegral dataCPUTime
+                ( fromIntegral afterGraphDiagnoseCPUTime - fromIntegral dataCPUTime
+                , fromIntegral (floor $ (picoMagnitude * (realToFrac (nominalDiffTimeToSeconds (diffUTCTime afterGraphDiagnoseWallTime dataWallTime))) :: Double))
+                --, fromIntegral afterGraphDiagnoseWallTime - fromIntegral dataWallTime
                 , length inputGraphList
                 , minimum $ fmap snd5 inputGraphList
                 , maximum $ fmap snd5 inputGraphList
                 )
 
-    let inputProcessingData = emptySearchData{commentString = "Input and data processing", duration = fromIntegral dataCPUTime}
+    let inputProcessingData = emptySearchData{commentString = "Input and data processing", duration = fromIntegral dataCPUTime, durationWall = fromIntegral (floor $ (picoMagnitude * (realToFrac (nominalDiffTimeToSeconds (diffUTCTime dataWallTime timeCDBegin))) :: Double))}
     let inputGraphProcessing =
             emptySearchData
                 { minGraphCostOut = minOutCost
@@ -370,6 +377,7 @@ performSearch initialSeed inputFilePath = do
                 , numGraphsOut = inGraphNumber
                 , commentString = "Input graph processing"
                 , duration = inputGraphTime
+                , durationWall = inputGraphWallTime
                 }
 
     -- Execute Following Commands (searches, reports etc)

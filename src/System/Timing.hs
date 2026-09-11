@@ -103,7 +103,9 @@ timeOpCPUWall ioa = do
     a ← force <$> ioa
     ct2 ← liftIO getCPUTime
     wt2 ← liftIO getCurrentTime
-    let wt = (CPUTime . fromIntegral) (1000000000000 * (floor (nominalDiffTimeToSeconds (diffUTCTime wt2 wt1))) ∷ Integer)
+    let picoMagnitude = 1000000000000.0 ∷ Double
+    --let wt = (CPUTime . fromIntegral) (picoMagnitude * (floor (nominalDiffTimeToSeconds (diffUTCTime wt2 wt1))) ∷ Double)
+    let wt = (CPUTime . fromIntegral) (floor $ (picoMagnitude * (realToFrac (nominalDiffTimeToSeconds (diffUTCTime wt2 wt1))) :: Double))
     let ct = CPUTime . fromIntegral $ ct2 - ct1
     pure (wt, ct, a)
 

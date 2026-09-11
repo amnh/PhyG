@@ -79,12 +79,12 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
         Run → error ("Run command should already have been processed: " <> show (firstOption, firstArgs))
         -- other commands
         Build → do
-            (elapsedSeconds, newGraphList) ←
-                timeOp $
+            (wallSec, elapsedSeconds, newGraphList) ←
+                timeOpCPUWall $
                     B.buildGraph firstArgs globalSettings processedData
             
             --newGraphList ← newGraphList'
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) (fromIntegral $ toMilliseconds wallSec) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
 
             executeCommands
@@ -100,12 +100,12 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         Refine → do
-            (elapsedSeconds, newGraphList) ←
-                timeOp $ 
+            (wallSec, elapsedSeconds, newGraphList) ←
+                timeOpCPUWall $ 
                     REF.refineGraph firstArgs globalSettings processedData curGraphs
             --newGraphList ← newGraphList'
             
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) (fromIntegral $ toMilliseconds wallSec) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
 
             executeCommands
@@ -121,11 +121,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         Fuse → do
-            (elapsedSeconds, newGraphList) ←
-                timeOp $
+            (wallSec, elapsedSeconds, newGraphList) ←
+                timeOpCPUWall $
                     REF.fuseGraphs firstArgs globalSettings processedData curGraphs
 
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) (fromIntegral $ toMilliseconds wallSec) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
 
             executeCommands
@@ -235,8 +235,8 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         otherCommands
                         isFirst
         Search → do
-            (elapsedSeconds, output) ←
-                timeOp $
+            (wallSec, elapsedSeconds, output) ←
+                timeOpCPUWall $
                     S.search firstArgs globalSettings processedData curGraphs
             let searchInfo =
                     makeSearchRecord
@@ -245,6 +245,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         curGraphs
                         (fst output)
                         (fromIntegral $ toMilliseconds elapsedSeconds)
+                        (fromIntegral $ toMilliseconds wallSec)
                         (concatMap (L.intercalate "\n") (snd output))
             let newSearchData = searchInfo : searchData globalSettings
             executeCommands
@@ -260,10 +261,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         Select → do
-            (elapsedSeconds, newGraphList) ←
-                timeOp $
+            (wallSec, elapsedSeconds, newGraphList) ←
+                timeOpCPUWall $
                     GO.selectPhylogeneticGraphReduced firstArgs (outgroupIndex globalSettings) curGraphs
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) (fromIntegral $ toMilliseconds wallSec) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             let typeSelected = case firstArgs of
                     [] → "best"
@@ -294,7 +295,7 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                         -- TODO should be parallel
                         mapM (TRAV.multiTraverseFullyLabelGraphReduced newGlobalSettings newProcessedData True True Nothing) $ fst5 <$> curGraphs
 
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList 0 "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList 0 0 "No Comment"
             let newSearchData = searchInfo : searchData newGlobalSettings
 
             executeCommands
@@ -310,10 +311,10 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 False
         Swap → do
-            (elapsedSeconds, newGraphList) ←
-                timeOp $
+            (wallSec, elapsedSeconds, newGraphList) ←
+                timeOpCPUWall $
                     REF.swapMaster firstArgs globalSettings processedData curGraphs
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphList (fromIntegral $ toMilliseconds elapsedSeconds) (fromIntegral $ toMilliseconds wallSec) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             executeCommands
                 (globalSettings{searchData = newSearchData})
@@ -328,13 +329,13 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         Support → do
-            (elapsedSeconds, newSupportGraphList) ←
-                timeOp $
+            (wallSec, elapsedSeconds, newSupportGraphList) ←
+                timeOpCPUWall $
                     SUP.supportGraph firstArgs globalSettings processedData curGraphs
 
             --newSupportGraphList ← newSupportGraphList'
             let searchInfo =
-                    makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+                    makeSearchRecord firstOption firstArgs curGraphs newSupportGraphList (fromIntegral $ toMilliseconds elapsedSeconds) (fromIntegral $ toMilliseconds wallSec) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             executeCommands
                 (globalSettings{searchData = newSearchData})
@@ -349,11 +350,11 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
                 otherCommands
                 isFirst
         Transform → do
-            (elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) ←
-                timeOp $
+            (wallSec, elapsedSeconds, (newGS, newOrigData, newProcessedData, newGraphs)) ←
+                timeOpCPUWall $
                     TRANS.transform firstArgs globalSettings origProcessedData processedData curGraphs
 
-            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphs (fromIntegral $ toMilliseconds elapsedSeconds) "No Comment"
+            let searchInfo = makeSearchRecord firstOption firstArgs curGraphs newGraphs (fromIntegral $ toMilliseconds elapsedSeconds) (fromIntegral $ toMilliseconds wallSec) "No Comment"
             let newSearchData = searchInfo : searchData globalSettings
             executeCommands
                 (newGS{searchData = newSearchData})
@@ -372,8 +373,8 @@ executeCommands globalSettings excludeRename numInputFiles crossReferenceString 
 
 -- | makeSearchRecord take sbefore and after data of a commend and returns SearchData record
 makeSearchRecord
-    ∷ Instruction → [Argument] → [ReducedPhylogeneticGraph] → [ReducedPhylogeneticGraph] → Int → String → SearchData
-makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime comment =
+    ∷ Instruction → [Argument] → [ReducedPhylogeneticGraph] → [ReducedPhylogeneticGraph] → Int → Int → String → SearchData
+makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime wallTime comment =
     SearchData
         { instruction = firstOption
         , arguments = firstArgs
@@ -397,6 +398,7 @@ makeSearchRecord firstOption firstArgs curGraphs newGraphList elapsedTime commen
         , numGraphsOut = length newGraphList
         , commentString = comment
         , duration = elapsedTime
+        , durationWall = wallTime
         }
 
 
@@ -1386,6 +1388,7 @@ reportCommand globalSettings argList excludeRename numInputFiles crossReferenceS
                                                                                                             , "Max cost out"
                                                                                                             , "Num graphs out"
                                                                                                             , "CPU time (secs)"
+                                                                                                            , "Wall time (secs)"
                                                                                                             , "Comment"
                                                                                                             ]
                                                                                                     in  pure (baseData <> CSV.genCsvFile (charInfoFields : dataString), outfileName, writeMode)

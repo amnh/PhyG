@@ -238,6 +238,7 @@ data SearchData = SearchData
     , numGraphsOut ∷ Int
     , commentString ∷ String
     , duration ∷ Int
+    , durationWall :: Int
     }
     deriving stock (Show, Eq)
 
@@ -781,6 +782,7 @@ emptySearchData =
         , numGraphsOut = 0
         , commentString = []
         , duration = 0
+        , durationWall = 0
         }
 
 
