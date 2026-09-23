@@ -90,13 +90,17 @@ moveAllNetEdges inGS inData netParams counter (curBestGraphList, curBestGraphCos
                     counter
                     (curBestGraphList, curBestGraphCost)
         in  do
-                movePar <- getParallelChunkTraverse
-                moveResult <- movePar action (zip saParamList $ replicate annealingRounds inPhyloGraphList)
-                {-
-                moveResult ←
-                    getParallelChunkTraverse >>= \pTraverse →
-                        pTraverse action . zip saParamList $ replicate annealingRounds inPhyloGraphList
-                -}
+                moveResult <- 
+                    if (maxParallel netParams) then do
+                        movePar <- getParallelChunkTraverse
+                        movePar action (zip saParamList $ replicate annealingRounds inPhyloGraphList)
+                    else mapM action (zip saParamList $ replicate annealingRounds inPhyloGraphList)
+                        {-
+                        moveResult ←
+                            getParallelChunkTraverse >>= \pTraverse →
+                                pTraverse action . zip saParamList $ replicate annealingRounds inPhyloGraphList
+                        -}
+
                 let (annealRoundsList, counterList) = unzip moveResult
                 GO.selectGraphs Best (outgroupIndex inGS) (netKeepNum netParams) 0 (fold annealRoundsList) <&> \x → (x, sum counterList)
 
@@ -159,8 +163,10 @@ moveAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraphCo
                             | otherwise = pure
                      in permutationOf edges
 
-                deletePar <- getParallelChunkTraverse
-                deleteResult <- deletePar (action . LG.toEdge) netEdgeList
+                deleteResult <- if (maxParallel netParams) then do
+                                    deletePar <- getParallelChunkTraverse
+                                    deletePar (action . LG.toEdge) netEdgeList
+                                else mapM (action . LG.toEdge) netEdgeList
                 {-
                 deleteResult ←
                     getParallelChunkTraverse >>= \pTraverse →
@@ -777,8 +783,11 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                     logWith LogInfo ("\tNetwork edges to delete: " <> (show $ length networkEdgeList) <> "\n")
                     
                     --could shuffle edge list if not doain all at once--but are now
-                    heurPar <- getParallelChunkTraverse
-                    heuristicGraphPairList <- heurPar heuristicAction networkEdgeList
+                    heuristicGraphPairList <- 
+                        if maxParallel netParams then do
+                            heurPar <- getParallelChunkTraverse
+                            heurPar heuristicAction networkEdgeList
+                        else mapM heuristicAction networkEdgeList
                     {-
                     heuristicGraphPairList <- 
                         getParallelChunkTraverse >>= \pTraverse →
@@ -813,8 +822,11 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                     else do
                         -- list should always have graphs since deleting always yields a valid graph
                         -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
-                        diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-                        checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
+                        checkedGraphCosts <- 
+                            if maxParallel netParams then do
+                                diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
+                                diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
+                            else mapM diagnoseAction (fmap snd graphsToBeEvaluatedPair)
 
                         {- This section to report heuristic and rediagnosed costs later for analyhsis--should be removed when not needed -}
                         if reportHeuristics inGS then do
@@ -1539,8 +1551,11 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
 
 
                             -- get heuristic costs and simple graphs
-                            heurPar <- getParallelChunkTraverse
-                            heurCostSimpleGraphPairList <- heurPar heuristicAction candidateNetworkEdgeList'
+                            heurCostSimpleGraphPairList <- 
+                                if maxParallel netParams then do
+                                    heurPar <- getParallelChunkTraverse
+                                    heurPar heuristicAction candidateNetworkEdgeList'
+                                else mapM heuristicAction candidateNetworkEdgeList'
                             {-
                             heurCostSimpleGraphPairList <- 
                                 getParallelChunkTraverse >>= \pTraverse →
@@ -1576,8 +1591,11 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
 
                             else do
                                     -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
-                                    diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
-                                    checkedGraphCosts <- diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
+                                    checkedGraphCosts <- 
+                                        if maxParallel netParams then do
+                                            diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
+                                            diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
+                                        else mapM diagnoseAction (fmap snd graphsToBeEvaluatedPair)
 
 
                                     {- This section to report heuristic and rediagnosed costs later for analyhsis--should be removed when not needed -}

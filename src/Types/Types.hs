@@ -747,7 +747,8 @@ data NetEditType = NetAdd | NetDelete | NetAddDelete | NetMove | NetNothing
 
 -- | netParam type for net edit parameers
 data NetParams = NetParams
-    { netRandom ∷ Bool -- randomized adding deleting edges
+    { maxParallel :: Bool -- maximize paralle or not to lower memory footprint
+    , netRandom ∷ Bool -- randomized adding deleting edges
     , netCheckHeuristic :: HeuristicCheck -- for reoptimizing graphs after heuristic costs
     , netMaxEdges ∷ Int -- maximum number of networkNodes/Edges (edges 2x nodes, but add nodes)
     , netKeepNum ∷ Int -- number equally costly solutions to keep

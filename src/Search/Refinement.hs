@@ -549,6 +549,21 @@ netEdgeMaster inArgs inGS inData inGraphList'
 
                 -- inSupport = any ((== "support") . fst) lcArgList
 
+                -- Default maximumParallel True, False to reduce memory footprint
+                -- if on will use more parallel but at memory footprint cost
+                maxParallelValue = filter ((== "maxparallel") . fst) lcArgList
+                maximizeParallel'  
+                        | length maxParallelValue > 1 =
+                                    errorWithoutStackTrace ("Multiple maxParallel specifications in network edits--can have only one: " <> show inArgs)
+                        | null maxParallelValue = Just "true"
+                        | null (snd $ head maxParallelValue) = errorWithoutStackTrace ("MaxParallel network edits option must be 'True' or 'False'" <> show inArgs)
+                        | otherwise = readMaybe (show $ snd $ head maxParallelValue) ∷ Maybe String
+                --logWith LogInfo $ "MAxParallel->: " <> (show (maxParallelValue, maximizeParallel')) <> "\n"
+                maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("MaxParallel network edits option must be 'True' or 'False'" <> show inArgs)
+                                       else if fromJust maximizeParallel'  == "true" then True
+                                       else if fromJust maximizeParallel'  == "false" then False
+                                       else errorWithoutStackTrace ("MaxParallel network edits option must be 'True' or 'False'" <> show inArgs)
+
                 multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
                 doMultiTraverse'  
                     | length multiTraverseValue > 1 =
@@ -631,7 +646,8 @@ netEdgeMaster inArgs inGS inData inGraphList'
 
                 -- put options in NetParams
                 netParams = NetParams
-                            { netRandom = doRandomOrder
+                            { maxParallel =  maximizeParallel
+                            , netRandom = doRandomOrder
                             , netCheckHeuristic = checkHeuristicNet
                             , netMaxEdges = fromJust maxNetEdges
                             , netKeepNum = fromJust keepNum

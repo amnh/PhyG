@@ -189,6 +189,7 @@ netEdgeArgList =
     , "level"
     , "maxchanges"
     , "maxnetedges"
+    , "maxparallel"
     , "multitraverse"
     , "netadd"
     , "netadddel"
