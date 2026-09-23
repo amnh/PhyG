@@ -91,7 +91,7 @@ moveAllNetEdges inGS inData netParams counter (curBestGraphList, curBestGraphCos
                     (curBestGraphList, curBestGraphCost)
         in  do
                 moveResult <- 
-                    if (maxParallel netParams) then do
+                    if (maxNetParallel netParams) then do
                         movePar <- getParallelChunkTraverse
                         movePar action (zip saParamList $ replicate annealingRounds inPhyloGraphList)
                     else mapM action (zip saParamList $ replicate annealingRounds inPhyloGraphList)
@@ -163,7 +163,7 @@ moveAllNetEdges' inGS inData netParams counter (curBestGraphList, curBestGraphCo
                             | otherwise = pure
                      in permutationOf edges
 
-                deleteResult <- if (maxParallel netParams) then do
+                deleteResult <- if (maxNetParallel netParams) then do
                                     deletePar <- getParallelChunkTraverse
                                     deletePar (action . LG.toEdge) netEdgeList
                                 else mapM (action . LG.toEdge) netEdgeList
@@ -784,7 +784,7 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                     
                     --could shuffle edge list if not doain all at once--but are now
                     heuristicGraphPairList <- 
-                        if maxParallel netParams then do
+                        if maxNetParallel netParams then do
                             heurPar <- getParallelChunkTraverse
                             heurPar heuristicAction networkEdgeList
                         else mapM heuristicAction networkEdgeList
@@ -823,7 +823,7 @@ deleteEachNetEdge inGS inData netParams force inSimAnnealParams inPhyloGraph =
                         -- list should always have graphs since deleting always yields a valid graph
                         -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
                         checkedGraphCosts <- 
-                            if maxParallel netParams then do
+                            if maxNetParallel netParams then do
                                 diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                                 diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
                             else mapM diagnoseAction (fmap snd graphsToBeEvaluatedPair)
@@ -1552,7 +1552,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
 
                             -- get heuristic costs and simple graphs
                             heurCostSimpleGraphPairList <- 
-                                if maxParallel netParams then do
+                                if maxNetParallel netParams then do
                                     heurPar <- getParallelChunkTraverse
                                     heurPar heuristicAction candidateNetworkEdgeList'
                                 else mapM heuristicAction candidateNetworkEdgeList'
@@ -1592,7 +1592,7 @@ insertEachNetEdgeHeuristicGather inGS inData netParams preDeleteCost inSimAnneal
                             else do
                                     -- rediagnose some fraction of returned simple graphs--lazy in cost so return only thos need nlater
                                     checkedGraphCosts <- 
-                                        if maxParallel netParams then do
+                                        if maxNetParallel netParams then do
                                             diagnoseActionPar <- (getParallelChunkTraverseBy snd5)
                                             diagnoseActionPar diagnoseAction (fmap snd graphsToBeEvaluatedPair)
                                         else mapM diagnoseAction (fmap snd graphsToBeEvaluatedPair)

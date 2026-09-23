@@ -729,6 +729,7 @@ data SwapParams = SwapParams
     , joinType ∷ JoinType -- Union pruning on or off
     , keepNum ∷ Int -- number equally costly solutions to keep
     , maxMoveEdgeDist ∷ Int -- maximum rejoin distance from initial mplacement
+    , maxSwapParallel :: Bool -- maximize parallel  or not to lower memory footprint
     , returnMutated ∷ Bool -- return changed graphs for simlated annealing, genetic algorithm
     , sortEdgesSplitCost :: Bool -- sort edges based on split cost-- greatest delta first
     , splitParallel :: Bool -- when splittting graph--do spliots in parallel or sequenctial
@@ -747,7 +748,7 @@ data NetEditType = NetAdd | NetDelete | NetAddDelete | NetMove | NetNothing
 
 -- | netParam type for net edit parameers
 data NetParams = NetParams
-    { maxParallel :: Bool -- maximize paralle or not to lower memory footprint
+    { maxNetParallel :: Bool -- maximize parallel  or not to lower memory footprint
     , netRandom ∷ Bool -- randomized adding deleting edges
     , netCheckHeuristic :: HeuristicCheck -- for reoptimizing graphs after heuristic costs
     , netMaxEdges ∷ Int -- maximum number of networkNodes/Edges (edges 2x nodes, but add nodes)

@@ -85,9 +85,11 @@ swapV2 swapParams inGS inData inCounter curBestGraphList saParams =
 
                 in do
                 -- simulated annealing/drift
-                -- spawn rounds 
-                actionPar <- getParallelChunkTraverse 
-                annealGraphPairList <- actionPar action (L.replicate numberInstances (head curBestGraphList))
+                -- spawn rounds
+                annealGraphPairList <- if maxSwapParallel swapParams then do 
+                                            actionPar <- getParallelChunkTraverse 
+                                            actionPar action (L.replicate numberInstances (head curBestGraphList))
+                                        else mapM action (L.replicate numberInstances (head curBestGraphList))
 
                 -- collect results
                 let (annealGraphList, counterList) = unzip annealGraphPairList
@@ -280,8 +282,10 @@ swapNaive swapParams inGS inData inCounter splitCounter graphsToSwap curBestGrap
                 rejoinResult' <- if (splitParallel swapParams) && (isNothing saParams) then do
                                 -- splitAction ::  LG.LEdge EdgeInfo → PhyG (DecoratedGraph, VertexCost, LG.Node, LG.Node, LG.Node)
                                     let splitAction = doASplit swapParams inGS inData (doIA swapParams) nonExactCharacters inGraphNetPenaltyFactor fullFirstGraph
-                                    splitActionPar <- (getParallelChunkTraverseBy snd5)
-                                    resultListP <- splitActionPar splitAction edgeList
+                                    resultListP <- if maxSwapParallel swapParams then do
+                                                        splitActionPar <- (getParallelChunkTraverseBy snd5)
+                                                        splitActionPar splitAction edgeList
+                                                    else mapM splitAction edgeList
 
                                     -- this filter for malformed graphs from split graph
                                     -- can happen with networks when there are lots of network edges

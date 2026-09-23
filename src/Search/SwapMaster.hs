@@ -56,6 +56,21 @@ swapMaster inArgs inGS inData inGraphListInput =
                     , lcArgList
                     ) = getSwapParams inGS inArgs
 
+                -- Default maximumParallel True, False to reduce memory footprint
+                -- if on will use more parallel but at memory footprint cost
+                maxSwapParallelValue = filter ((== "maxSwapParallel") . fst) lcArgList
+                maximizeParallel'  
+                        | length maxSwapParallelValue > 1 =
+                                    errorWithoutStackTrace ("Multiple maxSwapParallel specifications in swap--can have only one: " <> show inArgs)
+                        | null maxSwapParallelValue = Just "true"
+                        | null (snd $ head maxSwapParallelValue) = errorWithoutStackTrace ("maxSwapParallel swapoption must be 'True' or 'False'" <> show inArgs)
+                        | otherwise = readMaybe (show $ snd $ head maxSwapParallelValue) ∷ Maybe String
+                --logWith LogInfo $ "maxSwapParallel->: " <> (show (maxSwapParallelValue, maximizeParallel')) <> "\n"
+                maximizeParallel = if isNothing maximizeParallel' then errorWithoutStackTrace ("maxSwapParallel nswap option must be 'True' or 'False'" <> show inArgs)
+                                       else if fromJust maximizeParallel'  == "true" then True
+                                       else if fromJust maximizeParallel'  == "false" then False
+                                       else errorWithoutStackTrace ("maxSwapParallel swap must be 'True' or 'False'" <> show inArgs)
+
                 -- local multiTraverse control option
                 -- Default MultiTraverse global setting--need to rediagnose if set differnet from swap or global option
                 multiTraverseValue = filter ((== "multitraverse") . fst) lcArgList
@@ -161,6 +176,7 @@ swapMaster inArgs inGS inData inGraphListInput =
                                     , sortEdgesSplitCost = sortEdgesSplitCost
                                     , keepNum = (fromJust keepNum)
                                     , maxMoveEdgeDist = maxMoveEdgeDist
+                                    , maxSwapParallel = maximizeParallel
                                     , splitParallel = parallelSplit
                                     , steepest = doSteepest
                                     , joinAlternate = False -- join prune alternates--turned off for now

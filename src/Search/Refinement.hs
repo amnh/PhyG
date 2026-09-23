@@ -646,7 +646,7 @@ netEdgeMaster inArgs inGS inData inGraphList'
 
                 -- put options in NetParams
                 netParams = NetParams
-                            { maxParallel =  maximizeParallel
+                            { maxNetParallel =  maximizeParallel
                             , netRandom = doRandomOrder
                             , netCheckHeuristic = checkHeuristicNet
                             , netMaxEdges = fromJust maxNetEdges

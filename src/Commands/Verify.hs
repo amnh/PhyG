@@ -410,6 +410,7 @@ swapArgList =
     , "keep"
     , "level"
     , "maxchanges"
+    , "maxparallel"
     , "multitraverse"
     , "nni"
     , "replicates"
