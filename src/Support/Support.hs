@@ -901,7 +901,8 @@ updateMoveTuple inGS inData inGraph inTuple@(inE, inV, inEBV, inVBV, inCost) =
                     saParams ∷ ∀ {a}. Maybe a
                     saParams = Nothing
                     netParams = NetParams
-                        { netRandom = randomOrder
+                        {  maxNetParallel = True
+                          , netRandom = randomOrder
                           , netCheckHeuristic = BestAll
                           , netMaxEdges = (maxBound ∷ Int)
                           , netKeepNum = keepNum

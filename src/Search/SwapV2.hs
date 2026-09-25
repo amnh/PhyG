@@ -773,8 +773,10 @@ doAllSplitsAndRejoin swapParams inGS inData doIA nonExactCharacters inGraphNetPe
 
 
                                     {-Heuristic cost calculations-}
-                                    heuristicActionPar <- getParallelChunkTraverse 
-                                    heuristicResultList <- heuristicActionPar heuristicAction rejoinEdges
+                                    heuristicResultList <- if maxSwapParallel swapParams then do
+                                                                heuristicActionPar <- getParallelChunkTraverse 
+                                                                heuristicActionPar heuristicAction rejoinEdges
+                                                            else mapM heuristicAction rejoinEdges
 
                                     -- process returns
                                     -- changed this to keep list of all not better for BestOnly and SA/Drift
