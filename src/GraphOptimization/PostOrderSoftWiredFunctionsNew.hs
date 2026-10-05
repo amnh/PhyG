@@ -950,8 +950,8 @@ traceBackBlock canonicalGraph nodeIndex (displayTree, charTreeV, resolutionIndex
                             )
                     else
                         if length childList > 2
-                            then --error ("Node " <> show nodeIndex <> " with > 2 children: " <> show childList)
-                                (LG.empty, V.empty)
+                            then error ("Node " <> show nodeIndex <> " with > 2 children: " <> show childList)
+                                --Need to fix when network created and filter (LG.empty, V.empty)
                             else
                                 if null childList
                                     then -- its a leaf
