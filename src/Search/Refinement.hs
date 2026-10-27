@@ -350,6 +350,7 @@ fuseGraphs inArgs inGS inData inGraphList
                     , atRandom = randomPairs -- really same as swapping at random not so important here
                     , keepNum = (fromJust keepNum)
                     , maxMoveEdgeDist = (2 * fromJust maxMoveEdgeDist)
+                    , maxSwapParallel = maximizeParallel
                     , steepest = False --want do all for rejoin if specify swapping
                     , joinAlternate = False -- join prune alternates--turned off for now
                     , sortEdgesSplitCost = True -- sort edges based on split cost-- greatest delta first
