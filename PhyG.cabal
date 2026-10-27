@@ -379,7 +379,7 @@ Executable phyg
     logfloat,     
     MissingH >= 1.4.3,
     MonadRandom >= 0.6 && < 1.0,
-    mmark,
+    mmark >= 0.0.7 && < 0.1,
     modern-uri,
     optparse-applicative,
     parallel,

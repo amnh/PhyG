@@ -199,6 +199,7 @@ mutateGraph inGS inData maxNetEdges inGraph
             valDoRandomOrder = True
             valJoinType = JoinPruned -- keep selection of rejoins based on all possibilities
             valMaxMoveEdgeDist = 10000
+            valMaXSwapParallel = False -- to limit memoory consumption
             valNumToKeep = 5
             valReturnMutated = True
             valSteepest = True
@@ -237,6 +238,7 @@ mutateGraph inGS inData maxNetEdges inGraph
                         , atRandom = True -- randomize split and rejoin edge orders
                         , keepNum = valNumToKeep
                         , maxMoveEdgeDist = valMaxMoveEdgeDist
+                        , maxSwapParallel = valMaXSwapParallel
                         , steepest = valSteepest
                         , joinAlternate = False
                         , doIA = valDoIA
